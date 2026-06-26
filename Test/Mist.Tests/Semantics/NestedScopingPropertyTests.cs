@@ -589,7 +589,7 @@ public sealed class NestedScopingPropertyTests
     private static (CompilerResult Result, ISemanticModel? Model) CompileAndCapture(string source)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "mist_pbt_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var sourcePath = Path.Combine(tempDir, "Program.mist");
@@ -883,7 +883,7 @@ public sealed class NestedScopingPropertyTests
     private static CompilerResult CompileSource(string source)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "mist_pbt_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var sourcePath = Path.Combine(tempDir, "Program.mist");

@@ -95,12 +95,12 @@ public sealed class PropertyInitializerNoArgsEmissionPropertyTests
     private static string BuildClassDeclaration(string typeName, ImmutableArray<string> propNames)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"class {typeName} {{");
+        _ = sb.AppendLine($"class {typeName} {{");
         foreach(var prop in propNames)
         {
-            sb.AppendLine($"    public int {prop} {{ get; set; }}");
+            _ = sb.AppendLine($"    public int {prop} {{ get; set; }}");
         }
-        sb.AppendLine("}");
+        _ = sb.AppendLine("}");
         return sb.ToString();
     }
 
@@ -163,7 +163,7 @@ public sealed class PropertyInitializerNoArgsEmissionPropertyTests
         var sb = new StringBuilder();
         foreach(var (_, content) in files)
         {
-            sb.AppendLine(content);
+            _ = sb.AppendLine(content);
         }
 
         return (true, sb.ToString(), "");

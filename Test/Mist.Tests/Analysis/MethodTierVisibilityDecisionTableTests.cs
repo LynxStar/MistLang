@@ -53,7 +53,7 @@ public sealed class MethodTierVisibilityDecisionTableTests : IDisposable
         scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist-method-tier-table-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(scratchDir);
+        _ = Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()
@@ -186,7 +186,7 @@ public sealed class MethodTierVisibilityDecisionTableTests : IDisposable
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,
             EmitToDisk: false);
 
-        driver.Compile(options);
+        _ = driver.Compile(options);
         return capture.Captured;
     }
 

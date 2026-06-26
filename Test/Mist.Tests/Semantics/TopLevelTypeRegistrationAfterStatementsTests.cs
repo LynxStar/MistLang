@@ -32,7 +32,7 @@ public sealed class TopLevelTypeRegistrationAfterStatementsTests : IDisposable
         scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist-tls-type-reg-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(scratchDir);
+        _ = Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()
@@ -105,7 +105,7 @@ public sealed class TopLevelTypeRegistrationAfterStatementsTests : IDisposable
         var driver = CreateDriverWithCapture(capture);
 
         // Act
-        driver.Compile(options);
+        _ = driver.Compile(options);
 
         // Assert — the class Foo is registered in the semantic model with the
         // inferred namespace (which equals the project name for a file at the root).
@@ -145,7 +145,7 @@ public sealed class TopLevelTypeRegistrationAfterStatementsTests : IDisposable
         var driver = CreateDriverWithCapture(capture);
 
         // Act
-        driver.Compile(options);
+        _ = driver.Compile(options);
 
         // Assert — the struct Bar is registered with the inferred namespace.
         Assert.NotNull(capture.CapturedModel);
@@ -186,7 +186,7 @@ public sealed class TopLevelTypeRegistrationAfterStatementsTests : IDisposable
         var driver = CreateDriverWithCapture(capture);
 
         // Act
-        driver.Compile(options);
+        _ = driver.Compile(options);
 
         // Assert — both types are registered with the inferred namespace.
         Assert.NotNull(capture.CapturedModel);
@@ -233,7 +233,7 @@ public sealed class TopLevelTypeRegistrationAfterStatementsTests : IDisposable
         var driver = CreateDriverWithCapture(capture);
 
         // Act
-        driver.Compile(options);
+        _ = driver.Compile(options);
 
         // Assert — class Foo is registered under the file-scoped namespace "MyApp",
         // NOT the inferred project namespace "TestProject".

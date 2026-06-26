@@ -133,7 +133,7 @@ public sealed class TargetTypedNewConstructorPropertyTests : IDisposable
     public TargetTypedNewConstructorPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistTargetNewCtor_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

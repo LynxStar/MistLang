@@ -56,7 +56,7 @@ public class IntrinsicMarkerDiagnosticsTests
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(sourceText)));
         var semBag = new DiagnosticBag();
-        builder.Build(
+        _ = builder.Build(
             compilation,
             ImmutableArray.Create(parseResult.Root!),
             ambientTypeResolver: null,
@@ -88,7 +88,7 @@ public class IntrinsicMarkerDiagnosticsTests
         var diagnostics = BuildAndCollectDiagnostics(source);
         var zeroThirties = WithId(diagnostics, "MIST_SB_0030");
 
-        Assert.Single(zeroThirties);
+        _ = Assert.Single(zeroThirties);
         var d = zeroThirties[0];
         Assert.Equal(DiagnosticSeverity.Error, d.Severity);
         Assert.Contains("Int32.operator+", d.Message);
@@ -120,7 +120,7 @@ public class IntrinsicMarkerDiagnosticsTests
         var diagnostics = BuildAndCollectDiagnostics(source);
         var zeroThirties = WithId(diagnostics, "MIST_SB_0030");
 
-        Assert.Single(zeroThirties);
+        _ = Assert.Single(zeroThirties);
         Assert.Contains("Int32.Next", zeroThirties[0].Message);
     }
 
@@ -135,7 +135,7 @@ public class IntrinsicMarkerDiagnosticsTests
         var diagnostics = BuildAndCollectDiagnostics(source);
         var zeroThirties = WithId(diagnostics, "MIST_SB_0030");
 
-        Assert.Single(zeroThirties);
+        _ = Assert.Single(zeroThirties);
         Assert.Contains("Int32.Int32", zeroThirties[0].Message);
     }
 
@@ -151,7 +151,7 @@ public class IntrinsicMarkerDiagnosticsTests
         var diagnostics = BuildAndCollectDiagnostics(source);
         var zeroThirtyOnes = WithId(diagnostics, "MIST_SB_0031");
 
-        Assert.Single(zeroThirtyOnes);
+        _ = Assert.Single(zeroThirtyOnes);
         var d = zeroThirtyOnes[0];
         Assert.Equal(DiagnosticSeverity.Error, d.Severity);
         Assert.Equal(
@@ -173,7 +173,7 @@ public class IntrinsicMarkerDiagnosticsTests
         var diagnostics = BuildAndCollectDiagnostics(source);
         var zeroThirtyOnes = WithId(diagnostics, "MIST_SB_0031");
 
-        Assert.Single(zeroThirtyOnes);
+        _ = Assert.Single(zeroThirtyOnes);
         Assert.Equal(
             "The 'intrinsic' modifier is reserved for the Standard Library and cannot be used in user code.",
             zeroThirtyOnes[0].Message);
@@ -232,7 +232,7 @@ public class IntrinsicMarkerDiagnosticsTests
         var diagnostics = BuildAndCollectDiagnostics(source);
         var zeroThirtyTwos = WithId(diagnostics, "MIST_SB_0032");
 
-        Assert.Single(zeroThirtyTwos);
+        _ = Assert.Single(zeroThirtyTwos);
         var d = zeroThirtyTwos[0];
         Assert.Equal(DiagnosticSeverity.Error, d.Severity);
         Assert.Contains("Member-level 'intrinsic'", d.Message);

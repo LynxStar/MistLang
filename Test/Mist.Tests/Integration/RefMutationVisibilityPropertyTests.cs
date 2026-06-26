@@ -51,7 +51,7 @@ public sealed class RefMutationVisibilityPropertyTests : IDisposable
     public RefMutationVisibilityPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "mist_pbt_ref_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -150,15 +150,15 @@ public sealed class RefMutationVisibilityPropertyTests : IDisposable
             var typeName = GetMistTypeName(s.Type);
 
             // Generate the mutator method
-            methods.AppendLine($"    private static void Mutate{i}(ref {typeName} v) {{");
-            methods.AppendLine($"        v = {s.AssignedValue};");
-            methods.AppendLine("    }");
-            methods.AppendLine();
+            _ = methods.AppendLine($"    private static void Mutate{i}(ref {typeName} v) {{");
+            _ = methods.AppendLine($"        v = {s.AssignedValue};");
+            _ = methods.AppendLine("    }");
+            _ = methods.AppendLine();
 
             // Generate the call in Main
-            mainBody.AppendLine($"        {typeName} x{i} = {s.InitialValue};");
-            mainBody.AppendLine($"        Mutate{i}(ref x{i});");
-            mainBody.AppendLine($"        Console.WriteLine(x{i});");
+            _ = mainBody.AppendLine($"        {typeName} x{i} = {s.InitialValue};");
+            _ = mainBody.AppendLine($"        Mutate{i}(ref x{i});");
+            _ = mainBody.AppendLine($"        Console.WriteLine(x{i});");
         }
 
         return $$"""
@@ -185,7 +185,7 @@ public sealed class RefMutationVisibilityPropertyTests : IDisposable
     private (int ExitCode, string Stdout, string Stderr) CompileAndRun(string mistSource)
     {
         var iterDir = Path.Combine(outputDir, Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(iterDir);
+        _ = Directory.CreateDirectory(iterDir);
 
         try
         {

@@ -127,7 +127,7 @@ public sealed class NoHiddenArrayFillPropertyTests
         var sb = new StringBuilder();
         foreach(var (_, content) in files)
         {
-            sb.AppendLine(content);
+            _ = sb.AppendLine(content);
         }
 
         return (true, sb.ToString(), "");
@@ -430,7 +430,7 @@ public sealed class NoHiddenArrayFillPropertyTests
                 break;
             }
 
-            bodyLines.AppendLine(line);
+            _ = bodyLines.AppendLine(line);
         }
 
         return bodyLines.ToString();

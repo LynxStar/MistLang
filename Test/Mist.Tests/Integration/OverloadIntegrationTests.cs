@@ -26,7 +26,7 @@ public sealed class OverloadIntegrationTests : IDisposable
         tempDir = Path.Combine(
             Path.GetTempPath(),
             "MistOverloadIntegration_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
     }
 
     public void Dispose()

@@ -56,7 +56,7 @@ public sealed class BootstrapNumericOperatorPropertyTests : IDisposable
     public BootstrapNumericOperatorPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "mist_pbt_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -133,10 +133,10 @@ public sealed class BootstrapNumericOperatorPropertyTests : IDisposable
             var a = FormatLiteral(s.A);
             var b = FormatLiteral(s.B);
 
-            body.AppendLine($"        int a{i} = {a};");
-            body.AppendLine($"        int b{i} = {b};");
-            body.AppendLine($"        {resultType} r{i} = a{i} {s.Op} b{i};");
-            body.AppendLine($"        Console.WriteLine(r{i});");
+            _ = body.AppendLine($"        int a{i} = {a};");
+            _ = body.AppendLine($"        int b{i} = {b};");
+            _ = body.AppendLine($"        {resultType} r{i} = a{i} {s.Op} b{i};");
+            _ = body.AppendLine($"        Console.WriteLine(r{i});");
         }
 
         return $$"""
@@ -160,7 +160,7 @@ public sealed class BootstrapNumericOperatorPropertyTests : IDisposable
     private (int ExitCode, string Stdout, string Stderr) CompileAndRun(string mistSource)
     {
         var iterDir = Path.Combine(outputDir, Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(iterDir);
+        _ = Directory.CreateDirectory(iterDir);
 
         try
         {

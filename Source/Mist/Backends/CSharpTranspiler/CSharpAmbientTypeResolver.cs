@@ -123,7 +123,7 @@ public sealed class CSharpAmbientTypeResolver : IAmbientTypeResolver
             namespaceTypes[ns] = [];
         }
 
-        namespaceTypes[ns].Add(name);
+        _ = namespaceTypes[ns].Add(name);
         typeFactories[(ns, name)] = factory;
     }
 }

@@ -32,7 +32,7 @@ public sealed class VoidEmitterTests : IDisposable
         outputDir = Path.Combine(
             Path.GetTempPath(),
             "MistVoidEmitterTests_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -574,7 +574,7 @@ public sealed class VoidEmitterTests : IDisposable
         var source = "class Program { public static void Main() { var x = Void.Void; } }";
 
         var model = BuildModel(ast, source);
-        EmitAndGetCsContent(model);
+        _ = EmitAndGetCsContent(model);
 
         // The MistVoid struct should be emitted in a separate shared file
         var mistVoidContent = GetMistVoidFileContent();
@@ -647,7 +647,7 @@ public sealed class VoidEmitterTests : IDisposable
         var source = "class Program { public void DoWork() { return; } public static void Main() { DoWork(); } }";
 
         var model = BuildModel(ast, source);
-        EmitAndGetCsContent(model);
+        _ = EmitAndGetCsContent(model);
 
         // No void value usage → MistVoid.g.cs file should NOT be emitted
         Assert.False(MistVoidFileExists());

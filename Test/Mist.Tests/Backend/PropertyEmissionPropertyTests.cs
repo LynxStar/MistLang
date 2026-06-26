@@ -35,7 +35,7 @@ public sealed class PropertyEmissionPropertyTests : IDisposable
         outputDir = Path.Combine(
             Path.GetTempPath(),
             "MistPropertyEmissionTests_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

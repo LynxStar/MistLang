@@ -381,7 +381,7 @@ public class ArityMismatchPropertyTests
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var arityDiags = diagnostics.Where(d => d.Id == DiagnosticId.ArityMismatch).ToList();
-        Assert.Single(arityDiags);
+        _ = Assert.Single(arityDiags);
         Assert.Contains("Map", arityDiags[0].Message);
     }
 
@@ -414,7 +414,7 @@ public class ArityMismatchPropertyTests
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var arityDiags = diagnostics.Where(d => d.Id == DiagnosticId.ArityMismatch).ToList();
-        Assert.Single(arityDiags);
+        _ = Assert.Single(arityDiags);
         Assert.Contains("Box", arityDiags[0].Message);
     }
 
@@ -449,7 +449,7 @@ public class ArityMismatchPropertyTests
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var arityDiags = diagnostics.Where(d => d.Id == DiagnosticId.MethodArityMismatch).ToList();
-        Assert.Single(arityDiags);
+        _ = Assert.Single(arityDiags);
         Assert.Contains("DoWork", arityDiags[0].Message);
     }
 }

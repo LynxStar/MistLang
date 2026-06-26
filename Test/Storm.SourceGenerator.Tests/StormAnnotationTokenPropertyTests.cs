@@ -56,7 +56,7 @@ public class StormAnnotationTokenPropertyTests
             var contentTokens = tokens.Where(t => t.Kind != StormTokenKind.EndOfFile).ToList();
 
             Assert.Empty(diagnostics);
-            Assert.Single(contentTokens);
+            _ = Assert.Single(contentTokens);
             Assert.Equal(StormTokenKind.Annotation, contentTokens[0].Kind);
             Assert.Equal(input, contentTokens[0].Lexeme);
         }

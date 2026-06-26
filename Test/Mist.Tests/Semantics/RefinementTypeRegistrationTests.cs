@@ -83,7 +83,7 @@ public class RefinementTypeRegistrationTests
 
         var declaredType = aliasSymbol.DeclaredType;
         Assert.NotNull(declaredType);
-        Assert.IsType<RefinementType>(declaredType);
+        _ = Assert.IsType<RefinementType>(declaredType);
 
         var refinementType = (RefinementType)declaredType;
         Assert.Equal("AdultAge", refinementType.Name);
@@ -137,7 +137,7 @@ public class RefinementTypeRegistrationTests
 
         var declaredType = aliasSymbol.DeclaredType;
         Assert.NotNull(declaredType);
-        Assert.IsType<RefinementType>(declaredType);
+        _ = Assert.IsType<RefinementType>(declaredType);
 
         var refinementType = (RefinementType)declaredType;
         Assert.Equal("Percentage", refinementType.Name);
@@ -195,7 +195,7 @@ public class RefinementTypeRegistrationTests
 
         var declaredType = aliasSymbol.DeclaredType;
         Assert.NotNull(declaredType);
-        Assert.IsType<UnionType>(declaredType);
+        _ = Assert.IsType<UnionType>(declaredType);
 
         var unionType = (UnionType)declaredType;
         Assert.Equal(2, unionType.Constituents.Count);
@@ -240,7 +240,7 @@ public class RefinementTypeRegistrationTests
         Assert.NotNull(model);
 
         var incompatibleDiags = WithId(diagnostics, "MIST_TC_0072");
-        Assert.Single(incompatibleDiags);
+        _ = Assert.Single(incompatibleDiags);
 
         var d = incompatibleDiags[0];
         Assert.Equal(DiagnosticSeverity.Error, d.Severity);
@@ -259,7 +259,7 @@ public class RefinementTypeRegistrationTests
         Assert.NotNull(model);
 
         var incompatibleDiags = WithId(diagnostics, "MIST_TC_0072");
-        Assert.Single(incompatibleDiags);
+        _ = Assert.Single(incompatibleDiags);
 
         var d = incompatibleDiags[0];
         Assert.Equal(DiagnosticSeverity.Error, d.Severity);

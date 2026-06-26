@@ -26,7 +26,7 @@ public sealed class EntryPointBlockNamespaceTests : IDisposable
         scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist-ep-block-ns-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(scratchDir);
+        _ = Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()

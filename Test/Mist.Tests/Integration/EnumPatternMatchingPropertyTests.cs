@@ -79,7 +79,7 @@ public sealed class EnumPatternMatchingPropertyTests : IDisposable
     public EnumPatternMatchingPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "mist_pbt_enum_pm_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -123,8 +123,8 @@ public sealed class EnumPatternMatchingPropertyTests : IDisposable
     private static string BuildBatchedProgram(IReadOnlyList<PatternMatchScenario> scenarios)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("using Standard;");
-        sb.AppendLine();
+        _ = sb.AppendLine("using Standard;");
+        _ = sb.AppendLine();
 
         // Collect unique enum definitions (by name + members).
         // Since multiple scenarios may use the same enum name with different members,
@@ -141,19 +141,19 @@ public sealed class EnumPatternMatchingPropertyTests : IDisposable
         // Emit enum declarations
         foreach(var (enumName, members) in enumDefs)
         {
-            sb.AppendLine($"public enum {enumName} : int {{");
+            _ = sb.AppendLine($"public enum {enumName} : int {{");
             for(var i = 0; i < members.Count; i++)
             {
                 var comma = i < members.Count - 1 ? "," : "";
-                sb.AppendLine($"    {members[i].Name} = {members[i].Value}{comma}");
+                _ = sb.AppendLine($"    {members[i].Name} = {members[i].Value}{comma}");
             }
-            sb.AppendLine("}");
-            sb.AppendLine();
+            _ = sb.AppendLine("}");
+            _ = sb.AppendLine();
         }
 
         // Emit Program class with Main
-        sb.AppendLine("class Program {");
-        sb.AppendLine("    static void Main() {");
+        _ = sb.AppendLine("class Program {");
+        _ = sb.AppendLine("    static void Main() {");
 
         for(var i = 0; i < scenarios.Count; i++)
         {
@@ -166,13 +166,13 @@ public sealed class EnumPatternMatchingPropertyTests : IDisposable
             var memberInEnum = enumMembers.FirstOrDefault(m => m.Name == testedMember.Name);
 
             // Create a variable holding the scrutinee value, then test with is-expression
-            sb.AppendLine($"        {s.EnumName} v{i} = {s.EnumName}.{enumMembers.First(m => m.Value == s.ScrutineeValue).Name};");
-            sb.AppendLine($"        bool r{i} = v{i} is {s.EnumName}.{testedMember.Name};");
-            sb.AppendLine($"        Console.WriteLine(r{i});");
+            _ = sb.AppendLine($"        {s.EnumName} v{i} = {s.EnumName}.{enumMembers.First(m => m.Value == s.ScrutineeValue).Name};");
+            _ = sb.AppendLine($"        bool r{i} = v{i} is {s.EnumName}.{testedMember.Name};");
+            _ = sb.AppendLine($"        Console.WriteLine(r{i});");
         }
 
-        sb.AppendLine("    }");
-        sb.AppendLine("}");
+        _ = sb.AppendLine("    }");
+        _ = sb.AppendLine("}");
 
         return sb.ToString();
     }
@@ -184,7 +184,7 @@ public sealed class EnumPatternMatchingPropertyTests : IDisposable
     private (int ExitCode, string Stdout, string Stderr) CompileAndRun(string mistSource)
     {
         var iterDir = Path.Combine(outputDir, Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(iterDir);
+        _ = Directory.CreateDirectory(iterDir);
 
         try
         {

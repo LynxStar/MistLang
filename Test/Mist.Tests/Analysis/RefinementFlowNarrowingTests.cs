@@ -33,7 +33,7 @@ public class RefinementFlowNarrowingTests
     private static ImmutableArray<Diagnostic> CompileAndGetDiagnostics(string source)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "mist_pbt_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var sourcePath = Path.Combine(tempDir, "Program.mist");
@@ -169,7 +169,7 @@ public class RefinementFlowNarrowingTests
 
         // After reassignment, x is no longer narrowed — should produce MIST_TC_0098
         var refinementDiags = WithId(diagnostics, "MIST_TC_0098");
-        Assert.Single(refinementDiags);
+        _ = Assert.Single(refinementDiags);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -195,7 +195,7 @@ public class RefinementFlowNarrowingTests
 
         // Without narrowing (no if condition), should produce MIST_TC_0098
         var refinementDiags = WithId(diagnostics, "MIST_TC_0098");
-        Assert.Single(refinementDiags);
+        _ = Assert.Single(refinementDiags);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -226,7 +226,7 @@ public class RefinementFlowNarrowingTests
 
         // The condition doesn't prove AdultAge — should produce MIST_TC_0098
         var refinementDiags = WithId(diagnostics, "MIST_TC_0098");
-        Assert.Single(refinementDiags);
+        _ = Assert.Single(refinementDiags);
     }
 
     [Fact]
@@ -288,7 +288,7 @@ public class RefinementFlowNarrowingTests
         // expression to a refinement type should produce MIST_TC_0098.
         // This is the same behavior expected for closure-captured variables.
         var refinementDiags = WithId(diagnostics, "MIST_TC_0098");
-        Assert.Single(refinementDiags);
+        _ = Assert.Single(refinementDiags);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -316,6 +316,6 @@ public class RefinementFlowNarrowingTests
         // Inside the if: no error (narrowed)
         // Outside the if: should produce MIST_TC_0098
         var refinementDiags = WithId(diagnostics, "MIST_TC_0098");
-        Assert.Single(refinementDiags);
+        _ = Assert.Single(refinementDiags);
     }
 }

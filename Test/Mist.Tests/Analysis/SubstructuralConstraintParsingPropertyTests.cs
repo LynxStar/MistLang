@@ -77,7 +77,7 @@ public class SubstructuralConstraintParsingPropertyTests
             ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
 
         var tempDir = Path.Combine(Path.GetTempPath(), "mist_constraint_parse_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var sourcePath = Path.Combine(tempDir, "Program.mist");

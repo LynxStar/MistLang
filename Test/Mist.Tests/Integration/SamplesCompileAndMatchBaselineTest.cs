@@ -179,7 +179,7 @@ public sealed class SamplesCompileAndMatchBaselineTest
             }
         };
 
-        process.Start();
+        _ = process.Start();
 
         var stdoutTask = process.StandardOutput.ReadToEndAsync();
         var stderrTask = process.StandardError.ReadToEndAsync();

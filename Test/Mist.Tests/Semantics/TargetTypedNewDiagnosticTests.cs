@@ -39,7 +39,7 @@ public sealed class TargetTypedNewDiagnosticTests : IDisposable
     public TargetTypedNewDiagnosticTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistTargetNewDiag_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -102,7 +102,7 @@ public sealed class TargetTypedNewDiagnosticTests : IDisposable
         var diagnostics = CompileAndGetDiagnostics(source);
         var targetDiags = WithId(diagnostics, "MIST_TARGET_NEW_WITH_VAR");
 
-        Assert.Single(targetDiags);
+        _ = Assert.Single(targetDiags);
         Assert.Equal(DiagnosticSeverity.Error, targetDiags[0].Severity);
         Assert.Contains("var", targetDiags[0].Message);
     }
@@ -123,7 +123,7 @@ public sealed class TargetTypedNewDiagnosticTests : IDisposable
         var diagnostics = CompileAndGetDiagnostics(source);
         var targetDiags = WithId(diagnostics, "MIST_TARGET_NEW_WITH_VAR");
 
-        Assert.Single(targetDiags);
+        _ = Assert.Single(targetDiags);
         Assert.Equal(DiagnosticSeverity.Error, targetDiags[0].Severity);
     }
 
@@ -147,7 +147,7 @@ public sealed class TargetTypedNewDiagnosticTests : IDisposable
         var diagnostics = CompileAndGetDiagnostics(source);
         var targetDiags = WithId(diagnostics, "MIST_TARGET_NEW_NO_CONTEXT");
 
-        Assert.Single(targetDiags);
+        _ = Assert.Single(targetDiags);
         Assert.Equal(DiagnosticSeverity.Error, targetDiags[0].Severity);
         Assert.Contains("cannot be inferred", targetDiags[0].Message);
     }
@@ -177,7 +177,7 @@ public sealed class TargetTypedNewDiagnosticTests : IDisposable
         var diagnostics = CompileAndGetDiagnostics(source);
         var targetDiags = WithId(diagnostics, "MIST_TARGET_NEW_ABSTRACT");
 
-        Assert.Single(targetDiags);
+        _ = Assert.Single(targetDiags);
         Assert.Equal(DiagnosticSeverity.Error, targetDiags[0].Severity);
         Assert.Contains("IFoo", targetDiags[0].Message);
         Assert.Contains("abstract type", targetDiags[0].Message);
@@ -206,7 +206,7 @@ public sealed class TargetTypedNewDiagnosticTests : IDisposable
         var diagnostics = CompileAndGetDiagnostics(source, withFrameworkReferences: true);
         var targetDiags = WithId(diagnostics, "MIST_ABSTRACT_INSTANTIATION");
 
-        Assert.Single(targetDiags);
+        _ = Assert.Single(targetDiags);
         Assert.Equal(DiagnosticSeverity.Error, targetDiags[0].Severity);
         Assert.Contains("Stream", targetDiags[0].Message);
     }

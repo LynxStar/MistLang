@@ -40,7 +40,7 @@ public sealed class ConstraintEmissionTests : IDisposable
         outputDir = Path.Combine(
             Path.GetTempPath(),
             "MistConstraintEmitTests_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

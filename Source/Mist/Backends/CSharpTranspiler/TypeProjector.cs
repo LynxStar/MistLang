@@ -544,7 +544,7 @@ internal sealed class TypeProjector
         {
             foreach(var parentIface in clrType.BaseType.GetInterfaces())
             {
-                parentInterfaces.Add(parentIface);
+                _ = parentInterfaces.Add(parentIface);
             }
         }
 
@@ -1814,7 +1814,7 @@ internal sealed class TypeProjector
         }
         finally
         {
-            stack.Remove(clrType);
+            _ = stack.Remove(clrType);
         }
     }
 

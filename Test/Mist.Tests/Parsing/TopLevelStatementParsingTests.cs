@@ -80,7 +80,7 @@ public class TopLevelStatementParsingTests
         Assert.Empty(result.Diagnostics);
         var cu = Assert.IsType<CompilationUnitNode>(result.Root);
         Assert.Equal(2, cu.Items.Length);
-        Assert.IsType<StatementItemTopLevelItemNode>(cu.Items[0]);
-        Assert.IsType<TypeItemTopLevelItemNode>(cu.Items[1]);
+        _ = Assert.IsType<StatementItemTopLevelItemNode>(cu.Items[0]);
+        _ = Assert.IsType<TypeItemTopLevelItemNode>(cu.Items[1]);
     }
 }

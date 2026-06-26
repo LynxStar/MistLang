@@ -44,7 +44,7 @@ public sealed class MoveBoundaryDefaultGraphPropertyTests : IDisposable
     public MoveBoundaryDefaultGraphPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistMoveBoundaryDefaultPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -110,7 +110,7 @@ public sealed class MoveBoundaryDefaultGraphPropertyTests : IDisposable
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,
             EmitToDisk: false);
 
-        driver.Compile(options);
+        _ = driver.Compile(options);
         return capture.Captured;
     }
 

@@ -66,7 +66,7 @@ public sealed class TypeArgumentInferenceReturnTypePropertyTests : IDisposable
     public TypeArgumentInferenceReturnTypePropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistReturnTypePBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

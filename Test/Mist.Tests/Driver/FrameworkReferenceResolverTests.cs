@@ -325,7 +325,7 @@ public sealed class FrameworkReferenceResolverTests
             // AspNetCore pack IS installed for net5.0 — it resolves successfully.
             Assert.NotEmpty(result.Resolved);
             Assert.Equal(1, result.FailureCount); // only the unknown framework fails
-            Assert.Single(diags); // only MIST_FWREF_002
+            _ = Assert.Single(diags); // only MIST_FWREF_002
         }
         else
         {

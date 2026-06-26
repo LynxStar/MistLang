@@ -61,7 +61,7 @@ public sealed class ForeachNonEnumerablePropertyTests : IDisposable
     public ForeachNonEnumerablePropertyTests()
     {
         tempDir = Path.Combine(Path.GetTempPath(), "MistForeachNonEnumPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
     }
 
     public void Dispose()

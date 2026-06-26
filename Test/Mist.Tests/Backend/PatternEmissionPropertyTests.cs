@@ -40,7 +40,7 @@ public sealed class PatternEmissionPropertyTests : IDisposable
         outputDir = Path.Combine(
             Path.GetTempPath(),
             "MistPatternEmissionTests_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

@@ -318,7 +318,7 @@ public sealed class SemanticModel : ISemanticModel
 
     public void RecordGuardNeeded(ISymbol parameterSymbol)
     {
-        guardNeededParameters.Add(parameterSymbol);
+        _ = guardNeededParameters.Add(parameterSymbol);
     }
 
     public bool IsGuardElidable(ISymbol parameterSymbol)

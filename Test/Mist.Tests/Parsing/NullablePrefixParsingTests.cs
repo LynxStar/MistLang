@@ -59,8 +59,8 @@ public class NullablePrefixParsingTests
         var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
         Assert.NotNull(typeDecl);
         Assert.Equal(2, typeDecl!.ClassDeclaration.Modifiers.Length);
-        Assert.IsType<PublicModifierModifierNode>(typeDecl.ClassDeclaration.Modifiers[0]);
-        Assert.IsType<StaticModifierModifierNode>(typeDecl.ClassDeclaration.Modifiers[1]);
+        _ = Assert.IsType<PublicModifierModifierNode>(typeDecl.ClassDeclaration.Modifiers[0]);
+        _ = Assert.IsType<StaticModifierModifierNode>(typeDecl.ClassDeclaration.Modifiers[1]);
     }
 
     [Fact]
@@ -120,7 +120,7 @@ public class Program
         var cu = result.Root as CompilationUnitNode;
         Assert.NotNull(cu);
 
-        Assert.Single(cu!.Usings);
+        _ = Assert.Single(cu!.Usings);
 
         var ns = cu.GetNamespace() as FileScopedNamespaceNamespaceDeclarationNode;
         Assert.NotNull(ns);
@@ -195,9 +195,9 @@ public class Program
         var classDecl = typeDecl!.ClassDeclaration;
         Assert.Equal(3, classDecl.Members.Length);
 
-        Assert.IsType<FieldMemberMemberDeclarationNode>(classDecl.Members[0]);
-        Assert.IsType<ConstructorMemberMemberDeclarationNode>(classDecl.Members[1]);
-        Assert.IsType<MethodMemberMemberDeclarationNode>(classDecl.Members[2]);
+        _ = Assert.IsType<FieldMemberMemberDeclarationNode>(classDecl.Members[0]);
+        _ = Assert.IsType<ConstructorMemberMemberDeclarationNode>(classDecl.Members[1]);
+        _ = Assert.IsType<MethodMemberMemberDeclarationNode>(classDecl.Members[2]);
     }
 
     [Fact]

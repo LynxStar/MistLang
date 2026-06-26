@@ -76,18 +76,18 @@ public class StormDenseIdAssignmentPropertyTests
     private static string BuildGrammarSource(List<(string Name, bool IsMemo)> rules)
     {
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("token Tok = [a-z]+;");
-        sb.AppendLine("token Num = [0-9]+;");
+        _ = sb.AppendLine("token Tok = [a-z]+;");
+        _ = sb.AppendLine("token Num = [0-9]+;");
 
         foreach(var (name, isMemo) in rules)
         {
             if(isMemo)
             {
-                sb.AppendLine("@memo");
+                _ = sb.AppendLine("@memo");
             }
 
             // Multi-alternative rules are always speculative-safe
-            sb.AppendLine($"rule {name} = Tok | Num;");
+            _ = sb.AppendLine($"rule {name} = Tok | Num;");
         }
 
         return sb.ToString();

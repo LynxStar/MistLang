@@ -86,12 +86,12 @@ public sealed class PropertyInitializerMemberExistencePropertyTests
     private static string BuildClassDeclaration(string typeName, string[] propNames)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"class {typeName} {{");
+        _ = sb.AppendLine($"class {typeName} {{");
         foreach(var prop in propNames)
         {
-            sb.AppendLine($"    public int {prop} {{ get; set; }}");
+            _ = sb.AppendLine($"    public int {prop} {{ get; set; }}");
         }
-        sb.AppendLine("}");
+        _ = sb.AppendLine("}");
         return sb.ToString();
     }
 

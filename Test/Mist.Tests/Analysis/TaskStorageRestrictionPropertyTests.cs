@@ -47,7 +47,7 @@ public class TaskStorageRestrictionPropertyTests
     private static ImmutableArray<Diagnostic> Compile(string source)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "mist_task_prop_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var sourcePath = Path.Combine(tempDir, "Program.mist");

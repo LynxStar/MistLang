@@ -158,7 +158,7 @@ public class SubstituteClosedUnknownResultTypeTests
         // After substitution, its resolved type should be UnknownType.
         var fooReadSuffix = suffixes.FirstOrDefault(s => model.GetTypeOf(s) is UnknownType);
         Assert.NotNull(fooReadSuffix);
-        Assert.IsType<UnknownType>(model.GetTypeOf(fooReadSuffix));
+        _ = Assert.IsType<UnknownType>(model.GetTypeOf(fooReadSuffix));
     }
 
     /// <summary>

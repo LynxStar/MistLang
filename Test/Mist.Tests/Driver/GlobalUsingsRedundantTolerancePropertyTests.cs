@@ -73,7 +73,7 @@ public sealed class GlobalUsingsRedundantTolerancePropertyTests
         string definingSource, string consumingSource, ImmutableArray<string> globalUsings)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), $"mist_pbt_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var defPath = Path.Combine(tempDir, "Definitions.mist");

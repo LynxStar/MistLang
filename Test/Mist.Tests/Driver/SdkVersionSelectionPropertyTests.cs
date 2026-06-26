@@ -111,19 +111,19 @@ public sealed class SdkVersionSelectionPropertyTests : IDisposable
         tempDirs.Add(sdkRoot);
 
         var packsDir = Path.Combine(sdkRoot, "packs", "Microsoft.NETCore.App.Ref");
-        Directory.CreateDirectory(packsDir);
+        _ = Directory.CreateDirectory(packsDir);
 
         foreach(var entry in entries)
         {
             var versionStr = $"{entry.Major}.{entry.Minor}.{entry.Patch}";
             var versionDir = Path.Combine(packsDir, versionStr);
-            Directory.CreateDirectory(versionDir);
+            _ = Directory.CreateDirectory(versionDir);
 
             if(entry.HasRefAssemblies)
             {
                 // Create the ref/{tfm}/ directory to indicate compatibility
                 var refDir = Path.Combine(versionDir, "ref", tfm);
-                Directory.CreateDirectory(refDir);
+                _ = Directory.CreateDirectory(refDir);
             }
         }
 

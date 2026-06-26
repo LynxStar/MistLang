@@ -59,14 +59,14 @@ public sealed class CSharpTranspilerBackend : IBackend
         var mergedSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach(var path in sdkPaths)
         {
-            mergedSet.Add(path);
+            _ = mergedSet.Add(path);
         }
 
         if(!additionalAssemblyPaths.IsDefaultOrEmpty)
         {
             foreach(var path in additionalAssemblyPaths)
             {
-                mergedSet.Add(path);
+                _ = mergedSet.Add(path);
             }
         }
 

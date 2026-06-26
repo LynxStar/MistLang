@@ -72,7 +72,7 @@ public class StorageBanDeclarationTests
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(sourceText)));
         var semBag = new DiagnosticBag();
-        builder.Build(
+        _ = builder.Build(
             compilation,
             ImmutableArray.Create(parseResult.Root!),
             ambientTypeResolver: null,
@@ -102,7 +102,7 @@ public class StorageBanDeclarationTests
         var diagnostics = BuildAndCollectDiagnostics(source);
         var hits = WithId(diagnostics, "MIST_SB_0050");
 
-        Assert.Single(hits);
+        _ = Assert.Single(hits);
         var d = hits[0];
         Assert.Equal(DiagnosticSeverity.Error, d.Severity);
         // Diagnostic must name the declaring type and the field (Req 16.1).
@@ -124,7 +124,7 @@ public class StorageBanDeclarationTests
         var diagnostics = BuildAndCollectDiagnostics(source);
         var hits = WithId(diagnostics, "MIST_SB_0050");
 
-        Assert.Single(hits);
+        _ = Assert.Single(hits);
         var d = hits[0];
         Assert.Equal(DiagnosticSeverity.Error, d.Severity);
         Assert.Contains("Foo", d.Message);
@@ -143,7 +143,7 @@ public class StorageBanDeclarationTests
         var diagnostics = BuildAndCollectDiagnostics(source);
         var hits = WithId(diagnostics, "MIST_SB_0050");
 
-        Assert.Single(hits);
+        _ = Assert.Single(hits);
         Assert.Contains("Foo", hits[0].Message);
         Assert.Contains("m", hits[0].Message);
     }
@@ -162,7 +162,7 @@ public class StorageBanDeclarationTests
         var diagnostics = BuildAndCollectDiagnostics(source);
         var hits = WithId(diagnostics, "MIST_SB_0050");
 
-        Assert.Single(hits);
+        _ = Assert.Single(hits);
         Assert.Contains("Foo", hits[0].Message);
         Assert.Contains("nested", hits[0].Message);
     }
@@ -206,7 +206,7 @@ public class StorageBanDeclarationTests
         var diagnostics = BuildAndCollectDiagnostics(source);
         var hits = WithId(diagnostics, "MIST_SB_0051");
 
-        Assert.Single(hits);
+        _ = Assert.Single(hits);
         var d = hits[0];
         Assert.Equal(DiagnosticSeverity.Error, d.Severity);
         Assert.Contains("Foo", d.Message);
@@ -225,7 +225,7 @@ public class StorageBanDeclarationTests
         var diagnostics = BuildAndCollectDiagnostics(source);
         var hits = WithId(diagnostics, "MIST_SB_0051");
 
-        Assert.Single(hits);
+        _ = Assert.Single(hits);
         Assert.Contains("Foo", hits[0].Message);
         Assert.Contains("Xs", hits[0].Message);
     }
@@ -255,7 +255,7 @@ public class StorageBanDeclarationTests
         var diagnostics = BuildAndCollectDiagnostics(source);
         var hits = WithId(diagnostics, "MIST_SB_0052");
 
-        Assert.Single(hits);
+        _ = Assert.Single(hits);
         var d = hits[0];
         Assert.Equal(DiagnosticSeverity.Error, d.Severity);
         Assert.Contains("Foo", d.Message);
@@ -274,7 +274,7 @@ public class StorageBanDeclarationTests
         var diagnostics = BuildAndCollectDiagnostics(source);
         var hits = WithId(diagnostics, "MIST_SB_0052");
 
-        Assert.Single(hits);
+        _ = Assert.Single(hits);
         Assert.Contains("Foo", hits[0].Message);
     }
 

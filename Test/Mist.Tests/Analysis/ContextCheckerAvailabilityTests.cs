@@ -36,7 +36,7 @@ public sealed class ContextCheckerAvailabilityTests
     {
         var driver = CreateDriver();
         var tempDir = Path.Combine(Path.GetTempPath(), $"mist_ctx_test_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
 
         try
         {
@@ -94,7 +94,7 @@ public sealed class ContextCheckerAvailabilityTests
         var diagnostics = CompileSource(source);
         var ctxDiags = GetContextDiagnostics(diagnostics);
 
-        Assert.Single(ctxDiags);
+        _ = Assert.Single(ctxDiags);
         Assert.Contains("Consume", ctxDiags[0].Message);
         Assert.Contains("MyCtx", ctxDiags[0].Message);
     }
@@ -126,7 +126,7 @@ public sealed class ContextCheckerAvailabilityTests
 
         // The diagnostic should be emitted at the call site in Middle()
         // where Consume() is called without context.
-        Assert.Single(ctxDiags);
+        _ = Assert.Single(ctxDiags);
         Assert.Contains("Consume", ctxDiags[0].Message);
     }
 
@@ -391,7 +391,7 @@ public sealed class ContextCheckerAvailabilityTests
         var diagnostics = CompileSource(source);
         var ctxDiags = GetContextDiagnostics(diagnostics);
 
-        Assert.Single(ctxDiags);
+        _ = Assert.Single(ctxDiags);
         Assert.Contains("CtxB", ctxDiags[0].Message);
     }
 
@@ -451,7 +451,7 @@ public sealed class ContextCheckerAvailabilityTests
         var diagnostics = CompileSource(source);
         var ctxDiags = GetContextDiagnostics(diagnostics);
 
-        Assert.Single(ctxDiags);
+        _ = Assert.Single(ctxDiags);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -480,7 +480,7 @@ public sealed class ContextCheckerAvailabilityTests
         var diagnostics = CompileSource(source);
         var ctxDiags = GetContextDiagnostics(diagnostics);
 
-        Assert.Single(ctxDiags);
+        _ = Assert.Single(ctxDiags);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -507,7 +507,7 @@ public sealed class ContextCheckerAvailabilityTests
         var diagnostics = CompileSource(source);
         var ctxDiags = GetContextDiagnostics(diagnostics);
 
-        Assert.Single(ctxDiags);
+        _ = Assert.Single(ctxDiags);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

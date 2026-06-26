@@ -53,7 +53,7 @@ public sealed class AnonymousTypeEmitterPropertyTests : IDisposable
     public AnonymousTypeEmitterPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "mist_anon_emit_pbt_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -164,30 +164,30 @@ public sealed class AnonymousTypeEmitterPropertyTests : IDisposable
         for(var i = 0; i < scenarios.Count; i++)
         {
             var s = scenarios[i];
-            body.AppendLine($"        // Scenario {i}");
-            body.AppendLine("        {");
+            _ = body.AppendLine($"        // Scenario {i}");
+            _ = body.AppendLine("        {");
 
             // For projected variables, declare them first
             foreach(var prop in s.Properties)
             {
                 if(prop.Kind == PropertyKind.ProjectedVariable)
                 {
-                    body.AppendLine($"            var {prop.Name} = {prop.Value};");
+                    _ = body.AppendLine($"            var {prop.Name} = {prop.Value};");
                 }
             }
 
             // Build the anonymous type expression
             var initParts = s.Properties.Select(p => p.ToMistInitializer());
             var initList = string.Join(", ", initParts);
-            body.AppendLine($"            var s = new {{ {initList} }};");
+            _ = body.AppendLine($"            var s = new {{ {initList} }};");
 
             // Print property values as comma-separated
             var accessParts = s.Properties.Select(p => $"{{s.{p.Name}}}");
             var interpolation = string.Join(",", accessParts);
-            body.AppendLine($"            Console.WriteLine($\"{interpolation}\");");
+            _ = body.AppendLine($"            Console.WriteLine($\"{interpolation}\");");
 
-            body.AppendLine("        }");
-            body.AppendLine();
+            _ = body.AppendLine("        }");
+            _ = body.AppendLine();
         }
 
         return $$"""

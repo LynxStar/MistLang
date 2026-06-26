@@ -442,7 +442,7 @@ public static class AstEmitter
     {
         if(insideRep && expr is TokenRefIR)
         {
-            result.Add(expr);
+            _ = result.Add(expr);
         }
 
         switch(expr)
@@ -484,7 +484,7 @@ public static class AstEmitter
     {
         if(insideOpt && (expr is TokenRefIR || expr is AlternationIR))
         {
-            result.Add(expr);
+            _ = result.Add(expr);
         }
 
         switch(expr)

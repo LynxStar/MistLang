@@ -28,7 +28,7 @@ public sealed class EmitterDisposableDispatchTests : IDisposable
     public EmitterDisposableDispatchTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistEmitterDisposableDispatch_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

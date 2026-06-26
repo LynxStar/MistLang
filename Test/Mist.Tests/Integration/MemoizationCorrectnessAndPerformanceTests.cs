@@ -108,7 +108,7 @@ public sealed class MemoizationCorrectnessAndPerformanceTests
             var warmLexBag = new DiagnosticBag();
             var warmTokens = lexer.Lex(source, warmLexBag);
             var warmParseBag = new DiagnosticBag();
-            parser.Parse(warmTokens, warmParseBag);
+            _ = parser.Parse(warmTokens, warmParseBag);
         }
 
         // Measured pass: lex + parse only
@@ -118,7 +118,7 @@ public sealed class MemoizationCorrectnessAndPerformanceTests
             var lexBag = new DiagnosticBag();
             var tokens = lexer.Lex(source, lexBag);
             var parseBag = new DiagnosticBag();
-            parser.Parse(tokens, parseBag);
+            _ = parser.Parse(tokens, parseBag);
         }
         stopwatch.Stop();
 

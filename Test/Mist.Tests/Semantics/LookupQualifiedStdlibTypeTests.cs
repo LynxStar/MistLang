@@ -91,7 +91,7 @@ public class LookupQualifiedStdlibTypeTests
     {
         // Arrange — build a semantic model containing `Standard.Int32`.
         var model = BuildModel(StdlibStandardInt32Snippet);
-        Assert.IsType<Scope>(model.GlobalScope);
+        _ = Assert.IsType<Scope>(model.GlobalScope);
         var globalScope = (Scope)model.GlobalScope;
 
         // Act — call the helper directly.
@@ -102,7 +102,7 @@ public class LookupQualifiedStdlibTypeTests
 
         // Assert — the resolved IType is the `Standard.Int32` StructType.
         Assert.NotNull(resolved);
-        Assert.IsType<StructType>(resolved);
+        _ = Assert.IsType<StructType>(resolved);
         var structType = (StructType)resolved;
         Assert.Equal("Int32", structType.DisplayName);
         Assert.Equal("Standard", structType.ContainingNamespace);

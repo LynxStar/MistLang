@@ -458,7 +458,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
 
                 foreach(var typeName in typeNames)
                 {
-                    existingNames.Add(typeName);
+                    _ = existingNames.Add(typeName);
                 }
             }
         }

@@ -296,7 +296,7 @@ public sealed class ExtensionReceiverTypeIdentityBugConditionPropertyTests : IDi
             """;
 
         var tempDir = Path.Combine(Path.GetTempPath(), "mist_ext_identity_pbt_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var sourcePath = Path.Combine(tempDir, "Program.mist");

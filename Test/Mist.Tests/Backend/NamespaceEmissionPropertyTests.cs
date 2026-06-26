@@ -32,7 +32,7 @@ public sealed class NamespaceEmissionPropertyTests : IDisposable
     public NamespaceEmissionPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistNsEmitTests_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

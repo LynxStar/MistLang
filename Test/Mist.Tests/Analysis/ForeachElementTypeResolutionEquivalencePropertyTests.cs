@@ -91,7 +91,7 @@ public sealed class ForeachElementTypeResolutionEquivalencePropertyTests : IDisp
     public ForeachElementTypeResolutionEquivalencePropertyTests()
     {
         tempDir = Path.Combine(Path.GetTempPath(), "MistForeachElemTypePBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
     }
 
     public void Dispose()

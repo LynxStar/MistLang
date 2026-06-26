@@ -86,7 +86,7 @@ public sealed class UnknownIsPatternAndStorageSkipTests : IDisposable
         outputDir = Path.Combine(
             Path.GetTempPath(),
             "MistUnknownIsAndSkip_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -365,7 +365,7 @@ public sealed class UnknownIsPatternAndStorageSkipTests : IDisposable
         var storageBanHits = diagnostics
             .Where(d => d.Id.Value == "MIST_SB_0050")
             .ToImmutableArray();
-        Assert.Single(storageBanHits);
+        _ = Assert.Single(storageBanHits);
         Assert.Equal(DiagnosticSeverity.Error, storageBanHits[0].Severity);
         Assert.Contains("Foo", storageBanHits[0].Message);
         Assert.Contains("f", storageBanHits[0].Message);

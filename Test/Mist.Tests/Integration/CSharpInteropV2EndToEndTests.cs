@@ -22,7 +22,7 @@ public sealed class CSharpInteropV2EndToEndTests : IDisposable
     public CSharpInteropV2EndToEndTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistInteropV2_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -105,7 +105,7 @@ public sealed class CSharpInteropV2EndToEndTests : IDisposable
 
         var stdout = process.StandardOutput.ReadToEnd();
         var stderr = process.StandardError.ReadToEnd();
-        process.WaitForExit(60000);
+        _ = process.WaitForExit(60000);
         Assert.True(process.HasExited, "Process did not exit within timeout");
 
         // Assert: exit code 0

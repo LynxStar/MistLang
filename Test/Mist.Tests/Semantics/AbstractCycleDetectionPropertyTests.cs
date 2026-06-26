@@ -428,7 +428,7 @@ public class AbstractCycleDetectionPropertyTests
         // Verify the chain is intact
         var ibarSymbol = model.AllSymbols.First(s => s.Name == "IBar" && s.Kind == SymbolKind.Abstract);
         var ibarType = Assert.IsType<AbstractType>(ibarSymbol.DeclaredType);
-        Assert.Single(ibarType.Abstracts);
+        _ = Assert.Single(ibarType.Abstracts);
         Assert.Equal("IFoo", ibarType.Abstracts[0].DisplayName);
     }
 

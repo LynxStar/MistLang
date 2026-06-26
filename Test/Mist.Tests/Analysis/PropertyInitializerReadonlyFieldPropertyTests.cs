@@ -98,9 +98,9 @@ public sealed class PropertyInitializerReadonlyFieldPropertyTests
     private static string BuildClassWithReadonlyField(string fieldName, string fieldType)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("class TestType {");
-        sb.AppendLine($"    public readonly {fieldType} {fieldName};");
-        sb.AppendLine("}");
+        _ = sb.AppendLine("class TestType {");
+        _ = sb.AppendLine($"    public readonly {fieldType} {fieldName};");
+        _ = sb.AppendLine("}");
         return sb.ToString();
     }
 

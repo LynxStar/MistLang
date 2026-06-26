@@ -37,7 +37,7 @@ public class EnumKeywordTests
         var sourceText = new Mist.Common.Text.SourceText("test.mist", source);
         var bag = new DiagnosticBag();
         var stream = Lexer.Lex(sourceText, bag);
-        Parser.Parse(stream, bag);
+        _ = Parser.Parse(stream, bag);
         return bag;
     }
 
@@ -48,7 +48,7 @@ public class EnumKeywordTests
     {
         var tokens = LexDefaultTokens("enum");
 
-        Assert.Single(tokens);
+        _ = Assert.Single(tokens);
         Assert.Equal((int)TokenKind.ENUM, tokens[0].Kind);
         Assert.Equal("enum", tokens[0].Lexeme);
     }
@@ -58,7 +58,7 @@ public class EnumKeywordTests
     {
         var tokens = LexDefaultTokens("enum");
 
-        Assert.Single(tokens);
+        _ = Assert.Single(tokens);
         Assert.NotEqual((int)TokenKind.IDENTIFIER, tokens[0].Kind);
     }
 
@@ -79,7 +79,7 @@ public class EnumKeywordTests
         // "enumeration" should be IDENTIFIER, not ENUM
         var tokens = LexDefaultTokens("enumeration");
 
-        Assert.Single(tokens);
+        _ = Assert.Single(tokens);
         Assert.Equal((int)TokenKind.IDENTIFIER, tokens[0].Kind);
         Assert.Equal("enumeration", tokens[0].Lexeme);
     }
@@ -90,7 +90,7 @@ public class EnumKeywordTests
         // "myEnum" should be IDENTIFIER, not ENUM
         var tokens = LexDefaultTokens("myEnum");
 
-        Assert.Single(tokens);
+        _ = Assert.Single(tokens);
         Assert.Equal((int)TokenKind.IDENTIFIER, tokens[0].Kind);
         Assert.Equal("myEnum", tokens[0].Lexeme);
     }

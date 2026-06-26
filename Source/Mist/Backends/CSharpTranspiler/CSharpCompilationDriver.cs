@@ -238,7 +238,7 @@ public sealed class CSharpCompilationDriver
     {
         if(!Directory.Exists(binDirectory))
         {
-            Directory.CreateDirectory(binDirectory);
+            _ = Directory.CreateDirectory(binDirectory);
         }
 
         // Collect all emitted .cs files

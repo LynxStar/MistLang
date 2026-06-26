@@ -64,7 +64,7 @@ public class TupleDisambiguationTests
 
         // The initializer should be a parenthesized expression, not a tuple literal.
         var primary = UnwrapToPrimary(varDecl.Initializer);
-        Assert.IsType<ParenthesizedExpressionPrimaryNode>(primary);
+        _ = Assert.IsType<ParenthesizedExpressionPrimaryNode>(primary);
     }
 
     // ─── Requirement 7.3: single type in type position is not a tuple type ─
@@ -83,7 +83,7 @@ public class TupleDisambiguationTests
         var fieldMember = Assert.IsType<FieldMemberMemberDeclarationNode>(typeDecl.ClassDeclaration.Members[0]);
 
         // The type should be a PrimitiveTypeRef, not a TupleTypeRef.
-        Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(fieldMember.Field.Type.First);
+        _ = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(fieldMember.Field.Type.First);
     }
 
     // ─── Requirement 7.5: var ( disambiguates deconstruction from var x ──
@@ -100,7 +100,7 @@ public class TupleDisambiguationTests
             """;
 
         var varDecl = GetFirstVarDecl(source);
-        Assert.IsType<VarTupleDeconstructionVariableDeclarationStatementNode>(varDecl);
+        _ = Assert.IsType<VarTupleDeconstructionVariableDeclarationStatementNode>(varDecl);
     }
 
     [Fact]
@@ -118,7 +118,7 @@ public class TupleDisambiguationTests
         var deconstruction = Assert.IsType<VarTupleDeconstructionVariableDeclarationStatementNode>(varDecl);
 
         Assert.Equal("a", deconstruction.FirstName.Lexeme);
-        Assert.Single(deconstruction.RestNames);
+        _ = Assert.Single(deconstruction.RestNames);
         Assert.Equal("b", deconstruction.RestNames[0].Lexeme);
     }
 
@@ -141,7 +141,7 @@ public class TupleDisambiguationTests
 
         // The initializer should be a tuple literal.
         var primary = UnwrapToPrimary(inferred.Initializer);
-        Assert.IsType<TupleLiteralExpressionPrimaryNode>(primary);
+        _ = Assert.IsType<TupleLiteralExpressionPrimaryNode>(primary);
     }
 
     [Fact]
@@ -161,8 +161,8 @@ public class TupleDisambiguationTests
         var tupleLit = Assert.IsType<TupleLiteralExpressionPrimaryNode>(primary);
 
         // Should have First + Rest (arity 2), no additional elements.
-        Assert.IsType<UnnamedTupleLiteralElementTupleLiteralElementNode>(tupleLit.First);
-        Assert.IsType<UnnamedTupleLiteralElementTupleLiteralElementNode>(tupleLit.Rest);
+        _ = Assert.IsType<UnnamedTupleLiteralElementTupleLiteralElementNode>(tupleLit.First);
+        _ = Assert.IsType<UnnamedTupleLiteralElementTupleLiteralElementNode>(tupleLit.Rest);
         Assert.Empty(tupleLit.TupleLiteralElements);
     }
 
@@ -179,7 +179,7 @@ public class TupleDisambiguationTests
         var typeDecl = Assert.IsType<ClassTypeTypeDeclarationNode>(cu.GetTypes()[0]);
         var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.ClassDeclaration.Members[0]);
 
-        Assert.IsType<TupleSingleTypeRefSingleTypeRefNode>(methodMember.Method.ReturnType.First);
+        _ = Assert.IsType<TupleSingleTypeRefSingleTypeRefNode>(methodMember.Method.ReturnType.First);
     }
 
     // ─── Helper ─────────────────────────────────────────────────────────

@@ -86,7 +86,7 @@ public sealed class IteratorEmissionPropertyTests : IDisposable
     public IteratorEmissionPropertyTests()
     {
         tempDir = Path.Combine(Path.GetTempPath(), "MistIteratorEmissionPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
     }
 
     public void Dispose()

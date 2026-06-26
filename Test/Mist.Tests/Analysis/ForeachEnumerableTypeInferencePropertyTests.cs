@@ -85,7 +85,7 @@ public sealed class ForeachEnumerableTypeInferencePropertyTests : IDisposable
     public ForeachEnumerableTypeInferencePropertyTests()
     {
         tempDir = Path.Combine(Path.GetTempPath(), "MistForeachEnumPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
     }
 
     public void Dispose()

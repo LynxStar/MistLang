@@ -188,7 +188,7 @@ public sealed class OwnershipInferenceSoundnessPropertyTests
     {
         // Part 1: Verify inference produces expected tier
         var binding = InferBinding(source, variableName);
-        Assert.NotNull(binding);
+        _ = Assert.NotNull(binding);
         Assert.Equal(expectedTier, binding!.Value.InferredTier);
 
         // Part 2: Verify AllUsesSatisfied — compilation has no ownership errors
@@ -392,7 +392,7 @@ public sealed class OwnershipInferenceSoundnessPropertyTests
             """;
 
         var binding = InferBinding(source, "y");
-        Assert.NotNull(binding);
+        _ = Assert.NotNull(binding);
         Assert.NotEqual(OwnershipTier.Owned, binding!.Value.InferredTier);
         Assert.Equal(OwnershipTier.Unrestricted, binding.Value.InferredTier);
     }
@@ -429,7 +429,7 @@ public sealed class OwnershipInferenceSoundnessPropertyTests
             """;
 
         var binding = InferBinding(source, "b");
-        Assert.NotNull(binding);
+        _ = Assert.NotNull(binding);
         Assert.NotEqual(OwnershipTier.Owned, binding!.Value.InferredTier);
         Assert.Equal(OwnershipTier.Unrestricted, binding.Value.InferredTier);
     }
@@ -464,7 +464,7 @@ public sealed class OwnershipInferenceSoundnessPropertyTests
             """;
 
         var binding = InferBinding(source, "t");
-        Assert.NotNull(binding);
+        _ = Assert.NotNull(binding);
         Assert.Equal(OwnershipTier.Owned, binding!.Value.InferredTier);
         Assert.Equal(InferenceReason.OwnedInit, binding.Value.Reason);
     }
@@ -499,12 +499,12 @@ public sealed class OwnershipInferenceSoundnessPropertyTests
             """;
 
         var unusedBinding = InferBinding(source, "unused");
-        Assert.NotNull(unusedBinding);
+        _ = Assert.NotNull(unusedBinding);
         Assert.Equal(OwnershipTier.Owned, unusedBinding!.Value.InferredTier);
         Assert.Equal(InferenceReason.OwnedInit, unusedBinding.Value.Reason);
 
         var usedBinding = InferBinding(source, "used");
-        Assert.NotNull(usedBinding);
+        _ = Assert.NotNull(usedBinding);
         Assert.Equal(OwnershipTier.Unrestricted, usedBinding!.Value.InferredTier);
     }
 
@@ -549,8 +549,8 @@ public sealed class OwnershipInferenceSoundnessPropertyTests
 
         var aBinding = InferBinding(source, "a");
         var bBinding = InferBinding(source, "b");
-        Assert.NotNull(aBinding);
-        Assert.NotNull(bBinding);
+        _ = Assert.NotNull(aBinding);
+        _ = Assert.NotNull(bBinding);
         Assert.Equal(OwnershipTier.Unrestricted, aBinding!.Value.InferredTier);
         Assert.Equal(OwnershipTier.Unrestricted, bBinding!.Value.InferredTier);
     }
@@ -590,9 +590,9 @@ public sealed class OwnershipInferenceSoundnessPropertyTests
         var xBinding = InferBinding(source, "x");
         var yBinding = InferBinding(source, "y");
         var zBinding = InferBinding(source, "z");
-        Assert.NotNull(xBinding);
-        Assert.NotNull(yBinding);
-        Assert.NotNull(zBinding);
+        _ = Assert.NotNull(xBinding);
+        _ = Assert.NotNull(yBinding);
+        _ = Assert.NotNull(zBinding);
         Assert.Equal(OwnershipTier.Unrestricted, xBinding!.Value.InferredTier);
         Assert.Equal(OwnershipTier.Unrestricted, yBinding!.Value.InferredTier);
         Assert.Equal(OwnershipTier.Unrestricted, zBinding!.Value.InferredTier);

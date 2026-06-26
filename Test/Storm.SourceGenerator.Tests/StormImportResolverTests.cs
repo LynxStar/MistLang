@@ -60,7 +60,7 @@ namespace Storm.SourceGenerator.Tests
             var result = resolver.Resolve("root/a.storm");
 
             Assert.True(result.Succeeded);
-            Assert.Single(result.FilesByPath);
+            _ = Assert.Single(result.FilesByPath);
         }
 
         [Fact]
@@ -136,7 +136,7 @@ namespace Storm.SourceGenerator.Tests
             var result = resolver.Resolve("root/main.storm");
 
             Assert.True(result.Succeeded);
-            Assert.Single(result.FilesByPath);
+            _ = Assert.Single(result.FilesByPath);
             Assert.Equal("root/main.storm", result.RootPath);
         }
 

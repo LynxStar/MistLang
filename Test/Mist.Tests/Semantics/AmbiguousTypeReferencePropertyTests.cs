@@ -220,7 +220,7 @@ public sealed class AmbiguousTypeReferencePropertyTests
             new CompilationUnit(sourceText3)));
         var diagnostics = new DiagnosticBag();
 
-        Builder.Build(
+        _ = Builder.Build(
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast1, ast2, ast3),
             ambientTypeResolver: null,

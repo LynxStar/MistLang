@@ -67,7 +67,7 @@ public sealed class TypeArgumentInferenceBypassPropertyTests : IDisposable
     public TypeArgumentInferenceBypassPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistBypassPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

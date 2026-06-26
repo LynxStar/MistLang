@@ -125,7 +125,7 @@ public class MultiNamespaceParsingPropertyTests
         var result = ParseSource("");
         Assert.NotNull(result);
         Assert.NotNull(result.Root);
-        Assert.IsType<CompilationUnitNode>(result.Root);
+        _ = Assert.IsType<CompilationUnitNode>(result.Root);
         Assert.Empty(result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 
         var cu = (CompilationUnitNode)result.Root;
@@ -143,7 +143,7 @@ public class MultiNamespaceParsingPropertyTests
         var result = ParseSource(source);
 
         Assert.NotNull(result.Root);
-        Assert.IsType<CompilationUnitNode>(result.Root);
+        _ = Assert.IsType<CompilationUnitNode>(result.Root);
         Assert.Empty(result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 
         var cu = (CompilationUnitNode)result.Root;
@@ -162,7 +162,7 @@ public class MultiNamespaceParsingPropertyTests
         var result = ParseSource(source);
 
         Assert.NotNull(result.Root);
-        Assert.IsType<CompilationUnitNode>(result.Root);
+        _ = Assert.IsType<CompilationUnitNode>(result.Root);
         Assert.Empty(result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 
         var cu = (CompilationUnitNode)result.Root;
@@ -192,7 +192,7 @@ class C { }
         var result = ParseSource(source);
 
         Assert.NotNull(result.Root);
-        Assert.IsType<CompilationUnitNode>(result.Root);
+        _ = Assert.IsType<CompilationUnitNode>(result.Root);
         Assert.Empty(result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 
         var cu = (CompilationUnitNode)result.Root;
@@ -218,7 +218,7 @@ class C { }
         var result = ParseSource(source);
 
         Assert.NotNull(result.Root);
-        Assert.IsType<CompilationUnitNode>(result.Root);
+        _ = Assert.IsType<CompilationUnitNode>(result.Root);
         Assert.Empty(result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 
         var cu = (CompilationUnitNode)result.Root;

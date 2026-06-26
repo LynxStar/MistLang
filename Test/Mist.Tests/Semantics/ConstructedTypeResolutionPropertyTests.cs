@@ -601,7 +601,7 @@ public class ConstructedTypeResolutionPropertyTests
         var fieldSymbol = model.AllSymbols.First(s => s.Name == "field" && s.Kind == SymbolKind.Field);
         var constructedType = Assert.IsType<ConstructedType>(fieldSymbol.DeclaredType);
         Assert.Equal("Box", ((ClassType)constructedType.GenericDefinition).DisplayName);
-        Assert.Single(constructedType.TypeArguments);
+        _ = Assert.Single(constructedType.TypeArguments);
         Assert.Equal("int", constructedType.TypeArguments[0].DisplayName);
         Assert.Equal("Box<int>", constructedType.DisplayName);
     }
@@ -639,11 +639,11 @@ public class ConstructedTypeResolutionPropertyTests
         var fieldSymbol = model.AllSymbols.First(s => s.Name == "field" && s.Kind == SymbolKind.Field);
         var outerConstructed = Assert.IsType<ConstructedType>(fieldSymbol.DeclaredType);
         Assert.Equal("Box", ((ClassType)outerConstructed.GenericDefinition).DisplayName);
-        Assert.Single(outerConstructed.TypeArguments);
+        _ = Assert.Single(outerConstructed.TypeArguments);
 
         var innerConstructed = Assert.IsType<ConstructedType>(outerConstructed.TypeArguments[0]);
         Assert.Equal("Box", ((ClassType)innerConstructed.GenericDefinition).DisplayName);
-        Assert.Single(innerConstructed.TypeArguments);
+        _ = Assert.Single(innerConstructed.TypeArguments);
         Assert.Equal("int", innerConstructed.TypeArguments[0].DisplayName);
         Assert.Equal("Box<Box<int>>", outerConstructed.DisplayName);
     }
@@ -682,7 +682,7 @@ public class ConstructedTypeResolutionPropertyTests
         var wrapperType = Assert.IsType<ClassType>(wrapperSymbol.DeclaredType);
         var constructedBase = Assert.IsType<ConstructedType>(wrapperType.BaseType);
         Assert.Equal("Box", ((ClassType)constructedBase.GenericDefinition).DisplayName);
-        Assert.Single(constructedBase.TypeArguments);
+        _ = Assert.Single(constructedBase.TypeArguments);
         var tpt = Assert.IsType<TypeParameterType>(constructedBase.TypeArguments[0]);
         Assert.Equal("T", tpt.Name);
     }

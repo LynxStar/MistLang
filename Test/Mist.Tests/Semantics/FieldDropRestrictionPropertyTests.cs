@@ -47,7 +47,7 @@ public sealed class FieldDropRestrictionPropertyTests : IDisposable
     public FieldDropRestrictionPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistFieldDropRestrictionPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

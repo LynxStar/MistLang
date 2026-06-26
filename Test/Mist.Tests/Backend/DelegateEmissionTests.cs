@@ -40,7 +40,7 @@ public sealed class DelegateEmissionTests : IDisposable
     public DelegateEmissionTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistDelegateEmission_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

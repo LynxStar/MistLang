@@ -87,7 +87,7 @@ public class RefinementUnionTests
     private static ImmutableArray<Diagnostic> CompileAndGetDiagnostics(string source)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), $"mist_union_ref_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var sourcePath = Path.Combine(tempDir, "Program.mist");
@@ -139,7 +139,7 @@ public class RefinementUnionTests
 
         var declaredType = aliasSymbol.DeclaredType;
         Assert.NotNull(declaredType);
-        Assert.IsType<UnionType>(declaredType);
+        _ = Assert.IsType<UnionType>(declaredType);
 
         var unionType = (UnionType)declaredType;
         Assert.Equal(2, unionType.Constituents.Count);

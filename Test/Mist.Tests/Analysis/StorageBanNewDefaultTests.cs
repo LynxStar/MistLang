@@ -130,7 +130,7 @@ public class StorageBanNewDefaultTests
         var diagnostics = CompileAndCollectDiagnostics(source);
         var hits = WithId(diagnostics, "MIST_SB_0053");
 
-        Assert.Single(hits);
+        _ = Assert.Single(hits);
         var d = hits[0];
         Assert.Equal(DiagnosticSeverity.Error, d.Severity);
         // Diagnostic must name the generic type (Req 16.2).
@@ -152,7 +152,7 @@ public class StorageBanNewDefaultTests
         var diagnostics = CompileAndCollectDiagnostics(source);
         var hits = WithId(diagnostics, "MIST_SB_0053");
 
-        Assert.Single(hits);
+        _ = Assert.Single(hits);
         Assert.Contains("Map", hits[0].Message);
     }
 
@@ -169,7 +169,7 @@ public class StorageBanNewDefaultTests
         var diagnostics = CompileAndCollectDiagnostics(source);
         var hits = WithId(diagnostics, "MIST_SB_0053");
 
-        Assert.Single(hits);
+        _ = Assert.Single(hits);
     }
 
     [Fact]
@@ -215,7 +215,7 @@ public class StorageBanNewDefaultTests
         var diagnostics = CompileAndCollectDiagnostics(source);
         var hits = WithId(diagnostics, "MIST_SB_0055");
 
-        Assert.Single(hits);
+        _ = Assert.Single(hits);
         var d = hits[0];
         Assert.Equal(DiagnosticSeverity.Error, d.Severity);
         Assert.Contains("unknown", d.Message);
@@ -278,7 +278,7 @@ public class StorageBanNewDefaultTests
         var diagnostics = CompileAndCollectDiagnostics(source);
         var hits = WithId(diagnostics, "MIST_SB_0057");
 
-        Assert.Single(hits);
+        _ = Assert.Single(hits);
         var d = hits[0];
         Assert.Equal(DiagnosticSeverity.Error, d.Severity);
         Assert.Contains("unknown", d.Message);
@@ -299,7 +299,7 @@ public class StorageBanNewDefaultTests
         var diagnostics = CompileAndCollectDiagnostics(source);
         var hits = WithId(diagnostics, "MIST_SB_0057");
 
-        Assert.Single(hits);
+        _ = Assert.Single(hits);
         Assert.Contains("unknown", hits[0].Message);
     }
 

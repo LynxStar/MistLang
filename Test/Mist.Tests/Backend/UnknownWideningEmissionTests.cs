@@ -73,7 +73,7 @@ public sealed class UnknownWideningEmissionTests : IDisposable
         outputDir = Path.Combine(
             Path.GetTempPath(),
             "MistUnknownWideningEmission_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

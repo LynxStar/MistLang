@@ -43,7 +43,7 @@ public sealed class SwitchEmissionPropertyTests : IDisposable
     public SwitchEmissionPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "mist_switch_pbt_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -140,7 +140,7 @@ public sealed class SwitchEmissionPropertyTests : IDisposable
                 .Replace("b switch", $"b{i} switch")
                 .Replace("s switch", $"s{i} switch")
                 .Replace("Console.WriteLine(r)", $"Console.WriteLine(r{i})");
-            body.Append($"        {scenarioBody}\n");
+            _ = body.Append($"        {scenarioBody}\n");
         }
 
         return "using Standard;\n\nnamespace TestProgram;\n\npublic class Program\n{\n    public static void Main()\n    {\n"
@@ -151,7 +151,7 @@ public sealed class SwitchEmissionPropertyTests : IDisposable
     private (int ExitCode, string Stdout, string Stderr) CompileAndRun(string mistSource)
     {
         var iterDir = Path.Combine(outputDir, Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(iterDir);
+        _ = Directory.CreateDirectory(iterDir);
 
         try
         {

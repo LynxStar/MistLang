@@ -58,7 +58,7 @@ public sealed class StackallocExpressionEmissionPropertyTests : IDisposable
     public StackallocExpressionEmissionPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistStackallocEmitPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

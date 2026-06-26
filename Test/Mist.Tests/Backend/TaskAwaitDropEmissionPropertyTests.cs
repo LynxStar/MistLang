@@ -186,7 +186,7 @@ public sealed class TaskAwaitDropEmissionPropertyTests : IDisposable
     public TaskAwaitDropEmissionPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistTaskAwaitDropPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

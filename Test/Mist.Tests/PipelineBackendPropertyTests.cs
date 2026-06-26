@@ -46,7 +46,7 @@ public class PipelineBackendPropertyTests
 
         // Create a temp source file
         var tempDir = Path.Combine(Path.GetTempPath(), $"mist_test_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var sourcePath = Path.Combine(tempDir, "test.mist");
@@ -95,7 +95,7 @@ public class PipelineBackendPropertyTests
             ImmutableArray.Create<IBackend>(backend));
 
         var tempDir = Path.Combine(Path.GetTempPath(), $"mist_test_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var sourcePath = Path.Combine(tempDir, "test.mist");
@@ -146,7 +146,7 @@ public class PipelineBackendPropertyTests
             ImmutableArray.Create<IBackend>(backend));
 
         var tempDir = Path.Combine(Path.GetTempPath(), $"mist_test_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var sourcePath = Path.Combine(tempDir, "test.mist");

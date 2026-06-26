@@ -84,7 +84,7 @@ internal static class DependentTypeHelpersGenerator
                 var keyword = CSharpTypeMap.GetKeyword(depParam.ValueType);
                 if(KeywordToCapitalized.ContainsKey(keyword))
                 {
-                    usedKeywords.Add(keyword);
+                    _ = usedKeywords.Add(keyword);
                 }
             }
         }
@@ -98,56 +98,56 @@ internal static class DependentTypeHelpersGenerator
     public static string GenerateHelpersFile(HashSet<string> usedKeywords, CarrierStructRegistry? carrierRegistry = null)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("#nullable enable");
-        sb.AppendLine();
+        _ = sb.AppendLine("#nullable enable");
+        _ = sb.AppendLine();
 
         // Emit interfaces in a stable order (alphabetical by keyword).
         foreach(var keyword in usedKeywords.OrderBy(k => k, StringComparer.Ordinal))
         {
             if(KeywordToCapitalized.TryGetValue(keyword, out var capitalized))
             {
-                sb.AppendLine("[System.Runtime.CompilerServices.CompilerGenerated]");
-                sb.AppendLine($"public interface IConst{capitalized}");
-                sb.AppendLine("{");
-                sb.AppendLine($"    static abstract {keyword} Value {{ get; }}");
-                sb.AppendLine("}");
-                sb.AppendLine();
+                _ = sb.AppendLine("[System.Runtime.CompilerServices.CompilerGenerated]");
+                _ = sb.AppendLine($"public interface IConst{capitalized}");
+                _ = sb.AppendLine("{");
+                _ = sb.AppendLine($"    static abstract {keyword} Value {{ get; }}");
+                _ = sb.AppendLine("}");
+                _ = sb.AppendLine();
             }
         }
 
         // Emit carrier structs for each unique (type, value) pair.
         if(carrierRegistry is not null)
         {
-            sb.Append(carrierRegistry.GenerateCarrierStructs());
+            _ = sb.Append(carrierRegistry.GenerateCarrierStructs());
         }
 
         // Emit DependentTypeAttribute and DependentTypeValueAttribute classes.
-        sb.AppendLine("[System.Runtime.CompilerServices.CompilerGenerated]");
-        sb.AppendLine("[System.AttributeUsage(System.AttributeTargets.Class | System.AttributeTargets.Struct | System.AttributeTargets.Interface, AllowMultiple = true)]");
-        sb.AppendLine("public sealed class DependentTypeAttribute : System.Attribute");
-        sb.AppendLine("{");
-        sb.AppendLine("    public string ParameterName { get; }");
-        sb.AppendLine("    public System.Type ValueType { get; }");
-        sb.AppendLine("    public DependentTypeAttribute(string parameterName, System.Type valueType)");
-        sb.AppendLine("    {");
-        sb.AppendLine("        ParameterName = parameterName;");
-        sb.AppendLine("        ValueType = valueType;");
-        sb.AppendLine("    }");
-        sb.AppendLine("}");
-        sb.AppendLine();
-        sb.AppendLine("[System.Runtime.CompilerServices.CompilerGenerated]");
-        sb.AppendLine("[System.AttributeUsage(System.AttributeTargets.Property)]");
-        sb.AppendLine("public sealed class DependentTypeValueAttribute : System.Attribute");
-        sb.AppendLine("{");
-        sb.AppendLine("    public string ParameterName { get; }");
-        sb.AppendLine("    public object Value { get; }");
-        sb.AppendLine("    public DependentTypeValueAttribute(string parameterName, object value)");
-        sb.AppendLine("    {");
-        sb.AppendLine("        ParameterName = parameterName;");
-        sb.AppendLine("        Value = value;");
-        sb.AppendLine("    }");
-        sb.AppendLine("}");
-        sb.AppendLine();
+        _ = sb.AppendLine("[System.Runtime.CompilerServices.CompilerGenerated]");
+        _ = sb.AppendLine("[System.AttributeUsage(System.AttributeTargets.Class | System.AttributeTargets.Struct | System.AttributeTargets.Interface, AllowMultiple = true)]");
+        _ = sb.AppendLine("public sealed class DependentTypeAttribute : System.Attribute");
+        _ = sb.AppendLine("{");
+        _ = sb.AppendLine("    public string ParameterName { get; }");
+        _ = sb.AppendLine("    public System.Type ValueType { get; }");
+        _ = sb.AppendLine("    public DependentTypeAttribute(string parameterName, System.Type valueType)");
+        _ = sb.AppendLine("    {");
+        _ = sb.AppendLine("        ParameterName = parameterName;");
+        _ = sb.AppendLine("        ValueType = valueType;");
+        _ = sb.AppendLine("    }");
+        _ = sb.AppendLine("}");
+        _ = sb.AppendLine();
+        _ = sb.AppendLine("[System.Runtime.CompilerServices.CompilerGenerated]");
+        _ = sb.AppendLine("[System.AttributeUsage(System.AttributeTargets.Property)]");
+        _ = sb.AppendLine("public sealed class DependentTypeValueAttribute : System.Attribute");
+        _ = sb.AppendLine("{");
+        _ = sb.AppendLine("    public string ParameterName { get; }");
+        _ = sb.AppendLine("    public object Value { get; }");
+        _ = sb.AppendLine("    public DependentTypeValueAttribute(string parameterName, object value)");
+        _ = sb.AppendLine("    {");
+        _ = sb.AppendLine("        ParameterName = parameterName;");
+        _ = sb.AppendLine("        Value = value;");
+        _ = sb.AppendLine("    }");
+        _ = sb.AppendLine("}");
+        _ = sb.AppendLine();
 
         return sb.ToString();
     }

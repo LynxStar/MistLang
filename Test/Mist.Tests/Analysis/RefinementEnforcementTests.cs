@@ -127,7 +127,7 @@ public class RefinementEnforcementTests
         var diagnostics = CompileAndGetDiagnostics(source);
 
         var refinementDiags = WithId(diagnostics, "MIST_TC_0097");
-        Assert.Single(refinementDiags);
+        _ = Assert.Single(refinementDiags);
 
         var d = refinementDiags[0];
         Assert.Equal(DiagnosticSeverity.Error, d.Severity);
@@ -151,7 +151,7 @@ public class RefinementEnforcementTests
         var diagnostics = CompileAndGetDiagnostics(source);
 
         var refinementDiags = WithId(diagnostics, "MIST_TC_0097");
-        Assert.Single(refinementDiags);
+        _ = Assert.Single(refinementDiags);
 
         var d = refinementDiags[0];
         Assert.Contains("101", d.Message);
@@ -195,7 +195,7 @@ public class RefinementEnforcementTests
         var diagnostics = CompileAndGetDiagnostics(source);
 
         var refinementDiags = WithId(diagnostics, "MIST_TC_0097");
-        Assert.Single(refinementDiags);
+        _ = Assert.Single(refinementDiags);
         Assert.Contains("0", refinementDiags[0].Message);
     }
 
@@ -242,7 +242,7 @@ public class RefinementEnforcementTests
         var diagnostics = CompileAndGetDiagnostics(source);
 
         var refinementDiags = WithId(diagnostics, "MIST_TC_0098");
-        Assert.Single(refinementDiags);
+        _ = Assert.Single(refinementDiags);
 
         var d = refinementDiags[0];
         Assert.Equal(DiagnosticSeverity.Error, d.Severity);
@@ -299,7 +299,7 @@ public class RefinementEnforcementTests
         var diagnostics = CompileAndGetDiagnostics(source);
 
         var refinementDiags = WithId(diagnostics, "MIST_TC_0097");
-        Assert.Single(refinementDiags);
+        _ = Assert.Single(refinementDiags);
         Assert.Contains("5", refinementDiags[0].Message);
         Assert.Contains("AdultAge", refinementDiags[0].Message);
     }
@@ -341,7 +341,7 @@ public class RefinementEnforcementTests
         var diagnostics = CompileAndGetDiagnostics(source);
 
         var refinementDiags = WithId(diagnostics, "MIST_TC_0098");
-        Assert.Single(refinementDiags);
+        _ = Assert.Single(refinementDiags);
         Assert.Contains("int", refinementDiags[0].Message);
         Assert.Contains("AdultAge", refinementDiags[0].Message);
     }

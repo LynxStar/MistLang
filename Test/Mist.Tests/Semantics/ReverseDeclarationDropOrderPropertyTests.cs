@@ -51,7 +51,7 @@ public sealed class ReverseDeclarationDropOrderPropertyTests
     private static CompilerResult CompileSource(string source)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "mist_revdrop_pbt_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var sourcePath = Path.Combine(tempDir, "Program.mist");
@@ -139,7 +139,7 @@ public sealed class ReverseDeclarationDropOrderPropertyTests
         for(var i = 0; i < n; i++)
         {
             var name = LocalNames[i];
-            decls.AppendLine($"        Res {name} = new Res({i});");
+            _ = decls.AppendLine($"        Res {name} = new Res({i});");
         }
 
         // Keep every local live at scope exit: use each one in a no-op read so it is not
@@ -147,7 +147,7 @@ public sealed class ReverseDeclarationDropOrderPropertyTests
         for(var i = 0; i < n; i++)
         {
             var name = LocalNames[i];
-            decls.AppendLine($"        int use{i} = {name}.GetId();");
+            _ = decls.AppendLine($"        int use{i} = {name}.GetId();");
         }
 
         return $$"""

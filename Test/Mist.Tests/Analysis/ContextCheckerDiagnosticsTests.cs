@@ -39,7 +39,7 @@ public sealed class ContextCheckerDiagnosticsTests
     {
         var driver = CreateDriver();
         var tempDir = Path.Combine(Path.GetTempPath(), $"mist_ctx_diag_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
 
         try
         {
@@ -88,7 +88,7 @@ public sealed class ContextCheckerDiagnosticsTests
             .Where(d => d.Id == ContextCheckerAnalyzer.DuplicateContextBinding)
             .ToImmutableArray();
 
-        Assert.Single(ctxDiags);
+        _ = Assert.Single(ctxDiags);
         Assert.Contains("Consume", ctxDiags[0].Message);
         Assert.Contains("MyCtx", ctxDiags[0].Message);
     }
@@ -140,7 +140,7 @@ public sealed class ContextCheckerDiagnosticsTests
             .Where(d => d.Id == ContextCheckerAnalyzer.DuplicateContextBinding)
             .ToImmutableArray();
 
-        Assert.Single(ctxDiags);
+        _ = Assert.Single(ctxDiags);
         Assert.Contains("MyCtx", ctxDiags[0].Message);
     }
 
@@ -172,7 +172,7 @@ public sealed class ContextCheckerDiagnosticsTests
             .Where(d => d.Id == ContextCheckerAnalyzer.ContextVariableNotReassignable)
             .ToImmutableArray();
 
-        Assert.Single(ctxDiags);
+        _ = Assert.Single(ctxDiags);
         Assert.Contains("ctx", ctxDiags[0].Message);
         Assert.Contains("not reassignable", ctxDiags[0].Message);
     }
@@ -263,7 +263,7 @@ public sealed class ContextCheckerDiagnosticsTests
             .Where(d => d.Id == ContextCheckerAnalyzer.MissingContext)
             .ToImmutableArray();
 
-        Assert.Single(ctxDiags);
+        _ = Assert.Single(ctxDiags);
         Assert.Contains("MyCtx", ctxDiags[0].Message);
     }
 

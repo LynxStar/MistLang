@@ -48,7 +48,7 @@ public sealed class MoveBoundaryOwnedSourcePropertyTests : IDisposable
     public MoveBoundaryOwnedSourcePropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistMoveBoundaryOwnedPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -115,7 +115,7 @@ public sealed class MoveBoundaryOwnedSourcePropertyTests : IDisposable
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,
             EmitToDisk: false);
 
-        driver.Compile(options);
+        _ = driver.Compile(options);
         return capture.Captured;
     }
 

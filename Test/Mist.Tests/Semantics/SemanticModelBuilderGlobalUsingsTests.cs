@@ -155,7 +155,7 @@ public sealed class SemanticModelBuilderGlobalUsingsTests
             new CompilationUnit(sourceText2) { GlobalUsings = ImmutableArray.Create("Foo") }));
         var diagnostics = new DiagnosticBag();
 
-        Builder.Build(
+        _ = Builder.Build(
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast1, ast2),
             ambientTypeResolver: null,
@@ -228,7 +228,7 @@ public sealed class SemanticModelBuilderGlobalUsingsTests
             new CompilationUnit(sourceText2) { GlobalUsings = ImmutableArray.Create("Foo") }));
         var diagnostics = new DiagnosticBag();
 
-        Builder.Build(
+        _ = Builder.Build(
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast1, ast2),
             ambientTypeResolver: null,
@@ -289,7 +289,7 @@ public sealed class SemanticModelBuilderGlobalUsingsTests
             new CompilationUnit(sourceText1) { GlobalUsings = ImmutableArray.Create("NonExistent.Namespace") }));
         var diagnostics = new DiagnosticBag();
 
-        Builder.Build(
+        _ = Builder.Build(
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast1),
             ambientTypeResolver: null,
@@ -375,7 +375,7 @@ public sealed class SemanticModelBuilderGlobalUsingsTests
             new CompilationUnit(sourceTextC) { GlobalUsings = ImmutableArray.Create("NsA", "NsB") }));
         var diagnostics = new DiagnosticBag();
 
-        Builder.Build(
+        _ = Builder.Build(
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(astA, astB, astC),
             ambientTypeResolver: null,
@@ -466,7 +466,7 @@ public sealed class SemanticModelBuilderGlobalUsingsTests
             new CompilationUnit(sourceTextC) { GlobalUsings = ImmutableArray.Create("NsA") }));
         var diagnostics = new DiagnosticBag();
 
-        Builder.Build(
+        _ = Builder.Build(
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(astA, astB, astC),
             ambientTypeResolver: null,

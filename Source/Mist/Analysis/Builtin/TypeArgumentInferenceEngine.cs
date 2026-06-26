@@ -91,7 +91,7 @@ public static class TypeArgumentInferenceEngine
         // Case 1: The declared parameter type is a type parameter — bind it directly.
         if(declaredParamType is TypeParameterType tpt)
         {
-            context.TryBind(tpt.Name, argumentType);
+            _ = context.TryBind(tpt.Name, argumentType);
             return;
         }
 

@@ -82,7 +82,7 @@ public sealed class EnumEmissionTests
         var sb = new StringBuilder();
         foreach(var (_, content) in files)
         {
-            sb.AppendLine(content);
+            _ = sb.AppendLine(content);
         }
 
         return sb.ToString();

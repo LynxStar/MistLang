@@ -14,7 +14,7 @@ public sealed class ProjectFileParserPackagesTests
     private static string CreateTempProjectDir()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"mist_pkg_test_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(dir);
+        _ = Directory.CreateDirectory(dir);
         return dir;
     }
 
@@ -66,7 +66,7 @@ public sealed class ProjectFileParserPackagesTests
 
             Assert.Null(result);
             var diags = diagnostics.ToImmutableArray();
-            Assert.Single(diags);
+            _ = Assert.Single(diags);
             Assert.Equal("MIST_PKG_TABLE_EXPECTED", diags[0].Id.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
@@ -92,7 +92,7 @@ public sealed class ProjectFileParserPackagesTests
 
             Assert.Null(result);
             var diags = diagnostics.ToImmutableArray();
-            Assert.Single(diags);
+            _ = Assert.Single(diags);
             Assert.Equal("MIST_PKG_TABLE_EXPECTED", diags[0].Id.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
@@ -122,7 +122,7 @@ public sealed class ProjectFileParserPackagesTests
 
             Assert.NotNull(result);
             var diags = diagnostics.ToImmutableArray();
-            Assert.Single(diags);
+            _ = Assert.Single(diags);
             Assert.Equal("MIST_PKG_INVALID_VERSION", diags[0].Id.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains("SomePackage", diags[0].Message);
@@ -151,7 +151,7 @@ public sealed class ProjectFileParserPackagesTests
 
             Assert.NotNull(result);
             var diags = diagnostics.ToImmutableArray();
-            Assert.Single(diags);
+            _ = Assert.Single(diags);
             Assert.Equal("MIST_PKG_INVALID_VERSION", diags[0].Id.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
@@ -182,7 +182,7 @@ public sealed class ProjectFileParserPackagesTests
 
             Assert.NotNull(result);
             Assert.False(diagnostics.HasErrors);
-            Assert.Single(result.Packages);
+            _ = Assert.Single(result.Packages);
             Assert.Equal("Newtonsoft.Json", result.Packages[0].Name);
             Assert.Equal("13.0.3", result.Packages[0].Version);
         }
@@ -246,7 +246,7 @@ public sealed class ProjectFileParserPackagesTests
 
             Assert.NotNull(result);
             Assert.False(diagnostics.HasErrors);
-            Assert.Single(result.Packages);
+            _ = Assert.Single(result.Packages);
             Assert.Equal("A-b_c.D0", result.Packages[0].Name);
         }
         finally
@@ -282,7 +282,7 @@ public sealed class ProjectFileParserPackagesTests
             // The parser continues after invalid package names (uses continue)
             Assert.NotNull(result);
             var diags = diagnostics.ToImmutableArray();
-            Assert.Single(diags);
+            _ = Assert.Single(diags);
             Assert.Equal("MIST_PKG_INVALID_NAME", diags[0].Id.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains(packageName, diags[0].Message);
@@ -314,7 +314,7 @@ public sealed class ProjectFileParserPackagesTests
 
             Assert.NotNull(result);
             var diags = diagnostics.ToImmutableArray();
-            Assert.Single(diags);
+            _ = Assert.Single(diags);
             Assert.Equal("MIST_PKG_INVALID_NAME", diags[0].Id.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains("128", diags[0].Message);
@@ -344,7 +344,7 @@ public sealed class ProjectFileParserPackagesTests
 
             Assert.NotNull(result);
             Assert.False(diagnostics.HasErrors);
-            Assert.Single(result.Packages);
+            _ = Assert.Single(result.Packages);
             Assert.Equal(name128, result.Packages[0].Name);
             Assert.Equal("1.0.0", result.Packages[0].Version);
         }
@@ -374,7 +374,7 @@ public sealed class ProjectFileParserPackagesTests
 
             Assert.NotNull(result);
             var diags = diagnostics.ToImmutableArray();
-            Assert.Single(diags);
+            _ = Assert.Single(diags);
             Assert.Equal("MIST_PKG_INVALID_VERSION", diags[0].Id.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains("SomePackage", diags[0].Message);
@@ -403,7 +403,7 @@ public sealed class ProjectFileParserPackagesTests
 
             Assert.NotNull(result);
             var diags = diagnostics.ToImmutableArray();
-            Assert.Single(diags);
+            _ = Assert.Single(diags);
             Assert.Equal("MIST_PKG_INVALID_VERSION", diags[0].Id.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains("SomePackage", diags[0].Message);
@@ -444,7 +444,7 @@ public sealed class ProjectFileParserPackagesTests
             Assert.Contains(diags, d => d.Id.Value == "MIST_PKG_INVALID_VERSION");
 
             // The valid package should still be parsed
-            Assert.Single(result.Packages);
+            _ = Assert.Single(result.Packages);
             Assert.Equal("ValidPackage", result.Packages[0].Name);
             Assert.Equal("1.0.0", result.Packages[0].Version);
         }

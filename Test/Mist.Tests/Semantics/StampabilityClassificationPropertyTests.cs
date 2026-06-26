@@ -231,10 +231,10 @@ public class StampabilityClassificationPropertyTests
             switch(kind)
             {
                 case FieldTypeKind.StampableStruct:
-                    nestedStructsNeeded.Add(typeName);
+                    _ = nestedStructsNeeded.Add(typeName);
                     break;
                 case FieldTypeKind.ClassField:
-                    classesNeeded.Add(typeName);
+                    _ = classesNeeded.Add(typeName);
                     break;
                 case FieldTypeKind.TypeParameterField:
                     hasTypeParam = true;

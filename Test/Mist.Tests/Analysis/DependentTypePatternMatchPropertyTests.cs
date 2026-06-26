@@ -52,7 +52,7 @@ public class DependentTypePatternMatchPropertyTests
     private static ImmutableArray<Diagnostic> CompileSource(string source)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), $"mist_pbt_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         var sourceFile = Path.Combine(tempDir, "test.mist");
         File.WriteAllText(sourceFile, source);
 

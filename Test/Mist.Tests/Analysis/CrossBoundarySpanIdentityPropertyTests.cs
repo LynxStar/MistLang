@@ -185,7 +185,7 @@ public class CrossBoundarySpanIdentityPropertyTests
     private static CompilerResult CompileSource(string source)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), $"mist_crossboundary_pbt_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var sourcePath = Path.Combine(tempDir, "Program.mist");

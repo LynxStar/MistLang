@@ -34,7 +34,7 @@ public class OptionalOperatorTokenPriorityTests
     {
         var tokens = LexDefaultTokens("??=");
 
-        Assert.Single(tokens);
+        _ = Assert.Single(tokens);
         Assert.Equal((int)TokenKind.QUESTION_QUESTION_EQUAL, tokens[0].Kind);
         Assert.Equal("??=", tokens[0].Lexeme);
     }
@@ -44,7 +44,7 @@ public class OptionalOperatorTokenPriorityTests
     {
         var tokens = LexDefaultTokens("??");
 
-        Assert.Single(tokens);
+        _ = Assert.Single(tokens);
         Assert.Equal((int)TokenKind.QUESTION_QUESTION, tokens[0].Kind);
         Assert.Equal("??", tokens[0].Lexeme);
     }
@@ -54,7 +54,7 @@ public class OptionalOperatorTokenPriorityTests
     {
         var tokens = LexDefaultTokens("?.");
 
-        Assert.Single(tokens);
+        _ = Assert.Single(tokens);
         Assert.Equal((int)TokenKind.QUESTION_DOT, tokens[0].Kind);
         Assert.Equal("?.", tokens[0].Lexeme);
     }
@@ -64,7 +64,7 @@ public class OptionalOperatorTokenPriorityTests
     {
         var tokens = LexDefaultTokens("?");
 
-        Assert.Single(tokens);
+        _ = Assert.Single(tokens);
         Assert.Equal((int)TokenKind.QUESTION, tokens[0].Kind);
         Assert.Equal("?", tokens[0].Lexeme);
     }

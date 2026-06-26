@@ -27,8 +27,8 @@ public sealed class MissingIntrinsicEmissionTests : IDisposable
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistBE0002Tests_" + Guid.NewGuid().ToString("N"));
         binDir = Path.Combine(Path.GetTempPath(), "MistBE0002Bin_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
-        Directory.CreateDirectory(binDir);
+        _ = Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(binDir);
     }
 
     public void Dispose()

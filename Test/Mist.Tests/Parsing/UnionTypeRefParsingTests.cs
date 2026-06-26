@@ -92,7 +92,7 @@ public class UnionTypeRefParsingTests
         var constituents = GetAllConstituents(typeRef);
 
         var first = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(constituents[0]);
-        Assert.IsType<IntTypePrimitiveTypeNode>(first.PrimitiveType);
+        _ = Assert.IsType<IntTypePrimitiveTypeNode>(first.PrimitiveType);
     }
 
     [Fact]
@@ -104,7 +104,7 @@ public class UnionTypeRefParsingTests
         var constituents = GetAllConstituents(typeRef);
 
         var second = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(constituents[1]);
-        Assert.IsType<StringTypePrimitiveTypeNode>(second.PrimitiveType);
+        _ = Assert.IsType<StringTypePrimitiveTypeNode>(second.PrimitiveType);
     }
 
     // ─── Test: int | string | bool → 3 constituents ─────────────────────
@@ -129,13 +129,13 @@ public class UnionTypeRefParsingTests
         var constituents = GetAllConstituents(typeRef);
 
         var first = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(constituents[0]);
-        Assert.IsType<IntTypePrimitiveTypeNode>(first.PrimitiveType);
+        _ = Assert.IsType<IntTypePrimitiveTypeNode>(first.PrimitiveType);
 
         var second = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(constituents[1]);
-        Assert.IsType<StringTypePrimitiveTypeNode>(second.PrimitiveType);
+        _ = Assert.IsType<StringTypePrimitiveTypeNode>(second.PrimitiveType);
 
         var third = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(constituents[2]);
-        Assert.IsType<BoolTypePrimitiveTypeNode>(third.PrimitiveType);
+        _ = Assert.IsType<BoolTypePrimitiveTypeNode>(third.PrimitiveType);
     }
 
     // ─── Test: int[] | string → array rank binds tighter than | ─────────
@@ -161,7 +161,7 @@ public class UnionTypeRefParsingTests
 
         // First constituent should be int[] (PrimitiveSingleTypeRef with ArrayRank set)
         var first = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(constituents[0]);
-        Assert.IsType<IntTypePrimitiveTypeNode>(first.PrimitiveType);
+        _ = Assert.IsType<IntTypePrimitiveTypeNode>(first.PrimitiveType);
         Assert.NotNull(first.ArrayRank);
     }
 
@@ -174,7 +174,7 @@ public class UnionTypeRefParsingTests
         var constituents = GetAllConstituents(typeRef);
 
         var second = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(constituents[1]);
-        Assert.IsType<StringTypePrimitiveTypeNode>(second.PrimitiveType);
+        _ = Assert.IsType<StringTypePrimitiveTypeNode>(second.PrimitiveType);
         Assert.Null(second.ArrayRank);
     }
 
@@ -204,13 +204,13 @@ public class UnionTypeRefParsingTests
         Assert.Equal(2, innerConstituents.Count);
 
         var innerFirst = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(innerConstituents[0]);
-        Assert.IsType<IntTypePrimitiveTypeNode>(innerFirst.PrimitiveType);
+        _ = Assert.IsType<IntTypePrimitiveTypeNode>(innerFirst.PrimitiveType);
 
         var innerSecond = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(innerConstituents[1]);
-        Assert.IsType<StringTypePrimitiveTypeNode>(innerSecond.PrimitiveType);
+        _ = Assert.IsType<StringTypePrimitiveTypeNode>(innerSecond.PrimitiveType);
 
         // Second constituent: bool
         var boolRef = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(constituents[1]);
-        Assert.IsType<BoolTypePrimitiveTypeNode>(boolRef.PrimitiveType);
+        _ = Assert.IsType<BoolTypePrimitiveTypeNode>(boolRef.PrimitiveType);
     }
 }

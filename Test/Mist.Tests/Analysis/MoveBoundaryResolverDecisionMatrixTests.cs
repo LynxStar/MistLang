@@ -69,7 +69,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist-resolver-matrix-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(scratchDir);
+        _ = Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()
@@ -132,7 +132,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,
             EmitToDisk: false);
 
-        driver.Compile(options);
+        _ = driver.Compile(options);
         return capture.Captured;
     }
 
@@ -219,7 +219,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         Assert.NotNull(model);
 
         var binding = FindOwnedBindingInitializer(model!, "target");
-        Assert.NotNull(binding);
+        _ = Assert.NotNull(binding);
 
         var resolver = new MoveBoundaryResolver();
         var flowState = new MethodFlowState();
@@ -256,7 +256,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         Assert.NotNull(model);
 
         var binding = FindOwnedBindingInitializer(model!, "target");
-        Assert.NotNull(binding);
+        _ = Assert.NotNull(binding);
 
         var resolver = new MoveBoundaryResolver();
         var flowState = new MethodFlowState();
@@ -297,7 +297,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         Assert.NotNull(model);
 
         var binding = FindOwnedBindingInitializer(model!, "target");
-        Assert.NotNull(binding);
+        _ = Assert.NotNull(binding);
 
         var resolver = new MoveBoundaryResolver();
         var flowState = new MethodFlowState();
@@ -333,7 +333,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         Assert.NotNull(model);
 
         var binding = FindOwnedBindingInitializer(model!, "target");
-        Assert.NotNull(binding);
+        _ = Assert.NotNull(binding);
 
         var resolver = new MoveBoundaryResolver();
         var flowState = new MethodFlowState();
@@ -376,7 +376,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         Assert.NotNull(model);
 
         var binding = FindOwnedBindingInitializer(model!, "target");
-        Assert.NotNull(binding);
+        _ = Assert.NotNull(binding);
 
         var resolver = new MoveBoundaryResolver();
         var flowState = new MethodFlowState();
@@ -417,7 +417,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         Assert.NotNull(model);
 
         var binding = FindOwnedBindingInitializer(model!, "target");
-        Assert.NotNull(binding);
+        _ = Assert.NotNull(binding);
 
         var resolver = new MoveBoundaryResolver();
         var flowState = new MethodFlowState();
@@ -456,7 +456,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         Assert.NotNull(model);
 
         var binding = FindOwnedBindingInitializer(model!, "target");
-        Assert.NotNull(binding);
+        _ = Assert.NotNull(binding);
 
         // We need to set up the flow state with the 'src' symbol in Live state.
         var srcSymbol = model!.AllSymbols
@@ -514,7 +514,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         Assert.NotNull(model);
 
         var binding = FindOwnedBindingInitializer(model!, "target");
-        Assert.NotNull(binding);
+        _ = Assert.NotNull(binding);
 
         var resolver = new MoveBoundaryResolver();
         var flowState = new MethodFlowState();
@@ -561,7 +561,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         Assert.NotNull(model);
 
         var binding = FindOwnedBindingInitializer(model!, "target");
-        Assert.NotNull(binding);
+        _ = Assert.NotNull(binding);
 
         var resolver = new MoveBoundaryResolver();
         var flowState = new MethodFlowState();
@@ -608,7 +608,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         Assert.NotNull(model);
 
         var binding = FindOwnedBindingInitializer(model!, "target");
-        Assert.NotNull(binding);
+        _ = Assert.NotNull(binding);
 
         // Find the 'src' symbol and force it into the blocked state.
         var srcSymbol = model!.AllSymbols
@@ -661,7 +661,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         Assert.NotNull(model);
 
         var binding = FindOwnedBindingInitializer(model!, "target");
-        Assert.NotNull(binding);
+        _ = Assert.NotNull(binding);
 
         var resolver = new MoveBoundaryResolver();
         var outcomes = new List<MoveOutcome>();
@@ -707,7 +707,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         Assert.NotNull(model);
 
         var binding = FindOwnedBindingInitializer(model!, "target");
-        Assert.NotNull(binding);
+        _ = Assert.NotNull(binding);
 
         var resolver = new MoveBoundaryResolver();
         var outcomes = new List<MoveOutcome>();
@@ -751,7 +751,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         Assert.NotNull(model);
 
         var binding = FindOwnedBindingInitializer(model!, "target");
-        Assert.NotNull(binding);
+        _ = Assert.NotNull(binding);
 
         var resolver = new MoveBoundaryResolver();
         var outcomes = new List<MoveOutcome>();

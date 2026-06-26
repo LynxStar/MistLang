@@ -374,7 +374,7 @@ public class SemanticModelBuilderUnitTests
 
         // With inferred namespaces, global scope has the namespace symbol "TestProject",
         // not the class directly. The class is under the namespace scope.
-        Assert.Single(model.GlobalScope.Members);
+        _ = Assert.Single(model.GlobalScope.Members);
         Assert.Equal("TestProject", model.GlobalScope.Members[0].Name);
         Assert.Equal(SymbolKind.Namespace, model.GlobalScope.Members[0].Kind);
 
@@ -999,7 +999,7 @@ public class SemanticModelBuilderUnitTests
 
         var classSymbol = model.AllSymbols.First(s => s.Name == "C");
         Assert.Equal(SymbolOrigin.UserCode, classSymbol.Origin);
-        Assert.NotNull(classSymbol.DeclarationSpan);
+        _ = Assert.NotNull(classSymbol.DeclarationSpan);
     }
 
     [Fact]
@@ -1030,7 +1030,7 @@ public class SemanticModelBuilderUnitTests
         var model = BuildModel(ast);
         var classSymbol = model.AllSymbols.First(s => s.Name == "C");
         Assert.Equal(SymbolOrigin.UserCode, classSymbol.Origin);
-        Assert.NotNull(classSymbol.DeclarationSpan);
+        _ = Assert.NotNull(classSymbol.DeclarationSpan);
     }
 
     [Fact]
@@ -1345,7 +1345,7 @@ public class SemanticModelBuilderUnitTests
             .OfType<Symbol>()
             .First(s => s.Name == "M" && s.Kind == SymbolKind.Method);
 
-        Assert.Single(methodSymbol.WithClauses);
+        _ = Assert.Single(methodSymbol.WithClauses);
         Assert.Equal("ctx", methodSymbol.WithClauses[0].Identifier);
         Assert.Equal("MyCtx", methodSymbol.WithClauses[0].ContextType.DisplayName);
     }
@@ -1404,7 +1404,7 @@ public class SemanticModelBuilderUnitTests
             .OfType<Symbol>()
             .First(s => s.Name == "C" && s.Kind == SymbolKind.Constructor);
 
-        Assert.Single(ctorSymbol.WithClauses);
+        _ = Assert.Single(ctorSymbol.WithClauses);
         Assert.Equal("ctx", ctorSymbol.WithClauses[0].Identifier);
         Assert.Equal("MyCtx", ctorSymbol.WithClauses[0].ContextType.DisplayName);
     }
@@ -1464,7 +1464,7 @@ public class SemanticModelBuilderUnitTests
             .OfType<Symbol>()
             .First(s => s.Name == "M" && s.Kind == SymbolKind.Method);
 
-        Assert.Single(methodSymbol.WithClauses);
+        _ = Assert.Single(methodSymbol.WithClauses);
         Assert.Equal("ctx", methodSymbol.WithClauses[0].Identifier);
         Assert.Equal("MyCtx", methodSymbol.WithClauses[0].ContextType.DisplayName);
     }

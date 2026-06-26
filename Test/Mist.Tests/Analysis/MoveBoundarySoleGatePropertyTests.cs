@@ -77,7 +77,7 @@ public sealed class MoveBoundarySoleGatePropertyTests : IDisposable
     public MoveBoundarySoleGatePropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistMoveBoundaryGatePBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -144,7 +144,7 @@ public sealed class MoveBoundarySoleGatePropertyTests : IDisposable
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,
             EmitToDisk: false);
 
-        driver.Compile(options);
+        _ = driver.Compile(options);
         return capture.Captured;
     }
 
@@ -304,38 +304,38 @@ public sealed class MoveBoundarySoleGatePropertyTests : IDisposable
         switch(kind)
         {
             case SourceKind.ConstructorNonOwnedType:
-                sb.Append($"        owned var v{i} = new Widget();\n");
+                _ = sb.Append($"        owned var v{i} = new Widget();\n");
                 break;
 
             case SourceKind.ConstructorOwnedType:
-                sb.Append($"        owned var v{i} = new Vault();\n");
+                _ = sb.Append($"        owned var v{i} = new Vault();\n");
                 break;
 
             case SourceKind.DefaultTyped:
-                sb.Append($"        owned Widget v{i} = default(Widget);\n");
+                _ = sb.Append($"        owned Widget v{i} = default(Widget);\n");
                 break;
 
             case SourceKind.DefaultBare:
-                sb.Append($"        owned Widget v{i} = default;\n");
+                _ = sb.Append($"        owned Widget v{i} = default;\n");
                 break;
 
             case SourceKind.ValueCopy:
-                sb.Append($"        owned int v{i} = 5;\n");
+                _ = sb.Append($"        owned int v{i} = 5;\n");
                 break;
 
             case SourceKind.MoveFromOwned:
-                sb.Append($"        owned var src{i} = new Widget();\n");
-                sb.Append($"        owned var v{i} = src{i};\n");
+                _ = sb.Append($"        owned var src{i} = new Widget();\n");
+                _ = sb.Append($"        owned var v{i} = src{i};\n");
                 break;
 
             case SourceKind.CloneFromNonOwned:
-                sb.Append($"        var shared{i} = new Widget();\n");
-                sb.Append($"        owned var v{i} = shared{i};\n");
+                _ = sb.Append($"        var shared{i} = new Widget();\n");
+                _ = sb.Append($"        owned var v{i} = shared{i};\n");
                 break;
 
             case SourceKind.NonClonable:
-                sb.Append($"        var g{i} = new Gadget();\n");
-                sb.Append($"        owned var v{i} = g{i};\n");
+                _ = sb.Append($"        var g{i} = new Gadget();\n");
+                _ = sb.Append($"        owned var v{i} = g{i};\n");
                 break;
         }
     }
@@ -343,27 +343,27 @@ public sealed class MoveBoundarySoleGatePropertyTests : IDisposable
     private static GateScenario Build(SourceKind[] kinds)
     {
         var sb = new System.Text.StringBuilder();
-        sb.Append("using Standard;\n\n");
-        sb.Append("namespace Gen;\n\n");
+        _ = sb.Append("using Standard;\n\n");
+        _ = sb.Append("namespace Gen;\n\n");
 
         // Fixed type fixtures spanning the clonability / ownership axes the resolver
         // classifies on:
         //   Widget — non-owned, auto-derives IClonable<T> (int + string fields).
         //   Gadget — non-owned, NOT clonable (abstract-typed field blocks derivation).
         //   Vault  — an owned type.
-        sb.Append("public class Widget\n{\n    public int Value;\n    public string Label;\n}\n\n");
-        sb.Append("public abstract ISignal\n{\n}\n\n");
-        sb.Append("public class Gadget\n{\n    public ISignal signal;\n}\n\n");
-        sb.Append("owned class Vault\n{\n    public int Code;\n}\n\n");
+        _ = sb.Append("public class Widget\n{\n    public int Value;\n    public string Label;\n}\n\n");
+        _ = sb.Append("public abstract ISignal\n{\n}\n\n");
+        _ = sb.Append("public class Gadget\n{\n    public ISignal signal;\n}\n\n");
+        _ = sb.Append("owned class Vault\n{\n    public int Code;\n}\n\n");
 
-        sb.Append("public class Program\n{\n    public static void Main()\n    {\n");
+        _ = sb.Append("public class Program\n{\n    public static void Main()\n    {\n");
 
         for(var i = 0; i < kinds.Length; i++)
         {
             EmitScenario(sb, kinds[i], i);
         }
 
-        sb.Append("    }\n}\n");
+        _ = sb.Append("    }\n}\n");
 
         var label = string.Join(", ", kinds.Select((k, i) => $"v{i}:{k}"));
         return new GateScenario(sb.ToString(), label);

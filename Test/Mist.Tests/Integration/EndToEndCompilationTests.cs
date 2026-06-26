@@ -27,7 +27,7 @@ public sealed class EndToEndCompilationTests : IDisposable
     public EndToEndCompilationTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistE2E_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -173,7 +173,7 @@ public sealed class EndToEndCompilationTests : IDisposable
         var result = driver.Compile(options);
 
         // The result should be a valid CompilerResult
-        Assert.IsType<CompilerResult>(result);
+        _ = Assert.IsType<CompilerResult>(result);
         // The parser is now fully functional, so the pipeline should complete
         Assert.False(result.Diagnostics.IsDefault);
     }
@@ -995,7 +995,7 @@ public sealed class EndToEndCompilationTests : IDisposable
         using var process = System.Diagnostics.Process.Start(psi);
         Assert.NotNull(process);
 
-        process.WaitForExit(10000);
+        _ = process.WaitForExit(10000);
         Assert.True(process.HasExited, "Process did not exit within timeout");
         Assert.Equal(0, process.ExitCode);
     }
@@ -1071,7 +1071,7 @@ public sealed class EndToEndCompilationTests : IDisposable
         Assert.NotNull(process);
 
         var stdout = process.StandardOutput.ReadToEnd();
-        process.WaitForExit(15000);
+        _ = process.WaitForExit(15000);
         Assert.True(process.HasExited, "Process did not exit within timeout");
         Assert.Equal(0, process.ExitCode);
 
@@ -1181,7 +1181,7 @@ public sealed class EndToEndCompilationTests : IDisposable
         Assert.NotNull(process);
 
         var stdout = process.StandardOutput.ReadToEnd();
-        process.WaitForExit(30000);
+        _ = process.WaitForExit(30000);
         Assert.True(process.HasExited, "Process did not exit within timeout");
         Assert.Equal(0, process.ExitCode);
 
@@ -1295,7 +1295,7 @@ public sealed class EndToEndCompilationTests : IDisposable
         Assert.NotNull(process);
 
         var stdout = process.StandardOutput.ReadToEnd();
-        process.WaitForExit(15000);
+        _ = process.WaitForExit(15000);
         Assert.True(process.HasExited, "Process did not exit within timeout");
         Assert.Equal(0, process.ExitCode);
 
@@ -1369,7 +1369,7 @@ public sealed class EndToEndCompilationTests : IDisposable
         using var process = System.Diagnostics.Process.Start(psi);
         Assert.NotNull(process);
 
-        process.WaitForExit(15000);
+        _ = process.WaitForExit(15000);
         Assert.True(process.HasExited, "Process did not exit within timeout");
         Assert.Equal(0, process.ExitCode);
 
@@ -1381,7 +1381,7 @@ public sealed class EndToEndCompilationTests : IDisposable
     {
         // HelloMist has explicit namespace declarations (namespace HelloMist;) in every file.
         // Requirement 12.2: files with existing single namespace declarations continue to work identically.
-        CompileAndRunSample("HelloMist", minSourceFiles: 3);
+        _ = CompileAndRunSample("HelloMist", minSourceFiles: 3);
     }
 
     [Fact]
@@ -1389,7 +1389,7 @@ public sealed class EndToEndCompilationTests : IDisposable
     {
         // Simpliest has an explicit namespace declaration (namespace Simpliest;).
         // Requirement 12.2: files with existing single namespace declarations continue to work identically.
-        CompileAndRunSample("Simpliest", minSourceFiles: 1);
+        _ = CompileAndRunSample("Simpliest", minSourceFiles: 1);
     }
 
     [Fact]
@@ -1397,7 +1397,7 @@ public sealed class EndToEndCompilationTests : IDisposable
     {
         // AbstractTypes has explicit namespace declarations in all files.
         // Requirement 12.2: files with existing single namespace declarations continue to work identically.
-        CompileAndRunSample("AbstractTypes", minSourceFiles: 1);
+        _ = CompileAndRunSample("AbstractTypes", minSourceFiles: 1);
     }
 
     [Fact]
@@ -1405,7 +1405,7 @@ public sealed class EndToEndCompilationTests : IDisposable
     {
         // Properties has explicit namespace declarations in all files.
         // Requirement 12.2: files with existing single namespace declarations continue to work identically.
-        CompileAndRunSample("Properties", minSourceFiles: 10);
+        _ = CompileAndRunSample("Properties", minSourceFiles: 10);
     }
 
     [Fact]

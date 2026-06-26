@@ -59,7 +59,7 @@ public sealed class ConstraintEmissionOrderingPropertyTests : IDisposable
         outputDir = Path.Combine(
             Path.GetTempPath(),
             "MistConstraintOrderTests_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

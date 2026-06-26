@@ -41,7 +41,7 @@ public sealed class AssociatedTypeSignaturePropertyTests : IDisposable
         outputDir = Path.Combine(
             Path.GetTempPath(),
             "MistAssocTypeSig_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

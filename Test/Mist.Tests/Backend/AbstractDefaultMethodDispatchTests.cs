@@ -40,7 +40,7 @@ public sealed class AbstractDefaultMethodDispatchTests : IDisposable
     public AbstractDefaultMethodDispatchTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistDefaultDispatch_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -68,7 +68,7 @@ public sealed class AbstractDefaultMethodDispatchTests : IDisposable
     private (int ExitCode, string Stdout, string Stderr) CompileAndRun(string mistSource)
     {
         var iterDir = Path.Combine(outputDir, Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(iterDir);
+        _ = Directory.CreateDirectory(iterDir);
 
         try
         {

@@ -43,7 +43,7 @@ public sealed class SyntheticDropInferencePropertyTests : IDisposable
     public SyntheticDropInferencePropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistSyntheticDropPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -111,7 +111,7 @@ public sealed class SyntheticDropInferencePropertyTests : IDisposable
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,
             EmitToDisk: false);
 
-        driver.Compile(options);
+        _ = driver.Compile(options);
         return capture.Captured;
     }
 

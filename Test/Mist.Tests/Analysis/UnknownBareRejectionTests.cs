@@ -128,7 +128,7 @@ public class UnknownBareRejectionTests
         var diagnostics = CompileAndCollectDiagnostics(source);
         var hits = WithId(diagnostics, BareUnknownMemberAccessDiagnosticId);
 
-        Assert.Single(hits);
+        _ = Assert.Single(hits);
         var d = hits[0];
         Assert.Equal(DiagnosticSeverity.Error, d.Severity);
         // Message names the member and the receiver's static type
@@ -156,7 +156,7 @@ public class UnknownBareRejectionTests
         var diagnostics = CompileAndCollectDiagnostics(source);
         var hits = WithId(diagnostics, BareUnknownMemberAccessDiagnosticId);
 
-        Assert.Single(hits);
+        _ = Assert.Single(hits);
         Assert.Contains("Field", hits[0].Message);
         Assert.Contains("unknown", hits[0].Message);
     }
@@ -180,7 +180,7 @@ public class UnknownBareRejectionTests
         var diagnostics = CompileAndCollectDiagnostics(source);
         var hits = WithId(diagnostics, BareUnknownMemberAccessDiagnosticId);
 
-        Assert.Single(hits);
+        _ = Assert.Single(hits);
         Assert.Contains("unknown", hits[0].Message);
     }
 

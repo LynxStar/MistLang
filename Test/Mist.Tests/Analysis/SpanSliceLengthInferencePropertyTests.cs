@@ -174,7 +174,7 @@ public sealed class SpanSliceLengthInferencePropertyTests
         string source)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), $"mist_slice_pbt_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var sourcePath = Path.Combine(tempDir, "Program.mist");

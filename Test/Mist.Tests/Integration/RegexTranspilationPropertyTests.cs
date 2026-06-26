@@ -75,7 +75,7 @@ public sealed class RegexTranspilationPropertyTests : IDisposable
         outputDir = Path.Combine(
             Path.GetTempPath(),
             "mist_regex_e2e_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -237,25 +237,25 @@ public sealed class RegexTranspilationPropertyTests : IDisposable
             switch(s.Kind)
             {
                 case ScenarioKind.IsMatch:
-                    body.AppendLine($"        var r{i} = `{EscapeForMistRegex(s.Pattern)}`;");
-                    body.AppendLine($"        Console.WriteLine(r{i}.IsMatch(\"{EscapeForMistString(s.Input)}\"));");
+                    _ = body.AppendLine($"        var r{i} = `{EscapeForMistRegex(s.Pattern)}`;");
+                    _ = body.AppendLine($"        Console.WriteLine(r{i}.IsMatch(\"{EscapeForMistString(s.Input)}\"));");
                     break;
 
                 case ScenarioKind.IsExpression:
-                    body.AppendLine($"        string s{i} = \"{EscapeForMistString(s.Input)}\";");
-                    body.AppendLine($"        bool b{i} = s{i} is `{EscapeForMistRegex(s.Pattern)}`;");
-                    body.AppendLine($"        Console.WriteLine(b{i});");
+                    _ = body.AppendLine($"        string s{i} = \"{EscapeForMistString(s.Input)}\";");
+                    _ = body.AppendLine($"        bool b{i} = s{i} is `{EscapeForMistRegex(s.Pattern)}`;");
+                    _ = body.AppendLine($"        Console.WriteLine(b{i});");
                     break;
 
                 case ScenarioKind.SwitchExpression:
-                    body.AppendLine($"        string sw{i} = \"{EscapeForMistString(s.Input)}\";");
-                    body.AppendLine($"        var cat{i} = sw{i} switch {{");
-                    body.AppendLine($"            `[0-9]+` => \"digits\",");
-                    body.AppendLine($"            `[a-z]+` => \"lower\",");
-                    body.AppendLine($"            `[A-Z]+` => \"upper\",");
-                    body.AppendLine($"            var _ => \"other\",");
-                    body.AppendLine($"        }};");
-                    body.AppendLine($"        Console.WriteLine(cat{i});");
+                    _ = body.AppendLine($"        string sw{i} = \"{EscapeForMistString(s.Input)}\";");
+                    _ = body.AppendLine($"        var cat{i} = sw{i} switch {{");
+                    _ = body.AppendLine($"            `[0-9]+` => \"digits\",");
+                    _ = body.AppendLine($"            `[a-z]+` => \"lower\",");
+                    _ = body.AppendLine($"            `[A-Z]+` => \"upper\",");
+                    _ = body.AppendLine($"            var _ => \"other\",");
+                    _ = body.AppendLine($"        }};");
+                    _ = body.AppendLine($"        Console.WriteLine(cat{i});");
                     break;
             }
         }
@@ -300,7 +300,7 @@ public sealed class RegexTranspilationPropertyTests : IDisposable
     private (int ExitCode, string Stdout, string Stderr) CompileAndRun(string mistSource)
     {
         var iterDir = Path.Combine(outputDir, Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(iterDir);
+        _ = Directory.CreateDirectory(iterDir);
 
         var sourcePath = Path.Combine(iterDir, "Program.mist");
         File.WriteAllText(sourcePath, mistSource);

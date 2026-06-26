@@ -70,7 +70,7 @@ public class AbstractDefaultMethodParsingTests
         var abstractDecl = ParseAbstract("abstract ICalc { int Add(int a, int b); }");
 
         var member = Assert.Single(abstractDecl.Members);
-        Assert.IsType<AbstractMethodMemberAbstractMemberDeclarationNode>(member);
+        _ = Assert.IsType<AbstractMethodMemberAbstractMemberDeclarationNode>(member);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -87,7 +87,7 @@ public class AbstractDefaultMethodParsingTests
         var def = Assert.IsType<AbstractDefaultMethodMemberAbstractMemberDeclarationNode>(member);
         Assert.Equal("Greet", def.DefaultMethod.Name.Lexeme);
         // The captured method retains its block body.
-        Assert.IsType<MethodBlockBodyMethodBodyNode>(def.DefaultMethod.Body);
+        _ = Assert.IsType<MethodBlockBodyMethodBodyNode>(def.DefaultMethod.Body);
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public class AbstractDefaultMethodParsingTests
         var abstractDecl = ParseAbstract("abstract IFoo { void Noop() { } }");
 
         var member = Assert.Single(abstractDecl.Members);
-        Assert.IsType<AbstractDefaultMethodMemberAbstractMemberDeclarationNode>(member);
+        _ = Assert.IsType<AbstractDefaultMethodMemberAbstractMemberDeclarationNode>(member);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -119,10 +119,10 @@ public class AbstractDefaultMethodParsingTests
         var abstractDecl = ParseAbstract(source);
 
         Assert.Equal(4, abstractDecl.Members.Length);
-        Assert.IsType<AbstractMethodMemberAbstractMemberDeclarationNode>(abstractDecl.Members[0]);
-        Assert.IsType<AbstractDefaultMethodMemberAbstractMemberDeclarationNode>(abstractDecl.Members[1]);
-        Assert.IsType<AbstractMethodMemberAbstractMemberDeclarationNode>(abstractDecl.Members[2]);
-        Assert.IsType<AbstractDefaultMethodMemberAbstractMemberDeclarationNode>(abstractDecl.Members[3]);
+        _ = Assert.IsType<AbstractMethodMemberAbstractMemberDeclarationNode>(abstractDecl.Members[0]);
+        _ = Assert.IsType<AbstractDefaultMethodMemberAbstractMemberDeclarationNode>(abstractDecl.Members[1]);
+        _ = Assert.IsType<AbstractMethodMemberAbstractMemberDeclarationNode>(abstractDecl.Members[2]);
+        _ = Assert.IsType<AbstractDefaultMethodMemberAbstractMemberDeclarationNode>(abstractDecl.Members[3]);
     }
 
     [Fact]
@@ -139,8 +139,8 @@ public class AbstractDefaultMethodParsingTests
         var abstractDecl = ParseAbstract(source);
 
         Assert.Equal(2, abstractDecl.Members.Length);
-        Assert.IsType<AbstractPropertyMemberAbstractMemberDeclarationNode>(abstractDecl.Members[0]);
-        Assert.IsType<AbstractDefaultMethodMemberAbstractMemberDeclarationNode>(abstractDecl.Members[1]);
+        _ = Assert.IsType<AbstractPropertyMemberAbstractMemberDeclarationNode>(abstractDecl.Members[0]);
+        _ = Assert.IsType<AbstractDefaultMethodMemberAbstractMemberDeclarationNode>(abstractDecl.Members[1]);
     }
 
     [Fact]

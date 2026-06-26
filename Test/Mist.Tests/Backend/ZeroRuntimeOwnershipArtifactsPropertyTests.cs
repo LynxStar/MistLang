@@ -45,7 +45,7 @@ public sealed class ZeroRuntimeOwnershipArtifactsPropertyTests : IDisposable
     public ZeroRuntimeOwnershipArtifactsPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistZeroRuntimePBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

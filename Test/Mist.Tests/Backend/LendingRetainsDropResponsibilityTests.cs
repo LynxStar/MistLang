@@ -58,7 +58,7 @@ public sealed class LendingRetainsDropResponsibilityTests
     private static (string? EmittedCSharp, string? ErrorMessage) CompileAndGetEmittedCSharp(string source)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "mist_lending_drop_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var sourcePath = Path.Combine(tempDir, "Program.mist");

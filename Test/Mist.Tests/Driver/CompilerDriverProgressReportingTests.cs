@@ -23,7 +23,7 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
         scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist-progress-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(scratchDir);
+        _ = Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()
@@ -73,8 +73,8 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
 
         var outputDir = Path.Combine(scratchDir, "output");
         var binDir = Path.Combine(scratchDir, "bin");
-        Directory.CreateDirectory(outputDir);
-        Directory.CreateDirectory(binDir);
+        _ = Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(binDir);
 
         return new CompilerOptions(
             ProjectFolder: scratchDir,
@@ -101,7 +101,7 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
         var driver = CreateDriver(spy);
         var options = CreateOptionsForSource(ValidProgram);
 
-        driver.Compile(options);
+        _ = driver.Compile(options);
 
         // Stages 1–6 should all be started and completed
         Assert.Equal(6, spy.StageStarts.Count);
@@ -121,7 +121,7 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
         var driver = CreateDriver(spy);
         var options = CreateOptionsForSource(ValidProgram);
 
-        driver.Compile(options);
+        _ = driver.Compile(options);
 
         var stage1 = spy.StageCompletes.First(s => s.StageId == "1");
 
@@ -147,11 +147,11 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
         var driver = CreateDriver(spy);
         var options = CreateOptionsForSource(ValidProgram);
 
-        driver.Compile(options);
+        _ = driver.Compile(options);
 
         var stage2 = spy.StageCompletes.First(s => s.StageId == "2");
 
-        Assert.Single(stage2.Details);
+        _ = Assert.Single(stage2.Details);
         Assert.Matches(@"^\d+ tokens$", stage2.Details[0]);
         var tokenCount = int.Parse(stage2.Details[0].Split(' ')[0]);
         Assert.True(tokenCount > 0, "Expected token count > 0");
@@ -164,11 +164,11 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
         var driver = CreateDriver(spy);
         var options = CreateOptionsForSource(ValidProgram);
 
-        driver.Compile(options);
+        _ = driver.Compile(options);
 
         var stage3 = spy.StageCompletes.First(s => s.StageId == "3");
 
-        Assert.Single(stage3.Details);
+        _ = Assert.Single(stage3.Details);
         Assert.Matches(@"^\d+ AST nodes$", stage3.Details[0]);
         var nodeCount = int.Parse(stage3.Details[0].Split(' ')[0]);
         Assert.True(nodeCount > 0, "Expected AST node count > 0");
@@ -181,11 +181,11 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
         var driver = CreateDriver(spy);
         var options = CreateOptionsForSource(ValidProgram);
 
-        driver.Compile(options);
+        _ = driver.Compile(options);
 
         var stage4 = spy.StageCompletes.First(s => s.StageId == "4");
 
-        Assert.Single(stage4.Details);
+        _ = Assert.Single(stage4.Details);
         Assert.Matches(@"^\d+ top-level constructs$", stage4.Details[0]);
         var constructCount = int.Parse(stage4.Details[0].Split(' ')[0]);
         // At least 1 user-code top-level construct (class Foo)
@@ -199,7 +199,7 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
         var driver = CreateDriver(spy);
         var options = CreateOptionsForSource(ValidProgram);
 
-        driver.Compile(options);
+        _ = driver.Compile(options);
 
         var stage5 = spy.StageCompletes.First(s => s.StageId == "5");
 
@@ -219,7 +219,7 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
         var driver = CreateDriver(spy);
         var options = CreateOptionsForSource(ValidProgram);
 
-        driver.Compile(options);
+        _ = driver.Compile(options);
 
         var stage6 = spy.StageCompletes.First(s => s.StageId == "6");
 

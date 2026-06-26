@@ -102,7 +102,7 @@ public class OperatorAndIntrinsicGrammarTests
 
         var structDecl = GetStructDeclaration(cu);
         Assert.NotNull(structDecl);
-        Assert.Single(structDecl!.Members);
+        _ = Assert.Single(structDecl!.Members);
 
         var opMember = structDecl.Members[0] as OperatorMemberMemberDeclarationNode;
         Assert.NotNull(opMember);
@@ -139,10 +139,10 @@ public class OperatorAndIntrinsicGrammarTests
         var opDecl = opMember!.Operator;
 
         // Symbol is PlusOp.
-        Assert.IsType<PlusOpOperatorSymbolNode>(opDecl.Symbol);
+        _ = Assert.IsType<PlusOpOperatorSymbolNode>(opDecl.Symbol);
 
         // Body is a block body.
-        Assert.IsType<OperatorBlockBodyOperatorBodyNode>(opDecl.Body);
+        _ = Assert.IsType<OperatorBlockBodyOperatorBodyNode>(opDecl.Body);
 
         // Parameter list has two parameters.
         Assert.NotNull(opDecl.Parameters);
@@ -176,8 +176,8 @@ public class OperatorAndIntrinsicGrammarTests
         Assert.NotNull(opMember);
         var opDecl = opMember!.Operator;
 
-        Assert.IsType<MinusOpOperatorSymbolNode>(opDecl.Symbol);
-        Assert.IsType<OperatorBlockBodyOperatorBodyNode>(opDecl.Body);
+        _ = Assert.IsType<MinusOpOperatorSymbolNode>(opDecl.Symbol);
+        _ = Assert.IsType<OperatorBlockBodyOperatorBodyNode>(opDecl.Body);
 
         Assert.NotNull(opDecl.Parameters);
         var paramCount = 1 + opDecl.Parameters!.Parameters.Length;
@@ -247,7 +247,7 @@ public class OperatorAndIntrinsicGrammarTests
         Assert.NotNull(structDecl);
         var opMember = structDecl!.Members[0] as OperatorMemberMemberDeclarationNode;
         Assert.NotNull(opMember);
-        Assert.IsType<OperatorNoBodyOperatorBodyNode>(opMember!.Operator.Body);
+        _ = Assert.IsType<OperatorNoBodyOperatorBodyNode>(opMember!.Operator.Body);
     }
 
     // ─── Task 4.1 — Method and Constructor bodies accept `;` ────────────────
@@ -277,7 +277,7 @@ public class OperatorAndIntrinsicGrammarTests
         var opMember = structDecl!.Members[0] as OperatorMemberMemberDeclarationNode;
         Assert.NotNull(opMember);
 
-        Assert.IsType<OperatorNoBodyOperatorBodyNode>(opMember!.Operator.Body);
+        _ = Assert.IsType<OperatorNoBodyOperatorBodyNode>(opMember!.Operator.Body);
         Assert.Contains(opMember.Operator.Modifiers, m => m is IntrinsicModifierModifierNode);
     }
 
@@ -305,7 +305,7 @@ public class OperatorAndIntrinsicGrammarTests
         var ctorMember = structDecl!.Members[0] as ConstructorMemberMemberDeclarationNode;
         Assert.NotNull(ctorMember);
 
-        Assert.IsType<MethodNoBodyMethodBodyNode>(ctorMember!.Constructor.Body);
+        _ = Assert.IsType<MethodNoBodyMethodBodyNode>(ctorMember!.Constructor.Body);
         Assert.Contains(ctorMember.Constructor.Modifiers, m => m is IntrinsicModifierModifierNode);
     }
 
@@ -329,6 +329,6 @@ public class OperatorAndIntrinsicGrammarTests
         Assert.NotNull(classDecl);
         var methodMember = classDecl!.Members[0] as MethodMemberMemberDeclarationNode;
         Assert.NotNull(methodMember);
-        Assert.IsType<MethodBlockBodyMethodBodyNode>(methodMember!.Method.Body);
+        _ = Assert.IsType<MethodBlockBodyMethodBodyNode>(methodMember!.Method.Body);
     }
 }

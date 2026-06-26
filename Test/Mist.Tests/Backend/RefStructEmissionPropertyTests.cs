@@ -62,7 +62,7 @@ public sealed class RefStructEmissionPropertyTests : IDisposable
     public RefStructEmissionPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistRefStructEmitPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

@@ -45,7 +45,7 @@ public sealed class FieldTypeRestrictionVerifierTests : IDisposable
     public FieldTypeRestrictionVerifierTests()
     {
         scratchDir = Path.Combine(Path.GetTempPath(), "mist_field_restrict_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(scratchDir);
+        _ = Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()
@@ -109,7 +109,7 @@ public sealed class FieldTypeRestrictionVerifierTests : IDisposable
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,
             EmitToDisk: false);
 
-        driver.Compile(options);
+        _ = driver.Compile(options);
 
         Assert.NotNull(capture.Captured);
         return capture.Captured!;

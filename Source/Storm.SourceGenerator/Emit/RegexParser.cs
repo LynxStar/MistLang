@@ -94,7 +94,7 @@ namespace Storm.SourceGenerator.Emit
 
                 while(HasMore && Peek() == '|')
                 {
-                    Advance(); // consume '|'
+                    _ = Advance(); // consume '|'
                     alternatives.Add(ParseConcatenation());
                 }
 
@@ -143,13 +143,13 @@ namespace Storm.SourceGenerator.Emit
                 switch(Peek())
                 {
                     case '+':
-                        Advance();
+                        _ = Advance();
                         return new OneOrMoreIR(atom);
                     case '*':
-                        Advance();
+                        _ = Advance();
                         return new ZeroOrMoreIR(atom);
                     case '?':
-                        Advance();
+                        _ = Advance();
                         return new OptionalIR(atom);
                     default:
                         return atom;
@@ -178,14 +178,14 @@ namespace Storm.SourceGenerator.Emit
                         return ParseGroup();
 
                     case '.':
-                        Advance();
+                        _ = Advance();
                         return new CharClassIR("[^\\n]");
 
                     case '\\':
                         return ParseEscape();
 
                     default:
-                        Advance();
+                        _ = Advance();
                         return new StringLiteralIR(ch.ToString());
                 }
             }
@@ -197,18 +197,18 @@ namespace Storm.SourceGenerator.Emit
             private ExpressionIR ParseCharClass()
             {
                 var startPos = Position;
-                Advance(); // consume '['
+                _ = Advance(); // consume '['
 
                 // Handle negation
                 if(HasMore && Peek() == '^')
                 {
-                    Advance();
+                    _ = Advance();
                 }
 
                 // Handle ']' as first character in class (literal ']')
                 if(HasMore && Peek() == ']')
                 {
-                    Advance();
+                    _ = Advance();
                 }
 
                 // Read until closing ']'
@@ -216,12 +216,12 @@ namespace Storm.SourceGenerator.Emit
                 {
                     if(Peek() == '\\' && Position + 1 < pattern.Length)
                     {
-                        Advance(); // skip backslash
-                        Advance(); // skip escaped char
+                        _ = Advance(); // skip backslash
+                        _ = Advance(); // skip escaped char
                     }
                     else
                     {
-                        Advance();
+                        _ = Advance();
                     }
                 }
 
@@ -231,7 +231,7 @@ namespace Storm.SourceGenerator.Emit
                         $"Unterminated character class starting at position {startPos} in regex pattern: {pattern}");
                 }
 
-                Advance(); // consume ']'
+                _ = Advance(); // consume ']'
 
                 var classText = pattern.Substring(startPos, Position - startPos);
                 return new CharClassIR(classText);
@@ -242,7 +242,7 @@ namespace Storm.SourceGenerator.Emit
             /// </summary>
             private ExpressionIR ParseGroup()
             {
-                Advance(); // consume '('
+                _ = Advance(); // consume '('
 
                 var inner = ParseExpression();
 
@@ -252,7 +252,7 @@ namespace Storm.SourceGenerator.Emit
                         $"Unterminated group in regex pattern: {pattern}");
                 }
 
-                Advance(); // consume ')'
+                _ = Advance(); // consume ')'
 
                 return inner;
             }
@@ -264,7 +264,7 @@ namespace Storm.SourceGenerator.Emit
             /// </summary>
             private ExpressionIR ParseEscape()
             {
-                Advance(); // consume '\'
+                _ = Advance(); // consume '\'
 
                 if(!HasMore)
                 {

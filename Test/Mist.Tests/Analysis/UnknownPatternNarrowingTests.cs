@@ -131,7 +131,7 @@ public class UnknownPatternNarrowingTests
         var diagnostics = CompileAndCollectDiagnostics(source);
         var hits = WithId(diagnostics, NarrowToUnknownDiagnosticId);
 
-        Assert.Single(hits);
+        _ = Assert.Single(hits);
         var d = hits[0];
         Assert.Equal(DiagnosticSeverity.Error, d.Severity);
         // The message names `unknown` and states the rule.
@@ -193,7 +193,7 @@ public class UnknownPatternNarrowingTests
         var diagnostics = CompileAndCollectDiagnostics(source);
         var hits = WithId(diagnostics, NarrowToClosedGenericWithUnknownDiagnosticId);
 
-        Assert.Single(hits);
+        _ = Assert.Single(hits);
         var d = hits[0];
         Assert.Equal(DiagnosticSeverity.Error, d.Severity);
         // The message names the closed-generic-with-unknown form.
@@ -221,7 +221,7 @@ public class UnknownPatternNarrowingTests
             "}";
 
         var diagnostics = CompileAndCollectDiagnostics(source);
-        Assert.Single(WithId(diagnostics, NarrowToClosedGenericWithUnknownDiagnosticId));
+        _ = Assert.Single(WithId(diagnostics, NarrowToClosedGenericWithUnknownDiagnosticId));
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -340,6 +340,6 @@ public class UnknownPatternNarrowingTests
             "}";
 
         var diagnostics = CompileAndCollectDiagnostics(source);
-        Assert.Single(WithId(diagnostics, NarrowToClosedGenericWithUnknownDiagnosticId));
+        _ = Assert.Single(WithId(diagnostics, NarrowToClosedGenericWithUnknownDiagnosticId));
     }
 }

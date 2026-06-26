@@ -282,12 +282,12 @@ public sealed class CompilerDriver : ICompilerDriver
             var mergedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach(var path in packageResult.AssemblyPaths)
             {
-                mergedPaths.Add(path);
+                _ = mergedPaths.Add(path);
             }
 
             foreach(var path in frameworkResult.AssemblyPaths)
             {
-                mergedPaths.Add(path);
+                _ = mergedPaths.Add(path);
             }
 
             resolvedAssemblyPaths = [.. mergedPaths];
@@ -438,7 +438,7 @@ public sealed class CompilerDriver : ICompilerDriver
                 if(parseResult.Root is CompilationUnitNode cu
                     && cu.Items.Any(item => item is StatementItemTopLevelItemNode))
                 {
-                    unitsWithTopLevelStatements.Add(unit);
+                    _ = unitsWithTopLevelStatements.Add(unit);
                 }
             }
             // If parse errors, exclude AST from semantic model (R16.4)
@@ -665,14 +665,14 @@ public sealed class CompilerDriver : ICompilerDriver
 
         // Build the custom PropertyGroup fragment.
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine();
-        sb.AppendLine("  <PropertyGroup>");
+        _ = sb.AppendLine();
+        _ = sb.AppendLine("  <PropertyGroup>");
         foreach(var prop in csprojProperties)
         {
             var escapedValue = System.Security.SecurityElement.Escape(prop.Value) ?? prop.Value;
-            sb.AppendLine($"    <{prop.Key}>{escapedValue}</{prop.Key}>");
+            _ = sb.AppendLine($"    <{prop.Key}>{escapedValue}</{prop.Key}>");
         }
-        sb.AppendLine("  </PropertyGroup>");
+        _ = sb.AppendLine("  </PropertyGroup>");
 
         // Insert after the first </PropertyGroup> tag.
         const string marker = "</PropertyGroup>";
@@ -708,22 +708,22 @@ public sealed class CompilerDriver : ICompilerDriver
 
         if(!packages.IsDefaultOrEmpty)
         {
-            sb.AppendLine("  <ItemGroup>");
+            _ = sb.AppendLine("  <ItemGroup>");
             foreach(var pkg in packages)
             {
-                sb.AppendLine($"    <PackageReference Include=\"{pkg.Name}\" Version=\"{pkg.Version}\" />");
+                _ = sb.AppendLine($"    <PackageReference Include=\"{pkg.Name}\" Version=\"{pkg.Version}\" />");
             }
-            sb.AppendLine("  </ItemGroup>");
+            _ = sb.AppendLine("  </ItemGroup>");
         }
 
         if(!frameworkReferences.IsDefaultOrEmpty)
         {
-            sb.AppendLine("  <ItemGroup>");
+            _ = sb.AppendLine("  <ItemGroup>");
             foreach(var fw in frameworkReferences)
             {
-                sb.AppendLine($"    <FrameworkReference Include=\"{fw.Name}\" />");
+                _ = sb.AppendLine($"    <FrameworkReference Include=\"{fw.Name}\" />");
             }
-            sb.AppendLine("  </ItemGroup>");
+            _ = sb.AppendLine("  </ItemGroup>");
         }
 
         if(sb.Length > 0)

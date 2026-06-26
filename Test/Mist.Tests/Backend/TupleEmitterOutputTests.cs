@@ -24,7 +24,7 @@ public sealed class TupleEmitterOutputTests : IDisposable
     public TupleEmitterOutputTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistTupleEmitterTests_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

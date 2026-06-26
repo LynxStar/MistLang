@@ -87,7 +87,7 @@ public sealed class RefinementTypePatternEmissionTests
         var sb = new StringBuilder();
         foreach(var (_, content) in files)
         {
-            sb.AppendLine(content);
+            _ = sb.AppendLine(content);
         }
 
         return sb.ToString();
@@ -98,7 +98,7 @@ public sealed class RefinementTypePatternEmissionTests
     private static string CompileWithStdlibAndGetEmittedCSharp(string mistSource)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "mist_emit_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var sourcePath = Path.Combine(tempDir, "Program.mist");

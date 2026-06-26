@@ -86,7 +86,7 @@ public sealed class ForeachExplicitTypeAnnotationPropertyTests : IDisposable
     public ForeachExplicitTypeAnnotationPropertyTests()
     {
         tempDir = Path.Combine(Path.GetTempPath(), "MistForeachTypePBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
     }
 
     public void Dispose()

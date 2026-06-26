@@ -178,7 +178,7 @@ public sealed class VoidValueLiteralEmissionPropertyTests : IDisposable
     public VoidValueLiteralEmissionPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistVoidEmitPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

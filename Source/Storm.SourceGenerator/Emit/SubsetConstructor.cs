@@ -142,11 +142,11 @@ namespace Storm.SourceGenerator.Emit
 
                     foreach(var range in transition.Ranges)
                     {
-                        boundarySet.Add(range.Lo);
+                        _ = boundarySet.Add(range.Lo);
                         // Add hi+1 as a boundary (if it doesn't overflow)
                         if(range.Hi < 0xFFFF)
                         {
-                            boundarySet.Add(range.Hi + 1);
+                            _ = boundarySet.Add(range.Hi + 1);
                         }
                     }
                 }
@@ -224,7 +224,7 @@ namespace Storm.SourceGenerator.Emit
                     {
                         if(tRange.Contains(representative))
                         {
-                            result.Add(transition.Target.Id);
+                            _ = result.Add(transition.Target.Id);
                             break;
                         }
                     }
@@ -284,10 +284,10 @@ namespace Storm.SourceGenerator.Emit
             {
                 if(i > 0)
                 {
-                    sb.Append(',');
+                    _ = sb.Append(',');
                 }
 
-                sb.Append(sorted[i]);
+                _ = sb.Append(sorted[i]);
             }
             return sb.ToString();
         }

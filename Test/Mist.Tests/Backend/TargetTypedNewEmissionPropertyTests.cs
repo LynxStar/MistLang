@@ -185,25 +185,25 @@ public sealed class TargetTypedNewEmissionPropertyTests
     private static string BuildClassWithCtor(string className, int argCount)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"class {className} {{");
+        _ = sb.AppendLine($"class {className} {{");
         if(argCount > 0)
         {
             var parms = BuildCtorParams(argCount);
-            sb.AppendLine($"    public {className}({parms}) {{ }}");
+            _ = sb.AppendLine($"    public {className}({parms}) {{ }}");
         }
-        sb.AppendLine("}");
+        _ = sb.AppendLine("}");
         return sb.ToString();
     }
 
     private static string BuildClassWithProps(string className, ImmutableArray<string> propNames)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"class {className} {{");
+        _ = sb.AppendLine($"class {className} {{");
         foreach(var prop in propNames)
         {
-            sb.AppendLine($"    public int {prop} {{ get; set; }}");
+            _ = sb.AppendLine($"    public int {prop} {{ get; set; }}");
         }
-        sb.AppendLine("}");
+        _ = sb.AppendLine("}");
         return sb.ToString();
     }
 
@@ -211,17 +211,17 @@ public sealed class TargetTypedNewEmissionPropertyTests
         string className, int argCount, ImmutableArray<string> propNames)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"class {className} {{");
+        _ = sb.AppendLine($"class {className} {{");
         if(argCount > 0)
         {
             var parms = BuildCtorParams(argCount);
-            sb.AppendLine($"    public {className}({parms}) {{ }}");
+            _ = sb.AppendLine($"    public {className}({parms}) {{ }}");
         }
         foreach(var prop in propNames)
         {
-            sb.AppendLine($"    public int {prop} {{ get; set; }}");
+            _ = sb.AppendLine($"    public int {prop} {{ get; set; }}");
         }
-        sb.AppendLine("}");
+        _ = sb.AppendLine("}");
         return sb.ToString();
     }
 
@@ -299,7 +299,7 @@ public sealed class TargetTypedNewEmissionPropertyTests
         var sb = new StringBuilder();
         foreach(var (_, content) in files)
         {
-            sb.AppendLine(content);
+            _ = sb.AppendLine(content);
         }
 
         return (true, sb.ToString(), "");

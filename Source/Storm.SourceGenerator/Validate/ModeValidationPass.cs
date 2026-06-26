@@ -27,7 +27,7 @@ public static class ModeValidationPass
             if(decl is StormModeDecl modeDecl)
             {
                 modeDecls.Add(modeDecl);
-                declaredModeNames.Add(modeDecl.Name);
+                _ = declaredModeNames.Add(modeDecl.Name);
             }
         }
 

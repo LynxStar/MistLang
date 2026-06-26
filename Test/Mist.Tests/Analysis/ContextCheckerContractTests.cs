@@ -36,7 +36,7 @@ public sealed class ContextCheckerContractTests
     {
         var driver = CreateDriver();
         var tempDir = Path.Combine(Path.GetTempPath(), $"mist_ctx_contract_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
 
         try
         {
@@ -98,7 +98,7 @@ public sealed class ContextCheckerContractTests
         var diagnostics = CompileSource(source);
         var contractDiags = GetContractDiagnostics(diagnostics);
 
-        Assert.Single(contractDiags);
+        _ = Assert.Single(contractDiags);
         Assert.Contains("DoWork", contractDiags[0].Message);
         Assert.Contains("ServiceImpl", contractDiags[0].Message);
         Assert.Contains("MyCtx", contractDiags[0].Message);
@@ -187,7 +187,7 @@ public sealed class ContextCheckerContractTests
         var diagnostics = CompileSource(source);
         var contractDiags = GetContractDiagnostics(diagnostics);
 
-        Assert.Single(contractDiags);
+        _ = Assert.Single(contractDiags);
         Assert.Contains("CtxB", contractDiags[0].Message);
     }
 
@@ -214,7 +214,7 @@ public sealed class ContextCheckerContractTests
         var diagnostics = CompileSource(source);
         var contractDiags = GetContractDiagnostics(diagnostics);
 
-        Assert.Single(contractDiags);
+        _ = Assert.Single(contractDiags);
         Assert.Contains("DoWork", contractDiags[0].Message);
         Assert.Contains("ServiceImpl", contractDiags[0].Message);
         Assert.Contains("MyCtx", contractDiags[0].Message);
@@ -278,7 +278,7 @@ public sealed class ContextCheckerContractTests
             .Where(d => d.Id == ContextCheckerAnalyzer.MissingContext)
             .ToImmutableArray();
 
-        Assert.Single(ctxDiags);
+        _ = Assert.Single(ctxDiags);
         Assert.Contains("DoWork", ctxDiags[0].Message);
         Assert.Contains("MyCtx", ctxDiags[0].Message);
     }

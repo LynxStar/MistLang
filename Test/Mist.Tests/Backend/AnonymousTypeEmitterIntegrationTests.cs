@@ -40,7 +40,7 @@ public sealed class AnonymousTypeEmitterIntegrationTests : IDisposable
     public AnonymousTypeEmitterIntegrationTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "mist_anon_emit_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

@@ -33,7 +33,7 @@ public class PipeTokenTests
     {
         var tokens = LexDefaultTokens("|");
 
-        Assert.Single(tokens);
+        _ = Assert.Single(tokens);
         Assert.Equal((int)TokenKind.PIPE, tokens[0].Kind);
         Assert.Equal("|", tokens[0].Lexeme);
     }
@@ -43,7 +43,7 @@ public class PipeTokenTests
     {
         var tokens = LexDefaultTokens("||");
 
-        Assert.Single(tokens);
+        _ = Assert.Single(tokens);
         Assert.Equal((int)TokenKind.LOGICAL_OR, tokens[0].Kind);
         Assert.Equal("||", tokens[0].Lexeme);
     }

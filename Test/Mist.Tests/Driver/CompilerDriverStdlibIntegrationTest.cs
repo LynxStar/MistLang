@@ -38,7 +38,7 @@ public sealed class CompilerDriverStdlibIntegrationTest : IDisposable
         scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist-driver-stdlib-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(scratchDir);
+        _ = Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()
@@ -154,7 +154,7 @@ public sealed class CompilerDriverStdlibIntegrationTest : IDisposable
             && st.ContainingNamespace == "Standard");
 
         Assert.NotNull(standardInt32Symbol);
-        Assert.IsType<StructType>(standardInt32Symbol!.DeclaredType);
+        _ = Assert.IsType<StructType>(standardInt32Symbol!.DeclaredType);
         var int32Type = (StructType)standardInt32Symbol.DeclaredType!;
         Assert.Equal("Int32", int32Type.DisplayName);
         Assert.Equal("Standard", int32Type.ContainingNamespace);

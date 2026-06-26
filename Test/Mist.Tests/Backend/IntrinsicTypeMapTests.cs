@@ -130,7 +130,7 @@ public class IntrinsicTypeMapTests
         var result = map.SubstituteIntrinsics(systemInt32, stdlib);
 
         // FallbackStdlibTypeProvider returns a StructType with DisplayName "int"
-        Assert.IsType<StructType>(result);
+        _ = Assert.IsType<StructType>(result);
         Assert.Equal("int", result.DisplayName);
     }
 
@@ -140,7 +140,7 @@ public class IntrinsicTypeMapTests
         var systemString = MakeClrClass("String", "System");
         var result = map.SubstituteIntrinsics(systemString, stdlib);
 
-        Assert.IsType<ClassType>(result);
+        _ = Assert.IsType<ClassType>(result);
         Assert.Equal("string", result.DisplayName);
     }
 
@@ -150,7 +150,7 @@ public class IntrinsicTypeMapTests
         var systemBool = MakeClrStruct("Boolean", "System");
         var result = map.SubstituteIntrinsics(systemBool, stdlib);
 
-        Assert.IsType<StructType>(result);
+        _ = Assert.IsType<StructType>(result);
         Assert.Equal("bool", result.DisplayName);
     }
 
@@ -215,7 +215,7 @@ public class IntrinsicTypeMapTests
 
         var result = map.SubstituteIntrinsics(constructed, stdlib);
 
-        Assert.IsType<ConstructedType>(result);
+        _ = Assert.IsType<ConstructedType>(result);
         var resultCt = (ConstructedType)result;
         Assert.Same(listDef, resultCt.GenericDefinition);
         Assert.Equal("int", resultCt.TypeArguments[0].DisplayName);
@@ -232,7 +232,7 @@ public class IntrinsicTypeMapTests
 
         var result = map.SubstituteIntrinsics(constructed, stdlib);
 
-        Assert.IsType<ConstructedType>(result);
+        _ = Assert.IsType<ConstructedType>(result);
         var resultCt = (ConstructedType)result;
         Assert.Equal("string", resultCt.TypeArguments[0].DisplayName);
         Assert.Equal("int", resultCt.TypeArguments[1].DisplayName);
@@ -254,7 +254,7 @@ public class IntrinsicTypeMapTests
 
         var result = map.SubstituteIntrinsics(outerDict, stdlib);
 
-        Assert.IsType<ConstructedType>(result);
+        _ = Assert.IsType<ConstructedType>(result);
         var resultCt = (ConstructedType)result;
         Assert.Equal("string", resultCt.TypeArguments[0].DisplayName);
 
@@ -286,7 +286,7 @@ public class IntrinsicTypeMapTests
 
         var result = map.SubstituteIntrinsics(constructed, stdlib);
 
-        Assert.IsType<ConstructedType>(result);
+        _ = Assert.IsType<ConstructedType>(result);
         var resultCt = (ConstructedType)result;
         Assert.Same(userType, resultCt.TypeArguments[0]);
         Assert.Equal("int", resultCt.TypeArguments[1].DisplayName);
@@ -309,7 +309,7 @@ public class IntrinsicTypeMapTests
 
         var result = map.SubstituteIntrinsics(outerList, stdlib);
 
-        Assert.IsType<ConstructedType>(result);
+        _ = Assert.IsType<ConstructedType>(result);
         var outerResult = (ConstructedType)result;
 
         var middleResult = Assert.IsType<ConstructedType>(outerResult.TypeArguments[0]);

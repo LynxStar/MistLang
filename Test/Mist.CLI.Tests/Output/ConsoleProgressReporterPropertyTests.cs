@@ -175,19 +175,19 @@ public class ConsoleProgressReporterPropertyTests
         var sb = new System.Text.StringBuilder();
 
         // Header line from ReportStageStart
-        sb.AppendLine($"Stage {input.StageId} - {input.Title}");
+        _ = sb.AppendLine($"Stage {input.StageId} - {input.Title}");
 
         // Detail lines from ReportStageComplete
         foreach(var detail in input.Details)
         {
-            sb.AppendLine($"    {detail}");
+            _ = sb.AppendLine($"    {detail}");
         }
 
         // Elapsed time line
-        sb.AppendLine($"    Took {input.Elapsed.TotalSeconds:F2}s");
+        _ = sb.AppendLine($"    Took {input.Elapsed.TotalSeconds:F2}s");
 
         // Blank separator line (from WriteLine())
-        sb.AppendLine();
+        _ = sb.AppendLine();
 
         return sb.ToString();
     }

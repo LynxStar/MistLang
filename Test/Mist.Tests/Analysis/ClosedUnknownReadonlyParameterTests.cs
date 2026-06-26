@@ -188,7 +188,7 @@ public class ClosedUnknownReadonlyParameterTests
         var tc0062Hits = WithId(diagnostics, ClosedUnknownDiagnosticId);
 
         // Pass 5 fires MIST_TC_0062 for calling non-readonly Add on List<unknown>.
-        Assert.Single(tc0062Hits);
+        _ = Assert.Single(tc0062Hits);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -229,7 +229,7 @@ public class ClosedUnknownReadonlyParameterTests
         Assert.Equal(1, totalHits);
 
         // Specifically, MIST_TC_0062 should be the one that fires.
-        Assert.Single(tc0062Hits);
+        _ = Assert.Single(tc0062Hits);
         Assert.Empty(ro0006Hits);
     }
 }

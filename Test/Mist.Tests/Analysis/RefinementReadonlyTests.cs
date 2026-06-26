@@ -135,7 +135,7 @@ public class RefinementReadonlyTests
         var diagnostics = CompileAndGetDiagnostics(source);
 
         var readonlyDiags = WithId(diagnostics, "MIST_TC_0100");
-        Assert.Single(readonlyDiags);
+        _ = Assert.Single(readonlyDiags);
         Assert.Contains("ValidPerson", readonlyDiags[0].Message);
         Assert.Contains("Age", readonlyDiags[0].Message);
         Assert.Contains("readonly", readonlyDiags[0].Message);
@@ -272,7 +272,7 @@ public class RefinementReadonlyTests
         var diagnostics = CompileAndGetDiagnostics(source);
 
         var readonlyDiags = WithId(diagnostics, "MIST_TC_0100");
-        Assert.Single(readonlyDiags);
+        _ = Assert.Single(readonlyDiags);
         Assert.Contains("Max", readonlyDiags[0].Message);
     }
 }

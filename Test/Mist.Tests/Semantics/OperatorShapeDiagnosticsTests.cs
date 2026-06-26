@@ -57,7 +57,7 @@ public class OperatorShapeDiagnosticsTests
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(sourceText)));
         var semBag = new DiagnosticBag();
-        builder.Build(
+        _ = builder.Build(
             compilation,
             ImmutableArray.Create(parseResult.Root!),
             ambientTypeResolver: null,
@@ -89,7 +89,7 @@ public class OperatorShapeDiagnosticsTests
         var diagnostics = BuildAndCollectDiagnostics(source);
         var arityDiags = WithId(diagnostics, "MIST_SB_0034");
 
-        Assert.Single(arityDiags);
+        _ = Assert.Single(arityDiags);
         var d = arityDiags[0];
         Assert.Equal(DiagnosticSeverity.Error, d.Severity);
         Assert.Equal(
@@ -111,7 +111,7 @@ public class OperatorShapeDiagnosticsTests
         var diagnostics = BuildAndCollectDiagnostics(source);
         var arityDiags = WithId(diagnostics, "MIST_SB_0034");
 
-        Assert.Single(arityDiags);
+        _ = Assert.Single(arityDiags);
         var d = arityDiags[0];
         Assert.Equal(DiagnosticSeverity.Error, d.Severity);
         Assert.Equal(
@@ -161,7 +161,7 @@ public class OperatorShapeDiagnosticsTests
         var diagnostics = BuildAndCollectDiagnostics(source);
         var arityDiags = WithId(diagnostics, "MIST_SB_0034");
 
-        Assert.Single(arityDiags);
+        _ = Assert.Single(arityDiags);
         Assert.Equal(
             "Binary operator '==' must declare exactly 2 parameters; found 3.",
             arityDiags[0].Message);
@@ -181,7 +181,7 @@ public class OperatorShapeDiagnosticsTests
         var diagnostics = BuildAndCollectDiagnostics(source);
         var publicStaticDiags = WithId(diagnostics, "MIST_SB_0035");
 
-        Assert.Single(publicStaticDiags);
+        _ = Assert.Single(publicStaticDiags);
         var d = publicStaticDiags[0];
         Assert.Equal(DiagnosticSeverity.Error, d.Severity);
         Assert.Equal(
@@ -201,7 +201,7 @@ public class OperatorShapeDiagnosticsTests
         var diagnostics = BuildAndCollectDiagnostics(source);
         var publicStaticDiags = WithId(diagnostics, "MIST_SB_0035");
 
-        Assert.Single(publicStaticDiags);
+        _ = Assert.Single(publicStaticDiags);
         Assert.Equal(
             "Operator '+' must be declared 'public static'.",
             publicStaticDiags[0].Message);
@@ -219,7 +219,7 @@ public class OperatorShapeDiagnosticsTests
         var diagnostics = BuildAndCollectDiagnostics(source);
         var publicStaticDiags = WithId(diagnostics, "MIST_SB_0035");
 
-        Assert.Single(publicStaticDiags);
+        _ = Assert.Single(publicStaticDiags);
     }
 
     [Fact]

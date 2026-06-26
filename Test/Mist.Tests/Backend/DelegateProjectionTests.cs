@@ -112,7 +112,7 @@ public sealed class DelegateProjectionTests
         var (def, args) = ProjectConstructedFunc(typeof(Func<int>));
 
         Assert.Equal("Func", def.DisplayName);
-        Assert.Single(args);
+        _ = Assert.Single(args);
         Assert.Equal("Int32", args[0].DisplayName);
     }
 
@@ -188,7 +188,7 @@ public sealed class DelegateProjectionTests
         var (def, args) = ProjectConstructedFunc(typeof(Action));
 
         Assert.Equal("Func", def.DisplayName);
-        Assert.Single(args);
+        _ = Assert.Single(args);
         Assert.True(args[0].IsVoid(), "Non-generic Action projects to Func<Void>.");
     }
 

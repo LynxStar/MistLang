@@ -38,7 +38,7 @@ public sealed class GlobalUsingsUndefinedNamespacePropertyTests : IDisposable
         outputDir = Path.Combine(
             Path.GetTempPath(),
             "mist_gu_undef_prop_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

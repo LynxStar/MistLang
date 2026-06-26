@@ -16,7 +16,7 @@ public sealed class ProjectFileParserPropertyTests
     private static string CreateTempProjectDir()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"mist_pbt_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(dir);
+        _ = Directory.CreateDirectory(dir);
         return dir;
     }
 
@@ -140,7 +140,7 @@ public sealed class ProjectFileParserPropertyTests
 
                 Assert.Null(result);
                 var diags = diagnostics.ToImmutableArray();
-                Assert.Single(diags);
+                _ = Assert.Single(diags);
                 Assert.Equal("MIST_PROJECT_REFERENCE_EMPTY_PATH", diags[0].Id.Value);
                 Assert.Contains("mist.toml", diags[0].Message);
             }
@@ -197,7 +197,7 @@ public sealed class ProjectFileParserPropertyTests
                     $"Parse reported errors for path='{path}', fields=[{string.Join(", ", fields.Select(f => $"{f.Item1}={f.Item2}"))}], toml:\n{toml}\n" +
                     string.Join("; ", diagnostics.ToImmutableArray().Select(d => $"{d.Id.Value}: {d.Message}")));
                 Assert.NotNull(result);
-                Assert.Single(result.References);
+                _ = Assert.Single(result.References);
 
                 // The path should be preserved (after normalization)
                 var expected = Path.GetFullPath(Path.Combine(projectDir, path));

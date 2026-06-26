@@ -39,7 +39,7 @@ public sealed class DefiniteAssignmentEdgeCaseTests
         var tempDir = Path.Combine(
             Path.GetTempPath(),
             "mist_da_edge_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var sourcePath = Path.Combine(tempDir, "Program.mist");

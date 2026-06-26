@@ -86,13 +86,13 @@ public sealed class PropertyInitializerDuplicatePropertyTests
     private static string BuildClassDeclaration(string dupName, string[] extraProps)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("class TestType {");
-        sb.AppendLine($"    public int {dupName} {{ get; set; }}");
+        _ = sb.AppendLine("class TestType {");
+        _ = sb.AppendLine($"    public int {dupName} {{ get; set; }}");
         foreach(var prop in extraProps)
         {
-            sb.AppendLine($"    public int {prop} {{ get; set; }}");
+            _ = sb.AppendLine($"    public int {prop} {{ get; set; }}");
         }
-        sb.AppendLine("}");
+        _ = sb.AppendLine("}");
         return sb.ToString();
     }
 

@@ -21,7 +21,7 @@ public class CliArgumentParserTests
     public void Parse_SingleDirectory_SetsProjectFolder()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), $"mist_test_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var result = CliArgumentParser.Parse([tempDir]);
@@ -67,7 +67,7 @@ public class CliArgumentParserTests
     public void Parse_AllFlags_WithProjectFolder()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), $"mist_test_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var result = CliArgumentParser.Parse([tempDir, "--backend", "csharp", "--output", "./dist", "--bin", "./artifacts"]);
@@ -155,7 +155,7 @@ public class CliArgumentParserTests
     public void Parse_DefaultDirectories_DerivedFromProjectFolder()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), $"mist_test_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var result = CliArgumentParser.Parse([tempDir]);
@@ -185,7 +185,7 @@ public class CliArgumentParserTests
     public void Parse_SteeringCommand_WithProjectFolder()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), $"mist_test_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var result = CliArgumentParser.Parse(["steering", tempDir]);

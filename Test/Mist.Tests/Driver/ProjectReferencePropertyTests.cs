@@ -24,7 +24,7 @@ public sealed class ProjectReferencePropertyTests
     private static string CreateTempDir()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"mist_pbt_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(dir);
+        _ = Directory.CreateDirectory(dir);
         return dir;
     }
 
@@ -90,7 +90,7 @@ public sealed class ProjectReferencePropertyTests
                 var references = ImmutableArray.Create(RefTo("Project0", dirs[0]));
 
                 var diagnostics = new DiagnosticBag();
-                ProjectReferenceResolver.Resolve(rootDir, references, diagnostics);
+                _ = ProjectReferenceResolver.Resolve(rootDir, references, diagnostics);
 
                 Assert.True(diagnostics.HasErrors,
                     $"Cycle of length {cycleLength} should produce errors");
@@ -222,7 +222,7 @@ public sealed class ProjectReferencePropertyTests
                 }
 
                 var diagnostics = new DiagnosticBag();
-                ProjectReferenceResolver.Resolve(
+                _ = ProjectReferenceResolver.Resolve(
                     rootDir, refs.ToImmutableArray(), diagnostics);
 
                 Assert.True(diagnostics.HasErrors);
@@ -336,7 +336,7 @@ public sealed class ProjectReferencePropertyTests
                     NamespaceRoot: "Root",
                     EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
-                driver.Compile(options);
+                _ = driver.Compile(options);
 
                 Assert.NotNull(capture.CapturedCompilation);
                 var units = capture.CapturedCompilation!.Units;
@@ -421,7 +421,7 @@ public sealed class ProjectReferencePropertyTests
                     NamespaceRoot: "Root",
                     EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
-                driver.Compile(options);
+                _ = driver.Compile(options);
 
                 Assert.NotNull(capture.CapturedCompilation);
                 var units = capture.CapturedCompilation!.Units;
@@ -518,7 +518,7 @@ public sealed class ProjectReferencePropertyTests
                 var mismatchDiags = diags.Where(d =>
                     d.Id.Value == "MIST_PROJECT_REFERENCE_NAME_MISMATCH").ToList();
 
-                Assert.Single(mismatchDiags);
+                _ = Assert.Single(mismatchDiags);
                 Assert.Equal(DiagnosticSeverity.Error, mismatchDiags[0].Severity);
 
                 // Diagnostic message should contain both the declared key and actual name

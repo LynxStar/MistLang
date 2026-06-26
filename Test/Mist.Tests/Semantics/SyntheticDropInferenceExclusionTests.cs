@@ -32,7 +32,7 @@ public sealed class SyntheticDropInferenceExclusionTests : IDisposable
     public SyntheticDropInferenceExclusionTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistSyntheticDropExclusion_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -94,7 +94,7 @@ public sealed class SyntheticDropInferenceExclusionTests : IDisposable
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,
             EmitToDisk: false);
 
-        driver.Compile(options);
+        _ = driver.Compile(options);
         return capture.Captured;
     }
 

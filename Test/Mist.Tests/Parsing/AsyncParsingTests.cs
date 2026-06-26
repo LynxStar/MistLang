@@ -144,7 +144,7 @@ public class AsyncParsingTests
         // The expression's assignment → target chain should contain an AsyncExpressionUnaryNode
         var assignment = inferred!.Initializer.AsAssignment();
         var unary = GetUnaryFromAssignment(assignment);
-        Assert.IsType<AsyncExpressionUnaryNode>(unary);
+        _ = Assert.IsType<AsyncExpressionUnaryNode>(unary);
     }
 
     [Fact]
@@ -202,7 +202,7 @@ public class AsyncParsingTests
 
         var assignment = inferred!.Initializer.AsAssignment();
         var unary = GetUnaryFromAssignment(assignment);
-        Assert.IsType<AwaitExpressionUnaryNode>(unary);
+        _ = Assert.IsType<AwaitExpressionUnaryNode>(unary);
     }
 
     [Fact]
@@ -274,7 +274,7 @@ public class AsyncParsingTests
 
         // The left side of the additive should contain the async expression
         var leftUnary = GetUnaryFromAdditiveLeft(additive!);
-        Assert.IsType<AsyncExpressionUnaryNode>(leftUnary);
+        _ = Assert.IsType<AsyncExpressionUnaryNode>(leftUnary);
 
         // The right side should exist (the + 1 part)
         Assert.NotNull(additive.Right);
@@ -304,7 +304,7 @@ public class AsyncParsingTests
 
         // The left side of the additive should contain the await expression
         var leftUnary = GetUnaryFromAdditiveLeft(additive!);
-        Assert.IsType<AwaitExpressionUnaryNode>(leftUnary);
+        _ = Assert.IsType<AwaitExpressionUnaryNode>(leftUnary);
 
         // The right side should exist (the + y part)
         Assert.NotNull(additive.Right);

@@ -280,7 +280,7 @@ public class Program
     private static string? CompileAndGetCSharp(string mistSource)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "mist_tuple_emit_pbt_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
 
         try
         {

@@ -1013,7 +1013,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         var usingName = ExtractQualifiedName(usingDecl.Name, sourceText);
                         if(!string.IsNullOrEmpty(usingName))
                         {
-                            allImportedNamespaces.Add(usingName);
+                            _ = allImportedNamespaces.Add(usingName);
                         }
                     }
                     // Also collect using directives that appear after a file-scoped namespace
@@ -1025,7 +1025,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             var usingName = ExtractQualifiedName(usingItem.UsingDeclaration.Name, sourceText);
                             if(!string.IsNullOrEmpty(usingName))
                             {
-                                allImportedNamespaces.Add(usingName);
+                                _ = allImportedNamespaces.Add(usingName);
                             }
                         }
                     }
@@ -1037,7 +1037,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         if(!string.IsNullOrEmpty(globalNs))
                         {
-                            allImportedNamespaces.Add(globalNs);
+                            _ = allImportedNamespaces.Add(globalNs);
                         }
                     }
                 }
@@ -2094,7 +2094,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         // Store the scope so Pass 2 can find it later.
-        extensionBlockScopes?.TryAdd(extDecl, (extensionScope, namespaceName, sourceText));
+        _ = (extensionBlockScopes?.TryAdd(extDecl, (extensionScope, namespaceName, sourceText)));
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -2827,7 +2827,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         // For properties, same name is sufficient for a duplicate.
                         if(symbolA.Kind == SymbolKind.Property && symbolB.Kind == SymbolKind.Property)
                         {
-                            reported.Add(j);
+                            _ = reported.Add(j);
                             EmitDuplicateExtensionMemberDiagnostic(
                                 symbolB, blockB, receiverType, symbolTable, asts, compilation, diagnostics);
                             continue;
@@ -2843,7 +2843,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                             if(ParameterSignature.AreEqualWithRefKind(sigA, refKindsA, sigB, refKindsB))
                             {
-                                reported.Add(j);
+                                _ = reported.Add(j);
                                 EmitDuplicateExtensionMemberDiagnostic(
                                     symbolB, blockB, receiverType, symbolTable, asts, compilation, diagnostics);
                             }
@@ -3204,7 +3204,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 RegisterConstructorDeclaration(ctorMember.Constructor, typeScope, symbolTable);
                 break;
             case MethodMemberMemberDeclarationNode methodMember:
-                RegisterMethodDeclaration(methodMember.Method, typeScope, symbolTable, sourceText, diagnostics);
+                _ = RegisterMethodDeclaration(methodMember.Method, typeScope, symbolTable, sourceText, diagnostics);
                 break;
             case OperatorMemberMemberDeclarationNode operatorMember:
                 RegisterOperatorDeclaration(operatorMember.Operator, typeScope, symbolTable);
@@ -5615,7 +5615,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var declaredNames = new HashSet<string>();
             foreach(var member in derivedScope.Members)
             {
-                declaredNames.Add(member.Name);
+                _ = declaredNames.Add(member.Name);
             }
 
             // Walk the ancestor chain and inject public members.
@@ -5644,7 +5644,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     }
 
                     derivedScope.AddMember(member);
-                    declaredNames.Add(member.Name);
+                    _ = declaredNames.Add(member.Name);
                 }
 
                 // Walk up: BaseType may also be a ConstructedType wrapping a StructType.
@@ -7645,8 +7645,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
 
             // Look up refinement predicates.
-            parameterRefinements.TryGetValue(abstractParamSymbol, out var abstractPredicate);
-            parameterRefinements.TryGetValue(implParamSymbol, out var implPredicate);
+            _ = parameterRefinements.TryGetValue(abstractParamSymbol, out var abstractPredicate);
+            _ = parameterRefinements.TryGetValue(implParamSymbol, out var implPredicate);
 
             // If abstract type predicate is null → skip (implementation may freely add or omit constraints).
             if(abstractPredicate is null)
@@ -9089,7 +9089,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 TargetName = targetName,
             });
 
-            mappedSlotNames.Add(targetName);
+            _ = mappedSlotNames.Add(targetName);
         }
 
         // Validate that all required slots have mappings.
@@ -9289,8 +9289,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         path.RemoveAt(path.Count - 1);
-        pathSet.Remove(current);
-        verified.Add(current);
+        _ = pathSet.Remove(current);
+        _ = verified.Add(current);
     }
 
     /// <summary>
@@ -9432,7 +9432,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 if(c.BaseType is not null || c == classType)
                 {
-                    verified.Add(c);
+                    _ = verified.Add(c);
                 }
             }
         }
@@ -9623,7 +9623,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 if(s.BaseType is not null || s == structType)
                 {
-                    verified.Add(s);
+                    _ = verified.Add(s);
                 }
             }
         }
@@ -9952,7 +9952,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var concreteTypeName = FindConcreteTypeMemberName(slotName, slotType.TypeParameters.Count, memberScope, classType);
             if(concreteTypeName is not null && concreteTypeName != slotName)
             {
-                acceptableNames.Add(concreteTypeName);
+                _ = acceptableNames.Add(concreteTypeName);
             }
 
             substitutions[slotName] = acceptableNames;
@@ -10000,7 +10000,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var simpleName = dotIndex >= 0 ? qualifiedName[(dotIndex + 1)..] : qualifiedName;
                     if(simpleName == argDisplayName || qualifiedName == argDisplayName)
                     {
-                        names.Add(keyword);
+                        _ = names.Add(keyword);
                         break;
                     }
                 }
@@ -10013,7 +10013,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var qualifiedName = KeywordAliases.Map[argDisplayName];
                     var dotIndex = qualifiedName.LastIndexOf('.');
                     var simpleName = dotIndex >= 0 ? qualifiedName[(dotIndex + 1)..] : qualifiedName;
-                    names.Add(simpleName);
+                    _ = names.Add(simpleName);
                 }
 
                 substitutions[paramName] = names;
@@ -12235,7 +12235,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
 
                 // Found a duplicate — emit diagnostic on the second (later) declaration.
-                reported.Add(j);
+                _ = reported.Add(j);
 
                 var diagnosticId = isConstructor
                     ? DuplicateConstructorSignature
@@ -13619,7 +13619,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             var name = aliasDecl.Name.Lexeme;
                             var entry = new TypeForwardEntry(name, symbol, aliasDecl, null, fileScope, sourceText);
                             forwardEntries.Add(entry);
-                            nameToEntry.TryAdd(name, entry);
+                            _ = nameToEntry.TryAdd(name, entry);
                             break;
                         }
                     case NewtypeItemTopLevelItemNode newtypeItem:
@@ -13634,7 +13634,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             var name = newtypeDecl.Name.Lexeme;
                             var entry = new TypeForwardEntry(name, symbol, null, newtypeDecl, fileScope, sourceText);
                             forwardEntries.Add(entry);
-                            nameToEntry.TryAdd(name, entry);
+                            _ = nameToEntry.TryAdd(name, entry);
                             break;
                         }
                     case NamespaceItemTopLevelItemNode nsItem:
@@ -13652,7 +13652,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 var name = aliasDecl.Name.Lexeme;
                                 var entry = new TypeForwardEntry(name, symbol, aliasDecl, null, fileScope, sourceText);
                                 forwardEntries.Add(entry);
-                                nameToEntry.TryAdd(name, entry);
+                                _ = nameToEntry.TryAdd(name, entry);
                             }
                             var nsNewtypes = GetNamespaceBodyNewtypes(nsDecl);
                             foreach(var newtypeDecl in nsNewtypes)
@@ -13666,7 +13666,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 var name = newtypeDecl.Name.Lexeme;
                                 var entry = new TypeForwardEntry(name, symbol, null, newtypeDecl, fileScope, sourceText);
                                 forwardEntries.Add(entry);
-                                nameToEntry.TryAdd(name, entry);
+                                _ = nameToEntry.TryAdd(name, entry);
                             }
                             break;
                         }
@@ -13694,7 +13694,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 dependedBy[entry.Name] = new List<string>();
             }
 
-            inDegree.TryAdd(entry.Name, 0);
+            _ = inDegree.TryAdd(entry.Name, 0);
         }
 
         foreach(var entry in forwardEntries)
@@ -13921,7 +13921,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
         finally
         {
-            typeAliasResolutionStack.Remove(name);
+            _ = typeAliasResolutionStack.Remove(name);
         }
     }
 
@@ -14055,7 +14055,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
         finally
         {
-            typeAliasResolutionStack.Remove(aliasName);
+            _ = typeAliasResolutionStack.Remove(aliasName);
         }
     }
 
@@ -14502,7 +14502,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
             voidLiteralTargetType = fieldType;
             targetTypedNewTargetType = fieldType;
-            ResolveExpression(initExpr, typeScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            _ = ResolveExpression(initExpr, typeScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
             emptyArrayTargetType = null;
             lambdaTargetType = null;
             voidLiteralTargetType = null;
@@ -14952,7 +14952,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Resolve the optional initializer expression.
         if(blockProp.Initializer is ExpressionNode initExpr)
         {
-            ResolveExpression(initExpr, typeScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            _ = ResolveExpression(initExpr, typeScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
         }
     }
 
@@ -14990,7 +14990,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var isStatic = exprProp.Modifiers.Any(m => m is StaticModifierModifierNode);
 
         // Resolve the expression body.
-        ResolveExpression(exprProp.Body, typeScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        _ = ResolveExpression(exprProp.Body, typeScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
     }
 
     /// <summary>
@@ -15034,7 +15034,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 ResolveBlock(blockGet.Body, accessorBaseScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 break;
             case ExpressionGetAccessorAccessorDeclarationNode exprGet:
-                ResolveExpression(exprGet.Expression, accessorBaseScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                _ = ResolveExpression(exprGet.Expression, accessorBaseScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 break;
             case BlockSetAccessorAccessorDeclarationNode blockSet:
                 {
@@ -15050,7 +15050,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var setScope = new Scope(parent: accessorBaseScope);
                     var valueSymbol = new Symbol("value", SymbolKind.Parameter, SymbolOrigin.UserCode, setScope, propType, declarationSpan: null);
                     setScope.AddMember(valueSymbol);
-                    ResolveExpression(exprSet.Expression, setScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    _ = ResolveExpression(exprSet.Expression, setScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                     break;
                 }
             case BlockInitAccessorAccessorDeclarationNode blockInit:
@@ -15066,7 +15066,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var initScope = new Scope(parent: accessorBaseScope);
                     var valueSymbol = new Symbol("value", SymbolKind.Parameter, SymbolOrigin.UserCode, initScope, propType, declarationSpan: null);
                     initScope.AddMember(valueSymbol);
-                    ResolveExpression(exprInit.Expression, initScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    _ = ResolveExpression(exprInit.Expression, initScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                     break;
                 }
                 // Auto accessors (AutoGet, AutoSet, AutoInit) have no body to resolve.
@@ -15378,7 +15378,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 ResolveIfStatement(ifStmt.IfStatement, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 break;
             case WhileStatementStatementNode whileStmt:
-                ResolveExpression(whileStmt.WhileStatement.Condition, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                _ = ResolveExpression(whileStmt.WhileStatement.Condition, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 ResolveBlock(whileStmt.WhileStatement.Body, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 break;
             case ForStatementStatementNode forStmt:
@@ -15427,7 +15427,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 ResolveWithDiscardDeclaration(withDiscardStmt.WithDiscardDeclaration, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 break;
             case WithPushStatementStatementNode withPushStmt:
-                ResolveExpression(withPushStmt.WithPushStatement.Value, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                _ = ResolveExpression(withPushStmt.WithPushStatement.Value, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 break;
             case WithBlockStatementStatementNode withBlockStmt:
                 ResolveWithBlockStatement(withBlockStmt.WithBlockStatement, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
@@ -15479,7 +15479,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var declaredType = ResolveTypeReference(withTypedDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
 
         // Resolve the initializer expression.
-        ResolveExpression(withTypedDecl.Initializer, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        _ = ResolveExpression(withTypedDecl.Initializer, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
         var varName = withTypedDecl.Name.Lexeme;
         var varSpan = ToMistSourceSpan(withTypedDecl.Name.Span);
@@ -15504,10 +15504,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics)
     {
         // Resolve the explicit type reference (for context keying).
-        ResolveTypeReference(withDiscardDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+        _ = ResolveTypeReference(withDiscardDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
 
         // Resolve the initializer expression.
-        ResolveExpression(withDiscardDecl.Initializer, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        _ = ResolveExpression(withDiscardDecl.Initializer, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
         // No local variable registration for discard declarations.
     }
@@ -15525,7 +15525,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics)
     {
         // Infer type from the expression.
-        ResolveExpression(withBlockStmt.Expression, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        _ = ResolveExpression(withBlockStmt.Expression, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
         // Process the block body.
         ResolveBlock(withBlockStmt.Body, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
@@ -15759,7 +15759,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics)
     {
         // Step 1: Resolve the condition expression (which may contain `is` expressions).
-        ResolveExpression(ifStmt.Condition, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        _ = ResolveExpression(ifStmt.Condition, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
         // Step 2: Create a child scope for the then-branch and populate it
         // with pattern variables introduced by `is` expressions in the condition.
@@ -15894,7 +15894,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             // Get the scrutinee type from the expression types map.
             // The scrutinee (isExpr.Left) was already resolved by ResolveRelational.
-            expressionTypes.TryGetValue(isExpr.Left, out var scrutineeType);
+            _ = expressionTypes.TryGetValue(isExpr.Left, out var scrutineeType);
             scrutineeType ??= ErrorType.Instance;
 
             // Extract variable bindings from the pattern.
@@ -16423,17 +16423,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
         else if(forStmt.Initializer is ForInitializerExpressionForInitializerNode exprInit)
         {
-            ResolveExpression(exprInit.Expression, forScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            _ = ResolveExpression(exprInit.Expression, forScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
         }
 
         if(forStmt.Condition is not null)
         {
-            ResolveExpression(forStmt.Condition, forScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            _ = ResolveExpression(forStmt.Condition, forScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
         }
 
         if(forStmt.Iterator is not null)
         {
-            ResolveExpression(forStmt.Iterator, forScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            _ = ResolveExpression(forStmt.Iterator, forScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
         }
 
         ResolveBlock(forStmt.Body, forScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
@@ -19496,7 +19496,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         if(valueExpr is not null)
         {
-            ResolveExpression(valueExpr, currentScope, fileScope, enclosingType!, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            _ = ResolveExpression(valueExpr, currentScope, fileScope, enclosingType!, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
         }
     }
 
@@ -20236,7 +20236,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             case ExpressionLambdaLambdaExpressionNode exprLambda:
                 // Expression body: resolve the body expression in the lambda scope.
-                ResolveExpression(exprLambda.Body, lambdaScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                _ = ResolveExpression(exprLambda.Body, lambdaScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 break;
 
             case BlockLambdaLambdaExpressionNode blockLambda:
@@ -20414,7 +20414,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var currentType = leftType;
             foreach(var rightOperand in node.LogicalOrs)
             {
-                ResolveLogicalOr(rightOperand, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                _ = ResolveLogicalOr(rightOperand, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
                 // Compute the non-void portion of the current left type for the result.
                 if(currentType is UnionType union)
@@ -20453,7 +20453,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         if(node.Right is not null && !ReferenceEquals(node.Right, node.Left))
         {
-            ResolveLogicalAnd(node.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            _ = ResolveLogicalAnd(node.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
             var result = ResolvePrimitiveByKeyword("bool", fileScope, symbolTable);
             expressionTypes[node] = result;
             return result;
@@ -20479,7 +20479,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         if(node.Right is not null && !ReferenceEquals(node.Right, node.Left))
         {
-            ResolveEquality(node.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            _ = ResolveEquality(node.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
             var result = ResolvePrimitiveByKeyword("bool", fileScope, symbolTable);
             expressionTypes[node] = result;
             return result;
@@ -20527,7 +20527,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             if(rightOperand is not null)
             {
-                ResolveRelational(rightOperand, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                _ = ResolveRelational(rightOperand, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 var result = ResolvePrimitiveByKeyword("bool", fileScope, symbolTable);
                 expressionTypes[node] = result;
                 return result;
@@ -20605,7 +20605,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                     if(cmp.Right is not null && !ReferenceEquals(cmp.Right, cmp.Left))
                     {
-                        ResolveAdditive(cmp.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                        _ = ResolveAdditive(cmp.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                         var result = ResolvePrimitiveByKeyword("bool", fileScope, symbolTable);
                         expressionTypes[node] = result;
                         return result;
@@ -20632,7 +20632,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case AsExpressionRelationalNode asExpr:
                 {
                     // Resolve the left-hand side operand to determine its Compile_Time_Type.
-                    ResolveAdditive(asExpr.Left, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    _ = ResolveAdditive(asExpr.Left, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
                     // Resolve the target type reference to an IType.
                     var targetType = ResolveTypeReference(asExpr.TargetType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
@@ -20829,25 +20829,25 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case LessThanRelationalPatternPrimaryPatternNode ltPattern:
                 {
                     // Resolve the constant expression (now bounded to VoidCoalescing).
-                    ResolveVoidCoalescing(ltPattern.Constant, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    _ = ResolveVoidCoalescing(ltPattern.Constant, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                     break;
                 }
 
             case GreaterThanRelationalPatternPrimaryPatternNode gtPattern:
                 {
-                    ResolveVoidCoalescing(gtPattern.Constant, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    _ = ResolveVoidCoalescing(gtPattern.Constant, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                     break;
                 }
 
             case LessThanOrEqualRelationalPatternPrimaryPatternNode ltePattern:
                 {
-                    ResolveVoidCoalescing(ltePattern.Constant, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    _ = ResolveVoidCoalescing(ltePattern.Constant, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                     break;
                 }
 
             case GreaterThanOrEqualRelationalPatternPrimaryPatternNode gtePattern:
                 {
-                    ResolveVoidCoalescing(gtePattern.Constant, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    _ = ResolveVoidCoalescing(gtePattern.Constant, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                     break;
                 }
 
@@ -21163,7 +21163,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             case LogicalNotUnaryNode logicalNot:
                 {
-                    ResolveUnary(logicalNot.Operand, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    _ = ResolveUnary(logicalNot.Operand, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                     var result = ResolvePrimitiveByKeyword("bool", fileScope, symbolTable);
                     expressionTypes[node] = result;
                     return result;
@@ -21289,7 +21289,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var targetType = ResolveTypeReference(castExpr.TargetType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
 
         // 2. Resolve the operand expression to get its type.
-        ResolveUnary(castExpr.Operand, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        _ = ResolveUnary(castExpr.Operand, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
         // 3. Record the target type as the expression type of the cast expression node.
         expressionTypes[castExpr] = targetType;
@@ -21991,7 +21991,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case IndexSuffixPostfixSuffixNode indexSuffix:
                 {
                     // Resolve the index expression.
-                    ResolveExpression(indexSuffix.Index, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    _ = ResolveExpression(indexSuffix.Index, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
                     // The result type is the element type of the array.
                     if(targetType is ArrayType arrayType)
@@ -22394,11 +22394,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // The guard condition is now bounded to VoidCoalescing (below lambda/assignment).
         if(arm.Guard is not null)
         {
-            ResolveVoidCoalescing(arm.Guard.Condition, armScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            _ = ResolveVoidCoalescing(arm.Guard.Condition, armScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
         }
 
         // Resolve the result expression within the arm scope.
-        ResolveExpression(arm.Result, armScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        _ = ResolveExpression(arm.Result, armScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
     }
 
     /// <summary>
@@ -22635,7 +22635,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     if(part is ExpressionPartInterpolatedPartNode exprPart)
                     {
-                        ResolveExpression(exprPart.Expression, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                        _ = ResolveExpression(exprPart.Expression, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                     }
                 }
                 result = ResolvePrimitiveByKeyword("string", fileScope, symbolTable);
@@ -22682,7 +22682,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case ArrayCreationExpressionPrimaryNode arrayCreation:
                 {
                     var elementType = ResolveElementTypeRef(arrayCreation.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-                    ResolveExpression(arrayCreation.Size, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    _ = ResolveExpression(arrayCreation.Size, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                     var literalSize = TryExtractIntegerLiteral(arrayCreation.Size);
                     result = literalSize.HasValue
                         ? new ArrayType(elementType, literalSize.Value)
@@ -22697,7 +22697,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // A literal size N yields the known-length Span<T, N>; a runtime size
                     // yields the unknown-length Span<T> (R4.1, R4.2).
                     var spanElementType = ResolveElementTypeRef(stackallocExpr.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-                    ResolveExpression(stackallocExpr.Size, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    _ = ResolveExpression(stackallocExpr.Size, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                     var stackallocLiteralSize = TryExtractIntegerLiteral(stackallocExpr.Size);
 
                     // The read-only target context is threaded the same way the builder
@@ -26022,7 +26022,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
             }
 
-            ResolveExpression(expr, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            _ = ResolveExpression(expr, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
             // Restore previous target types.
             lambdaTargetType = previousLambdaTarget;
@@ -26365,8 +26365,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             if(!string.IsNullOrEmpty(token.Lexeme))
             {
-                sb.Append('.');
-                sb.Append(token.Lexeme);
+                _ = sb.Append('.');
+                _ = sb.Append(token.Lexeme);
             }
         }
         return sb.ToString();
@@ -26659,7 +26659,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         if(typeToIndex.TryGetValue(member.DeclaredType, out var depIndex))
                         {
-                            deps.Add(depIndex);
+                            _ = deps.Add(depIndex);
                         }
                     }
                 }
@@ -26670,7 +26670,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 if(typeToIndex.TryGetValue(classType.BaseType, out var baseIndex))
                 {
-                    deps.Add(baseIndex);
+                    _ = deps.Add(baseIndex);
                 }
             }
 

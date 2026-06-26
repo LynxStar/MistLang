@@ -112,12 +112,12 @@ public sealed class PropertyInitializerValidPropertyTests
         string typeName, (string Name, string Type, string ValueExpr)[] members)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"class {typeName} {{");
+        _ = sb.AppendLine($"class {typeName} {{");
         foreach(var (name, type, _) in members)
         {
-            sb.AppendLine($"    public {type} {name} {{ get; set; }}");
+            _ = sb.AppendLine($"    public {type} {name} {{ get; set; }}");
         }
-        sb.AppendLine("}");
+        _ = sb.AppendLine("}");
         return sb.ToString();
     }
 

@@ -428,7 +428,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
             var contextBoundNames = new HashSet<string>();
             foreach(var clause in sym.WithClauses)
             {
-                contextBoundNames.Add(clause.Identifier);
+                _ = contextBoundNames.Add(clause.Identifier);
             }
 
             SyntaxNode declaringNode;

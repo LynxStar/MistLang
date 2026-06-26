@@ -38,7 +38,7 @@ public sealed class ConflictingModifierRejectionTests : IDisposable
     public ConflictingModifierRejectionTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistConflictingModifierPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

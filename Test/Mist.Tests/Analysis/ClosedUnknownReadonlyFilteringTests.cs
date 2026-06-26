@@ -115,7 +115,7 @@ public class ClosedUnknownReadonlyFilteringTests
         var diagnostics = CompileAndCollectDiagnostics(source);
         var hits = WithId(diagnostics, ClosedUnknownDiagnosticId);
 
-        Assert.Single(hits);
+        _ = Assert.Single(hits);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -233,7 +233,7 @@ public class ClosedUnknownReadonlyFilteringTests
         var diagnostics = CompileAndCollectDiagnostics(source);
         var hits = WithId(diagnostics, ClosedUnknownDiagnosticId);
 
-        Assert.Single(hits);
+        _ = Assert.Single(hits);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -289,7 +289,7 @@ public class ClosedUnknownReadonlyFilteringTests
         var diagnostics = CompileAndCollectDiagnostics(source);
         var hits = WithId(diagnostics, ClosedUnknownDiagnosticId);
 
-        Assert.Single(hits);
+        _ = Assert.Single(hits);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -349,7 +349,7 @@ public class ClosedUnknownReadonlyFilteringTests
         var diagnostics = CompileAndCollectDiagnostics(source);
         var hits = WithId(diagnostics, ClosedUnknownDiagnosticId);
 
-        Assert.Single(hits);
+        _ = Assert.Single(hits);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -439,6 +439,6 @@ public class ClosedUnknownReadonlyFilteringTests
         var diagnostics = CompileAndCollectDiagnostics(source);
         var hits = WithId(diagnostics, ClosedUnknownDiagnosticId);
 
-        Assert.Single(hits);
+        _ = Assert.Single(hits);
     }
 }

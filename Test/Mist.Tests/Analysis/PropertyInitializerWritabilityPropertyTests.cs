@@ -99,10 +99,10 @@ public sealed class PropertyInitializerWritabilityPropertyTests
     private static string BuildClassWithGetOnlyProperty(string propName, string propType)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("class TestType {");
+        _ = sb.AppendLine("class TestType {");
         // A get-only property (no set or init)
-        sb.AppendLine($"    public {propType} {propName} {{ get; }}");
-        sb.AppendLine("}");
+        _ = sb.AppendLine($"    public {propType} {propName} {{ get; }}");
+        _ = sb.AppendLine("}");
         return sb.ToString();
     }
 

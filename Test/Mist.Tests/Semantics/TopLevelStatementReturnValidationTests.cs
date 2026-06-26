@@ -28,7 +28,7 @@ public sealed class TopLevelStatementReturnValidationTests : IDisposable
         scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist-tls-return-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(scratchDir);
+        _ = Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()
@@ -136,7 +136,7 @@ public sealed class TopLevelStatementReturnValidationTests : IDisposable
             .Where(d => d.Id.Value == "MIST_TLS_RETURN_TYPE")
             .ToList();
 
-        Assert.Single(returnTypeErrors);
+        _ = Assert.Single(returnTypeErrors);
         Assert.Contains("integer exit code", returnTypeErrors[0].Message);
         Assert.Contains("String", returnTypeErrors[0].Message);
     }

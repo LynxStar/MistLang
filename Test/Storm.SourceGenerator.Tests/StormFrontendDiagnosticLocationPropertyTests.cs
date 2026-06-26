@@ -162,7 +162,7 @@ public class StormFrontendDiagnosticLocationPropertyTests
             var source = new StormSourceText(filePath, sourceText);
             var diagnostics = new List<StormDiagnostic>();
 
-            StormLexer.Tokenize(source, diagnostics);
+            _ = StormLexer.Tokenize(source, diagnostics);
 
             foreach(var diag in diagnostics)
             {
@@ -190,7 +190,7 @@ public class StormFrontendDiagnosticLocationPropertyTests
             var tokens = StormLexer.Tokenize(source, lexerDiagnostics);
 
             var parserDiagnostics = new List<StormDiagnostic>();
-            StormParser.Parse(tokens, source, parserDiagnostics);
+            _ = StormParser.Parse(tokens, source, parserDiagnostics);
 
             // Verify all parser diagnostics have valid location
             foreach(var diag in parserDiagnostics)
@@ -218,7 +218,7 @@ public class StormFrontendDiagnosticLocationPropertyTests
 
             // Run through both lexer and parser, collecting all diagnostics
             var tokens = StormLexer.Tokenize(source, diagnostics);
-            StormParser.Parse(tokens, source, diagnostics);
+            _ = StormParser.Parse(tokens, source, diagnostics);
 
             // At least some diagnostics should be produced for invalid input
             // (not strictly required by the property, but validates our generators)

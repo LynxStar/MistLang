@@ -213,15 +213,15 @@ namespace Storm.SourceGenerator.Emit
             var sb = new StringBuilder();
             for(int c = 0; c < 65536; c++)
             {
-                sb.Clear();
+                _ = sb.Clear();
                 for(int m = 0; m < perModeResults.Count; m++)
                 {
                     if(m > 0)
                     {
-                        sb.Append(',');
+                        _ = sb.Append(',');
                     }
 
-                    sb.Append(perModeResults[m].charToClass[c]);
+                    _ = sb.Append(perModeResults[m].charToClass[c]);
                 }
                 var key = sb.ToString();
 
@@ -312,18 +312,18 @@ namespace Storm.SourceGenerator.Emit
         private static void EmitCharClassArray(CodeWriter writer, int[] charToClass)
         {
             var sb = new StringBuilder();
-            sb.Append("private static readonly int[] _charClass = new int[]");
-            sb.Append(" { ");
+            _ = sb.Append("private static readonly int[] _charClass = new int[]");
+            _ = sb.Append(" { ");
             for(int i = 0; i < 65536; i++)
             {
                 if(i > 0)
                 {
-                    sb.Append(", ");
+                    _ = sb.Append(", ");
                 }
 
-                sb.Append(charToClass[i]);
+                _ = sb.Append(charToClass[i]);
             }
-            sb.Append(" };");
+            _ = sb.Append(" };");
             writer.WriteLine(sb.ToString());
         }
 
@@ -333,28 +333,28 @@ namespace Storm.SourceGenerator.Emit
         private static void EmitTransitionTable(CodeWriter writer, string modeName, short[,] transTable, int stateCount, int classCount)
         {
             var sb = new StringBuilder();
-            sb.Append($"private static readonly short[,] _trans_{modeName} = new short[,]");
-            sb.Append(" { ");
+            _ = sb.Append($"private static readonly short[,] _trans_{modeName} = new short[,]");
+            _ = sb.Append(" { ");
             for(int s = 0; s < stateCount; s++)
             {
                 if(s > 0)
                 {
-                    sb.Append(", ");
+                    _ = sb.Append(", ");
                 }
 
-                sb.Append("{ ");
+                _ = sb.Append("{ ");
                 for(int c = 0; c < classCount; c++)
                 {
                     if(c > 0)
                     {
-                        sb.Append(", ");
+                        _ = sb.Append(", ");
                     }
 
-                    sb.Append(transTable[s, c]);
+                    _ = sb.Append(transTable[s, c]);
                 }
-                sb.Append(" }");
+                _ = sb.Append(" }");
             }
-            sb.Append(" };");
+            _ = sb.Append(" };");
             writer.WriteLine(sb.ToString());
         }
 
@@ -364,18 +364,18 @@ namespace Storm.SourceGenerator.Emit
         private static void EmitAcceptingTable(CodeWriter writer, string modeName, short[] acceptTable)
         {
             var sb = new StringBuilder();
-            sb.Append($"private static readonly short[] _accept_{modeName} = new short[]");
-            sb.Append(" { ");
+            _ = sb.Append($"private static readonly short[] _accept_{modeName} = new short[]");
+            _ = sb.Append(" { ");
             for(int i = 0; i < acceptTable.Length; i++)
             {
                 if(i > 0)
                 {
-                    sb.Append(", ");
+                    _ = sb.Append(", ");
                 }
 
-                sb.Append(acceptTable[i]);
+                _ = sb.Append(acceptTable[i]);
             }
-            sb.Append(" };");
+            _ = sb.Append(" };");
             writer.WriteLine(sb.ToString());
         }
 
@@ -690,17 +690,17 @@ namespace Storm.SourceGenerator.Emit
                 var c = name[i];
                 if(char.IsLetterOrDigit(c) || c == '_')
                 {
-                    sb.Append(c);
+                    _ = sb.Append(c);
                 }
                 else
                 {
-                    sb.Append('_');
+                    _ = sb.Append('_');
                 }
             }
 
             if(sb.Length > 0 && char.IsDigit(sb[0]))
             {
-                sb.Insert(0, '_');
+                _ = sb.Insert(0, '_');
             }
 
             return sb.Length == 0 ? "_" : sb.ToString();

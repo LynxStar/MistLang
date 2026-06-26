@@ -241,12 +241,12 @@ internal sealed class IntrinsicTypeMap
             }
 
             // Map the C# name (keyword or qualified) → Mist name
-            reversed.TryAdd(csharpName, mistName);
+            _ = reversed.TryAdd(csharpName, mistName);
 
             // For C# keywords, also add the full CLR name
             if(KeywordToClrFullName.TryGetValue(csharpName, out var clrFullName))
             {
-                reversed.TryAdd(clrFullName, mistName);
+                _ = reversed.TryAdd(clrFullName, mistName);
             }
         }
 
@@ -255,7 +255,7 @@ internal sealed class IntrinsicTypeMap
         // Assembly Type Provider recognize the CLR types on inbound positions.
         foreach(var (clrName, mistName) in AdditionalClrToMist)
         {
-            reversed.TryAdd(clrName, mistName);
+            _ = reversed.TryAdd(clrName, mistName);
         }
 
         return reversed;

@@ -400,7 +400,7 @@ public class TypeParameterRegistrationPropertyTests
         var symbol = model.AllSymbols.First(s => s.Name == "Box" && s.Kind == SymbolKind.Class);
         var classType = Assert.IsType<ClassType>(symbol.DeclaredType);
 
-        Assert.Single(classType.TypeParameters);
+        _ = Assert.Single(classType.TypeParameters);
         Assert.Equal("T", classType.TypeParameters[0].DisplayName);
         Assert.Equal(0, ((TypeParameterType)classType.TypeParameters[0]).Ordinal);
     }
@@ -450,7 +450,7 @@ public class TypeParameterRegistrationPropertyTests
         var symbol = model.AllSymbols.First(s => s.Name == "IContainer" && s.Kind == SymbolKind.Abstract);
         var abstractType = Assert.IsType<AbstractType>(symbol.DeclaredType);
 
-        Assert.Single(abstractType.TypeParameters);
+        _ = Assert.Single(abstractType.TypeParameters);
         Assert.Equal("T", abstractType.TypeParameters[0].DisplayName);
         Assert.Equal(0, ((TypeParameterType)abstractType.TypeParameters[0]).Ordinal);
     }
@@ -471,7 +471,7 @@ public class TypeParameterRegistrationPropertyTests
 
         var methodSymbol = (Symbol)model.AllSymbols.First(s => s.Name == "Identity" && s.Kind == SymbolKind.Method);
 
-        Assert.Single(methodSymbol.TypeParameters);
+        _ = Assert.Single(methodSymbol.TypeParameters);
         Assert.Equal("T", methodSymbol.TypeParameters[0].DisplayName);
         Assert.Equal(0, ((TypeParameterType)methodSymbol.TypeParameters[0]).Ordinal);
     }

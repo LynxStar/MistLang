@@ -79,7 +79,7 @@ public sealed class TypeArgumentInferenceEmissionPropertyTests : IDisposable
     public TypeArgumentInferenceEmissionPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistEmissionPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

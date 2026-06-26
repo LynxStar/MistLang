@@ -217,7 +217,7 @@ public sealed class ReadonlyEmissionPropertyTests : IDisposable
     public ReadonlyEmissionPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistReadonlyEmissionPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

@@ -1349,14 +1349,14 @@ public sealed class MistPrettyPrinter
             switch(clause)
             {
                 case ThisTierWithClauseWithClauseNode tierClause:
-                    sb.Append(" with ");
-                    sb.Append(EmitOwnershipSpecifier(tierClause.Tier));
+                    _ = sb.Append(" with ");
+                    _ = sb.Append(EmitOwnershipSpecifier(tierClause.Tier));
                     break;
                 case ContextWithClauseWithClauseNode contextClause:
-                    sb.Append(" with ");
-                    sb.Append(EmitTypeReference(contextClause.Type));
-                    sb.Append(' ');
-                    sb.Append(contextClause.Name.Lexeme);
+                    _ = sb.Append(" with ");
+                    _ = sb.Append(EmitTypeReference(contextClause.Type));
+                    _ = sb.Append(' ');
+                    _ = sb.Append(contextClause.Name.Lexeme);
                     break;
             }
         }
@@ -1888,22 +1888,22 @@ public sealed class MistPrettyPrinter
 
                     if(propertyPattern.TypeName is not null)
                     {
-                        sb.Append(ExtractQualifiedName(propertyPattern.TypeName));
-                        sb.Append(' ');
+                        _ = sb.Append(ExtractQualifiedName(propertyPattern.TypeName));
+                        _ = sb.Append(' ');
                     }
 
-                    sb.Append("{ ");
+                    _ = sb.Append("{ ");
                     if(propertyPattern.Subpatterns is not null)
                     {
-                        sb.Append(EmitPropertySubpatternList(propertyPattern.Subpatterns));
-                        sb.Append(' ');
+                        _ = sb.Append(EmitPropertySubpatternList(propertyPattern.Subpatterns));
+                        _ = sb.Append(' ');
                     }
-                    sb.Append('}');
+                    _ = sb.Append('}');
 
                     if(propertyPattern.Name.HasValue)
                     {
-                        sb.Append(' ');
-                        sb.Append(propertyPattern.Name.Value.Lexeme);
+                        _ = sb.Append(' ');
+                        _ = sb.Append(propertyPattern.Name.Value.Lexeme);
                     }
 
                     return sb.ToString();
@@ -2093,20 +2093,20 @@ public sealed class MistPrettyPrinter
             case SwitchExpressionSuffixPostfixSuffixNode switchExpr:
                 {
                     var sb = new StringBuilder();
-                    sb.Append($"{target} switch {{");
+                    _ = sb.Append($"{target} switch {{");
 
                     if(switchExpr.Arms is not null)
                     {
                         void AppendArm(StringBuilder builder, SwitchArmNode arm)
                         {
-                            builder.Append(' ');
-                            builder.Append(EmitPattern(arm.Pattern));
+                            _ = builder.Append(' ');
+                            _ = builder.Append(EmitPattern(arm.Pattern));
                             if(arm.Guard is not null)
                             {
-                                builder.Append($" when {EmitVoidCoalescing(arm.Guard.Condition)}");
+                                _ = builder.Append($" when {EmitVoidCoalescing(arm.Guard.Condition)}");
                             }
-                            builder.Append($" => {EmitExpression(arm.Result)}");
-                            builder.Append(',');
+                            _ = builder.Append($" => {EmitExpression(arm.Result)}");
+                            _ = builder.Append(',');
                         }
 
                         AppendArm(sb, switchExpr.Arms.SwitchArm);
@@ -2116,7 +2116,7 @@ public sealed class MistPrettyPrinter
                         }
                     }
 
-                    sb.Append(" }");
+                    _ = sb.Append(" }");
                     return sb.ToString();
                 }
             default:
@@ -2279,24 +2279,24 @@ public sealed class MistPrettyPrinter
     private string EmitInterpolatedString(InterpolatedStringNode interpolated)
     {
         var sb = new StringBuilder();
-        sb.Append("$\"");
+        _ = sb.Append("$\"");
 
         foreach(var part in interpolated.Parts)
         {
             switch(part)
             {
                 case TextPartInterpolatedPartNode textPart:
-                    sb.Append(textPart.Text.Lexeme);
+                    _ = sb.Append(textPart.Text.Lexeme);
                     break;
                 case ExpressionPartInterpolatedPartNode exprPart:
-                    sb.Append('{');
-                    sb.Append(EmitExpression(exprPart.Expression));
-                    sb.Append('}');
+                    _ = sb.Append('{');
+                    _ = sb.Append(EmitExpression(exprPart.Expression));
+                    _ = sb.Append('}');
                     break;
             }
         }
 
-        sb.Append('"');
+        _ = sb.Append('"');
         return sb.ToString();
     }
 
@@ -2486,8 +2486,8 @@ public sealed class MistPrettyPrinter
         {
             if(!string.IsNullOrEmpty(token.Lexeme))
             {
-                sb.Append('.');
-                sb.Append(token.Lexeme);
+                _ = sb.Append('.');
+                _ = sb.Append(token.Lexeme);
             }
         }
         return sb.ToString();
@@ -2513,16 +2513,16 @@ public sealed class MistPrettyPrinter
             switch(clause)
             {
                 case GenericConstraintClauseWhereClauseNode generic:
-                    sb.Append(" where ");
-                    sb.Append(generic.Name.Lexeme);
-                    sb.Append(" : ");
-                    sb.Append(EmitConstraintList(generic.Constraints));
+                    _ = sb.Append(" where ");
+                    _ = sb.Append(generic.Name.Lexeme);
+                    _ = sb.Append(" : ");
+                    _ = sb.Append(EmitConstraintList(generic.Constraints));
                     break;
                 case AdhocRefinementConstraintWhereClauseNode refinement:
-                    sb.Append(" where ");
-                    sb.Append(refinement.Name.Lexeme);
-                    sb.Append(' ');
-                    sb.Append(EmitAndPattern(refinement.Predicate));
+                    _ = sb.Append(" where ");
+                    _ = sb.Append(refinement.Name.Lexeme);
+                    _ = sb.Append(' ');
+                    _ = sb.Append(EmitAndPattern(refinement.Predicate));
                     break;
             }
         }
@@ -2615,15 +2615,15 @@ public sealed class MistPrettyPrinter
     {
         if(string.IsNullOrEmpty(text))
         {
-            sb.AppendLine();
+            _ = sb.AppendLine();
         }
         else
         {
             for(var i = 0; i < indentLevel; i++)
             {
-                sb.Append(IndentUnit);
+                _ = sb.Append(IndentUnit);
             }
-            sb.AppendLine(text);
+            _ = sb.AppendLine(text);
         }
     }
 }

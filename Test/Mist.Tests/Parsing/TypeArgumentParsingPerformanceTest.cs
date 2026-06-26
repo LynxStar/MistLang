@@ -170,37 +170,37 @@ public sealed class TypeArgumentParsingPerformanceTest
     private static string GenerateFuncActionSource(int n)
     {
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("namespace Standard;");
-        sb.AppendLine();
+        _ = sb.AppendLine("namespace Standard;");
+        _ = sb.AppendLine();
 
         // Generate Func<TResult>, Func<T1, TResult>, ..., Func<T1..Tn, TResult>
         for(var i = 0; i <= n; i++)
         {
             if(i == 0)
             {
-                sb.AppendLine("intrinsic class Func<TResult> { }");
+                _ = sb.AppendLine("intrinsic class Func<TResult> { }");
             }
             else
             {
                 var inputParams = string.Join(", ", Enumerable.Range(1, i).Select(j => $"T{j}"));
-                sb.AppendLine($"intrinsic class Func<{inputParams}, TResult> {{ }}");
+                _ = sb.AppendLine($"intrinsic class Func<{inputParams}, TResult> {{ }}");
             }
         }
 
-        sb.AppendLine();
+        _ = sb.AppendLine();
 
         // Generate type Action = Func<void>, type Action<T1> = Func<T1, void>, ...
         for(var i = 0; i <= n; i++)
         {
             if(i == 0)
             {
-                sb.AppendLine("type Action = Func<void>;");
+                _ = sb.AppendLine("type Action = Func<void>;");
             }
             else
             {
                 var aliasParams = string.Join(", ", Enumerable.Range(1, i).Select(j => $"T{j}"));
                 var funcArgs = string.Join(", ", Enumerable.Range(1, i).Select(j => $"T{j}"));
-                sb.AppendLine($"type Action<{aliasParams}> = Func<{funcArgs}, void>;");
+                _ = sb.AppendLine($"type Action<{aliasParams}> = Func<{funcArgs}, void>;");
             }
         }
 

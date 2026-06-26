@@ -43,7 +43,7 @@ public sealed class GlobalUsingResolutionEquivalencePropertyTests : IDisposable
         scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist_pbt_gu_resolve_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(scratchDir);
+        _ = Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()
@@ -177,7 +177,7 @@ public sealed class GlobalUsingResolutionEquivalencePropertyTests : IDisposable
 
             // Create a unique temp directory for this iteration
             var iterDir = Path.Combine(scratchDir, $"iter_{idx}");
-            Directory.CreateDirectory(iterDir);
+            _ = Directory.CreateDirectory(iterDir);
 
             try
             {

@@ -65,7 +65,7 @@ class TestClass {
         var diagnostics = CompileAndGetAllDiagnostics(source);
 
         var at0004 = diagnostics.Where(d => d.Id.Value == "MIST_AT_0004").ToList();
-        Assert.Single(at0004);
+        _ = Assert.Single(at0004);
         Assert.Contains("Foo", at0004[0].Message);
         Assert.Contains("T", at0004[0].Message);
     }
@@ -87,7 +87,7 @@ class TestClass {
         var diagnostics = CompileAndGetAllDiagnostics(source);
 
         var at0004 = diagnostics.Where(d => d.Id.Value == "MIST_AT_0004").ToList();
-        Assert.Single(at0004);
+        _ = Assert.Single(at0004);
         Assert.Contains("Widget", at0004[0].Message);
         Assert.Contains("T", at0004[0].Message);
     }
@@ -110,7 +110,7 @@ class TestClass {
         var diagnostics = CompileAndGetAllDiagnostics(source);
 
         var at0004 = diagnostics.Where(d => d.Id.Value == "MIST_AT_0004").ToList();
-        Assert.Single(at0004);
+        _ = Assert.Single(at0004);
         Assert.Contains("Value", at0004[0].Message);
         Assert.Contains("T", at0004[0].Message);
     }
@@ -129,7 +129,7 @@ class TestClass {
         var diagnostics = CompileAndGetAllDiagnostics(source);
 
         var at0004 = diagnostics.Where(d => d.Id.Value == "MIST_AT_0004").ToList();
-        Assert.Single(at0004);
+        _ = Assert.Single(at0004);
         Assert.Contains("Foo", at0004[0].Message);
     }
 
@@ -176,7 +176,7 @@ class TestClass {
         var diagnostics = CompileAndGetAllDiagnostics(source);
 
         var at0004 = diagnostics.Where(d => d.Id.Value == "MIST_AT_0004").ToList();
-        Assert.Single(at0004);
+        _ = Assert.Single(at0004);
         Assert.Contains("Unknown", at0004[0].Message);
     }
 
@@ -221,7 +221,7 @@ class TestClass {
         var diagnostics = CompileAndGetAllDiagnostics(source);
 
         var at0004 = diagnostics.Where(d => d.Id.Value == "MIST_AT_0004").ToList();
-        Assert.Single(at0004);
+        _ = Assert.Single(at0004);
 
         var msg = at0004[0].Message;
         Assert.Equal(

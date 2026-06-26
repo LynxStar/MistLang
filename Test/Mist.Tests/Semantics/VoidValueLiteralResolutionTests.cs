@@ -29,7 +29,7 @@ public sealed class VoidValueLiteralResolutionTests : IDisposable
         scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist-void-val-lit-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(scratchDir);
+        _ = Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()

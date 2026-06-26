@@ -117,7 +117,7 @@ public sealed class InvalidEnumerableImplementationPropertyTests : IDisposable
     public InvalidEnumerableImplementationPropertyTests()
     {
         tempDir = Path.Combine(Path.GetTempPath(), "MistInvalidEnumPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
     }
 
     public void Dispose()

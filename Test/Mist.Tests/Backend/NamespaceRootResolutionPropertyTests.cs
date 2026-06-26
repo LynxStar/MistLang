@@ -42,7 +42,7 @@ public sealed class NamespaceRootResolutionPropertyTests
     private static string CreateTempProjectDir()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"mist_nsroot_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(dir);
+        _ = Directory.CreateDirectory(dir);
         return dir;
     }
 

@@ -23,7 +23,7 @@ public sealed class CSharpSourceWriterGlobalUsingsEmissionTests : IDisposable
     public CSharpSourceWriterGlobalUsingsEmissionTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistGlobalUsingsEmitTests_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

@@ -38,7 +38,7 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
         outputDir = Path.Combine(
             Path.GetTempPath(),
             "MistAbstractEmissionTests_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -438,12 +438,12 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
         foreach(var abs in scenario.Abstracts)
         {
             var parent = abs.ParentAbstractName is not null ? $" : {abs.ParentAbstractName}" : "";
-            sb.AppendLine($"abstract {abs.Name}{parent} {{");
+            _ = sb.AppendLine($"abstract {abs.Name}{parent} {{");
             foreach(var method in abs.MethodNames)
             {
-                sb.AppendLine($"    void {method}();");
+                _ = sb.AppendLine($"    void {method}();");
             }
-            sb.AppendLine("}");
+            _ = sb.AppendLine("}");
         }
 
         foreach(var impl in scenario.Implementors)
@@ -451,15 +451,15 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
             switch(impl.Kind)
             {
                 case EmissionTypeKind.ClassWithAbstract:
-                    sb.AppendLine($"class {impl.Name} : {impl.AbstractName} {{ }}");
+                    _ = sb.AppendLine($"class {impl.Name} : {impl.AbstractName} {{ }}");
                     break;
                 case EmissionTypeKind.StructWithAbstract:
-                    sb.AppendLine($"struct {impl.Name} : {impl.AbstractName} {{ }}");
+                    _ = sb.AppendLine($"struct {impl.Name} : {impl.AbstractName} {{ }}");
                     break;
             }
         }
 
-        sb.AppendLine("class Program { public static void Main() { } }");
+        _ = sb.AppendLine("class Program { public static void Main() { } }");
         return sb.ToString();
     }
 

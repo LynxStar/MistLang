@@ -47,7 +47,7 @@ public sealed class ValueTaskEmissionPropertyTests : IDisposable
     public ValueTaskEmissionPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistValueTaskPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -288,7 +288,7 @@ public sealed class ValueTaskEmissionPropertyTests : IDisposable
         var sb = new StringBuilder();
         foreach(var (_, content) in files)
         {
-            sb.AppendLine(content);
+            _ = sb.AppendLine(content);
         }
 
         return (true, sb.ToString(), "");
@@ -556,7 +556,7 @@ public sealed class ValueTaskEmissionPropertyTests : IDisposable
 
         // DropReturnType should be TResult (the type parameter)
         Assert.NotNull(valueTaskClassType.DropReturnType);
-        Assert.IsType<TypeParameterType>(valueTaskClassType.DropReturnType);
+        _ = Assert.IsType<TypeParameterType>(valueTaskClassType.DropReturnType);
 
         var dropReturnParam = (TypeParameterType)valueTaskClassType.DropReturnType!;
         Assert.Equal("TResult", dropReturnParam.DisplayName);

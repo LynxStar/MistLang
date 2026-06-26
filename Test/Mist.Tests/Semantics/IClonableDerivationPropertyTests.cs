@@ -52,7 +52,7 @@ public sealed class IClonableDerivationPropertyTests : IDisposable
     public IClonableDerivationPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistIClonableDerivePBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -122,7 +122,7 @@ public sealed class IClonableDerivationPropertyTests : IDisposable
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,
             EmitToDisk: false);
 
-        driver.Compile(options);
+        _ = driver.Compile(options);
         return capture.Captured;
     }
 
@@ -293,14 +293,14 @@ public sealed class IClonableDerivationPropertyTests : IDisposable
         }
 
         var sb = new System.Text.StringBuilder();
-        sb.Append("using Standard;\n\nnamespace Gen;\n\n");
+        _ = sb.Append("using Standard;\n\nnamespace Gen;\n\n");
 
         for(var i = 0; i < types.Count; i++)
         {
             var t = types[i];
             var keyword = t.IsStruct ? "struct" : "class";
             var clonableClause = t.DeclaresIClonable ? $" : IClonable<T{i}>" : "";
-            sb.Append($"public {keyword} T{i}{clonableClause}\n{{\n");
+            _ = sb.Append($"public {keyword} T{i}{clonableClause}\n{{\n");
 
             for(var f = 0; f < t.Fields.Count; f++)
             {
@@ -313,20 +313,20 @@ public sealed class IClonableDerivationPropertyTests : IDisposable
                     FieldKind.RefType => $"T{field.RefIndex}",
                     _ => "int",
                 };
-                sb.Append($"    public {typeText} f{f};\n");
+                _ = sb.Append($"    public {typeText} f{f};\n");
             }
 
             if(t.DeclaresIClonable)
             {
                 // A Clone() satisfying IClonable<T{i}>. The body returns `default`
                 // (a fresh owned graph, Req 6.10) so it compiles for any field shape.
-                sb.Append($"    public owned T{i} Clone() {{ return default; }}\n");
+                _ = sb.Append($"    public owned T{i} Clone() {{ return default; }}\n");
             }
 
-            sb.Append("}\n\n");
+            _ = sb.Append("}\n\n");
         }
 
-        sb.Append("public class Program\n{\n    public static void Main()\n    {\n    }\n}\n");
+        _ = sb.Append("public class Program\n{\n    public static void Main()\n    {\n    }\n}\n");
 
         var label = string.Join(
             ", ",

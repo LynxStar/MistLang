@@ -28,7 +28,7 @@ public sealed class TopLevelStatementReturnEmissionTests : IDisposable
         scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist-tls-return-emit-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(scratchDir);
+        _ = Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()
@@ -97,7 +97,7 @@ public sealed class TopLevelStatementReturnEmissionTests : IDisposable
         var driver = CreateDriverWithCapture(capture);
 
         // Act — compile to build the semantic model
-        driver.Compile(options);
+        _ = driver.Compile(options);
 
         // Use EmitToMemory to get the emitted C#
         Assert.NotNull(capture.CapturedModel);

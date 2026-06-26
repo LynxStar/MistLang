@@ -206,7 +206,7 @@ public class ParameterSignatureTests
         var methodSymbol = model.AllSymbols.First(s => s.Name == "M" && s.Kind == SymbolKind.Method);
         var signature = ParameterSignature.Extract(methodSymbol, model);
 
-        Assert.Single(signature);
+        _ = Assert.Single(signature);
         Assert.Equal("int", signature[0].DisplayName);
     }
 
@@ -272,7 +272,7 @@ public class ParameterSignatureTests
         var ctorSymbol = model.AllSymbols.First(s => s.Name == "C" && s.Kind == SymbolKind.Constructor);
         var signature = ParameterSignature.Extract(ctorSymbol, model);
 
-        Assert.Single(signature);
+        _ = Assert.Single(signature);
         Assert.Equal("int", signature[0].DisplayName);
     }
 
@@ -311,7 +311,7 @@ public class ParameterSignatureTests
 
         // Abstract type method parameters are now registered, so Extract returns
         // the resolved parameter types.
-        Assert.Single(signature);
+        _ = Assert.Single(signature);
         Assert.Equal("int", signature[0].DisplayName);
     }
 
@@ -369,8 +369,8 @@ public class ParameterSignatureTests
         Assert.False(ParameterSignature.AreEqual(sig1, sig2));
 
         // Each should have exactly one parameter type
-        Assert.Single(sig1);
-        Assert.Single(sig2);
+        _ = Assert.Single(sig1);
+        _ = Assert.Single(sig2);
 
         // One should be "int" and the other "bool"
         var typeNames = new[] { sig1[0].DisplayName, sig2[0].DisplayName };

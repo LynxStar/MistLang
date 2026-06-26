@@ -302,7 +302,7 @@ public sealed class VoidValueLiteralPropertyTests : IDisposable
     public VoidValueLiteralPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistVoidValLitPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

@@ -81,7 +81,7 @@ public class UnknownTypeParserTests
         Assert.NotNull(cu);
 
         var varDecl = GetFirstLocalDecl(cu!);
-        Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(varDecl.Type.First);
+        _ = Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(varDecl.Type.First);
     }
 
     [Fact]
@@ -99,8 +99,8 @@ public class UnknownTypeParserTests
         var named = Assert.IsType<NamedSingleTypeRefSingleTypeRefNode>(varDecl.Type.First);
         Assert.NotNull(named.TypeArgs);
         var typeArgs = GetTypeArgs(named.TypeArgs!);
-        Assert.Single(typeArgs);
-        Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(typeArgs[0].First);
+        _ = Assert.Single(typeArgs);
+        _ = Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(typeArgs[0].First);
     }
 
     [Fact]
@@ -121,9 +121,9 @@ public class UnknownTypeParserTests
         Assert.Equal(2, typeArgs.Count);
 
         var firstPrim = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(typeArgs[0].First);
-        Assert.IsType<StringTypePrimitiveTypeNode>(firstPrim.PrimitiveType);
+        _ = Assert.IsType<StringTypePrimitiveTypeNode>(firstPrim.PrimitiveType);
 
-        Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(typeArgs[1].First);
+        _ = Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(typeArgs[1].First);
     }
 
     [Fact]
@@ -141,14 +141,14 @@ public class UnknownTypeParserTests
         var outer = Assert.IsType<NamedSingleTypeRefSingleTypeRefNode>(varDecl.Type.First);
         Assert.NotNull(outer.TypeArgs);
         var outerArgs = GetTypeArgs(outer.TypeArgs!);
-        Assert.Single(outerArgs);
+        _ = Assert.Single(outerArgs);
 
         var inner = Assert.IsType<NamedSingleTypeRefSingleTypeRefNode>(outerArgs[0].First);
         Assert.NotNull(inner.TypeArgs);
         var innerArgs = GetTypeArgs(inner.TypeArgs!);
-        Assert.Single(innerArgs);
+        _ = Assert.Single(innerArgs);
 
-        Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(innerArgs[0].First);
+        _ = Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(innerArgs[0].First);
     }
 
     // ─── Negative tests — `unknown` cannot be an identifier ────────────────
@@ -176,7 +176,7 @@ public class UnknownTypeParserTests
         // Sanity check: the analogous source with a non-keyword identifier succeeds.
         var (cuValid, _) = ParseSource("class Foo { }");
         Assert.NotNull(cuValid);
-        Assert.Single(cuValid!.GetTypes());
+        _ = Assert.Single(cuValid!.GetTypes());
     }
 
     [Fact]
@@ -192,7 +192,7 @@ public class UnknownTypeParserTests
 
         var (cuValid, _) = ParseSource("class T { public void M() { var x = 1; } }");
         Assert.NotNull(cuValid);
-        Assert.Single(cuValid!.GetTypes());
+        _ = Assert.Single(cuValid!.GetTypes());
     }
 
     [Fact]
@@ -207,7 +207,7 @@ public class UnknownTypeParserTests
 
         var (cuValid, _) = ParseSource("class T { public void M() { } }");
         Assert.NotNull(cuValid);
-        Assert.Single(cuValid!.GetTypes());
+        _ = Assert.Single(cuValid!.GetTypes());
     }
 
     [Fact]
@@ -238,6 +238,6 @@ public class UnknownTypeParserTests
 
         var (cuValid, _) = ParseSource("class Foo<T> { }");
         Assert.NotNull(cuValid);
-        Assert.Single(cuValid!.GetTypes());
+        _ = Assert.Single(cuValid!.GetTypes());
     }
 }

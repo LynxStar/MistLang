@@ -129,7 +129,7 @@ public sealed class AssociatedTypeEmissionPropertyTests : IDisposable
     public AssociatedTypeEmissionPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "mist_pbt_assoc_emit_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -218,69 +218,69 @@ public sealed class AssociatedTypeEmissionPropertyTests : IDisposable
     private static string BuildBatchedProgram(IReadOnlyList<AssociatedTypeEmissionScenario> scenarios)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("using Standard;");
-        sb.AppendLine();
+        _ = sb.AppendLine("using Standard;");
+        _ = sb.AppendLine();
 
         // Emit shared type declarations (one per scenario kind)
-        sb.AppendLine("// --- Unconstrained slot ---");
-        sb.AppendLine("abstract IHolder {");
-        sb.AppendLine("    type Element;");
-        sb.AppendLine("    int GetValue();");
-        sb.AppendLine("}");
-        sb.AppendLine();
-        sb.AppendLine("class Holder : IHolder {");
-        sb.AppendLine("    public struct Element {");
-        sb.AppendLine("        public int Val;");
-        sb.AppendLine("        public Element(int v) { Val = v; }");
-        sb.AppendLine("    }");
-        sb.AppendLine("    int _v;");
-        sb.AppendLine("    public Holder(int v) { _v = v; }");
-        sb.AppendLine("    public int GetValue() { return _v; }");
-        sb.AppendLine("}");
-        sb.AppendLine();
+        _ = sb.AppendLine("// --- Unconstrained slot ---");
+        _ = sb.AppendLine("abstract IHolder {");
+        _ = sb.AppendLine("    type Element;");
+        _ = sb.AppendLine("    int GetValue();");
+        _ = sb.AppendLine("}");
+        _ = sb.AppendLine();
+        _ = sb.AppendLine("class Holder : IHolder {");
+        _ = sb.AppendLine("    public struct Element {");
+        _ = sb.AppendLine("        public int Val;");
+        _ = sb.AppendLine("        public Element(int v) { Val = v; }");
+        _ = sb.AppendLine("    }");
+        _ = sb.AppendLine("    int _v;");
+        _ = sb.AppendLine("    public Holder(int v) { _v = v; }");
+        _ = sb.AppendLine("    public int GetValue() { return _v; }");
+        _ = sb.AppendLine("}");
+        _ = sb.AppendLine();
 
-        sb.AppendLine("// --- Struct-constrained slot ---");
-        sb.AppendLine("abstract IContainer {");
-        sb.AppendLine("    type Item : struct;");
-        sb.AppendLine("    int GetData();");
-        sb.AppendLine("}");
-        sb.AppendLine();
-        sb.AppendLine("class Container : IContainer {");
-        sb.AppendLine("    public struct Item {");
-        sb.AppendLine("        public int X;");
-        sb.AppendLine("        public Item(int x) { X = x; }");
-        sb.AppendLine("    }");
-        sb.AppendLine("    int _d;");
-        sb.AppendLine("    public Container(int d) { _d = d; }");
-        sb.AppendLine("    public int GetData() { return _d; }");
-        sb.AppendLine("}");
-        sb.AppendLine();
+        _ = sb.AppendLine("// --- Struct-constrained slot ---");
+        _ = sb.AppendLine("abstract IContainer {");
+        _ = sb.AppendLine("    type Item : struct;");
+        _ = sb.AppendLine("    int GetData();");
+        _ = sb.AppendLine("}");
+        _ = sb.AppendLine();
+        _ = sb.AppendLine("class Container : IContainer {");
+        _ = sb.AppendLine("    public struct Item {");
+        _ = sb.AppendLine("        public int X;");
+        _ = sb.AppendLine("        public Item(int x) { X = x; }");
+        _ = sb.AppendLine("    }");
+        _ = sb.AppendLine("    int _d;");
+        _ = sb.AppendLine("    public Container(int d) { _d = d; }");
+        _ = sb.AppendLine("    public int GetData() { return _d; }");
+        _ = sb.AppendLine("}");
+        _ = sb.AppendLine();
 
-        sb.AppendLine("// --- Abstract-constrained slot ---");
-        sb.AppendLine("abstract IStringable {");
-        sb.AppendLine("    string GetStr();");
-        sb.AppendLine("}");
-        sb.AppendLine();
-        sb.AppendLine("abstract IFactory {");
-        sb.AppendLine("    type Product : IStringable;");
-        sb.AppendLine("    string Produce();");
-        sb.AppendLine("}");
-        sb.AppendLine();
-        sb.AppendLine("class Factory : IFactory {");
-        sb.AppendLine("    public class Product : IStringable {");
-        sb.AppendLine("        string _name;");
-        sb.AppendLine("        public Product(string n) { _name = n; }");
-        sb.AppendLine("        public string GetStr() { return _name; }");
-        sb.AppendLine("    }");
-        sb.AppendLine("    string _val;");
-        sb.AppendLine("    public Factory(string v) { _val = v; }");
-        sb.AppendLine("    public string Produce() { return _val; }");
-        sb.AppendLine("}");
-        sb.AppendLine();
+        _ = sb.AppendLine("// --- Abstract-constrained slot ---");
+        _ = sb.AppendLine("abstract IStringable {");
+        _ = sb.AppendLine("    string GetStr();");
+        _ = sb.AppendLine("}");
+        _ = sb.AppendLine();
+        _ = sb.AppendLine("abstract IFactory {");
+        _ = sb.AppendLine("    type Product : IStringable;");
+        _ = sb.AppendLine("    string Produce();");
+        _ = sb.AppendLine("}");
+        _ = sb.AppendLine();
+        _ = sb.AppendLine("class Factory : IFactory {");
+        _ = sb.AppendLine("    public class Product : IStringable {");
+        _ = sb.AppendLine("        string _name;");
+        _ = sb.AppendLine("        public Product(string n) { _name = n; }");
+        _ = sb.AppendLine("        public string GetStr() { return _name; }");
+        _ = sb.AppendLine("    }");
+        _ = sb.AppendLine("    string _val;");
+        _ = sb.AppendLine("    public Factory(string v) { _val = v; }");
+        _ = sb.AppendLine("    public string Produce() { return _val; }");
+        _ = sb.AppendLine("}");
+        _ = sb.AppendLine();
 
         // Emit Program class with Main
-        sb.AppendLine("public class Program {");
-        sb.AppendLine("    public static void Main(string[] args) {");
+        _ = sb.AppendLine("public class Program {");
+        _ = sb.AppendLine("    public static void Main(string[] args) {");
 
         // Emit inline scenario execution
         for(var i = 0; i < scenarios.Count; i++)
@@ -289,8 +289,8 @@ public sealed class AssociatedTypeEmissionPropertyTests : IDisposable
             EmitScenarioInline(sb, scenarios[i]);
         }
 
-        sb.AppendLine("    }");
-        sb.AppendLine("}");
+        _ = sb.AppendLine("    }");
+        _ = sb.AppendLine("}");
 
         return sb.ToString();
     }
@@ -305,18 +305,18 @@ public sealed class AssociatedTypeEmissionPropertyTests : IDisposable
         switch(scenario.Kind)
         {
             case AssociatedTypeEmissionKind.UnconstrainedSlotWithStruct:
-                sb.AppendLine($"        var h{i} = new Holder({scenario.IntValue});");
-                sb.AppendLine($"        Console.WriteLine(h{i}.GetValue());");
+                _ = sb.AppendLine($"        var h{i} = new Holder({scenario.IntValue});");
+                _ = sb.AppendLine($"        Console.WriteLine(h{i}.GetValue());");
                 break;
 
             case AssociatedTypeEmissionKind.StructConstrainedSlot:
-                sb.AppendLine($"        var c{i} = new Container({scenario.IntValue});");
-                sb.AppendLine($"        Console.WriteLine(c{i}.GetData());");
+                _ = sb.AppendLine($"        var c{i} = new Container({scenario.IntValue});");
+                _ = sb.AppendLine($"        Console.WriteLine(c{i}.GetData());");
                 break;
 
             case AssociatedTypeEmissionKind.AbstractConstrainedSlot:
-                sb.AppendLine($"        var f{i} = new Factory(\"{scenario.StrValue}\");");
-                sb.AppendLine($"        Console.WriteLine(f{i}.Produce());");
+                _ = sb.AppendLine($"        var f{i} = new Factory(\"{scenario.StrValue}\");");
+                _ = sb.AppendLine($"        Console.WriteLine(f{i}.Produce());");
                 break;
         }
     }
@@ -330,7 +330,7 @@ public sealed class AssociatedTypeEmissionPropertyTests : IDisposable
     private (int ExitCode, string Stdout, string Stderr) CompileAndRun(string mistSource)
     {
         var iterDir = Path.Combine(outputDir, Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(iterDir);
+        _ = Directory.CreateDirectory(iterDir);
 
         try
         {

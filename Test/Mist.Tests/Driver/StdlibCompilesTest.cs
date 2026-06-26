@@ -90,7 +90,7 @@ public sealed class StdlibCompilesTest
         //           go so type references across stdlib files resolve.
         var compilation = new MistCompilation(units);
         var builder = new SemanticModelBuilder();
-        builder.Build(
+        _ = builder.Build(
             compilation,
             asts.ToImmutable(),
             ambientTypeResolver: null,

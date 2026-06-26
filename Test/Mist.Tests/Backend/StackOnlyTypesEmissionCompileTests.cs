@@ -40,7 +40,7 @@ public sealed class StackOnlyTypesEmissionCompileTests : IDisposable
         outputDir = Path.Combine(
             Path.GetTempPath(),
             "MistSpanEmitCompile_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

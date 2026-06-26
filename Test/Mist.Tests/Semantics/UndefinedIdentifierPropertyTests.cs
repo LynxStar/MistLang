@@ -393,7 +393,7 @@ public class UndefinedIdentifierPropertyTests
             .Where(d => d.Id.Value == "MIST_UNDEFINED_IDENTIFIER" && d.Message.Contains("noSuchVar"))
             .ToList();
 
-        Assert.Single(undefinedDiags);
+        _ = Assert.Single(undefinedDiags);
     }
 
     /// <summary>
@@ -414,7 +414,7 @@ public class UndefinedIdentifierPropertyTests
             .Where(d => d.Id.Value == "MIST_UNDEFINED_TYPE" && d.Message.Contains("NoSuchType"))
             .ToList();
 
-        Assert.Single(undefinedDiags);
+        _ = Assert.Single(undefinedDiags);
     }
 
     /// <summary>
@@ -452,7 +452,7 @@ public class UndefinedIdentifierPropertyTests
             .Where(d => d.Id.Value == "MIST_UNDEFINED_NAMESPACE" && d.Message.Contains("FakeNamespace"))
             .ToList();
 
-        Assert.Single(undefinedDiags);
+        _ = Assert.Single(undefinedDiags);
     }
 
     // ─── Test ambient type resolver ──────────────────────────────────────

@@ -52,7 +52,7 @@ public sealed class MoveBoundaryClonableSourcePropertyTests : IDisposable
     public MoveBoundaryClonableSourcePropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistMoveBoundaryClonablePBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -122,7 +122,7 @@ public sealed class MoveBoundaryClonableSourcePropertyTests : IDisposable
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,
             EmitToDisk: false);
 
-        driver.Compile(options);
+        _ = driver.Compile(options);
         return capture.Captured;
     }
 
@@ -241,17 +241,17 @@ public sealed class MoveBoundaryClonableSourcePropertyTests : IDisposable
         var usesHelper = fields.Contains(FieldKind.ClonableRef);
 
         var sb = new System.Text.StringBuilder();
-        sb.Append("using Standard;\n\nnamespace Gen;\n\n");
+        _ = sb.Append("using Standard;\n\nnamespace Gen;\n\n");
 
         // A clonable helper class (all-int fields → auto-derives IClonable<Helper>).
         if(usesHelper)
         {
-            sb.Append("public class Helper\n{\n    public int hv;\n}\n\n");
+            _ = sb.Append("public class Helper\n{\n    public int hv;\n}\n\n");
         }
 
         // The non-owned reference source type S.
         var clonableClause = declaresExplicit ? " : IClonable<S>" : "";
-        sb.Append($"public class S{clonableClause}\n{{\n");
+        _ = sb.Append($"public class S{clonableClause}\n{{\n");
         for(var i = 0; i < fields.Count; i++)
         {
             var typeText = fields[i] switch
@@ -261,19 +261,19 @@ public sealed class MoveBoundaryClonableSourcePropertyTests : IDisposable
                 FieldKind.ClonableRef => "Helper",
                 _ => "int",
             };
-            sb.Append($"    public {typeText} f{i};\n");
+            _ = sb.Append($"    public {typeText} f{i};\n");
         }
 
         if(declaresExplicit)
         {
             // A Clone() satisfying IClonable<S>; `default` is a fresh owned graph (Req 6.10).
-            sb.Append("    public owned S Clone() { return default; }\n");
+            _ = sb.Append("    public owned S Clone() { return default; }\n");
         }
 
-        sb.Append("}\n\n");
+        _ = sb.Append("}\n\n");
 
         // The owned binding initialized from a non-owned binding of S.
-        sb.Append(
+        _ = sb.Append(
             "public class Program\n{\n    public static void Main()\n    {\n" +
             "        var s = new S();\n" +
             "        owned var x = s;\n" +

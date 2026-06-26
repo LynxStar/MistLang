@@ -59,7 +59,7 @@ public sealed class DisposableWithBlockIntegrationTests : IDisposable
     public DisposableWithBlockIntegrationTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistDisposableWithBlock_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

@@ -177,7 +177,7 @@ public sealed class TypeAliasEmissionPropertyTests
         // Emit — use CSharpEmitter directly with a temp directory
         var emitBag = new DiagnosticBag();
         var tempDir = Path.Combine(Path.GetTempPath(), "mist_emit_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             CSharpEmitter.Emit(model, tempDir, "TestProgram", emitBag);
@@ -192,7 +192,7 @@ public sealed class TypeAliasEmissionPropertyTests
             var sb = new StringBuilder();
             foreach(var f in csFiles)
             {
-                sb.AppendLine(File.ReadAllText(f));
+                _ = sb.AppendLine(File.ReadAllText(f));
             }
 
             return (true, sb.ToString(), "");

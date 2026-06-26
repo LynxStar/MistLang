@@ -51,7 +51,7 @@ public sealed class InitializerArrayConstructionPropertyTests : IDisposable
     public InitializerArrayConstructionPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "mist_pbt_init_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -149,12 +149,12 @@ public sealed class InitializerArrayConstructionPropertyTests : IDisposable
             var elemType = GetMistTypeName(s.ElementType);
             var varName = $"arr_{s.Index}";
 
-            body.AppendLine($"        var {varName} = {arrayExpr};");
+            _ = body.AppendLine($"        var {varName} = {arrayExpr};");
 
             for(var i = 0; i < s.Size; i++)
             {
                 var printExpr = BuildPrintExpression(s, varName, i);
-                body.AppendLine($"        Console.WriteLine({printExpr});");
+                _ = body.AppendLine($"        Console.WriteLine({printExpr});");
             }
         }
 
@@ -228,7 +228,7 @@ public sealed class InitializerArrayConstructionPropertyTests : IDisposable
     private (int ExitCode, string Stdout, string Stderr) CompileAndRun(string mistSource)
     {
         var iterDir = Path.Combine(outputDir, Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(iterDir);
+        _ = Directory.CreateDirectory(iterDir);
 
         try
         {

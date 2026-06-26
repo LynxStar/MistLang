@@ -568,7 +568,7 @@ public sealed class ContextCheckerSoundnessPropertyTests
         CompileAndGetContextDiagnostics(string source)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), $"mist_ctx_prop_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
 
         try
         {

@@ -339,7 +339,7 @@ public class AwaitDesugarsToDropEquivalenceTests
 
         // DropReturnType should be TResult (the type parameter)
         Assert.NotNull(valueTaskClassType.DropReturnType);
-        Assert.IsType<TypeParameterType>(valueTaskClassType.DropReturnType);
+        _ = Assert.IsType<TypeParameterType>(valueTaskClassType.DropReturnType);
 
         // Verify the type parameter is the same one used in the type's definition
         var dropReturnParam = (TypeParameterType)valueTaskClassType.DropReturnType!;
@@ -386,7 +386,7 @@ public class AwaitDesugarsToDropEquivalenceTests
 
         // DropReturnType should be TResult (the type parameter)
         Assert.NotNull(taskClassType.DropReturnType);
-        Assert.IsType<TypeParameterType>(taskClassType.DropReturnType);
+        _ = Assert.IsType<TypeParameterType>(taskClassType.DropReturnType);
 
         // Verify the type parameter is the same one used in the type's definition
         var dropReturnParam = (TypeParameterType)taskClassType.DropReturnType!;

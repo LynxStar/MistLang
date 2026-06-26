@@ -251,7 +251,7 @@ public sealed class OptionalTypeSuffixPropertyTests
 
         var primitiveRef = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(typeRef.First);
         Assert.NotNull(primitiveRef.ArrayRank);
-        Assert.NotNull(primitiveRef.Optional);
+        _ = Assert.NotNull(primitiveRef.Optional);
     }
 
     [Theory]
@@ -269,7 +269,7 @@ public sealed class OptionalTypeSuffixPropertyTests
 
         // The first constituent should be a PrimitiveSingleTypeRef with optional set
         var primSingle = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(firstConstituent);
-        Assert.NotNull(primSingle.Optional);
+        _ = Assert.NotNull(primSingle.Optional);
     }
 
     [Theory]
@@ -283,7 +283,7 @@ public sealed class OptionalTypeSuffixPropertyTests
 
         var namedRef = Assert.IsType<NamedSingleTypeRefSingleTypeRefNode>(typeRef.First);
         Assert.NotNull(namedRef.ArrayRank);
-        Assert.NotNull(namedRef.Optional);
+        _ = Assert.NotNull(namedRef.Optional);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -324,7 +324,7 @@ public sealed class OptionalTypeSuffixPropertyTests
         var sourceWithOptional = $"class T {{ public void M() {{ {primitiveType}? x = default; }} }}";
         var typeRefOptional = GetVariableTypeRef(sourceWithOptional);
         var primRefOptional = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(typeRefOptional.First);
-        Assert.NotNull(primRefOptional.Optional);
+        _ = Assert.NotNull(primRefOptional.Optional);
 
         // Verify that the QUESTION token is what sets the optional field
         // (This confirms the grammar's optional:QUESTION? field works correctly)

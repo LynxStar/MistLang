@@ -34,7 +34,7 @@ public sealed class PackageResolutionStageTests : IDisposable
         scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist-pkgstage-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(scratchDir);
+        _ = Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()
@@ -90,8 +90,8 @@ public sealed class PackageResolutionStageTests : IDisposable
 
         var outputDir = Path.Combine(scratchDir, "output");
         var binDir = Path.Combine(scratchDir, "bin");
-        Directory.CreateDirectory(outputDir);
-        Directory.CreateDirectory(binDir);
+        _ = Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(binDir);
 
         return new CompilerOptions(
             ProjectFolder: scratchDir,
@@ -130,7 +130,7 @@ public sealed class PackageResolutionStageTests : IDisposable
             packages: [new NuGetPackageReference("Newtonsoft.Json", "13.0.3")],
             verboseResolution: false);
 
-        driver.Compile(options);
+        _ = driver.Compile(options);
 
         // Stage 1.5 should NOT appear in reporter starts or completes.
         Assert.DoesNotContain(spy.StageStarts, s => s.StageId == "1.5");
@@ -178,7 +178,7 @@ public sealed class PackageResolutionStageTests : IDisposable
             packages: [new NuGetPackageReference("Newtonsoft.Json", "13.0.3")],
             verboseResolution: true);
 
-        driver.Compile(options);
+        _ = driver.Compile(options);
 
         // Stage header: starts with stageId "1.5" and title "Package Resolution".
         var stageStart = spy.StageStarts.FirstOrDefault(s => s.StageId == "1.5");

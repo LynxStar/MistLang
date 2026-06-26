@@ -200,13 +200,13 @@ public sealed class DependentTypeCarrierStructPropertyTests
         string baseName, string valueType, string value, int numUsages)
     {
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine($"class {baseName}<P:{valueType}> {{ }}");
+        _ = sb.AppendLine($"class {baseName}<P:{valueType}> {{ }}");
         for(var i = 0; i < numUsages; i++)
         {
-            sb.AppendLine($"class Use{i}{baseName} : {baseName}<{value}> {{ }}");
+            _ = sb.AppendLine($"class Use{i}{baseName} : {baseName}<{value}> {{ }}");
         }
 
-        sb.AppendLine("class Program { public static void Main() { } }");
+        _ = sb.AppendLine("class Program { public static void Main() { } }");
         return sb.ToString();
     }
 
@@ -217,7 +217,7 @@ public sealed class DependentTypeCarrierStructPropertyTests
         string mistSource)
     {
         var projectDir = Path.Combine(Path.GetTempPath(), "mist_carrier_prop_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(projectDir);
+        _ = Directory.CreateDirectory(projectDir);
 
         try
         {

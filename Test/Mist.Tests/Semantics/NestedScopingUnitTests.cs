@@ -44,7 +44,7 @@ public sealed class NestedScopingUnitTests
     private static CompilerResult CompileSource(string source)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "mist_unit_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var sourcePath = Path.Combine(tempDir, "Program.mist");
@@ -79,7 +79,7 @@ public sealed class NestedScopingUnitTests
         var sb = new StringBuilder();
         foreach(var (_, content) in result.EmittedFiles!)
         {
-            sb.AppendLine(content);
+            _ = sb.AppendLine(content);
         }
         return sb.ToString();
     }

@@ -67,11 +67,11 @@ public class StormCandidateUnionPropertyTests
             Gen.Choose(0, 1).Select(extraMultiCaller =>
             {
                 var sb = new System.Text.StringBuilder();
-                sb.AppendLine("grammar Test;");
-                sb.AppendLine("token TOK = [a-z]+;");
-                sb.AppendLine("token NUM = [0-9]+;");
-                sb.AppendLine("token COMMA = \",\";");
-                sb.AppendLine("token PIPE = \"|\";");
+                _ = sb.AppendLine("grammar Test;");
+                _ = sb.AppendLine("token TOK = [a-z]+;");
+                _ = sb.AppendLine("token NUM = [0-9]+;");
+                _ = sb.AppendLine("token COMMA = \",\";");
+                _ = sb.AppendLine("token PIPE = \"|\";");
 
                 var cycleRules = new List<string>();
                 var multiCallerRules = new List<string>();
@@ -85,23 +85,23 @@ public class StormCandidateUnionPropertyTests
                 // Both have backtracking (CycleA: multi-alt, CycleB: repetition)
                 cycleRules.Add("CycleA");
                 cycleRules.Add("CycleB");
-                sb.AppendLine("rule CycleA = TOK CycleB | NUM;");
-                sb.AppendLine("rule CycleB = CycleA (COMMA CycleA)*;");
+                _ = sb.AppendLine("rule CycleA = TOK CycleB | NUM;");
+                _ = sb.AppendLine("rule CycleB = CycleA (COMMA CycleA)*;");
 
                 // --- Multi-caller candidate rules ---
                 // Create a rule referenced in 2+ alternatives of a parent:
                 //   Parent -> MultiTarget PIPE TOK | MultiTarget NUM
                 // MultiTarget is a multi-caller candidate.
                 multiCallerRules.Add("MultiTarget");
-                sb.AppendLine("rule MultiTarget = TOK | NUM;");
-                sb.AppendLine("rule Parent = MultiTarget PIPE TOK | MultiTarget NUM;");
+                _ = sb.AppendLine("rule MultiTarget = TOK | NUM;");
+                _ = sb.AppendLine("rule Parent = MultiTarget PIPE TOK | MultiTarget NUM;");
 
                 // Optionally add another multi-caller target
                 if(extraMultiCaller == 1)
                 {
                     multiCallerRules.Add("ExtraMulti");
-                    sb.AppendLine("rule ExtraMulti = TOK;");
-                    sb.AppendLine("rule Parent2 = ExtraMulti COMMA TOK | ExtraMulti PIPE NUM;");
+                    _ = sb.AppendLine("rule ExtraMulti = TOK;");
+                    _ = sb.AppendLine("rule Parent2 = ExtraMulti COMMA TOK | ExtraMulti PIPE NUM;");
                 }
 
                 // --- @memo candidate rules ---
@@ -109,15 +109,15 @@ public class StormCandidateUnionPropertyTests
                 if(memoVariant >= 1)
                 {
                     memoRules.Add("MemoOnly");
-                    sb.AppendLine("@memo");
-                    sb.AppendLine("rule MemoOnly = TOK COMMA NUM;");
+                    _ = sb.AppendLine("@memo");
+                    _ = sb.AppendLine("rule MemoOnly = TOK COMMA NUM;");
                 }
 
                 if(memoVariant >= 2)
                 {
                     memoRules.Add("MemoTwo");
-                    sb.AppendLine("@memo");
-                    sb.AppendLine("rule MemoTwo = NUM | TOK;");
+                    _ = sb.AppendLine("@memo");
+                    _ = sb.AppendLine("rule MemoTwo = NUM | TOK;");
                 }
 
                 if(memoVariant >= 3)
@@ -126,17 +126,17 @@ public class StormCandidateUnionPropertyTests
                     // It should appear once in the plan (union deduplicates)
                     memoRules.Add("MemoPlusMulti");
                     multiCallerRules.Add("MemoPlusMulti");
-                    sb.AppendLine("@memo");
-                    sb.AppendLine("rule MemoPlusMulti = TOK;");
-                    sb.AppendLine("rule Parent3 = MemoPlusMulti COMMA TOK | MemoPlusMulti PIPE NUM;");
+                    _ = sb.AppendLine("@memo");
+                    _ = sb.AppendLine("rule MemoPlusMulti = TOK;");
+                    _ = sb.AppendLine("rule Parent3 = MemoPlusMulti COMMA TOK | MemoPlusMulti PIPE NUM;");
                 }
 
                 // --- Plain rules (not candidates through any source) ---
                 // Single-alternative, no cycle, no multi-caller, no @memo
                 plainRules.Add("PlainRule");
-                sb.AppendLine("rule PlainRule = TOK;");
+                _ = sb.AppendLine("rule PlainRule = TOK;");
                 plainRules.Add("AnotherPlain");
-                sb.AppendLine("rule AnotherPlain = NUM COMMA TOK;");
+                _ = sb.AppendLine("rule AnotherPlain = NUM COMMA TOK;");
 
                 return new GrammarScenario
                 {
@@ -199,17 +199,17 @@ public class StormCandidateUnionPropertyTests
             var expectedCandidates = new HashSet<string>();
             foreach(var name in scenario.CycleRules)
             {
-                expectedCandidates.Add(name);
+                _ = expectedCandidates.Add(name);
             }
 
             foreach(var name in scenario.MultiCallerRules)
             {
-                expectedCandidates.Add(name);
+                _ = expectedCandidates.Add(name);
             }
 
             foreach(var name in scenario.MemoRules)
             {
-                expectedCandidates.Add(name);
+                _ = expectedCandidates.Add(name);
             }
 
             // All grammar-expressible rules pass IsSpeculativeSafe in the current emitter,

@@ -154,17 +154,17 @@ public class AssociatedTypeUnresolvedRefPropertyTests
         if(scenario.HasConstraint)
         {
             // Emit the abstract type with declared slots
-            sb.AppendLine($"abstract {scenario.AbstractName} {{");
+            _ = sb.AppendLine($"abstract {scenario.AbstractName} {{");
             foreach(var slot in scenario.DeclaredSlots)
             {
-                sb.AppendLine($"    type {slot};");
+                _ = sb.AppendLine($"    type {slot};");
             }
-            sb.AppendLine("}");
-            sb.AppendLine();
+            _ = sb.AppendLine("}");
+            _ = sb.AppendLine();
         }
 
         // Emit a class with a generic method that references T.InvalidSlot
-        sb.AppendLine("class TestClass {");
+        _ = sb.AppendLine("class TestClass {");
 
         var whereClause = scenario.HasConstraint
             ? $" where {scenario.TypeParamName} : {scenario.AbstractName}"
@@ -173,23 +173,23 @@ public class AssociatedTypeUnresolvedRefPropertyTests
         switch(scenario.Position)
         {
             case TypePosition.Parameter:
-                sb.AppendLine($"    void Process<{scenario.TypeParamName}>({scenario.TypeParamName}.{scenario.InvalidSlotName} item){whereClause} {{");
-                sb.AppendLine("    }");
+                _ = sb.AppendLine($"    void Process<{scenario.TypeParamName}>({scenario.TypeParamName}.{scenario.InvalidSlotName} item){whereClause} {{");
+                _ = sb.AppendLine("    }");
                 break;
 
             case TypePosition.ReturnType:
-                sb.AppendLine($"    {scenario.TypeParamName}.{scenario.InvalidSlotName} Create<{scenario.TypeParamName}>(){whereClause} {{");
-                sb.AppendLine("    }");
+                _ = sb.AppendLine($"    {scenario.TypeParamName}.{scenario.InvalidSlotName} Create<{scenario.TypeParamName}>(){whereClause} {{");
+                _ = sb.AppendLine("    }");
                 break;
 
             case TypePosition.LocalVariable:
-                sb.AppendLine($"    void Use<{scenario.TypeParamName}>({scenario.TypeParamName} value){whereClause} {{");
-                sb.AppendLine($"        {scenario.TypeParamName}.{scenario.InvalidSlotName} x = value;");
-                sb.AppendLine("    }");
+                _ = sb.AppendLine($"    void Use<{scenario.TypeParamName}>({scenario.TypeParamName} value){whereClause} {{");
+                _ = sb.AppendLine($"        {scenario.TypeParamName}.{scenario.InvalidSlotName} x = value;");
+                _ = sb.AppendLine("    }");
                 break;
         }
 
-        sb.AppendLine("}");
+        _ = sb.AppendLine("}");
 
         return sb.ToString();
     }

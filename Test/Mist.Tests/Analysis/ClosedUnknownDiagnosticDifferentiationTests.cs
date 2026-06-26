@@ -118,7 +118,7 @@ public class ClosedUnknownDiagnosticDifferentiationTests
         var ro0002Hits = WithId(diagnostics, ReadonlyMethodCallDiagnosticId);
 
         // Pass 5 fires MIST_TC_0062 for the non-readonly Add call on List<unknown>.
-        Assert.Single(tc0062Hits);
+        _ = Assert.Single(tc0062Hits);
 
         // Pass 1 does NOT fire because the enclosing method M() is not readonly.
         Assert.Empty(ro0002Hits);
@@ -152,7 +152,7 @@ public class ClosedUnknownDiagnosticDifferentiationTests
         var ro0002Hits = WithId(diagnostics, ReadonlyMethodCallDiagnosticId);
 
         // Pass 5 fires MIST_TC_0062 for the non-readonly Add call on List<unknown>.
-        Assert.Single(tc0062Hits);
+        _ = Assert.Single(tc0062Hits);
 
         // Pass 1 would normally fire MIST_RO_0002 for calling non-readonly Add
         // inside a readonly method body, but the guard skips it because the

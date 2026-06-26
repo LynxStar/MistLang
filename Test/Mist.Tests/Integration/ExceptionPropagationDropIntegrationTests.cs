@@ -44,7 +44,7 @@ public sealed class ExceptionPropagationDropIntegrationTests : IDisposable
     public ExceptionPropagationDropIntegrationTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "mist_exc_drop_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

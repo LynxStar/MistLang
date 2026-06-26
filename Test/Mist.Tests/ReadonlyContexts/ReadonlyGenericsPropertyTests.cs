@@ -378,7 +378,7 @@ public sealed class ReadonlyGenericsPropertyTests : IDisposable
     public ReadonlyGenericsPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistReadonlyGenericsPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

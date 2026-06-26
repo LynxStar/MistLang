@@ -70,7 +70,7 @@ public sealed class AdhocRefinementGuardEmissionTests
         var sb = new StringBuilder();
         foreach(var (_, content) in files)
         {
-            sb.AppendLine(content);
+            _ = sb.AppendLine(content);
         }
 
         return sb.ToString();
@@ -169,7 +169,7 @@ public sealed class AdhocRefinementGuardEmissionTests
         var diagnostics = CompileAndGetDiagnostics(source);
         var errors = diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
 
-        Assert.Single(errors);
+        _ = Assert.Single(errors);
         Assert.Equal("MIST_REFINEMENT_0005", errors[0].Id.Value);
         Assert.Contains("200", errors[0].Message);
     }
@@ -196,7 +196,7 @@ public sealed class AdhocRefinementGuardEmissionTests
         var diagnostics = CompileAndGetDiagnostics(source);
         var errors = diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
 
-        Assert.Single(errors);
+        _ = Assert.Single(errors);
         Assert.Equal("MIST_REFINEMENT_0005", errors[0].Id.Value);
         Assert.Contains("pattern matching", errors[0].Message);
     }
@@ -222,7 +222,7 @@ public sealed class AdhocRefinementGuardEmissionTests
         var diagnostics = CompileAndGetDiagnostics(source);
         var errors = diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
 
-        Assert.Single(errors);
+        _ = Assert.Single(errors);
         Assert.Equal("MIST_REFINEMENT_0005", errors[0].Id.Value);
         Assert.Contains("size", errors[0].Message);
     }
@@ -251,7 +251,7 @@ public sealed class AdhocRefinementGuardEmissionTests
         var diagnostics = CompileAndGetDiagnostics(source);
         var errors = diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
 
-        Assert.Single(errors);
+        _ = Assert.Single(errors);
         Assert.Equal("MIST_REFINEMENT_0005", errors[0].Id.Value);
         Assert.Contains("index", errors[0].Message);
     }

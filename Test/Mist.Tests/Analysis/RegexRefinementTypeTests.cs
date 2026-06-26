@@ -115,7 +115,7 @@ public class RegexRefinementTypeTests
 
         var declaredType = aliasSymbol.DeclaredType;
         Assert.NotNull(declaredType);
-        Assert.IsType<RefinementType>(declaredType);
+        _ = Assert.IsType<RefinementType>(declaredType);
 
         var refinementType = (RefinementType)declaredType;
         Assert.Equal("Email", refinementType.Name);
@@ -336,7 +336,7 @@ public class RegexRefinementTypeTests
             """;
 
         var diagnostics = CompileAndGetDiagnostics(source);
-        Assert.Single(WithId(diagnostics, "MIST_TC_0097"));
+        _ = Assert.Single(WithId(diagnostics, "MIST_TC_0097"));
     }
 
     [Fact]

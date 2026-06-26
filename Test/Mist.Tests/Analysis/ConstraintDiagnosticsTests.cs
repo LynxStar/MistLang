@@ -91,7 +91,7 @@ class Program {
         var diagnostics = CompileAndGetDiagnostics(source);
         var diags = WithId(diagnostics, "MIST_CONSTRAINT_0009");
 
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         Assert.Contains("Unrelated", diags[0].Message);
         Assert.Contains("IComparable", diags[0].Message);
@@ -120,7 +120,7 @@ class Program {
         var diagnostics = CompileAndGetDiagnostics(source);
         var diags = WithId(diagnostics, "MIST_CONSTRAINT_0011");
 
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         Assert.Contains("Unrelated", diags[0].Message);
         Assert.Contains("Animal", diags[0].Message);
@@ -148,7 +148,7 @@ class Program {
         var diagnostics = CompileAndGetDiagnostics(source);
         var diags = WithId(diagnostics, "MIST_CONSTRAINT_0012");
 
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         Assert.Contains("Point", diags[0].Message);
         Assert.Contains("reference type", diags[0].Message);
@@ -175,7 +175,7 @@ class Program {
         var diagnostics = CompileAndGetDiagnostics(source);
         var diags = WithId(diagnostics, "MIST_CONSTRAINT_0013");
 
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         Assert.Contains("MyClass", diags[0].Message);
         Assert.Contains("value type", diags[0].Message);
@@ -204,7 +204,7 @@ class Program {
         var diagnostics = CompileAndGetDiagnostics(source);
         var diags = WithId(diagnostics, "MIST_CONSTRAINT_0014");
 
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         Assert.Contains("NoDefaultCtor", diags[0].Message);
         Assert.Contains("parameterless constructor", diags[0].Message);
@@ -231,7 +231,7 @@ class Program {
         var diagnostics = CompileAndGetDiagnostics(source);
         var diags = WithId(diagnostics, "MIST_CONSTRAINT_0015");
 
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         Assert.Contains("Widget", diags[0].Message);
         Assert.Contains("int", diags[0].Message);
@@ -256,7 +256,7 @@ class Factory<T> where T : new(int) {
         var diagnostics = CompileAndGetDiagnostics(source);
         var diags = WithId(diagnostics, "MIST_CONSTRAINT_0016");
 
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         Assert.Contains("T", diags[0].Message);
         Assert.Contains("constructor constraint", diags[0].Message.ToLowerInvariant());
@@ -274,7 +274,7 @@ class Factory<T> where T : class {
         var diagnostics = CompileAndGetDiagnostics(source);
         var diags = WithId(diagnostics, "MIST_CONSTRAINT_0016");
 
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         Assert.Contains("T", diags[0].Message);
     }
@@ -294,7 +294,7 @@ class Derived<T> : Base<T> { }";
         var diagnostics = CompileAndGetDiagnostics(source);
         var diags = WithId(diagnostics, "MIST_CONSTRAINT_0017");
 
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         Assert.Contains("Derived", diags[0].Message);
         Assert.Contains("Base", diags[0].Message);
@@ -311,7 +311,7 @@ class Derived<T> : Base<T> { }";
         var diagnostics = CompileAndGetDiagnostics(source);
         var diags = WithId(diagnostics, "MIST_CONSTRAINT_0017");
 
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         Assert.Contains("Derived", diags[0].Message);
         Assert.Contains("Base", diags[0].Message);
@@ -327,7 +327,7 @@ class Derived<T> : Base<T> { }";
         var diagnostics = CompileAndGetDiagnostics(source);
         var diags = WithId(diagnostics, "MIST_CONSTRAINT_0017");
 
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         Assert.Contains("Derived", diags[0].Message);
         Assert.Contains("T", diags[0].Message);
@@ -379,7 +379,7 @@ class Program {
         var diags = WithId(diagnostics, "MIST_CONSTRAINT_0015");
 
         // Should have a violation for new(bool) since Widget doesn't have a bool ctor
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Contains("bool", diags[0].Message);
     }
 
@@ -440,7 +440,7 @@ class Program {
         var diagnostics = CompileAndGetDiagnostics(source);
         var diags = WithId(diagnostics, "MIST_CONSTRAINT_0009");
 
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Contains("Unrelated", diags[0].Message);
         Assert.Contains("IFoo", diags[0].Message);
     }
@@ -460,7 +460,7 @@ class Program {
         var diagnostics = CompileAndGetDiagnostics(source);
         var diags = WithId(diagnostics, "MIST_CONSTRAINT_0012");
 
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Contains("Point", diags[0].Message);
         Assert.Contains("reference type", diags[0].Message);
     }
@@ -479,7 +479,7 @@ abstract IDerived<T> : IBase<T> { }";
         var diagnostics = CompileAndGetDiagnostics(source);
         var diags = WithId(diagnostics, "MIST_CONSTRAINT_0017");
 
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Contains("IDerived", diags[0].Message);
         Assert.Contains("IBase", diags[0].Message);
     }
@@ -493,7 +493,7 @@ class Derived<T> : Base<T> { }";
         var diagnostics = CompileAndGetDiagnostics(source);
         var diags = WithId(diagnostics, "MIST_CONSTRAINT_0017");
 
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Contains("Derived", diags[0].Message);
     }
 

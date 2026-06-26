@@ -83,7 +83,7 @@ internal sealed class CarrierStructRegistry
         var interfaceName = $"IConst{capitalized}";
         var literalValue = FormatLiteral(value, keyword);
 
-        entries.TryAdd(structName, new CarrierEntry(structName, interfaceName, keyword, literalValue));
+        _ = entries.TryAdd(structName, new CarrierEntry(structName, interfaceName, keyword, literalValue));
         return structName;
     }
 
@@ -112,7 +112,7 @@ internal sealed class CarrierStructRegistry
         var interfaceName = $"IConst{capitalized}";
         var literalValue = FormatLiteral(depArg.Value, keyword);
 
-        entries.TryAdd(structName, new CarrierEntry(structName, interfaceName, keyword, literalValue));
+        _ = entries.TryAdd(structName, new CarrierEntry(structName, interfaceName, keyword, literalValue));
         return structName;
     }
 
@@ -321,7 +321,7 @@ internal sealed class CarrierStructRegistry
                 value = -value;
             }
 
-            registry.RegisterByKeyword("int", value);
+            _ = registry.RegisterByKeyword("int", value);
         }
     }
 
@@ -333,7 +333,7 @@ internal sealed class CarrierStructRegistry
         var hex = lexeme.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? lexeme[2..] : lexeme;
         if(long.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var value))
         {
-            registry.RegisterByKeyword("int", value);
+            _ = registry.RegisterByKeyword("int", value);
         }
     }
 
@@ -346,7 +346,7 @@ internal sealed class CarrierStructRegistry
         try
         {
             var value = Convert.ToInt64(bin, 2);
-            registry.RegisterByKeyword("int", value);
+            _ = registry.RegisterByKeyword("int", value);
         }
         catch
         {
@@ -359,7 +359,7 @@ internal sealed class CarrierStructRegistry
     /// </summary>
     private static void RegisterBoolLiteral(bool value, CarrierStructRegistry registry)
     {
-        registry.RegisterByKeyword("bool", value);
+        _ = registry.RegisterByKeyword("bool", value);
     }
 
     /// <summary>
@@ -395,7 +395,7 @@ internal sealed class CarrierStructRegistry
                 c = '?';
             }
 
-            registry.RegisterByKeyword("char", c);
+            _ = registry.RegisterByKeyword("char", c);
         }
     }
 
@@ -410,7 +410,7 @@ internal sealed class CarrierStructRegistry
             {
                 if(depArg is not null)
                 {
-                    registry.Register(depArg);
+                    _ = registry.Register(depArg);
                 }
             }
         }
@@ -502,12 +502,12 @@ internal sealed class CarrierStructRegistry
 
         foreach(var entry in Entries)
         {
-            sb.AppendLine("[System.Runtime.CompilerServices.CompilerGenerated]");
-            sb.AppendLine($"public struct {entry.StructName} : {entry.InterfaceName}");
-            sb.AppendLine("{");
-            sb.AppendLine($"    public static {entry.Keyword} Value => {entry.LiteralValue};");
-            sb.AppendLine("}");
-            sb.AppendLine();
+            _ = sb.AppendLine("[System.Runtime.CompilerServices.CompilerGenerated]");
+            _ = sb.AppendLine($"public struct {entry.StructName} : {entry.InterfaceName}");
+            _ = sb.AppendLine("{");
+            _ = sb.AppendLine($"    public static {entry.Keyword} Value => {entry.LiteralValue};");
+            _ = sb.AppendLine("}");
+            _ = sb.AppendLine();
         }
 
         return sb.ToString();

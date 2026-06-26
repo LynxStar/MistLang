@@ -316,7 +316,7 @@ namespace Storm.SourceGenerator.Tests
                     .Where(d => d.Severity == DiagnosticSeverity.Error)
                     .Select(d => d.GetMessage())));
 
-            ms.Seek(0, SeekOrigin.Begin);
+            _ = ms.Seek(0, SeekOrigin.Begin);
             return Assembly.Load(ms.ToArray());
         }
 
@@ -373,15 +373,15 @@ namespace Storm.SourceGenerator.Tests
                 type.GetMethod("Children")!.Invoke(node, null)!;
 
             var sb = new System.Text.StringBuilder();
-            sb.Append(type.Name).Append('[').Append(start).Append(',').Append(length).Append("](");
+            _ = sb.Append(type.Name).Append('[').Append(start).Append(',').Append(length).Append("](");
             foreach(var child in children)
             {
                 if(child != null)
                 {
-                    sb.Append(StructuralKey(child)).Append(';');
+                    _ = sb.Append(StructuralKey(child)).Append(';');
                 }
             }
-            sb.Append(')');
+            _ = sb.Append(')');
             return sb.ToString();
         }
 
@@ -433,7 +433,7 @@ namespace Storm.SourceGenerator.Tests
                 var (tokenStream, diagnostics) = Lex(asm, ns, grammarName, input);
 
                 // Fresh per-parse state: Init allocates a fresh _memo and sets _pos = 0.
-                initMethod.Invoke(null, new[] { tokenStream, diagnostics });
+                _ = initMethod.Invoke(null, new[] { tokenStream, diagnostics });
                 var entryPos = (int)posField.GetValue(null)!;
 
                 // First invocation at the entry position: cache MISS, runs the body.
@@ -589,7 +589,7 @@ namespace Storm.SourceGenerator.Tests
             var diagCountProp = diagnostics.GetType().GetProperty("Count")!;
 
             // (1) Fresh per-parse state.
-            initMethod.Invoke(null, new[] { tokenStream, diagnostics });
+            _ = initMethod.Invoke(null, new[] { tokenStream, diagnostics });
             var entryPos = (int)posField.GetValue(null)!;
             var diagCountAtEntry = (int)diagCountProp.GetValue(diagnostics)!;
             var hasErrorAtEntry = (bool)errorField.GetValue(null)!;
@@ -677,7 +677,7 @@ namespace Storm.SourceGenerator.Tests
             var (tokenStream, diagnostics) = Lex(asm, ns, grammarName, failingInput);
             var diagCountProp = diagnostics.GetType().GetProperty("Count")!;
 
-            initMethod.Invoke(null, new[] { tokenStream, diagnostics });
+            _ = initMethod.Invoke(null, new[] { tokenStream, diagnostics });
             var entryPos = (int)posField.GetValue(null)!;
             var diagCountAtEntry = (int)diagCountProp.GetValue(diagnostics)!;
             var hasErrorAtEntry = (bool)errorField.GetValue(null)!;

@@ -74,7 +74,7 @@ public sealed class TypeArgumentInferenceConstraintPropertyTests : IDisposable
     public TypeArgumentInferenceConstraintPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistConstraintPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

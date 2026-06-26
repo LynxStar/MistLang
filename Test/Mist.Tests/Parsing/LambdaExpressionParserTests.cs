@@ -179,7 +179,7 @@ public class LambdaExpressionParserTests
         var first = Assert.IsType<UntypedLambdaParamLambdaParamNode>(paramList.Params!.LambdaParam);
         Assert.Equal("x", first.Name.Lexeme);
 
-        Assert.Single(paramList.Params.LambdaParams);
+        _ = Assert.Single(paramList.Params.LambdaParams);
         var second = Assert.IsType<UntypedLambdaParamLambdaParamNode>(paramList.Params.LambdaParams[0]);
         Assert.Equal("y", second.Name.Lexeme);
     }
@@ -198,7 +198,7 @@ public class LambdaExpressionParserTests
         var param = Assert.IsType<TypedLambdaParamLambdaParamNode>(paramList.Params!.LambdaParam);
         Assert.Equal("x", param.Name.Lexeme);
         var single = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(param.Type.First);
-        Assert.IsType<IntTypePrimitiveTypeNode>(single.PrimitiveType);
+        _ = Assert.IsType<IntTypePrimitiveTypeNode>(single.PrimitiveType);
     }
 
     // ─── Multiple typed params: (int x, string y) => x ──────────────────────
@@ -215,13 +215,13 @@ public class LambdaExpressionParserTests
         var first = Assert.IsType<TypedLambdaParamLambdaParamNode>(paramList.Params!.LambdaParam);
         Assert.Equal("x", first.Name.Lexeme);
         var firstType = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(first.Type.First);
-        Assert.IsType<IntTypePrimitiveTypeNode>(firstType.PrimitiveType);
+        _ = Assert.IsType<IntTypePrimitiveTypeNode>(firstType.PrimitiveType);
 
-        Assert.Single(paramList.Params.LambdaParams);
+        _ = Assert.Single(paramList.Params.LambdaParams);
         var second = Assert.IsType<TypedLambdaParamLambdaParamNode>(paramList.Params.LambdaParams[0]);
         Assert.Equal("y", second.Name.Lexeme);
         var secondType = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(second.Type.First);
-        Assert.IsType<StringTypePrimitiveTypeNode>(secondType.PrimitiveType);
+        _ = Assert.IsType<StringTypePrimitiveTypeNode>(secondType.PrimitiveType);
     }
 
     // ─── Block body, single implicit param: x => { return x + 1; } ──────────
@@ -258,8 +258,8 @@ public class LambdaExpressionParserTests
         var lambda = ParseLambda("static x => x");
 
         var exprLambda = Assert.IsType<ExpressionLambdaLambdaExpressionNode>(lambda);
-        Assert.Single(exprLambda.Modifiers);
-        Assert.IsType<StaticLambdaModifierLambdaModifierNode>(exprLambda.Modifiers[0]);
+        _ = Assert.Single(exprLambda.Modifiers);
+        _ = Assert.IsType<StaticLambdaModifierLambdaModifierNode>(exprLambda.Modifiers[0]);
     }
 
     // ─── async modifier: async () => 42 ─────────────────────────────────────
@@ -270,8 +270,8 @@ public class LambdaExpressionParserTests
         var lambda = ParseLambda("async () => 42");
 
         var exprLambda = Assert.IsType<ExpressionLambdaLambdaExpressionNode>(lambda);
-        Assert.Single(exprLambda.Modifiers);
-        Assert.IsType<AsyncLambdaModifierLambdaModifierNode>(exprLambda.Modifiers[0]);
+        _ = Assert.Single(exprLambda.Modifiers);
+        _ = Assert.IsType<AsyncLambdaModifierLambdaModifierNode>(exprLambda.Modifiers[0]);
     }
 
     // ─── static async combination: static async () => 42 ───────────────────
@@ -283,8 +283,8 @@ public class LambdaExpressionParserTests
 
         var exprLambda = Assert.IsType<ExpressionLambdaLambdaExpressionNode>(lambda);
         Assert.Equal(2, exprLambda.Modifiers.Length);
-        Assert.IsType<StaticLambdaModifierLambdaModifierNode>(exprLambda.Modifiers[0]);
-        Assert.IsType<AsyncLambdaModifierLambdaModifierNode>(exprLambda.Modifiers[1]);
+        _ = Assert.IsType<StaticLambdaModifierLambdaModifierNode>(exprLambda.Modifiers[0]);
+        _ = Assert.IsType<AsyncLambdaModifierLambdaModifierNode>(exprLambda.Modifiers[1]);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -305,7 +305,7 @@ public class LambdaExpressionParserTests
         var assignment = assignmentForm.Assignment;
 
         // It is genuinely an assignment (has the `=` operator).
-        Assert.NotNull(assignment.Operator);
+        _ = Assert.NotNull(assignment.Operator);
         Assert.Equal("=", assignment.Operator!.Value.Lexeme);
 
         // The assignment target is the identifier `f`.
@@ -366,7 +366,7 @@ public class LambdaExpressionParserTests
         var arms = ParseSwitchArms("value switch { int n when predicate => n.ToString(), _ => \"none\" }");
 
         // Exactly two well-formed arms.
-        Assert.Single(arms.SwitchArms); // first arm + 1 more = 2 total
+        _ = Assert.Single(arms.SwitchArms); // first arm + 1 more = 2 total
         var firstArm = arms.SwitchArm;
         var secondArm = arms.SwitchArms[0];
 
@@ -407,7 +407,7 @@ public class LambdaExpressionParserTests
     {
         var arms = ParseSwitchArms("value switch { int n when n > 7 => n.ToString(), _ => \"none\" }");
 
-        Assert.Single(arms.SwitchArms);
+        _ = Assert.Single(arms.SwitchArms);
         var firstArm = arms.SwitchArm;
 
         Assert.NotNull(firstArm.Guard);
@@ -431,7 +431,7 @@ public class LambdaExpressionParserTests
     {
         var arms = ParseSwitchArms("value switch { int n when isOdd(n) => n.ToString(), _ => \"none\" }");
 
-        Assert.Single(arms.SwitchArms);
+        _ = Assert.Single(arms.SwitchArms);
         var firstArm = arms.SwitchArm;
 
         Assert.NotNull(firstArm.Guard);

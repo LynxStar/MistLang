@@ -37,7 +37,7 @@ public sealed partial class InheritanceEmissionPropertyTests : IDisposable
         outputDir = Path.Combine(
             Path.GetTempPath(),
             "MistInheritanceEmissionTests_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -299,14 +299,14 @@ public sealed partial class InheritanceEmissionPropertyTests : IDisposable
         {
             if(baseName is not null)
             {
-                sb.AppendLine($"class {name} : {baseName} {{ }}");
+                _ = sb.AppendLine($"class {name} : {baseName} {{ }}");
             }
             else
             {
-                sb.AppendLine($"class {name} {{ }}");
+                _ = sb.AppendLine($"class {name} {{ }}");
             }
         }
-        sb.AppendLine("class Program { public static void Main() { } }");
+        _ = sb.AppendLine("class Program { public static void Main() { } }");
         return sb.ToString();
     }
 

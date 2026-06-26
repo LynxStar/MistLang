@@ -121,7 +121,7 @@ public class ClosedUnknownCovariantWideningTests
         var hits = WithId(diagnostics, ClosedUnknownDiagnosticId);
 
         // Pass 5 fires MIST_TC_0062 for calling non-readonly Add on List<unknown>.
-        Assert.Single(hits);
+        _ = Assert.Single(hits);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -157,7 +157,7 @@ public class ClosedUnknownCovariantWideningTests
 
         // Pass 5 fires MIST_TC_0062 for calling non-readonly Add on the
         // List<unknown> result.
-        Assert.Single(hits);
+        _ = Assert.Single(hits);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -230,6 +230,6 @@ public class ClosedUnknownCovariantWideningTests
 
         // Pass 5 fires MIST_TC_0062 for calling non-readonly Add on the
         // List<unknown> result from the generic method.
-        Assert.Single(hits);
+        _ = Assert.Single(hits);
     }
 }

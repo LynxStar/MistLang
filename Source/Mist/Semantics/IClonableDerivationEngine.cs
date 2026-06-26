@@ -84,7 +84,7 @@ public static class IClonableDerivationEngine
         {
             if(DeclaresIClonableInAbstracts(type, new HashSet<IType>()))
             {
-                explicitDeclarers.Add(type);
+                _ = explicitDeclarers.Add(type);
                 clonable[type] = true;
             }
             else

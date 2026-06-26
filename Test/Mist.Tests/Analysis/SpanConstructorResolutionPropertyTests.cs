@@ -76,7 +76,7 @@ public sealed class SpanConstructorResolutionPropertyTests : IDisposable
     public SpanConstructorResolutionPropertyTests()
     {
         tempDir = Path.Combine(Path.GetTempPath(), "MistSpanCtorPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
     }
 
     public void Dispose()

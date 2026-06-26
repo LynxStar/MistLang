@@ -79,7 +79,7 @@ public class LexerTokenKindTests
             return;
         }
 
-        Assert.Single(tokens);
+        _ = Assert.Single(tokens);
         Assert.Equal((int)expectedKind, tokens[0].Kind);
         Assert.NotEqual((int)TokenKind.IDENTIFIER, tokens[0].Kind);
     }
@@ -108,7 +108,7 @@ public class LexerTokenKindTests
             return; // Skeletal lexer
         }
 
-        Assert.Single(tokens);
+        _ = Assert.Single(tokens);
         Assert.Equal((int)expectedKind, tokens[0].Kind);
         Assert.NotEqual((int)TokenKind.IDENTIFIER, tokens[0].Kind);
     }
@@ -132,7 +132,7 @@ public class LexerTokenKindTests
             return; // Skeletal lexer
         }
 
-        Assert.Single(tokens);
+        _ = Assert.Single(tokens);
         Assert.Equal((int)expectedKind, tokens[0].Kind);
         // Both keywords are reserved (not contextual); they must never lex
         // as IDENTIFIER regardless of context.
@@ -187,7 +187,7 @@ public class LexerTokenKindTests
             return; // Skeletal lexer
         }
 
-        Assert.Single(tokens);
+        _ = Assert.Single(tokens);
         Assert.Equal((int)TokenKind.IDENTIFIER, tokens[0].Kind);
         Assert.Equal(identifier, tokens[0].Lexeme);
     }
@@ -210,7 +210,7 @@ public class LexerTokenKindTests
             return; // Skeletal lexer
         }
 
-        Assert.Single(tokens);
+        _ = Assert.Single(tokens);
         Assert.Equal((int)expectedKind, tokens[0].Kind);
     }
 
@@ -225,7 +225,7 @@ public class LexerTokenKindTests
             return; // Skeletal lexer
         }
 
-        Assert.Single(tokens);
+        _ = Assert.Single(tokens);
         Assert.Equal((int)TokenKind.LOGICAL_AND, tokens[0].Kind);
     }
 
@@ -247,7 +247,7 @@ public class LexerTokenKindTests
             return; // Skeletal lexer
         }
 
-        Assert.Single(tokens);
+        _ = Assert.Single(tokens);
         Assert.Equal((int)expectedKind, tokens[0].Kind);
         Assert.Equal(literal, tokens[0].Lexeme);
     }
@@ -265,7 +265,7 @@ public class LexerTokenKindTests
             return; // Skeletal lexer
         }
 
-        Assert.Single(tokens);
+        _ = Assert.Single(tokens);
         Assert.Equal((int)expectedKind, tokens[0].Kind);
         Assert.Equal(literal, tokens[0].Lexeme);
     }
@@ -284,7 +284,7 @@ public class LexerTokenKindTests
             return; // Skeletal lexer
         }
 
-        Assert.Single(tokens);
+        _ = Assert.Single(tokens);
         Assert.Equal((int)expectedKind, tokens[0].Kind);
         Assert.Equal(literal, tokens[0].Lexeme);
     }
@@ -302,7 +302,7 @@ public class LexerTokenKindTests
             return; // Skeletal lexer
         }
 
-        Assert.Single(tokens);
+        _ = Assert.Single(tokens);
         Assert.Equal((int)expectedKind, tokens[0].Kind);
     }
 
@@ -320,7 +320,7 @@ public class LexerTokenKindTests
             return; // Skeletal lexer
         }
 
-        Assert.Single(tokens);
+        _ = Assert.Single(tokens);
         Assert.Equal((int)expectedKind, tokens[0].Kind);
     }
 
@@ -398,7 +398,7 @@ public class LexerTokenKindTests
             return; // Skeletal lexer
         }
 
-        Assert.Single(tokens);
+        _ = Assert.Single(tokens);
         Assert.Equal((int)TokenKind.IDENTIFIER, tokens[0].Kind);
         Assert.Equal("className", tokens[0].Lexeme);
     }
@@ -413,7 +413,7 @@ public class LexerTokenKindTests
             return; // Skeletal lexer
         }
 
-        Assert.Single(tokens);
+        _ = Assert.Single(tokens);
         Assert.Equal((int)TokenKind.IDENTIFIER, tokens[0].Kind);
         Assert.Equal("_myVar", tokens[0].Lexeme);
     }

@@ -325,7 +325,7 @@ public class AbstractTypeRegistrationPropertyTests
         // IFoo: 1 method
         var fooSymbol = model.AllSymbols.First(s => s.Name == "IFoo" && s.Kind == SymbolKind.Abstract);
         var fooType = Assert.IsType<AbstractType>(fooSymbol.DeclaredType);
-        Assert.Single(fooType.MemberScope.Members, m => m.Kind == SymbolKind.Method);
+        _ = Assert.Single(fooType.MemberScope.Members, m => m.Kind == SymbolKind.Method);
 
         // IBar: 0 methods
         var barSymbol = model.AllSymbols.First(s => s.Name == "IBar" && s.Kind == SymbolKind.Abstract);

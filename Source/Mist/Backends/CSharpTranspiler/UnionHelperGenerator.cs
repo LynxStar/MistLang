@@ -48,9 +48,9 @@ internal static class UnionHelperGenerator
     public static string GenerateUnionHelpersFile(IReadOnlyCollection<UnionType> unionTypes)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("#nullable enable");
-        sb.AppendLine("using System;");
-        sb.AppendLine();
+        _ = sb.AppendLine("#nullable enable");
+        _ = sb.AppendLine("using System;");
+        _ = sb.AppendLine();
 
         var emitted = new Dictionary<string, bool>(StringComparer.Ordinal);
 
@@ -71,7 +71,7 @@ internal static class UnionHelperGenerator
 
             emitted[helperName] = true;
             GenerateHelperStruct(sb, unionType, helperName);
-            sb.AppendLine();
+            _ = sb.AppendLine();
         }
 
         return sb.ToString();
@@ -82,21 +82,21 @@ internal static class UnionHelperGenerator
     /// </summary>
     private static void GenerateHelperStruct(StringBuilder sb, UnionType unionType, string helperName)
     {
-        sb.AppendLine("[System.Runtime.CompilerServices.CompilerGenerated]");
-        sb.AppendLine($"public struct {helperName}");
-        sb.AppendLine("{");
+        _ = sb.AppendLine("[System.Runtime.CompilerServices.CompilerGenerated]");
+        _ = sb.AppendLine($"public struct {helperName}");
+        _ = sb.AppendLine("{");
 
         // Fields
-        sb.AppendLine("    private readonly byte _tag;");
-        sb.AppendLine("    private readonly object _value;");
-        sb.AppendLine();
+        _ = sb.AppendLine("    private readonly byte _tag;");
+        _ = sb.AppendLine("    private readonly object _value;");
+        _ = sb.AppendLine();
 
         // Private constructor
-        sb.AppendLine($"    private {helperName}(byte tag, object value)");
-        sb.AppendLine("    {");
-        sb.AppendLine("        _tag = tag;");
-        sb.AppendLine("        _value = value;");
-        sb.AppendLine("    }");
+        _ = sb.AppendLine($"    private {helperName}(byte tag, object value)");
+        _ = sb.AppendLine("    {");
+        _ = sb.AppendLine("        _tag = tag;");
+        _ = sb.AppendLine("        _value = value;");
+        _ = sb.AppendLine("    }");
 
         // Is* properties and As* properties
         for(var i = 0; i < unionType.Constituents.Count; i++)
@@ -106,12 +106,12 @@ internal static class UnionHelperGenerator
             var csharpTypeName = CSharpTypeMap.GetTypeName(constituent);
             var tag = (byte)(i + 1);
 
-            sb.AppendLine();
-            sb.AppendLine($"    public bool Is{csharpName} => _tag == {tag};");
-            sb.AppendLine();
-            sb.AppendLine($"    public {csharpTypeName} As{csharpName} => _tag == {tag}");
-            sb.AppendLine($"        ? ({csharpTypeName})_value");
-            sb.AppendLine($"        : throw new InvalidOperationException(\"Union does not hold {csharpName}\");");
+            _ = sb.AppendLine();
+            _ = sb.AppendLine($"    public bool Is{csharpName} => _tag == {tag};");
+            _ = sb.AppendLine();
+            _ = sb.AppendLine($"    public {csharpTypeName} As{csharpName} => _tag == {tag}");
+            _ = sb.AppendLine($"        ? ({csharpTypeName})_value");
+            _ = sb.AppendLine($"        : throw new InvalidOperationException(\"Union does not hold {csharpName}\");");
         }
 
         // Implicit conversion operators
@@ -121,12 +121,12 @@ internal static class UnionHelperGenerator
             var csharpTypeName = CSharpTypeMap.GetTypeName(constituent);
             var tag = (byte)(i + 1);
 
-            sb.AppendLine();
-            sb.AppendLine($"    public static implicit operator {helperName}({csharpTypeName} value)");
-            sb.AppendLine($"        => new {helperName}({tag}, value);");
+            _ = sb.AppendLine();
+            _ = sb.AppendLine($"    public static implicit operator {helperName}({csharpTypeName} value)");
+            _ = sb.AppendLine($"        => new {helperName}({tag}, value);");
         }
 
-        sb.AppendLine("}");
+        _ = sb.AppendLine("}");
     }
 
     /// <summary>

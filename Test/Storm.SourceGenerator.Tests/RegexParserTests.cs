@@ -253,8 +253,8 @@ public class RegexParserTests
         var result = RegexParser.Parse("a+b*");
         var seq = Assert.IsType<SequenceIR>(result);
         Assert.Equal(2, seq.Elements.Count);
-        Assert.IsType<OneOrMoreIR>(seq.Elements[0]);
-        Assert.IsType<ZeroOrMoreIR>(seq.Elements[1]);
+        _ = Assert.IsType<OneOrMoreIR>(seq.Elements[0]);
+        _ = Assert.IsType<ZeroOrMoreIR>(seq.Elements[1]);
     }
 
     // ── Complex patterns ─────────────────────────────────────────────
@@ -355,18 +355,18 @@ public class RegexParserTests
     [Fact]
     public void Parse_UnterminatedCharClass_ThrowsFormatException()
     {
-        Assert.Throws<FormatException>(() => RegexParser.Parse("[abc"));
+        _ = Assert.Throws<FormatException>(() => RegexParser.Parse("[abc"));
     }
 
     [Fact]
     public void Parse_UnterminatedGroup_ThrowsFormatException()
     {
-        Assert.Throws<FormatException>(() => RegexParser.Parse("(abc"));
+        _ = Assert.Throws<FormatException>(() => RegexParser.Parse("(abc"));
     }
 
     [Fact]
     public void Parse_TrailingBackslash_ThrowsFormatException()
     {
-        Assert.Throws<FormatException>(() => RegexParser.Parse("\\"));
+        _ = Assert.Throws<FormatException>(() => RegexParser.Parse("\\"));
     }
 }

@@ -117,25 +117,25 @@ public sealed class ProjectConfigurationRoundTripPropertyTests
     private static string SerializeToToml(ProjectConfiguration config)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"name = \"{EscapeTomlString(config.Name)}\"");
-        sb.AppendLine($"namespace_root = \"{EscapeTomlString(config.NamespaceRoot)}\"");
+        _ = sb.AppendLine($"name = \"{EscapeTomlString(config.Name)}\"");
+        _ = sb.AppendLine($"namespace_root = \"{EscapeTomlString(config.NamespaceRoot)}\"");
 
         if(!config.GlobalUsings.IsDefaultOrEmpty)
         {
-            sb.AppendLine();
-            sb.AppendLine("[global_usings]");
+            _ = sb.AppendLine();
+            _ = sb.AppendLine("[global_usings]");
             var nsEntries = string.Join(", ", config.GlobalUsings.Select(ns => $"\"{EscapeTomlString(ns)}\""));
-            sb.AppendLine($"namespaces = [{nsEntries}]");
+            _ = sb.AppendLine($"namespaces = [{nsEntries}]");
         }
 
         if(!config.References.IsDefaultOrEmpty)
         {
-            sb.AppendLine();
-            sb.AppendLine("[references]");
+            _ = sb.AppendLine();
+            _ = sb.AppendLine("[references]");
             foreach(var reference in config.References)
             {
                 // Quote the reference name to handle dots (which TOML interprets as nested keys)
-                sb.AppendLine($"\"{EscapeTomlString(reference.Name)}\" = {{ path = \"{EscapeTomlString(reference.Path)}\" }}");
+                _ = sb.AppendLine($"\"{EscapeTomlString(reference.Name)}\" = {{ path = \"{EscapeTomlString(reference.Path)}\" }}");
             }
         }
 
@@ -173,7 +173,7 @@ public sealed class ProjectConfigurationRoundTripPropertyTests
 
         // Write to a temp directory and parse back
         var tempDir = Path.Combine(Path.GetTempPath(), $"mist_pbt_rt_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var tomlPath = Path.Combine(tempDir, ProjectFileParser.FileName);

@@ -197,7 +197,7 @@ public class MultiCallerCandidatePropertyTests
                 var distinctInAlt = new HashSet<int>(altRefs);
                 foreach(var leafIdx in distinctInAlt)
                 {
-                    leafAltCount.TryGetValue(leafIdx, out var count);
+                    _ = leafAltCount.TryGetValue(leafIdx, out var count);
                     leafAltCount[leafIdx] = count + 1;
                 }
             }
@@ -206,7 +206,7 @@ public class MultiCallerCandidatePropertyTests
             {
                 if(count >= 2)
                 {
-                    candidates.Add($"Rule{(char)('A' + leafIdx)}");
+                    _ = candidates.Add($"Rule{(char)('A' + leafIdx)}");
                 }
             }
         }

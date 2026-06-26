@@ -33,7 +33,7 @@ public class RefinementPatternMatchTests
     private static ImmutableArray<Diagnostic> CompileAndGetDiagnostics(string source)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "mist_pbt_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var sourcePath = Path.Combine(tempDir, "Program.mist");
@@ -200,7 +200,7 @@ public class RefinementPatternMatchTests
         var diagnostics = CompileAndGetDiagnostics(source);
 
         var refinementDiags = WithId(diagnostics, "MIST_TC_0098");
-        Assert.Single(refinementDiags);
+        _ = Assert.Single(refinementDiags);
 
         var d = refinementDiags[0];
         Assert.Equal(DiagnosticSeverity.Error, d.Severity);
@@ -231,6 +231,6 @@ public class RefinementPatternMatchTests
         var diagnostics = CompileAndGetDiagnostics(source);
 
         var refinementDiags = WithId(diagnostics, "MIST_TC_0098");
-        Assert.Single(refinementDiags);
+        _ = Assert.Single(refinementDiags);
     }
 }

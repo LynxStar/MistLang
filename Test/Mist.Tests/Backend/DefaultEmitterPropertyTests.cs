@@ -45,7 +45,7 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
         outputDir = Path.Combine(
             Path.GetTempPath(),
             "MistDefaultEmitterTests_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -96,7 +96,7 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
         var sb = new System.Text.StringBuilder();
         foreach(var file in csFiles)
         {
-            sb.AppendLine(File.ReadAllText(file));
+            _ = sb.AppendLine(File.ReadAllText(file));
         }
         return sb.ToString();
     }
@@ -449,13 +449,13 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
         // Build matching source text
         var sb = new System.Text.StringBuilder();
         var kind = scenario.IsStruct ? "struct" : "class";
-        sb.AppendLine($"{kind} {scenario.TypeName} {{");
+        _ = sb.AppendLine($"{kind} {scenario.TypeName} {{");
         foreach(var (fieldName, fieldType) in scenario.Fields)
         {
-            sb.AppendLine($"    {fieldType} {fieldName};");
+            _ = sb.AppendLine($"    {fieldType} {fieldName};");
         }
-        sb.AppendLine("}");
-        sb.AppendLine("class Program { public static void Main() { } }");
+        _ = sb.AppendLine("}");
+        _ = sb.AppendLine("class Program { public static void Main() { } }");
 
         return (ast, sb.ToString());
     }
@@ -494,13 +494,13 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
         // Build matching source text
         var sb = new System.Text.StringBuilder();
         var kind = scenario.IsStruct ? "struct" : "class";
-        sb.AppendLine($"{kind} {scenario.TypeName} {{");
+        _ = sb.AppendLine($"{kind} {scenario.TypeName} {{");
         foreach(var (fieldName, fieldType) in scenario.Fields)
         {
-            sb.AppendLine($"    {fieldType} {fieldName};");
+            _ = sb.AppendLine($"    {fieldType} {fieldName};");
         }
-        sb.AppendLine("}");
-        sb.AppendLine($"class Program {{ public static void Main() {{ {scenario.TypeName} x = default({scenario.TypeName}); }} }}");
+        _ = sb.AppendLine("}");
+        _ = sb.AppendLine($"class Program {{ public static void Main() {{ {scenario.TypeName} x = default({scenario.TypeName}); }} }}");
 
         return (ast, sb.ToString());
     }

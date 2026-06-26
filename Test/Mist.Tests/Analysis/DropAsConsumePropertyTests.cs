@@ -59,7 +59,7 @@ public sealed class DropAsConsumePropertyTests
     private static ImmutableArray<Diagnostic> Compile(string source)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "mist_drop_consume_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var sourcePath = Path.Combine(tempDir, "Program.mist");

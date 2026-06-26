@@ -54,7 +54,7 @@ public sealed class DefaultInstanceIndependenceTests : IDisposable
     public DefaultInstanceIndependenceTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "mist_default_independence_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -176,7 +176,7 @@ public sealed class DefaultInstanceIndependenceTests : IDisposable
     private (int ExitCode, string Stdout, string Stderr) CompileAndRun(string mistSource)
     {
         var iterDir = Path.Combine(outputDir, Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(iterDir);
+        _ = Directory.CreateDirectory(iterDir);
 
         try
         {

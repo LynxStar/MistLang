@@ -47,7 +47,7 @@ public class TypeAliasDiagnosticTests
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(sourceText)));
         var semBag = new DiagnosticBag();
-        builder.Build(
+        _ = builder.Build(
             compilation,
             ImmutableArray.Create(parseResult.Root!),
             ambientTypeResolver: null,
@@ -75,7 +75,7 @@ public class TypeAliasDiagnosticTests
         var diagnostics = BuildAndCollectDiagnostics(source);
         var dupDiags = WithId(diagnostics, "MIST_SB_0061");
 
-        Assert.Single(dupDiags);
+        _ = Assert.Single(dupDiags);
         var d = dupDiags[0];
         Assert.Equal(DiagnosticSeverity.Error, d.Severity);
         Assert.Contains("Foo", d.Message);
@@ -103,7 +103,7 @@ public class TypeAliasDiagnosticTests
         var diagnostics = BuildAndCollectDiagnostics(source);
         var unresolvedDiags = WithId(diagnostics, "MIST_SB_0062");
 
-        Assert.Single(unresolvedDiags);
+        _ = Assert.Single(unresolvedDiags);
         var d = unresolvedDiags[0];
         Assert.Equal(DiagnosticSeverity.Error, d.Severity);
         Assert.Contains("could not be resolved", d.Message);

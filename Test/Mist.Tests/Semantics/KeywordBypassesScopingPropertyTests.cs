@@ -216,17 +216,17 @@ public class KeywordBypassesScopingPropertyTests
     private static string GenerateSource(AdversarialScenario scenario)
     {
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine($"namespace {scenario.UserNamespace};");
-        sb.AppendLine();
+        _ = sb.AppendLine($"namespace {scenario.UserNamespace};");
+        _ = sb.AppendLine();
         // User-declared class with the same simple name as the stdlib type.
-        sb.AppendLine($"public class {scenario.StdlibSimpleName} {{");
-        sb.AppendLine("}");
-        sb.AppendLine();
+        _ = sb.AppendLine($"public class {scenario.StdlibSimpleName} {{");
+        _ = sb.AppendLine("}");
+        _ = sb.AppendLine();
         // Test class with fields using both the keyword and the simple name.
-        sb.AppendLine("public class TestClass {");
-        sb.AppendLine($"    public {scenario.Keyword} keywordField;");
-        sb.AppendLine($"    public {scenario.StdlibSimpleName} simpleNameField;");
-        sb.AppendLine("}");
+        _ = sb.AppendLine("public class TestClass {");
+        _ = sb.AppendLine($"    public {scenario.Keyword} keywordField;");
+        _ = sb.AppendLine($"    public {scenario.StdlibSimpleName} simpleNameField;");
+        _ = sb.AppendLine("}");
         return sb.ToString();
     }
 

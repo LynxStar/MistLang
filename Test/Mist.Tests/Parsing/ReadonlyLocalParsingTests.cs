@@ -46,7 +46,7 @@ public class ReadonlyLocalParsingTests
         var stmt = Assert.IsType<VariableDeclarationStatementStatementNode>(GetFirstStatement(result));
         var inferred = Assert.IsType<InferredVariableDeclarationVariableDeclarationStatementNode>(stmt.VariableDeclaration);
 
-        Assert.NotNull(inferred.ReadonlyModifier);
+        _ = Assert.NotNull(inferred.ReadonlyModifier);
         Assert.Equal("x", inferred.Name.Lexeme);
     }
 
@@ -63,7 +63,7 @@ public class ReadonlyLocalParsingTests
         var stmt = Assert.IsType<VariableDeclarationStatementStatementNode>(GetFirstStatement(result));
         var typed = Assert.IsType<TypedVariableDeclarationVariableDeclarationStatementNode>(stmt.VariableDeclaration);
 
-        Assert.NotNull(typed.ReadonlyModifier);
+        _ = Assert.NotNull(typed.ReadonlyModifier);
         Assert.Equal("x", typed.Name.Lexeme);
     }
 
@@ -80,9 +80,9 @@ public class ReadonlyLocalParsingTests
         var stmt = Assert.IsType<VariableDeclarationStatementStatementNode>(GetFirstStatement(result));
         var varTuple = Assert.IsType<VarTupleDeconstructionVariableDeclarationStatementNode>(stmt.VariableDeclaration);
 
-        Assert.NotNull(varTuple.ReadonlyModifier);
+        _ = Assert.NotNull(varTuple.ReadonlyModifier);
         Assert.Equal("a", varTuple.FirstName.Lexeme);
-        Assert.Single(varTuple.RestNames);
+        _ = Assert.Single(varTuple.RestNames);
         Assert.Equal("b", varTuple.RestNames[0].Lexeme);
     }
 
@@ -99,7 +99,7 @@ public class ReadonlyLocalParsingTests
         var stmt = Assert.IsType<VariableDeclarationStatementStatementNode>(GetFirstStatement(result));
         var typedTuple = Assert.IsType<TypedTupleDeconstructionVariableDeclarationStatementNode>(stmt.VariableDeclaration);
 
-        Assert.NotNull(typedTuple.ReadonlyModifier);
+        _ = Assert.NotNull(typedTuple.ReadonlyModifier);
         Assert.Equal("a", typedTuple.First.Name.Lexeme);
         Assert.Equal("b", typedTuple.Rest.Name.Lexeme);
     }
@@ -117,8 +117,8 @@ public class ReadonlyLocalParsingTests
         var stmt = Assert.IsType<VariableDeclarationStatementStatementNode>(GetFirstStatement(result));
         var inferred = Assert.IsType<InferredVariableDeclarationVariableDeclarationStatementNode>(stmt.VariableDeclaration);
 
-        Assert.NotNull(inferred.ReadonlyModifier);
-        Assert.IsType<OwnedSpecifierOwnershipSpecifierNode>(inferred.OwnershipSpecifier);
+        _ = Assert.NotNull(inferred.ReadonlyModifier);
+        _ = Assert.IsType<OwnedSpecifierOwnershipSpecifierNode>(inferred.OwnershipSpecifier);
         Assert.Equal("x", inferred.Name.Lexeme);
     }
 
@@ -134,7 +134,7 @@ public class ReadonlyLocalParsingTests
 
         var stmt = Assert.IsType<ReadonlyBlockStatementStatementNode>(GetFirstStatement(result));
         Assert.NotNull(stmt.ReadonlyBlock.Body);
-        Assert.Single(stmt.ReadonlyBlock.Body.Statements);
+        _ = Assert.Single(stmt.ReadonlyBlock.Body.Statements);
     }
 
     // ─── Additional: non-readonly declarations still work ───

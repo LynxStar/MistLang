@@ -49,7 +49,7 @@ public class CastOperatorValidationPropertyTests
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(sourceText)));
         var diagnostics = new DiagnosticBag();
-        Builder.Build(
+        _ = Builder.Build(
             compilation,
             ImmutableArray.Create(ast),
             ambientTypeResolver: null,

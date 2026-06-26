@@ -172,7 +172,7 @@ public class RegexConversionRuleTests
         var typeMismatch = diagnostics.Where(d =>
             d.Id.Value == "MIST_TC_0001" && d.Message.Contains("explicit cast")).ToImmutableArray();
 
-        Assert.Single(typeMismatch);
+        _ = Assert.Single(typeMismatch);
     }
 
     [Fact]
@@ -194,7 +194,7 @@ public class RegexConversionRuleTests
         var typeMismatch = diagnostics.Where(d =>
             d.Id.Value == "MIST_TC_0001" && d.Message.Contains("explicit cast")).ToImmutableArray();
 
-        Assert.Single(typeMismatch);
+        _ = Assert.Single(typeMismatch);
     }
 
     [Fact]
@@ -214,7 +214,7 @@ public class RegexConversionRuleTests
         var typeMismatch = diagnostics.Where(d =>
             d.Id.Value == "MIST_TC_0001" && d.Message.Contains("explicit cast")).ToImmutableArray();
 
-        Assert.Single(typeMismatch);
+        _ = Assert.Single(typeMismatch);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -305,7 +305,7 @@ public class RegexConversionRuleTests
         var regexInvalid = diagnostics.Where(d =>
             d.Id.Value == "MIST_TC_REGEX_INVALID" && d.Message.Contains("Invalid regex pattern")).ToImmutableArray();
 
-        Assert.Single(regexInvalid);
+        _ = Assert.Single(regexInvalid);
     }
 
     [Fact]
@@ -325,7 +325,7 @@ public class RegexConversionRuleTests
         var regexInvalid = diagnostics.Where(d =>
             d.Id.Value == "MIST_TC_REGEX_INVALID" && d.Message.Contains("Invalid regex pattern")).ToImmutableArray();
 
-        Assert.Single(regexInvalid);
+        _ = Assert.Single(regexInvalid);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

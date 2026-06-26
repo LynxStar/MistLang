@@ -47,7 +47,7 @@ public static class ProjectReferenceResolver
         // self-references (A → A) are detected as cycles.
         var rootCanonicalTomlPath = Path.GetFullPath(
             Path.Combine(rootProjectFolder, ProjectFileParser.FileName));
-        inProgress.Add(rootCanonicalTomlPath);
+        _ = inProgress.Add(rootCanonicalTomlPath);
 
         // Kick off DFS for each direct reference of the root project.
         var chain = new List<string> { rootCanonicalTomlPath };
@@ -146,7 +146,7 @@ public static class ProjectReferenceResolver
         }
 
         // Mark as in-progress (on the DFS stack).
-        inProgress.Add(canonicalTomlPath);
+        _ = inProgress.Add(canonicalTomlPath);
         chain.Add(canonicalTomlPath);
 
         // Parse the referenced project's mist.toml.
@@ -162,7 +162,7 @@ public static class ProjectReferenceResolver
 
         if(config is null)
         {
-            inProgress.Remove(canonicalTomlPath);
+            _ = inProgress.Remove(canonicalTomlPath);
             chain.RemoveAt(chain.Count - 1);
             return;
         }
@@ -179,7 +179,7 @@ public static class ProjectReferenceResolver
                 CompilationUnitPath: canonicalTomlPath,
                 AnalyzerName: null));
 
-            inProgress.Remove(canonicalTomlPath);
+            _ = inProgress.Remove(canonicalTomlPath);
             chain.RemoveAt(chain.Count - 1);
             return;
         }
@@ -200,8 +200,8 @@ public static class ProjectReferenceResolver
             config,
             sourcePaths.ToImmutableArray()));
 
-        visited.Add(canonicalTomlPath);
-        inProgress.Remove(canonicalTomlPath);
+        _ = visited.Add(canonicalTomlPath);
+        _ = inProgress.Remove(canonicalTomlPath);
         chain.RemoveAt(chain.Count - 1);
     }
 }

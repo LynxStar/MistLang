@@ -196,15 +196,15 @@ public class KeywordAliasReferenceIdentityPropertyTests
     private static string GenerateSource(KeywordScenario scenario)
     {
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("namespace TestNs;");
-        sb.AppendLine("public class TestClass {");
+        _ = sb.AppendLine("namespace TestNs;");
+        _ = sb.AppendLine("public class TestClass {");
 
         for(var i = 0; i < scenario.FieldKeywords.Count; i++)
         {
-            sb.AppendLine($"    public {scenario.FieldKeywords[i]} field{i};");
+            _ = sb.AppendLine($"    public {scenario.FieldKeywords[i]} field{i};");
         }
 
-        sb.AppendLine("}");
+        _ = sb.AppendLine("}");
         return sb.ToString();
     }
 

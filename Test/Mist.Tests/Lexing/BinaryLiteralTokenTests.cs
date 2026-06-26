@@ -35,7 +35,7 @@ public class BinaryLiteralTokenTests
     {
         var tokens = LexDefaultTokens("0b1010");
 
-        Assert.Single(tokens);
+        _ = Assert.Single(tokens);
         Assert.Equal((int)TokenKind.BINARY_LITERAL, tokens[0].Kind);
         Assert.NotEqual((int)TokenKind.INTEGER_LITERAL, tokens[0].Kind);
         Assert.Equal("0b1010", tokens[0].Lexeme);
@@ -56,7 +56,7 @@ public class BinaryLiteralTokenTests
     {
         var tokens = LexDefaultTokens(literal);
 
-        Assert.Single(tokens);
+        _ = Assert.Single(tokens);
         Assert.Equal((int)TokenKind.BINARY_LITERAL, tokens[0].Kind);
         Assert.Equal(literal, tokens[0].Lexeme);
     }
@@ -80,7 +80,7 @@ public class BinaryLiteralTokenTests
     {
         var tokens = LexDefaultTokens(literal);
 
-        Assert.Single(tokens);
+        _ = Assert.Single(tokens);
         Assert.Equal((int)TokenKind.BINARY_LITERAL, tokens[0].Kind);
         Assert.Equal(literal, tokens[0].Lexeme);
     }
@@ -96,7 +96,7 @@ public class BinaryLiteralTokenTests
     {
         var tokens = LexDefaultTokens(literal);
 
-        Assert.Single(tokens);
+        _ = Assert.Single(tokens);
         Assert.Equal((int)TokenKind.BINARY_LITERAL, tokens[0].Kind);
         Assert.Equal(literal, tokens[0].Lexeme);
     }
@@ -113,7 +113,7 @@ public class BinaryLiteralTokenTests
     {
         var tokens = LexDefaultTokens(literal);
 
-        Assert.Single(tokens);
+        _ = Assert.Single(tokens);
         Assert.Equal((int)TokenKind.INTEGER_LITERAL, tokens[0].Kind);
         Assert.Equal(literal, tokens[0].Lexeme);
     }
@@ -129,7 +129,7 @@ public class BinaryLiteralTokenTests
     {
         var tokens = LexDefaultTokens(literal);
 
-        Assert.Single(tokens);
+        _ = Assert.Single(tokens);
         Assert.Equal((int)TokenKind.HEX_LITERAL, tokens[0].Kind);
         Assert.Equal(literal, tokens[0].Lexeme);
     }
@@ -145,7 +145,7 @@ public class BinaryLiteralTokenTests
     {
         var tokens = LexDefaultTokens(literal);
 
-        Assert.Single(tokens);
+        _ = Assert.Single(tokens);
         Assert.Equal((int)TokenKind.FLOAT_LITERAL, tokens[0].Kind);
         Assert.Equal(literal, tokens[0].Lexeme);
     }

@@ -35,7 +35,7 @@ public sealed class TryFinallyDropWrappingTests : IDisposable
     public TryFinallyDropWrappingTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistTryFinallyDropPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

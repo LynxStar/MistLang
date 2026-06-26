@@ -71,7 +71,7 @@ public sealed class StackallocLengthAndKindInferencePropertyTests : IDisposable
     public StackallocLengthAndKindInferencePropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistStackallocLenKindPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

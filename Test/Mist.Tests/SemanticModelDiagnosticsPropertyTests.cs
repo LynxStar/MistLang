@@ -50,14 +50,14 @@ public class SemanticModelDiagnosticsPropertyTests
         var model = builder.Build(compilation, ImmutableArray<Storm.Runtime.SyntaxNode>.Empty, null, namespaceRoot: "TestProject", projectFolder: "/test", bag);
 
         // Verify Units returns IReadOnlyList
-        Assert.IsAssignableFrom<IReadOnlyList<CompilationUnit>>(model.Units);
+        _ = Assert.IsAssignableFrom<IReadOnlyList<CompilationUnit>>(model.Units);
 
         // Verify AllSymbols returns ImmutableArray
         var allSymbols = model.AllSymbols;
-        Assert.IsType<ImmutableArray<ISymbol>>(allSymbols);
+        _ = Assert.IsType<ImmutableArray<ISymbol>>(allSymbols);
 
         // Verify GlobalScope.Members returns IReadOnlyList
-        Assert.IsAssignableFrom<IReadOnlyList<ISymbol>>(model.GlobalScope.Members);
+        _ = Assert.IsAssignableFrom<IReadOnlyList<ISymbol>>(model.GlobalScope.Members);
     }
 
     [Fact]

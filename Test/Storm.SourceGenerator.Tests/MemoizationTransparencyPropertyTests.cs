@@ -153,7 +153,7 @@ public class MemoizationTransparencyPropertyTests
                 .Where(d => d.Severity == DiagnosticSeverity.Error)
                 .Select(d => d.GetMessage())));
 
-        ms.Seek(0, SeekOrigin.Begin);
+        _ = ms.Seek(0, SeekOrigin.Begin);
         return Assembly.Load(ms.ToArray());
     }
 
@@ -220,15 +220,15 @@ public class MemoizationTransparencyPropertyTests
             type.GetMethod("Children")!.Invoke(node, null)!;
 
         var sb = new System.Text.StringBuilder();
-        sb.Append(type.Name).Append('[').Append(start).Append(',').Append(length).Append("](");
+        _ = sb.Append(type.Name).Append('[').Append(start).Append(',').Append(length).Append("](");
         foreach(var child in children)
         {
             if(child != null)
             {
-                sb.Append(StructuralKey(child)).Append(';');
+                _ = sb.Append(StructuralKey(child)).Append(';');
             }
         }
-        sb.Append(')');
+        _ = sb.Append(')');
         return sb.ToString();
     }
 

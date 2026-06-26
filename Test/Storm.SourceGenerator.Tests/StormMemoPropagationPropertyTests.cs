@@ -65,16 +65,16 @@ public class StormMemoPropagationPropertyTests
     private static string BuildGrammarSource(List<(string Name, bool IsMemo)> rules)
     {
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("grammar Test;");
-        sb.AppendLine("token Tok = [a-z]+;");
+        _ = sb.AppendLine("grammar Test;");
+        _ = sb.AppendLine("token Tok = [a-z]+;");
 
         foreach(var (name, isMemo) in rules)
         {
             if(isMemo)
             {
-                sb.AppendLine($"@memo");
+                _ = sb.AppendLine($"@memo");
             }
-            sb.AppendLine($"rule {name} = Tok;");
+            _ = sb.AppendLine($"rule {name} = Tok;");
         }
 
         return sb.ToString();

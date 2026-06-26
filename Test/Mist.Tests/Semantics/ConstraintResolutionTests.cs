@@ -137,7 +137,7 @@ public class ConstraintResolutionTests
         var tp = FindTypeParameter(model, "Factory", "T");
         Assert.NotNull(tp);
         Assert.NotNull(tp!.Constraints);
-        Assert.Single(tp.Constraints!.ConstructorConstraints);
+        _ = Assert.Single(tp.Constraints!.ConstructorConstraints);
         Assert.Empty(tp.Constraints.ConstructorConstraints[0]);
     }
 
@@ -150,10 +150,10 @@ public class ConstraintResolutionTests
         var tp = FindTypeParameter(model, "Factory", "T");
         Assert.NotNull(tp);
         Assert.NotNull(tp!.Constraints);
-        Assert.Single(tp.Constraints!.ConstructorConstraints);
+        _ = Assert.Single(tp.Constraints!.ConstructorConstraints);
 
         var paramTypes = tp.Constraints.ConstructorConstraints[0];
-        Assert.Single(paramTypes);
+        _ = Assert.Single(paramTypes);
         Assert.Equal("int", paramTypes[0].DisplayName);
     }
 
@@ -166,7 +166,7 @@ public class ConstraintResolutionTests
         var tp = FindTypeParameter(model, "Factory", "T");
         Assert.NotNull(tp);
         Assert.NotNull(tp!.Constraints);
-        Assert.Single(tp.Constraints!.ConstructorConstraints);
+        _ = Assert.Single(tp.Constraints!.ConstructorConstraints);
 
         var paramTypes = tp.Constraints.ConstructorConstraints[0];
         Assert.Equal(2, paramTypes.Count);
@@ -186,7 +186,7 @@ class Sorter<T> where T : IComparable { }
         var tp = FindTypeParameter(model, "Sorter", "T");
         Assert.NotNull(tp);
         Assert.NotNull(tp!.Constraints);
-        Assert.Single(tp.Constraints!.AbstractConstraints);
+        _ = Assert.Single(tp.Constraints!.AbstractConstraints);
         Assert.Equal("IComparable", tp.Constraints.AbstractConstraints[0].DisplayName);
     }
 
@@ -220,10 +220,10 @@ class Zoo<T> where T : Animal { }
         // new()
         Assert.Empty(tp.Constraints.ConstructorConstraints[0]);
         // new(int)
-        Assert.Single(tp.Constraints.ConstructorConstraints[1]);
+        _ = Assert.Single(tp.Constraints.ConstructorConstraints[1]);
         Assert.Equal("int", tp.Constraints.ConstructorConstraints[1][0].DisplayName);
         // new(bool)
-        Assert.Single(tp.Constraints.ConstructorConstraints[2]);
+        _ = Assert.Single(tp.Constraints.ConstructorConstraints[2]);
         Assert.Equal("bool", tp.Constraints.ConstructorConstraints[2][0].DisplayName);
     }
 
@@ -240,9 +240,9 @@ class Container<T> where T : class, IFoo, new() { }
         Assert.NotNull(tp);
         Assert.NotNull(tp!.Constraints);
         Assert.True(tp.Constraints!.HasClassConstraint);
-        Assert.Single(tp.Constraints.AbstractConstraints);
+        _ = Assert.Single(tp.Constraints.AbstractConstraints);
         Assert.Equal("IFoo", tp.Constraints.AbstractConstraints[0].DisplayName);
-        Assert.Single(tp.Constraints.ConstructorConstraints);
+        _ = Assert.Single(tp.Constraints.ConstructorConstraints);
         Assert.Empty(tp.Constraints.ConstructorConstraints[0]);
     }
 
@@ -257,7 +257,7 @@ class Container<T> where T : class, IFoo, new() { }
         var (_, diagnostics) = BuildModel(source);
 
         var diags = WithId(diagnostics, "MIST_CONSTRAINT_0002");
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         Assert.Contains("mutually exclusive", diags[0].Message);
         Assert.Contains("T", diags[0].Message);
@@ -270,7 +270,7 @@ class Container<T> where T : class, IFoo, new() { }
         var (_, diagnostics) = BuildModel(source);
 
         var diags = WithId(diagnostics, "MIST_CONSTRAINT_0003");
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Equal(DiagnosticSeverity.Warning, diags[0].Severity);
         Assert.Contains("redundant", diags[0].Message);
         Assert.Contains("T", diags[0].Message);
@@ -287,7 +287,7 @@ class Hybrid<T> where T : Animal, Vehicle { }
         var (_, diagnostics) = BuildModel(source);
 
         var diags = WithId(diagnostics, "MIST_CONSTRAINT_0004");
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         Assert.Contains("At most one base class", diags[0].Message);
         Assert.Contains("T", diags[0].Message);
@@ -304,7 +304,7 @@ class Container<T> where T : Point { }
         var (_, diagnostics) = BuildModel(source);
 
         var diags = WithId(diagnostics, "MIST_CONSTRAINT_0005");
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         Assert.Contains("Struct", diags[0].Message);
         Assert.Contains("Point", diags[0].Message);
@@ -335,7 +335,7 @@ class Container<T> where T : class, Point { }
         var (_, diagnostics) = BuildModel(source);
 
         var diags = WithId(diagnostics, "MIST_CONSTRAINT_0005");
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         Assert.Contains("Struct", diags[0].Message);
         Assert.Contains("Point", diags[0].Message);
@@ -351,7 +351,7 @@ class Container<T> where T : Animal, struct { }
         var (_, diagnostics) = BuildModel(source);
 
         var diags = WithId(diagnostics, "MIST_CONSTRAINT_0006");
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         Assert.Contains("incompatible", diags[0].Message);
         Assert.Contains("struct", diags[0].Message);
@@ -364,7 +364,7 @@ class Container<T> where T : Animal, struct { }
         var (_, diagnostics) = BuildModel(source);
 
         var diags = WithId(diagnostics, "MIST_CONSTRAINT_0001");
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         Assert.Contains("U", diags[0].Message);
         Assert.Contains("not defined", diags[0].Message);
@@ -377,7 +377,7 @@ class Container<T> where T : Animal, struct { }
         var (_, diagnostics) = BuildModel(source);
 
         var diags = WithId(diagnostics, "MIST_CONSTRAINT_0007");
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         Assert.Contains("multiple", diags[0].Message);
         Assert.Contains("T", diags[0].Message);
@@ -390,7 +390,7 @@ class Container<T> where T : Animal, struct { }
         var (_, diagnostics) = BuildModel(source);
 
         var diags = WithId(diagnostics, "MIST_CONSTRAINT_0008");
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         Assert.Contains("could not be resolved", diags[0].Message);
     }
@@ -536,7 +536,7 @@ struct Wrapper<T> where T : IFoo { }
         var tp = FindTypeParameter(model, "Wrapper", "T");
         Assert.NotNull(tp);
         Assert.NotNull(tp!.Constraints);
-        Assert.Single(tp.Constraints!.AbstractConstraints);
+        _ = Assert.Single(tp.Constraints!.AbstractConstraints);
     }
 
     [Fact]
@@ -551,7 +551,7 @@ abstract IRepository<T> where T : IFoo { }
         var tp = FindTypeParameter(model, "IRepository", "T");
         Assert.NotNull(tp);
         Assert.NotNull(tp!.Constraints);
-        Assert.Single(tp.Constraints!.AbstractConstraints);
+        _ = Assert.Single(tp.Constraints!.AbstractConstraints);
     }
 
     [Fact]
@@ -573,7 +573,7 @@ class Pair<K, V> where K : class where V : IFoo { }
         Assert.NotNull(tpV);
         Assert.NotNull(tpV!.Constraints);
         Assert.False(tpV.Constraints!.HasClassConstraint);
-        Assert.Single(tpV.Constraints.AbstractConstraints);
+        _ = Assert.Single(tpV.Constraints.AbstractConstraints);
     }
 
     [Fact]

@@ -38,7 +38,7 @@ public sealed class ConditionalMoveBranchDropTests : IDisposable
     public ConditionalMoveBranchDropTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistCondMoveDrop_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

@@ -35,7 +35,7 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
     public EmitterOriginFilterPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistEmitterOriginTests_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

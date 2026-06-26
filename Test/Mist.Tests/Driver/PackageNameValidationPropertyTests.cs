@@ -178,7 +178,7 @@ public sealed class PackageNameValidationPropertyTests
         var toml = $"name = \"TestProject\"\n\n[packages]\n\"{escapedName}\" = \"1.0.0\"\n";
 
         var tempDir = Path.Combine(Path.GetTempPath(), $"mist_pbt_pkg_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             File.WriteAllText(Path.Combine(tempDir, ProjectFileParser.FileName), toml);

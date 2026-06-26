@@ -237,7 +237,7 @@ public class UndefinedTypeArgumentPropertyTests
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var undefinedDiags = diagnostics.Where(d => d.Id == DiagnosticId.UndefinedTypeArgument).ToList();
-        Assert.Single(undefinedDiags);
+        _ = Assert.Single(undefinedDiags);
         Assert.Contains("Nonexistent", undefinedDiags[0].Message);
     }
 
@@ -314,7 +314,7 @@ public class UndefinedTypeArgumentPropertyTests
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var undefinedDiags = diagnostics.Where(d => d.Id == DiagnosticId.UndefinedTypeArgument).ToList();
-        Assert.Single(undefinedDiags);
+        _ = Assert.Single(undefinedDiags);
         Assert.Contains("Nonexistent", undefinedDiags[0].Message);
     }
 }

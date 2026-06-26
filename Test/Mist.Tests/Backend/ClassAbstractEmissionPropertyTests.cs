@@ -46,7 +46,7 @@ public sealed partial class ClassAbstractEmissionPropertyTests : IDisposable
         outputDir = Path.Combine(
             Path.GetTempPath(),
             "MistClassAbstractEmissionTests_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -401,27 +401,27 @@ public sealed partial class ClassAbstractEmissionPropertyTests : IDisposable
         // Declare abstract
         if(scenario.AbstractName is not null)
         {
-            sb.AppendLine($"abstract {scenario.AbstractName} {{ void {MethodNamePool[0]}(); }}");
+            _ = sb.AppendLine($"abstract {scenario.AbstractName} {{ void {MethodNamePool[0]}(); }}");
         }
 
         // Declare base class
         if(scenario.BaseClassName is not null)
         {
-            sb.AppendLine($"class {scenario.BaseClassName} {{ }}");
+            _ = sb.AppendLine($"class {scenario.BaseClassName} {{ }}");
         }
 
         // Declare test class with inheritance clause
         var parts = scenario.ExpectedInheritanceParts;
         if(parts.Length > 0)
         {
-            sb.AppendLine($"class {scenario.ClassName} : {string.Join(", ", parts)} {{ }}");
+            _ = sb.AppendLine($"class {scenario.ClassName} : {string.Join(", ", parts)} {{ }}");
         }
         else
         {
-            sb.AppendLine($"class {scenario.ClassName} {{ }}");
+            _ = sb.AppendLine($"class {scenario.ClassName} {{ }}");
         }
 
-        sb.AppendLine("class Program { public static void Main() { } }");
+        _ = sb.AppendLine("class Program { public static void Main() { } }");
         return sb.ToString();
     }
 

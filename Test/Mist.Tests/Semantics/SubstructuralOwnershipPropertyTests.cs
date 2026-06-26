@@ -39,7 +39,7 @@ public sealed class SubstructuralOwnershipPropertyTests : IDisposable
     public SubstructuralOwnershipPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistSubstructuralOwnershipPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -105,7 +105,7 @@ public sealed class SubstructuralOwnershipPropertyTests : IDisposable
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,
             EmitToDisk: false);
 
-        driver.Compile(options);
+        _ = driver.Compile(options);
         return capture.Captured;
     }
 
@@ -286,7 +286,7 @@ public sealed class SubstructuralOwnershipPropertyTests : IDisposable
         Assert.NotNull(model);
 
         var isOwned = FindIsOwnedType(model!, "Sample");
-        Assert.NotNull(isOwned);
+        _ = Assert.NotNull(isOwned);
         Assert.Equal(expectedOwned, isOwned!.Value);
     }
 }

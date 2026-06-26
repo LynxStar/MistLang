@@ -117,8 +117,8 @@ public class ArrayLiteralParserTests
         var without = GetArrayLiteralFromInitializer(sourceWithout);
 
         // Both should have 2 elements total: First + 1 in Expressions
-        Assert.Single(withTrailing.Expressions);
-        Assert.Single(without.Expressions);
+        _ = Assert.Single(withTrailing.Expressions);
+        _ = Assert.Single(without.Expressions);
     }
 
     // ─── Requirement 1.3: Nested array literals ──────────────────────────
@@ -137,19 +137,19 @@ public class ArrayLiteralParserTests
         var outerArray = GetArrayLiteralFromInitializer(source);
 
         // Outer array has 2 elements: First + 1 in Expressions
-        Assert.Single(outerArray.Expressions);
+        _ = Assert.Single(outerArray.Expressions);
 
         // First element should itself be an ArrayLiteralExpressionPrimaryNode
         var firstInner = UnwrapToPrimary(outerArray.First);
-        Assert.IsType<ArrayLiteralExpressionPrimaryNode>(firstInner);
+        _ = Assert.IsType<ArrayLiteralExpressionPrimaryNode>(firstInner);
         var firstInnerArray = (ArrayLiteralExpressionPrimaryNode)firstInner!;
-        Assert.Single(firstInnerArray.Expressions); // [1, 2] = First + 1
+        _ = Assert.Single(firstInnerArray.Expressions); // [1, 2] = First + 1
 
         // Second element should also be an ArrayLiteralExpressionPrimaryNode
         var secondInner = UnwrapToPrimary(outerArray.Expressions[0]);
-        Assert.IsType<ArrayLiteralExpressionPrimaryNode>(secondInner);
+        _ = Assert.IsType<ArrayLiteralExpressionPrimaryNode>(secondInner);
         var secondInnerArray = (ArrayLiteralExpressionPrimaryNode)secondInner!;
-        Assert.Single(secondInnerArray.Expressions); // [3, 4] = First + 1
+        _ = Assert.Single(secondInnerArray.Expressions); // [3, 4] = First + 1
     }
 
     // ─── Requirement 11.1: Array literal as variable initializer ─────────
@@ -220,7 +220,7 @@ public class ArrayLiteralParserTests
 
         // Unwrap the return value to find the array literal
         var primary = UnwrapToPrimary(returnStmt.ReturnStatement.Value!);
-        Assert.IsType<ArrayLiteralExpressionPrimaryNode>(primary);
+        _ = Assert.IsType<ArrayLiteralExpressionPrimaryNode>(primary);
     }
 
     // ─── Requirement 11.5: Array literal as assignment RHS ───────────────
@@ -306,7 +306,7 @@ public class ArrayLiteralParserTests
         var postfix = FindPostfixNode(varDecl.Initializer);
         Assert.NotNull(postfix);
         Assert.True(postfix!.Suffix.Length > 0, "arr[0] should have at least one postfix suffix");
-        Assert.IsType<IndexSuffixPostfixSuffixNode>(postfix.Suffix[0]);
+        _ = Assert.IsType<IndexSuffixPostfixSuffixNode>(postfix.Suffix[0]);
     }
 
     // ─── Requirement 4.1, 4.2, 4.3: Disambiguation from ListPattern ─────
@@ -340,7 +340,7 @@ public class ArrayLiteralParserTests
         // The pattern should be a ListPattern, not an ArrayLiteralExpression
         var pattern = isExpr!.Pattern;
         var primaryPattern = UnwrapToPrimaryPattern(pattern);
-        Assert.IsType<ListPatternPrimaryPatternNode>(primaryPattern);
+        _ = Assert.IsType<ListPatternPrimaryPatternNode>(primaryPattern);
     }
 
     // ─── Requirement 2.1: Empty array literal [] ──────────────────────────
@@ -364,7 +364,7 @@ public class ArrayLiteralParserTests
         var stmt = Assert.IsType<VariableDeclarationStatementStatementNode>(block!.Statements[0]);
         var varDecl = Assert.IsType<TypedVariableDeclarationVariableDeclarationStatementNode>(stmt.VariableDeclaration);
         var primary = UnwrapToPrimary(varDecl.Initializer);
-        Assert.IsType<EmptyArrayLiteralExpressionPrimaryNode>(primary);
+        _ = Assert.IsType<EmptyArrayLiteralExpressionPrimaryNode>(primary);
     }
 
     [Fact]
@@ -386,7 +386,7 @@ public class ArrayLiteralParserTests
         var stmt = Assert.IsType<VariableDeclarationStatementStatementNode>(block!.Statements[0]);
         var varDecl = Assert.IsType<InferredVariableDeclarationVariableDeclarationStatementNode>(stmt.VariableDeclaration);
         var primary = UnwrapToPrimary(varDecl.Initializer);
-        Assert.IsType<EmptyArrayLiteralExpressionPrimaryNode>(primary);
+        _ = Assert.IsType<EmptyArrayLiteralExpressionPrimaryNode>(primary);
     }
 
     [Fact]
@@ -408,7 +408,7 @@ public class ArrayLiteralParserTests
         var stmt = Assert.IsType<VariableDeclarationStatementStatementNode>(block!.Statements[0]);
         var varDecl = Assert.IsType<TypedVariableDeclarationVariableDeclarationStatementNode>(stmt.VariableDeclaration);
         var primary = UnwrapToPrimary(varDecl.Initializer);
-        Assert.IsType<TypeLiteralExpressionPrimaryNode>(primary);
+        _ = Assert.IsType<TypeLiteralExpressionPrimaryNode>(primary);
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────

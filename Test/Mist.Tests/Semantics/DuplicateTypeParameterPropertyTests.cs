@@ -258,7 +258,7 @@ public class DuplicateTypeParameterPropertyTests
             .Where(d => d.Id == DiagnosticId.DuplicateTypeParameter)
             .ToList();
 
-        Assert.Single(duplicateDiags);
+        _ = Assert.Single(duplicateDiags);
         Assert.Contains("T", duplicateDiags[0].Message);
     }
 
@@ -287,7 +287,7 @@ public class DuplicateTypeParameterPropertyTests
             .Where(d => d.Id == DiagnosticId.DuplicateTypeParameter)
             .ToList();
 
-        Assert.Single(duplicateDiags);
+        _ = Assert.Single(duplicateDiags);
     }
 
     [Fact]

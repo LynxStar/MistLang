@@ -121,7 +121,7 @@ public sealed class UndefinedNamespaceDiagnosticPropertyTests
             new CompilationUnit(sourceText)));
         var diagnostics = new DiagnosticBag();
 
-        Builder.Build(
+        _ = Builder.Build(
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast),
             ambientTypeResolver: null,

@@ -230,7 +230,7 @@ public class UnknownCastIntegrationTests
         var (diagnostics, _) = CompileAndCollect(source);
 
         var targeted = WithId(diagnostics, NoCastOperatorFromUnknownDiagnosticId);
-        Assert.Single(targeted);
+        _ = Assert.Single(targeted);
 
         var d = targeted[0];
         Assert.Equal(DiagnosticSeverity.Error, d.Severity);
@@ -267,7 +267,7 @@ public class UnknownCastIntegrationTests
         var (diagnostics, _) = CompileAndCollect(source);
 
         var targeted = WithId(diagnostics, NoCastOperatorFromUnknownDiagnosticId);
-        Assert.Single(targeted);
+        _ = Assert.Single(targeted);
         Assert.Contains("Bar", targeted[0].Message);
         Assert.Contains("unknown", targeted[0].Message);
 

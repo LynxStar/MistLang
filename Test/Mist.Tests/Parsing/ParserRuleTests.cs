@@ -183,7 +183,7 @@ public class ParserRuleTests
             var stmt = method.Body.GetBlock()!.Statements[0] as IfStatementStatementNode;
             Assert.NotNull(stmt);
             Assert.NotNull(stmt!.IfStatement.ElseBranch);
-            Assert.IsType<ElseBlockElseClauseNode>(stmt.IfStatement.ElseBranch);
+            _ = Assert.IsType<ElseBlockElseClauseNode>(stmt.IfStatement.ElseBranch);
         }
     }
 
@@ -302,7 +302,7 @@ public class ParserRuleTests
             var method = (typeDecl!.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode)!.Method;
             var stmt = method.Body.GetBlock()!.Statements[0] as VariableDeclarationStatementStatementNode;
             Assert.NotNull(stmt);
-            Assert.IsType<TypedVariableDeclarationVariableDeclarationStatementNode>(stmt!.VariableDeclaration);
+            _ = Assert.IsType<TypedVariableDeclarationVariableDeclarationStatementNode>(stmt!.VariableDeclaration);
         }
     }
 
@@ -318,7 +318,7 @@ public class ParserRuleTests
             var method = (typeDecl!.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode)!.Method;
             var stmt = method.Body.GetBlock()!.Statements[0] as VariableDeclarationStatementStatementNode;
             Assert.NotNull(stmt);
-            Assert.IsType<InferredVariableDeclarationVariableDeclarationStatementNode>(stmt!.VariableDeclaration);
+            _ = Assert.IsType<InferredVariableDeclarationVariableDeclarationStatementNode>(stmt!.VariableDeclaration);
         }
     }
 
@@ -332,8 +332,8 @@ public class ParserRuleTests
 
         if(result.Root is CompilationUnitNode cu)
         {
-            Assert.Single(cu.GetTypes());
-            Assert.IsType<ClassTypeTypeDeclarationNode>(cu.GetTypes()[0]);
+            _ = Assert.Single(cu.GetTypes());
+            _ = Assert.IsType<ClassTypeTypeDeclarationNode>(cu.GetTypes()[0]);
             var classType = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
             Assert.Equal("Foo", classType!.ClassDeclaration.Name.Lexeme);
         }
@@ -347,8 +347,8 @@ public class ParserRuleTests
 
         if(result.Root is CompilationUnitNode cu)
         {
-            Assert.Single(cu.GetTypes());
-            Assert.IsType<StructTypeTypeDeclarationNode>(cu.GetTypes()[0]);
+            _ = Assert.Single(cu.GetTypes());
+            _ = Assert.IsType<StructTypeTypeDeclarationNode>(cu.GetTypes()[0]);
         }
     }
 
@@ -361,7 +361,7 @@ public class ParserRuleTests
         if(result.Root is CompilationUnitNode cu)
         {
             Assert.NotNull(cu.GetNamespace());
-            Assert.IsType<FileScopedNamespaceNamespaceDeclarationNode>(cu.GetNamespace());
+            _ = Assert.IsType<FileScopedNamespaceNamespaceDeclarationNode>(cu.GetNamespace());
         }
     }
 
@@ -373,7 +373,7 @@ public class ParserRuleTests
 
         if(result.Root is CompilationUnitNode cu)
         {
-            Assert.Single(cu.Usings);
+            _ = Assert.Single(cu.Usings);
         }
     }
 }

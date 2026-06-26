@@ -263,7 +263,7 @@ public class EnumInvalidMemberAccessPropertyTests
         var sourceText = new SourceText("test.mist", "");
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(sourceText)));
-        Builder.Build(
+        _ = Builder.Build(
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast),
             ambientTypeResolver: null,

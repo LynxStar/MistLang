@@ -125,55 +125,55 @@ public sealed partial class ConstructorDefaultCoexistencePropertyTests
         var sb = new StringBuilder();
         var kind = scenario.IsStruct ? "struct" : "class";
 
-        sb.AppendLine($"public {kind} {scenario.TypeName}");
-        sb.AppendLine("{");
+        _ = sb.AppendLine($"public {kind} {scenario.TypeName}");
+        _ = sb.AppendLine("{");
 
         // Field declarations
         foreach(var (fieldName, fieldType, _) in scenario.Fields)
         {
-            sb.AppendLine($"    public {fieldType} {fieldName};");
+            _ = sb.AppendLine($"    public {fieldType} {fieldName};");
         }
 
-        sb.AppendLine();
+        _ = sb.AppendLine();
 
         // Constructor — takes the first N fields as params and assigns them
         var ctorParams = scenario.Fields
             .Take(scenario.ConstructorParamCount)
             .Select(f => $"{f.FieldType} {f.FieldName}Param");
-        sb.AppendLine($"    public {scenario.TypeName}({string.Join(", ", ctorParams)})");
-        sb.AppendLine("    {");
+        _ = sb.AppendLine($"    public {scenario.TypeName}({string.Join(", ", ctorParams)})");
+        _ = sb.AppendLine("    {");
         foreach(var (fieldName, _, _) in scenario.Fields.Take(scenario.ConstructorParamCount))
         {
-            sb.AppendLine($"        this.{fieldName} = {fieldName}Param;");
+            _ = sb.AppendLine($"        this.{fieldName} = {fieldName}Param;");
         }
         // Assign remaining fields with their default values
         foreach(var (fieldName, _, defaultValue) in scenario.Fields.Skip(scenario.ConstructorParamCount))
         {
-            sb.AppendLine($"        this.{fieldName} = {defaultValue};");
+            _ = sb.AppendLine($"        this.{fieldName} = {defaultValue};");
         }
-        sb.AppendLine("    }");
+        _ = sb.AppendLine("    }");
 
-        sb.AppendLine();
+        _ = sb.AppendLine();
 
         // Default block
-        sb.AppendLine("    default");
-        sb.AppendLine("    {");
+        _ = sb.AppendLine("    default");
+        _ = sb.AppendLine("    {");
         foreach(var (fieldName, _, defaultValue) in scenario.Fields)
         {
-            sb.AppendLine($"        {fieldName} = {defaultValue}");
+            _ = sb.AppendLine($"        {fieldName} = {defaultValue}");
         }
-        sb.AppendLine("    }");
+        _ = sb.AppendLine("    }");
 
-        sb.AppendLine("}");
+        _ = sb.AppendLine("}");
 
         // Program class with Main entry point
-        sb.AppendLine();
-        sb.AppendLine("class Program");
-        sb.AppendLine("{");
-        sb.AppendLine("    public static void Main()");
-        sb.AppendLine("    {");
-        sb.AppendLine("    }");
-        sb.AppendLine("}");
+        _ = sb.AppendLine();
+        _ = sb.AppendLine("class Program");
+        _ = sb.AppendLine("{");
+        _ = sb.AppendLine("    public static void Main()");
+        _ = sb.AppendLine("    {");
+        _ = sb.AppendLine("    }");
+        _ = sb.AppendLine("}");
 
         return sb.ToString();
     }
@@ -239,7 +239,7 @@ public sealed partial class ConstructorDefaultCoexistencePropertyTests
         var sb = new StringBuilder();
         foreach(var (_, content) in files)
         {
-            sb.AppendLine(content);
+            _ = sb.AppendLine(content);
         }
 
         return (true, sb.ToString(), "");

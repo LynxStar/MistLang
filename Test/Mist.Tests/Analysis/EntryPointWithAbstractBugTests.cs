@@ -28,7 +28,7 @@ public sealed class EntryPointWithAbstractBugTests : IDisposable
     public EntryPointWithAbstractBugTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistEntryPointBug_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

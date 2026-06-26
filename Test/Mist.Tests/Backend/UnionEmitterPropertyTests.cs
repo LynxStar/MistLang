@@ -44,7 +44,7 @@ public sealed class UnionEmitterPropertyTests : IDisposable
     public UnionEmitterPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "mist_union_emitter_prop_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -130,7 +130,7 @@ public sealed class UnionEmitterPropertyTests : IDisposable
     private (bool Succeeded, string? UnionHelpersContent, string DiagnosticText) CompileAndGetHelpers(UnionScenario scenario)
     {
         var iterDir = Path.Combine(outputDir, Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(iterDir);
+        _ = Directory.CreateDirectory(iterDir);
 
         try
         {

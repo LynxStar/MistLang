@@ -125,7 +125,7 @@ public static class ReachabilityPass
         var result = new HashSet<string>();
         foreach(var prefix in prefixes)
         {
-            result.Add(string.Join(" ", prefix));
+            _ = result.Add(string.Join(" ", prefix));
         }
         return result;
     }
@@ -167,7 +167,7 @@ public static class ReachabilityPass
                     if(resolved is StormRuleDecl ruleDecl && visited.Add(refExpr.Name))
                     {
                         var result = ComputePrefixes(ruleDecl.Body, grammar, k, visited);
-                        visited.Remove(refExpr.Name);
+                        _ = visited.Remove(refExpr.Name);
                         return result;
                     }
                     return new List<List<string>> { new List<string>() };
@@ -188,7 +188,7 @@ public static class ReachabilityPass
                     if(qualResolved is StormRuleDecl qualRuleDecl && visited.Add(qualName))
                     {
                         var result = ComputePrefixes(qualRuleDecl.Body, grammar, k, visited);
-                        visited.Remove(qualName);
+                        _ = visited.Remove(qualName);
                         return result;
                     }
                     return new List<List<string>> { new List<string>() };

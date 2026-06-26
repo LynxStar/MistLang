@@ -13,7 +13,7 @@ public sealed class ProjectFileParserTests
     private static string CreateTempProjectDir()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"mist_unit_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(dir);
+        _ = Directory.CreateDirectory(dir);
         return dir;
     }
 
@@ -36,7 +36,7 @@ public sealed class ProjectFileParserTests
 
             Assert.Null(result);
             var diags = diagnostics.ToImmutableArray();
-            Assert.Single(diags);
+            _ = Assert.Single(diags);
             Assert.Equal("MIST_PROJECT_FILE_NOT_FOUND", diags[0].Id.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
@@ -59,7 +59,7 @@ public sealed class ProjectFileParserTests
 
             Assert.Null(result);
             var diags = diagnostics.ToImmutableArray();
-            Assert.Single(diags);
+            _ = Assert.Single(diags);
             Assert.Equal("MIST_PROJECT_MISSING_NAME", diags[0].Id.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
@@ -82,7 +82,7 @@ public sealed class ProjectFileParserTests
 
             Assert.Null(result);
             var diags = diagnostics.ToImmutableArray();
-            Assert.Single(diags);
+            _ = Assert.Single(diags);
             Assert.Equal("MIST_PROJECT_TOML_ERROR", diags[0].Id.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
@@ -128,7 +128,7 @@ public sealed class ProjectFileParserTests
 
             Assert.Null(result);
             var diags = diagnostics.ToImmutableArray();
-            Assert.Single(diags);
+            _ = Assert.Single(diags);
             Assert.Equal("MIST_PROJECT_NAME_TOO_LONG", diags[0].Id.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
@@ -158,7 +158,7 @@ public sealed class ProjectFileParserTests
 
             Assert.Null(result);
             var diags = diagnostics.ToImmutableArray();
-            Assert.Single(diags);
+            _ = Assert.Single(diags);
             Assert.Equal("MIST_PROJECT_REFERENCE_MISSING_PATH", diags[0].Id.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains("mist.toml", diags[0].Message);
@@ -187,7 +187,7 @@ public sealed class ProjectFileParserTests
 
             Assert.Null(result);
             var diags = diagnostics.ToImmutableArray();
-            Assert.Single(diags);
+            _ = Assert.Single(diags);
             Assert.Equal("MIST_PROJECT_REFERENCE_EMPTY_PATH", diags[0].Id.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains("mist.toml", diags[0].Message);
@@ -241,7 +241,7 @@ public sealed class ProjectFileParserTests
 
             Assert.NotNull(result);
             Assert.False(diagnostics.HasErrors);
-            Assert.Single(result.References);
+            _ = Assert.Single(result.References);
 
             var expected = Path.GetFullPath(Path.Combine(projectDir, "libs", "SharedLib", "mist.toml"));
             Assert.Equal(expected, result.References[0].Path);
@@ -270,7 +270,7 @@ public sealed class ProjectFileParserTests
 
             Assert.NotNull(result);
             Assert.False(diagnostics.HasErrors);
-            Assert.Single(result.References);
+            _ = Assert.Single(result.References);
 
             var expected = Path.GetFullPath(
                 Path.Combine(projectDir, "libs", "SharedLib", "mist.toml"));
@@ -305,7 +305,7 @@ public sealed class ProjectFileParserTests
 
             Assert.NotNull(result);
             Assert.False(diagnostics.HasErrors);
-            Assert.Single(result.References);
+            _ = Assert.Single(result.References);
 
             var expected = Path.GetFullPath(absolutePath);
             Assert.Equal(expected, result.References[0].Path);
@@ -335,7 +335,7 @@ public sealed class ProjectFileParserTests
 
             Assert.NotNull(result);
             Assert.False(diagnostics.HasErrors);
-            Assert.Single(result.References);
+            _ = Assert.Single(result.References);
 
             // The path should be canonicalized: ".." and "sub/.." resolved
             var expected = Path.GetFullPath(

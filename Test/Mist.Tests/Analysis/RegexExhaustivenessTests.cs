@@ -216,7 +216,7 @@ public class RegexExhaustivenessTests
         var diagnostics = CompileAndGetDiagnostics(source);
         var exhaustivenessDiags = WithId(diagnostics, "MIST_TC_0090");
 
-        Assert.Single(exhaustivenessDiags);
+        _ = Assert.Single(exhaustivenessDiags);
         Assert.Contains("not exhaustive", exhaustivenessDiags[0].Message);
     }
 

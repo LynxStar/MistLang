@@ -38,7 +38,7 @@ public sealed class UnionTypeEmissionTests : IDisposable
     public UnionTypeEmissionTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "mist_union_emission_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -130,7 +130,7 @@ public sealed class UnionTypeEmissionTests : IDisposable
     private (int ExitCode, string Stdout, string Stderr) CompileAndRun(string mistSource)
     {
         var iterDir = Path.Combine(outputDir, Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(iterDir);
+        _ = Directory.CreateDirectory(iterDir);
 
         try
         {
@@ -195,7 +195,7 @@ public sealed class UnionTypeEmissionTests : IDisposable
     private string CompileAndGetEmittedCSharp(string mistSource)
     {
         var iterDir = Path.Combine(outputDir, Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(iterDir);
+        _ = Directory.CreateDirectory(iterDir);
 
         try
         {
@@ -213,7 +213,7 @@ public sealed class UnionTypeEmissionTests : IDisposable
                 NamespaceRoot: "TestProgram",
                 EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
-            SharedDriver.Compile(options);
+            _ = SharedDriver.Compile(options);
 
             // Read the emitted .cs file
             var csFile = Directory.GetFiles(iterDir, "Program.cs").FirstOrDefault();

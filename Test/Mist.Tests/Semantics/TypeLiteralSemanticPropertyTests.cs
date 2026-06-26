@@ -654,7 +654,7 @@ public class TypeLiteralSemanticPropertyTests
             .Where(d => d.Id.Value == "MIST_UNDEFINED_TYPE" && d.Message.Contains("NonExistentType"))
             .ToList();
 
-        Assert.Single(undefinedTypeDiags);
+        _ = Assert.Single(undefinedTypeDiags);
     }
 
     /// <summary>
@@ -672,7 +672,7 @@ public class TypeLiteralSemanticPropertyTests
 
         var compilation = MakeCompilation(source);
         var diagnostics = new DiagnosticBag();
-        builder.Build(compilation, ImmutableArray.Create<Storm.Runtime.SyntaxNode>(root), ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
+        _ = builder.Build(compilation, ImmutableArray.Create<Storm.Runtime.SyntaxNode>(root), ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
 
         Assert.DoesNotContain(diagnostics.ToImmutableArray(),
             d => d.Id.Value == "MIST_UNDEFINED_TYPE");

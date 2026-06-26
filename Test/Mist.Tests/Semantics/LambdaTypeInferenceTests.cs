@@ -346,7 +346,7 @@ public sealed class LambdaTypeInferenceTests
         var taskType = Assert.IsType<ConstructedType>(returnType);
         var taskDef = Assert.IsType<ClassType>(taskType.GenericDefinition);
         Assert.Equal("Task", taskDef.DisplayName);
-        Assert.Single(taskType.TypeArguments);
+        _ = Assert.Single(taskType.TypeArguments);
         Assert.True(
             MatchesTypeName(taskType.TypeArguments[0].DisplayName, "int"),
             $"Expected Task inner type 'int', got '{taskType.TypeArguments[0].DisplayName}'");

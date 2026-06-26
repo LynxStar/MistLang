@@ -124,7 +124,7 @@ internal class Program
     {
         var lexer = new MistLexer();
         var lexOutDir = Path.Combine(outputDirectory, "lexer");
-        Directory.CreateDirectory(lexOutDir);
+        _ = Directory.CreateDirectory(lexOutDir);
 
         var hasErrors = false;
 
@@ -167,12 +167,12 @@ internal class Program
 
                 if(token.Channel == Storm.Runtime.TokenChannel.Hidden)
                 {
-                    sb.Append(token.Lexeme);
+                    _ = sb.Append(token.Lexeme);
                 }
                 else
                 {
                     var kindName = ((Mist.Generated.TokenKind)token.Kind).ToString();
-                    sb.Append($"[{kindName}: {token.Lexeme}]");
+                    _ = sb.Append($"[{kindName}: {token.Lexeme}]");
                 }
             }
 

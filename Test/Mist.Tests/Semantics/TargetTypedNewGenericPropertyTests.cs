@@ -103,7 +103,7 @@ public sealed class TargetTypedNewGenericPropertyTests : IDisposable
     public TargetTypedNewGenericPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistTargetNewGenericPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

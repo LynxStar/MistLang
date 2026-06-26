@@ -212,7 +212,7 @@ public sealed class ThisTierInferenceSoundnessPropertyTests
 
         var actual = AnalyzeAndGetTier(source);
 
-        Assert.NotNull(actual);
+        _ = Assert.NotNull(actual);
         Assert.Equal(expected, actual!.Value);
     }
 
@@ -249,7 +249,7 @@ public sealed class ThisTierInferenceSoundnessPropertyTests
 
         var actual = AnalyzeAndGetTier(source);
 
-        Assert.NotNull(actual);
+        _ = Assert.NotNull(actual);
         Assert.Equal(expected, actual!.Value);
     }
 
@@ -288,7 +288,7 @@ public sealed class ThisTierInferenceSoundnessPropertyTests
 
         var actual = AnalyzeAndGetTier(source);
 
-        Assert.NotNull(actual);
+        _ = Assert.NotNull(actual);
         Assert.Equal(expected, actual!.Value);
     }
 

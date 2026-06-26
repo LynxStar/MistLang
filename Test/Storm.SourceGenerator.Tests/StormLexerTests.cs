@@ -42,7 +42,7 @@ namespace Storm.SourceGenerator.Tests
         public void Tokenize_Keywords(string keyword, StormTokenKind expectedKind)
         {
             var tokens = ContentTokens(keyword);
-            Assert.Single(tokens);
+            _ = Assert.Single(tokens);
             Assert.Equal(expectedKind, tokens[0].Kind);
             Assert.Equal(keyword, tokens[0].Lexeme);
         }
@@ -59,7 +59,7 @@ namespace Storm.SourceGenerator.Tests
         public void Tokenize_Identifiers(string ident)
         {
             var tokens = ContentTokens(ident);
-            Assert.Single(tokens);
+            _ = Assert.Single(tokens);
             Assert.Equal(StormTokenKind.Identifier, tokens[0].Kind);
             Assert.Equal(ident, tokens[0].Lexeme);
         }
@@ -69,7 +69,7 @@ namespace Storm.SourceGenerator.Tests
         {
             // "rules" is not the keyword "rule"
             var tokens = ContentTokens("rules");
-            Assert.Single(tokens);
+            _ = Assert.Single(tokens);
             Assert.Equal(StormTokenKind.Identifier, tokens[0].Kind);
             Assert.Equal("rules", tokens[0].Lexeme);
         }
@@ -82,7 +82,7 @@ namespace Storm.SourceGenerator.Tests
         public void Tokenize_StringLiteral_Simple()
         {
             var tokens = ContentTokens("\"hello\"");
-            Assert.Single(tokens);
+            _ = Assert.Single(tokens);
             Assert.Equal(StormTokenKind.StringLiteral, tokens[0].Kind);
             Assert.Equal("\"hello\"", tokens[0].Lexeme);
         }
@@ -91,7 +91,7 @@ namespace Storm.SourceGenerator.Tests
         public void Tokenize_StringLiteral_WithEscape()
         {
             var tokens = ContentTokens("\"he\\\"llo\"");
-            Assert.Single(tokens);
+            _ = Assert.Single(tokens);
             Assert.Equal(StormTokenKind.StringLiteral, tokens[0].Kind);
             Assert.Equal("\"he\\\"llo\"", tokens[0].Lexeme);
         }
@@ -101,7 +101,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var tokens = Tokenize("\"hello", out var diags);
             Assert.Contains(tokens, t => t.Kind == StormTokenKind.StringLiteral);
-            Assert.Single(diags);
+            _ = Assert.Single(diags);
             Assert.Contains("Unterminated string literal", diags[0].Message);
         }
 
@@ -113,7 +113,7 @@ namespace Storm.SourceGenerator.Tests
         public void Tokenize_CharClass_Simple()
         {
             var tokens = ContentTokens("[a-z]");
-            Assert.Single(tokens);
+            _ = Assert.Single(tokens);
             Assert.Equal(StormTokenKind.CharClass, tokens[0].Kind);
             Assert.Equal("[a-z]", tokens[0].Lexeme);
         }
@@ -122,7 +122,7 @@ namespace Storm.SourceGenerator.Tests
         public void Tokenize_CharClass_Negated()
         {
             var tokens = ContentTokens("[^\"\\\\]");
-            Assert.Single(tokens);
+            _ = Assert.Single(tokens);
             Assert.Equal(StormTokenKind.CharClass, tokens[0].Kind);
         }
 
@@ -131,7 +131,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var tokens = Tokenize("[abc", out var diags);
             Assert.Contains(tokens, t => t.Kind == StormTokenKind.CharClass);
-            Assert.Single(diags);
+            _ = Assert.Single(diags);
             Assert.Contains("Unterminated character class", diags[0].Message);
         }
 
@@ -153,7 +153,7 @@ namespace Storm.SourceGenerator.Tests
         public void Tokenize_Operators(string op, StormTokenKind expectedKind)
         {
             var tokens = ContentTokens(op);
-            Assert.Single(tokens);
+            _ = Assert.Single(tokens);
             Assert.Equal(expectedKind, tokens[0].Kind);
             Assert.Equal(op, tokens[0].Lexeme);
         }
@@ -173,7 +173,7 @@ namespace Storm.SourceGenerator.Tests
         public void Tokenize_LineComment_BeforeToken()
         {
             var tokens = ContentTokens("// comment\nrule");
-            Assert.Single(tokens);
+            _ = Assert.Single(tokens);
             Assert.Equal(StormTokenKind.RuleKeyword, tokens[0].Kind);
         }
 
@@ -181,7 +181,7 @@ namespace Storm.SourceGenerator.Tests
         public void Tokenize_LineComment_AfterToken()
         {
             var tokens = ContentTokens("rule // comment");
-            Assert.Single(tokens);
+            _ = Assert.Single(tokens);
             Assert.Equal(StormTokenKind.RuleKeyword, tokens[0].Kind);
         }
 
@@ -206,7 +206,7 @@ namespace Storm.SourceGenerator.Tests
         public void Tokenize_EmptyInput_ProducesEOF()
         {
             var tokens = Tokenize("");
-            Assert.Single(tokens);
+            _ = Assert.Single(tokens);
             Assert.Equal(StormTokenKind.EndOfFile, tokens[0].Kind);
         }
 
@@ -225,7 +225,7 @@ namespace Storm.SourceGenerator.Tests
         public void Tokenize_Annotation_Memo()
         {
             var tokens = ContentTokens("@memo");
-            Assert.Single(tokens);
+            _ = Assert.Single(tokens);
             Assert.Equal(StormTokenKind.Annotation, tokens[0].Kind);
             Assert.Equal("@memo", tokens[0].Lexeme);
         }
@@ -234,7 +234,7 @@ namespace Storm.SourceGenerator.Tests
         public void Tokenize_Annotation_Unknown()
         {
             var tokens = ContentTokens("@unknown");
-            Assert.Single(tokens);
+            _ = Assert.Single(tokens);
             Assert.Equal(StormTokenKind.Annotation, tokens[0].Kind);
             Assert.Equal("@unknown", tokens[0].Lexeme);
         }
@@ -244,7 +244,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var tokens = Tokenize("@", out var diags);
             Assert.Contains(tokens, t => t.Kind == StormTokenKind.Error);
-            Assert.Single(diags);
+            _ = Assert.Single(diags);
             Assert.Contains("Unrecognized character", diags[0].Message);
         }
 
@@ -285,7 +285,7 @@ namespace Storm.SourceGenerator.Tests
             // Non-@ unrecognized characters (@ is now handled by annotation logic)
             var tokens = Tokenize("#", out var diags);
             Assert.Contains(tokens, t => t.Kind == StormTokenKind.Error);
-            Assert.Single(diags);
+            _ = Assert.Single(diags);
             Assert.Contains("Unrecognized character", diags[0].Message);
         }
 
@@ -314,7 +314,7 @@ namespace Storm.SourceGenerator.Tests
         public void Tokenize_RegexLiteral_Simple()
         {
             var tokens = ContentTokens("`abc`");
-            Assert.Single(tokens);
+            _ = Assert.Single(tokens);
             Assert.Equal(StormTokenKind.RegexLiteral, tokens[0].Kind);
             Assert.Equal("`abc`", tokens[0].Lexeme);
         }
@@ -323,7 +323,7 @@ namespace Storm.SourceGenerator.Tests
         public void Tokenize_RegexLiteral_EscapedBacktick()
         {
             var tokens = ContentTokens(@"`a\`b`");
-            Assert.Single(tokens);
+            _ = Assert.Single(tokens);
             Assert.Equal(StormTokenKind.RegexLiteral, tokens[0].Kind);
             Assert.Equal(@"`a\`b`", tokens[0].Lexeme);
         }
@@ -333,7 +333,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var tokens = Tokenize("`abc", out var diags);
             Assert.Contains(tokens, t => t.Kind == StormTokenKind.RegexLiteral);
-            Assert.Single(diags);
+            _ = Assert.Single(diags);
             Assert.Contains("Unterminated regex literal", diags[0].Message);
         }
 
@@ -341,7 +341,7 @@ namespace Storm.SourceGenerator.Tests
         public void Tokenize_RegexLiteral_Empty()
         {
             var tokens = ContentTokens("``");
-            Assert.Single(tokens);
+            _ = Assert.Single(tokens);
             Assert.Equal(StormTokenKind.RegexLiteral, tokens[0].Kind);
             Assert.Equal("``", tokens[0].Lexeme);
         }

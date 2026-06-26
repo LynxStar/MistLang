@@ -245,7 +245,7 @@ internal static class NeedsAsyncPropagationPass
             var targetSymbol = model.GetDeclaredSymbol(postfix.Target);
             if(targetSymbol is Symbol { Kind: SymbolKind.Method } calleeSym)
             {
-                callees.Add(calleeSym);
+                _ = callees.Add(calleeSym);
 
                 // Seed rule 2: sync method directly invoking an async method
                 // triggers auto-unwrap, which requires await in emitted C#.
@@ -277,7 +277,7 @@ internal static class NeedsAsyncPropagationPass
 
                 if(calleeSym is not null)
                 {
-                    callees.Add(calleeSym);
+                    _ = callees.Add(calleeSym);
 
                     // Seed rule 2: sync method calling an async method.
                     if(!enclosingMethod.IsAsync && calleeSym.IsAsync)

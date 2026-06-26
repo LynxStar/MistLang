@@ -145,7 +145,7 @@ public sealed class AmbientExtensionScannerTests : IDisposable
 
         Assert.True(whereMethod.IsGenericMethod);
         // Where<TSource> has 1 type parameter: TSource
-        Assert.Single(whereMethod.MethodTypeParameters);
+        _ = Assert.Single(whereMethod.MethodTypeParameters);
         Assert.Equal("TSource", whereMethod.MethodTypeParameters[0].Name);
     }
 

@@ -221,7 +221,7 @@ internal static class ExhaustivenessChecker
                     var typeName = ExtractTypeDisplayName(typePattern.Type);
                     if(typeName is not null)
                     {
-                        coveredDisplayNames.Add(typeName);
+                        _ = coveredDisplayNames.Add(typeName);
                     }
 
                     break;
@@ -230,7 +230,7 @@ internal static class ExhaustivenessChecker
                     var bareTypeName = ExtractTypeDisplayName(bareTypePattern.Type);
                     if(bareTypeName is not null)
                     {
-                        coveredDisplayNames.Add(bareTypeName);
+                        _ = coveredDisplayNames.Add(bareTypeName);
                     }
 
                     break;

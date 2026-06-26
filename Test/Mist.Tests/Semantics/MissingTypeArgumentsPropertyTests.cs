@@ -327,7 +327,7 @@ public class MissingTypeArgumentsPropertyTests
             .Where(d => d.Id == DiagnosticId.MissingTypeArguments)
             .ToList();
 
-        Assert.Single(missingArgsDiags);
+        _ = Assert.Single(missingArgsDiags);
         Assert.Contains("Base", missingArgsDiags[0].Message);
     }
 
@@ -362,7 +362,7 @@ public class MissingTypeArgumentsPropertyTests
             .Where(d => d.Id == DiagnosticId.MissingTypeArguments)
             .ToList();
 
-        Assert.Single(missingArgsDiags);
+        _ = Assert.Single(missingArgsDiags);
         Assert.Contains("IContainer", missingArgsDiags[0].Message);
     }
 
@@ -395,7 +395,7 @@ public class MissingTypeArgumentsPropertyTests
             .Where(d => d.Id == DiagnosticId.MissingTypeArguments)
             .ToList();
 
-        Assert.Single(missingArgsDiags);
+        _ = Assert.Single(missingArgsDiags);
         Assert.Contains("IContainer", missingArgsDiags[0].Message);
     }
 
@@ -430,7 +430,7 @@ public class MissingTypeArgumentsPropertyTests
             .Where(d => d.Id == DiagnosticId.MissingTypeArguments)
             .ToList();
 
-        Assert.Single(missingArgsDiags);
+        _ = Assert.Single(missingArgsDiags);
         Assert.Contains("Map", missingArgsDiags[0].Message);
     }
 
@@ -479,7 +479,7 @@ public class MissingTypeArgumentsPropertyTests
             .Where(d => d.Id == DiagnosticId.MissingTypeArguments)
             .ToList();
 
-        Assert.Single(missingArgsDiags);
+        _ = Assert.Single(missingArgsDiags);
         Assert.Contains("FixedBuffer", missingArgsDiags[0].Message);
     }
 
@@ -527,7 +527,7 @@ public class MissingTypeArgumentsPropertyTests
             .Where(d => d.Id == DiagnosticId.MissingTypeArguments)
             .ToList();
 
-        Assert.Single(missingArgsDiags);
+        _ = Assert.Single(missingArgsDiags);
         Assert.Contains("TypedBuffer", missingArgsDiags[0].Message);
     }
 }

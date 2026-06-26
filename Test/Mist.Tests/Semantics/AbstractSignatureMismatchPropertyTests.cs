@@ -650,7 +650,7 @@ public class AbstractSignatureMismatchPropertyTests
         var mismatchDiags = diagnostics
             .Where(d => d.Id.Value == "MIST_SM_0022")
             .ToList();
-        Assert.Single(mismatchDiags);
+        _ = Assert.Single(mismatchDiags);
         Assert.Contains("Worker", mismatchDiags[0].Message);
         Assert.Contains("DoWork", mismatchDiags[0].Message);
         Assert.Contains("IWorker", mismatchDiags[0].Message);
@@ -673,7 +673,7 @@ public class AbstractSignatureMismatchPropertyTests
         var mismatchDiags = diagnostics
             .Where(d => d.Id.Value == "MIST_SM_0022")
             .ToList();
-        Assert.Single(mismatchDiags);
+        _ = Assert.Single(mismatchDiags);
         Assert.Contains("Calculator", mismatchDiags[0].Message);
         Assert.Contains("Calculate", mismatchDiags[0].Message);
     }
@@ -697,7 +697,7 @@ public class AbstractSignatureMismatchPropertyTests
         var mismatchDiags = diagnostics
             .Where(d => d.Id.Value == "MIST_SM_0022")
             .ToList();
-        Assert.Single(mismatchDiags);
+        _ = Assert.Single(mismatchDiags);
         Assert.Contains("Processor", mismatchDiags[0].Message);
         Assert.Contains("Process", mismatchDiags[0].Message);
     }
@@ -720,7 +720,7 @@ public class AbstractSignatureMismatchPropertyTests
         var mismatchDiags = diagnostics
             .Where(d => d.Id.Value == "MIST_SM_0022")
             .ToList();
-        Assert.Single(mismatchDiags);
+        _ = Assert.Single(mismatchDiags);
         Assert.Contains("Runner", mismatchDiags[0].Message);
         Assert.Contains("Run", mismatchDiags[0].Message);
     }
@@ -742,7 +742,7 @@ public class AbstractSignatureMismatchPropertyTests
         var mismatchDiags = diagnostics
             .Where(d => d.Id.Value == "MIST_SM_0022")
             .ToList();
-        Assert.Single(mismatchDiags);
+        _ = Assert.Single(mismatchDiags);
         Assert.Contains("ValueHolder", mismatchDiags[0].Message);
         Assert.Contains("GetValue", mismatchDiags[0].Message);
     }

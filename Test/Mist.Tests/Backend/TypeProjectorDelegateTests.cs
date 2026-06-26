@@ -96,7 +96,7 @@ public sealed class TypeProjectorDelegateTests
     {
         var projected = projector.ProjectMemberType(typeof(Func<int, string>), stdlib);
 
-        Assert.IsType<ConstructedType>(projected);
+        _ = Assert.IsType<ConstructedType>(projected);
         Assert.IsNotType<DelegateType>(projected);
 
         var ct = (ConstructedType)projected;
@@ -114,7 +114,7 @@ public sealed class TypeProjectorDelegateTests
     {
         var projected = projector.ProjectMemberType(typeof(Action), stdlib);
 
-        Assert.IsType<ConstructedType>(projected);
+        _ = Assert.IsType<ConstructedType>(projected);
         Assert.IsNotType<DelegateType>(projected);
 
         var ct = (ConstructedType)projected;
@@ -128,7 +128,7 @@ public sealed class TypeProjectorDelegateTests
     {
         var projected = projector.ProjectMemberType(typeof(Action<int>), stdlib);
 
-        Assert.IsType<ConstructedType>(projected);
+        _ = Assert.IsType<ConstructedType>(projected);
         Assert.IsNotType<DelegateType>(projected);
 
         var ct = (ConstructedType)projected;
@@ -166,7 +166,7 @@ public sealed class TypeProjectorDelegateTests
     {
         var projected = projector.ProjectMemberType(typeof(Predicate<int>), stdlib);
 
-        Assert.IsType<DelegateType>(projected);
+        _ = Assert.IsType<DelegateType>(projected);
     }
 
     [Fact]
@@ -226,7 +226,7 @@ public sealed class TypeProjectorDelegateTests
         var dt = Assert.IsType<DelegateType>(projected);
 
         // Predicate<int> is a constructed generic delegate — TypeArguments should be [Int32]
-        Assert.Single(dt.TypeArguments);
+        _ = Assert.Single(dt.TypeArguments);
         Assert.Equal("Int32", dt.TypeArguments[0].DisplayName);
 
         // TypeParameters should be empty for a constructed generic
@@ -249,7 +249,7 @@ public sealed class TypeProjectorDelegateTests
         var dt = Assert.IsType<DelegateType>(projected);
 
         // Open generic → has type parameters
-        Assert.Single(dt.TypeParameters);
+        _ = Assert.Single(dt.TypeParameters);
         var tp = Assert.IsType<TypeParameterType>(dt.TypeParameters[0]);
         Assert.Equal("T", tp.Name);
 

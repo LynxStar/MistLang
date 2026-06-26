@@ -115,7 +115,7 @@ public static class PackageResolver
 
         try
         {
-            Directory.CreateDirectory(tempDir);
+            _ = Directory.CreateDirectory(tempDir);
 
             var csprojPath = GenerateCsproj(tempDir, validPackages.ToImmutable(), frameworkReferences, targetFramework);
             var (restoreExitCode, restoreStdout, restoreStderr) = RunDotnetRestore(csprojPath, tempDir);
@@ -191,31 +191,31 @@ public static class PackageResolver
         string targetFramework)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("<Project Sdk=\"Microsoft.NET.Sdk\">");
-        sb.AppendLine("  <PropertyGroup>");
-        sb.AppendLine($"    <TargetFramework>{targetFramework}</TargetFramework>");
+        _ = sb.AppendLine("<Project Sdk=\"Microsoft.NET.Sdk\">");
+        _ = sb.AppendLine("  <PropertyGroup>");
+        _ = sb.AppendLine($"    <TargetFramework>{targetFramework}</TargetFramework>");
         // Suppress all warnings and informational output from the restore
-        sb.AppendLine("    <NoWarn>$(NoWarn);NU1701;NU1603</NoWarn>");
-        sb.AppendLine("  </PropertyGroup>");
+        _ = sb.AppendLine("    <NoWarn>$(NoWarn);NU1701;NU1603</NoWarn>");
+        _ = sb.AppendLine("  </PropertyGroup>");
 
-        sb.AppendLine("  <ItemGroup>");
+        _ = sb.AppendLine("  <ItemGroup>");
         foreach(var pkg in packages)
         {
-            sb.AppendLine($"    <PackageReference Include=\"{pkg.Name}\" Version=\"{pkg.Version}\" />");
+            _ = sb.AppendLine($"    <PackageReference Include=\"{pkg.Name}\" Version=\"{pkg.Version}\" />");
         }
-        sb.AppendLine("  </ItemGroup>");
+        _ = sb.AppendLine("  </ItemGroup>");
 
         if(!frameworkReferences.IsDefaultOrEmpty)
         {
-            sb.AppendLine("  <ItemGroup>");
+            _ = sb.AppendLine("  <ItemGroup>");
             foreach(var fw in frameworkReferences)
             {
-                sb.AppendLine($"    <FrameworkReference Include=\"{fw.Name}\" />");
+                _ = sb.AppendLine($"    <FrameworkReference Include=\"{fw.Name}\" />");
             }
-            sb.AppendLine("  </ItemGroup>");
+            _ = sb.AppendLine("  </ItemGroup>");
         }
 
-        sb.AppendLine("</Project>");
+        _ = sb.AppendLine("</Project>");
 
         var csprojPath = Path.Combine(directory, "_MistRestore.csproj");
         File.WriteAllText(csprojPath, sb.ToString());
@@ -250,18 +250,18 @@ public static class PackageResolver
         {
             if(e.Data is not null)
             {
-                stdoutBuilder.AppendLine(e.Data);
+                _ = stdoutBuilder.AppendLine(e.Data);
             }
         };
         process.ErrorDataReceived += (_, e) =>
         {
             if(e.Data is not null)
             {
-                stderrBuilder.AppendLine(e.Data);
+                _ = stderrBuilder.AppendLine(e.Data);
             }
         };
 
-        process.Start();
+        _ = process.Start();
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
 
@@ -295,7 +295,7 @@ public static class PackageResolver
         {
             if(combinedOutput.Contains(pkg.Name, StringComparison.OrdinalIgnoreCase))
             {
-                packageFailures.Add(pkg.Name);
+                _ = packageFailures.Add(pkg.Name);
             }
         }
 
@@ -562,7 +562,7 @@ public static class PackageResolver
                         // Record info for declared (direct) packages
                         if(declaredPackageSet.ContainsKey(packageName))
                         {
-                            resolvedDeclaredPackages.Add(packageName);
+                            _ = resolvedDeclaredPackages.Add(packageName);
                             resolvedInfos.Add(new ResolvedPackageInfo(
                                 packageName,
                                 packageVersion,
@@ -619,7 +619,7 @@ public static class PackageResolver
                 {
                     foreach(var asm in fwAssemblies.EnumerateObject())
                     {
-                        frameworkAssemblies.Add(asm.Name);
+                        _ = frameworkAssemblies.Add(asm.Name);
                     }
                 }
             }
@@ -666,7 +666,7 @@ public static class PackageResolver
                             // The package name itself (not assembly name) is what
                             // we track here — but typically the assembly name matches
                             // the package name for System.* packages.
-                            frameworkAssemblies.Add(libParts[0]);
+                            _ = frameworkAssemblies.Add(libParts[0]);
                         }
                     }
                 }

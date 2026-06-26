@@ -35,7 +35,7 @@ public class TypeProjectorTests
     {
         var (type, _) = projector.ProjectType(typeof(SimpleClass), stdlib);
 
-        Assert.IsType<ClassType>(type);
+        _ = Assert.IsType<ClassType>(type);
         Assert.Equal("SimpleClass", type.DisplayName);
         var classType = (ClassType)type;
         Assert.Equal("Mist.Tests.InteropFixtures", classType.ContainingNamespace);
@@ -46,7 +46,7 @@ public class TypeProjectorTests
     {
         var (type, _) = projector.ProjectType(typeof(SimpleStruct), stdlib);
 
-        Assert.IsType<StructType>(type);
+        _ = Assert.IsType<StructType>(type);
         Assert.Equal("SimpleStruct", type.DisplayName);
         var structType = (StructType)type;
         Assert.Equal("Mist.Tests.InteropFixtures", structType.ContainingNamespace);
@@ -57,7 +57,7 @@ public class TypeProjectorTests
     {
         var (type, _) = projector.ProjectType(typeof(ISimpleInterface), stdlib);
 
-        Assert.IsType<AbstractType>(type);
+        _ = Assert.IsType<AbstractType>(type);
         Assert.Equal("ISimpleInterface", type.DisplayName);
         var abstractType = (AbstractType)type;
         Assert.Equal("Mist.Tests.InteropFixtures", abstractType.ContainingNamespace);
@@ -68,7 +68,7 @@ public class TypeProjectorTests
     {
         var (type, _) = projector.ProjectType(typeof(SimpleEnum), stdlib);
 
-        Assert.IsType<EnumType>(type);
+        _ = Assert.IsType<EnumType>(type);
         Assert.Equal("SimpleEnum", type.DisplayName);
         var enumType = (EnumType)type;
         Assert.Equal("Mist.Tests.InteropFixtures", enumType.ContainingNamespace);
@@ -137,7 +137,7 @@ public class TypeProjectorTests
         var (type, _) = projector.ProjectType(typeof(GenericClass<>), stdlib);
         var classType = Assert.IsType<ClassType>(type);
 
-        Assert.Single(classType.TypeParameters);
+        _ = Assert.Single(classType.TypeParameters);
         var typeParam = Assert.IsType<TypeParameterType>(classType.TypeParameters[0]);
         Assert.Equal("T", typeParam.Name);
         Assert.Equal(0, typeParam.Ordinal);
@@ -158,7 +158,7 @@ public class TypeProjectorTests
         var (type, _) = projector.ProjectType(typeof(MultiConstraint<>), stdlib);
         var classType = Assert.IsType<ClassType>(type);
 
-        Assert.Single(classType.TypeParameters);
+        _ = Assert.Single(classType.TypeParameters);
         var typeParam = Assert.IsType<TypeParameterType>(classType.TypeParameters[0]);
         Assert.Equal("T", typeParam.Name);
     }

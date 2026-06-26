@@ -35,7 +35,7 @@ public class CompletenessSilencePropertyTests
         var tokens = Lexer.Lex(sourceText, lexBag);
 
         var parseBag = new DiagnosticBag();
-        Parser.Parse(tokens, parseBag);
+        _ = Parser.Parse(tokens, parseBag);
 
         return parseBag.ToImmutableArray();
     }

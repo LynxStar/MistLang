@@ -249,7 +249,7 @@ public sealed class MethodFlowState
         }
 
         // Discard borrows from inner scopes (deeper than current scope depth) in the merged result.
-        ActiveBorrows.RemoveAll(b => b.ScopeDepth > ScopeDepth);
+        _ = ActiveBorrows.RemoveAll(b => b.ScopeDepth > ScopeDepth);
 
         // Merge drop states conservatively: a variable consumed (Dropped/Moved/Returned)
         // in either branch is considered consumed at the join, so a use after the join is
@@ -274,7 +274,7 @@ public sealed class MethodFlowState
         // so we just ensure variables from the other branch are included.
         foreach(var (symbol, kind) in other.BindingKinds)
         {
-            BindingKinds.TryAdd(symbol, kind);
+            _ = BindingKinds.TryAdd(symbol, kind);
         }
 
         // Merge per-field states: for each parent, for each field, take the more restrictive state.
@@ -302,7 +302,7 @@ public sealed class MethodFlowState
         // Merge field move locations.
         foreach(var (key, span) in other.FieldMoveLocations)
         {
-            FieldMoveLocations.TryAdd(key, span);
+            _ = FieldMoveLocations.TryAdd(key, span);
         }
     }
 
@@ -438,7 +438,7 @@ public sealed class MethodFlowState
             state == VariableOwnershipState.Moved)
         {
             fields[field] = VariableOwnershipState.Live;
-            FieldMoveLocations.Remove((parent, field));
+            _ = FieldMoveLocations.Remove((parent, field));
         }
     }
 

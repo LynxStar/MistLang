@@ -232,7 +232,7 @@ public class RefFieldStorageProhibitionTests
         var diagnostics = RunTypeChecker(model);
 
         var refErrors = diagnostics.Where(d => d.Id.Value == "MIST_REF_0008").ToList();
-        Assert.Single(refErrors);
+        _ = Assert.Single(refErrors);
         Assert.Contains("Cannot store a ref in a field", refErrors[0].Message);
     }
 
@@ -263,7 +263,7 @@ public class RefFieldStorageProhibitionTests
         var diagnostics = RunTypeChecker(model);
 
         var refErrors = diagnostics.Where(d => d.Id.Value == "MIST_REF_0008").ToList();
-        Assert.Single(refErrors);
+        _ = Assert.Single(refErrors);
     }
 
     // ─── Tests: Non-ref parameter assigned to field (no diagnostic) ──────

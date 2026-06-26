@@ -1538,7 +1538,7 @@ namespace Storm.SourceGenerator.Emit
                 string? elemLabel = null;
                 if(labelMap != null)
                 {
-                    labelMap.TryGetValue(elem, out elemLabel);
+                    _ = labelMap.TryGetValue(elem, out elemLabel);
                 }
 
                 string? kindStr = null;

@@ -99,8 +99,8 @@ public sealed class StackOnlyTypesSampleTests
         // Use a temp directory for output to avoid polluting the sample folder
         var outputDir = Path.Combine(Path.GetTempPath(), "mist_stack_only_types_" + Guid.NewGuid().ToString("N"));
         var binDir = Path.Combine(outputDir, "bin");
-        Directory.CreateDirectory(outputDir);
-        Directory.CreateDirectory(binDir);
+        _ = Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(binDir);
 
         try
         {

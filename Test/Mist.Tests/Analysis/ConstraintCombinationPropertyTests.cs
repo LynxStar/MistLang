@@ -51,7 +51,7 @@ public sealed class ConstraintCombinationPropertyTests
     private static ImmutableArray<Diagnostic> Compile(string source)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "mist_constraint_combo_pbt_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var sourcePath = Path.Combine(tempDir, "Program.mist");

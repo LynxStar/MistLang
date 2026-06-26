@@ -67,7 +67,7 @@ public sealed class FieldTypeRestrictionCorrectnessPropertyTests
     private static ImmutableArray<Diagnostic> CompileAndGetDiagnostics(string source)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "mist_field_restrict_pbt_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var sourcePath = Path.Combine(tempDir, "Program.mist");
@@ -347,7 +347,7 @@ public sealed class FieldTypeRestrictionCorrectnessPropertyTests
         var diagnostics = CompileAndGetDiagnostics(source);
         var violations = FindFieldTypeViolations(diagnostics).ToList();
 
-        Assert.Single(violations);
+        _ = Assert.Single(violations);
         Assert.Equal(DiagnosticSeverity.Error, violations[0].Severity);
         Assert.Contains("item", violations[0].Message, StringComparison.Ordinal);
         Assert.Contains("Gadget", violations[0].Message, StringComparison.Ordinal);
@@ -376,7 +376,7 @@ public sealed class FieldTypeRestrictionCorrectnessPropertyTests
         var diagnostics = CompileAndGetDiagnostics(source);
         var violations = FindFieldTypeViolations(diagnostics).ToList();
 
-        Assert.Single(violations);
+        _ = Assert.Single(violations);
         Assert.Contains("bad", violations[0].Message, StringComparison.Ordinal);
         Assert.Contains("Gadget", violations[0].Message, StringComparison.Ordinal);
     }

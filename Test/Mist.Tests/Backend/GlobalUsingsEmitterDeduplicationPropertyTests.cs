@@ -44,7 +44,7 @@ public sealed class GlobalUsingsEmitterDeduplicationPropertyTests : IDisposable
     public GlobalUsingsEmitterDeduplicationPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistGlobalUsingsDedup_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -172,12 +172,12 @@ public sealed class GlobalUsingsEmitterDeduplicationPropertyTests : IDisposable
         var allExplicitNamespaces = explicitUsings.AddRange(overlappingUsings);
         foreach(var ns in allExplicitNamespaces)
         {
-            sb.AppendLine($"using {ns};");
+            _ = sb.AppendLine($"using {ns};");
         }
 
         if(allExplicitNamespaces.Length > 0)
         {
-            sb.AppendLine();
+            _ = sb.AppendLine();
         }
 
         // Define namespaces so that explicit usings resolve during semantic analysis.
@@ -186,18 +186,18 @@ public sealed class GlobalUsingsEmitterDeduplicationPropertyTests : IDisposable
         {
             // Use a unique class name based on the namespace to avoid conflicts
             var className = "Marker_" + ns.Replace(".", "_");
-            sb.AppendLine($"namespace {ns} {{");
-            sb.AppendLine($"    class {className} {{ }}");
-            sb.AppendLine("}");
-            sb.AppendLine();
+            _ = sb.AppendLine($"namespace {ns} {{");
+            _ = sb.AppendLine($"    class {className} {{ }}");
+            _ = sb.AppendLine("}");
+            _ = sb.AppendLine();
         }
 
         // Simple class with Main so compilation succeeds
-        sb.AppendLine("class Program {");
-        sb.AppendLine("    public static void Main() {");
-        sb.AppendLine("        var x = 42;");
-        sb.AppendLine("    }");
-        sb.AppendLine("}");
+        _ = sb.AppendLine("class Program {");
+        _ = sb.AppendLine("    public static void Main() {");
+        _ = sb.AppendLine("        var x = 42;");
+        _ = sb.AppendLine("    }");
+        _ = sb.AppendLine("}");
 
         return sb.ToString();
     }

@@ -193,7 +193,7 @@ public sealed class MethodTierVisibilityPropertyTests
         var scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist-method-tier-prop-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(scratchDir);
+        _ = Directory.CreateDirectory(scratchDir);
 
         try
         {
@@ -222,7 +222,7 @@ public sealed class MethodTierVisibilityPropertyTests
                 EnabledAnalyzerIds: ImmutableArray<string>.Empty,
                 EmitToDisk: false);
 
-            driver.Compile(options);
+            _ = driver.Compile(options);
 
             return capture.Captured
                 ?? throw new InvalidOperationException("Fixture compilation did not produce a semantic model.");

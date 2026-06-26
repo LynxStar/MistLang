@@ -40,7 +40,7 @@ public sealed class BootstrapIClonableDeclarationTests : IDisposable
         scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist-bootstrap-iclonable-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(scratchDir);
+        _ = Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()
@@ -111,7 +111,7 @@ public sealed class BootstrapIClonableDeclarationTests : IDisposable
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,
             EmitToDisk: false);
 
-        driver.Compile(options);
+        _ = driver.Compile(options);
         return capture.Captured;
     }
 

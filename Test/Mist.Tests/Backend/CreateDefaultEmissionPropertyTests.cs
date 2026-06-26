@@ -84,7 +84,7 @@ public sealed class CreateDefaultEmissionPropertyTests : IDisposable
     public CreateDefaultEmissionPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistCreateDefaultEmissionPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -175,17 +175,17 @@ public sealed class CreateDefaultEmissionPropertyTests : IDisposable
     {
         var kind = isStruct ? "struct" : "class";
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("namespace TestProgram;");
-        sb.AppendLine();
-        sb.AppendLine($"public {kind} {typeName}");
-        sb.AppendLine("{");
+        _ = sb.AppendLine("namespace TestProgram;");
+        _ = sb.AppendLine();
+        _ = sb.AppendLine($"public {kind} {typeName}");
+        _ = sb.AppendLine("{");
         foreach(var (fieldName, fieldType) in fields)
         {
-            sb.AppendLine($"    public {fieldType} {fieldName};");
+            _ = sb.AppendLine($"    public {fieldType} {fieldName};");
         }
-        sb.AppendLine();
-        sb.AppendLine($"    public {typeName}()");
-        sb.AppendLine("    {");
+        _ = sb.AppendLine();
+        _ = sb.AppendLine($"    public {typeName}()");
+        _ = sb.AppendLine("    {");
         foreach(var (fieldName, fieldType) in fields)
         {
             var defaultValue = fieldType switch
@@ -196,17 +196,17 @@ public sealed class CreateDefaultEmissionPropertyTests : IDisposable
                 "string" => "\"\"",
                 _ => "0",
             };
-            sb.AppendLine($"        this.{fieldName} = {defaultValue};");
+            _ = sb.AppendLine($"        this.{fieldName} = {defaultValue};");
         }
-        sb.AppendLine("    }");
-        sb.AppendLine("}");
-        sb.AppendLine();
-        sb.AppendLine("public class Program");
-        sb.AppendLine("{");
-        sb.AppendLine("    public static void Main()");
-        sb.AppendLine("    {");
-        sb.AppendLine("    }");
-        sb.AppendLine("}");
+        _ = sb.AppendLine("    }");
+        _ = sb.AppendLine("}");
+        _ = sb.AppendLine();
+        _ = sb.AppendLine("public class Program");
+        _ = sb.AppendLine("{");
+        _ = sb.AppendLine("    public static void Main()");
+        _ = sb.AppendLine("    {");
+        _ = sb.AppendLine("    }");
+        _ = sb.AppendLine("}");
 
         return sb.ToString();
     }
@@ -216,22 +216,22 @@ public sealed class CreateDefaultEmissionPropertyTests : IDisposable
     {
         var kind = isStruct ? "struct" : "class";
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("namespace TestProgram;");
-        sb.AppendLine();
-        sb.AppendLine($"public {kind} {typeName}");
-        sb.AppendLine("{");
+        _ = sb.AppendLine("namespace TestProgram;");
+        _ = sb.AppendLine();
+        _ = sb.AppendLine($"public {kind} {typeName}");
+        _ = sb.AppendLine("{");
         foreach(var (fieldName, fieldType) in fields)
         {
-            sb.AppendLine($"    public {fieldType} {fieldName};");
+            _ = sb.AppendLine($"    public {fieldType} {fieldName};");
         }
-        sb.AppendLine("}");
-        sb.AppendLine();
-        sb.AppendLine("public class Program");
-        sb.AppendLine("{");
-        sb.AppendLine("    public static void Main()");
-        sb.AppendLine("    {");
-        sb.AppendLine("    }");
-        sb.AppendLine("}");
+        _ = sb.AppendLine("}");
+        _ = sb.AppendLine();
+        _ = sb.AppendLine("public class Program");
+        _ = sb.AppendLine("{");
+        _ = sb.AppendLine("    public static void Main()");
+        _ = sb.AppendLine("    {");
+        _ = sb.AppendLine("    }");
+        _ = sb.AppendLine("}");
 
         return sb.ToString();
     }
@@ -241,17 +241,17 @@ public sealed class CreateDefaultEmissionPropertyTests : IDisposable
     {
         var kind = isStruct ? "struct" : "class";
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("namespace TestProgram;");
-        sb.AppendLine();
-        sb.AppendLine($"public {kind} {typeName}");
-        sb.AppendLine("{");
+        _ = sb.AppendLine("namespace TestProgram;");
+        _ = sb.AppendLine();
+        _ = sb.AppendLine($"public {kind} {typeName}");
+        _ = sb.AppendLine("{");
         foreach(var (fieldName, fieldType) in fields)
         {
-            sb.AppendLine($"    public {fieldType} {fieldName};");
+            _ = sb.AppendLine($"    public {fieldType} {fieldName};");
         }
-        sb.AppendLine();
-        sb.AppendLine("    default");
-        sb.AppendLine("    {");
+        _ = sb.AppendLine();
+        _ = sb.AppendLine("    default");
+        _ = sb.AppendLine("    {");
         foreach(var (fieldName, fieldType) in fields)
         {
             var defaultValue = fieldType switch
@@ -262,17 +262,17 @@ public sealed class CreateDefaultEmissionPropertyTests : IDisposable
                 "string" => "\"\"",
                 _ => "0",
             };
-            sb.AppendLine($"        {fieldName} = {defaultValue}");
+            _ = sb.AppendLine($"        {fieldName} = {defaultValue}");
         }
-        sb.AppendLine("    }");
-        sb.AppendLine("}");
-        sb.AppendLine();
-        sb.AppendLine("public class Program");
-        sb.AppendLine("{");
-        sb.AppendLine("    public static void Main()");
-        sb.AppendLine("    {");
-        sb.AppendLine("    }");
-        sb.AppendLine("}");
+        _ = sb.AppendLine("    }");
+        _ = sb.AppendLine("}");
+        _ = sb.AppendLine();
+        _ = sb.AppendLine("public class Program");
+        _ = sb.AppendLine("{");
+        _ = sb.AppendLine("    public static void Main()");
+        _ = sb.AppendLine("    {");
+        _ = sb.AppendLine("    }");
+        _ = sb.AppendLine("}");
 
         return sb.ToString();
     }

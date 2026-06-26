@@ -28,7 +28,7 @@ public sealed class StdlibResolutionTests : IDisposable
         scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist-stdlib-res-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(scratchDir);
+        _ = Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()

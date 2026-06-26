@@ -184,29 +184,29 @@ public class AssociatedTypeGenericContextPropertyTests
         // If the slot has a constraint abstract type, declare it
         if(scenario.HasSlotConstraint)
         {
-            sb.AppendLine($"abstract {scenario.SlotConstraintAbstractName} {{");
-            sb.AppendLine($"    int {scenario.SlotConstraintMethodName}();");
-            sb.AppendLine("}");
-            sb.AppendLine();
+            _ = sb.AppendLine($"abstract {scenario.SlotConstraintAbstractName} {{");
+            _ = sb.AppendLine($"    int {scenario.SlotConstraintMethodName}();");
+            _ = sb.AppendLine("}");
+            _ = sb.AppendLine();
         }
 
         // Declare the abstract type with the associated type slot
-        sb.AppendLine($"abstract {scenario.AbstractName} {{");
+        _ = sb.AppendLine($"abstract {scenario.AbstractName} {{");
         if(scenario.HasSlotConstraint)
         {
-            sb.AppendLine($"    type {scenario.SlotName} : {scenario.SlotConstraintAbstractName};");
+            _ = sb.AppendLine($"    type {scenario.SlotName} : {scenario.SlotConstraintAbstractName};");
         }
         else
         {
-            sb.AppendLine($"    type {scenario.SlotName};");
+            _ = sb.AppendLine($"    type {scenario.SlotName};");
         }
-        sb.AppendLine("}");
-        sb.AppendLine();
+        _ = sb.AppendLine("}");
+        _ = sb.AppendLine();
 
         // Declare a class with a generic method using T.SlotName
-        sb.AppendLine("class TestClass {");
-        sb.AppendLine(BuildGenericMethod(scenario));
-        sb.AppendLine("}");
+        _ = sb.AppendLine("class TestClass {");
+        _ = sb.AppendLine(BuildGenericMethod(scenario));
+        _ = sb.AppendLine("}");
 
         return sb.ToString();
     }
@@ -332,23 +332,23 @@ public class AssociatedTypeGenericContextPropertyTests
         var slot = $"{tp}.{scenario.SlotName}";
 
         // Declare the constraint abstract type
-        sb.AppendLine($"abstract {scenario.SlotConstraintAbstractName} {{");
-        sb.AppendLine($"    int {scenario.SlotConstraintMethodName}();");
-        sb.AppendLine("}");
-        sb.AppendLine();
+        _ = sb.AppendLine($"abstract {scenario.SlotConstraintAbstractName} {{");
+        _ = sb.AppendLine($"    int {scenario.SlotConstraintMethodName}();");
+        _ = sb.AppendLine("}");
+        _ = sb.AppendLine();
 
         // Declare the abstract type with the constrained associated type slot
-        sb.AppendLine($"abstract {scenario.AbstractName} {{");
-        sb.AppendLine($"    type {scenario.SlotName} : {scenario.SlotConstraintAbstractName};");
-        sb.AppendLine("}");
-        sb.AppendLine();
+        _ = sb.AppendLine($"abstract {scenario.AbstractName} {{");
+        _ = sb.AppendLine($"    type {scenario.SlotName} : {scenario.SlotConstraintAbstractName};");
+        _ = sb.AppendLine("}");
+        _ = sb.AppendLine();
 
         // Declare a class with a generic method that calls the constraint method
-        sb.AppendLine("class TestClass {");
-        sb.AppendLine($"    int {scenario.MethodName}<{tp}>(input: {slot}) where {tp} : {scenario.AbstractName} {{");
-        sb.AppendLine($"        return input.{scenario.SlotConstraintMethodName}();");
-        sb.AppendLine("    }");
-        sb.AppendLine("}");
+        _ = sb.AppendLine("class TestClass {");
+        _ = sb.AppendLine($"    int {scenario.MethodName}<{tp}>(input: {slot}) where {tp} : {scenario.AbstractName} {{");
+        _ = sb.AppendLine($"        return input.{scenario.SlotConstraintMethodName}();");
+        _ = sb.AppendLine("    }");
+        _ = sb.AppendLine("}");
 
         return sb.ToString();
     }

@@ -39,7 +39,7 @@ public sealed class TypeLiteralEmitterPropertyTests : IDisposable
         outputDir = Path.Combine(
             Path.GetTempPath(),
             "MistTypeLiteralEmitterTests_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

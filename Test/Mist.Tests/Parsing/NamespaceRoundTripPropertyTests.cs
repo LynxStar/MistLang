@@ -179,7 +179,7 @@ public class NamespaceRoundTripPropertyTests
         var source = "";
         var result = ParseSource(source);
         Assert.NotNull(result.Root);
-        Assert.IsType<CompilationUnitNode>(result.Root);
+        _ = Assert.IsType<CompilationUnitNode>(result.Root);
 
         var printed = MistPrettyPrinter.Print(result.Root, source);
         // Empty source should produce empty or whitespace-only output
@@ -197,7 +197,7 @@ public class NamespaceRoundTripPropertyTests
         // Parse original source
         var result1 = ParseSource(source);
         Assert.NotNull(result1.Root);
-        Assert.IsType<CompilationUnitNode>(result1.Root);
+        _ = Assert.IsType<CompilationUnitNode>(result1.Root);
         Assert.Empty(result1.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 
         // Pretty-print with source text
@@ -207,7 +207,7 @@ public class NamespaceRoundTripPropertyTests
         // Re-parse
         var result2 = ParseSource(printed1);
         Assert.NotNull(result2.Root);
-        Assert.IsType<CompilationUnitNode>(result2.Root);
+        _ = Assert.IsType<CompilationUnitNode>(result2.Root);
         var errors2 = result2.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
         Assert.Empty(errors2);
 

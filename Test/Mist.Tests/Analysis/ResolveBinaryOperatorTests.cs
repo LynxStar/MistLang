@@ -250,7 +250,7 @@ public class ResolveBinaryOperatorTests
         var errors = diagnostics.ToImmutableArray()
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
-        Assert.Single(errors);
+        _ = Assert.Single(errors);
         Assert.Equal("MIST_TC_0003", errors[0].Id.Value);
 
         // No operator was recorded — resolution failed.

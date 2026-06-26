@@ -54,7 +54,7 @@ public sealed class OrchestratorIntegrationTests
     private static ImmutableArray<Diagnostic> CompileAndGetDiagnostics(string source)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "mist_orch_int_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var sourcePath = Path.Combine(tempDir, "Program.mist");

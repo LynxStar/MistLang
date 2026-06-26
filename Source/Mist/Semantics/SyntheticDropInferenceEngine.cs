@@ -74,7 +74,7 @@ public static class SyntheticDropInferenceEngine
 
             if(HasDrop(type))
             {
-                explicitDrop.Add(type);
+                _ = explicitDrop.Add(type);
             }
         }
 
@@ -84,7 +84,7 @@ public static class SyntheticDropInferenceEngine
         {
             if(!stateMap.ContainsKey(type))
             {
-                Resolve(type, explicitDrop, stateMap);
+                _ = Resolve(type, explicitDrop, stateMap);
             }
         }
     }

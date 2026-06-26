@@ -262,7 +262,7 @@ public class NonGenericTypeArgumentPropertyTests
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var notGenericDiags = diagnostics.Where(d => d.Id == DiagnosticId.NotGeneric).ToList();
-        Assert.Single(notGenericDiags);
+        _ = Assert.Single(notGenericDiags);
         Assert.Contains("Simple", notGenericDiags[0].Message);
     }
 
@@ -294,7 +294,7 @@ public class NonGenericTypeArgumentPropertyTests
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var notGenericDiags = diagnostics.Where(d => d.Id == DiagnosticId.NotGeneric).ToList();
-        Assert.Single(notGenericDiags);
+        _ = Assert.Single(notGenericDiags);
         Assert.Contains("Point", notGenericDiags[0].Message);
     }
 
@@ -326,7 +326,7 @@ public class NonGenericTypeArgumentPropertyTests
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var notGenericDiags = diagnostics.Where(d => d.Id == DiagnosticId.NotGeneric).ToList();
-        Assert.Single(notGenericDiags);
+        _ = Assert.Single(notGenericDiags);
         Assert.Contains("ISimple", notGenericDiags[0].Message);
     }
 
@@ -358,7 +358,7 @@ public class NonGenericTypeArgumentPropertyTests
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var notGenericDiags = diagnostics.Where(d => d.Id == DiagnosticId.NotGeneric).ToList();
-        Assert.Single(notGenericDiags);
+        _ = Assert.Single(notGenericDiags);
         Assert.Contains("Simple", notGenericDiags[0].Message);
     }
 }

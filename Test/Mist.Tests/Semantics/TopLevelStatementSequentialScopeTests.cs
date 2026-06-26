@@ -27,7 +27,7 @@ public sealed class TopLevelStatementSequentialScopeTests : IDisposable
         scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist-tls-seq-scope-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(scratchDir);
+        _ = Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()

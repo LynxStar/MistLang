@@ -155,7 +155,7 @@ public class MultiSymbolScopeLookupPropertyTests
 
         var results = scope.LookupAll("foo");
 
-        Assert.Single(results);
+        _ = Assert.Single(results);
         Assert.Same(symbol, results[0]);
     }
 

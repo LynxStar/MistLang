@@ -28,7 +28,7 @@ public sealed class HasTopLevelStatementsFlagTests : IDisposable
         scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist-tls-flag-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(scratchDir);
+        _ = Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()
@@ -101,7 +101,7 @@ public sealed class HasTopLevelStatementsFlagTests : IDisposable
         var driver = CreateDriverWithCapture(capture);
 
         // Act
-        driver.Compile(options);
+        _ = driver.Compile(options);
 
         // Assert — the semantic model was built and the compilation unit
         // for our user file has HasTopLevelStatements = true.
@@ -135,7 +135,7 @@ public sealed class HasTopLevelStatementsFlagTests : IDisposable
         var driver = CreateDriverWithCapture(capture);
 
         // Act
-        driver.Compile(options);
+        _ = driver.Compile(options);
 
         // Assert — the compilation unit for our user file has
         // HasTopLevelStatements = false.

@@ -66,7 +66,7 @@ public sealed class NestedScopingDiagnosticTests
             ImmutableArray.Create(new CompilationUnit(sourceText)));
         var builder = new SemanticModelBuilder();
         var semBag = new DiagnosticBag();
-        builder.Build(
+        _ = builder.Build(
             compilation,
             ImmutableArray.Create(parseResult.Root),
             ambientTypeResolver: null,
@@ -84,7 +84,7 @@ public sealed class NestedScopingDiagnosticTests
     private static ImmutableArray<Diagnostic> CompileAndCollectDiagnostics(string source)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "mist_diag_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var sourcePath = Path.Combine(tempDir, "Program.mist");
@@ -138,7 +138,7 @@ public sealed class NestedScopingDiagnosticTests
         var diagnostics = BuildAndCollectDiagnostics(source);
         var diags = WithId(diagnostics, "MIST0305");
 
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         Assert.Contains("cannot appear inside", diags[0].Message);
     }
@@ -156,7 +156,7 @@ public sealed class NestedScopingDiagnosticTests
         var diagnostics = BuildAndCollectDiagnostics(source);
         var diags = WithId(diagnostics, "MIST0305");
 
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
     }
 
@@ -179,7 +179,7 @@ public sealed class NestedScopingDiagnosticTests
         var diagnostics = BuildAndCollectDiagnostics(source);
         var diags = WithId(diagnostics, "MIST0302");
 
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         Assert.Contains("cannot be mixed", diags[0].Message);
     }
@@ -218,7 +218,7 @@ public sealed class NestedScopingDiagnosticTests
         var diagnostics = BuildAndCollectDiagnostics(source);
         var diags = WithId(diagnostics, "MIST0305");
 
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         Assert.Contains("cannot appear inside a block namespace", diags[0].Message);
     }
@@ -239,7 +239,7 @@ public sealed class NestedScopingDiagnosticTests
         var diagnostics = BuildAndCollectDiagnostics(source);
         var diags = WithId(diagnostics, "MIST0303");
 
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         Assert.Contains("Inner", diags[0].Message);
         Assert.Contains("Parent", diags[0].Message);
@@ -260,7 +260,7 @@ public sealed class NestedScopingDiagnosticTests
         var diagnostics = BuildAndCollectDiagnostics(source);
         var diags = WithId(diagnostics, "MIST0303");
 
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         Assert.Contains("Inner", diags[0].Message);
     }
@@ -280,7 +280,7 @@ public sealed class NestedScopingDiagnosticTests
         var diagnostics = BuildAndCollectDiagnostics(source);
         var diags = WithId(diagnostics, "MIST0304");
 
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
         Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         Assert.Contains("T", diags[0].Message);
         Assert.Contains("conflicts with type parameter", diags[0].Message);

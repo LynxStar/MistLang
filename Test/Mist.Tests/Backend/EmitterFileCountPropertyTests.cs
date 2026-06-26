@@ -31,7 +31,7 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
     public EmitterFileCountPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistEmitterFileCountTests_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -275,8 +275,8 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
         var diagnostics = new DiagnosticBag();
         CSharpEmitter.Emit(model, outputDir, "TestProject", diagnostics);
 
-        Assert.Single(Directory.GetFiles(outputDir, "*.cs"));
-        Assert.Single(Directory.GetFiles(outputDir, "*.csproj"));
+        _ = Assert.Single(Directory.GetFiles(outputDir, "*.cs"));
+        _ = Assert.Single(Directory.GetFiles(outputDir, "*.csproj"));
     }
 
     [Fact]
@@ -289,7 +289,7 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
         CSharpEmitter.Emit(model, outputDir, "TestProject", diagnostics);
 
         Assert.Equal(3, Directory.GetFiles(outputDir, "*.cs").Length);
-        Assert.Single(Directory.GetFiles(outputDir, "*.csproj"));
+        _ = Assert.Single(Directory.GetFiles(outputDir, "*.csproj"));
     }
 
     [Fact]
@@ -302,6 +302,6 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
         CSharpEmitter.Emit(model, outputDir, "TestProject", diagnostics);
 
         Assert.Equal(5, Directory.GetFiles(outputDir, "*.cs").Length);
-        Assert.Single(Directory.GetFiles(outputDir, "*.csproj"));
+        _ = Assert.Single(Directory.GetFiles(outputDir, "*.csproj"));
     }
 }

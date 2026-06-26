@@ -576,7 +576,7 @@ public sealed class ReadonlyAnalyzerPropertyTests : IDisposable
     public ReadonlyAnalyzerPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistReadonlyAnalyzerPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

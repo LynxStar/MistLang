@@ -56,7 +56,7 @@ namespace Storm.SourceGenerator.Tests
             var oneOrMore = Assert.IsType<OneOrMoreIR>(numberToken!.Expression);
             var inlineFrag = Assert.IsType<InlineFragmentIR>(oneOrMore.Inner);
             Assert.Equal("Digit", inlineFrag.FragmentName);
-            Assert.IsType<CharClassIR>(inlineFrag.Body);
+            _ = Assert.IsType<CharClassIR>(inlineFrag.Body);
             var charClass = (CharClassIR)inlineFrag.Body;
             Assert.Equal("[0-9]", charClass.Text);
         }
@@ -84,7 +84,7 @@ namespace Storm.SourceGenerator.Tests
             // First element: inlined Letter fragment
             var letterFrag = Assert.IsType<InlineFragmentIR>(seq.Elements[0]);
             Assert.Equal("Letter", letterFrag.FragmentName);
-            Assert.IsType<CharClassIR>(letterFrag.Body);
+            _ = Assert.IsType<CharClassIR>(letterFrag.Body);
 
             // Second element: ZeroOrMore(inlined LetterOrDigit fragment)
             var zeroOrMore = Assert.IsType<ZeroOrMoreIR>(seq.Elements[1]);
@@ -94,8 +94,8 @@ namespace Storm.SourceGenerator.Tests
             // LetterOrDigit body should be Alternation(InlineFragment("Letter", ...), CharClass("[0-9]"))
             var altBody = Assert.IsType<AlternationIR>(lodFrag.Body);
             Assert.Equal(2, altBody.Alternatives.Count);
-            Assert.IsType<InlineFragmentIR>(altBody.Alternatives[0]);
-            Assert.IsType<CharClassIR>(altBody.Alternatives[1]);
+            _ = Assert.IsType<InlineFragmentIR>(altBody.Alternatives[0]);
+            _ = Assert.IsType<CharClassIR>(altBody.Alternatives[1]);
         }
 
         [Fact]
@@ -138,7 +138,7 @@ namespace Storm.SourceGenerator.Tests
             // A synthetic token for "+" should have been created
             var synthToken = result.Grammar!.Tokens.FirstOrDefault(t => t.IsSynthetic);
             Assert.NotNull(synthToken);
-            Assert.IsType<StringLiteralIR>(synthToken!.Expression);
+            _ = Assert.IsType<StringLiteralIR>(synthToken!.Expression);
             Assert.Equal("+", ((StringLiteralIR)synthToken.Expression).Value);
         }
 
@@ -157,7 +157,7 @@ namespace Storm.SourceGenerator.Tests
 
             // Only one synthetic token for "+" should exist
             var synthPlusTokens = result.Grammar!.Tokens.Where(t => t.IsSynthetic).ToList();
-            Assert.Single(synthPlusTokens);
+            _ = Assert.Single(synthPlusTokens);
         }
 
         [Fact]
@@ -193,7 +193,7 @@ namespace Storm.SourceGenerator.Tests
             // The rule expression should reference the synthetic token
             var exprRule = result.Grammar!.Rules.FirstOrDefault(r => r.Name == "Expr");
             Assert.NotNull(exprRule);
-            Assert.Single(exprRule!.Alternatives);
+            _ = Assert.Single(exprRule!.Alternatives);
 
             var alt = exprRule.Alternatives[0];
             var seq = Assert.IsType<SequenceIR>(alt.Expression);
@@ -297,7 +297,7 @@ namespace Storm.SourceGenerator.Tests
             Assert.NotNull(result.Grammar);
 
             var startRule = result.Grammar!.Rules.First(r => r.Name == "Start");
-            Assert.Single(startRule.Alternatives);
+            _ = Assert.Single(startRule.Alternatives);
 
             var tokenRef = Assert.IsType<TokenRefIR>(startRule.Alternatives[0].Expression);
             Assert.Same(result.Grammar.Tokens.First(t => t.Name == "Number"), tokenRef.Token);
@@ -317,7 +317,7 @@ namespace Storm.SourceGenerator.Tests
             Assert.NotNull(result.Grammar);
 
             var startRule = result.Grammar!.Rules.First(r => r.Name == "Start");
-            Assert.Single(startRule.Alternatives);
+            _ = Assert.Single(startRule.Alternatives);
 
             var ruleRef = Assert.IsType<RuleRefIR>(startRule.Alternatives[0].Expression);
             Assert.Equal("Expr", ruleRef.Rule.Name);
@@ -389,12 +389,12 @@ namespace Storm.SourceGenerator.Tests
             Assert.NotNull(result.Grammar);
 
             var exprRule = result.Grammar!.Rules.First(r => r.Name == "Expr");
-            Assert.Single(exprRule.Alternatives);
+            _ = Assert.Single(exprRule.Alternatives);
 
             var alt = exprRule.Alternatives[0];
-            Assert.Single(alt.FieldLabels);
+            _ = Assert.Single(alt.FieldLabels);
             Assert.Equal("value", alt.FieldLabels[0].Label);
-            Assert.IsType<TokenRefIR>(alt.FieldLabels[0].Expression);
+            _ = Assert.IsType<TokenRefIR>(alt.FieldLabels[0].Expression);
         }
 
         // ---------------------------------------------------------------
@@ -482,7 +482,7 @@ namespace Storm.SourceGenerator.Tests
             // The rule should reference the token via TokenRefIR
             var startRule = result.Grammar.Rules.FirstOrDefault(r => r.Name == "Start");
             Assert.NotNull(startRule);
-            Assert.Single(startRule!.Alternatives);
+            _ = Assert.Single(startRule!.Alternatives);
             var tokenRef = Assert.IsType<TokenRefIR>(startRule.Alternatives[0].Expression);
             Assert.Same(identToken, tokenRef.Token);
         }

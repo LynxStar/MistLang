@@ -27,7 +27,7 @@ public sealed class DropFlowSanityTests
     private static ImmutableArray<Diagnostic> Compile(string source)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "mist_drop_flow_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var sourcePath = Path.Combine(tempDir, "Program.mist");

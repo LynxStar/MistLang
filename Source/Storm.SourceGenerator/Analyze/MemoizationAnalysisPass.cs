@@ -57,7 +57,7 @@ public static class MemoizationAnalysisPass
         {
             if(rule.IsMemo)
             {
-                memoCandidates.Add(rule.Name);
+                _ = memoCandidates.Add(rule.Name);
             }
         }
 
@@ -153,7 +153,7 @@ public static class MemoizationAnalysisPass
             if(sccOf.TryGetValue(ruleName, out var sccIndex)
                 && sccHasBacktracking.Contains(sccIndex))
             {
-                candidates.Add(ruleName);
+                _ = candidates.Add(ruleName);
             }
         }
 
@@ -245,7 +245,7 @@ public static class MemoizationAnalysisPass
             {
                 foreach(var ruleName in refSet)
                 {
-                    seen.TryGetValue(ruleName, out var count);
+                    _ = seen.TryGetValue(ruleName, out var count);
                     seen[ruleName] = count + 1;
                 }
             }
@@ -254,7 +254,7 @@ public static class MemoizationAnalysisPass
             {
                 if(kvp.Value >= 2)
                 {
-                    candidates.Add(kvp.Key);
+                    _ = candidates.Add(kvp.Key);
                 }
             }
         }

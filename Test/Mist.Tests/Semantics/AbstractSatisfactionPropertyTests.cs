@@ -755,7 +755,7 @@ public class AbstractSatisfactionPropertyTests
         var missingDiags = diagnostics
             .Where(d => d.Id.Value == "MIST_SM_0022")
             .ToList();
-        Assert.Single(missingDiags);
+        _ = Assert.Single(missingDiags);
         Assert.Contains("Process", missingDiags[0].Message);
         Assert.Contains("Worker", missingDiags[0].Message);
     }
@@ -813,7 +813,7 @@ public class AbstractSatisfactionPropertyTests
         var missingDiags = diagnostics
             .Where(d => d.Id.Value == "MIST_SM_0022")
             .ToList();
-        Assert.Single(missingDiags);
+        _ = Assert.Single(missingDiags);
         Assert.Contains("CompareTo", missingDiags[0].Message);
         Assert.Contains("Point", missingDiags[0].Message);
     }
@@ -855,7 +855,7 @@ public class AbstractSatisfactionPropertyTests
         // Verify the base class has the abstract resolved
         var baseSymbol = model.AllSymbols.First(s => s.Name == "BaseWorker" && s.Kind == SymbolKind.Class);
         var baseType = Assert.IsType<ClassType>(baseSymbol.DeclaredType);
-        Assert.Single(baseType.Abstracts);
+        _ = Assert.Single(baseType.Abstracts);
         Assert.Equal("IWorker", baseType.Abstracts[0].DisplayName);
     }
 
@@ -909,7 +909,7 @@ public class AbstractSatisfactionPropertyTests
         var missingDiags = diagnostics
             .Where(d => d.Id.Value == "MIST_SM_0022")
             .ToList();
-        Assert.Single(missingDiags);
+        _ = Assert.Single(missingDiags);
         Assert.Contains("BaseMethod", missingDiags[0].Message);
     }
 

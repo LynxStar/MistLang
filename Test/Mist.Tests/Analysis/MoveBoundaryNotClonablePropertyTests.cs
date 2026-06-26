@@ -53,7 +53,7 @@ public sealed class MoveBoundaryNotClonablePropertyTests : IDisposable
     public MoveBoundaryNotClonablePropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistMoveBoundaryNotClonablePBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -123,7 +123,7 @@ public sealed class MoveBoundaryNotClonablePropertyTests : IDisposable
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,
             EmitToDisk: false);
 
-        driver.Compile(options);
+        _ = driver.Compile(options);
         return capture.Captured;
     }
 

@@ -224,7 +224,7 @@ public class DfaPipelinePropertyTests
                     {
                         if(range.Contains(ch))
                         {
-                            nextStates.Add(transition.Target.Id);
+                            _ = nextStates.Add(transition.Target.Id);
                             break;
                         }
                     }
@@ -284,7 +284,7 @@ public class DfaPipelinePropertyTests
                     {
                         if(range.Contains(ch))
                         {
-                            nextStates.Add(transition.Target.Id);
+                            _ = nextStates.Add(transition.Target.Id);
                             break;
                         }
                     }
@@ -343,7 +343,7 @@ public class DfaPipelinePropertyTests
             {
                 if(transition.Range.Contains(ch))
                 {
-                    stateById.TryGetValue(transition.TargetStateId, out next);
+                    _ = stateById.TryGetValue(transition.TargetStateId, out next);
                     break;
                 }
             }

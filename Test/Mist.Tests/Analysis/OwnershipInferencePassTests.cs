@@ -39,7 +39,7 @@ public sealed class OwnershipInferencePassTests : IDisposable
     public OwnershipInferencePassTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "mist_own_inf_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -239,7 +239,7 @@ public sealed class OwnershipInferencePassTests : IDisposable
         Assert.NotNull(bindings);
 
         var xBinding = FindByName(bindings!, "x");
-        Assert.NotNull(xBinding);
+        _ = Assert.NotNull(xBinding);
         // x is passed to an owned parameter. The inference downgraded it from Owned
         // because the use was classified as a read (argument context resolution).
         Assert.Equal(OwnershipTier.Unrestricted, xBinding!.Value.InferredTier);
@@ -281,7 +281,7 @@ public sealed class OwnershipInferencePassTests : IDisposable
         Assert.NotNull(bindings);
 
         var xBinding = FindByName(bindings!, "x");
-        Assert.NotNull(xBinding);
+        _ = Assert.NotNull(xBinding);
         // The variable is downgraded from Owned because reads don't require ownership.
         Assert.Equal(OwnershipTier.Unrestricted, xBinding!.Value.InferredTier);
         Assert.Equal(InferenceReason.Downgraded, xBinding.Value.Reason);
@@ -324,7 +324,7 @@ public sealed class OwnershipInferencePassTests : IDisposable
         Assert.NotNull(bindings);
 
         var yBinding = FindByName(bindings!, "y");
-        Assert.NotNull(yBinding);
+        _ = Assert.NotNull(yBinding);
         // y cannot be Owned (would move x). It should be downgraded.
         Assert.NotEqual(OwnershipTier.Owned, yBinding!.Value.InferredTier);
     }
@@ -365,8 +365,8 @@ public sealed class OwnershipInferencePassTests : IDisposable
 
         var aBinding = FindByName(bindings!, "a");
         var bBinding = FindByName(bindings!, "b");
-        Assert.NotNull(aBinding);
-        Assert.NotNull(bBinding);
+        _ = Assert.NotNull(aBinding);
+        _ = Assert.NotNull(bBinding);
 
         // Both should reach a stable state (not Owned, since they're just read).
         Assert.Equal(OwnershipTier.Unrestricted, aBinding!.Value.InferredTier);
@@ -437,7 +437,7 @@ public sealed class OwnershipInferencePassTests : IDisposable
         Assert.NotNull(bindings);
 
         var xBinding = FindByName(bindings!, "x");
-        Assert.NotNull(xBinding);
+        _ = Assert.NotNull(xBinding);
         // Starts at Owned (constructor init) but no use requires ownership.
         // However, if there are NO uses at all, the inference may keep Owned
         // because there's nothing to conflict. This is valid — a variable
@@ -549,7 +549,7 @@ public sealed class OwnershipInferencePassTests : IDisposable
                 var infDiagArray = infDiag.ToImmutableArray();
 
                 var xBinding = FindByName(bindings, "x");
-                Assert.NotNull(xBinding);
+                _ = Assert.NotNull(xBinding);
 
                 // Either:
                 // (a) Inference failure was emitted and x got SharedFallback, OR
@@ -600,7 +600,7 @@ public sealed class OwnershipInferencePassTests : IDisposable
         Assert.NotNull(bindings);
 
         var xBinding = FindByName(bindings!, "x");
-        Assert.NotNull(xBinding);
+        _ = Assert.NotNull(xBinding);
 
         // No uses → no conflicts → stays at Owned with OwnedInit reason.
         Assert.Equal(OwnershipTier.Owned, xBinding!.Value.InferredTier);
@@ -642,8 +642,8 @@ public sealed class OwnershipInferencePassTests : IDisposable
 
         var xBinding = FindByName(bindings!, "x");
         var yBinding = FindByName(bindings!, "y");
-        Assert.NotNull(xBinding);
-        Assert.NotNull(yBinding);
+        _ = Assert.NotNull(xBinding);
+        _ = Assert.NotNull(yBinding);
 
         // x is consumed → should stay Owned (or at least be higher tier than y).
         // y is only read → should be downgraded to Shared.

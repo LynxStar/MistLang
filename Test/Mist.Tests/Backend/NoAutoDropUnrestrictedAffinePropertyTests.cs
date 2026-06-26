@@ -54,7 +54,7 @@ public class NoAutoDropUnrestrictedAffinePropertyTests
     private static string? CompileAndGetEmittedCSharp(string source)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "mist_noautodrop_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var sourcePath = Path.Combine(tempDir, "Program.mist");

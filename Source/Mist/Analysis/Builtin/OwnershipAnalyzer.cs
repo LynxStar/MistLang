@@ -1361,7 +1361,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        resolver.Resolve(
+        _ = resolver.Resolve(
             initializer,
             destination.DeclaredType,
             OwnedMoveSite.OwnedBindingInit,
@@ -1446,7 +1446,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             if(lhsSymbol is not null && IsOwnedVariable(lhsSymbol))
             {
                 state.VariableStates[lhsSymbol] = VariableOwnershipState.Live;
-                state.MoveLocations.Remove(lhsSymbol);
+                _ = state.MoveLocations.Remove(lhsSymbol);
             }
 
             // Mutation blocking check: if the assignment target is a field access on a
@@ -1526,7 +1526,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                     if(sourceType is not null && sourceType is not ErrorType
                         && sourceType is not TypeParameterType)
                     {
-                        resolver.Resolve(
+                        _ = resolver.Resolve(
                             assignment.Value,
                             thisFieldSym.DeclaredType,
                             OwnedMoveSite.OwnedFieldAssignment,
@@ -2137,7 +2137,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                     // consumes an owned source (marking it Moved), copies value types,
                     // clones a non-owned clonable source, and emits MIST_OWN_REQUIRES_OWNED /
                     // MIST_OWN_NOT_CLONABLE for a non-owned, non-clonable source.
-                    resolver.Resolve(
+                    _ = resolver.Resolve(
                         argExprs[i],
                         paramSym.DeclaredType,
                         OwnedMoveSite.OwnedParameterPass,
@@ -2213,7 +2213,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 {
                     // Owned parameter pass is an owned-move site (Req 6 AC 3, Req 9 AC 4):
                     // route the argument through the single move boundary.
-                    resolver.Resolve(
+                    _ = resolver.Resolve(
                         argExprs[i],
                         paramSym.DeclaredType,
                         OwnedMoveSite.OwnedParameterPass,
@@ -2324,7 +2324,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 if(paramSym.OwnershipTier == OwnershipTier.Owned)
                 {
                     // Owned parameter pass: route through the move boundary.
-                    resolver.Resolve(
+                    _ = resolver.Resolve(
                         argExprs[i],
                         paramSym.DeclaredType,
                         OwnedMoveSite.OwnedParameterPass,

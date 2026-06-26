@@ -52,7 +52,7 @@ public sealed class IClonableDerivationEdgeCaseTests : IDisposable
         scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist-iclonable-edge-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(scratchDir);
+        _ = Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()
@@ -188,7 +188,7 @@ public sealed class IClonableDerivationEdgeCaseTests : IDisposable
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,
             EmitToDisk: false);
 
-        driver.Compile(options);
+        _ = driver.Compile(options);
 
         Assert.NotNull(capture.Captured);
         return capture.Captured!;

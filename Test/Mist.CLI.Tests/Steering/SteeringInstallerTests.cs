@@ -18,8 +18,8 @@ public sealed class SteeringInstallerTests : IDisposable
         root = Path.Combine(Path.GetTempPath(), $"mist_steering_test_{Guid.NewGuid():N}");
         sourceRoot = Path.Combine(root, "bundled");
         projectFolder = Path.Combine(root, "project");
-        Directory.CreateDirectory(sourceRoot);
-        Directory.CreateDirectory(projectFolder);
+        _ = Directory.CreateDirectory(sourceRoot);
+        _ = Directory.CreateDirectory(projectFolder);
     }
 
     public void Dispose()
@@ -42,7 +42,7 @@ public sealed class SteeringInstallerTests : IDisposable
     /// <summary>Writes a file directly into the project's steering directory.</summary>
     private void WriteExisting(string fileName, string text)
     {
-        Directory.CreateDirectory(SteeringDir);
+        _ = Directory.CreateDirectory(SteeringDir);
         File.WriteAllText(Path.Combine(SteeringDir, fileName), text);
     }
 

@@ -277,7 +277,7 @@ public sealed class TargetTypedNewResolutionPropertyTests : IDisposable
     public TargetTypedNewResolutionPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistTargetNewRes_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

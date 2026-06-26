@@ -9,7 +9,7 @@ public class NodeOriginTests
     {
         var parsedOrigin = new ParsedOrigin(new Mist.Common.Text.SourceText("test.mist", "hello"));
 
-        Assert.Throws<ArgumentException>(() => new SyntheticOrigin(parsedOrigin, ""));
+        _ = Assert.Throws<ArgumentException>(() => new SyntheticOrigin(parsedOrigin, ""));
     }
 
     [Fact]

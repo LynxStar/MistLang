@@ -45,7 +45,7 @@ public sealed class TaskAutoDropIntegrationTests : IDisposable
     public TaskAutoDropIntegrationTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "mist_task_autodrop_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

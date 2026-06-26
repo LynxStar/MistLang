@@ -439,7 +439,7 @@ public class ExtensionRegistrationPropertyTests
         {
             foreach(var member in ext.MemberScope.Members)
             {
-                registeredMembers.Add((member.Name, member.Kind));
+                _ = registeredMembers.Add((member.Name, member.Kind));
             }
         }
 

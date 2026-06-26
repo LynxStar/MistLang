@@ -41,7 +41,7 @@ public sealed class FieldContainmentPropertyTests : IDisposable
     public FieldContainmentPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistFieldContainmentPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

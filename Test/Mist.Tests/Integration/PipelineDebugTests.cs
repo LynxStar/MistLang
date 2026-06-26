@@ -23,7 +23,7 @@ public sealed class PipelineDebugTests : IDisposable
     public PipelineDebugTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistDebug_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

@@ -27,7 +27,7 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
     public VoidUnitTypeIntegrationTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistVoidE2E_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

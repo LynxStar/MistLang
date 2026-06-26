@@ -78,7 +78,7 @@ public class WithStatementParsingTests
 
         Assert.Empty(result.Diagnostics);
         var stmt = GetFirstStatement(result);
-        Assert.IsType<WithVarDeclarationStatementStatementNode>(stmt);
+        _ = Assert.IsType<WithVarDeclarationStatementStatementNode>(stmt);
     }
 
     // ─── Test 2: with MyType x = someExpr; ──────────────────────────────
@@ -107,7 +107,7 @@ public class WithStatementParsingTests
         var stmt = GetFirstStatement(result);
         var withTypedStmt = Assert.IsType<WithTypedDeclarationStatementStatementNode>(stmt);
         Assert.Equal("count", withTypedStmt.WithTypedDeclaration.Name.Lexeme);
-        Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(withTypedStmt.WithTypedDeclaration.Type.First);
+        _ = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(withTypedStmt.WithTypedDeclaration.Type.First);
     }
 
     // ─── Test 3: with MyType _ = someExpr; ──────────────────────────────
@@ -133,7 +133,7 @@ public class WithStatementParsingTests
 
         Assert.Empty(result.Diagnostics);
         var stmt = GetFirstStatement(result);
-        Assert.IsType<WithDiscardDeclarationStatementStatementNode>(stmt);
+        _ = Assert.IsType<WithDiscardDeclarationStatementStatementNode>(stmt);
     }
 
     // ─── Test 4: with someExpr; ─────────────────────────────────────────
@@ -158,7 +158,7 @@ public class WithStatementParsingTests
 
         Assert.Empty(result.Diagnostics);
         var stmt = GetFirstStatement(result);
-        Assert.IsType<WithPushStatementStatementNode>(stmt);
+        _ = Assert.IsType<WithPushStatementStatementNode>(stmt);
     }
 
     // ─── Test 5: with(someExpr) { ... } ─────────────────────────────────
@@ -186,7 +186,7 @@ public class WithStatementParsingTests
         var stmt = GetFirstStatement(result);
         var withBlockStmt = Assert.IsType<WithBlockStatementStatementNode>(stmt);
         Assert.NotNull(withBlockStmt.WithBlockStatement.Body);
-        Assert.Single(withBlockStmt.WithBlockStatement.Body.Statements);
+        _ = Assert.Single(withBlockStmt.WithBlockStatement.Body.Statements);
     }
 
     // ─── Test 6: Method with WithClause ─────────────────────────────────
@@ -204,7 +204,7 @@ public class WithStatementParsingTests
             var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.ClassDeclaration.Members[0]);
             var method = methodMember.Method;
 
-            Assert.Single(method.WithClauses);
+            _ = Assert.Single(method.WithClauses);
             var clause = Assert.IsType<ContextWithClauseWithClauseNode>(method.WithClauses[0]);
             Assert.NotNull(clause.Type);
             Assert.Equal("ctx", clause.Name.Lexeme);
@@ -244,7 +244,7 @@ public class WithStatementParsingTests
                 typeDecl.AbstractDeclaration.Members[0]);
             var method = methodMember.Method;
 
-            Assert.Single(method.WithClauses);
+            _ = Assert.Single(method.WithClauses);
             Assert.Equal("ctx", method.WithClauses[0] is ContextWithClauseWithClauseNode ctx0 ? ctx0.Name.Lexeme : "");
         }
     }
@@ -263,7 +263,7 @@ public class WithStatementParsingTests
                 typeDecl.ClassDeclaration.Members[0]);
             var ctor = ctorMember.Constructor;
 
-            Assert.Single(ctor.WithClauses);
+            _ = Assert.Single(ctor.WithClauses);
             Assert.Equal("ctx", ctor.WithClauses[0] is ContextWithClauseWithClauseNode ctx0 ? ctx0.Name.Lexeme : "");
         }
     }

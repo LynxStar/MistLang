@@ -156,7 +156,7 @@ public class UnknownTypeRoundTripPropertyTests
         var ast = AssertRoundTripPreserved(source);
 
         var local = GetFirstLocalDecl(ast);
-        Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(local.Type.First);
+        _ = Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(local.Type.First);
     }
 
     [Fact]
@@ -172,8 +172,8 @@ public class UnknownTypeRoundTripPropertyTests
         var named = Assert.IsType<NamedSingleTypeRefSingleTypeRefNode>(local.Type.First);
         Assert.NotNull(named.TypeArgs);
         var args = GetTypeArgs(named.TypeArgs!);
-        Assert.Single(args);
-        Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(args[0].First);
+        _ = Assert.Single(args);
+        _ = Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(args[0].First);
     }
 
     [Fact]
@@ -190,8 +190,8 @@ public class UnknownTypeRoundTripPropertyTests
         Assert.NotNull(named.TypeArgs);
         var args = GetTypeArgs(named.TypeArgs!);
         Assert.Equal(2, args.Count);
-        Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(args[0].First);
-        Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(args[1].First);
+        _ = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(args[0].First);
+        _ = Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(args[1].First);
     }
 
     [Fact]
@@ -207,12 +207,12 @@ public class UnknownTypeRoundTripPropertyTests
         var outer = Assert.IsType<NamedSingleTypeRefSingleTypeRefNode>(local.Type.First);
         Assert.NotNull(outer.TypeArgs);
         var outerArgs = GetTypeArgs(outer.TypeArgs!);
-        Assert.Single(outerArgs);
+        _ = Assert.Single(outerArgs);
         var inner = Assert.IsType<NamedSingleTypeRefSingleTypeRefNode>(outerArgs[0].First);
         Assert.NotNull(inner.TypeArgs);
         var innerArgs = GetTypeArgs(inner.TypeArgs!);
-        Assert.Single(innerArgs);
-        Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(innerArgs[0].First);
+        _ = Assert.Single(innerArgs);
+        _ = Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(innerArgs[0].First);
     }
 
     [Fact]
@@ -226,7 +226,7 @@ public class UnknownTypeRoundTripPropertyTests
         var ast = AssertRoundTripPreserved(source);
 
         var method = GetFirstMethod(ast);
-        Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(method.ReturnType.First);
+        _ = Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(method.ReturnType.First);
     }
 
     [Fact]
@@ -241,7 +241,7 @@ public class UnknownTypeRoundTripPropertyTests
         var method = GetFirstMethod(ast);
         Assert.NotNull(method.Parameters);
         var firstParam = method.Parameters!.Parameter;
-        Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(firstParam.Type.First);
+        _ = Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(firstParam.Type.First);
     }
 
     [Fact]
@@ -261,8 +261,8 @@ public class UnknownTypeRoundTripPropertyTests
         var retNamed = Assert.IsType<NamedSingleTypeRefSingleTypeRefNode>(method.ReturnType.First);
         Assert.NotNull(retNamed.TypeArgs);
         var retArgs = GetTypeArgs(retNamed.TypeArgs!);
-        Assert.Single(retArgs);
-        Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(retArgs[0].First);
+        _ = Assert.Single(retArgs);
+        _ = Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(retArgs[0].First);
 
         // First parameter: Map<string, unknown>
         Assert.NotNull(method.Parameters);
@@ -270,7 +270,7 @@ public class UnknownTypeRoundTripPropertyTests
         Assert.NotNull(paramNamed.TypeArgs);
         var paramArgs = GetTypeArgs(paramNamed.TypeArgs!);
         Assert.Equal(2, paramArgs.Count);
-        Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(paramArgs[1].First);
+        _ = Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(paramArgs[1].First);
     }
 
     // ─── Property-based test — random combinations of legal positions ──────

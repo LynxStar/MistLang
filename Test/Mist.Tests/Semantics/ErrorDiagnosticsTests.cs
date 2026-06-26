@@ -130,7 +130,7 @@ public sealed class ErrorDiagnosticsTests
                 namespaceTypes[namespaceName] = new HashSet<string>();
             }
 
-            namespaceTypes[namespaceName].Add(typeName);
+            _ = namespaceTypes[namespaceName].Add(typeName);
             types[(namespaceName, typeName)] = type;
         }
 
@@ -366,7 +366,7 @@ public sealed class ErrorDiagnosticsTests
         Assert.True(provider.HasNamespace("System"));
         var stringType = provider.ResolveType("System", "String");
         Assert.NotNull(stringType);
-        Assert.IsType<ClassType>(stringType);
+        _ = Assert.IsType<ClassType>(stringType);
         Assert.True(((ClassType)stringType).IsSealed);
 
         // Build AST: using System; class MyClass : String { }

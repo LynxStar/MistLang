@@ -39,7 +39,7 @@ public sealed class StdlibEmitterIntegrationTests : IDisposable
     public StdlibEmitterIntegrationTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "mist_stdlib_emit_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

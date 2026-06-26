@@ -91,7 +91,7 @@ public class SemanticModelBuilderPass1Tests
         Assert.Equal("MyClass", classSymbol!.Name);
         Assert.Equal(SymbolKind.Class, classSymbol.Kind);
         Assert.Equal(SymbolOrigin.UserCode, classSymbol.Origin);
-        Assert.IsType<ClassType>(classSymbol.DeclaredType);
+        _ = Assert.IsType<ClassType>(classSymbol.DeclaredType);
         Assert.Equal("TestProject", ((ClassType)classSymbol.DeclaredType!).ContainingNamespace);
     }
 
@@ -119,7 +119,7 @@ public class SemanticModelBuilderPass1Tests
         Assert.Equal("Point", classSymbol!.Name);
         Assert.Equal(SymbolKind.Struct, classSymbol.Kind);
         Assert.Equal(SymbolOrigin.UserCode, classSymbol.Origin);
-        Assert.IsType<StructType>(classSymbol.DeclaredType);
+        _ = Assert.IsType<StructType>(classSymbol.DeclaredType);
         Assert.Equal("TestProject", ((StructType)classSymbol.DeclaredType!).ContainingNamespace);
     }
 
@@ -265,7 +265,7 @@ public class SemanticModelBuilderPass1Tests
         // Pass 2 resolves the field type from the TypeReference.
         // Post-Task 49: PrimitiveType has been deleted; the fallback
         // produces a StructType with DisplayName "int".
-        Assert.IsType<StructType>(fieldSymbol.DeclaredType);
+        _ = Assert.IsType<StructType>(fieldSymbol.DeclaredType);
         Assert.Equal("int", fieldSymbol.DeclaredType!.DisplayName);
     }
 
@@ -508,7 +508,7 @@ public class SemanticModelBuilderPass1Tests
         var model = BuildModel(ast);
 
         // With inferred namespaces, global scope contains the namespace symbol "TestProject"
-        Assert.Single(model.GlobalScope.Members);
+        _ = Assert.Single(model.GlobalScope.Members);
         Assert.Equal("TestProject", model.GlobalScope.Members[0].Name);
         Assert.Equal(SymbolKind.Namespace, model.GlobalScope.Members[0].Kind);
 
@@ -677,7 +677,7 @@ public class SemanticModelBuilderPass1Tests
         var model = BuildModel(ast);
 
         var classSymbol = model.AllSymbols.First(s => s.Name == "MyClass");
-        Assert.NotNull(classSymbol.DeclarationSpan);
+        _ = Assert.NotNull(classSymbol.DeclarationSpan);
         Assert.Equal(6, classSymbol.DeclarationSpan!.Value.Start);
         Assert.Equal(7, classSymbol.DeclarationSpan.Value.Length);
     }

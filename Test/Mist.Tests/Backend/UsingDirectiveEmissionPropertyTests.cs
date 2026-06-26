@@ -29,7 +29,7 @@ public sealed class UsingDirectiveEmissionPropertyTests : IDisposable
     public UsingDirectiveEmissionPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistUsingEmitTests_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

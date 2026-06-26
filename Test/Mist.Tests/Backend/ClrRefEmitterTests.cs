@@ -33,7 +33,7 @@ public sealed class ClrRefEmitterTests : IDisposable
     public ClrRefEmitterTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistClrRefEmitter_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

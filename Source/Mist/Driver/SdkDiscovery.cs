@@ -430,7 +430,7 @@ public static partial class SdkDiscovery
             var dir = Path.GetDirectoryName(CacheFilePath);
             if(dir is not null && !Directory.Exists(dir))
             {
-                Directory.CreateDirectory(dir);
+                _ = Directory.CreateDirectory(dir);
             }
 
             File.WriteAllText(CacheFilePath, path);

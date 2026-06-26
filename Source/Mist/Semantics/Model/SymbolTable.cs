@@ -275,6 +275,6 @@ public sealed class SymbolTable
     /// </summary>
     public void RegisterUsageSite(Storm.Runtime.SyntaxNode usageNode, ISymbol referencedSymbol)
     {
-        nodeToSymbol.TryAdd(usageNode, referencedSymbol);
+        _ = nodeToSymbol.TryAdd(usageNode, referencedSymbol);
     }
 }

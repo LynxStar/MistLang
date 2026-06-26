@@ -49,7 +49,7 @@ public class UnresolvedConstraintRejectionPropertyTests
         }
 
         var buildDiag = new DiagnosticBag();
-        Builder.Build(
+        _ = Builder.Build(
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(parseResult.Root),
             ambientTypeResolver: null,

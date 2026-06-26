@@ -32,7 +32,7 @@ public sealed class VoidValueLiteralEmissionTests : IDisposable
         scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist-void-val-lit-emit-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(scratchDir);
+        _ = Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()

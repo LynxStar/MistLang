@@ -14,7 +14,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
     private static string CreateTempProjectDir()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"mist_fwref_test_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(dir);
+        _ = Directory.CreateDirectory(dir);
         return dir;
     }
 
@@ -44,7 +44,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
 
             Assert.NotNull(result);
             Assert.False(diagnostics.HasErrors);
-            Assert.Single(result.FrameworkReferences);
+            _ = Assert.Single(result.FrameworkReferences);
             Assert.Equal("Microsoft.AspNetCore.App", result.FrameworkReferences[0].Name);
         }
         finally
@@ -160,7 +160,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
             Assert.Empty(result.FrameworkReferences);
 
             var diags = diagnostics.ToImmutableArray();
-            Assert.Single(diags);
+            _ = Assert.Single(diags);
             Assert.Equal("MIST_FWREF_TABLE_EXPECTED", diags[0].Id.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
@@ -188,7 +188,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
             Assert.Empty(result.FrameworkReferences);
 
             var diags = diagnostics.ToImmutableArray();
-            Assert.Single(diags);
+            _ = Assert.Single(diags);
             Assert.Equal("MIST_FWREF_TABLE_EXPECTED", diags[0].Id.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
@@ -220,7 +220,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
             Assert.Empty(result.FrameworkReferences);
 
             var diags = diagnostics.ToImmutableArray();
-            Assert.Single(diags);
+            _ = Assert.Single(diags);
             Assert.Equal("MIST_FWREF_INVALID_VALUE", diags[0].Id.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains("Microsoft.AspNetCore.App", diags[0].Message);
@@ -251,7 +251,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
             Assert.Empty(result.FrameworkReferences);
 
             var diags = diagnostics.ToImmutableArray();
-            Assert.Single(diags);
+            _ = Assert.Single(diags);
             Assert.Equal("MIST_FWREF_INVALID_VALUE", diags[0].Id.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
@@ -281,11 +281,11 @@ public sealed class ProjectFileParserFrameworkReferencesTests
             Assert.NotNull(result);
 
             // Offending entry excluded; sibling valid entry retained.
-            Assert.Single(result.FrameworkReferences);
+            _ = Assert.Single(result.FrameworkReferences);
             Assert.Equal("Microsoft.NETCore.App", result.FrameworkReferences[0].Name);
 
             var diags = diagnostics.ToImmutableArray();
-            Assert.Single(diags);
+            _ = Assert.Single(diags);
             Assert.Equal("MIST_FWREF_INVALID_VALUE", diags[0].Id.Value);
         }
         finally
@@ -316,7 +316,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
             Assert.Empty(result.FrameworkReferences);
 
             var diags = diagnostics.ToImmutableArray();
-            Assert.Single(diags);
+            _ = Assert.Single(diags);
             Assert.Equal("MIST_FWREF_INVALID_NAME", diags[0].Id.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
@@ -346,7 +346,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
             Assert.Empty(result.FrameworkReferences);
 
             var diags = diagnostics.ToImmutableArray();
-            Assert.Single(diags);
+            _ = Assert.Single(diags);
             Assert.Equal("MIST_FWREF_INVALID_NAME", diags[0].Id.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
@@ -379,7 +379,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
             Assert.Empty(result.FrameworkReferences);
 
             var diags = diagnostics.ToImmutableArray();
-            Assert.Single(diags);
+            _ = Assert.Single(diags);
             Assert.Equal("MIST_FWREF_INVALID_NAME", diags[0].Id.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains("256", diags[0].Message);
@@ -409,7 +409,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
 
             Assert.NotNull(result);
             Assert.False(diagnostics.HasErrors);
-            Assert.Single(result.FrameworkReferences);
+            _ = Assert.Single(result.FrameworkReferences);
             Assert.Equal(name256, result.FrameworkReferences[0].Name);
         }
         finally
@@ -441,7 +441,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
 
             Assert.NotNull(result);
             Assert.False(diagnostics.HasErrors);
-            Assert.Single(result.FrameworkReferences);
+            _ = Assert.Single(result.FrameworkReferences);
             Assert.Equal("Microsoft.AspNetCore.App", result.FrameworkReferences[0].Name);
         }
         finally

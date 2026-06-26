@@ -141,28 +141,28 @@ public sealed class RefStructParsingPropertyTests
         // Fields
         foreach(var field in scenario.FieldNames)
         {
-            members.AppendLine($"    public int {field};");
+            _ = members.AppendLine($"    public int {field};");
         }
 
         // Methods
         foreach(var method in scenario.MethodNames)
         {
-            members.AppendLine($"    public int {method}()");
-            members.AppendLine("    {");
-            members.AppendLine("        return 0;");
-            members.AppendLine("    }");
+            _ = members.AppendLine($"    public int {method}()");
+            _ = members.AppendLine("    {");
+            _ = members.AppendLine("        return 0;");
+            _ = members.AppendLine("    }");
         }
 
         // Properties (get-only)
         foreach(var prop in scenario.PropertyNames)
         {
-            members.AppendLine($"    public int {prop}");
-            members.AppendLine("    {");
-            members.AppendLine("        get");
-            members.AppendLine("        {");
-            members.AppendLine("            return 0;");
-            members.AppendLine("        }");
-            members.AppendLine("    }");
+            _ = members.AppendLine($"    public int {prop}");
+            _ = members.AppendLine("    {");
+            _ = members.AppendLine("        get");
+            _ = members.AppendLine("        {");
+            _ = members.AppendLine("            return 0;");
+            _ = members.AppendLine("        }");
+            _ = members.AppendLine("    }");
         }
 
         return $$"""

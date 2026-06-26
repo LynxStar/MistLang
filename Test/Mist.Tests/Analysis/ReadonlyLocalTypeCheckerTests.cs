@@ -32,7 +32,7 @@ public sealed class ReadonlyLocalTypeCheckerTests : IDisposable
     public ReadonlyLocalTypeCheckerTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistReadonlyLocalTC_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

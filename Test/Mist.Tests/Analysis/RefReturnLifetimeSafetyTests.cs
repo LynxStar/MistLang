@@ -337,7 +337,7 @@ public class RefReturnLifetimeSafetyTests
         var diagnostics = RunTypeChecker(model);
 
         var refErrors = diagnostics.Where(d => d.Id.Value == "MIST_REF_0006").ToList();
-        Assert.Single(refErrors);
+        _ = Assert.Single(refErrors);
         Assert.Contains("x", refErrors[0].Message);
     }
 
@@ -363,7 +363,7 @@ public class RefReturnLifetimeSafetyTests
         var diagnostics = RunTypeChecker(model);
 
         var refErrors = diagnostics.Where(d => d.Id.Value == "MIST_REF_0006").ToList();
-        Assert.Single(refErrors);
+        _ = Assert.Single(refErrors);
         Assert.Contains("x", refErrors[0].Message);
     }
 
@@ -387,7 +387,7 @@ public class RefReturnLifetimeSafetyTests
         var diagnostics = RunTypeChecker(model);
 
         var refErrors = diagnostics.Where(d => d.Id.Value == "MIST_REF_0006").ToList();
-        Assert.Single(refErrors);
+        _ = Assert.Single(refErrors);
     }
 
     /// <summary>
@@ -420,7 +420,7 @@ public class RefReturnLifetimeSafetyTests
         var diagnostics = RunTypeChecker(model);
 
         var refErrors = diagnostics.Where(d => d.Id.Value == "MIST_REF_0006").ToList();
-        Assert.Single(refErrors);
+        _ = Assert.Single(refErrors);
         Assert.Contains("x", refErrors[0].Message);
     }
 

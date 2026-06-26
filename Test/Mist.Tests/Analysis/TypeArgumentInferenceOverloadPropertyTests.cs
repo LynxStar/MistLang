@@ -84,7 +84,7 @@ public sealed class TypeArgumentInferenceOverloadPropertyTests : IDisposable
     public TypeArgumentInferenceOverloadPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistOverloadInfPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

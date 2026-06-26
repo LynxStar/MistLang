@@ -20,7 +20,7 @@ public sealed class StdlibLoaderTests
             Path = System.IO.Path.Combine(
                 System.IO.Path.GetTempPath(),
                 "mist-stdlib-loader-" + Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(Path);
+            _ = Directory.CreateDirectory(Path);
         }
 
         public void Dispose()
@@ -82,7 +82,7 @@ public sealed class StdlibLoaderTests
 
         Assert.Empty(units);
         var diags = diagnostics.ToImmutableArray();
-        Assert.Single(diags);
+        _ = Assert.Single(diags);
 
         var diag = diags[0];
         Assert.Equal(DiagnosticId.StdlibParse, diag.Id);

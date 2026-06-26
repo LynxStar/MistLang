@@ -27,7 +27,7 @@ public sealed class StaticMembersInGenericTypesTests : IDisposable
         outputDir = Path.Combine(
             Path.GetTempPath(),
             "MistStaticGenericTests_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

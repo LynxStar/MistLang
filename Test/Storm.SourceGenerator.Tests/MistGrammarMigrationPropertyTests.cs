@@ -226,7 +226,7 @@ namespace Mist.Common.Text
                 .Where(d => d.Severity == DiagnosticSeverity.Error)
                 .Select(d => d.GetMessage())));
 
-        ms.Seek(0, SeekOrigin.Begin);
+        _ = ms.Seek(0, SeekOrigin.Begin);
         return Assembly.Load(ms.ToArray());
     }
 

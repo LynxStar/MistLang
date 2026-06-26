@@ -135,7 +135,7 @@ public class FuncAsyncDropChainingPropertyTests
         var sb = new StringBuilder();
         foreach(var (_, content) in files)
         {
-            sb.AppendLine(content);
+            _ = sb.AppendLine(content);
         }
 
         return (true, sb.ToString(), "");
@@ -394,49 +394,49 @@ public class FuncAsyncDropChainingPropertyTests
     private static string BuildWiderAsyncSeedSource(WiderAsyncSeedScenario scenario)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("namespace TestProject;");
-        sb.AppendLine();
-        sb.AppendLine("public class TestClass");
-        sb.AppendLine("{");
+        _ = sb.AppendLine("namespace TestProject;");
+        _ = sb.AppendLine();
+        _ = sb.AppendLine("public class TestClass");
+        _ = sb.AppendLine("{");
 
         // Sync helper (for async functor)
-        sb.AppendLine($"    public static {scenario.HelperReturnType} SyncHelper()");
-        sb.AppendLine("    {");
-        sb.AppendLine($"        {scenario.HelperBody}");
-        sb.AppendLine("    }");
-        sb.AppendLine();
+        _ = sb.AppendLine($"    public static {scenario.HelperReturnType} SyncHelper()");
+        _ = sb.AppendLine("    {");
+        _ = sb.AppendLine($"        {scenario.HelperBody}");
+        _ = sb.AppendLine("    }");
+        _ = sb.AppendLine();
 
         // Async helper (for direct async call / explicit await)
-        sb.AppendLine($"    public static async {scenario.HelperReturnType} AsyncHelper()");
-        sb.AppendLine("    {");
-        sb.AppendLine($"        {scenario.HelperBody}");
-        sb.AppendLine("    }");
-        sb.AppendLine();
+        _ = sb.AppendLine($"    public static async {scenario.HelperReturnType} AsyncHelper()");
+        _ = sb.AppendLine("    {");
+        _ = sb.AppendLine($"        {scenario.HelperBody}");
+        _ = sb.AppendLine("    }");
+        _ = sb.AppendLine();
 
         // Target method: sync, containing various seed sources
-        sb.AppendLine("    public static void TargetMethod()");
-        sb.AppendLine("    {");
+        _ = sb.AppendLine("    public static void TargetMethod()");
+        _ = sb.AppendLine("    {");
 
         if(scenario.HasAsyncFunctor)
         {
             for(var i = 0; i < scenario.AsyncFunctorCount; i++)
             {
-                sb.AppendLine($"        var functorTask{i} = async SyncHelper();");
+                _ = sb.AppendLine($"        var functorTask{i} = async SyncHelper();");
             }
         }
 
         if(scenario.HasDirectAsyncCall)
         {
-            sb.AppendLine("        var directResult = AsyncHelper();");
+            _ = sb.AppendLine("        var directResult = AsyncHelper();");
         }
 
         if(scenario.HasExplicitAwait)
         {
-            sb.AppendLine("        var awaitResult = await AsyncHelper();");
+            _ = sb.AppendLine("        var awaitResult = await AsyncHelper();");
         }
 
-        sb.AppendLine("    }");
-        sb.AppendLine("}");
+        _ = sb.AppendLine("    }");
+        _ = sb.AppendLine("}");
 
         return sb.ToString();
     }
@@ -975,7 +975,7 @@ public class FuncAsyncDropChainingPropertyTests
             {
                 for(var j = i; j < Math.Min(i + 6, lines.Length); j++)
                 {
-                    sb.AppendLine(lines[j]);
+                    _ = sb.AppendLine(lines[j]);
                     if(lines[j].Contains(localName))
                     {
                         break;

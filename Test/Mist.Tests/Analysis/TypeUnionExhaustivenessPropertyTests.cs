@@ -195,7 +195,7 @@ public class TypeUnionExhaustivenessPropertyTests
             }
 
             var typeName = TypePool[arm.TypeIndex].Type.DisplayName;
-            coveredDisplayNames.Add(typeName);
+            _ = coveredDisplayNames.Add(typeName);
         }
 
         return leafTypes.All(t => coveredDisplayNames.Contains(t.DisplayName));

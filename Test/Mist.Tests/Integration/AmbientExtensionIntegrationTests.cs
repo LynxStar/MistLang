@@ -41,7 +41,7 @@ public sealed class AmbientExtensionIntegrationTests : IDisposable
         outputDir = Path.Combine(
             Path.GetTempPath(),
             "mist_ext_integ_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

@@ -75,7 +75,7 @@ public class StoredLocationPropertyTests
         // Lex with the generated Mist lexer (Storm runtime)
         var stormSource = new Storm.Runtime.SourceText(filePath, source);
         var stormDiagnostics = new Storm.Runtime.DiagnosticBag();
-        Mist.Generated.MistLexer.Lex(stormSource, stormDiagnostics);
+        _ = Mist.Generated.MistLexer.Lex(stormSource, stormDiagnostics);
 
         // The lexer should have produced at least one diagnostic for the invalid character
         if(!stormDiagnostics.HasErrors)

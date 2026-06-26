@@ -162,7 +162,7 @@ public sealed class DropReturnValueCaptureTests : IDisposable
     public DropReturnValueCaptureTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistDropReturnCapturePBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

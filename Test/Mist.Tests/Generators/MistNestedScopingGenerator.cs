@@ -217,17 +217,17 @@ public static class MistNestedScopingGenerator
         var types = new HashSet<Type>();
         if(mods.IsPublic)
         {
-            types.Add(typeof(Mist.Generated.PublicModifierModifierNode));
+            _ = types.Add(typeof(Mist.Generated.PublicModifierModifierNode));
         }
 
         if(mods.IsPrivate)
         {
-            types.Add(typeof(Mist.Generated.PrivateModifierModifierNode));
+            _ = types.Add(typeof(Mist.Generated.PrivateModifierModifierNode));
         }
 
         if(mods.IsStatic)
         {
-            types.Add(typeof(Mist.Generated.StaticModifierModifierNode));
+            _ = types.Add(typeof(Mist.Generated.StaticModifierModifierNode));
         }
 
         return types;
@@ -280,14 +280,14 @@ public static class MistNestedScopingGenerator
             var indent = new string(' ', i * 4);
             var keyword = AllTypeKindKeyword(kinds[i]);
             var name = $"Level{i}";
-            sb.AppendLine($"{indent}{keyword} {name} {{");
+            _ = sb.AppendLine($"{indent}{keyword} {name} {{");
         }
 
         // Close all braces in reverse order
         for(var i = kinds.Length - 1; i >= 0; i--)
         {
             var indent = new string(' ', i * 4);
-            sb.AppendLine($"{indent}}}");
+            _ = sb.AppendLine($"{indent}}}");
         }
 
         return sb.ToString();
@@ -357,25 +357,25 @@ public static class MistNestedScopingGenerator
 
         if(fileScopedPrefix is not null)
         {
-            sb.AppendLine($"namespace {fileScopedPrefix};");
-            sb.AppendLine();
+            _ = sb.AppendLine($"namespace {fileScopedPrefix};");
+            _ = sb.AppendLine();
         }
 
         for(var i = 0; i < names.Length; i++)
         {
             var indent = new string(' ', i * 4);
-            sb.AppendLine($"{indent}namespace {names[i]} {{");
+            _ = sb.AppendLine($"{indent}namespace {names[i]} {{");
         }
 
         // Place a marker class in the innermost namespace
         var innerIndent = new string(' ', names.Length * 4);
-        sb.AppendLine($"{innerIndent}class Marker {{ }}");
+        _ = sb.AppendLine($"{innerIndent}class Marker {{ }}");
 
         // Close all braces in reverse order
         for(var i = names.Length - 1; i >= 0; i--)
         {
             var indent = new string(' ', i * 4);
-            sb.AppendLine($"{indent}}}");
+            _ = sb.AppendLine($"{indent}}}");
         }
 
         return sb.ToString();
@@ -486,24 +486,24 @@ public static class MistNestedScopingGenerator
             var indent = new string(' ', i * 4);
             var name = $"Level{i}";
             var typeParam = $"T{i}";
-            sb.AppendLine($"{indent}class {name}<{typeParam}> {{");
+            _ = sb.AppendLine($"{indent}class {name}<{typeParam}> {{");
         }
 
         // Innermost nested type uses all ancestor type parameters as field types
         var innerIndent = new string(' ', depth * 4);
-        sb.AppendLine($"{innerIndent}class Inner {{");
+        _ = sb.AppendLine($"{innerIndent}class Inner {{");
         for(var i = 0; i < depth; i++)
         {
             var fieldIndent = new string(' ', (depth + 1) * 4);
-            sb.AppendLine($"{fieldIndent}public T{i} field{i};");
+            _ = sb.AppendLine($"{fieldIndent}public T{i} field{i};");
         }
-        sb.AppendLine($"{innerIndent}}}");
+        _ = sb.AppendLine($"{innerIndent}}}");
 
         // Close all braces in reverse order
         for(var i = depth - 1; i >= 0; i--)
         {
             var indent = new string(' ', i * 4);
-            sb.AppendLine($"{indent}}}");
+            _ = sb.AppendLine($"{indent}}}");
         }
 
         return sb.ToString();
@@ -554,22 +554,22 @@ public static class MistNestedScopingGenerator
         {
             var typeName = $"Type{(char)('A' + i)}";
             typeNames.Add(typeName);
-            sb.AppendLine($"namespace {nsName} {{");
-            sb.AppendLine($"    class {typeName} {{");
-            sb.AppendLine($"    }}");
-            sb.AppendLine($"}}");
-            sb.AppendLine();
+            _ = sb.AppendLine($"namespace {nsName} {{");
+            _ = sb.AppendLine($"    class {typeName} {{");
+            _ = sb.AppendLine($"    }}");
+            _ = sb.AppendLine($"}}");
+            _ = sb.AppendLine();
         }
 
         // Last block declares a class that references all types from earlier blocks
-        sb.AppendLine($"namespace {nsName} {{");
-        sb.AppendLine($"    class Consumer {{");
+        _ = sb.AppendLine($"namespace {nsName} {{");
+        _ = sb.AppendLine($"    class Consumer {{");
         for(var i = 0; i < typeNames.Count; i++)
         {
-            sb.AppendLine($"        {typeNames[i]} field{i};");
+            _ = sb.AppendLine($"        {typeNames[i]} field{i};");
         }
-        sb.AppendLine($"    }}");
-        sb.AppendLine($"}}");
+        _ = sb.AppendLine($"    }}");
+        _ = sb.AppendLine($"}}");
 
         return sb.ToString();
     }
@@ -669,18 +669,18 @@ public static class MistNestedScopingGenerator
             var name = $"Level{i}";
             var typeParams = string.Join(", ", Enumerable.Range(paramOrdinal, paramCounts[i]).Select(j => $"T{j}"));
             paramOrdinal += paramCounts[i];
-            sb.AppendLine($"{indent}class {name}<{typeParams}> {{");
+            _ = sb.AppendLine($"{indent}class {name}<{typeParams}> {{");
         }
 
         // Innermost nested type (non-generic)
         var innerIndent = new string(' ', depth * 4);
-        sb.AppendLine($"{innerIndent}class Inner {{ }}");
+        _ = sb.AppendLine($"{innerIndent}class Inner {{ }}");
 
         // Close all braces in reverse order
         for(var i = depth - 1; i >= 0; i--)
         {
             var indent = new string(' ', i * 4);
-            sb.AppendLine($"{indent}}}");
+            _ = sb.AppendLine($"{indent}}}");
         }
 
         return sb.ToString();
@@ -927,7 +927,7 @@ public static class MistNestedScopingGenerator
             var indent = new string(' ', i * 4);
             var keyword = AllTypeKindKeyword(containerKinds[i]);
             var name = $"Container{i}";
-            sb.AppendLine($"{indent}{keyword} {name} {{");
+            _ = sb.AppendLine($"{indent}{keyword} {name} {{");
         }
 
         // Leaf type with modifiers
@@ -935,13 +935,13 @@ public static class MistNestedScopingGenerator
         var modStr = ModifierSetToSource(mods);
         var leafKeyword = AllTypeKindKeyword(leafKind);
         var leafBody = leafKind == AllTypeKind.Enum ? "{ A, B }" : "{ }";
-        sb.AppendLine($"{leafIndent}{modStr}{leafKeyword} Leaf {leafBody}");
+        _ = sb.AppendLine($"{leafIndent}{modStr}{leafKeyword} Leaf {leafBody}");
 
         // Close all braces in reverse order
         for(var i = containerKinds.Length - 1; i >= 0; i--)
         {
             var indent = new string(' ', i * 4);
-            sb.AppendLine($"{indent}}}");
+            _ = sb.AppendLine($"{indent}}}");
         }
 
         return sb.ToString();
@@ -969,16 +969,16 @@ public static class MistNestedScopingGenerator
         for(var i = 0; i < names.Length; i++)
         {
             var indent = new string(' ', i * 4);
-            sb.AppendLine($"{indent}namespace {names[i]} {{");
+            _ = sb.AppendLine($"{indent}namespace {names[i]} {{");
         }
 
         var innerIndent = new string(' ', names.Length * 4);
-        sb.AppendLine($"{innerIndent}class Marker {{ }}");
+        _ = sb.AppendLine($"{innerIndent}class Marker {{ }}");
 
         for(var i = names.Length - 1; i >= 0; i--)
         {
             var indent = new string(' ', i * 4);
-            sb.AppendLine($"{indent}}}");
+            _ = sb.AppendLine($"{indent}}}");
         }
 
         return sb.ToString();
@@ -1010,11 +1010,11 @@ public static class MistNestedScopingGenerator
         var nestedBody = nestedKind == AllTypeKind.Enum ? "{ A, B }" : "{ }";
 
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine($"namespace {nsName} {{");
-        sb.AppendLine($"    {containerKeyword} Outer {{");
-        sb.AppendLine($"        {modStr}{nestedKeyword} Inner {nestedBody}");
-        sb.AppendLine($"    }}");
-        sb.AppendLine($"}}");
+        _ = sb.AppendLine($"namespace {nsName} {{");
+        _ = sb.AppendLine($"    {containerKeyword} Outer {{");
+        _ = sb.AppendLine($"        {modStr}{nestedKeyword} Inner {nestedBody}");
+        _ = sb.AppendLine($"    }}");
+        _ = sb.AppendLine($"}}");
 
         return sb.ToString();
     }

@@ -673,7 +673,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
             var name = paramList.Parameter.Name.Lexeme;
             if(!string.IsNullOrEmpty(name))
             {
-                names.Add(name);
+                _ = names.Add(name);
             }
         }
         index++;
@@ -686,7 +686,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                 var name = param.Name.Lexeme;
                 if(!string.IsNullOrEmpty(name))
                 {
-                    names.Add(name);
+                    _ = names.Add(name);
                 }
             }
             index++;
@@ -1040,7 +1040,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
 
         contextStack.Push(new ContextEntry(context, declaringTypeScope));
         WalkBlock(body, model, diagnostics, contextStack);
-        contextStack.Pop();
+        _ = contextStack.Pop();
     }
 
     private static void AnalyzeConstructorBody(
@@ -1064,7 +1064,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
 
         contextStack.Push(new ContextEntry(context, declaringTypeScope));
         WalkBlock(body, model, diagnostics, contextStack);
-        contextStack.Pop();
+        _ = contextStack.Pop();
     }
 
     private static void AnalyzePropertyBody(
@@ -1083,32 +1083,32 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                         case BlockGetAccessorAccessorDeclarationNode blockGet:
                             contextStack.Push(new ContextEntry(ContextKind.ReadonlyGetter));
                             WalkBlock(blockGet.Body, model, diagnostics, contextStack);
-                            contextStack.Pop();
+                            _ = contextStack.Pop();
                             break;
                         case ExpressionGetAccessorAccessorDeclarationNode exprGet:
                             contextStack.Push(new ContextEntry(ContextKind.ReadonlyGetter));
                             WalkNode(exprGet.Expression, model, diagnostics, contextStack);
-                            contextStack.Pop();
+                            _ = contextStack.Pop();
                             break;
                         case BlockSetAccessorAccessorDeclarationNode blockSet:
                             contextStack.Push(new ContextEntry(ContextKind.ReadonlySetter));
                             WalkBlock(blockSet.Body, model, diagnostics, contextStack);
-                            contextStack.Pop();
+                            _ = contextStack.Pop();
                             break;
                         case ExpressionSetAccessorAccessorDeclarationNode exprSet:
                             contextStack.Push(new ContextEntry(ContextKind.ReadonlySetter));
                             WalkNode(exprSet.Expression, model, diagnostics, contextStack);
-                            contextStack.Pop();
+                            _ = contextStack.Pop();
                             break;
                         case BlockInitAccessorAccessorDeclarationNode blockInit:
                             contextStack.Push(new ContextEntry(ContextKind.ReadonlySetter));
                             WalkBlock(blockInit.Body, model, diagnostics, contextStack);
-                            contextStack.Pop();
+                            _ = contextStack.Pop();
                             break;
                         case ExpressionInitAccessorAccessorDeclarationNode exprInit:
                             contextStack.Push(new ContextEntry(ContextKind.ReadonlySetter));
                             WalkNode(exprInit.Expression, model, diagnostics, contextStack);
-                            contextStack.Pop();
+                            _ = contextStack.Pop();
                             break;
                     }
                 }
@@ -1117,7 +1117,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
             case ExpressionBodiedPropertyPropertyDeclarationNode exprProp:
                 contextStack.Push(new ContextEntry(ContextKind.ReadonlyGetter));
                 WalkNode(exprProp.Body, model, diagnostics, contextStack);
-                contextStack.Pop();
+                _ = contextStack.Pop();
                 break;
         }
     }
@@ -1140,32 +1140,32 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                 case BlockGetAccessorAccessorDeclarationNode blockGet:
                     contextStack.Push(new ContextEntry(ContextKind.ReadonlyGetter));
                     WalkBlock(blockGet.Body, model, diagnostics, contextStack);
-                    contextStack.Pop();
+                    _ = contextStack.Pop();
                     break;
                 case ExpressionGetAccessorAccessorDeclarationNode exprGet:
                     contextStack.Push(new ContextEntry(ContextKind.ReadonlyGetter));
                     WalkNode(exprGet.Expression, model, diagnostics, contextStack);
-                    contextStack.Pop();
+                    _ = contextStack.Pop();
                     break;
                 case BlockSetAccessorAccessorDeclarationNode blockSet:
                     contextStack.Push(new ContextEntry(ContextKind.ReadonlyIndexerSetter));
                     WalkBlock(blockSet.Body, model, diagnostics, contextStack);
-                    contextStack.Pop();
+                    _ = contextStack.Pop();
                     break;
                 case ExpressionSetAccessorAccessorDeclarationNode exprSet:
                     contextStack.Push(new ContextEntry(ContextKind.ReadonlyIndexerSetter));
                     WalkNode(exprSet.Expression, model, diagnostics, contextStack);
-                    contextStack.Pop();
+                    _ = contextStack.Pop();
                     break;
                 case BlockInitAccessorAccessorDeclarationNode blockInit:
                     contextStack.Push(new ContextEntry(ContextKind.ReadonlyIndexerSetter));
                     WalkBlock(blockInit.Body, model, diagnostics, contextStack);
-                    contextStack.Pop();
+                    _ = contextStack.Pop();
                     break;
                 case ExpressionInitAccessorAccessorDeclarationNode exprInit:
                     contextStack.Push(new ContextEntry(ContextKind.ReadonlyIndexerSetter));
                     WalkNode(exprInit.Expression, model, diagnostics, contextStack);
-                    contextStack.Pop();
+                    _ = contextStack.Pop();
                     break;
             }
         }
@@ -1235,7 +1235,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                 // Push ReadonlyBlock context — constructor privilege is suspended (exceptions 13–14).
                 contextStack.Push(new ContextEntry(ContextKind.ReadonlyBlock));
                 WalkBlock(readonlyBlockStmt.ReadonlyBlock.Body, model, diagnostics, contextStack);
-                contextStack.Pop();
+                _ = contextStack.Pop();
                 break;
 
             case BlockStatementStatementNode blockStmt:

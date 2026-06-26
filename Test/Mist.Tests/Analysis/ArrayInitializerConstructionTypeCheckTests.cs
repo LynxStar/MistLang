@@ -39,7 +39,7 @@ public sealed class ArrayInitializerConstructionTypeCheckTests
         var tempDir = Path.Combine(
             Path.GetTempPath(),
             "mist_array_ctor_tc_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
         try
         {
             var sourcePath = Path.Combine(tempDir, "Program.mist");

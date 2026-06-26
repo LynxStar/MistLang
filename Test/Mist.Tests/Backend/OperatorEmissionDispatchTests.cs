@@ -23,7 +23,7 @@ public sealed class OperatorEmissionDispatchTests : IDisposable
     public OperatorEmissionDispatchTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistOperatorEmissionTests_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

@@ -221,8 +221,8 @@ public class AssociatedTypeObligationPropertyTests
     private static string BuildSource(ObligationScenario scenario)
     {
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("namespace TestProject;");
-        sb.AppendLine();
+        _ = sb.AppendLine("namespace TestProject;");
+        _ = sb.AppendLine();
 
         // Emit stub abstract types for any abstract type constraints referenced
         var referencedAbstracts = scenario.Slots
@@ -233,25 +233,25 @@ public class AssociatedTypeObligationPropertyTests
 
         foreach(var abs in referencedAbstracts)
         {
-            sb.AppendLine($"abstract {abs} {{ }}");
+            _ = sb.AppendLine($"abstract {abs} {{ }}");
         }
 
         if(referencedAbstracts.Count > 0)
         {
-            sb.AppendLine();
+            _ = sb.AppendLine();
         }
 
         // Emit the abstract type with associated type slots
-        sb.AppendLine($"abstract {scenario.AbstractName} {{");
+        _ = sb.AppendLine($"abstract {scenario.AbstractName} {{");
         foreach(var slot in scenario.Slots)
         {
-            sb.AppendLine($"    type {slot.Name} : {slot.ConstraintText};");
+            _ = sb.AppendLine($"    type {slot.Name} : {slot.ConstraintText};");
         }
-        sb.AppendLine("}");
-        sb.AppendLine();
+        _ = sb.AppendLine("}");
+        _ = sb.AppendLine();
 
         // Emit the implementor
-        sb.AppendLine($"{scenario.ImplementorKind} {scenario.ImplementorName} : {scenario.AbstractName} {{");
+        _ = sb.AppendLine($"{scenario.ImplementorKind} {scenario.ImplementorName} : {scenario.AbstractName} {{");
 
         for(var i = 0; i < scenario.Slots.Count; i++)
         {
@@ -274,7 +274,7 @@ public class AssociatedTypeObligationPropertyTests
             }
         }
 
-        sb.AppendLine("}");
+        _ = sb.AppendLine("}");
 
         return sb.ToString();
     }
@@ -288,17 +288,17 @@ public class AssociatedTypeObligationPropertyTests
         {
             case ConstraintKind.Struct:
                 // Provide a nested struct — satisfies `struct` constraint
-                sb.AppendLine($"    struct {slot.Name} {{ }}");
+                _ = sb.AppendLine($"    struct {slot.Name} {{ }}");
                 break;
 
             case ConstraintKind.Class:
                 // Provide a nested class — satisfies `class` constraint
-                sb.AppendLine($"    class {slot.Name} {{ }}");
+                _ = sb.AppendLine($"    class {slot.Name} {{ }}");
                 break;
 
             case ConstraintKind.Abstract:
                 // Provide a nested class that implements the required abstract type
-                sb.AppendLine($"    class {slot.Name} : {slot.AbstractConstraintName} {{ }}");
+                _ = sb.AppendLine($"    class {slot.Name} : {slot.AbstractConstraintName} {{ }}");
                 break;
         }
     }
@@ -312,17 +312,17 @@ public class AssociatedTypeObligationPropertyTests
         {
             case ConstraintKind.Struct:
                 // Provide a nested class when struct is required — violates `struct` constraint
-                sb.AppendLine($"    class {slot.Name} {{ }}");
+                _ = sb.AppendLine($"    class {slot.Name} {{ }}");
                 break;
 
             case ConstraintKind.Class:
                 // Provide a nested struct when class is required — violates `class` constraint
-                sb.AppendLine($"    struct {slot.Name} {{ }}");
+                _ = sb.AppendLine($"    struct {slot.Name} {{ }}");
                 break;
 
             case ConstraintKind.Abstract:
                 // Provide a nested class that does NOT implement the required abstract type
-                sb.AppendLine($"    class {slot.Name} {{ }}");
+                _ = sb.AppendLine($"    class {slot.Name} {{ }}");
                 break;
         }
     }

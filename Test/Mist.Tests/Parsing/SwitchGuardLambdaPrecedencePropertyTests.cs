@@ -150,7 +150,7 @@ public class SwitchGuardLambdaPrecedencePropertyTests
     private static SwitchArmNode SingleGuardedArm(CompilationUnitNode cu)
     {
         var guarded = FindAll<SwitchArmNode>(cu).Where(a => a.Guard is not null).ToList();
-        Assert.Single(guarded);
+        _ = Assert.Single(guarded);
         return guarded[0];
     }
 
@@ -292,11 +292,11 @@ public class SwitchGuardLambdaPrecedencePropertyTests
         var cu = ParseOrFail(source);
         var arm = SingleGuardedArm(cu);
 
-        Assert.IsType<VoidCoalescingNode>(arm.Guard!.Condition);
+        _ = Assert.IsType<VoidCoalescingNode>(arm.Guard!.Condition);
         Assert.Null(FindFirst<LambdaExpressionNode>(arm.Guard!));
         Assert.Equal("predicate", NormalizeWs(SpanText(source, arm.Guard!.Condition.Span)));
         Assert.Equal("n.ToString()", NormalizeWs(SpanText(source, arm.Result.Span)));
-        Assert.IsType<AssignmentFormExpressionNode>(arm.Result);
+        _ = Assert.IsType<AssignmentFormExpressionNode>(arm.Result);
     }
 
     [Fact]
@@ -306,7 +306,7 @@ public class SwitchGuardLambdaPrecedencePropertyTests
         var cu = ParseOrFail(source);
         var arm = SingleGuardedArm(cu);
 
-        Assert.IsType<VoidCoalescingNode>(arm.Guard!.Condition);
+        _ = Assert.IsType<VoidCoalescingNode>(arm.Guard!.Condition);
         Assert.Null(FindFirst<LambdaExpressionNode>(arm.Guard!));
         Assert.Equal("n > 7", NormalizeWs(SpanText(source, arm.Guard!.Condition.Span)));
         Assert.Equal("n.ToString()", NormalizeWs(SpanText(source, arm.Result.Span)));
@@ -319,7 +319,7 @@ public class SwitchGuardLambdaPrecedencePropertyTests
         var cu = ParseOrFail(source);
         var arm = SingleGuardedArm(cu);
 
-        Assert.IsType<VoidCoalescingNode>(arm.Guard!.Condition);
+        _ = Assert.IsType<VoidCoalescingNode>(arm.Guard!.Condition);
         Assert.Null(FindFirst<LambdaExpressionNode>(arm.Guard!));
         Assert.Equal("isOdd(n)", NormalizeWs(SpanText(source, arm.Guard!.Condition.Span)));
         Assert.Equal("n.ToString()", NormalizeWs(SpanText(source, arm.Result.Span)));

@@ -20,7 +20,7 @@ public sealed class ProjectFileParserGlobalUsingsPropertyTests
     private static string CreateTempProjectDir()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"mist_pbt_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(dir);
+        _ = Directory.CreateDirectory(dir);
         return dir;
     }
 
@@ -284,7 +284,7 @@ public sealed class ProjectFileParserGlobalUsingsPropertyTests
                 File.WriteAllText(Path.Combine(projectDir, "mist.toml"), tomlContent);
 
                 var diagnostics = new DiagnosticBag();
-                ProjectFileParser.Parse(projectDir, diagnostics);
+                _ = ProjectFileParser.Parse(projectDir, diagnostics);
 
                 var diags = diagnostics.ToImmutableArray();
                 Assert.NotEmpty(diags);

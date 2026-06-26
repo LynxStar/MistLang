@@ -235,7 +235,7 @@ public class UnknownTypeResolutionTests
         // Reference equality — UnknownType is a singleton; every `unknown`
         // reference in source must resolve to the same .Instance.
         Assert.Same(UnknownType.Instance, localType);
-        Assert.IsType<UnknownType>(localType);
+        _ = Assert.IsType<UnknownType>(localType);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -261,7 +261,7 @@ public class UnknownTypeResolutionTests
         var listType = Assert.IsType<ClassType>(constructed.GenericDefinition);
         Assert.Equal("List", listType.DisplayName);
 
-        Assert.Single(constructed.TypeArguments);
+        _ = Assert.Single(constructed.TypeArguments);
         Assert.Same(UnknownType.Instance, constructed.TypeArguments[0]);
     }
 
@@ -323,13 +323,13 @@ public class UnknownTypeResolutionTests
         var outer = Assert.IsType<ConstructedType>(localType);
         var optionalType = Assert.IsType<ClassType>(outer.GenericDefinition);
         Assert.Equal("Optional", optionalType.DisplayName);
-        Assert.Single(outer.TypeArguments);
+        _ = Assert.Single(outer.TypeArguments);
 
         // Inner: ConstructedType(List, [UnknownType.Instance])
         var inner = Assert.IsType<ConstructedType>(outer.TypeArguments[0]);
         var listType = Assert.IsType<ClassType>(inner.GenericDefinition);
         Assert.Equal("List", listType.DisplayName);
-        Assert.Single(inner.TypeArguments);
+        _ = Assert.Single(inner.TypeArguments);
         Assert.Same(UnknownType.Instance, inner.TypeArguments[0]);
     }
 }

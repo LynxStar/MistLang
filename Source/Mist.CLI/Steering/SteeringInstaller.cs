@@ -103,7 +103,7 @@ public static class SteeringInstaller
         var steeringDir = Path.Combine(projectFolder, ".kiro", "steering");
         try
         {
-            Directory.CreateDirectory(steeringDir);
+            _ = Directory.CreateDirectory(steeringDir);
         }
         catch(Exception ex)
         {

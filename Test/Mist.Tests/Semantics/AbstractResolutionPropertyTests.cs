@@ -406,7 +406,7 @@ public class AbstractResolutionPropertyTests
         var classSymbol = model.AllSymbols.First(s => s.Name == "Worker" && s.Kind == SymbolKind.Class);
         var classType = Assert.IsType<ClassType>(classSymbol.DeclaredType);
 
-        Assert.Single(classType.Abstracts);
+        _ = Assert.Single(classType.Abstracts);
         Assert.Equal("IWorker", classType.Abstracts[0].DisplayName);
         Assert.Null(classType.BaseType);
         Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_UNDEFINED_ABSTRACT");
@@ -427,7 +427,7 @@ public class AbstractResolutionPropertyTests
         var structSymbol = model.AllSymbols.First(s => s.Name == "Point" && s.Kind == SymbolKind.Struct);
         var structType = Assert.IsType<StructType>(structSymbol.DeclaredType);
 
-        Assert.Single(structType.Abstracts);
+        _ = Assert.Single(structType.Abstracts);
         Assert.Equal("IComparable", structType.Abstracts[0].DisplayName);
         Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_UNDEFINED_ABSTRACT");
     }
@@ -449,7 +449,7 @@ public class AbstractResolutionPropertyTests
         var derivedSymbol = model.AllSymbols.First(s => s.Name == "IDerived" && s.Kind == SymbolKind.Abstract);
         var derivedType = Assert.IsType<AbstractType>(derivedSymbol.DeclaredType);
 
-        Assert.Single(derivedType.Abstracts);
+        _ = Assert.Single(derivedType.Abstracts);
         Assert.Equal("IBase", derivedType.Abstracts[0].DisplayName);
         Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_UNDEFINED_ABSTRACT");
     }
@@ -470,7 +470,7 @@ public class AbstractResolutionPropertyTests
         var classSymbol = model.AllSymbols.First(s => s.Name == "Worker" && s.Kind == SymbolKind.Class);
         var classType = Assert.IsType<ClassType>(classSymbol.DeclaredType);
 
-        Assert.Single(classType.Abstracts);
+        _ = Assert.Single(classType.Abstracts);
         Assert.Equal("IWorker", classType.Abstracts[0].DisplayName);
         Assert.Null(classType.BaseType);
     }

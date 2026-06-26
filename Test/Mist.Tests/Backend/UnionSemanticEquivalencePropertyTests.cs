@@ -46,7 +46,7 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
     public UnionSemanticEquivalencePropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "mist_union_semantic_prop_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -477,16 +477,16 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
 
         for(var i = 0; i < scenarios.Count; i++)
         {
-            scenarioMethods.AppendLine($"    public static void RunScenario{i + 1}() {{");
-            scenarioMethods.AppendLine(scenarios[i].MethodBody);
-            scenarioMethods.AppendLine("    }");
-            scenarioMethods.AppendLine();
+            _ = scenarioMethods.AppendLine($"    public static void RunScenario{i + 1}() {{");
+            _ = scenarioMethods.AppendLine(scenarios[i].MethodBody);
+            _ = scenarioMethods.AppendLine("    }");
+            _ = scenarioMethods.AppendLine();
         }
 
         var mainCalls = new System.Text.StringBuilder();
         for(var i = 0; i < scenarios.Count; i++)
         {
-            mainCalls.AppendLine($"        Program.RunScenario{i + 1}();");
+            _ = mainCalls.AppendLine($"        Program.RunScenario{i + 1}();");
         }
 
         return $$"""
@@ -542,7 +542,7 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
     private (int ExitCode, string Stdout, string Stderr) CompileAndRun(string mistSource)
     {
         var iterDir = Path.Combine(outputDir, Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(iterDir);
+        _ = Directory.CreateDirectory(iterDir);
 
         try
         {

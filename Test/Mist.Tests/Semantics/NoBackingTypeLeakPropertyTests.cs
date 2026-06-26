@@ -152,21 +152,21 @@ public class NoBackingTypeLeakPropertyTests
     private static string GenerateSource(LeakScenario scenario)
     {
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("using Standard;");
-        sb.AppendLine("namespace TestNs;");
-        sb.AppendLine("public class Program {");
-        sb.AppendLine("    public static void Main(string[] args) {");
+        _ = sb.AppendLine("using Standard;");
+        _ = sb.AppendLine("namespace TestNs;");
+        _ = sb.AppendLine("public class Program {");
+        _ = sb.AppendLine("    public static void Main(string[] args) {");
 
         for(var i = 0; i < scenario.FragmentIndices.Count; i++)
         {
             var idx = scenario.FragmentIndices[i];
             // Generate fragment with unique variable names using suffix
             var fragment = GenerateFragment(idx, i);
-            sb.AppendLine($"        {fragment}");
+            _ = sb.AppendLine($"        {fragment}");
         }
 
-        sb.AppendLine("    }");
-        sb.AppendLine("}");
+        _ = sb.AppendLine("    }");
+        _ = sb.AppendLine("}");
         return sb.ToString();
     }
 

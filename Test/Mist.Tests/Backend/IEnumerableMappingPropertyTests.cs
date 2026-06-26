@@ -279,7 +279,7 @@ public sealed class IEnumerableMappingPropertyTests
                 $"synthesized in its member scope. Members: [{string.Join(", ", memberScope.Members.Select(m => $"{m.Name}:{m.Kind}"))}]");
 
             // Verify the slot type is AssociatedTypeSlotType
-            Assert.IsType<AssociatedTypeSlotType>(enumeratorSymbol.DeclaredType);
+            _ = Assert.IsType<AssociatedTypeSlotType>(enumeratorSymbol.DeclaredType);
 
             // Verify the slot has SymbolOrigin.Backend
             Assert.Equal(SymbolOrigin.Backend, enumeratorSymbol.Origin);
@@ -375,6 +375,6 @@ public sealed class IEnumerableMappingPropertyTests
 
         // The concrete enumerator should be a StructType (since CustomCollection.Enumerator is a struct)
         var concreteEnumerator = slotType.Constraints.BaseClassConstraint;
-        Assert.IsType<StructType>(concreteEnumerator);
+        _ = Assert.IsType<StructType>(concreteEnumerator);
     }
 }

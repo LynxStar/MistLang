@@ -19,10 +19,10 @@ public static class StormPrettyPrinter
         // Grammar declaration
         if(file.GrammarDeclaration is not null)
         {
-            sb.AppendLine($"grammar {file.GrammarDeclaration.Name};");
+            _ = sb.AppendLine($"grammar {file.GrammarDeclaration.Name};");
             if(file.Imports.Count > 0 || file.Declarations.Count > 0)
             {
-                sb.AppendLine();
+                _ = sb.AppendLine();
             }
         }
 
@@ -32,17 +32,17 @@ public static class StormPrettyPrinter
             var imp = file.Imports[i];
             if(imp.Alias is not null)
             {
-                sb.AppendLine($"import \"{EscapeString(imp.Path)}\" as {imp.Alias};");
+                _ = sb.AppendLine($"import \"{EscapeString(imp.Path)}\" as {imp.Alias};");
             }
             else
             {
-                sb.AppendLine($"import \"{EscapeString(imp.Path)}\";");
+                _ = sb.AppendLine($"import \"{EscapeString(imp.Path)}\";");
             }
         }
 
         if(file.Imports.Count > 0 && file.Declarations.Count > 0)
         {
-            sb.AppendLine();
+            _ = sb.AppendLine();
         }
 
         // Declarations
@@ -50,10 +50,10 @@ public static class StormPrettyPrinter
         {
             if(i > 0)
             {
-                sb.AppendLine();
+                _ = sb.AppendLine();
             }
 
-            sb.Append(PrintDeclaration(file.Declarations[i], indent: ""));
+            _ = sb.Append(PrintDeclaration(file.Declarations[i], indent: ""));
         }
 
         return sb.ToString();
@@ -75,15 +75,15 @@ public static class StormPrettyPrinter
     private static string PrintModeDecl(StormModeDecl mode, string indent)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"{indent}mode {mode.Name} {{");
+        _ = sb.AppendLine($"{indent}mode {mode.Name} {{");
 
         var innerIndent = indent + "    ";
         for(var i = 0; i < mode.Declarations.Count; i++)
         {
-            sb.Append(PrintDeclaration(mode.Declarations[i], innerIndent));
+            _ = sb.Append(PrintDeclaration(mode.Declarations[i], innerIndent));
         }
 
-        sb.AppendLine($"{indent}}}");
+        _ = sb.AppendLine($"{indent}}}");
         return sb.ToString();
     }
 
@@ -130,10 +130,10 @@ public static class StormPrettyPrinter
         {
             if(i > 0)
             {
-                sb.Append(" | ");
+                _ = sb.Append(" | ");
             }
 
-            sb.Append(PrintExpression(alt.Alternatives[i]));
+            _ = sb.Append(PrintExpression(alt.Alternatives[i]));
         }
         return sb.ToString();
     }
@@ -145,10 +145,10 @@ public static class StormPrettyPrinter
         {
             if(i > 0)
             {
-                sb.Append(' ');
+                _ = sb.Append(' ');
             }
 
-            sb.Append(PrintExpression(seq.Elements[i]));
+            _ = sb.Append(PrintExpression(seq.Elements[i]));
         }
         return sb.ToString();
     }
@@ -170,12 +170,12 @@ public static class StormPrettyPrinter
         {
             switch(c)
             {
-                case '\\': sb.Append("\\\\"); break;
-                case '"': sb.Append("\\\""); break;
-                case '\n': sb.Append("\\n"); break;
-                case '\r': sb.Append("\\r"); break;
-                case '\t': sb.Append("\\t"); break;
-                default: sb.Append(c); break;
+                case '\\': _ = sb.Append("\\\\"); break;
+                case '"': _ = sb.Append("\\\""); break;
+                case '\n': _ = sb.Append("\\n"); break;
+                case '\r': _ = sb.Append("\\r"); break;
+                case '\t': _ = sb.Append("\\t"); break;
+                default: _ = sb.Append(c); break;
             }
         }
         return sb.ToString();

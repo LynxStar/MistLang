@@ -54,7 +54,7 @@ public sealed class OperatorRoundTripPropertyTests : IDisposable
     public OperatorRoundTripPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "mist_pbt_rt_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -109,10 +109,10 @@ public sealed class OperatorRoundTripPropertyTests : IDisposable
             var s = scenarios[i];
             var a = FormatLiteral(s.A);
             var b = FormatLiteral(s.B);
-            body.AppendLine($"        int a{i} = {a};");
-            body.AppendLine($"        int b{i} = {b};");
-            body.AppendLine($"        int s{i} = a{i} + b{i};");
-            body.AppendLine($"        Console.WriteLine(s{i} - b{i});");
+            _ = body.AppendLine($"        int a{i} = {a};");
+            _ = body.AppendLine($"        int b{i} = {b};");
+            _ = body.AppendLine($"        int s{i} = a{i} + b{i};");
+            _ = body.AppendLine($"        Console.WriteLine(s{i} - b{i});");
         }
 
         return $$"""
@@ -137,10 +137,10 @@ public sealed class OperatorRoundTripPropertyTests : IDisposable
             var s = scenarios[i];
             var a = FormatLiteral(s.A);
             var b = FormatLiteral(s.B);
-            body.AppendLine($"        long a{i} = {a};");
-            body.AppendLine($"        long b{i} = {b};");
-            body.AppendLine($"        long s{i} = a{i} + b{i};");
-            body.AppendLine($"        Console.WriteLine(s{i} - b{i});");
+            _ = body.AppendLine($"        long a{i} = {a};");
+            _ = body.AppendLine($"        long b{i} = {b};");
+            _ = body.AppendLine($"        long s{i} = a{i} + b{i};");
+            _ = body.AppendLine($"        Console.WriteLine(s{i} - b{i});");
         }
 
         return $$"""
@@ -164,7 +164,7 @@ public sealed class OperatorRoundTripPropertyTests : IDisposable
     private (int ExitCode, string Stdout, string Stderr) CompileAndRun(string mistSource)
     {
         var iterDir = Path.Combine(outputDir, Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(iterDir);
+        _ = Directory.CreateDirectory(iterDir);
 
         try
         {

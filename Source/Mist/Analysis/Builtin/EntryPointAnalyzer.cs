@@ -179,7 +179,7 @@ public sealed class EntryPointAnalyzer : IAnalyzer
         {
             if(unit.OriginProjectPath is not null)
             {
-                referencedSourcePaths.Add(unit.Source.Path);
+                _ = referencedSourcePaths.Add(unit.Source.Path);
             }
         }
 

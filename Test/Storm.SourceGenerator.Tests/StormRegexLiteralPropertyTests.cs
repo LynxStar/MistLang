@@ -66,7 +66,7 @@ public class StormRegexLiteralPropertyTests
             var file = StormParser.Parse(tokens, source, diagnostics);
 
             Assert.Empty(diagnostics);
-            Assert.Single(file.Declarations);
+            _ = Assert.Single(file.Declarations);
             var decl = Assert.IsType<StormTokenDecl>(file.Declarations[0]);
             var regexExpr = Assert.IsType<StormRegexLiteralExpr>(decl.Body);
             Assert.Equal(pattern, regexExpr.Pattern);

@@ -616,7 +616,7 @@ public class GenericInheritanceResolutionPropertyTests
 
         var constructedBase = Assert.IsType<ConstructedType>(derivedType.BaseType);
         Assert.Equal("Base", ((ClassType)constructedBase.GenericDefinition).DisplayName);
-        Assert.Single(constructedBase.TypeArguments);
+        _ = Assert.Single(constructedBase.TypeArguments);
         var tpt = Assert.IsType<TypeParameterType>(constructedBase.TypeArguments[0]);
         Assert.Equal("T", tpt.Name);
     }
@@ -655,7 +655,7 @@ public class GenericInheritanceResolutionPropertyTests
 
         var constructedBase = Assert.IsType<ConstructedType>(derivedType.BaseType);
         Assert.Equal("Base", ((ClassType)constructedBase.GenericDefinition).DisplayName);
-        Assert.Single(constructedBase.TypeArguments);
+        _ = Assert.Single(constructedBase.TypeArguments);
         Assert.Equal("int", constructedBase.TypeArguments[0].DisplayName);
     }
 
@@ -692,10 +692,10 @@ public class GenericInheritanceResolutionPropertyTests
         var classSymbol = model.AllSymbols.First(s => s.Name == "Box" && s.Kind == SymbolKind.Class);
         var classType = Assert.IsType<ClassType>(classSymbol.DeclaredType);
 
-        Assert.Single(classType.Abstracts);
+        _ = Assert.Single(classType.Abstracts);
         var constructedAbstract = Assert.IsType<ConstructedType>(classType.Abstracts[0]);
         Assert.Equal("IContainer", ((AbstractType)constructedAbstract.GenericDefinition).DisplayName);
-        Assert.Single(constructedAbstract.TypeArguments);
+        _ = Assert.Single(constructedAbstract.TypeArguments);
         var tpt = Assert.IsType<TypeParameterType>(constructedAbstract.TypeArguments[0]);
         Assert.Equal("T", tpt.Name);
     }

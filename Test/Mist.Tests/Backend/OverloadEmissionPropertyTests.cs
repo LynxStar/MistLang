@@ -50,7 +50,7 @@ public sealed partial class OverloadEmissionPropertyTests : IDisposable
         outputDir = Path.Combine(
             Path.GetTempPath(),
             "MistOverloadEmissionTests_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -141,11 +141,11 @@ public sealed partial class OverloadEmissionPropertyTests : IDisposable
         string methodName, IReadOnlyList<string> paramTypes)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("class MyClass {");
+        _ = sb.AppendLine("class MyClass {");
         var members = ImmutableArray.CreateBuilder<MemberDeclarationNode>();
 
-        sb.AppendLine("    public static void Main() { }");
-        sb.AppendLine();
+        _ = sb.AppendLine("    public static void Main() { }");
+        _ = sb.AppendLine();
         members.Add(new MethodMemberMemberDeclarationNode
         {
             Method = new MethodDeclarationNode
@@ -163,7 +163,7 @@ public sealed partial class OverloadEmissionPropertyTests : IDisposable
         {
             var typeName = paramTypes[i];
             var paramName = $"p{i}";
-            sb.AppendLine($"    public void {methodName}({typeName} {paramName}) {{ }}");
+            _ = sb.AppendLine($"    public void {methodName}({typeName} {paramName}) {{ }}");
 
             var param = new ParameterNode
             {
@@ -188,7 +188,7 @@ public sealed partial class OverloadEmissionPropertyTests : IDisposable
             });
         }
 
-        sb.AppendLine("}");
+        _ = sb.AppendLine("}");
         var source = sb.ToString();
         var classDecl = new ClassDeclarationNode
         {
@@ -207,11 +207,11 @@ public sealed partial class OverloadEmissionPropertyTests : IDisposable
         string className, IReadOnlyList<string> paramTypes)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"class {className} {{");
+        _ = sb.AppendLine($"class {className} {{");
         var members = ImmutableArray.CreateBuilder<MemberDeclarationNode>();
 
-        sb.AppendLine("    public static void Main() { }");
-        sb.AppendLine();
+        _ = sb.AppendLine("    public static void Main() { }");
+        _ = sb.AppendLine();
         members.Add(new MethodMemberMemberDeclarationNode
         {
             Method = new MethodDeclarationNode
@@ -229,7 +229,7 @@ public sealed partial class OverloadEmissionPropertyTests : IDisposable
         {
             var typeName = paramTypes[i];
             var paramName = $"p{i}";
-            sb.AppendLine($"    public {className}({typeName} {paramName}) {{ }}");
+            _ = sb.AppendLine($"    public {className}({typeName} {paramName}) {{ }}");
 
             var param = new ParameterNode
             {
@@ -253,7 +253,7 @@ public sealed partial class OverloadEmissionPropertyTests : IDisposable
             });
         }
 
-        sb.AppendLine("}");
+        _ = sb.AppendLine("}");
         var source = sb.ToString();
         var classDecl = new ClassDeclarationNode
         {
@@ -271,15 +271,15 @@ public sealed partial class OverloadEmissionPropertyTests : IDisposable
     private static string BuildMistSource(IReadOnlyList<string> paramTypes)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("class Program {");
-        sb.AppendLine("    public static void Main() { }");
-        sb.AppendLine();
+        _ = sb.AppendLine("class Program {");
+        _ = sb.AppendLine("    public static void Main() { }");
+        _ = sb.AppendLine();
         for(var i = 0; i < paramTypes.Count; i++)
         {
-            sb.AppendLine($"    public void DoWork({paramTypes[i]} p{i}) {{ }}");
+            _ = sb.AppendLine($"    public void DoWork({paramTypes[i]} p{i}) {{ }}");
         }
 
-        sb.AppendLine("}");
+        _ = sb.AppendLine("}");
         return sb.ToString();
     }
 
@@ -366,7 +366,7 @@ public sealed partial class OverloadEmissionPropertyTests : IDisposable
         var mistSource = BuildMistSource(paramTypes);
 
         var tempDir = Path.Combine(Path.GetTempPath(), "MistRoundTrip_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
 
         try
         {

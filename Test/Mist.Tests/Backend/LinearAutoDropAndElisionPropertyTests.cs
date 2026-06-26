@@ -241,7 +241,7 @@ public sealed class LinearAutoDropAndElisionPropertyTests : IDisposable
     public LinearAutoDropAndElisionPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistLinearDropElisionPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

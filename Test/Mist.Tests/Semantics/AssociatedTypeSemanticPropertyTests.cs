@@ -117,7 +117,7 @@ public sealed class AssociatedTypeSemanticPropertyTests : IDisposable
         outputDir = Path.Combine(
             Path.GetTempPath(),
             "MistAssocTypeSemantic_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -290,8 +290,8 @@ public sealed class AssociatedTypeSemanticPropertyTests : IDisposable
     private static string BuildSource(string abstractName, IReadOnlyList<SlotSpec> slots)
     {
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("namespace TestProject;");
-        sb.AppendLine();
+        _ = sb.AppendLine("namespace TestProject;");
+        _ = sb.AppendLine();
 
         // Emit stub abstracts for any abstract constraints referenced
         var referencedAbstracts = slots
@@ -301,29 +301,29 @@ public sealed class AssociatedTypeSemanticPropertyTests : IDisposable
 
         foreach(var abs in referencedAbstracts)
         {
-            sb.AppendLine($"abstract {abs} {{ }}");
+            _ = sb.AppendLine($"abstract {abs} {{ }}");
         }
 
         if(referencedAbstracts.Count > 0)
         {
-            sb.AppendLine();
+            _ = sb.AppendLine();
         }
 
         // Emit the main abstract type with associated type slots
-        sb.AppendLine($"abstract {abstractName} {{");
+        _ = sb.AppendLine($"abstract {abstractName} {{");
         foreach(var slot in slots)
         {
             var constraintList = BuildConstraintList(slot);
             if(string.IsNullOrEmpty(constraintList))
             {
-                sb.AppendLine($"    type {slot.Name};");
+                _ = sb.AppendLine($"    type {slot.Name};");
             }
             else
             {
-                sb.AppendLine($"    type {slot.Name} : {constraintList};");
+                _ = sb.AppendLine($"    type {slot.Name} : {constraintList};");
             }
         }
-        sb.AppendLine("}");
+        _ = sb.AppendLine("}");
 
         return sb.ToString();
     }

@@ -49,7 +49,7 @@ public sealed class EmitterDispatchPropertyTests : IDisposable
     public EmitterDispatchPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistEmitterDispatch_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

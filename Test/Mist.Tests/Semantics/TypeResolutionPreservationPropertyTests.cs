@@ -76,7 +76,7 @@ public sealed class TypeResolutionPreservationPropertyTests : IDisposable
         outputDir = Path.Combine(
             Path.GetTempPath(),
             "mist_preservation_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

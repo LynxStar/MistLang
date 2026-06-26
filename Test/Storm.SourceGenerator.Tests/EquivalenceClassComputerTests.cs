@@ -170,7 +170,7 @@ public class EquivalenceClassComputerTests
         var usedClasses = new HashSet<int>();
         for(int c = 0; c < 65536; c++)
         {
-            usedClasses.Add(charToClass[c]);
+            _ = usedClasses.Add(charToClass[c]);
         }
 
         Assert.Equal(classCount, usedClasses.Count);

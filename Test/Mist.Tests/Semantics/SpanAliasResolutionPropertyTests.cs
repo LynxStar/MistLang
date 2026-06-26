@@ -53,7 +53,7 @@ public sealed class SpanAliasResolutionPropertyTests : IDisposable
         scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist_pbt_span_alias_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(scratchDir);
+        _ = Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()
@@ -185,7 +185,7 @@ public sealed class SpanAliasResolutionPropertyTests : IDisposable
     private (CompilerResult Result, ISemanticModel? Model) CompileAndCapture(string source)
     {
         var iterDir = Path.Combine(scratchDir, Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(iterDir);
+        _ = Directory.CreateDirectory(iterDir);
 
         var filePath = Path.Combine(iterDir, "Program.mist");
         File.WriteAllText(filePath, source);

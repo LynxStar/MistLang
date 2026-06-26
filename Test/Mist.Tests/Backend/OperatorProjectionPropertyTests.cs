@@ -282,7 +282,7 @@ public sealed class OperatorProjectionPropertyTests
             return false.ToProperty().Label("Could not get member scope");
         }
 
-        projector.ProjectOperators(scenario.DeclaringType, memberScope, stdlib);
+        _ = projector.ProjectOperators(scenario.DeclaringType, memberScope, stdlib);
 
         var expectedName = GetExpectedMistOperatorName(scenario.OperatorMethod);
 

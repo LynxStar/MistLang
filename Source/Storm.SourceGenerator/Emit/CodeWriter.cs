@@ -40,15 +40,15 @@ namespace Storm.SourceGenerator.Emit
         {
             if(string.IsNullOrEmpty(line))
             {
-                sb.AppendLine();
+                _ = sb.AppendLine();
                 return;
             }
 
             for(var i = 0; i < indentLevel; i++)
             {
-                sb.Append(IndentUnit);
+                _ = sb.Append(IndentUnit);
             }
-            sb.AppendLine(line);
+            _ = sb.AppendLine(line);
         }
 
         /// <summary>
@@ -56,7 +56,7 @@ namespace Storm.SourceGenerator.Emit
         /// </summary>
         public void WriteEmptyLine()
         {
-            sb.AppendLine();
+            _ = sb.AppendLine();
         }
 
         /// <summary>

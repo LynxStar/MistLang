@@ -293,7 +293,7 @@ public sealed class ReadonlyInferencePropertyTests : IDisposable
     public ReadonlyInferencePropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistReadonlyInferencePBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

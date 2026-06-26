@@ -206,7 +206,7 @@ public sealed class WithBlockDropCompositionPropertyTests : IDisposable
     public WithBlockDropCompositionPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistWithDropComposition_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

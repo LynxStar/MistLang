@@ -346,7 +346,7 @@ public sealed class TypeReferencePreservationPropertyTests
     {
         var typeRef = GetVariableTypeRef("int[]");
         var prim = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(typeRef.First);
-        Assert.IsType<IntTypePrimitiveTypeNode>(prim.PrimitiveType);
+        _ = Assert.IsType<IntTypePrimitiveTypeNode>(prim.PrimitiveType);
         Assert.NotNull(prim.ArrayRank);
     }
 
@@ -362,14 +362,14 @@ public sealed class TypeReferencePreservationPropertyTests
     public void Void_ProducesVoidTypeRefNode()
     {
         var typeRef = GetVariableTypeRef("void");
-        Assert.IsType<VoidSingleTypeRefSingleTypeRefNode>(typeRef.First);
+        _ = Assert.IsType<VoidSingleTypeRefSingleTypeRefNode>(typeRef.First);
     }
 
     [Fact]
     public void Unknown_ProducesUnknownTypeRefNode()
     {
         var typeRef = GetVariableTypeRef("unknown");
-        Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(typeRef.First);
+        _ = Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(typeRef.First);
     }
 
     [Fact]
@@ -396,6 +396,6 @@ public sealed class TypeReferencePreservationPropertyTests
 
         // Second constituent: bool.
         var boolRef = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(constituents[1]);
-        Assert.IsType<BoolTypePrimitiveTypeNode>(boolRef.PrimitiveType);
+        _ = Assert.IsType<BoolTypePrimitiveTypeNode>(boolRef.PrimitiveType);
     }
 }

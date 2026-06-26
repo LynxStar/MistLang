@@ -34,7 +34,7 @@ public sealed class CompilerDriverReferenceIntegrationTests : IDisposable
         scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist-ref-integ-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(scratchDir);
+        _ = Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()
@@ -59,7 +59,7 @@ public sealed class CompilerDriverReferenceIntegrationTests : IDisposable
         Dictionary<string, string>? sourceFiles = null)
     {
         var projectDir = Path.Combine(scratchDir, name);
-        Directory.CreateDirectory(projectDir);
+        _ = Directory.CreateDirectory(projectDir);
 
         var toml = $"name = \"{name}\"\n";
         if(namespaceRoot is not null)
@@ -341,7 +341,7 @@ public sealed class CompilerDriverReferenceIntegrationTests : IDisposable
             NamespaceRoot: "MyApp",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
-        driver.Compile(options);
+        _ = driver.Compile(options);
 
         Assert.NotNull(capture.CapturedCompilation);
         var units = capture.CapturedCompilation!.Units;

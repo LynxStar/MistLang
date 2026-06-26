@@ -31,7 +31,7 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
         scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist-gu-driver-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(scratchDir);
+        _ = Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()
@@ -92,7 +92,7 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
         Dictionary<string, string>? sourceFiles = null)
     {
         var projectDir = Path.Combine(scratchDir, name);
-        Directory.CreateDirectory(projectDir);
+        _ = Directory.CreateDirectory(projectDir);
 
         var toml = $"name = \"{name}\"\n";
         if(namespaceRoot is not null)
@@ -132,7 +132,7 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
             {
                 var filePath = Path.Combine(projectDir, fileName);
                 var dir = Path.GetDirectoryName(filePath)!;
-                Directory.CreateDirectory(dir);
+                _ = Directory.CreateDirectory(dir);
                 File.WriteAllText(filePath, content);
             }
         }
@@ -179,7 +179,7 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
             NamespaceRoot: "MyApp",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
-        driver.Compile(options);
+        _ = driver.Compile(options);
 
         Assert.NotNull(capture.CapturedCompilation);
         var units = capture.CapturedCompilation!.Units;
@@ -258,7 +258,7 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
             NamespaceRoot: "MyApp",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
-        driver.Compile(options);
+        _ = driver.Compile(options);
 
         Assert.NotNull(capture.CapturedCompilation);
         var units = capture.CapturedCompilation!.Units;
@@ -272,7 +272,7 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
         // B's units should have B's global usings, not A's
         foreach(var unit in refUnits)
         {
-            Assert.Single(unit.GlobalUsings);
+            _ = Assert.Single(unit.GlobalUsings);
             Assert.Equal("SharedLib.Internal", unit.GlobalUsings[0]);
         }
 
@@ -327,7 +327,7 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
             NamespaceRoot: "MyApp",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
-        driver.Compile(options);
+        _ = driver.Compile(options);
 
         Assert.NotNull(capture.CapturedCompilation);
         var units = capture.CapturedCompilation!.Units;
@@ -355,7 +355,7 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
     {
         // Create a project directory WITHOUT a mist.toml
         var projectDir = Path.Combine(scratchDir, "NoToml");
-        Directory.CreateDirectory(projectDir);
+        _ = Directory.CreateDirectory(projectDir);
 
         var userSource = """
             namespace TestNs;
@@ -382,7 +382,7 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,
             GlobalUsings: ImmutableArray.Create("System", "System.Collections.Generic"));
 
-        driver.Compile(options);
+        _ = driver.Compile(options);
 
         Assert.NotNull(capture.CapturedCompilation);
         var units = capture.CapturedCompilation!.Units;
@@ -447,7 +447,7 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,
             GlobalUsings: ImmutableArray.Create("FromOptions.Namespace"));
 
-        driver.Compile(options);
+        _ = driver.Compile(options);
 
         Assert.NotNull(capture.CapturedCompilation);
         var units = capture.CapturedCompilation!.Units;
@@ -458,7 +458,7 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
 
         foreach(var unit in userUnits)
         {
-            Assert.Single(unit.GlobalUsings);
+            _ = Assert.Single(unit.GlobalUsings);
             Assert.Equal("FromToml.Namespace", unit.GlobalUsings[0]);
         }
     }
@@ -524,7 +524,7 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
             NamespaceRoot: "MyApp",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
-        driver.Compile(options);
+        _ = driver.Compile(options);
 
         Assert.NotNull(capture.CapturedCompilation);
         var units = capture.CapturedCompilation!.Units;
@@ -546,7 +546,7 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
         var userUnits = units.Where(u => !u.IsStdlib && u.OriginProjectPath is null).ToList();
         foreach(var unit in userUnits)
         {
-            Assert.Single(unit.GlobalUsings);
+            _ = Assert.Single(unit.GlobalUsings);
             Assert.Equal("System", unit.GlobalUsings[0]);
         }
     }

@@ -46,7 +46,7 @@ public sealed class AsExpressionEmissionTests : IDisposable
     public AsExpressionEmissionTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "mist_as_emit_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -67,7 +67,7 @@ public sealed class AsExpressionEmissionTests : IDisposable
     private string CompileAndGetEmittedCSharp(string mistSource)
     {
         var iterDir = Path.Combine(outputDir, Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(iterDir);
+        _ = Directory.CreateDirectory(iterDir);
 
         try
         {
@@ -115,7 +115,7 @@ public sealed class AsExpressionEmissionTests : IDisposable
     private (int ExitCode, string Stdout, string Stderr) CompileAndRun(string mistSource)
     {
         var iterDir = Path.Combine(outputDir, Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(iterDir);
+        _ = Directory.CreateDirectory(iterDir);
 
         try
         {

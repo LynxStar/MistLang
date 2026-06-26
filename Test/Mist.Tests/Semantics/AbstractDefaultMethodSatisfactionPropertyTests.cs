@@ -86,7 +86,7 @@ public class AbstractDefaultMethodSatisfactionPropertyTests
     {
         var compilation = MakeCompilation();
         var diagnostics = new DiagnosticBag();
-        builder.Build(
+        _ = builder.Build(
             compilation,
             ImmutableArray.Create(ast),
             ambientTypeResolver: null,
@@ -454,7 +454,7 @@ public class AbstractDefaultMethodSatisfactionPropertyTests
         var diagnostics = BuildAndCollectDiagnostics(ast);
         var missing = diagnostics.Where(d => d.Id.Value == MissingMethodDiagnosticId).ToList();
 
-        Assert.Single(missing);
+        _ = Assert.Single(missing);
         Assert.Contains("BaseSlot", missing[0].Message);
         Assert.DoesNotContain(missing, d => d.Message.Contains("BaseDefault"));
         Assert.DoesNotContain(missing, d => d.Message.Contains("ChildDefault"));
@@ -507,7 +507,7 @@ public class AbstractDefaultMethodSatisfactionPropertyTests
         var diagnostics = BuildAndCollectDiagnostics(ast);
         var missing = diagnostics.Where(d => d.Id.Value == MissingMethodDiagnosticId).ToList();
 
-        Assert.Single(missing);
+        _ = Assert.Single(missing);
         Assert.Contains("DoWork", missing[0].Message);
         Assert.DoesNotContain(missing, d => d.Message.Contains("Describe"));
     }

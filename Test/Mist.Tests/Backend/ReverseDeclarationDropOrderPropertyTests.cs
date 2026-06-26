@@ -79,45 +79,45 @@ public static class ReverseDropOrderGenerators
         var sb = new StringBuilder();
 
         // Linear type with void Drop() — each instance is distinguishable
-        sb.AppendLine("linear class Resource");
-        sb.AppendLine("{");
-        sb.AppendLine("    int id;");
-        sb.AppendLine();
-        sb.AppendLine("    public Resource(int val)");
-        sb.AppendLine("    {");
-        sb.AppendLine("        this.id = val;");
-        sb.AppendLine("    }");
-        sb.AppendLine();
-        sb.AppendLine("    public void Drop()");
-        sb.AppendLine("    {");
-        sb.AppendLine("    }");
-        sb.AppendLine();
-        sb.AppendLine("    public int GetId()");
-        sb.AppendLine("    {");
-        sb.AppendLine("        return id;");
-        sb.AppendLine("    }");
-        sb.AppendLine("}");
-        sb.AppendLine();
+        _ = sb.AppendLine("linear class Resource");
+        _ = sb.AppendLine("{");
+        _ = sb.AppendLine("    int id;");
+        _ = sb.AppendLine();
+        _ = sb.AppendLine("    public Resource(int val)");
+        _ = sb.AppendLine("    {");
+        _ = sb.AppendLine("        this.id = val;");
+        _ = sb.AppendLine("    }");
+        _ = sb.AppendLine();
+        _ = sb.AppendLine("    public void Drop()");
+        _ = sb.AppendLine("    {");
+        _ = sb.AppendLine("    }");
+        _ = sb.AppendLine();
+        _ = sb.AppendLine("    public int GetId()");
+        _ = sb.AppendLine("    {");
+        _ = sb.AppendLine("        return id;");
+        _ = sb.AppendLine("    }");
+        _ = sb.AppendLine("}");
+        _ = sb.AppendLine();
 
         // Program with Main that declares N linear locals, all live at scope exit
-        sb.AppendLine("class Program");
-        sb.AppendLine("{");
-        sb.AppendLine("    public static void Main()");
-        sb.AppendLine("    {");
+        _ = sb.AppendLine("class Program");
+        _ = sb.AppendLine("{");
+        _ = sb.AppendLine("    public static void Main()");
+        _ = sb.AppendLine("    {");
 
         for(var i = 0; i < localNames.Count; i++)
         {
-            sb.AppendLine($"        Resource {localNames[i]} = new Resource({i});");
+            _ = sb.AppendLine($"        Resource {localNames[i]} = new Resource({i});");
         }
 
         // Access each to ensure they are "used" (avoid potential unused-variable issues)
         for(var i = 0; i < localNames.Count; i++)
         {
-            sb.AppendLine($"        int id{i} = {localNames[i]}.GetId();");
+            _ = sb.AppendLine($"        int id{i} = {localNames[i]}.GetId();");
         }
 
-        sb.AppendLine("    }");
-        sb.AppendLine("}");
+        _ = sb.AppendLine("    }");
+        _ = sb.AppendLine("}");
 
         return sb.ToString();
     }
@@ -147,7 +147,7 @@ public sealed class ReverseDeclarationDropOrderPropertyTests : IDisposable
     public ReverseDeclarationDropOrderPropertyTests()
     {
         outputDir = Path.Combine(Path.GetTempPath(), "MistReverseDropOrderPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()

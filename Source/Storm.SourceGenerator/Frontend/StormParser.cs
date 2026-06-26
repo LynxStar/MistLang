@@ -85,7 +85,7 @@ namespace Storm.SourceGenerator.Frontend
             {
                 if(Current.Kind == kind)
                 {
-                    Advance();
+                    _ = Advance();
                     return true;
                 }
                 return false;
@@ -140,7 +140,7 @@ namespace Storm.SourceGenerator.Frontend
                         case StormTokenKind.RightBrace:
                             return;
                         default:
-                            Advance();
+                            _ = Advance();
                             break;
                     }
                 }
@@ -194,7 +194,7 @@ namespace Storm.SourceGenerator.Frontend
             {
                 var kw = Advance(); // consume 'grammar'
                 var nameTok = Expect(StormTokenKind.Identifier, "grammar name");
-                Expect(StormTokenKind.Semicolon, "';'");
+                _ = Expect(StormTokenKind.Semicolon, "';'");
                 return new StormGrammarDecl(nameTok.Lexeme, kw.Offset, kw.Line, kw.Column);
             }
 
@@ -233,7 +233,7 @@ namespace Storm.SourceGenerator.Frontend
                     alias = Advance().Lexeme;
                 }
 
-                Expect(StormTokenKind.Semicolon, "';'");
+                _ = Expect(StormTokenKind.Semicolon, "';'");
                 return new StormImport(path, alias, offset, line, column);
             }
 
@@ -284,7 +284,7 @@ namespace Storm.SourceGenerator.Frontend
                 if(Current.Kind == StormTokenKind.Annotation)
                 {
                     Error("Duplicate '@memo' annotation on rule declaration");
-                    Advance(); // skip the duplicate
+                    _ = Advance(); // skip the duplicate
                 }
 
                 // @memo is only valid before 'rule'
@@ -298,9 +298,9 @@ namespace Storm.SourceGenerator.Frontend
                 // Parse the rule declaration with memo flag
                 var kw = Advance(); // consume 'rule'
                 var nameTok = Expect(StormTokenKind.Identifier, "rule name");
-                Expect(StormTokenKind.Equals, "'='");
+                _ = Expect(StormTokenKind.Equals, "'='");
                 var body = ParseExpression();
-                Expect(StormTokenKind.Semicolon, "';'");
+                _ = Expect(StormTokenKind.Semicolon, "';'");
                 return new StormRuleDecl(nameTok.Lexeme, body, kw.Offset, kw.Line, kw.Column, IsMemo: true);
             }
 
@@ -309,9 +309,9 @@ namespace Storm.SourceGenerator.Frontend
             {
                 var kw = Advance(); // consume 'rule'
                 var nameTok = Expect(StormTokenKind.Identifier, "rule name");
-                Expect(StormTokenKind.Equals, "'='");
+                _ = Expect(StormTokenKind.Equals, "'='");
                 var body = ParseExpression();
-                Expect(StormTokenKind.Semicolon, "';'");
+                _ = Expect(StormTokenKind.Semicolon, "';'");
                 return new StormRuleDecl(nameTok.Lexeme, body, kw.Offset, kw.Line, kw.Column);
             }
 
@@ -320,10 +320,10 @@ namespace Storm.SourceGenerator.Frontend
             {
                 var kw = Advance(); // consume 'token'
                 var nameTok = Expect(StormTokenKind.Identifier, "token name");
-                Expect(StormTokenKind.Equals, "'='");
+                _ = Expect(StormTokenKind.Equals, "'='");
                 var body = ParseExpression();
                 var action = ParseActionClause();
-                Expect(StormTokenKind.Semicolon, "';'");
+                _ = Expect(StormTokenKind.Semicolon, "';'");
                 return new StormTokenDecl(nameTok.Lexeme, body, kw.Offset, kw.Line, kw.Column, action);
             }
 
@@ -332,9 +332,9 @@ namespace Storm.SourceGenerator.Frontend
             {
                 var kw = Advance(); // consume 'fragment'
                 var nameTok = Expect(StormTokenKind.Identifier, "fragment name");
-                Expect(StormTokenKind.Equals, "'='");
+                _ = Expect(StormTokenKind.Equals, "'='");
                 var body = ParseExpression();
-                Expect(StormTokenKind.Semicolon, "';'");
+                _ = Expect(StormTokenKind.Semicolon, "';'");
                 return new StormFragmentDecl(nameTok.Lexeme, body, kw.Offset, kw.Line, kw.Column);
             }
 
@@ -342,12 +342,12 @@ namespace Storm.SourceGenerator.Frontend
             private StormHiddenTokenDecl ParseHiddenTokenDecl()
             {
                 var kw = Advance(); // consume 'hidden'
-                Expect(StormTokenKind.TokenKeyword, "'token'");
+                _ = Expect(StormTokenKind.TokenKeyword, "'token'");
                 var nameTok = Expect(StormTokenKind.Identifier, "token name");
-                Expect(StormTokenKind.Equals, "'='");
+                _ = Expect(StormTokenKind.Equals, "'='");
                 var body = ParseExpression();
                 var action = ParseActionClause();
-                Expect(StormTokenKind.Semicolon, "';'");
+                _ = Expect(StormTokenKind.Semicolon, "';'");
                 return new StormHiddenTokenDecl(nameTok.Lexeme, body, kw.Offset, kw.Line, kw.Column, action);
             }
 
@@ -378,7 +378,7 @@ namespace Storm.SourceGenerator.Frontend
                     SynchronizeToDeclaration();
                     return new StormModeDecl(modeName, new List<StormDeclaration>(), kw.Offset, kw.Line, kw.Column);
                 }
-                Advance(); // consume '{'
+                _ = Advance(); // consume '{'
 
                 var declarations = new List<StormDeclaration>();
                 while(Current.Kind != StormTokenKind.RightBrace && Current.Kind != StormTokenKind.EndOfFile)
@@ -392,7 +392,7 @@ namespace Storm.SourceGenerator.Frontend
 
                 if(Current.Kind == StormTokenKind.RightBrace)
                 {
-                    Advance(); // consume '}'
+                    _ = Advance(); // consume '}'
                 }
                 else
                 {
@@ -417,11 +417,11 @@ namespace Storm.SourceGenerator.Frontend
                     return null;
                 }
 
-                Advance(); // consume '=>'
+                _ = Advance(); // consume '=>'
 
                 if(Current.Kind == StormTokenKind.PushKeyword)
                 {
-                    Advance(); // consume 'push'
+                    _ = Advance(); // consume 'push'
 
                     // Accept Identifier or 'default' keyword as the mode name.
                     if(Current.Kind == StormTokenKind.Identifier || Current.Kind == StormTokenKind.DefaultKeyword)
@@ -436,7 +436,7 @@ namespace Storm.SourceGenerator.Frontend
 
                 if(Current.Kind == StormTokenKind.PopKeyword)
                 {
-                    Advance(); // consume 'pop'
+                    _ = Advance(); // consume 'pop'
                     return new StormPopAction();
                 }
 
@@ -494,7 +494,7 @@ namespace Storm.SourceGenerator.Frontend
 
                 if(Check(StormTokenKind.AsKeyword))
                 {
-                    Advance(); // consume 'as'
+                    _ = Advance(); // consume 'as'
                     var nameTok = Expect(StormTokenKind.Identifier, "alternative name");
                     return new StormNamedAlternative(expr, nameTok.Lexeme);
                 }
@@ -537,7 +537,7 @@ namespace Storm.SourceGenerator.Frontend
                 if(Current.Kind == StormTokenKind.Identifier && Peek(1).Kind == StormTokenKind.Colon)
                 {
                     var labelTok = Advance(); // consume identifier
-                    Advance(); // consume ':'
+                    _ = Advance(); // consume ':'
                     var element = ParsePostfix();
                     return new StormLabeledExpr(labelTok.Lexeme, element);
                 }
@@ -607,7 +607,7 @@ namespace Storm.SourceGenerator.Frontend
                             // Check for qualified reference: Name.Name
                             if(Check(StormTokenKind.Dot))
                             {
-                                Advance(); // consume '.'
+                                _ = Advance(); // consume '.'
                                 var memberTok = Expect(StormTokenKind.Identifier, "qualified name");
                                 return new StormQualifiedReferenceExpr(nameTok.Lexeme, memberTok.Lexeme);
                             }
@@ -616,16 +616,16 @@ namespace Storm.SourceGenerator.Frontend
 
                     case StormTokenKind.LeftParen:
                         {
-                            Advance(); // consume '('
+                            _ = Advance(); // consume '('
                             var inner = ParseExpression();
-                            Expect(StormTokenKind.RightParen, "')'");
+                            _ = Expect(StormTokenKind.RightParen, "')'");
                             return new StormGroupExpr(inner);
                         }
 
                     default:
                         {
                             Error($"Unexpected token '{Current.Lexeme}'");
-                            Advance(); // skip the bad token to avoid infinite loop
+                            _ = Advance(); // skip the bad token to avoid infinite loop
                             return new StormReferenceExpr("<error>");
                         }
                 }
@@ -682,21 +682,21 @@ namespace Storm.SourceGenerator.Frontend
                         var next = inner[i + 1];
                         switch(next)
                         {
-                            case 'n': sb.Append('\n'); break;
-                            case 'r': sb.Append('\r'); break;
-                            case 't': sb.Append('\t'); break;
-                            case '\\': sb.Append('\\'); break;
-                            case '"': sb.Append('"'); break;
+                            case 'n': _ = sb.Append('\n'); break;
+                            case 'r': _ = sb.Append('\r'); break;
+                            case 't': _ = sb.Append('\t'); break;
+                            case '\\': _ = sb.Append('\\'); break;
+                            case '"': _ = sb.Append('"'); break;
                             default:
-                                sb.Append('\\');
-                                sb.Append(next);
+                                _ = sb.Append('\\');
+                                _ = sb.Append(next);
                                 break;
                         }
                         i++; // skip the escaped character
                     }
                     else
                     {
-                        sb.Append(inner[i]);
+                        _ = sb.Append(inner[i]);
                     }
                 }
                 return sb.ToString();

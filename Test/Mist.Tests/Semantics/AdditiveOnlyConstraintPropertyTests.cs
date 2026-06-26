@@ -247,7 +247,7 @@ public class AdditiveOnlyConstraintPropertyTests
         var methodIdx = 0;
 
         // Reserve the redeclared name so we don't accidentally use it elsewhere
-        usedNames.Add(redeclaredName);
+        _ = usedNames.Add(redeclaredName);
 
         for(var i = 0; i < classNames.Length; i++)
         {

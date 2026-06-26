@@ -611,7 +611,7 @@ namespace Storm.SourceGenerator.Tests
             Assert.True(plan.IsMemoized("Safe"), "Safe rule (multi-alternative) should be in the plan");
 
             // A STORM_MEMO_IGNORED warning is emitted for the unsafe @memo rule.
-            Assert.Single(diagnostics);
+            _ = Assert.Single(diagnostics);
             Assert.Equal(StormDiagnosticIds.STORM_MEMO_IGNORED, diagnostics[0].Id);
             Assert.Equal(StormDiagnosticSeverity.Warning, diagnostics[0].Severity);
             Assert.Contains("Unsafe", diagnostics[0].Message);

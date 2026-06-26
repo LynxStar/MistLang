@@ -1148,7 +1148,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             if(unit.OriginProjectPath is not null)
             {
-                referencedSourcePaths.Add(unit.Source.Path);
+                _ = referencedSourcePaths.Add(unit.Source.Path);
             }
         }
 
@@ -1306,7 +1306,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             if(unit.OriginProjectPath is not null && unit.NamespaceRoot is not null)
             {
-                referencedNamespaceRoots.Add(unit.NamespaceRoot);
+                _ = referencedNamespaceRoots.Add(unit.NamespaceRoot);
             }
         }
 
@@ -2451,18 +2451,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if(hasInitializer)
             {
                 // Req 3.2: Field with initializer → pre-assigned.
-                initiallyAssigned.Add(member.Name);
+                _ = initiallyAssigned.Add(member.Name);
             }
             else if(member.DeclaredType is not null && IsTypeDefaultable(member.DeclaredType))
             {
                 // Req 3.3: Field type is defaultable, no initializer → pre-assigned (synthetic default injection).
-                initiallyAssigned.Add(member.Name);
+                _ = initiallyAssigned.Add(member.Name);
             }
             else if(member.DeclaredType is TypeParameterType)
             {
                 // Type parameter fields are runtime zero-initialized (like C#'s default(T)).
                 // Constraint satisfaction for the type argument is checked at instantiation sites.
-                initiallyAssigned.Add(member.Name);
+                _ = initiallyAssigned.Add(member.Name);
             }
         }
 
@@ -2478,7 +2478,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             if(!initiallyAssigned.Contains(fieldName))
             {
-                allNonDefaultableFields.Add(fieldName);
+                _ = allNonDefaultableFields.Add(fieldName);
             }
         }
 
@@ -2695,7 +2695,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 var foreachVarSymbol = model.GetDeclaredSymbol(foreachStmt.ForeachStatement);
                 if(foreachVarSymbol is not null)
                 {
-                    foreachBodyState.AssignedLocals.Add(foreachVarSymbol);
+                    _ = foreachBodyState.AssignedLocals.Add(foreachVarSymbol);
                 }
 
                 AnalyzeBlockDataflow(foreachStmt.ForeachStatement.Body, foreachBodyState, propertyToBackingField, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
@@ -2855,16 +2855,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Record the write.
         if(fieldName is not null)
         {
-            state.AssignedFields.Add(fieldName);
+            _ = state.AssignedFields.Add(fieldName);
             if(propertyToBackingField.TryGetValue(fieldName, out var backingFieldName))
             {
-                state.AssignedFields.Add(backingFieldName);
+                _ = state.AssignedFields.Add(backingFieldName);
             }
         }
 
         if(localSymbol is not null)
         {
-            state.AssignedLocals.Add(localSymbol);
+            _ = state.AssignedLocals.Add(localSymbol);
         }
     }
 
@@ -2888,7 +2888,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 var typedSymbol = model.GetDeclaredSymbol(typed);
                 if(typedSymbol is not null)
                 {
-                    state.AssignedLocals.Add(typedSymbol);
+                    _ = state.AssignedLocals.Add(typedSymbol);
                 }
 
                 break;
@@ -2898,7 +2898,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 var inferredSymbol = model.GetDeclaredSymbol(inferred);
                 if(inferredSymbol is not null)
                 {
-                    state.AssignedLocals.Add(inferredSymbol);
+                    _ = state.AssignedLocals.Add(inferredSymbol);
                 }
 
                 break;
@@ -2908,7 +2908,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 var tupleSymbol = model.GetDeclaredSymbol(varTuple);
                 if(tupleSymbol is not null)
                 {
-                    state.AssignedLocals.Add(tupleSymbol);
+                    _ = state.AssignedLocals.Add(tupleSymbol);
                 }
 
                 break;
@@ -2918,7 +2918,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 var typedTupleSymbol = model.GetDeclaredSymbol(typedTuple);
                 if(typedTupleSymbol is not null)
                 {
-                    state.AssignedLocals.Add(typedTupleSymbol);
+                    _ = state.AssignedLocals.Add(typedTupleSymbol);
                 }
 
                 break;
@@ -2946,7 +2946,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 var varSymbol = model.GetDeclaredSymbol(varInit);
                 if(varSymbol is not null)
                 {
-                    state.AssignedLocals.Add(varSymbol);
+                    _ = state.AssignedLocals.Add(varSymbol);
                 }
 
                 break;
@@ -2956,7 +2956,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 var varDeclSymbol = model.GetDeclaredSymbol(varDeclInit);
                 if(varDeclSymbol is not null)
                 {
-                    state.AssignedLocals.Add(varDeclSymbol);
+                    _ = state.AssignedLocals.Add(varDeclSymbol);
                 }
 
                 break;
@@ -5759,7 +5759,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     // The return type is assignable. If assignability was due to
                     // an implicit cast operator, resolve and record it so the
                     // emitter can wrap the return expression.
-                    TryResolveImplicitCast(valueType, methodReturnType, returnStmt, model, diagnostics);
+                    _ = TryResolveImplicitCast(valueType, methodReturnType, returnStmt, model, diagnostics);
                 }
             }
         }
@@ -5798,7 +5798,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var previousNarrowings = new List<(string VarName, List<ConditionConstraint>? Previous)>();
         foreach(var (varName, constraints) in narrowings)
         {
-            narrowingContext.TryGetValue(varName, out var previous);
+            _ = narrowingContext.TryGetValue(varName, out var previous);
             previousNarrowings.Add((varName, previous is not null ? new List<ConditionConstraint>(previous) : null));
 
             // Merge: if there's existing narrowing, combine constraints; otherwise set new.
@@ -5825,7 +5825,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
             else
             {
-                narrowingContext.Remove(varName);
+                _ = narrowingContext.Remove(varName);
             }
         }
 
@@ -6481,8 +6481,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var varName = TryExtractIdentifierFromLogicalOr(target);
         if(varName is not null)
         {
-            narrowingContext.Remove(varName);
-            voidCoalescingTypeNarrowings.Remove(varName);
+            _ = narrowingContext.Remove(varName);
+            _ = voidCoalescingTypeNarrowings.Remove(varName);
         }
     }
 
@@ -6674,7 +6674,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         foreach(var paramName in narrowedParams)
         {
-            narrowingContext.Remove(paramName);
+            _ = narrowingContext.Remove(paramName);
         }
     }
 
@@ -6821,7 +6821,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Remove narrowing after the body check.
         if(narrowedVar is not null)
         {
-            narrowingContext.Remove(narrowedVar);
+            _ = narrowingContext.Remove(narrowedVar);
         }
     }
 
@@ -7719,7 +7719,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         switch(paramList)
         {
             case SingleImplicitParamLambdaParameterListNode singleParam:
-                names.Add(singleParam.Name.Lexeme);
+                _ = names.Add(singleParam.Name.Lexeme);
                 break;
 
             case ParenthesizedLambdaParamsLambdaParameterListNode parenParams when parenParams.Params is not null:
@@ -7737,7 +7737,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         };
                         if(name is not null)
                         {
-                            names.Add(name);
+                            _ = names.Add(name);
                         }
                     }
                     break;
@@ -8196,7 +8196,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         else
                         {
                             // Resolve and record any implicit cast operator on the property assignment.
-                            TryResolveImplicitCast(rhsType, propType, assignment, model, diagnostics);
+                            _ = TryResolveImplicitCast(rhsType, propType, assignment, model, diagnostics);
                         }
                     }
                 }
@@ -9329,7 +9329,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var current = classType.BaseType as ClassType;
         while(current is not null)
         {
-            ancestors.Add(current.DisplayName);
+            _ = ancestors.Add(current.DisplayName);
             current = current.BaseType as ClassType;
         }
         return ancestors;
@@ -9345,7 +9345,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var current = structType.BaseType as StructType;
         while(current is not null)
         {
-            ancestors.Add(current.DisplayName);
+            _ = ancestors.Add(current.DisplayName);
             current = current.BaseType as StructType;
         }
         return ancestors;
@@ -13883,7 +13883,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 else
                 {
                     // Resolve and record any implicit cast operator on the argument.
-                    TryResolveImplicitCast(argType, paramType, argExprs[i], model, diagnostics);
+                    _ = TryResolveImplicitCast(argType, paramType, argExprs[i], model, diagnostics);
                 }
             }
         }
@@ -14067,7 +14067,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 else
                 {
                     // Resolve and record any implicit cast operator on the argument.
-                    TryResolveImplicitCast(argType, paramType, argExprs[i], model, diagnostics);
+                    _ = TryResolveImplicitCast(argType, paramType, argExprs[i], model, diagnostics);
                 }
             }
         }
@@ -18056,7 +18056,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // implicit casts (Requirements 14.1, 14.2, 14.3).
             if(!IsDirectlyAssignable(source, target, model))
             {
-                TryResolveImplicitCast(source, target, node, model, diagnostics);
+                _ = TryResolveImplicitCast(source, target, node, model, diagnostics);
             }
         }
     }
@@ -19276,7 +19276,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
         finally
         {
-            abstractCheckVisited.Remove(key);
+            _ = abstractCheckVisited.Remove(key);
         }
     }
 
@@ -20223,17 +20223,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var builder = new System.Text.StringBuilder();
-        builder.Append(sym.TypeParameters.Count).Append('|');
+        _ = builder.Append(sym.TypeParameters.Count).Append('|');
 
         foreach(var parameter in sym.Parameters)
         {
-            builder.Append(parameter.DeclaredType?.DisplayName ?? "?");
+            _ = builder.Append(parameter.DeclaredType?.DisplayName ?? "?");
             if(parameter is Symbol paramSym && paramSym.RefKind != RefKind.None)
             {
-                builder.Append('#').Append(paramSym.RefKind);
+                _ = builder.Append('#').Append(paramSym.RefKind);
             }
 
-            builder.Append(',');
+            _ = builder.Append(',');
         }
 
         return builder.ToString();
@@ -20784,7 +20784,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 if(member.Kind == SymbolKind.Field)
                 {
-                    ownFieldNames.Add(member.Name);
+                    _ = ownFieldNames.Add(member.Name);
                 }
             }
 

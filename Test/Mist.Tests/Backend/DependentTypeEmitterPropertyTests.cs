@@ -49,7 +49,7 @@ public sealed class DependentTypeEmitterPropertyTests : IDisposable
         outputDir = Path.Combine(
             Path.GetTempPath(),
             "mist_dep_emitter_prop_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(outputDir);
+        _ = Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
@@ -342,7 +342,7 @@ public sealed class DependentTypeEmitterPropertyTests : IDisposable
     public Property EmittedCSharp_ContainsExpectedCarrierPatterns(DependentTypeScenario scenario)
     {
         var scenarioDir = Path.Combine(outputDir, Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(scenarioDir);
+        _ = Directory.CreateDirectory(scenarioDir);
 
         var (emittedCSharp, error) = CompileAndGetEmittedCSharp(scenario.MistSource, scenarioDir);
 
@@ -374,7 +374,7 @@ public sealed class DependentTypeEmitterPropertyTests : IDisposable
     public Property EmittedCSharp_ProducesNonEmptyOutput(DependentTypeScenario scenario)
     {
         var scenarioDir = Path.Combine(outputDir, Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(scenarioDir);
+        _ = Directory.CreateDirectory(scenarioDir);
 
         var (emittedCSharp, error) = CompileAndGetEmittedCSharp(scenario.MistSource, scenarioDir);
 

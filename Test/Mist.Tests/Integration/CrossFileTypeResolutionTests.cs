@@ -39,7 +39,7 @@ public sealed class CrossFileTypeResolutionTests : IDisposable
         tempDir = Path.Combine(
             Path.GetTempPath(),
             "MistCrossFile_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        _ = Directory.CreateDirectory(tempDir);
     }
 
     public void Dispose()
@@ -59,7 +59,7 @@ public sealed class CrossFileTypeResolutionTests : IDisposable
         IReadOnlyList<(string FileName, string Source)> files)
     {
         var scenarioDir = Path.Combine(tempDir, scenarioName);
-        Directory.CreateDirectory(scenarioDir);
+        _ = Directory.CreateDirectory(scenarioDir);
 
         var sourcePaths = new List<string>();
         foreach(var (fileName, source) in files)
@@ -71,8 +71,8 @@ public sealed class CrossFileTypeResolutionTests : IDisposable
 
         var outDir = Path.Combine(scenarioDir, "out");
         var binDir = Path.Combine(scenarioDir, "bin");
-        Directory.CreateDirectory(outDir);
-        Directory.CreateDirectory(binDir);
+        _ = Directory.CreateDirectory(outDir);
+        _ = Directory.CreateDirectory(binDir);
 
         var options = new CompilerOptions(
             ProjectFolder: scenarioDir,
@@ -104,7 +104,7 @@ public sealed class CrossFileTypeResolutionTests : IDisposable
         using var process = Process.Start(psi)!;
         var stdout = process.StandardOutput.ReadToEnd();
         var stderr = process.StandardError.ReadToEnd();
-        process.WaitForExit(30_000);
+        _ = process.WaitForExit(30_000);
 
         Assert.True(process.ExitCode == 0,
             $"Process failed (exit {process.ExitCode}).\nStderr:\n{stderr}");

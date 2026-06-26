@@ -808,7 +808,7 @@ public static class ParserEmitter
     {
         switch(expr)
         {
-            case TokenRefIR _:
+            case TokenRefIR:
                 return nullable ? "Token?" : "Token";
             case RuleRefIR ruleRef:
                 return nullable ? ruleRef.Rule.Name + "Node?" : ruleRef.Rule.Name + "Node";
@@ -852,9 +852,9 @@ public static class ParserEmitter
 
         return expr switch
         {
-            TokenRefIR _ => "default",
+            TokenRefIR => "default",
             AlternationIR altIR when altIR.Alternatives.All(a => a is TokenRefIR or StringLiteralIR) => "default",
-            RuleRefIR _ => "null!",
+            RuleRefIR => "null!",
             _ => "null",
         };
     }
@@ -869,7 +869,7 @@ public static class ParserEmitter
             case RuleRefIR ruleRef:
                 var elementType = ruleRef.Rule.Name + "Node";
                 return $"ImmutableArray<{elementType}>";
-            case TokenRefIR _:
+            case TokenRefIR:
                 return "ImmutableArray<Token>";
             default:
                 return "object?";
@@ -886,7 +886,7 @@ public static class ParserEmitter
             case RuleRefIR ruleRef:
                 var elementType = ruleRef.Rule.Name + "Node";
                 return $"ImmutableArray<{elementType}>.Empty";
-            case TokenRefIR _:
+            case TokenRefIR:
                 return "ImmutableArray<Token>.Empty";
             default:
                 return "null";

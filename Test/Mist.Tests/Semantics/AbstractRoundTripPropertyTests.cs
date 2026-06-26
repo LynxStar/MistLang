@@ -251,7 +251,7 @@ public class AbstractRoundTripPropertyTests
             // Ensure unique names
             if(declaredAbstractNames.Contains(abstractName))
             {
-                abstractName = abstractName + (i + 1);
+                abstractName += (i + 1);
             }
 
             declaredAbstractNames.Add(abstractName);

@@ -440,7 +440,7 @@ public class RefinementComparisonEnginePropertyTests
     private static RefinementPredicate BuildOrPredicate(ImmutableArray<int> values)
     {
         // Build each alternative as an AndPatternNode with a single constant.
-        AndPatternNode BuildConstantAlternative(int v)
+        static AndPatternNode BuildConstantAlternative(int v)
         {
             var literal = new IntegerConstantConstantLiteralNode
             {

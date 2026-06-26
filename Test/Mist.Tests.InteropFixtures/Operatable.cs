@@ -28,7 +28,10 @@ public struct Operatable
         return left.Value != right.Value;
     }
 
-    public static implicit operator int(Operatable op) => op.Value;
+    public static implicit operator int(Operatable op)
+    {
+        return op.Value;
+    }
 
     public override bool Equals(object? obj)
     {

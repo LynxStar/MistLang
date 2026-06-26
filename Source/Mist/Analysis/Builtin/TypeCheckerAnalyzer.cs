@@ -7098,7 +7098,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(postfix.Suffix[postfix.Suffix.Length - 1] is not MemberAccessSuffixPostfixSuffixNode memberAccess)
+        if(postfix.Suffix[^1] is not MemberAccessSuffixPostfixSuffixNode memberAccess)
         {
             return null;
         }
@@ -7133,7 +7133,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             // Complex case: expr[i].Length or expr.member.Length — get type of the
             // suffix just before .Length (e.g., the IndexSuffix result type).
-            var prevSuffix = postfix.Suffix[postfix.Suffix.Length - 2];
+            var prevSuffix = postfix.Suffix[^2];
             receiverType = model.GetTypeOf(prevSuffix);
             // Fallback: for nested arrays like d[i].Length, the target d has type
             // ArrayType(ArrayType(int)), and d[i] gives the inner ArrayType(int).
@@ -14582,14 +14582,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Verify argument count matches parameter count (Requirement 5.3).
         if(typeArgs.Count != typeParams.Count)
         {
-            if(diagnostics is not null)
-            {
-                diagnostics.Add(MakeDiagnostic(
+            diagnostics?.Add(MakeDiagnostic(
                     TypeAliasArgumentCountMismatch.Value,
                     $"Type alias '{aliasType.Name}' expects {typeParams.Count} type argument(s) but was given {typeArgs.Count}.",
                     namedRef,
                     model));
-            }
 
             return ErrorType.Instance;
         }

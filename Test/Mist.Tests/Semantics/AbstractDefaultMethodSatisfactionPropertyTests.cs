@@ -225,7 +225,11 @@ public class AbstractDefaultMethodSatisfactionPropertyTests
 
         public override string ToString()
         {
-            static string Join(ImmutableArray<string> xs) => xs.Length == 0 ? "(none)" : string.Join(", ", xs);
+            static string Join(ImmutableArray<string> xs)
+            {
+                return xs.Length == 0 ? "(none)" : string.Join(", ", xs);
+            }
+
             return $"slots[{Join(SlotNames)}] defaults[{Join(DefaultNames)}] provided[{Join(ProvidedSlotNames)}]";
         }
     }

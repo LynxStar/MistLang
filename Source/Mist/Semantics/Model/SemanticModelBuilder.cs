@@ -25976,21 +25976,24 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Numeric widening: decimal > double > float > ulong > long > uint > int > smaller types.
         // Use DisplayName-based ranking to handle both legacy (e.g., "int")
         // and stdlib (e.g., "Int32") type instances.
-        static int NumericRank(IType t) => t.DisplayName switch
+        static int NumericRank(IType t)
         {
-            "sbyte" or "SByte" => 1,
-            "byte" or "Byte" => 2,
-            "short" or "Int16" => 3,
-            "ushort" or "UInt16" => 4,
-            "int" or "Int32" => 5,
-            "uint" or "UInt32" => 6,
-            "long" or "Int64" => 7,
-            "ulong" or "UInt64" => 8,
-            "float" or "Single" => 9,
-            "double" or "Double" => 10,
-            "decimal" or "Decimal" => 11,
-            _ => -1,
-        };
+            return t.DisplayName switch
+            {
+                "sbyte" or "SByte" => 1,
+                "byte" or "Byte" => 2,
+                "short" or "Int16" => 3,
+                "ushort" or "UInt16" => 4,
+                "int" or "Int32" => 5,
+                "uint" or "UInt32" => 6,
+                "long" or "Int64" => 7,
+                "ulong" or "UInt64" => 8,
+                "float" or "Single" => 9,
+                "double" or "Double" => 10,
+                "decimal" or "Decimal" => 11,
+                _ => -1,
+            };
+        }
 
         var leftRank = NumericRank(left);
         var rightRank = NumericRank(right);

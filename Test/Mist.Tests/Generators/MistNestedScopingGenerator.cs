@@ -876,7 +876,7 @@ public static class MistNestedScopingGenerator
                from parentParamCount in Gen.Choose(1, 3)
                from hasNestedParams in Gen.Elements(true, false)
                    // Enums cannot have type parameters
-               let effectiveHasNestedParams = nestedKind == AllTypeKind.Enum ? false : hasNestedParams
+               let effectiveHasNestedParams = nestedKind != AllTypeKind.Enum && hasNestedParams
                from nestedParamCount in effectiveHasNestedParams ? Gen.Choose(1, 2) : Gen.Constant(0)
                let containerKeyword = AllTypeKindKeyword(containerKind)
                let nestedKeyword = AllTypeKindKeyword(nestedKind)

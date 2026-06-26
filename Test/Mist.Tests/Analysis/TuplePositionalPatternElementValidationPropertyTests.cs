@@ -128,8 +128,7 @@ public class TuplePositionalPatternElementValidationPropertyTests
             from arity in Gen.Choose(2, 5)
             from typeIndices in Gen.ArrayOf(Gen.Choose(0, ElementTypes.Length - 1), arity)
             from invalidMask in GenInvalidMask(arity)
-            let elements = typeIndices.Select((ti, i) => (
-                Type: ElementTypes[ti].Type,
+            let elements = typeIndices.Select((ti, i) => (ElementTypes[ti].Type,
                 Value: ElementTypes[ti].ValidLiteral,
                 PatternLiteral: invalidMask[i]
                     ? ElementTypes[ti].IncompatibleLiteral
@@ -156,8 +155,7 @@ public class TuplePositionalPatternElementValidationPropertyTests
             from innerInvalidMask in GenInvalidMask(innerArity)
             from outerExtraTypeIdx in Gen.Choose(0, ElementTypes.Length - 1)
             from outerExtraIsInvalid in Gen.Elements(true, false)
-            let innerElements = innerTypeIndices.Select((ti, i) => (
-                Type: ElementTypes[ti].Type,
+            let innerElements = innerTypeIndices.Select((ti, i) => (ElementTypes[ti].Type,
                 Value: ElementTypes[ti].ValidLiteral,
                 PatternLiteral: innerInvalidMask[i]
                     ? ElementTypes[ti].IncompatibleLiteral

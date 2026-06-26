@@ -194,7 +194,7 @@ public sealed class ProjectFileParserPropertyTests
                 var result = ProjectFileParser.Parse(projectDir, diagnostics);
 
                 Assert.False(diagnostics.HasErrors,
-                    $"Parse reported errors for path='{path}', fields=[{string.Join(", ", fields.Select(f => $"{f.Item1}={f.Item2}"))}], toml:\n{toml}\n" +
+                    $"Parse reported errors for path='{path}', fields=[{string.Join(", ", fields.Select(f => $"{f.First}={f.Second}"))}], toml:\n{toml}\n" +
                     string.Join("; ", diagnostics.ToImmutableArray().Select(d => $"{d.Id.Value}: {d.Message}")));
                 Assert.NotNull(result);
                 _ = Assert.Single(result.References);

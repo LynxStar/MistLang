@@ -199,7 +199,7 @@ public class ExplicitCastSafetyPropertyTests
     private static Gen<DerivedOnlyCastScenario> GenDerivedOnlyScenario()
     {
         return from names in Gen.Shuffle(TypeNames).Select(a => a.Take(3).ToArray())
-               // names[0] = base, names[1] = derived, names[2] = target
+                   // names[0] = base, names[1] = derived, names[2] = target
                select new DerivedOnlyCastScenario(names[0], names[1], names[2]);
     }
 

@@ -25,7 +25,7 @@ public sealed class CSharpTranspilerBackend : IBackend
     /// </summary>
     private static AssemblyTypeProvider? cachedProvider;
     private static ImmutableArray<string> cachedMergedPaths;
-    private static readonly object providerCacheLock = new();
+    private static readonly object ProviderCacheLock = new();
 
     /// <summary>
     /// Stores the additional (non-SDK) assembly paths from the most recent
@@ -77,7 +77,7 @@ public sealed class CSharpTranspilerBackend : IBackend
             : additionalAssemblyPaths;
 
         // Reuse cached provider if the merged path set is identical.
-        lock(providerCacheLock)
+        lock(ProviderCacheLock)
         {
             if(cachedProvider is not null
                 && cachedMergedPaths.Length == mergedPaths.Length
@@ -99,11 +99,11 @@ public sealed class CSharpTranspilerBackend : IBackend
     /// </summary>
     private static ImmutableArray<string>? sdkAssemblyPathsCache;
     private static string? sdkAssemblyPathsCacheKey;
-    private static readonly object sdkAssemblyPathsCacheLock = new();
+    private static readonly object SdkAssemblyPathsCacheLock = new();
 
     private static ImmutableArray<string> GetCachedSdkAssemblyPaths(string sdkRefPath)
     {
-        lock(sdkAssemblyPathsCacheLock)
+        lock(SdkAssemblyPathsCacheLock)
         {
             if(sdkAssemblyPathsCache.HasValue && sdkAssemblyPathsCacheKey == sdkRefPath)
             {

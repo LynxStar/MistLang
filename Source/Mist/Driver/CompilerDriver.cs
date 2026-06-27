@@ -26,7 +26,7 @@ public sealed class CompilerDriver : ICompilerDriver
     // files on every Compile() call — a significant win for property-based
     // tests that compile hundreds of programs in a single test run.
     private static (ImmutableArray<TokenStream> Tokens, ImmutableArray<Storm.Runtime.SyntaxNode> Asts)? stdlibCache;
-    private static readonly object stdlibCacheLock = new();
+    private static readonly object StdlibCacheLock = new();
 
     private ILexer lexer;
     private IParser parser;
@@ -458,7 +458,7 @@ public sealed class CompilerDriver : ICompilerDriver
         // Populate the stdlib cache if this is the first successful compile.
         if(!cachedStdlib.HasValue && stdlibTokensForCache is not null && stdlibAstsForCache is not null)
         {
-            lock(stdlibCacheLock)
+            lock(StdlibCacheLock)
             {
                 if(!stdlibCache.HasValue)
                 {

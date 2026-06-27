@@ -22,7 +22,7 @@ public static partial class SdkDiscovery
     // within the same process lifetime.
     private static string? inProcessCache;
     private static bool inProcessCacheInitialized;
-    private static readonly object cacheLock = new();
+    private static readonly object CacheLock = new();
 
     /// <summary>
     /// Timeout for the <c>dotnet --list-sdks</c> process spawn.
@@ -42,7 +42,7 @@ public static partial class SdkDiscovery
     public static string? FindReferenceAssemblyPath(string targetFramework, DiagnosticBag diagnostics)
     {
         // 1. In-process cache (instant)
-        lock(cacheLock)
+        lock(CacheLock)
         {
             if(inProcessCacheInitialized)
             {
@@ -61,7 +61,7 @@ public static partial class SdkDiscovery
         var diskCached = ReadDiskCache();
         if(diskCached is not null && Directory.Exists(diskCached))
         {
-            lock(cacheLock)
+            lock(CacheLock)
             {
                 inProcessCache = diskCached;
                 inProcessCacheInitialized = true;
@@ -74,7 +74,7 @@ public static partial class SdkDiscovery
         var discovered = RunFullDiscovery(targetFramework, diagnostics);
         if(discovered is not null)
         {
-            lock(cacheLock)
+            lock(CacheLock)
             {
                 inProcessCache = discovered;
                 inProcessCacheInitialized = true;
@@ -93,7 +93,7 @@ public static partial class SdkDiscovery
     public static void RegenerateDiskCache()
     {
         // Clear in-process cache so full discovery runs.
-        lock(cacheLock)
+        lock(CacheLock)
         {
             inProcessCache = null;
             inProcessCacheInitialized = false;
@@ -104,7 +104,7 @@ public static partial class SdkDiscovery
         if(path is not null)
         {
             WriteDiskCache(path);
-            lock(cacheLock)
+            lock(CacheLock)
             {
                 inProcessCache = path;
                 inProcessCacheInitialized = true;
@@ -117,7 +117,7 @@ public static partial class SdkDiscovery
     /// </summary>
     internal static void ResetInProcessCache()
     {
-        lock(cacheLock)
+        lock(CacheLock)
         {
             inProcessCache = null;
             inProcessCacheInitialized = false;

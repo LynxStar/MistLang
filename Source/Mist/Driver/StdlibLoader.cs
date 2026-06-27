@@ -22,7 +22,7 @@ public static class StdlibLoader
     // call — a significant win for property-based tests that compile
     // hundreds of programs in a single test run.
     private static ImmutableArray<CompilationUnit>? cachedUnits;
-    private static readonly object cacheLock = new();
+    private static readonly object CacheLock = new();
 
     /// <summary>
     /// Loads every stdlib <c>.mist</c> file colocated with the compiler binary
@@ -46,7 +46,7 @@ public static class StdlibLoader
             return cachedUnits.Value;
         }
 
-        lock(cacheLock)
+        lock(CacheLock)
         {
             // Double-check after acquiring lock.
             if(cachedUnits.HasValue)

@@ -27,7 +27,7 @@ public sealed record StormDiagnostic(
     int Line,
     int Column)
 {
-    private const string category = "Storm.SourceGenerator";
+    private const string Category = "Storm.SourceGenerator";
 
     /// <summary>
     /// Creates a <see cref="DiagnosticDescriptor"/> suitable for Roslyn reporting.
@@ -38,7 +38,7 @@ public sealed record StormDiagnostic(
             id: Id,
             title: Id,
             messageFormat: "{0}",
-            category: category,
+            category: Category,
             defaultSeverity: ToRoslynSeverity(Severity),
             isEnabledByDefault: true);
     }

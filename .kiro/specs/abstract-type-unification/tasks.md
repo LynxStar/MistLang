@@ -10,7 +10,7 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
 
 ## Tasks
 
-- [~] 1. Phase 1 — Pure Rename (interface → abstract)
+- [ ] 1. Phase 1 — Pure Rename (interface → abstract)
 
   - [x] 1.1 Grammar: `keywords.storm`
     - Rename `INTERFACE` token → `ABSTRACT` with value `"abstract"`
@@ -498,11 +498,11 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
 
 - [ ] 5. Final comprehensive verification
 
-  - [~] 5.1 Final grep verification
+  - [ ] 5.1 Final grep verification
     - `interface` only in: C# source `interface` declarations, ambient type provider CLR handling, C# emission output, third-party code, spec files
     - `trait` only in: spec files and third-party code
-  - [~] 5.2 Full test suite passes
-  - [~] 5.3 All samples compile and produce expected output
+  - [ ] 5.2 Full test suite passes
+  - [ ] 5.3 All samples compile and produce expected output
 
 ## Notes
 

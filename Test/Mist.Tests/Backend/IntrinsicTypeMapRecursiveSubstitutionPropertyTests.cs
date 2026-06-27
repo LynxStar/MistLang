@@ -208,12 +208,12 @@ public class IntrinsicTypeMapRecursiveSubstitutionPropertyTests
         if(maxDepth <= 0)
         {
             // At leaf level, just pick an intrinsic
-            return Gen.Choose(0, IntrinsicTypes.Length - 1).Select(i => MakeIntrinsicType(i));
+            return Gen.Choose(0, IntrinsicTypes.Length - 1).Select(MakeIntrinsicType);
         }
 
         return Gen.OneOf(
             // Direct intrinsic leaf
-            Gen.Choose(0, IntrinsicTypes.Length - 1).Select(i => MakeIntrinsicType(i)),
+            Gen.Choose(0, IntrinsicTypes.Length - 1).Select(MakeIntrinsicType),
             // Nested generic containing an intrinsic
             Gen.Choose(0, GenericContainers.Length - 1).SelectMany(containerIdx =>
             {
@@ -235,14 +235,14 @@ public class IntrinsicTypeMapRecursiveSubstitutionPropertyTests
         if(maxDepth <= 0)
         {
             return Gen.OneOf(
-                Gen.Choose(0, IntrinsicTypes.Length - 1).Select(i => MakeIntrinsicType(i)),
-                Gen.Choose(0, NonIntrinsicLeaves.Length - 1).Select(i => MakeNonIntrinsicLeaf(i))
+                Gen.Choose(0, IntrinsicTypes.Length - 1).Select(MakeIntrinsicType),
+                Gen.Choose(0, NonIntrinsicLeaves.Length - 1).Select(MakeNonIntrinsicLeaf)
             );
         }
 
         return Gen.OneOf(
-            Gen.Choose(0, IntrinsicTypes.Length - 1).Select(i => MakeIntrinsicType(i)),
-            Gen.Choose(0, NonIntrinsicLeaves.Length - 1).Select(i => MakeNonIntrinsicLeaf(i)),
+            Gen.Choose(0, IntrinsicTypes.Length - 1).Select(MakeIntrinsicType),
+            Gen.Choose(0, NonIntrinsicLeaves.Length - 1).Select(MakeNonIntrinsicLeaf),
             Gen.Choose(0, GenericContainers.Length - 1).SelectMany(containerIdx =>
             {
                 var (_, _, innerArity) = GenericContainers[containerIdx];

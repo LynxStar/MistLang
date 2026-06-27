@@ -74,7 +74,7 @@ public class TuplePositionalPatternPerElementDiagnosticPropertyTests
     private static Gen<bool[]> GenAtLeastOneTrue(int length)
     {
         return from flags in Gen.ArrayOf(Gen.Elements(true, false), length)
-               // If no true values, force the first element to be true
+                   // If no true values, force the first element to be true
                let adjusted = flags.Any(f => f) ? flags : SetFirst(flags)
                select adjusted;
     }

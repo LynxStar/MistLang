@@ -167,7 +167,7 @@ public class DfaPipelinePropertyTests
                 });
             case AlternationIR alt:
                 return Gen.Elements(alt.Alternatives.ToArray())
-                    .SelectMany(a => GenMatchingString(a));
+                    .SelectMany(GenMatchingString);
             case OptionalIR opt:
                 return Gen.Frequency(
                     (1, Gen.Constant("")),

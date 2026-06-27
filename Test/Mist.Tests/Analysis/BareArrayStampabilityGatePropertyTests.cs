@@ -135,7 +135,7 @@ public sealed class BareArrayStampabilityGatePropertyTests
             ElementTypeCategory.StructWithClassField,
             ElementTypeCategory.ClassType,
             ElementTypeCategory.StringType)
-            .SelectMany(category => GenScenarioForCategory(category));
+            .SelectMany(GenScenarioForCategory);
     }
 
     private static Gen<BareArrayScenario> GenScenarioForCategory(

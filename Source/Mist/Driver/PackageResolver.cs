@@ -146,7 +146,7 @@ public static class PackageResolver
                     FailureCount: failureCount + validPackages.Count);
             }
 
-            return ParseAssetsFile(assetsPath, validPackages.ToImmutable(), 
+            return ParseAssetsFile(assetsPath, validPackages.ToImmutable(),
                 targetFramework, failureCount, diagnostics);
         }
         catch(Exception ex) when(ex is IOException or UnauthorizedAccessException)

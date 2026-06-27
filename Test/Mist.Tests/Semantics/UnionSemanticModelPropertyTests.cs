@@ -93,7 +93,7 @@ public class UnionSemanticModelPropertyTests
         return from count in Gen.Choose(2, 4)
                from types in GenDistinctTypes(count)
                let annotation = string.Join(" | ", types)
-               let expected = types.OrderBy(t => MapToDisplayName(t), StringComparer.Ordinal).ToImmutableArray()
+               let expected = types.OrderBy(MapToDisplayName, StringComparer.Ordinal).ToImmutableArray()
                select new UnionSemanticScenario(annotation, expected);
     }
 

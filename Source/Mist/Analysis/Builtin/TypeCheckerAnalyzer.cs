@@ -3907,7 +3907,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         insideConstructor = false;
         insidePropertyAccessor = false; // Will be set to true inside CheckAccessorBody
 
-        var propInfo = GetPropertyMetadata(indexerSymbol);
+        _ = GetPropertyMetadata(indexerSymbol);
         var indexerType = indexerSymbol.DeclaredType ?? ErrorType.Instance;
         var indexerModifiers = ExtractPropertyModifiers(indexerDecl.Modifiers);
 
@@ -12602,7 +12602,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
             }
 
-            CheckArgumentTypesWithSubstitution(methodCall.Arguments, methodSymbol, model, diagnostics, 
+            CheckArgumentTypesWithSubstitution(methodCall.Arguments, methodSymbol, model, diagnostics,
                 enclosingTypeParams, enclosingTypeArgs, methodTypeParams, methodTypeArgs);
         }
 
@@ -12762,7 +12762,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             winnerEnclosingTypeArgs = winnerTargetCt.TypeArguments;
                         }
 
-                        CheckArgumentTypesWithSubstitution(methodCall.Arguments, result.BestCandidate!, model, diagnostics, 
+                        CheckArgumentTypesWithSubstitution(methodCall.Arguments, result.BestCandidate!, model, diagnostics,
                             winnerEnclosingTypeParams, winnerEnclosingTypeArgs,
                             winnerMethodTypeParams, winnerMethodTypeArgs);
                     }
@@ -12805,7 +12805,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         singleEnclosingTypeArgs = singleTargetCtExplicit.TypeArguments;
                     }
 
-                    CheckArgumentTypesWithSubstitution(methodCall.Arguments, singleCandidate, model, diagnostics, 
+                    CheckArgumentTypesWithSubstitution(methodCall.Arguments, singleCandidate, model, diagnostics,
                         singleEnclosingTypeParams, singleEnclosingTypeArgs,
                         singleSym.TypeParameters, explicitMethodTypeArgs);
                 }
@@ -12851,7 +12851,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             singleEnclosingTypeArgs = singleTargetCt.TypeArguments;
                         }
 
-                        CheckArgumentTypesWithSubstitution(methodCall.Arguments, singleCandidate, model, diagnostics, 
+                        CheckArgumentTypesWithSubstitution(methodCall.Arguments, singleCandidate, model, diagnostics,
                             singleEnclosingTypeParams, singleEnclosingTypeArgs,
                             singleSym.TypeParameters, inferenceResult.InferredTypeArguments!);
                     }

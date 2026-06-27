@@ -197,10 +197,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
     // Regardless of site, default expressions always resolve to DefaultGraph.
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Theory]
-    [InlineData()]
-    [InlineData()]
-    [InlineData()]
+    [Fact]
     public void DefaultExpression_ResolvesToDefaultGraph()
     {
         const string source = """
@@ -234,10 +231,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         Assert.Equal(MoveOutcome.DefaultGraph, resolution.Outcome);
     }
 
-    [Theory]
-    [InlineData()]
-    [InlineData()]
-    [InlineData()]
+    [Fact]
     public void BareDefault_ResolvesToDefaultGraph()
     {
         const string source = """
@@ -275,10 +269,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
     // Decision matrix: value type / primitive → ValueCopy
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Theory]
-    [InlineData()]
-    [InlineData()]
-    [InlineData()]
+    [Fact]
     public void ValueTypeStruct_ResolvesToValueCopy()
     {
         const string source = """
@@ -312,10 +303,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         Assert.Equal(MoveOutcome.ValueCopy, resolution.Outcome);
     }
 
-    [Theory]
-    [InlineData()]
-    [InlineData()]
-    [InlineData()]
+    [Fact]
     public void PrimitiveInt_ResolvesToValueCopy()
     {
         const string source = """
@@ -354,10 +342,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
     // Constructor call, owned-returning function call, move from owned binding.
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Theory]
-    [InlineData()]
-    [InlineData()]
-    [InlineData()]
+    [Fact]
     public void ConstructorCall_ResolvesToMovedFromOwned()
     {
         const string source = """
@@ -392,10 +377,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         Assert.Null(resolution.ConsumedBinding); // constructor call — no consumed binding
     }
 
-    [Theory]
-    [InlineData()]
-    [InlineData()]
-    [InlineData()]
+    [Fact]
     public void OwnedReturningCall_ResolvesToMovedFromOwned()
     {
         const string source = """
@@ -433,10 +415,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         Assert.Null(resolution.ConsumedBinding); // call — no consumed binding
     }
 
-    [Theory]
-    [InlineData()]
-    [InlineData()]
-    [InlineData()]
+    [Fact]
     public void MoveFromOwnedBinding_ResolvesToMovedFromOwned()
     {
         const string source = """
@@ -486,10 +465,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
     // Decision matrix: non-owned clonable source → ImplicitClone
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Theory]
-    [InlineData()]
-    [InlineData()]
-    [InlineData()]
+    [Fact]
     public void NonOwnedClonableSource_ResolvesToImplicitClone()
     {
         // PlainClonable has only int fields → auto-derives IClonable.
@@ -534,10 +510,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
     // Decision matrix: non-owned non-clonable source → Error
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Theory]
-    [InlineData()]
-    [InlineData()]
-    [InlineData()]
+    [Fact]
     public void NonOwnedNonClonableSource_ResolvesToError()
     {
         // NotClonable has an int[] field → cannot auto-derive IClonable.

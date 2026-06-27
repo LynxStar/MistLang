@@ -26415,7 +26415,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         for(var orderIdx = 0; orderIdx < processingOrder.Count; orderIdx++)
         {
             var idx = processingOrder[orderIdx];
-            var (symbol, type) = typeSymbols[idx];
+            var (_, type) = typeSymbols[idx];
 
             switch(type)
             {

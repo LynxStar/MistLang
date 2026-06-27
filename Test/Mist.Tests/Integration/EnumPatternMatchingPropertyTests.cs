@@ -4,7 +4,6 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Text;
-using FsCheck;
 using FsCheck.Fluent;
 using Mist.Analysis.Builtin;
 using Mist.Analysis.Contracts;

@@ -1,8 +1,6 @@
 using System.Collections.Immutable;
 using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
-using Mist.Common.Source;
-using Mist.Driver.Contracts;
 using Mist.Generated;
 using Mist.Semantics.Contracts;
 

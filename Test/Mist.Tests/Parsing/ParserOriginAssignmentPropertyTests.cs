@@ -145,9 +145,9 @@ public class ParserOriginAssignmentPropertyTests
             if(node.Origin is not ParsedOrigin parsedOrigin)
             {
                 return false.ToProperty()
-                    .Label((string)($"Node of type {node.GetType().Name} has Origin of type " +
+                    .Label($"Node of type {node.GetType().Name} has Origin of type " +
                            $"{node.Origin?.GetType().Name ?? "null"} instead of ParsedOrigin. " +
-                           $"Source: {scenario.Source}"));
+                           $"Source: {scenario.Source}");
             }
 
             // Verify the Source is reference-equal to the SourceText passed to the parser

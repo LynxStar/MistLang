@@ -106,7 +106,7 @@ public class MistGrammarMemoizationPlanTests
     [Fact]
     public void MistGrammar_MemoizationPlan_ContainsAllSevenAnnotatedRules()
     {
-        var plan = MistGrammarMemoizationPlanTests.Plan.Value;
+        var plan = Plan.Value;
 
         foreach(var ruleName in ExpectedMemoizedRules)
         {
@@ -119,7 +119,7 @@ public class MistGrammarMemoizationPlanTests
     [Fact]
     public void MistGrammar_MemoizationPlan_AssignsDenseIds()
     {
-        var plan = MistGrammarMemoizationPlanTests.Plan.Value;
+        var plan = Plan.Value;
 
         // All 7 rules should have ids in the range [0..Count-1]
         foreach(var ruleName in ExpectedMemoizedRules)
@@ -143,7 +143,7 @@ public class MistGrammarMemoizationPlanTests
     [Fact]
     public void MistGrammar_MemoizationPlan_HasAtLeastSevenRules()
     {
-        var plan = MistGrammarMemoizationPlanTests.Plan.Value;
+        var plan = Plan.Value;
 
         // The Plan should contain at least the 7 annotated rules (may also include
         // rules from the cycle-based or multi-caller heuristics)

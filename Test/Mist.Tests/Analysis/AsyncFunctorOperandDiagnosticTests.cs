@@ -4,8 +4,6 @@ using System.Collections.Immutable;
 using Mist.Analysis.Builtin;
 using Mist.Common.Diagnostics;
 using Mist.Common.Source;
-using Mist.Driver.Contracts;
-using Mist.Semantics.Model;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Analysis;

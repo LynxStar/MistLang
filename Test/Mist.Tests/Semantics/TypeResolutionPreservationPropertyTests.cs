@@ -27,14 +27,10 @@ using Mist.Analysis.Builtin;
 using Mist.Backends.Contracts;
 using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
-using Mist.Common.Source;
 using Mist.Driver;
 using Mist.Driver.Contracts;
 using Mist.Lexing;
-using Mist.Lexing.Contracts;
 using Mist.Parsing;
-using Mist.Parsing.Contracts;
-using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 
 namespace Mist.Tests.Semantics;

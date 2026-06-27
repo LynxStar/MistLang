@@ -150,7 +150,7 @@ public sealed class CooperationContractVerifier
         var resolution = resolver.Resolve(
             source,
             fieldType,
-            OwnedMoveSite.OwnedFieldAssignment,
+
             flowState,
             model,
             throwaway);

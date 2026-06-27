@@ -37,7 +37,7 @@ public sealed class CSharpAmbientTypeResolver : IAmbientTypeResolver
     /// <see cref="FallbackStdlibTypeProvider"/> (legacy singletons),
     /// keeping tests that don't load stdlib working.
     /// </param>
-    public CSharpAmbientTypeResolver(IStdlibTypeProvider? stdlib = null)
+    public CSharpAmbientTypeResolver()
     {
     }
 

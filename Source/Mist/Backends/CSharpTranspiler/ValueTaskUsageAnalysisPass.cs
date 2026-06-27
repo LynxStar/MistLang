@@ -53,7 +53,7 @@ internal static class ValueTaskUsageAnalysisPass
     /// <c>ValueTask&lt;T&gt;</c>. All async methods emit <c>Task&lt;T&gt;</c>.
     /// </para>
     /// </summary>
-    public static void Run(ISemanticModel model)
+    public static void Run()
     {
         // Conservative implementation: leave UseValueTask = false for all methods.
         //

@@ -262,7 +262,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         VariableOwnershipState state,
         AccessKind action,
         SyntaxNode node,
-        MethodFlowState flowState,
+
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
@@ -760,7 +760,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 break;
 
             case ReturnStatementStatementNode returnStmt:
-                AnalyzeReturnStatement(returnStmt.ReturnStatement, state, model, diagnostics, isLoop);
+                AnalyzeReturnStatement(returnStmt.ReturnStatement, state, model, diagnostics);
                 break;
 
             default:
@@ -822,7 +822,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                             {
                                 // Field is not Live — report appropriate violation.
                                 ReportFieldStateViolation(ownedRecvSym!, ownedFieldSym!, fieldState.Value,
-                                    AccessKind.Move, typed, state, model, diagnostics);
+                                    AccessKind.Move, typed, model, diagnostics);
                                 break;
                             }
 
@@ -896,7 +896,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                 if(fieldState is not null && !IsActionPermitted(fieldState.Value, AccessKind.LiveView))
                                 {
                                     ReportFieldStateViolation(ownedRecvRefSym!, ownedFieldRefSym!, fieldState.Value,
-                                        AccessKind.LiveView, typed, state, model, diagnostics);
+                                        AccessKind.LiveView, typed, model, diagnostics);
                                 }
                                 else
                                 {
@@ -909,7 +909,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                 if(fieldState is not null && !IsActionPermitted(fieldState.Value, AccessKind.Freeze))
                                 {
                                     ReportFieldStateViolation(ownedRecvRefSym!, ownedFieldRefSym!, fieldState.Value,
-                                        AccessKind.Freeze, typed, state, model, diagnostics);
+                                        AccessKind.Freeze, typed, model, diagnostics);
                                 }
                                 else
                                 {
@@ -922,7 +922,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                 if(fieldState is not null && !IsActionPermitted(fieldState.Value, AccessKind.Borrow))
                                 {
                                     ReportFieldStateViolation(ownedRecvRefSym!, ownedFieldRefSym!, fieldState.Value,
-                                        AccessKind.Borrow, typed, state, model, diagnostics);
+                                        AccessKind.Borrow, typed, model, diagnostics);
                                 }
                                 else
                                 {
@@ -945,7 +945,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                 {
                                     if(!IsActionPermitted(currentState, AccessKind.LiveView))
                                     {
-                                        ReportTruthTableViolation(sourceSymbol, currentState, AccessKind.LiveView, typed, state, model, diagnostics);
+                                        ReportTruthTableViolation(sourceSymbol, currentState, AccessKind.LiveView, typed, model, diagnostics);
                                     }
                                     else
                                     {
@@ -974,7 +974,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                 {
                                     if(!IsActionPermitted(currentState, AccessKind.Freeze))
                                     {
-                                        ReportTruthTableViolation(sourceSymbol, currentState, AccessKind.Freeze, typed, state, model, diagnostics);
+                                        ReportTruthTableViolation(sourceSymbol, currentState, AccessKind.Freeze, typed, model, diagnostics);
                                     }
                                     else
                                     {
@@ -998,7 +998,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                 {
                                     if(!IsActionPermitted(currentState, AccessKind.Borrow))
                                     {
-                                        ReportTruthTableViolation(sourceSymbol, currentState, AccessKind.Borrow, typed, state, model, diagnostics);
+                                        ReportTruthTableViolation(sourceSymbol, currentState, AccessKind.Borrow, typed, model, diagnostics);
                                     }
                                     else
                                     {
@@ -1133,7 +1133,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                             if(fieldState is not null and not VariableOwnershipState.Live)
                             {
                                 ReportFieldStateViolation(ownedRecvSym!, ownedFieldSym!, fieldState.Value,
-                                    AccessKind.Move, inferred, state, model, diagnostics);
+                                    AccessKind.Move, inferred, model, diagnostics);
                                 break;
                             }
 
@@ -1199,7 +1199,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                 {
                                     if(!IsActionPermitted(currentState, AccessKind.LiveView))
                                     {
-                                        ReportTruthTableViolation(sourceSymbolRef, currentState, AccessKind.LiveView, inferred, state, model, diagnostics);
+                                        ReportTruthTableViolation(sourceSymbolRef, currentState, AccessKind.LiveView, inferred, model, diagnostics);
                                     }
                                     else
                                     {
@@ -1224,7 +1224,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                 {
                                     if(!IsActionPermitted(currentState, AccessKind.Freeze))
                                     {
-                                        ReportTruthTableViolation(sourceSymbolRef, currentState, AccessKind.Freeze, inferred, state, model, diagnostics);
+                                        ReportTruthTableViolation(sourceSymbolRef, currentState, AccessKind.Freeze, inferred, model, diagnostics);
                                     }
                                     else
                                     {
@@ -1246,7 +1246,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                 {
                                     if(!IsActionPermitted(currentState, AccessKind.Borrow))
                                     {
-                                        ReportTruthTableViolation(sourceSymbolRef, currentState, AccessKind.Borrow, inferred, state, model, diagnostics);
+                                        ReportTruthTableViolation(sourceSymbolRef, currentState, AccessKind.Borrow, inferred, model, diagnostics);
                                     }
                                     else
                                     {
@@ -1382,7 +1382,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         _ = resolver.Resolve(
             initializer,
             destination.DeclaredType,
-            OwnedMoveSite.OwnedBindingInit,
+
             state,
             model,
             diagnostics);
@@ -1475,7 +1475,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             {
                 if(!IsActionPermitted(recvState, AccessKind.Write))
                 {
-                    ReportTruthTableViolation(receiverOfFieldAssign, recvState, AccessKind.Write, assignment, state, model, diagnostics);
+                    ReportTruthTableViolation(receiverOfFieldAssign, recvState, AccessKind.Write, assignment, model, diagnostics);
                 }
             }
 
@@ -1504,14 +1504,14 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                         if(currentFieldState is VariableOwnershipState.LentRef or VariableOwnershipState.LentFrozen)
                         {
                             ReportFieldStateViolation(receiverOfFieldAssign, targetField, currentFieldState.Value,
-                                AccessKind.Write, assignment, state, model, diagnostics);
+                                AccessKind.Write, assignment, model, diagnostics);
                         }
                     }
 
                     var resolution = resolver.Resolve(
                         assignment.Value,
                         targetField?.DeclaredType,
-                        OwnedMoveSite.OwnedFieldAssignment,
+
                         state,
                         model,
                         diagnostics);
@@ -1547,7 +1547,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                         _ = resolver.Resolve(
                             assignment.Value,
                             thisFieldSym.DeclaredType,
-                            OwnedMoveSite.OwnedFieldAssignment,
+
                             state,
                             model,
                             diagnostics);
@@ -1765,8 +1765,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         ReturnStatementNode returnStmt,
         MethodFlowState state,
         ISemanticModel model,
-        DiagnosticBag diagnostics,
-        bool isLoop)
+        DiagnosticBag diagnostics)
     {
         if(returnStmt.Value is not null)
         {
@@ -1802,7 +1801,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         {
             if(!IsActionPermitted(currentState, AccessKind.Move))
             {
-                ReportTruthTableViolation(sourceSymbol, currentState, AccessKind.Move, moveNode, state, model, diagnostics);
+                ReportTruthTableViolation(sourceSymbol, currentState, AccessKind.Move, moveNode, model, diagnostics);
                 return;
             }
         }
@@ -1896,7 +1895,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 if(state.VariableStates.TryGetValue(symbol, out var varState) &&
                     !IsActionPermitted(varState, AccessKind.Read))
                 {
-                    ReportTruthTableViolation(symbol, varState, AccessKind.Read, identifier, state, model, diagnostics);
+                    ReportTruthTableViolation(symbol, varState, AccessKind.Read, identifier, model, diagnostics);
                 }
             }
         }
@@ -1997,7 +1996,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                         // LentRef: all access is blocked (Read is false in truth table).
                         if(!IsActionPermitted(receiverState, AccessKind.Read))
                         {
-                            ReportTruthTableViolation(receiverSymbol, receiverState, AccessKind.Read, firstMethodCall, state, model, diagnostics);
+                            ReportTruthTableViolation(receiverSymbol, receiverState, AccessKind.Read, firstMethodCall, model, diagnostics);
                         }
                     }
                     else if(receiverState == VariableOwnershipState.LentFrozen)
@@ -2026,7 +2025,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                         // Moved: all access is blocked.
                         if(!IsActionPermitted(receiverState, AccessKind.Read))
                         {
-                            ReportTruthTableViolation(receiverSymbol, receiverState, AccessKind.Read, firstMethodCall, state, model, diagnostics);
+                            ReportTruthTableViolation(receiverSymbol, receiverState, AccessKind.Read, firstMethodCall, model, diagnostics);
                         }
                     }
                 }
@@ -2066,7 +2065,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                 {
                                     ReportFieldStateViolation(
                                         receiverSymbol, fieldSym, fieldState.Value, requiredAction,
-                                        firstMethodCall, state, model, diagnostics);
+                                        firstMethodCall, model, diagnostics);
                                     break; // Report the first violation and stop.
                                 }
                             }
@@ -2079,11 +2078,11 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             {
                 if(suffix is MethodCallSuffixPostfixSuffixNode methodCall)
                 {
-                    CheckMethodCallArgumentsForMoves(methodCall, state, model, diagnostics, isLoop);
+                    CheckMethodCallArgumentsForMoves(methodCall, state, model, diagnostics);
                 }
                 else if(suffix is InvocationSuffixPostfixSuffixNode invocation)
                 {
-                    CheckInvocationArgumentsForMoves(invocation, postfix.Target, state, model, diagnostics, isLoop);
+                    CheckInvocationArgumentsForMoves(invocation, postfix.Target, state, model, diagnostics);
                 }
             }
         }
@@ -2112,8 +2111,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         MethodCallSuffixPostfixSuffixNode methodCall,
         MethodFlowState state,
         ISemanticModel model,
-        DiagnosticBag diagnostics,
-        bool isLoop)
+        DiagnosticBag diagnostics)
     {
         // Resolve the method symbol to get parameter ownership tiers.
         var methodSymbol = model.GetDeclaredSymbol(methodCall);
@@ -2158,7 +2156,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                     _ = resolver.Resolve(
                         argExprs[i],
                         paramSym.DeclaredType,
-                        OwnedMoveSite.OwnedParameterPass,
+
                         state,
                         model,
                         diagnostics);
@@ -2185,8 +2183,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         PrimaryNode target,
         MethodFlowState state,
         ISemanticModel model,
-        DiagnosticBag diagnostics,
-        bool isLoop)
+        DiagnosticBag diagnostics)
     {
         // Resolve the invoked symbol from the target identifier first,
         // then fall back to the invocation node itself.
@@ -2235,7 +2232,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                     _ = resolver.Resolve(
                         argExprs[i],
                         paramSym.DeclaredType,
-                        OwnedMoveSite.OwnedParameterPass,
+
                         state,
                         model,
                         diagnostics);
@@ -2346,7 +2343,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                     _ = resolver.Resolve(
                         argExprs[i],
                         paramSym.DeclaredType,
-                        OwnedMoveSite.OwnedParameterPass,
+
                         state,
                         model,
                         diagnostics);
@@ -3463,7 +3460,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         VariableOwnershipState fieldState,
         AccessKind action,
         SyntaxNode node,
-        MethodFlowState state,
+
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {

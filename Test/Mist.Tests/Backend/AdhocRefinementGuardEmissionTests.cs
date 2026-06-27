@@ -64,7 +64,7 @@ public sealed class AdhocRefinementGuardEmissionTests
         Assert.Empty(tcErrors);
 
         var emitBag = new DiagnosticBag();
-        var files = CSharpEmitter.EmitToMemory(model, "TestProgram", emitBag);
+        var files = CSharpEmitter.EmitToMemory(model, emitBag);
         Assert.False(emitBag.HasErrors, $"Emit errors: {FormatDiagnostics(emitBag)}");
 
         var sb = new StringBuilder();

@@ -44,7 +44,10 @@ public unsafe delegate int MixedPointerDelegate(int a, byte* buffer, int length)
 /// <summary>A method that takes a safe delegate as parameter (should NOT be hidden).</summary>
 public class DelegateConsumer
 {
+    // IDE0060 suppressed: parameters exist to test visibility filter behavior on delegate-typed signatures.
+#pragma warning disable IDE0060
     public void AcceptSafeDelegate(SafePredicateDelegate pred) { }
 
     public void AcceptPointerDelegate(PointerParamDelegate handler) { }
+#pragma warning restore IDE0060
 }

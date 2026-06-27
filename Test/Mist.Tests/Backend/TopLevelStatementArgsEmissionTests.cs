@@ -104,7 +104,7 @@ public sealed class TopLevelStatementArgsEmissionTests : IDisposable
         // Use EmitToMemory to get the emitted C# without needing dotnet build
         Assert.NotNull(capture.CapturedModel);
         var diagnostics = new DiagnosticBag();
-        var emittedFiles = CSharpEmitter.EmitToMemory(capture.CapturedModel!, projectName, diagnostics);
+        var emittedFiles = CSharpEmitter.EmitToMemory(capture.CapturedModel!, diagnostics);
 
         // Assert — the emitted C# should contain `args`
         Assert.True(emittedFiles.ContainsKey("Program.cs"),

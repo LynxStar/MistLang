@@ -103,7 +103,7 @@ public sealed class TopLevelStatementReturnEmissionTests : IDisposable
         // Use EmitToMemory to get the emitted C#
         Assert.NotNull(capture.CapturedModel);
         var diagnostics = new DiagnosticBag();
-        var emittedFiles = CSharpEmitter.EmitToMemory(capture.CapturedModel!, projectName, diagnostics);
+        var emittedFiles = CSharpEmitter.EmitToMemory(capture.CapturedModel!, diagnostics);
 
         // Assert — the emitted C# should contain `return 42;`
         Assert.True(emittedFiles.ContainsKey("Program.cs"),

@@ -109,7 +109,7 @@ public sealed class TopLevelStatementNamespaceEmissionTests : IDisposable
         // Use EmitToMemory to get the emitted C# without needing dotnet build
         Assert.NotNull(capture.CapturedModel);
         var diagnostics = new DiagnosticBag();
-        var emittedFiles = CSharpEmitter.EmitToMemory(capture.CapturedModel!, projectName, diagnostics);
+        var emittedFiles = CSharpEmitter.EmitToMemory(capture.CapturedModel!, diagnostics);
 
         // Assert — find the emitted C# for Program.mist
         Assert.True(emittedFiles.ContainsKey("Program.cs"),
@@ -168,7 +168,7 @@ public sealed class TopLevelStatementNamespaceEmissionTests : IDisposable
         // Use EmitToMemory to get the emitted C# without needing dotnet build
         Assert.NotNull(capture.CapturedModel);
         var diagnostics = new DiagnosticBag();
-        var emittedFiles = CSharpEmitter.EmitToMemory(capture.CapturedModel!, projectName, diagnostics);
+        var emittedFiles = CSharpEmitter.EmitToMemory(capture.CapturedModel!, diagnostics);
 
         // Assert — find the emitted C# for Program.mist
         Assert.True(emittedFiles.ContainsKey("Program.cs"),

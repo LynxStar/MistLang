@@ -279,7 +279,7 @@ public sealed class ValueTaskEmissionPropertyTests : IDisposable
 
         // Emit in-memory (no disk I/O)
         var emitBag = new DiagnosticBag();
-        var files = CSharpEmitter.EmitToMemory(model, "TestProgram", emitBag);
+        var files = CSharpEmitter.EmitToMemory(model, emitBag);
 
         if(emitBag.HasErrors)
         {

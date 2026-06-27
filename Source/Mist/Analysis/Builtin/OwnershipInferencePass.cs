@@ -37,7 +37,7 @@ public sealed class OwnershipInferencePass
         }
 
         // Initialize candidates optimistically.
-        InitializeCandidates(candidates, functionBody, model);
+        InitializeCandidates(candidates, model);
 
         // Fixed-point iteration: downgrade on conflicts until stable.
         RunFixedPoint(candidates, functionBody, model);
@@ -151,7 +151,7 @@ public sealed class OwnershipInferencePass
     /// </summary>
     private static void InitializeCandidates(
         List<InferenceCandidate> candidates,
-        SyntaxNode functionBody,
+
         ISemanticModel model)
     {
         foreach(var candidate in candidates)
@@ -249,7 +249,7 @@ public sealed class OwnershipInferencePass
                 var uses = usesCache[candidate.Symbol];
                 foreach(var use in uses)
                 {
-                    var requiredTier = DetermineRequiredTier(use, candidate.Symbol, symbolToCandidateMap, model);
+                    var requiredTier = DetermineRequiredTier(use);
                     if(requiredTier is null)
                     {
                         continue; // No ownership requirement for this use.
@@ -508,7 +508,7 @@ public sealed class OwnershipInferencePass
             if(ReferenceEquals(referencedSymbol, symbol))
             {
                 // Classify based on context passed in.
-                var use = ClassifyUseFromContext(identifier, context, model);
+                var use = ClassifyUseFromContext(identifier, context);
                 uses.Add(use);
                 return; // Leaf node, no children to recurse.
             }
@@ -546,8 +546,7 @@ public sealed class OwnershipInferencePass
     /// </summary>
     private static VariableUse ClassifyUseFromContext(
         IdentifierExpressionPrimaryNode identifier,
-        UseContext? context,
-        ISemanticModel model)
+        UseContext? context)
     {
         if(context is not null)
         {
@@ -606,10 +605,7 @@ public sealed class OwnershipInferencePass
     /// to be at a certain tier, it returns the tier that is the ceiling for the candidate.
     /// </summary>
     private static OwnershipTier? DetermineRequiredTier(
-        VariableUse use,
-        ISymbol candidateSymbol,
-        Dictionary<ISymbol, InferenceCandidate> candidateMap,
-        ISemanticModel model)
+        VariableUse use)
     {
         switch(use.Kind)
         {

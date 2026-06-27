@@ -139,13 +139,13 @@ internal sealed class VisibilityFilter
         }
 
         // 3. out parameters — no longer excluded (projected as ref with ClrCallingConvention.Out)
-        if(HasOutParameters(member))
+        if(HasOutParameters())
         {
             return true;
         }
 
         // 4. ref parameters — no longer excluded (CLR ref is now supported)
-        if(HasRefParameters(member))
+        if(HasRefParameters())
         {
             return true;
         }
@@ -200,7 +200,7 @@ internal sealed class VisibilityFilter
 
         // 3. out parameters — no longer excluded; check retained to mirror IsMemberExcluded order.
         // HasOutParameters currently returns false, so this never triggers in practice.
-        if(HasOutParameters(member))
+        if(HasOutParameters())
         {
             return Hidden(MemberHiddenReason.OutParameter);
         }
@@ -331,7 +331,7 @@ internal sealed class VisibilityFilter
     /// are now projected as <c>ref</c> with <see cref="Semantics.Model.ClrCallingConvention.Out"/>,
     /// so this method unconditionally returns <c>false</c>.
     /// </summary>
-    private static bool HasOutParameters(MemberInfo member)
+    private static bool HasOutParameters()
     {
         // CLR out parameters are now supported — projected as ref with ClrCallingConvention.Out.
         return false;
@@ -342,7 +342,7 @@ internal sealed class VisibilityFilter
     /// are now fully supported, so this method unconditionally returns <c>false</c>.
     /// Only <c>out</c> parameters remain excluded (handled by <see cref="HasOutParameters"/>).
     /// </summary>
-    private static bool HasRefParameters(MemberInfo member)
+    private static bool HasRefParameters()
     {
         // CLR ref parameters are now supported — only out params are excluded.
         return false;

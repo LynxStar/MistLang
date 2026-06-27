@@ -157,7 +157,7 @@ public sealed class InferredNamespaceComputationPropertyTests
     /// **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5**
     /// </summary>
     [Property(Arbitrary = new[] { typeof(InferredNamespaceComputationPropertyTests) }, MaxTest = 100)]
-    public bool SegmentCount_MatchesFolderDepthPlusRoot(ValidNamespaceRoot nsRoot, FolderSegments folders)
+    public bool SegmentCount_MatchesFolderDepthPlusRoot(FolderSegments folders)
     {
         // Use a namespace root without dots to make counting straightforward
         var simpleRoot = "TestRoot";

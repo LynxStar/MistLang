@@ -372,7 +372,7 @@ public sealed class MoveBoundaryCloneFromLentPropertyTests : IDisposable
         var resolution = resolver.Resolve(
             initializer,
             destinationType,
-            OwnedMoveSite.OwnedBindingInit,
+
             flowState,
             model,
             diagnostics);

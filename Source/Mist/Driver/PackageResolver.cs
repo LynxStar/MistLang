@@ -146,7 +146,7 @@ public static class PackageResolver
                     FailureCount: failureCount + validPackages.Count);
             }
 
-            return ParseAssetsFile(assetsPath, validPackages.ToImmutable(), frameworkReferences,
+            return ParseAssetsFile(assetsPath, validPackages.ToImmutable(), 
                 targetFramework, failureCount, diagnostics);
         }
         catch(Exception ex) when(ex is IOException or UnauthorizedAccessException)
@@ -378,7 +378,7 @@ public static class PackageResolver
     private static PackageResolutionResult ParseAssetsFile(
         string assetsPath,
         ImmutableArray<NuGetPackageReference> declaredPackages,
-        ImmutableArray<FrameworkReference> frameworkReferences,
+
         string targetFramework,
         int priorFailureCount,
         DiagnosticBag diagnostics)

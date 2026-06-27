@@ -484,7 +484,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
         switch(node)
         {
             case AssignmentNode assignment when assignment.Value is not null:
-                CheckContextBoundAssignment(assignment, contextBoundNames, model, diagnostics);
+                CheckContextBoundAssignment(assignment, contextBoundNames, diagnostics);
                 break;
 
             case BlockNode block:
@@ -508,7 +508,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
     private static void CheckContextBoundAssignment(
         AssignmentNode assignment,
         HashSet<string> contextBoundNames,
-        ISemanticModel model,
+
         DiagnosticBag diagnostics)
     {
         // The assignment target is a LogicalOrNode chain. We need to find the
@@ -787,7 +787,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
                 return;
 
             case ObjectCreationExpressionPrimaryNode objectCreation:
-                CheckObjectCreationCallSite(objectCreation, availableContextTypes, enclosingMethod, model, methodsWithContext, diagnostics);
+                CheckObjectCreationCallSite(objectCreation, availableContextTypes, model, diagnostics);
                 // Also walk arguments for nested call sites.
                 if(objectCreation.Arguments is not null)
                 {
@@ -797,7 +797,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
                 return;
 
             case ObjectCreationExpressionNoArgsPrimaryNode objectCreationNoArgs:
-                CheckObjectCreationNoArgsCallSite(objectCreationNoArgs, availableContextTypes, enclosingMethod, model, methodsWithContext, diagnostics);
+                CheckObjectCreationNoArgsCallSite(objectCreationNoArgs, availableContextTypes, model, diagnostics);
                 return;
 
             // Handle nested blocks (if, while, for, foreach) — they inherit context.
@@ -886,10 +886,10 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
                         var methodName = methodCall.Name.Lexeme;
 
                         // Check if this method call targets a method with WithClauses.
-                        var targetMethod = ResolveMethodCallTarget(methodName, currentType, model, methodsWithContext);
+                        var targetMethod = ResolveMethodCallTarget(methodName, currentType, methodsWithContext);
                         if(targetMethod is not null)
                         {
-                            CheckContextRequirements(targetMethod, methodCall, availableContextTypes, model, diagnostics);
+                            CheckContextRequirements(targetMethod, methodCall, availableContextTypes, diagnostics);
                         }
 
                         // Walk arguments for nested call sites.
@@ -909,10 +909,10 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
                         if(postfix.Target is IdentifierExpressionPrimaryNode identifier && i == 0)
                         {
                             var methodName = identifier.Name.Lexeme;
-                            var targetMethod = ResolveStandaloneCallTarget(methodName, enclosingMethod, model, methodsWithContext);
+                            var targetMethod = ResolveStandaloneCallTarget(methodName, enclosingMethod, methodsWithContext);
                             if(targetMethod is not null)
                             {
-                                CheckContextRequirements(targetMethod, invocation, availableContextTypes, model, diagnostics);
+                                CheckContextRequirements(targetMethod, invocation, availableContextTypes, diagnostics);
                             }
                         }
 
@@ -960,7 +960,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
     private static Symbol? ResolveMethodCallTarget(
         string methodName,
         IType? receiverType,
-        ISemanticModel model,
+
         Dictionary<string, List<Symbol>> methodsWithContext)
     {
         // Quick check: if no method with this name has WithClauses, skip resolution.
@@ -1008,7 +1008,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
     private static Symbol? ResolveStandaloneCallTarget(
         string methodName,
         Symbol enclosingMethod,
-        ISemanticModel model,
+
         Dictionary<string, List<Symbol>> methodsWithContext)
     {
         // Quick check: if no method with this name has WithClauses, skip resolution.
@@ -1050,9 +1050,9 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
     private static void CheckObjectCreationCallSite(
         ObjectCreationExpressionPrimaryNode objectCreation,
         List<IType> availableContextTypes,
-        Symbol enclosingMethod,
+
         ISemanticModel model,
-        Dictionary<string, List<Symbol>> methodsWithContext,
+
         DiagnosticBag diagnostics)
     {
         // Resolve the type being constructed.
@@ -1073,7 +1073,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
         {
             if(member is Symbol sym && sym.Kind == SymbolKind.Constructor && sym.WithClauses.Count > 0)
             {
-                CheckContextRequirements(sym, objectCreation, availableContextTypes, model, diagnostics);
+                CheckContextRequirements(sym, objectCreation, availableContextTypes, diagnostics);
                 break; // Only check the first matching constructor.
             }
         }
@@ -1086,9 +1086,9 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
     private static void CheckObjectCreationNoArgsCallSite(
         ObjectCreationExpressionNoArgsPrimaryNode objectCreation,
         List<IType> availableContextTypes,
-        Symbol enclosingMethod,
+
         ISemanticModel model,
-        Dictionary<string, List<Symbol>> methodsWithContext,
+
         DiagnosticBag diagnostics)
     {
         var createdType = model.GetTypeOf(objectCreation);
@@ -1107,7 +1107,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
         {
             if(member is Symbol sym && sym.Kind == SymbolKind.Constructor && sym.WithClauses.Count > 0)
             {
-                CheckContextRequirements(sym, objectCreation, availableContextTypes, model, diagnostics);
+                CheckContextRequirements(sym, objectCreation, availableContextTypes, diagnostics);
                 break;
             }
         }
@@ -1123,7 +1123,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
         Symbol targetMethod,
         SyntaxNode callSiteNode,
         List<IType> availableContextTypes,
-        ISemanticModel model,
+
         DiagnosticBag diagnostics)
     {
         foreach(var clause in targetMethod.WithClauses)

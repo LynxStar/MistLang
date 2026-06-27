@@ -166,7 +166,7 @@ public static class LexerEmitter
             writer.WriteEmptyLine();
 
             // Emit Lex method (table-driven with maximal munch)
-            EmitDfaLexMethod(writer, context, tokens, modes);
+            EmitDfaLexMethod(writer, tokens, modes);
             writer.WriteEmptyLine();
 
             // IsHidden helper
@@ -429,7 +429,7 @@ public static class LexerEmitter
 
     // ── DFA Lex method (table-driven with maximal munch) ────────────
 
-    private static void EmitDfaLexMethod(CodeWriter writer, EmissionContext context, List<TokenIR> tokens, IReadOnlyList<string> modes)
+    private static void EmitDfaLexMethod(CodeWriter writer, List<TokenIR> tokens, IReadOnlyList<string> modes)
     {
         writer.WriteBlock("public static TokenStream Lex(SourceText source, DiagnosticBag diagnostics)", () =>
         {

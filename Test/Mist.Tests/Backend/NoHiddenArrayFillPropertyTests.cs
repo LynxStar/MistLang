@@ -105,7 +105,7 @@ public sealed class NoHiddenArrayFillPropertyTests
 
         // Emit in-memory
         var emitBag = new DiagnosticBag();
-        var files = CSharpEmitter.EmitToMemory(model, "TestProject", emitBag);
+        var files = CSharpEmitter.EmitToMemory(model, emitBag);
 
         if(emitBag.HasErrors)
         {

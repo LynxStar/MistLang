@@ -49,7 +49,7 @@ public static class ParserEmitter
             foreach(var rule in context.Grammar.Rules)
             {
                 writer.WriteEmptyLine();
-                EmitPublicParseMethod(writer, context, rule);
+                EmitPublicParseMethod(writer, rule);
             }
 
             // Internal parse methods
@@ -181,7 +181,7 @@ public static class ParserEmitter
         writer.WriteEmptyLine();
 
         // Hidden token attachment
-        EmitHiddenTokenHelpers(writer, context);
+        EmitHiddenTokenHelpers(writer);
 
         // Memo-table key helper: packs (ruleId, pos) into a long. Emitted only
         // when at least one rule is memoized so the zero-memo path is unchanged.
@@ -194,7 +194,7 @@ public static class ParserEmitter
 
     // ── Hidden token attachment ─────────────────────────────────────
 
-    private static void EmitHiddenTokenHelpers(CodeWriter writer, EmissionContext context)
+    private static void EmitHiddenTokenHelpers(CodeWriter writer)
     {
         // AttachHiddenTokens — leading/trailing trivia model
         writer.WriteBlock("private static T AttachHidden<T>(T node, int startDefaultIdx, int endDefaultIdx) where T : SyntaxNode", () =>
@@ -235,7 +235,7 @@ public static class ParserEmitter
 
     // ── Public parse methods (one per rule) ─────────────────────────
 
-    private static void EmitPublicParseMethod(CodeWriter writer, EmissionContext context, RuleIR rule)
+    private static void EmitPublicParseMethod(CodeWriter writer, RuleIR rule)
     {
         var nodeName = rule.Name + "Node";
         var methodName = "Parse" + rule.Name;
@@ -1136,13 +1136,13 @@ public static class ParserEmitter
 
             case ZeroOrMoreIR star:
                 {
-                    EmitListExprParse(writer, context, star.Inner, varName, false, withCheck, okVar);
+                    EmitListExprParse(writer, star.Inner, varName, withCheck, okVar);
                     break;
                 }
 
             case OneOrMoreIR plus:
                 {
-                    EmitListExprParse(writer, context, plus.Inner, varName, true, withCheck, okVar);
+                    EmitListExprParse(writer, plus.Inner, varName, withCheck, okVar);
                     if(withCheck)
                     {
                         writer.WriteBlock($"if (_{varName}.Length == 0)", () => writer.WriteLine($"{okVar} = false;"));
@@ -1349,7 +1349,7 @@ public static class ParserEmitter
         }
     }
 
-    private static void EmitListExprParse(CodeWriter writer, EmissionContext context, ExpressionIR inner, string varName, bool requireOne, bool withCheck = false, string? okVar = null)
+    private static void EmitListExprParse(CodeWriter writer, ExpressionIR inner, string varName, bool withCheck = false, string? okVar = null)
     {
         switch(inner)
         {

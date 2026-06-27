@@ -156,11 +156,14 @@ public class OutParamFixture
         value = 0;
     }
 
+    // IDE0060 suppressed: parameter exists to test ref parameter projection in the type projector.
+#pragma warning disable IDE0060
     public bool TryParse<T>(string input, out T result) where T : struct
     {
         result = default;
         return false;
     }
+#pragma warning restore IDE0060
 
     /// <summary>A normal method without out params that should remain visible.</summary>
     public int GetLength(string input)

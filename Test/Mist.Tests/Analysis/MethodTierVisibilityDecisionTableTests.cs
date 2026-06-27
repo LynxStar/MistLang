@@ -249,8 +249,7 @@ public sealed class MethodTierVisibilityDecisionTableTests : IDisposable
         var verdict = MethodTierVisibilityFilter.Resolve(
             method!,
             receiverType!,
-            receiverIsOwnedBinding,
-            model!);
+            receiverIsOwnedBinding);
 
         Assert.Equal(expected, verdict);
     }

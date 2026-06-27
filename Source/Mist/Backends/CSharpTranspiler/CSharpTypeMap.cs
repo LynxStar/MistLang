@@ -241,13 +241,13 @@ internal static class CSharpTypeMap
             // Task<T> where T is not Void → "Task<T>".
             // For the initial implementation, always emit Task<T> (ValueTask optimization comes later).
             ConstructedType ctTask when IsStandardTask(ctTask)
-                => EmitTaskTypeName(ctTask, isValueContext),
+                => EmitTaskTypeName(ctTask),
 
             // Standard.ValueTask<T> — maps to System.Threading.Tasks.ValueTask<T> or non-generic ValueTask.
             // ValueTask<Void> always emits as non-generic "ValueTask".
             // ValueTask<T> where T is not Void → "ValueTask<T>".
             ConstructedType ctVTask when IsStandardValueTask(ctVTask)
-                => EmitValueTaskTypeName(ctVTask, isValueContext),
+                => EmitValueTaskTypeName(ctVTask),
 
             // Standard.Func<...> — maps to System.Func<...> / System.Action<...> / System.Action
             // based on whether the last type argument (the return type) is Void.
@@ -409,7 +409,7 @@ internal static class CSharpTypeMap
     /// For the initial implementation, always emits <c>Task&lt;T&gt;</c> (the ValueTask
     /// optimization is deferred to task 12.6).
     /// </summary>
-    private static string EmitTaskTypeName(ConstructedType ct, bool isValueContext)
+    private static string EmitTaskTypeName(ConstructedType ct)
     {
         var innerType = ct.TypeArguments[0];
 
@@ -442,7 +442,7 @@ internal static class CSharpTypeMap
     /// <c>ValueTask&lt;Void&gt;</c> always emits as the non-generic <c>ValueTask</c> because C# uses
     /// <c>ValueTask</c> (not <c>ValueTask&lt;void&gt;</c>) for async operations with no return value.
     /// </summary>
-    private static string EmitValueTaskTypeName(ConstructedType ct, bool isValueContext)
+    private static string EmitValueTaskTypeName(ConstructedType ct)
     {
         var innerType = ct.TypeArguments[0];
 

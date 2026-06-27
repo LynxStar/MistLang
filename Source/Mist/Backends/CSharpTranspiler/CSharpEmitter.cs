@@ -27,7 +27,7 @@ public sealed class CSharpEmitter
         _ = Directory.CreateDirectory(outputDirectory);
         EmitCsproj(outputDirectory, projectName);
 
-        var files = EmitToMemory(model, projectName, diagnostics);
+        var files = EmitToMemory(model, diagnostics);
 
         foreach(var (relativePath, content) in files)
         {
@@ -47,7 +47,7 @@ public sealed class CSharpEmitter
     /// Returns a dictionary mapping relative file paths to their C# content.
     /// Useful for tests that need to inspect emitted content without disk I/O.
     /// </summary>
-    public static Dictionary<string, string> EmitToMemory(ISemanticModel model, string projectName, DiagnosticBag diagnostics)
+    public static Dictionary<string, string> EmitToMemory(ISemanticModel model, DiagnosticBag diagnostics)
     {
         // Ensure the needs-async propagation pass has run. This is idempotent —
         // if the backend already ran it, re-running is harmless (already-marked
@@ -57,7 +57,7 @@ public sealed class CSharpEmitter
         // Run the ValueTask usage analysis pass to determine which async methods
         // can emit ValueTask<T> instead of Task<T>. Must run after needs-async
         // propagation so that all async method symbols are properly identified.
-        ValueTaskUsageAnalysisPass.Run(model);
+        ValueTaskUsageAnalysisPass.Run();
 
         var files = new Dictionary<string, string>(StringComparer.Ordinal);
 
@@ -3141,10 +3141,7 @@ internal sealed class CSharpSourceWriter
             EmitDefaultMethodForwardingStubs(
                 classTypeForDefaults.Abstracts,
                 classDecl.Members,
-                classTypeForDefaults.MemberScope,
-                classTypeForDefaults,
-                name,
-                typeParams,
+
                 abstractTypeParamSubstitutions);
         }
 
@@ -3385,10 +3382,7 @@ internal sealed class CSharpSourceWriter
     private void EmitDefaultMethodForwardingStubs(
         IReadOnlyList<IType> directAbstracts,
         IReadOnlyList<MemberDeclarationNode> concreteMembers,
-        IScope implementorScope,
-        ClassType? implementorClassType,
-        string typeName,
-        string typeParams,
+
         Dictionary<string, string>? abstractParamSubs)
     {
         if(directAbstracts.Count == 0)
@@ -4304,10 +4298,7 @@ internal sealed class CSharpSourceWriter
             EmitDefaultMethodForwardingStubs(
                 structTypeForDefaults.Abstracts,
                 structDecl.Members,
-                structTypeForDefaults.MemberScope,
-                null,
-                name,
-                typeParams,
+
                 abstractParamSubs: null);
         }
 
@@ -5264,7 +5255,7 @@ internal sealed class CSharpSourceWriter
         var implicitOverridePrefix = "";
         if(!insideStruct && currentClassType?.BaseType is not null)
         {
-            var baseOverrideSlot = FindBaseOverrideSlot(name, methodDecl);
+            var baseOverrideSlot = FindBaseOverrideSlot(name);
             if(baseOverrideSlot is not null)
             {
                 var clrAccess = baseOverrideSlot.ClrAccessModifier ?? "public";
@@ -11176,7 +11167,7 @@ internal sealed class CSharpSourceWriter
     /// Returns <c>null</c> if the pattern cannot be emitted as a union property
     /// pattern (compound patterns, non-type patterns, etc.).
     /// </summary>
-    private string? TryEmitUnionSwitchArmPattern(PatternNode pattern, UnionType unionType, string scrutineeExpr)
+    private string? TryEmitUnionSwitchArmPattern(PatternNode pattern, UnionType unionType)
     {
         // Navigate the pattern chain: Pattern → OrPattern → AndPattern → UnaryPattern → PrimaryPattern
         // Only handle simple (non-compound) patterns for union emission.
@@ -13296,7 +13287,7 @@ internal sealed class CSharpSourceWriter
                             // discriminator properties instead of C#'s native type patterns.
                             if(receiverType is UnionType unionType)
                             {
-                                var unionPattern = TryEmitUnionSwitchArmPattern(arm.Pattern, unionType, target);
+                                var unionPattern = TryEmitUnionSwitchArmPattern(arm.Pattern, unionType);
                                 if(unionPattern is not null)
                                 {
                                     _ = sb.Append(unionPattern);
@@ -15816,7 +15807,7 @@ internal sealed class CSharpSourceWriter
     /// same name as the given Mist method. Only matches when the base type chain contains
     /// a CLR-origin (Backend) type. Returns the base method symbol if found, null otherwise.
     /// </summary>
-    private Symbol? FindBaseOverrideSlot(string methodName, MethodDeclarationNode methodDecl)
+    private Symbol? FindBaseOverrideSlot(string methodName)
     {
         // Walk the inheritance chain looking for a CLR base with a matching virtual/abstract method.
         var baseType = currentClassType?.BaseType;

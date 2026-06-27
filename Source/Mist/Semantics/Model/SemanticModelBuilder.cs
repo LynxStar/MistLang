@@ -849,7 +849,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // declaration-site scopes. Cycles are detected and reported. For
         // newtypes, only the source type identity is resolved (members are NOT
         // cloned here — that happens in Phase 4b).
-        Pass1a_ResolveTypeForwards(asts, globalScope, symbolTable, ambientTypeResolver, fileScopesByUnit, compilation, diagnostics);
+        Pass1a_ResolveTypeForwards(asts, symbolTable, ambientTypeResolver, fileScopesByUnit, compilation, diagnostics);
 
         // Pass 1e: Validate intrinsic markers (Task 9).
         // Walks every registered type and member to emit diagnostics for:
@@ -873,7 +873,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         //     arity (Requirements 4.8, 4.9).
         //   * MIST_SB_0035 — operator not declared `public static`
         //     (Requirement 4.2).
-        Pass1e_ValidateOperatorShape(asts, symbolTable, compilation, diagnostics);
+        Pass1e_ValidateOperatorShape(symbolTable, diagnostics);
 
         // Pass 1e (cont.): Validate cast-operator-declaration shape.
         // Walks every cast operator symbol registered on class/struct member
@@ -886,7 +886,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         //     body (Requirement 6.1). Defensive; unreachable from parsed source.
         //   * MIST_SB_0043 — duplicate cast operator (same kind + same target
         //     type name) in the same type (Requirement 6.5).
-        Pass1e_ValidateCastOperatorShape(asts, symbolTable, compilation, diagnostics);
+        Pass1e_ValidateCastOperatorShape(symbolTable, diagnostics);
 
         // (Task 49: PrimitiveTypeRegistry has been deleted. Stdlib types
         // are resolved directly via ResolvePrimitiveKeyword in Pass 2.)
@@ -980,7 +980,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // mappings, and signature compatibility. Register validated mappings
         // in the ConformanceMap for later use by the type checker and emitter.
         var conformanceMap = new ConformanceMap();
-        Pass1_ResolveWithBlocks(asts, globalScope, symbolTable, conformanceMap, compilation, diagnostics);
+        Pass1_ResolveWithBlocks(asts, symbolTable, conformanceMap, compilation, diagnostics);
 
         // Phase 4b: Clone newtype members. After all source types have their
         // members fully typed (Phase 4), iterate all newtype symbols and clone
@@ -995,7 +995,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // bodies are resolved in Phase B (after Pass 2) because they may
         // reference expressions that require full type resolution.
         var extensionRegistry = new ExtensionRegistry();
-        Pass2_RegisterExtensionMembers(extensionBlockScopes, globalScope, symbolTable, ambientTypeResolver, extensionRegistry, asts, compilation, diagnostics);
+        Pass2_RegisterExtensionMembers(extensionBlockScopes, globalScope, symbolTable, ambientTypeResolver, extensionRegistry, diagnostics);
 
         // Pass 2e (Phase A, cont.): Register ambient extension methods from .NET assemblies.
         // Collect all imported namespaces from using directives and global usings,
@@ -1104,7 +1104,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // This runs after Pass 2 so that parameter symbols are registered and
         // can be looked up by name. Attaches predicates to dependent type
         // parameters and stores parameter refinements in the lookup map.
-        Pass2_ResolveAdhocRefinementConstraints(symbolTable, asts, compilation, diagnostics, parameterRefinements);
+        Pass2_ResolveAdhocRefinementConstraints(symbolTable, diagnostics, parameterRefinements);
 
         // Post-Pass 2: Validate refinement constraint satisfaction for
         // abstract type method implementations (Liskov Substitution).
@@ -1112,11 +1112,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // parameter refinement predicates are available for both abstract type
         // methods and their implementations.
         Pass2_ValidateRefinementConstraintSatisfaction(
-            symbolTable, parameterRefinements, asts, compilation, diagnostics);
+            symbolTable, parameterRefinements, diagnostics);
 
         // Post-Pass 2: Check for duplicate extension member signatures across
         // all extension blocks for the same receiver type (Requirement 8.9, 20.4, 20.7).
-        Pass2_CheckDuplicateExtensionSignatures(extensionRegistry, symbolTable, asts, compilation, diagnostics);
+        Pass2_CheckDuplicateExtensionSignatures(extensionRegistry, symbolTable, diagnostics);
 
         // Post-Pass 2: Compute defaultability for all class and struct types.
         // This runs after type resolution because field types must be resolved
@@ -1147,7 +1147,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // (drop-semantics tasks 2.4, 3.4). The void aliases Task/ValueTask
         // inherit this from their generic forms because discipline and drop
         // state live on the shared generic ClassType definition.
-        RecognizeDropMethods(symbolTable, diagnostics);
+        RecognizeDropMethods(symbolTable);
 
         // Post-Pass 3: Propagate IsOwnedField for owned types (Req 3 AC 1).
         // All instance fields of an owned type are implicitly owned.
@@ -2118,8 +2118,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SymbolTable symbolTable,
         IAmbientTypeResolver? ambientTypeResolver,
         ExtensionRegistry extensionRegistry,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation,
+
         DiagnosticBag diagnostics)
     {
         foreach(var (extDecl, (extensionScope, namespaceName, sourceText)) in extensionBlockScopes)
@@ -2778,8 +2777,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static void Pass2_CheckDuplicateExtensionSignatures(
         ExtensionRegistry extensionRegistry,
         SymbolTable symbolTable,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation,
+
         DiagnosticBag diagnostics)
     {
         foreach(var (receiverType, blocks) in extensionRegistry.AllGroups)
@@ -2842,7 +2840,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         {
                             _ = reported.Add(j);
                             EmitDuplicateExtensionMemberDiagnostic(
-                                symbolB, blockB, receiverType, symbolTable, asts, compilation, diagnostics);
+                                symbolB, blockB, receiverType, symbolTable, diagnostics);
                             continue;
                         }
 
@@ -2858,7 +2856,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             {
                                 _ = reported.Add(j);
                                 EmitDuplicateExtensionMemberDiagnostic(
-                                    symbolB, blockB, receiverType, symbolTable, asts, compilation, diagnostics);
+                                    symbolB, blockB, receiverType, symbolTable, diagnostics);
                             }
                         }
                     }
@@ -2875,8 +2873,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         ExtensionBlockInfo containingBlock,
         IType receiverType,
         SymbolTable symbolTable,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation,
+
         DiagnosticBag diagnostics)
     {
         var memberKind = duplicateSymbol.Kind == SymbolKind.Method ? "method" : "property";
@@ -3716,7 +3713,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// definition.
     /// </para>
     /// </summary>
-    private static void RecognizeDropMethods(SymbolTable symbolTable, DiagnosticBag diagnostics)
+    private static void RecognizeDropMethods(SymbolTable symbolTable)
     {
         foreach(var symbol in symbolTable.AllSymbols)
         {
@@ -4302,10 +4299,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static void RegisterMethodDependentParameters(
         IReadOnlyList<IType> typeParameters,
-        Scope methodScope,
-        IType enclosingType,
-        SourceText? sourceText,
-        DiagnosticBag diagnostics)
+        Scope methodScope)
     {
         if(typeParameters.Count == 0)
         {
@@ -4926,9 +4920,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </list>
     /// </summary>
     private static void Pass1e_ValidateOperatorShape(
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+
         SymbolTable symbolTable,
-        MistCompilation compilation,
+
         DiagnosticBag diagnostics)
     {
         // Walk every registered symbol whose declaring node is an
@@ -5117,9 +5111,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </list>
     /// </summary>
     private static void Pass1e_ValidateCastOperatorShape(
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+
         SymbolTable symbolTable,
-        MistCompilation compilation,
+
         DiagnosticBag diagnostics)
     {
         // Track seen cast operator encoded names per containing scope for
@@ -5612,7 +5606,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // After all struct base types are resolved, detect cycles and
         // chains exceeding the maximum depth.
-        DetectStructInheritanceCycles(symbolTable, asts, compilation, diagnostics);
+        DetectStructInheritanceCycles(symbolTable, diagnostics);
 
         // After cycles are broken, populate inherited public members into
         // each derived struct's MemberScope so that member lookup works
@@ -5901,7 +5895,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 var depParam = (DependentTypeParameterType)correspondingParam!;
                 var (depArg, forwardedType) = TryResolvePass1DependentValueArgument(
-                    argNode, depParam, declaringType, declaringNode, asts, compilation, diagnostics);
+                    argNode, depParam, declaringType, declaringNode);
                 if(depArg is not null)
                 {
                     // Successfully resolved as a dependent value argument.
@@ -5947,10 +5941,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         TypeArgumentNode argNode,
         DependentTypeParameterType depParam,
         IType declaringType,
-        Storm.Runtime.SyntaxNode declaringNode,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation,
-        DiagnosticBag diagnostics)
+        Storm.Runtime.SyntaxNode declaringNode)
     {
         switch(argNode)
         {
@@ -7397,8 +7388,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static void Pass2_ResolveAdhocRefinementConstraints(
         SymbolTable symbolTable,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation,
+
         DiagnosticBag diagnostics,
         Dictionary<ISymbol, RefinementPredicate> parameterRefinements)
     {
@@ -7447,7 +7437,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
 
                 ResolveAdhocRefinementConstraint(
-                    refinementClause, symbol, declaringNode, typeParameters,
+                    refinementClause, declaringNode, typeParameters,
                     refinedNames, parameterRefinements, symbolTable, sourceText, diagnostics);
             }
         }
@@ -7474,8 +7464,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static void Pass2_ValidateRefinementConstraintSatisfaction(
         SymbolTable symbolTable,
         Dictionary<ISymbol, RefinementPredicate> parameterRefinements,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation,
+
         DiagnosticBag diagnostics)
     {
         // ─── abstract type method refinement constraint satisfaction ─────────
@@ -7543,7 +7532,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 ValidateMethodRefinementConstraints(
                     requiredMethod, matched.ImplSymbol,
                     requiredAbstract.DisplayName, typeName,
-                    parameterRefinements, symbolTable, asts, compilation, diagnostics);
+                    parameterRefinements, symbolTable, diagnostics);
             }
         }
     }
@@ -7559,8 +7548,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         string typeName,
         Dictionary<ISymbol, RefinementPredicate> parameterRefinements,
         SymbolTable symbolTable,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation,
+
         DiagnosticBag diagnostics)
     {
         // Get parameter nodes from both methods.
@@ -7648,7 +7636,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 var message = $"Implementation of '{methodName}' on '{typeName}' has a stronger refinement constraint '{implPredicate}' on parameter '{paramName}' than the abstract type '{abstractName}' requires '{abstractPredicate}'. The implementation must accept all values the abstract type promises to accept.";
 
                 // Get source location from the implementation method.
-                var sourceText = FindSourceTextForType(typeName, symbolTable, asts, compilation);
+                var sourceText = FindSourceTextForType(typeName, symbolTable);
                 diagnostics.Add(MakeDiagnosticWithLocation(
                     RefinementConstraintStrongerThanAbstract.Value,
                     DiagnosticSeverity.Error,
@@ -7705,7 +7693,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static void ResolveAdhocRefinementConstraint(
         AdhocRefinementConstraintWhereClauseNode refinementClause,
-        ISymbol symbol,
+
         Storm.Runtime.SyntaxNode declaringNode,
         IReadOnlyList<IType> typeParameters,
         Dictionary<string, bool> refinedNames,
@@ -7751,7 +7739,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         // Check if the name is a value parameter on the declaration.
-        var valueParam = FindValueParameter(symbol, declaringNode, name, symbolTable);
+        var valueParam = FindValueParameter(declaringNode, name, symbolTable);
         if(valueParam is not null)
         {
             refinedNames[name] = true;
@@ -7789,7 +7777,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// Searches method, constructor, and indexer parameter lists.
     /// </summary>
     private static ISymbol? FindValueParameter(
-        ISymbol symbol,
+
         Storm.Runtime.SyntaxNode declaringNode,
         string paramName,
         SymbolTable symbolTable)
@@ -7902,7 +7890,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 case ConstructorConstraintConstraintNode ctorConstraint:
                     {
                         var paramTypes = ResolveConstructorConstraintParams(
-                            ctorConstraint, declaringSymbol, declaringNode, symbolTable, asts, compilation, diagnostics, sourceText);
+                            ctorConstraint, declaringSymbol, declaringNode, symbolTable, diagnostics, sourceText);
                         constructorConstraints.Add(paramTypes);
                         break;
                     }
@@ -8033,7 +8021,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 case ConstructorConstraintConstraintNode ctorConstraint:
                     {
                         var paramTypes = ResolveConstructorConstraintParams(
-                            ctorConstraint, declaringSymbol, declaringNode, symbolTable, asts, compilation, diagnostics, sourceText);
+                            ctorConstraint, declaringSymbol, declaringNode, symbolTable, diagnostics, sourceText);
                         constructorConstraints.Add(paramTypes);
                         break;
                     }
@@ -8085,8 +8073,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         ISymbol declaringSymbol,
         Storm.Runtime.SyntaxNode declaringNode,
         SymbolTable symbolTable,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation,
+
         DiagnosticBag diagnostics,
         SourceText? sourceText)
     {
@@ -8100,14 +8087,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Resolve the first parameter type.
         var firstType = ResolveConstraintParamType(
-            ctorConstraint.ParamTypes.TypeReference, scope, symbolTable, declaringNode, asts, compilation, diagnostics, sourceText);
+            ctorConstraint.ParamTypes.TypeReference, scope, symbolTable, declaringNode, diagnostics, sourceText);
         paramTypes.Add(firstType);
 
         // Resolve additional parameter types.
         foreach(var typeRef in ctorConstraint.ParamTypes.TypeReferences)
         {
             var resolvedType = ResolveConstraintParamType(
-                typeRef, scope, symbolTable, declaringNode, asts, compilation, diagnostics, sourceText);
+                typeRef, scope, symbolTable, declaringNode, diagnostics, sourceText);
             paramTypes.Add(resolvedType);
         }
 
@@ -8123,8 +8110,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         IScope scope,
         SymbolTable symbolTable,
         Storm.Runtime.SyntaxNode declaringNode,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation,
+
         DiagnosticBag diagnostics,
         SourceText? sourceText)
     {
@@ -8766,7 +8752,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static void Pass1_ResolveWithBlocks(
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        Scope globalScope,
+
         SymbolTable symbolTable,
         ConformanceMap conformanceMap,
         MistCompilation compilation,
@@ -8789,7 +8775,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
 
                 var withDecl = withItem.WithDeclaration;
-                ResolveWithDeclaration(withDecl, globalScope, symbolTable, conformanceMap, asts, compilation, sourceText, diagnostics);
+                ResolveWithDeclaration(withDecl, symbolTable, conformanceMap, sourceText, diagnostics);
             }
         }
     }
@@ -8799,11 +8785,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static void ResolveWithDeclaration(
         WithDeclarationNode withDecl,
-        Scope globalScope,
+
         SymbolTable symbolTable,
         ConformanceMap conformanceMap,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation,
+
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
@@ -9143,7 +9128,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var pathSet = new HashSet<AbstractType>();
 
         DetectAbstractCyclesDfsVisit(
-            root, parent: null, path, pathSet, verified,
+            root, path, pathSet, verified,
             symbolTable, asts, compilation, diagnostics);
     }
 
@@ -9152,7 +9137,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static void DetectAbstractCyclesDfsVisit(
         AbstractType current,
-        AbstractType? parent,
+
         List<AbstractType> path,
         HashSet<AbstractType> pathSet,
         HashSet<AbstractType> verified,
@@ -9181,7 +9166,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             // Find the symbol and source text for the closing abstract type.
             var sourceText = FindSourceTextForAbstractType(
-                closingAbstract, symbolTable, asts, compilation);
+                closingAbstract, symbolTable);
             Storm.Runtime.SyntaxNode? closingNode = null;
             foreach(var sym in symbolTable.AllSymbols)
             {
@@ -9234,7 +9219,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var child in abstracts)
         {
             DetectAbstractCyclesDfsVisit(
-                child, current, path, pathSet, verified,
+                child, path, pathSet, verified,
                 symbolTable, asts, compilation, diagnostics);
         }
 
@@ -9270,9 +9255,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static SourceText? FindSourceTextForAbstractType(
         AbstractType abstractType,
-        SymbolTable symbolTable,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation)
+        SymbolTable symbolTable)
     {
         foreach(var symbol in symbolTable.AllSymbols)
         {
@@ -9336,7 +9319,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // Find the class declaration node that closes the cycle
                     // (the last class in the chain before we revisited current).
                     var closingClass = chain[^1];
-                    var closingSourceText = FindSourceTextForClassType(closingClass, symbolTable, asts, compilation);
+                    var closingSourceText = FindSourceTextForClassType(closingClass, symbolTable);
                     Storm.Runtime.SyntaxNode? closingNode = null;
                     foreach(var sym in symbolTable.AllSymbols)
                     {
@@ -9421,9 +9404,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static SourceText? FindSourceTextForClassType(
         ClassType classType,
-        SymbolTable symbolTable,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation)
+        SymbolTable symbolTable)
     {
         foreach(var symbol in symbolTable.AllSymbols)
         {
@@ -9453,8 +9434,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static void DetectStructInheritanceCycles(
         SymbolTable symbolTable,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation,
+
         DiagnosticBag diagnostics)
     {
         const int maxDepth = 64;
@@ -9699,7 +9679,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         // Emit MIST_SM_0022 with the specific abstract type method signature.
                         var paramSig = FormatParameterTypes(requiredMethodDecl.Parameters);
                         var missingSourceText = FindSourceTextForType(
-                            typeName, symbolTable, asts, compilation);
+                            typeName, symbolTable);
                         var missingNode = FindDeclaringNodeForType(typeName, symbolTable);
 
                         var message = $"'{typeName}' does not implement abstract type method '{requiredAbstract.DisplayName}.{requiredMethod.Name}({paramSig})'.";
@@ -9737,7 +9717,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         // Emit MIST_SM_0022 with the specific abstract type method signature.
                         var paramSig = FormatParameterTypes(requiredMethodDecl.Parameters);
                         var mismatchSourceText = FindSourceTextForType(
-                            typeName, symbolTable, asts, compilation);
+                            typeName, symbolTable);
                         var mismatchNode = FindDeclaringNodeForType(typeName, symbolTable);
 
                         var message = $"'{typeName}' does not implement abstract type method '{requiredAbstract.DisplayName}.{requiredMethod.Name}({paramSig})'.";
@@ -9773,7 +9753,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         // Types match but RefKind values differ — emit MIST_REF_0012.
                         var refMismatchSourceText = FindSourceTextForType(
-                            typeName, symbolTable, asts, compilation);
+                            typeName, symbolTable);
                         var refMismatchNode = FindDeclaringNodeForType(typeName, symbolTable);
 
                         var refMessage = $"Method '{refKindMismatch.ImplMethodName}' does not match abstract type method '{requiredAbstract.DisplayName}.{refKindMismatch.AbstractMethodName}': parameter ref kinds must match exactly";
@@ -10101,7 +10081,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             if(concreteType is null)
             {
-                var sourceText = FindSourceTextForType(typeName, symbolTable, asts, compilation);
+                var sourceText = FindSourceTextForType(typeName, symbolTable);
                 var declaringNode = FindDeclaringNodeForType(typeName, symbolTable);
 
                 var message = $"Type '{typeName}' does not provide a concrete type for associated type slot '{slotName}' required by '{requiredAbstract.DisplayName}'";
@@ -10232,13 +10212,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Try to point the diagnostic at the concrete type member declaration.
         var declaringNode = FindDeclaringNodeForType(concreteTypeSearchName, symbolTable);
-        var sourceText = FindSourceTextForType(concreteTypeSearchName, symbolTable, asts, compilation);
+        var sourceText = FindSourceTextForType(concreteTypeSearchName, symbolTable);
 
         // If we can't find the concrete type's node, fall back to the implementor's node.
         if(declaringNode is null)
         {
             declaringNode = FindDeclaringNodeForType(implementorTypeName, symbolTable);
-            sourceText = FindSourceTextForType(implementorTypeName, symbolTable, asts, compilation);
+            sourceText = FindSourceTextForType(implementorTypeName, symbolTable);
         }
 
         if(declaringNode is not null)
@@ -11360,9 +11340,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static SourceText? FindSourceTextForType(
         string typeName,
-        SymbolTable symbolTable,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation)
+        SymbolTable symbolTable)
     {
         foreach(var symbol in symbolTable.AllSymbols)
         {
@@ -11520,7 +11498,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var memberNode = symbolTable.GetDeclaringNode(member);
         var redeclSourceText = FindSourceTextForClassType(
-            classType, symbolTable, asts, compilation);
+            classType, symbolTable);
 
         if(memberNode is not null)
         {
@@ -11630,7 +11608,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // Derived class has no explicit constructors and the base class
                 // requires arguments — emit diagnostic.
                 var classSourceText = FindSourceTextForClassType(
-                    classType, symbolTable, asts, compilation);
+                    classType, symbolTable);
                 Storm.Runtime.SyntaxNode? classNode = null;
                 foreach(var sym in symbolTable.AllSymbols)
                 {
@@ -11686,7 +11664,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // This constructor does not chain to the base class, but the
                     // base class requires arguments — emit diagnostic.
                     var ctorSourceText = FindSourceTextForClassType(
-                        classType, symbolTable, asts, compilation);
+                        classType, symbolTable);
 
                     diagnostics.Add(MakeDiagnosticWithLocation(
                         "MIST_BASE_CTOR_UNSATISFIED",
@@ -11956,7 +11934,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 var duplicateNode = symbolTable.GetDeclaringNode(symbols[j]);
                 var sourceText = FindSourceTextForType(
-                    typeName, symbolTable, asts, compilation);
+                    typeName, symbolTable);
 
                 if(duplicateNode is not null)
                 {
@@ -12507,7 +12485,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 ResolveStructDeclaration(structTypeNode.StructDeclaration, fileScope, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 break;
             case AbstractTypeTypeDeclarationNode abstractTypeNode:
-                ResolveAbstractDeclaration(abstractTypeNode.AbstractDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                ResolveAbstractDeclaration(abstractTypeNode.AbstractDeclaration, symbolTable, sourceText, diagnostics);
                 break;
             case EnumTypeTypeDeclarationNode enumTypeNode:
                 ResolveEnumDeclaration(enumTypeNode.EnumDeclaration, fileScope, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
@@ -13282,7 +13260,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static void Pass1a_ResolveTypeForwards(
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        Scope globalScope,
+
         SymbolTable symbolTable,
         IAmbientTypeResolver? ambientTypeResolver,
         Dictionary<Storm.Runtime.SyntaxNode, Scope> fileScopesByUnit,
@@ -13522,7 +13500,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var sourceType = newtypeType.SourceType;
             var name = symbol.Name;
 
-            CloneAllMembers(sourceType, newtypeType, name, symbolTable);
+            CloneAllMembers(sourceType, newtypeType, name);
 
             // For primitive (backend-backed) source types, add a synthetic 'Value' field.
             var isBackendBacked = sourceType switch
@@ -13895,7 +13873,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Create the NewtypeType and clone all members from the source type's scope.
         var newtypeType = new NewtypeType(name, sourceType);
-        CloneAllMembers(sourceType, newtypeType, name, symbolTable);
+        CloneAllMembers(sourceType, newtypeType, name);
 
         // For primitive (backend-backed) source types, add a synthetic 'Value' field
         // so that member access like `myNewtype.Value` resolves in the semantic model.
@@ -13932,8 +13910,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static void CloneAllMembers(
         IType sourceType,
         NewtypeType newtypeType,
-        string newtypeName,
-        SymbolTable symbolTable)
+        string newtypeName)
     {
         var sourceScope = GetMemberScope(sourceType);
         if(sourceScope is null)
@@ -14069,9 +14046,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     private static void ResolveAbstractDeclaration(
         AbstractDeclarationNode abstractDecl,
-        Scope fileScope,
+
         SymbolTable symbolTable,
-        IAmbientTypeResolver? ambientTypeResolver,
+
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
@@ -14423,7 +14400,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Register method-level dependent type parameters in the method's lexical scope.
         if(methodSymbol is not null && methodSymbol.TypeParameters.Count > 0)
         {
-            RegisterMethodDependentParameters(methodSymbol.TypeParameters, methodScope, enclosingType, sourceText, diagnostics);
+            RegisterMethodDependentParameters(methodSymbol.TypeParameters, methodScope);
         }
 
         // Register parameters into the body scope for name resolution.
@@ -18257,7 +18234,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if(ambientResolvedType is not null)
             {
                 // Register the resolved ambient type in the scope hierarchy.
-                RegisterAmbientTypeInScope(ambientResolvedType, typeName, ambientResolvedNs!, fileScope, ambientTypeResolver, symbolTable);
+                RegisterAmbientTypeInScope(ambientResolvedType, typeName, fileScope, ambientTypeResolver);
                 return ambientResolvedType;
             }
 
@@ -18280,7 +18257,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             : ambientTypeResolver.ResolveType(candidateNs, candidateType);
                         if(resolved is not null)
                         {
-                            RegisterAmbientTypeInScope(resolved, candidateType, candidateNs, fileScope, ambientTypeResolver, symbolTable);
+                            RegisterAmbientTypeInScope(resolved, candidateType, fileScope, ambientTypeResolver);
                             return resolved;
                         }
                     }
@@ -18305,7 +18282,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 : ambientTypeResolver.ResolveType(combinedNs, candidateType);
                             if(resolved is not null)
                             {
-                                RegisterAmbientTypeInScope(resolved, candidateType, combinedNs, fileScope, ambientTypeResolver, symbolTable);
+                                RegisterAmbientTypeInScope(resolved, candidateType, fileScope, ambientTypeResolver);
                                 return resolved;
                             }
                         }
@@ -19157,10 +19134,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static void RegisterAmbientTypeInScope(
         IType type,
         string typeName,
-        string namespaceName,
+
         Scope fileScope,
-        IAmbientTypeResolver ambientTypeResolver,
-        SymbolTable symbolTable)
+        IAmbientTypeResolver ambientTypeResolver)
     {
         // Check if already registered in the scope.
         var existing = fileScope.Lookup(typeName);
@@ -21247,7 +21223,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // Kind-aware validation: method call must not resolve to a field or property.
                     if(memberType is not ErrorType)
                     {
-                        var resolvedSymbol = LookupMemberSymbol(targetType, memberName, ambientTypeResolver, fileScope, symbolTable);
+                        var resolvedSymbol = LookupMemberSymbol(targetType, memberName);
                         if(resolvedSymbol is not null && resolvedSymbol.Kind is SymbolKind.Field or SymbolKind.Property)
                         {
                             diagnostics.Add(new Diagnostic(
@@ -21288,7 +21264,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         // did not find the method (e.g., non-method cases).
                         var providedArity = CountTypeArgs(methodCall.TypeArgs);
                         var methodSymbol = unifiedResult?.Symbol;
-                        methodSymbol ??= LookupGenericMemberSymbol(targetType, memberName, providedArity, ambientTypeResolver, fileScope, symbolTable);
+                        methodSymbol ??= LookupGenericMemberSymbol(targetType, memberName, providedArity, fileScope);
 
                         if(methodSymbol is Symbol sym && sym.TypeParameters.Count > 0)
                         {
@@ -21386,14 +21362,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             // The resolved generic symbol has no params but the call has args.
                             // Look for an overload with the same type arg count that DOES have params.
                             var providedArity = CountTypeArgs(methodCall.TypeArgs);
-                            methodSymForParams = LookupGenericMemberSymbolWithParams(targetType, memberName, providedArity, ambientTypeResolver, fileScope, symbolTable);
+                            methodSymForParams = LookupGenericMemberSymbolWithParams(targetType, memberName, providedArity);
                         }
                         else
                         {
                             // For non-generic methods, prefer the overload whose param count
                             // matches the argument count (handles HasMany(string) vs HasMany(Expression<...>)).
                             var argCount = methodCall.Arguments.GetAllExpressions().Length;
-                            methodSymForParams = LookupMemberSymbolByParamCount(targetType, memberName, argCount, ambientTypeResolver, fileScope, symbolTable);
+                            methodSymForParams = LookupMemberSymbolByParamCount(targetType, memberName, argCount);
                         }
 
                         // If not found on the type itself, check extension methods.
@@ -21628,7 +21604,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // unwrap Task<T> to T so the caller sees the inner type.
                     if(!isInAsyncContext && memberType is not ErrorType)
                     {
-                        var methodSym = LookupMemberSymbol(targetType, memberName, ambientTypeResolver, fileScope, symbolTable);
+                        var methodSym = LookupMemberSymbol(targetType, memberName);
                         if(methodSym is Symbol { IsAsync: true } && IsStandardTaskType(memberType))
                         {
                             memberType = UnwrapTaskType(memberType);
@@ -21699,7 +21675,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // Kind-aware validation: property/field access must not resolve to a method.
                     if(memberType is not ErrorType)
                     {
-                        var memberSymbol = LookupMemberSymbol(targetType, memberName, ambientTypeResolver, fileScope, symbolTable);
+                        var memberSymbol = LookupMemberSymbol(targetType, memberName);
                         if(memberSymbol is not null && memberSymbol.Kind == SymbolKind.Method)
                         {
                             diagnostics.Add(new Diagnostic(
@@ -21892,7 +21868,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     if(optionalMethodCall.TypeArgs is not null)
                     {
                         var optProvidedArity = CountTypeArgs(optionalMethodCall.TypeArgs);
-                        var methodSymbol = LookupGenericMemberSymbol(projectedType, memberName, optProvidedArity, ambientTypeResolver, fileScope, symbolTable);
+                        var methodSymbol = LookupGenericMemberSymbol(projectedType, memberName, optProvidedArity, fileScope);
                         if(methodSymbol is Symbol sym && sym.TypeParameters.Count > 0)
                         {
                             var hasDependentParams = false;
@@ -21934,7 +21910,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // unwrap Task<T> to T so the caller sees the inner type.
                     if(!isInAsyncContext && memberType is not ErrorType)
                     {
-                        var methodSym = LookupMemberSymbol(projectedType, memberName, ambientTypeResolver, fileScope, symbolTable);
+                        var methodSym = LookupMemberSymbol(projectedType, memberName);
                         if(methodSym is Symbol { IsAsync: true } && IsStandardTaskType(memberType))
                         {
                             memberType = UnwrapTaskType(memberType);
@@ -22410,7 +22386,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     // Resolve 'field' keyword to the backing field symbol of the enclosing property.
                     // Walk the scope chain to find the enclosing property symbol.
-                    var backingFieldType = ResolveFieldKeyword(currentScope, symbolTable, sourceText, diagnostics);
+                    var backingFieldType = ResolveFieldKeyword(currentScope);
                     result = backingFieldType;
                     break;
                 }
@@ -22790,7 +22766,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     if(symbol is null)
                     {
                         // Try to resolve as a type name (for static access like Console.WriteLine).
-                        var typeAsSymbol = ResolveIdentifierAsType(name, fileScope, ambientTypeResolver, symbolTable, sourceText);
+                        var typeAsSymbol = ResolveIdentifierAsType(name, fileScope, ambientTypeResolver, symbolTable);
                         if(typeAsSymbol is not null)
                         {
                             result = typeAsSymbol;
@@ -23088,8 +23064,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         string name,
         Scope fileScope,
         IAmbientTypeResolver? ambientTypeResolver,
-        SymbolTable symbolTable,
-        SourceText? sourceText)
+        SymbolTable symbolTable)
     {
         // Check well-known types.
         var wellKnown = TryResolveWellKnownType(name);
@@ -23137,7 +23112,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 var resolvedType = ambientTypeResolver.ResolveType(ns, name);
                 if(resolvedType is not null)
                 {
-                    RegisterAmbientTypeInScope(resolvedType, name, ns, fileScope, ambientTypeResolver, symbolTable);
+                    RegisterAmbientTypeInScope(resolvedType, name, fileScope, ambientTypeResolver);
                     return resolvedType;
                 }
             }
@@ -23183,7 +23158,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var resolvedType = ambientTypeResolver.ResolveType(nsRef.NamespaceName, memberName);
             if(resolvedType is not null)
             {
-                RegisterAmbientTypeInScope(resolvedType, memberName, nsRef.NamespaceName, fileScope, ambientTypeResolver, symbolTable);
+                RegisterAmbientTypeInScope(resolvedType, memberName, fileScope, ambientTypeResolver);
                 return resolvedType;
             }
 
@@ -25156,10 +25131,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static ISymbol? LookupMemberSymbol(
         IType targetType,
-        string memberName,
-        IAmbientTypeResolver? ambientTypeResolver,
-        Scope fileScope,
-        SymbolTable symbolTable)
+        string memberName)
     {
         if(targetType is ErrorType)
         {
@@ -25331,9 +25303,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         IType targetType,
         string memberName,
         int typeArgCount,
-        IAmbientTypeResolver? ambientTypeResolver,
-        Scope fileScope,
-        SymbolTable symbolTable)
+
+        Scope fileScope)
     {
         if(targetType is ErrorType or NamespaceReferenceType)
         {
@@ -25447,10 +25418,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static ISymbol? LookupGenericMemberSymbolWithParams(
         IType targetType,
         string memberName,
-        int typeArgCount,
-        IAmbientTypeResolver? ambientTypeResolver,
-        Scope fileScope,
-        SymbolTable symbolTable)
+        int typeArgCount)
     {
         if(targetType is ErrorType or NamespaceReferenceType)
         {
@@ -25494,10 +25462,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static ISymbol? LookupMemberSymbolByParamCount(
         IType targetType,
         string memberName,
-        int argCount,
-        IAmbientTypeResolver? ambientTypeResolver,
-        Scope fileScope,
-        SymbolTable symbolTable)
+        int argCount)
     {
         if(targetType is ErrorType or NamespaceReferenceType)
         {
@@ -25549,7 +25514,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         // Fallback to standard lookup for non-class types.
-        return LookupMemberSymbol(targetType, memberName, ambientTypeResolver, fileScope, symbolTable);
+        return LookupMemberSymbol(targetType, memberName);
     }
 
     /// <summary>
@@ -26013,10 +25978,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// current scope chain.
     /// </summary>
     private static IType ResolveFieldKeyword(
-        Scope currentScope,
-        SymbolTable symbolTable,
-        SourceText? sourceText,
-        DiagnosticBag diagnostics)
+        Scope currentScope)
     {
         // Walk the scope chain to find the type scope that contains a property with a backing field.
         // The 'field' keyword should resolve to the backing field of the enclosing property.
@@ -26458,10 +26420,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             switch(type)
             {
                 case ClassType classType:
-                    ComputeDefaultabilityForType(classType, symbol, symbolTable, compilation, diagnostics);
+                    ComputeDefaultabilityForType(classType, symbolTable, compilation, diagnostics);
                     break;
                 case StructType structType:
-                    ComputeDefaultabilityForType(structType, symbol, symbolTable, compilation, diagnostics);
+                    ComputeDefaultabilityForType(structType, symbolTable, compilation, diagnostics);
                     break;
             }
         }
@@ -26526,7 +26488,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static void ComputeDefaultabilityForType(
         ClassType classType,
-        ISymbol typeSymbol,
+
         SymbolTable symbolTable,
         MistCompilation compilation,
         DiagnosticBag diagnostics)
@@ -26635,7 +26597,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static void ComputeDefaultabilityForType(
         StructType structType,
-        ISymbol typeSymbol,
+
         SymbolTable symbolTable,
         MistCompilation compilation,
         DiagnosticBag diagnostics)

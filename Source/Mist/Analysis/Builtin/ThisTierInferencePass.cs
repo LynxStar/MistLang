@@ -541,7 +541,7 @@ public sealed class ThisTierInferencePass
                     if(!isAssignmentTarget)
                     {
                         // Check if a subsequent suffix indicates a move/freeze/borrow pattern.
-                        var accessTier = ClassifyFieldAccessFromSuffixes(postfix.Suffix, 1, memberScope, model);
+                        var accessTier = ClassifyFieldAccessFromSuffixes();
                         tier = MaxTier(tier, accessTier);
                     }
                     // If it IS an assignment target (e.g., this.field = x), that's handled
@@ -617,10 +617,7 @@ public sealed class ThisTierInferencePass
     /// escalate accordingly.
     /// </summary>
     private static ThisTier ClassifyFieldAccessFromSuffixes(
-        System.Collections.Immutable.ImmutableArray<PostfixSuffixNode> suffixes,
-        int startIndex,
-        IScope memberScope,
-        ISemanticModel model)
+)
     {
         // If no further suffixes beyond the member access, this is a read (e.g., var x = this.field).
         // A read of an owned field → ReadonlyRef minimum requirement.

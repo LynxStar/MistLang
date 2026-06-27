@@ -432,7 +432,7 @@ public sealed class MoveBoundarySoleGatePropertyTests : IDisposable
             {
                 var flowState = FreshFlowState(ownedSymbols);
                 var diagnostics = new DiagnosticBag();
-                perSite[s] = resolver.Resolve(source, destinationType, sites[s], flowState, model, diagnostics);
+                perSite[s] = resolver.Resolve(source, destinationType, flowState, model, diagnostics);
             }
 
             // (a) SITE-INDEPENDENCE: every site must reach the same accept/reject + clone
@@ -452,7 +452,7 @@ public sealed class MoveBoundarySoleGatePropertyTests : IDisposable
             // (b) DETERMINISM: resolving the same (source, site) again from an identical fresh
             //     flow state yields the same outcome and consumes the same binding.
             var repeatFlowState = FreshFlowState(ownedSymbols);
-            var repeat = resolver.Resolve(source, destinationType, sites[0], repeatFlowState, model, new DiagnosticBag());
+            var repeat = resolver.Resolve(source, destinationType, repeatFlowState, model, new DiagnosticBag());
 
             if(repeat.Outcome != perSite[0].Outcome ||
                 !ReferenceEquals(repeat.ConsumedBinding, perSite[0].ConsumedBinding))

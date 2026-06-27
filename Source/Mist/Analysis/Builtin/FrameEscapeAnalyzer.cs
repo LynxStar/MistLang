@@ -124,7 +124,7 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         switch(stmt)
         {
             case VariableDeclarationStatementStatementNode varDeclStmt:
-                AnalyzeVariableDeclaration(varDeclStmt.VariableDeclaration, state, model, diagnostics);
+                AnalyzeVariableDeclaration(varDeclStmt.VariableDeclaration, state, model);
                 break;
 
             case ExpressionStatementStatementNode exprStmt:
@@ -161,8 +161,7 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
     private static void AnalyzeVariableDeclaration(
         VariableDeclarationStatementNode varDecl,
         Dictionary<ISymbol, StackBacking> state,
-        ISemanticModel model,
-        DiagnosticBag diagnostics)
+        ISemanticModel model)
     {
         SyntaxNode? initializer = null;
         ISymbol? declaredSymbol = null;

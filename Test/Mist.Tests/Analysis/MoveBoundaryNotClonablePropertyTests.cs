@@ -326,7 +326,7 @@ public sealed class MoveBoundaryNotClonablePropertyTests : IDisposable
         var resolution = resolver.Resolve(
             initializer,
             destinationType,
-            OwnedMoveSite.OwnedBindingInit,
+
             flowState,
             model,
             diagnostics);

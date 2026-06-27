@@ -605,7 +605,7 @@ public sealed class CompilerDriver : ICompilerDriver
         else
         {
             // In-memory emit: use CSharpEmitter.EmitToMemory directly to avoid disk I/O.
-            var files = Backends.CSharpTranspiler.CSharpEmitter.EmitToMemory(semanticModel, projectName, backendBag);
+            var files = Backends.CSharpTranspiler.CSharpEmitter.EmitToMemory(semanticModel, backendBag);
             emittedFiles = files;
             backendResult = new BackendResult(
                 Succeeded: !backendBag.HasErrors,

@@ -198,7 +198,7 @@ public sealed class MemberProjectionCompletenessPropertyTests
                     break;
 
                 case PropertyInfo propInfo when propInfo.GetIndexParameters().Length > 0:
-                    AssertIndexerProjected(projectedMembers, propInfo);
+                    AssertIndexerProjected(projectedMembers);
                     break;
 
                 case PropertyInfo propInfo:
@@ -414,8 +414,7 @@ public sealed class MemberProjectionCompletenessPropertyTests
     }
 
     private static void AssertIndexerProjected(
-        ImmutableArray<ISymbol> projectedMembers,
-        PropertyInfo indexer)
+        ImmutableArray<ISymbol> projectedMembers)
     {
         var indexers = projectedMembers
             .Where(s => s.Kind == SymbolKind.Indexer)

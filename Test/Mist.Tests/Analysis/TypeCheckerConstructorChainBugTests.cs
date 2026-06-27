@@ -394,7 +394,7 @@ public class TypeCheckerConstructorChainBugTests
     /// the first Class/Struct it finds — which is Color when Color is registered first.
     /// </summary>
     [Property(Arbitrary = new[] { typeof(TypeCheckerConstructorChainBugTests) }, MaxTest = 5)]
-    public bool ConstructorChain_InMultiTypeNamespace_NoFalsePositiveMIST_TC_0013(BugConditionScenario scenario)
+    public bool ConstructorChain_InMultiTypeNamespace_NoFalsePositiveMIST_TC_0013()
     {
         // Arrange: compile Color BEFORE Point so Color is registered first in namespace scope.
         // This triggers the bug: FindEnclosingType returns Color for Point's constructor.
@@ -433,7 +433,7 @@ public class TypeCheckerConstructorChainBugTests
     /// On UNFIXED code, this test FAILS because MakeDiagnostic always passes null.
     /// </summary>
     [Property(Arbitrary = new[] { typeof(TypeCheckerConstructorChainBugTests) }, MaxTest = 5)]
-    public bool TypeCheckerDiagnostics_HaveNonNullCompilationUnitPath(BugConditionScenario scenario)
+    public bool TypeCheckerDiagnostics_HaveNonNullCompilationUnitPath()
     {
         // Arrange: compile Color BEFORE Point to trigger the false MIST_TC_0013,
         // which gives us a type checker diagnostic to inspect for Bug 2.
@@ -477,7 +477,7 @@ public class TypeCheckerConstructorChainBugTests
     /// On UNFIXED code, this test FAILS because MakeDiagnostic uses line 0.
     /// </summary>
     [Property(Arbitrary = new[] { typeof(TypeCheckerConstructorChainBugTests) }, MaxTest = 5)]
-    public bool TypeCheckerDiagnostics_HaveValidLineNumbers(BugConditionScenario scenario)
+    public bool TypeCheckerDiagnostics_HaveValidLineNumbers()
     {
         // Arrange: compile Color BEFORE Point to trigger the false MIST_TC_0013
         var pointSource = "namespace AllFeatures;\npublic class Point {\n    private int x;\n    public Point(int x) { this.x = x; }\n    public Point() : this(0) { }\n    public int GetX() { return 0; }\n}";

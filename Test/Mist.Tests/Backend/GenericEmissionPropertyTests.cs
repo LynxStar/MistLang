@@ -781,7 +781,7 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
             GenericEmissionKind.GenericClassDeclaration => VerifyGenericClassDecl(csContent, scenario),
             GenericEmissionKind.GenericStructDeclaration => VerifyGenericStructDecl(csContent, scenario),
             GenericEmissionKind.GenericAbstractDeclaration => VerifyGenericAbstractDecl(csContent, scenario),
-            GenericEmissionKind.GenericMethodDeclaration => VerifyGenericMethodDecl(csContent, scenario),
+            GenericEmissionKind.GenericMethodDeclaration => VerifyGenericMethodDecl(csContent),
             GenericEmissionKind.ObjectCreationWithTypeArgs => VerifyObjectCreation(csContent, scenario),
             GenericEmissionKind.MethodInvocationWithTypeArgs => VerifyMethodInvocation(csContent, scenario),
             GenericEmissionKind.GenericInheritance => VerifyGenericInheritance(csContent, scenario),
@@ -829,7 +829,7 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
     /// Req 12.2: Emitter SHALL emit generic method declarations with type parameter list.
     /// Verifies: DoIt&lt;T&gt; appears in emitted C#.
     /// </summary>
-    private static bool VerifyGenericMethodDecl(string csContent, GenericEmissionScenario scenario)
+    private static bool VerifyGenericMethodDecl(string csContent)
     {
         return csContent.Contains("DoIt<T>(");
     }

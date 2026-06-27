@@ -104,7 +104,7 @@ public class RecursiveDropChainingBugConditionPropertyTests
 
         // Emit in-memory (runs NeedsAsyncPropagationPass internally)
         var emitBag = new DiagnosticBag();
-        var files = CSharpEmitter.EmitToMemory(model, "TestProgram", emitBag);
+        var files = CSharpEmitter.EmitToMemory(model, emitBag);
 
         if(emitBag.HasErrors)
         {

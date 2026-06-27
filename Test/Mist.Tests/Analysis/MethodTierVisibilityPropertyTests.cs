@@ -331,8 +331,7 @@ public sealed class MethodTierVisibilityPropertyTests
         var verdict = MethodTierVisibilityFilter.Resolve(
             method,
             receiverType,
-            scenario.ReceiverIsOwnedBinding,
-            model);
+            scenario.ReceiverIsOwnedBinding);
 
         if(!scenario.ReceiverIsOwnedBinding)
         {

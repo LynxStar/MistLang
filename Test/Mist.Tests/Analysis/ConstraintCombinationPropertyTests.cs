@@ -216,7 +216,7 @@ public sealed class ConstraintCombinationPropertyTests
     private static string BuildMixedConstraintSource(MixedConstraintScenario scenario)
     {
         var subKw = SubstructuralKeyword(scenario.Substructural);
-        var nonSubKw = NonSubstructuralKeywordAndSetup(scenario.NonSubstructural, scenario.TypeParamName);
+        var nonSubKw = NonSubstructuralKeywordAndSetup(scenario.NonSubstructural);
 
         return $$"""
             {{nonSubKw.Preamble}}class {{scenario.ClassName}}<{{scenario.TypeParamName}}> where {{scenario.TypeParamName}} : {{subKw}}, {{nonSubKw.Constraint}} {
@@ -226,7 +226,7 @@ public sealed class ConstraintCombinationPropertyTests
     }
 
     private static (string Preamble, string Constraint) NonSubstructuralKeywordAndSetup(
-        NonSubstructuralConstraint c, string typeParamName)
+        NonSubstructuralConstraint c)
     {
         return c switch
         {

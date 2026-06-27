@@ -29,7 +29,10 @@ public unsafe class HasPointerMembers
         return source;
     }
 
+    // IDE0060 suppressed: parameter exists to test visibility filter on pointer-typed signatures.
+#pragma warning disable IDE0060
     public void ProcessPointer(int* data) { }
+#pragma warning restore IDE0060
 
     /// <summary>A normal method that should remain visible.</summary>
     public int SafeMethod()
@@ -105,7 +108,10 @@ public class HasNonPublicMembers
 /// </summary>
 public class ReferencesExcludedType
 {
+    // IDE0060 suppressed: parameter exists to test visibility filter on ref-struct-typed signatures.
+#pragma warning disable IDE0060
     public void AcceptRefStruct(RefStructType value) { }
+#pragma warning restore IDE0060
 
     public RefStructType ReturnRefStruct()
     {

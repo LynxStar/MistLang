@@ -198,7 +198,7 @@ public class StringLengthPropertyTests
     /// a method on it, storing the result in a typed local variable.
     /// </summary>
     private static CompilationUnitNode BuildStringMethodCallProgram(
-        string methodCallName,
+
         string returnTypeName,
         ExpressionNode callExpr)
     {
@@ -405,7 +405,7 @@ public class StringLengthPropertyTests
             callExpr = MakeMethodCallExpression("input", scenario.MethodName);
         }
 
-        var ast = BuildStringMethodCallProgram(scenario.MethodName, scenario.ExpectedReturnType, callExpr);
+        var ast = BuildStringMethodCallProgram(scenario.ExpectedReturnType, callExpr);
         var resolver = new CSharpAmbientTypeResolver();
         var (model, diagnostics) = BuildModelWithDiagnostics(ast, ambientTypeResolver: resolver);
 
@@ -478,7 +478,7 @@ public class StringLengthPropertyTests
                 : scenario.MethodName == "Substring"
                     ? MakeMethodCallWithIntArgExpression("input", scenario.MethodName, "0")
                     : MakeMethodCallExpression("input", scenario.MethodName);
-            var ast = BuildStringMethodCallProgram(scenario.MethodName, scenario.ExpectedReturnType, callExpr);
+            var ast = BuildStringMethodCallProgram(scenario.ExpectedReturnType, callExpr);
             var (model, diagnostics) = BuildModelWithDiagnostics(ast, ambientTypeResolver: resolver);
 
             // No crash

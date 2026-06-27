@@ -357,7 +357,7 @@ public class VoidInstanceExpressionPropertyTests
     /// Builds a program with `Void.Void;` as an expression statement and verifies the
     /// Void.Void expression is assigned the void type.
     /// </summary>
-    private bool VerifyExpressionStatement(VoidExprScenario scenario)
+    private bool VerifyExpressionStatement()
     {
         var (voidExpr, postfix, suffix) = MakeVoidDotVoidExpression();
 
@@ -425,7 +425,7 @@ public class VoidInstanceExpressionPropertyTests
             VoidExprContext.VarVariableInitializer => VerifyVarVariableInitializer(scenario),
             VoidExprContext.ReturnStatement => VerifyReturnStatement(scenario),
             VoidExprContext.MethodArgument => VerifyMethodArgument(scenario),
-            VoidExprContext.ExpressionStatement => VerifyExpressionStatement(scenario),
+            VoidExprContext.ExpressionStatement => VerifyExpressionStatement(),
             _ => false,
         };
     }

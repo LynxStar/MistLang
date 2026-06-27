@@ -74,7 +74,7 @@ public class PropertyAccessTypePropertyTests
                from initValue in Gen.Choose(0, 100)
                select new PropertyAccessTestCase(
                    $"Valid write of {propName} with set accessor",
-                   MakeWriteAccessProgram(propName, hasGet: true, hasSet: true, initValue),
+                   MakeWriteAccessProgram(propName, hasGet: true, hasSet: true),
                    ExpectValid: true);
     }
 
@@ -146,7 +146,7 @@ public class PropertyAccessTypePropertyTests
     }
 
     private static CompilationUnitNode MakeWriteAccessProgram(
-        string propName, bool hasGet, bool hasSet, int value)
+        string propName, bool hasGet, bool hasSet)
     {
         var accessors = ImmutableArray.CreateBuilder<AccessorDeclarationNode>();
         if(hasGet)

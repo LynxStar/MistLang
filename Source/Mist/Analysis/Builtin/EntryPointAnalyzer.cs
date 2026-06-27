@@ -259,7 +259,7 @@ public sealed class EntryPointAnalyzer : IAnalyzer
             }
 
             // Find the containing class name.
-            var className = FindContainingClassName(symbol, model);
+            var className = FindContainingClassName(symbol);
             if(className is not null)
             {
                 classNames.Add(className);
@@ -324,7 +324,7 @@ public sealed class EntryPointAnalyzer : IAnalyzer
     /// <summary>
     /// Finds the fully qualified class name containing the given method symbol.
     /// </summary>
-    private static string? FindContainingClassName(ISymbol methodSymbol, ISemanticModel model)
+    private static string? FindContainingClassName(ISymbol methodSymbol)
     {
         // The method's ContainingScope is the class's member scope.
         // Walk up to find the class symbol in the parent scope.

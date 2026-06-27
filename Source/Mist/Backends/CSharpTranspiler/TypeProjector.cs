@@ -1406,7 +1406,7 @@ internal sealed class TypeProjector
         }
 
         // Project as a simple type and apply intrinsic substitution
-        var projectedType = ProjectSimpleTypeReference(clrType, stdlib);
+        var projectedType = ProjectSimpleTypeReference(clrType);
         return intrinsicMap.SubstituteIntrinsics(projectedType, stdlib);
     }
 
@@ -1840,7 +1840,7 @@ internal sealed class TypeProjector
     /// Projects a simple (non-generic, non-array) CLR type reference into a Mist type.
     /// Creates a minimal type shell with the correct display name and namespace.
     /// </summary>
-    private static IType ProjectSimpleTypeReference(ClrType clrType, IStdlibTypeProvider stdlib)
+    private static IType ProjectSimpleTypeReference(ClrType clrType)
     {
         var displayName = clrType.Name;
         var containingNamespace = clrType.Namespace;

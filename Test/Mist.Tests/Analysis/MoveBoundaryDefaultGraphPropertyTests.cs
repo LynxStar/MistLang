@@ -317,7 +317,7 @@ public sealed class MoveBoundaryDefaultGraphPropertyTests : IDisposable
             var resolution = resolver.Resolve(
                 initializer,
                 destinationType,
-                OwnedMoveSite.OwnedBindingInit,
+
                 flowState,
                 model,
                 diagnostics);

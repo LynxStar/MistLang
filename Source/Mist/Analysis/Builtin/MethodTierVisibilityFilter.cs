@@ -39,8 +39,7 @@ public sealed class MethodTierVisibilityFilter
     public static MethodVisibility Resolve(
         ISymbol methodSymbol,
         IType receiverType,
-        bool receiverIsOwnedBinding,
-        ISemanticModel model)
+        bool receiverIsOwnedBinding)
     {
         // A receiver that is not an owned binding behaves exactly as today —
         // full method access (Req 2/3 decision table, last row).

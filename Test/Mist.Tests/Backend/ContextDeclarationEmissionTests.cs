@@ -66,7 +66,7 @@ public sealed class ContextDeclarationEmissionTests
         ContextChecker.Analyze(model, ctxBag);
 
         var emitBag = new DiagnosticBag();
-        var files = CSharpEmitter.EmitToMemory(model, "TestProgram", emitBag);
+        var files = CSharpEmitter.EmitToMemory(model, emitBag);
         Assert.False(emitBag.HasErrors, $"Emit errors: {FormatDiagnostics(emitBag)}");
 
         return files;

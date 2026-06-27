@@ -75,7 +75,7 @@ public sealed class ArrayLiteralEmitterTests
 
         // Emit in-memory
         var emitBag = new DiagnosticBag();
-        var files = CSharpEmitter.EmitToMemory(model, "TestProgram", emitBag);
+        var files = CSharpEmitter.EmitToMemory(model, emitBag);
         Assert.False(emitBag.HasErrors, $"Emit errors: {FormatDiagnostics(emitBag)}");
 
         var sb = new StringBuilder();

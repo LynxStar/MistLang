@@ -198,10 +198,10 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
     // ═══════════════════════════════════════════════════════════════════════
 
     [Theory]
-    [InlineData(OwnedMoveSite.OwnedBindingInit)]
-    [InlineData(OwnedMoveSite.OwnedFieldAssignment)]
-    [InlineData(OwnedMoveSite.OwnedParameterPass)]
-    public void DefaultExpression_ResolvesToDefaultGraph(OwnedMoveSite site)
+    [InlineData()]
+    [InlineData()]
+    [InlineData()]
+    public void DefaultExpression_ResolvesToDefaultGraph()
     {
         const string source = """
             namespace TestProgram;
@@ -226,7 +226,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         var resolution = resolver.Resolve(
             binding!.Value.Initializer,
             binding!.Value.DestinationType,
-            site,
+
             flowState,
             model!,
             diagnostics);
@@ -235,10 +235,10 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
     }
 
     [Theory]
-    [InlineData(OwnedMoveSite.OwnedBindingInit)]
-    [InlineData(OwnedMoveSite.OwnedFieldAssignment)]
-    [InlineData(OwnedMoveSite.OwnedParameterPass)]
-    public void BareDefault_ResolvesToDefaultGraph(OwnedMoveSite site)
+    [InlineData()]
+    [InlineData()]
+    [InlineData()]
+    public void BareDefault_ResolvesToDefaultGraph()
     {
         const string source = """
             namespace TestProgram;
@@ -263,7 +263,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         var resolution = resolver.Resolve(
             binding!.Value.Initializer,
             binding!.Value.DestinationType,
-            site,
+
             flowState,
             model!,
             diagnostics);
@@ -276,10 +276,10 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
     // ═══════════════════════════════════════════════════════════════════════
 
     [Theory]
-    [InlineData(OwnedMoveSite.OwnedBindingInit)]
-    [InlineData(OwnedMoveSite.OwnedFieldAssignment)]
-    [InlineData(OwnedMoveSite.OwnedParameterPass)]
-    public void ValueTypeStruct_ResolvesToValueCopy(OwnedMoveSite site)
+    [InlineData()]
+    [InlineData()]
+    [InlineData()]
+    public void ValueTypeStruct_ResolvesToValueCopy()
     {
         const string source = """
             namespace TestProgram;
@@ -304,7 +304,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         var resolution = resolver.Resolve(
             binding!.Value.Initializer,
             binding!.Value.DestinationType,
-            site,
+
             flowState,
             model!,
             diagnostics);
@@ -313,10 +313,10 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
     }
 
     [Theory]
-    [InlineData(OwnedMoveSite.OwnedBindingInit)]
-    [InlineData(OwnedMoveSite.OwnedFieldAssignment)]
-    [InlineData(OwnedMoveSite.OwnedParameterPass)]
-    public void PrimitiveInt_ResolvesToValueCopy(OwnedMoveSite site)
+    [InlineData()]
+    [InlineData()]
+    [InlineData()]
+    public void PrimitiveInt_ResolvesToValueCopy()
     {
         const string source = """
             namespace TestProgram;
@@ -340,7 +340,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         var resolution = resolver.Resolve(
             binding!.Value.Initializer,
             binding!.Value.DestinationType,
-            site,
+
             flowState,
             model!,
             diagnostics);
@@ -355,10 +355,10 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
     // ═══════════════════════════════════════════════════════════════════════
 
     [Theory]
-    [InlineData(OwnedMoveSite.OwnedBindingInit)]
-    [InlineData(OwnedMoveSite.OwnedFieldAssignment)]
-    [InlineData(OwnedMoveSite.OwnedParameterPass)]
-    public void ConstructorCall_ResolvesToMovedFromOwned(OwnedMoveSite site)
+    [InlineData()]
+    [InlineData()]
+    [InlineData()]
+    public void ConstructorCall_ResolvesToMovedFromOwned()
     {
         const string source = """
             namespace TestProgram;
@@ -383,7 +383,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         var resolution = resolver.Resolve(
             binding!.Value.Initializer,
             binding!.Value.DestinationType,
-            site,
+
             flowState,
             model!,
             diagnostics);
@@ -393,10 +393,10 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
     }
 
     [Theory]
-    [InlineData(OwnedMoveSite.OwnedBindingInit)]
-    [InlineData(OwnedMoveSite.OwnedFieldAssignment)]
-    [InlineData(OwnedMoveSite.OwnedParameterPass)]
-    public void OwnedReturningCall_ResolvesToMovedFromOwned(OwnedMoveSite site)
+    [InlineData()]
+    [InlineData()]
+    [InlineData()]
+    public void OwnedReturningCall_ResolvesToMovedFromOwned()
     {
         const string source = """
             namespace TestProgram;
@@ -424,7 +424,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         var resolution = resolver.Resolve(
             binding!.Value.Initializer,
             binding!.Value.DestinationType,
-            site,
+
             flowState,
             model!,
             diagnostics);
@@ -434,10 +434,10 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
     }
 
     [Theory]
-    [InlineData(OwnedMoveSite.OwnedBindingInit)]
-    [InlineData(OwnedMoveSite.OwnedFieldAssignment)]
-    [InlineData(OwnedMoveSite.OwnedParameterPass)]
-    public void MoveFromOwnedBinding_ResolvesToMovedFromOwned(OwnedMoveSite site)
+    [InlineData()]
+    [InlineData()]
+    [InlineData()]
+    public void MoveFromOwnedBinding_ResolvesToMovedFromOwned()
     {
         const string source = """
             namespace TestProgram;
@@ -472,7 +472,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         var resolution = resolver.Resolve(
             binding!.Value.Initializer,
             binding!.Value.DestinationType,
-            site,
+
             flowState,
             model!,
             diagnostics);
@@ -487,10 +487,10 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
     // ═══════════════════════════════════════════════════════════════════════
 
     [Theory]
-    [InlineData(OwnedMoveSite.OwnedBindingInit)]
-    [InlineData(OwnedMoveSite.OwnedFieldAssignment)]
-    [InlineData(OwnedMoveSite.OwnedParameterPass)]
-    public void NonOwnedClonableSource_ResolvesToImplicitClone(OwnedMoveSite site)
+    [InlineData()]
+    [InlineData()]
+    [InlineData()]
+    public void NonOwnedClonableSource_ResolvesToImplicitClone()
     {
         // PlainClonable has only int fields → auto-derives IClonable.
         // The source 'src' is a non-owned (plain) binding.
@@ -521,7 +521,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         var resolution = resolver.Resolve(
             binding!.Value.Initializer,
             binding!.Value.DestinationType,
-            site,
+
             flowState,
             model!,
             diagnostics);
@@ -535,10 +535,10 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
     // ═══════════════════════════════════════════════════════════════════════
 
     [Theory]
-    [InlineData(OwnedMoveSite.OwnedBindingInit)]
-    [InlineData(OwnedMoveSite.OwnedFieldAssignment)]
-    [InlineData(OwnedMoveSite.OwnedParameterPass)]
-    public void NonOwnedNonClonableSource_ResolvesToError(OwnedMoveSite site)
+    [InlineData()]
+    [InlineData()]
+    [InlineData()]
+    public void NonOwnedNonClonableSource_ResolvesToError()
     {
         // NotClonable has an int[] field → cannot auto-derive IClonable.
         // The source 'src' is a non-owned (plain) binding.
@@ -568,7 +568,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         var resolution = resolver.Resolve(
             binding!.Value.Initializer,
             binding!.Value.DestinationType,
-            site,
+
             flowState,
             model!,
             diagnostics);
@@ -624,7 +624,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         var resolution = resolver.Resolve(
             binding!.Value.Initializer,
             binding!.Value.DestinationType,
-            OwnedMoveSite.OwnedBindingInit,
+
             flowState,
             model!,
             diagnostics);
@@ -672,7 +672,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
             var resolution = resolver.Resolve(
                 binding!.Value.Initializer,
                 binding!.Value.DestinationType,
-                site,
+
                 flowState,
                 model!,
                 diagnostics);
@@ -718,7 +718,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
             var resolution = resolver.Resolve(
                 binding!.Value.Initializer,
                 binding!.Value.DestinationType,
-                site,
+
                 flowState,
                 model!,
                 diagnostics);
@@ -762,7 +762,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
             var resolution = resolver.Resolve(
                 binding!.Value.Initializer,
                 binding!.Value.DestinationType,
-                site,
+
                 flowState,
                 model!,
                 diagnostics);

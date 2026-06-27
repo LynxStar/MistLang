@@ -153,7 +153,7 @@ public sealed class MoveBoundaryResolver
     public MoveResolution Resolve(
         SyntaxNode source,
         IType? destinationType,
-        OwnedMoveSite site,
+
         MethodFlowState flowState,
         ISemanticModel model,
         DiagnosticBag diagnostics)

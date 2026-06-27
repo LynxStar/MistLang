@@ -78,7 +78,7 @@ internal sealed class CarrierStructRegistry
             return null;
         }
 
-        var valueSuffix = FormatValueSuffix(value, keyword);
+        var valueSuffix = FormatValueSuffix(value);
         var structName = $"Const_{capitalized}_{valueSuffix}";
         var interfaceName = $"IConst{capitalized}";
         var literalValue = FormatLiteral(value, keyword);
@@ -107,7 +107,7 @@ internal sealed class CarrierStructRegistry
             return null;
         }
 
-        var valueSuffix = FormatValueSuffix(depArg.Value, keyword);
+        var valueSuffix = FormatValueSuffix(depArg.Value);
         var structName = $"Const_{capitalized}_{valueSuffix}";
         var interfaceName = $"IConst{capitalized}";
         var literalValue = FormatLiteral(depArg.Value, keyword);
@@ -134,7 +134,7 @@ internal sealed class CarrierStructRegistry
             return null;
         }
 
-        var valueSuffix = FormatValueSuffix(depArg.Value, keyword);
+        var valueSuffix = FormatValueSuffix(depArg.Value);
         return $"Const_{capitalized}_{valueSuffix}";
     }
 
@@ -410,7 +410,7 @@ internal sealed class CarrierStructRegistry
     /// <summary>
     /// Formats the value suffix for the carrier struct name.
     /// </summary>
-    private static string FormatValueSuffix(object value, string keyword)
+    private static string FormatValueSuffix(object value)
     {
         return value switch
         {

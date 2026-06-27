@@ -87,7 +87,7 @@ public class ArrayLiteralEmissionPropertyTests
 
         // Emit in-memory
         var emitBag = new DiagnosticBag();
-        var files = CSharpEmitter.EmitToMemory(model, "TestProgram", emitBag);
+        var files = CSharpEmitter.EmitToMemory(model, emitBag);
         if(emitBag.HasErrors)
         {
             return null;

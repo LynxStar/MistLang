@@ -258,10 +258,10 @@ public sealed class StackallocLengthAndKindInferencePropertyTests : IDisposable
     private static List<StackallocExpressionPrimaryNode> FindStackallocNodes(SyntaxNode root)
     {
         var result = new List<StackallocExpressionPrimaryNode>();
-        Walk(root);
+        walk(root);
         return result;
 
-        void Walk(SyntaxNode node)
+        void walk(SyntaxNode node)
         {
             if(node is StackallocExpressionPrimaryNode stackallocNode)
             {
@@ -272,7 +272,7 @@ public sealed class StackallocLengthAndKindInferencePropertyTests : IDisposable
             {
                 if(child is not null)
                 {
-                    Walk(child);
+                    walk(child);
                 }
             }
         }

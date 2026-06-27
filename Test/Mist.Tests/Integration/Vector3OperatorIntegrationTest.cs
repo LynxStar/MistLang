@@ -16,7 +16,7 @@ namespace Mist.Tests.Integration;
 /// <summary>
 /// Task 16 of the Mist Standard Library spec: compile a user-defined
 /// <c>Vector3</c> struct with an <c>operator +</c> declaration under the
-/// <see cref="TypeCheckerAnalyzer.UseOperatorOverloadResolution"/> feature
+/// <see cref="TypeCheckerAnalyzer.useOperatorOverloadResolution"/> feature
 /// flag and verify that operator overload resolution selects the user's
 /// operator, types the <c>v1 + v2</c> expression as <c>Vector3</c>, and
 /// emits no diagnostics.
@@ -135,7 +135,7 @@ public class Vector3OperatorIntegrationTest
     /// (<c>v1</c> and <c>v2</c>) and computes <c>v1 + v2</c>. Running
     /// <see cref="TypeCheckerAnalyzer.ResolveBinaryOperator"/> on that
     /// <see cref="AdditiveNode"/> under the
-    /// <see cref="TypeCheckerAnalyzer.UseOperatorOverloadResolution"/>
+    /// <see cref="TypeCheckerAnalyzer.useOperatorOverloadResolution"/>
     /// feature flag must:
     /// <list type="bullet">
     ///   <item>Record the user's <c>operator +</c> as the resolved operator
@@ -183,8 +183,8 @@ public class Vector3OperatorIntegrationTest
         // Flip the feature flag for the duration of this test. The production
         // flag is `false`; other tests and the driver continue on the old
         // path. `try/finally` ensures restoration even if an assertion fails.
-        var originalFlag = TypeCheckerAnalyzer.UseOperatorOverloadResolution;
-        TypeCheckerAnalyzer.UseOperatorOverloadResolution = true;
+        var originalFlag = TypeCheckerAnalyzer.useOperatorOverloadResolution;
+        TypeCheckerAnalyzer.useOperatorOverloadResolution = true;
         try
         {
             var (model, ast) = BuildModel(source);
@@ -242,7 +242,7 @@ public class Vector3OperatorIntegrationTest
         }
         finally
         {
-            TypeCheckerAnalyzer.UseOperatorOverloadResolution = originalFlag;
+            TypeCheckerAnalyzer.useOperatorOverloadResolution = originalFlag;
         }
     }
 }

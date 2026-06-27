@@ -100,9 +100,9 @@ public class MistGrammarIntegrationTests
         return new EmissionContext("Mist.Generated", "Mist", loweringResult.Grammar!);
     }
 
-    // Cache the context and AST output across tests in this class
-    private static readonly Lazy<EmissionContext> context = new(BuildMistEmissionContext);
-    private static readonly Lazy<string> astOutput = new(() => AstEmitter.EmitAstNodes(context.Value));
+    // Cache the Context and AST output across tests in this class
+    private static readonly Lazy<EmissionContext> Context = new(BuildMistEmissionContext);
+    private static readonly Lazy<string> AstOutput = new(() => AstEmitter.EmitAstNodes(Context.Value));
 
     // ---------------------------------------------------------------
     //  7.1 — ParameterListNode has ImmutableArray<ParameterNode>
@@ -111,7 +111,7 @@ public class MistGrammarIntegrationTests
     [Fact]
     public void MistGrammar_ParameterListNode_ContainsImmutableArrayOfParameterNode()
     {
-        var output = astOutput.Value;
+        var output = AstOutput.Value;
 
         // ParameterList rule: Parameter (COMMA Parameter)*
         // Should generate a list property for repeated Parameters
@@ -121,7 +121,7 @@ public class MistGrammarIntegrationTests
     [Fact]
     public void MistGrammar_ParameterListNode_IsSealedClass()
     {
-        var output = astOutput.Value;
+        var output = AstOutput.Value;
 
         Assert.Contains("public sealed class ParameterListNode : SyntaxNode", output);
     }
@@ -133,7 +133,7 @@ public class MistGrammarIntegrationTests
     [Fact]
     public void MistGrammar_ArgumentListNode_ContainsImmutableArrayOfExpressionNode()
     {
-        var output = astOutput.Value;
+        var output = AstOutput.Value;
 
         // ArgumentList rule: Expression (COMMA Expression)*
         // Should generate a list property for repeated Expressions
@@ -143,7 +143,7 @@ public class MistGrammarIntegrationTests
     [Fact]
     public void MistGrammar_ArgumentListNode_IsSealedClass()
     {
-        var output = astOutput.Value;
+        var output = AstOutput.Value;
 
         Assert.Contains("public sealed class ArgumentListNode : SyntaxNode", output);
     }
@@ -155,7 +155,7 @@ public class MistGrammarIntegrationTests
     [Fact]
     public void MistGrammar_QualifiedIdentifierNode_ContainsImmutableArrayOfToken()
     {
-        var output = astOutput.Value;
+        var output = AstOutput.Value;
 
         // QualifiedIdentifier rule: IDENTIFIER (DOT IDENTIFIER)*
         // Should generate a list property for repeated IDENTIFIER tokens
@@ -165,7 +165,7 @@ public class MistGrammarIntegrationTests
     [Fact]
     public void MistGrammar_QualifiedIdentifierNode_IsSealedClass()
     {
-        var output = astOutput.Value;
+        var output = AstOutput.Value;
 
         Assert.Contains("public sealed class QualifiedIdentifierNode : SyntaxNode", output);
     }
@@ -178,7 +178,7 @@ public class MistGrammarIntegrationTests
     [Fact]
     public void MistGrammar_FieldDeclarationNode_ContainsExpressionNodeNullableProperty()
     {
-        var output = astOutput.Value;
+        var output = AstOutput.Value;
 
         // FieldDeclaration rule: ... initializer:(EQUAL Expression)? SEMICOLON
         // The labeled optional (EQUAL Expression)? should produce an ExpressionNode? property
@@ -188,7 +188,7 @@ public class MistGrammarIntegrationTests
     [Fact]
     public void MistGrammar_FieldDeclarationNode_DoesNotHaveTokenOnlyInitializer()
     {
-        var output = astOutput.Value;
+        var output = AstOutput.Value;
 
         // The Initializer property should NOT be typed as Token? — it should be ExpressionNode?
         // Extract the FieldDeclarationNode section to check
@@ -217,7 +217,7 @@ public class MistGrammarIntegrationTests
     [Fact]
     public void MistGrammar_FieldDeclarationNode_ChildrenYieldsInitializerWhenPresent()
     {
-        var output = astOutput.Value;
+        var output = AstOutput.Value;
 
         // Extract the FieldDeclarationNode section
         var fieldNodeStart = output.IndexOf("public sealed class FieldDeclarationNode");

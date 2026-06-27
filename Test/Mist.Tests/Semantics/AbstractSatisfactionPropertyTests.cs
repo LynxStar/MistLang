@@ -100,11 +100,11 @@ public class AbstractSatisfactionPropertyTests
 
         if(parentAbstractName is not null)
         {
-            var _abstractList1 = MakeBaseList(parentAbstractName);
+            var abstractList1 = MakeBaseList(parentAbstractName);
 
-            decl.AbstractList = _abstractList1;
+            decl.AbstractList = abstractList1;
 
-            decl.Abstracts = _abstractList1;
+            decl.Abstracts = abstractList1;
         }
 
         return decl;
@@ -140,11 +140,11 @@ public class AbstractSatisfactionPropertyTests
 
         if(abstractOrBaseName is not null)
         {
-            var _baseList1 = MakeBaseList(abstractOrBaseName);
+            var baseList1 = MakeBaseList(abstractOrBaseName);
 
-            decl.BaseClause = _baseList1;
+            decl.BaseClause = baseList1;
 
-            decl.BaseList = _baseList1;
+            decl.BaseList = baseList1;
         }
 
         return decl;
@@ -163,11 +163,11 @@ public class AbstractSatisfactionPropertyTests
 
         if(abstractName is not null)
         {
-            var _abstractList2 = MakeBaseList(abstractName);
+            var abstractList2 = MakeBaseList(abstractName);
 
-            decl.AbstractList = _abstractList2;
+            decl.AbstractList = abstractList2;
 
-            decl.Abstracts = _abstractList2;
+            decl.Abstracts = abstractList2;
         }
 
         return decl;

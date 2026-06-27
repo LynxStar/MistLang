@@ -1194,17 +1194,17 @@ public sealed class MistPrettyPrinter
                 {
                     var parts = new List<string>();
 
-                    string FormatTupleElement(TupleTypeElementNode element)
+                    string formatTupleElement(TupleTypeElementNode element)
                     {
                         var type = EmitTypeReference(element.Type);
                         return element.Name.HasValue ? $"{type} {element.Name.Value.Lexeme}" : type;
                     }
 
-                    parts.Add(FormatTupleElement(tupleRef.First));
-                    parts.Add(FormatTupleElement(tupleRef.Rest));
+                    parts.Add(formatTupleElement(tupleRef.First));
+                    parts.Add(formatTupleElement(tupleRef.Rest));
                     foreach(var additional in tupleRef.TupleTypeElements)
                     {
-                        parts.Add(FormatTupleElement(additional));
+                        parts.Add(formatTupleElement(additional));
                     }
 
                     return $"({string.Join(", ", parts)})";
@@ -1429,17 +1429,17 @@ public sealed class MistPrettyPrinter
                     var readonlyPrefix = typedTuple.ReadonlyModifier is not null ? "readonly " : "";
                     var parts = new List<string>();
 
-                    string FormatDeconstructionElement(TupleDeconstructionElementNode element)
+                    string formatDeconstructionElement(TupleDeconstructionElementNode element)
                     {
                         var type = EmitTypeReference(element.Type);
                         return $"{type} {element.Name.Lexeme}";
                     }
 
-                    parts.Add(FormatDeconstructionElement(typedTuple.First));
-                    parts.Add(FormatDeconstructionElement(typedTuple.Rest));
+                    parts.Add(formatDeconstructionElement(typedTuple.First));
+                    parts.Add(formatDeconstructionElement(typedTuple.Rest));
                     foreach(var additional in typedTuple.TupleDeconstructionElements)
                     {
-                        parts.Add(FormatDeconstructionElement(additional));
+                        parts.Add(formatDeconstructionElement(additional));
                     }
 
                     var init = EmitExpression(typedTuple.Initializer);
@@ -2128,7 +2128,7 @@ public sealed class MistPrettyPrinter
 
                     if(switchExpr.Arms is not null)
                     {
-                        void AppendArm(StringBuilder builder, SwitchArmNode arm)
+                        void appendArm(StringBuilder builder, SwitchArmNode arm)
                         {
                             _ = builder.Append(' ');
                             _ = builder.Append(EmitPattern(arm.Pattern));
@@ -2141,10 +2141,10 @@ public sealed class MistPrettyPrinter
                             _ = builder.Append(',');
                         }
 
-                        AppendArm(sb, switchExpr.Arms.SwitchArm);
+                        appendArm(sb, switchExpr.Arms.SwitchArm);
                         foreach(var arm in switchExpr.Arms.SwitchArms)
                         {
-                            AppendArm(sb, arm);
+                            appendArm(sb, arm);
                         }
                     }
 
@@ -2236,7 +2236,7 @@ public sealed class MistPrettyPrinter
                 {
                     var parts = new List<string>();
 
-                    string FormatAnonymousProperty(AnonymousPropertyNode prop)
+                    string formatAnonymousProperty(AnonymousPropertyNode prop)
                     {
                         return prop switch
                         {
@@ -2248,10 +2248,10 @@ public sealed class MistPrettyPrinter
                         };
                     }
 
-                    parts.Add(FormatAnonymousProperty(anonType.Properties.AnonymousProperty));
+                    parts.Add(formatAnonymousProperty(anonType.Properties.AnonymousProperty));
                     foreach(var additional in anonType.Properties.AnonymousPropertys)
                     {
-                        parts.Add(FormatAnonymousProperty(additional));
+                        parts.Add(formatAnonymousProperty(additional));
                     }
 
                     return $"new {{ {string.Join(", ", parts)} }}";
@@ -2262,7 +2262,7 @@ public sealed class MistPrettyPrinter
                 {
                     var parts = new List<string>();
 
-                    string FormatTupleLiteralElement(TupleLiteralElementNode element)
+                    string formatTupleLiteralElement(TupleLiteralElementNode element)
                     {
                         return element switch
                         {
@@ -2274,11 +2274,11 @@ public sealed class MistPrettyPrinter
                         };
                     }
 
-                    parts.Add(FormatTupleLiteralElement(tupleLit.First));
-                    parts.Add(FormatTupleLiteralElement(tupleLit.Rest));
+                    parts.Add(formatTupleLiteralElement(tupleLit.First));
+                    parts.Add(formatTupleLiteralElement(tupleLit.Rest));
                     foreach(var additional in tupleLit.TupleLiteralElements)
                     {
-                        parts.Add(FormatTupleLiteralElement(additional));
+                        parts.Add(formatTupleLiteralElement(additional));
                     }
 
                     return $"({string.Join(", ", parts)})";

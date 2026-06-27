@@ -168,11 +168,11 @@ public class SubtypeAssignabilityPropertyTests
 
         if(baseClassName is not null)
         {
-            var _baseList1 = MakeBaseList(baseClassName);
+            var baseList1 = MakeBaseList(baseClassName);
 
-            classDecl.BaseClause = _baseList1;
+            classDecl.BaseClause = baseList1;
 
-            classDecl.BaseList = _baseList1;
+            classDecl.BaseList = baseList1;
         }
 
         return classDecl;

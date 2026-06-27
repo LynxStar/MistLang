@@ -103,11 +103,11 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
 
         if(parentAbstractName is not null)
         {
-            var _abstractList1 = MakeBaseList(parentAbstractName);
+            var abstractList1 = MakeBaseList(parentAbstractName);
 
-            decl.AbstractList = _abstractList1;
+            decl.AbstractList = abstractList1;
 
-            decl.Abstracts = _abstractList1;
+            decl.Abstracts = abstractList1;
         }
 
         return decl;
@@ -126,11 +126,11 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
 
         if(baseClassName is not null)
         {
-            var _baseList1 = MakeBaseList(baseClassName);
+            var baseList1 = MakeBaseList(baseClassName);
 
-            classDecl.BaseClause = _baseList1;
+            classDecl.BaseClause = baseList1;
 
-            classDecl.BaseList = _baseList1;
+            classDecl.BaseList = baseList1;
         }
 
         return classDecl;
@@ -149,11 +149,11 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
 
         if(abstractName is not null)
         {
-            var _abstractList2 = MakeBaseList(abstractName);
+            var abstractList2 = MakeBaseList(abstractName);
 
-            decl.AbstractList = _abstractList2;
+            decl.AbstractList = abstractList2;
 
-            decl.Abstracts = _abstractList2;
+            decl.Abstracts = abstractList2;
         }
 
         return decl;

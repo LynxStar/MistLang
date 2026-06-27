@@ -5,17 +5,17 @@ using Mist.Parsing;
 namespace Mist.Tests;
 
 /// <summary>
-/// Property-based tests for the Parser and AST stages.
+/// Property-based tests for the parser and AST stages.
 /// The v1 parser is skeletal (returns null root), so these tests validate
 /// the property structure and will be fully exercised when the parser is complete.
 /// </summary>
 public class ParserAstPropertyTests
 {
-    private static MistLexer Lexer = new();
-    private static MistParser Parser = new();
+    private static MistLexer lexer = new();
+    private static MistParser parser = new();
 
     // ---------------------------------------------------------------
-    //  27.1 — Parser span coverage
+    //  27.1 — parser span coverage
     //  **Validates: Correctness Property 4**
     //  For any successfully parsed AST, the root node's Span covers
     //  the entire default-channel token range.
@@ -38,14 +38,14 @@ public class ParserAstPropertyTests
         {
             var source = new Mist.Common.Source.SourceText("test.mist", input);
             var lexBag = new DiagnosticBag();
-            var tokenStream = Lexer.Lex(source, lexBag);
+            var tokenStream = lexer.Lex(source, lexBag);
 
             var parseBag = new DiagnosticBag();
-            var parseResult = Parser.Parse(tokenStream, parseBag);
+            var parseResult = parser.Parse(tokenStream, parseBag);
 
             if(parseResult.Root is null)
             {
-                // Parser returned null root (parse error). Skip.
+                // parser returned null root (parse error). Skip.
                 continue;
             }
 
@@ -89,10 +89,10 @@ public class ParserAstPropertyTests
         {
             var source = new Mist.Common.Source.SourceText("test.mist", input);
             var lexBag = new DiagnosticBag();
-            var tokenStream = Lexer.Lex(source, lexBag);
+            var tokenStream = lexer.Lex(source, lexBag);
 
             var parseBag = new DiagnosticBag();
-            var parseResult = Parser.Parse(tokenStream, parseBag);
+            var parseResult = parser.Parse(tokenStream, parseBag);
 
             if(parseResult.Root is null)
             {

@@ -971,7 +971,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
 #pragma warning disable CA1805 // Flag default value is part of the contract — the migration plan
     // (design § Migration Plan) calls it out explicitly.
-    internal static bool UseOperatorOverloadResolution = true;
+    internal static bool useOperatorOverloadResolution = true;
 #pragma warning restore CA1805
 
     /// <summary>
@@ -5405,7 +5405,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             else
                             {
                                 // Verify each element type is assignable.
-                                void CheckDeconstructionElement(TupleDeconstructionElementNode element, int index)
+                                void checkDeconstructionElement(TupleDeconstructionElementNode element, int index)
                                 {
                                     var declaredType = model.GetTypeOf(element.Type);
                                     if(declaredType is not null && index < tupleType.Arity)
@@ -5422,11 +5422,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                                     }
                                 }
 
-                                CheckDeconstructionElement(typedTuple.First, 0);
-                                CheckDeconstructionElement(typedTuple.Rest, 1);
+                                checkDeconstructionElement(typedTuple.First, 0);
+                                checkDeconstructionElement(typedTuple.Rest, 1);
                                 for(var i = 0; i < typedTuple.TupleDeconstructionElements.Length; i++)
                                 {
-                                    CheckDeconstructionElement(typedTuple.TupleDeconstructionElements[i], 2 + i);
+                                    checkDeconstructionElement(typedTuple.TupleDeconstructionElements[i], 2 + i);
                                 }
                             }
                         }
@@ -19736,7 +19736,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // later (less-derived) copy of the same inherited signature is skipped (Req 7.3, 7.8).
         var seenBackendSignatures = new HashSet<string>(StringComparer.Ordinal);
 
-        void AddIfNotDuplicate(ISymbol member)
+        void addIfNotDuplicate(ISymbol member)
         {
             // Only CLR-projected (Backend) methods are flattened onto every level of the chain,
             // so only they can produce same-signature cross-level duplicates. Mist-source methods
@@ -19768,7 +19768,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 if(member.Kind == SymbolKind.Method && member.Name == methodName)
                 {
-                    AddIfNotDuplicate(member);
+                    addIfNotDuplicate(member);
                 }
             }
         }
@@ -19784,7 +19784,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 {
                     if(member.Kind == SymbolKind.Method && member.Name == methodName)
                     {
-                        AddIfNotDuplicate(member);
+                        addIfNotDuplicate(member);
                     }
                 }
 
@@ -19952,7 +19952,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     //
     // These two helpers form the new operator-resolution path added by the
     // Standard Library feature. They are invoked by whichever analyzer path
-    // is gated on <see cref="UseOperatorOverloadResolution"/>. In Task 14 the
+    // is gated on <see cref="useOperatorOverloadResolution"/>. In Task 14 the
     // flag is default-<c>false</c> and these helpers are exercised only by
     // targeted unit tests; the existing <c>Check*Node</c> methods are
     // unchanged. Later migration stages will route the production traffic

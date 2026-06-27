@@ -440,7 +440,7 @@ public class RefinementComparisonEnginePropertyTests
     private static RefinementPredicate BuildOrPredicate(ImmutableArray<int> values)
     {
         // Build each alternative as an AndPatternNode with a single constant.
-        static AndPatternNode BuildConstantAlternative(int v)
+        static AndPatternNode buildConstantAlternative(int v)
         {
             var literal = new IntegerConstantConstantLiteralNode
             {
@@ -452,16 +452,16 @@ public class RefinementComparisonEnginePropertyTests
         }
 
         // Build the OrPatternNode with Left, Right, and AndPatterns.
-        var orNode = new OrPatternNode { Left = BuildConstantAlternative(values[0]) };
+        var orNode = new OrPatternNode { Left = buildConstantAlternative(values[0]) };
 
         if(values.Length >= 2)
         {
-            orNode.Right = BuildConstantAlternative(values[1]);
+            orNode.Right = buildConstantAlternative(values[1]);
         }
 
         if(values.Length > 2)
         {
-            orNode.AndPatterns = values.Skip(2).Select(BuildConstantAlternative).ToImmutableArray();
+            orNode.AndPatterns = values.Skip(2).Select(buildConstantAlternative).ToImmutableArray();
         }
 
         // Wrap in PatternNode → ParenthesizedPatternPrimaryPatternNode → DirectPatternUnaryPatternNode → AndPatternNode

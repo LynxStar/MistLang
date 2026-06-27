@@ -32,7 +32,7 @@ public class IsClosedGenericWithUnknownTests
         var tps = new TypeParameterType[arity];
         for(var i = 0; i < arity; i++)
         {
-            tps[i] = new TypeParameterType($"T{i}", i);
+            tps[i] = new TypeParameterType($"t{i}", i);
         }
 
         c.TypeParameters = tps;
@@ -90,30 +90,30 @@ public class IsClosedGenericWithUnknownTests
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Requirement 8.1–8.3 — List<T> is NOT a Closed_Generic_With_Unknown
+    // Requirement 8.1–8.3 — List<t> is NOT a Closed_Generic_With_Unknown
     //                        (open type parameter)
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void ListOfT_ReturnsFalse()
     {
-        var T = new TypeParameterType("T", 0);
-        var listOfT = new ConstructedType(ListDef, new IType[] { T });
+        var t = new TypeParameterType("t", 0);
+        var listOfT = new ConstructedType(ListDef, new IType[] { t });
 
         Assert.False(ReadonlyAnalyzer.IsClosedGenericWithUnknown(listOfT));
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Requirement 8.5 — Map<T, unknown> is NOT a Closed_Generic_With_Unknown
+    // Requirement 8.5 — Map<t, unknown> is NOT a Closed_Generic_With_Unknown
     //                    (has open type parameter alongside unknown)
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void MapOfTUnknown_ReturnsFalse()
     {
-        var T = new TypeParameterType("T", 0);
+        var t = new TypeParameterType("t", 0);
         var mapOfTUnknown = new ConstructedType(
-            MapDef, new IType[] { T, UnknownType.Instance });
+            MapDef, new IType[] { t, UnknownType.Instance });
 
         Assert.False(ReadonlyAnalyzer.IsClosedGenericWithUnknown(mapOfTUnknown));
     }

@@ -102,7 +102,7 @@ public class SwitchGuardLambdaPrecedencePropertyTests
     {
         var results = new List<T>();
 
-        void Walk(SyntaxNode n)
+        void walk(SyntaxNode n)
         {
             if(n is T match)
             {
@@ -113,12 +113,12 @@ public class SwitchGuardLambdaPrecedencePropertyTests
             {
                 if(child is not null)
                 {
-                    Walk(child);
+                    walk(child);
                 }
             }
         }
 
-        Walk(root);
+        walk(root);
         return results;
     }
 

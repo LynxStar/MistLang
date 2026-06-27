@@ -130,10 +130,10 @@ public sealed class MoveBoundaryOwnedSourcePropertyTests : IDisposable
     {
         var result = new List<(SyntaxNode, IType?)>();
         var userAst = model.Asts[^1];
-        Walk(userAst);
+        walk(userAst);
         return result;
 
-        void Walk(SyntaxNode node)
+        void walk(SyntaxNode node)
         {
             switch(node)
             {
@@ -152,7 +152,7 @@ public sealed class MoveBoundaryOwnedSourcePropertyTests : IDisposable
             {
                 if(child is not null)
                 {
-                    Walk(child);
+                    walk(child);
                 }
             }
         }

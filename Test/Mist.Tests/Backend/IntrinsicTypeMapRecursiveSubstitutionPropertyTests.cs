@@ -126,7 +126,7 @@ public class IntrinsicTypeMapRecursiveSubstitutionPropertyTests
         );
 
         // Generate a type argument (either a leaf or a nested generic)
-        Gen<IType> GenTypeArg(int maxDepth)
+        Gen<IType> genTypeArg(int maxDepth)
         {
             if(maxDepth <= 0)
             {
@@ -135,18 +135,18 @@ public class IntrinsicTypeMapRecursiveSubstitutionPropertyTests
 
             return Gen.OneOf(
                 genLeaf.Select(l => l.Type),
-                GenConstructedType(maxDepth - 1)
+                genConstructedType(maxDepth - 1)
             );
         }
 
         // Generate a constructed generic type at a given depth
-        Gen<IType> GenConstructedType(int maxDepth)
+        Gen<IType> genConstructedType(int maxDepth)
         {
             return Gen.Choose(0, GenericContainers.Length - 1).SelectMany(containerIdx =>
             {
                 var (_, _, arity) = GenericContainers[containerIdx];
                 var argGens = Enumerable.Range(0, arity)
-                    .Select(_ => GenTypeArg(maxDepth))
+                    .Select(_ => genTypeArg(maxDepth))
                     .ToArray();
 
                 return GenCombine(argGens).Select(args =>

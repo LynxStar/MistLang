@@ -96,11 +96,11 @@ public class AbstractMemberLookupMissingPropertyTests
 
         if(parentAbstractName is not null)
         {
-            var _abstractList1 = MakeBaseList(parentAbstractName);
+            var abstractList1 = MakeBaseList(parentAbstractName);
 
-            decl.AbstractList = _abstractList1;
+            decl.AbstractList = abstractList1;
 
-            decl.Abstracts = _abstractList1;
+            decl.Abstracts = abstractList1;
         }
 
         return decl;
@@ -145,11 +145,11 @@ public class AbstractMemberLookupMissingPropertyTests
 
         if(baseOrAbstractName is not null)
         {
-            var _baseList1 = MakeBaseList(baseOrAbstractName);
+            var baseList1 = MakeBaseList(baseOrAbstractName);
 
-            decl.BaseClause = _baseList1;
+            decl.BaseClause = baseList1;
 
-            decl.BaseList = _baseList1;
+            decl.BaseList = baseList1;
         }
 
         return decl;

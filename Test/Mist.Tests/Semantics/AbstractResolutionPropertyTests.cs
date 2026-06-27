@@ -96,11 +96,11 @@ public class AbstractResolutionPropertyTests
 
         if(parentAbstractName is not null)
         {
-            var _abstractList1 = MakeBaseList(parentAbstractName);
+            var abstractList1 = MakeBaseList(parentAbstractName);
 
-            decl.AbstractList = _abstractList1;
+            decl.AbstractList = abstractList1;
 
-            decl.Abstracts = _abstractList1;
+            decl.Abstracts = abstractList1;
         }
 
         return decl;
@@ -123,11 +123,11 @@ public class AbstractResolutionPropertyTests
         // AbstractType to determine if it's a base class or abstract.
         if(abstractName is not null)
         {
-            var _baseList1 = MakeBaseList(abstractName);
+            var baseList1 = MakeBaseList(abstractName);
 
-            decl.BaseClause = _baseList1;
+            decl.BaseClause = baseList1;
 
-            decl.BaseList = _baseList1;
+            decl.BaseList = baseList1;
         }
 
         return decl;
@@ -146,11 +146,11 @@ public class AbstractResolutionPropertyTests
 
         if(abstractName is not null)
         {
-            var _abstractList2 = MakeBaseList(abstractName);
+            var abstractList2 = MakeBaseList(abstractName);
 
-            decl.AbstractList = _abstractList2;
+            decl.AbstractList = abstractList2;
 
-            decl.Abstracts = _abstractList2;
+            decl.Abstracts = abstractList2;
         }
 
         return decl;
@@ -487,11 +487,11 @@ public class AbstractResolutionPropertyTests
             Name = MakeToken("Dog"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
-        var _baseList2 = MakeBaseList("Animal");
+        var baseList2 = MakeBaseList("Animal");
 
-        derivedClassDecl.BaseClause = _baseList2;
+        derivedClassDecl.BaseClause = baseList2;
 
-        derivedClassDecl.BaseList = _baseList2;
+        derivedClassDecl.BaseList = baseList2;
 
         var ast = MakeCompilationUnit(
             WrapClass(baseClassDecl),

@@ -116,14 +116,14 @@ public class InheritanceRoundTripPropertyTests
 
         if(baseClassName is not null)
         {
-            var _baseList = new BaseListNode
+            var baseList = new BaseListNode
             {
                 First = new BaseTypeRefNode { Name = Tok(baseClassName) },
                 Rest = new BaseTypeRefNode { Name = Tok(baseClassName) },
                 BaseTypeRefs = ImmutableArray<BaseTypeRefNode>.Empty
             };
-            classDecl.BaseClause = _baseList;
-            classDecl.BaseList = _baseList;
+            classDecl.BaseClause = baseList;
+            classDecl.BaseList = baseList;
         }
 
         return classDecl;

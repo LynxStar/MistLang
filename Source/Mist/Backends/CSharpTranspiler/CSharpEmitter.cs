@@ -3401,7 +3401,7 @@ internal sealed class CSharpSourceWriter
         var closure = new List<IType>();
         var seenDefs = new HashSet<AbstractType>();
 
-        void Visit(IType abs)
+        void visit(IType abs)
         {
             var def = abs is ConstructedType ct ? ct.GenericDefinition as AbstractType : abs as AbstractType;
             if(def is null)
@@ -3417,13 +3417,13 @@ internal sealed class CSharpSourceWriter
             closure.Add(abs);
             foreach(var parent in def.Abstracts)
             {
-                Visit(parent);
+                visit(parent);
             }
         }
 
         foreach(var abs in directAbstracts)
         {
-            Visit(abs);
+            visit(abs);
         }
 
         // A default is considered overridden when the concrete type declares a method with
@@ -7730,17 +7730,17 @@ internal sealed class CSharpSourceWriter
                     // Emit C# tuple type syntax: (T1, T2) or (T1 name1, T2 name2).
                     var parts = new List<string>();
 
-                    string FormatTupleElement(TupleTypeElementNode element)
+                    string formatTupleElement(TupleTypeElementNode element)
                     {
                         var type = EmitTypeReference(element.Type, isValueContext);
                         return element.Name.HasValue ? $"{type} {element.Name.Value.Lexeme}" : type;
                     }
 
-                    parts.Add(FormatTupleElement(tupleRef.First));
-                    parts.Add(FormatTupleElement(tupleRef.Rest));
+                    parts.Add(formatTupleElement(tupleRef.First));
+                    parts.Add(formatTupleElement(tupleRef.Rest));
                     foreach(var additional in tupleRef.TupleTypeElements)
                     {
-                        parts.Add(FormatTupleElement(additional));
+                        parts.Add(formatTupleElement(additional));
                     }
 
                     return $"({string.Join(", ", parts)})";
@@ -7978,7 +7978,7 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private string EmitTupleDeconstructionPattern(TupleSingleTypeRefSingleTypeRefNode tupleRef)
     {
-        string FormatElement(TupleTypeElementNode element)
+        string formatElement(TupleTypeElementNode element)
         {
             var elementType = EmitTypeReference(element.Type);
             return element.Name.HasValue
@@ -7988,12 +7988,12 @@ internal sealed class CSharpSourceWriter
 
         var parts = new List<string>
         {
-            FormatElement(tupleRef.First),
-            FormatElement(tupleRef.Rest)
+            formatElement(tupleRef.First),
+            formatElement(tupleRef.Rest)
         };
         foreach(var additional in tupleRef.TupleTypeElements)
         {
-            parts.Add(FormatElement(additional));
+            parts.Add(formatElement(additional));
         }
 
         return $"({string.Join(", ", parts)})";
@@ -10174,17 +10174,17 @@ internal sealed class CSharpSourceWriter
                     // Emit: (Type1 a, Type2 b, ...) = expr;
                     var parts = new List<string>();
 
-                    string FormatDeconstructionElement(TupleDeconstructionElementNode element)
+                    string formatDeconstructionElement(TupleDeconstructionElementNode element)
                     {
                         var type = EmitTypeReference(element.Type, isValueContext: true);
                         return $"{type} {element.Name.Lexeme}";
                     }
 
-                    parts.Add(FormatDeconstructionElement(typedTuple.First));
-                    parts.Add(FormatDeconstructionElement(typedTuple.Rest));
+                    parts.Add(formatDeconstructionElement(typedTuple.First));
+                    parts.Add(formatDeconstructionElement(typedTuple.Rest));
                     foreach(var additional in typedTuple.TupleDeconstructionElements)
                     {
-                        parts.Add(FormatDeconstructionElement(additional));
+                        parts.Add(formatDeconstructionElement(additional));
                     }
 
                     var init = EmitExpression(typedTuple.Initializer);
@@ -11306,7 +11306,7 @@ internal sealed class CSharpSourceWriter
         pendingUnionPatternBindings.Add($"dynamic {dynVar} = {scrutineeExpr};");
 
         // Process each subpattern — extract the var binding via dynamic property access.
-        void ProcessSubpattern(PropertySubpatternNode subpattern)
+        void processSubpattern(PropertySubpatternNode subpattern)
         {
             var propName = subpattern.Name.Lexeme;
 
@@ -11331,10 +11331,10 @@ internal sealed class CSharpSourceWriter
             }
         }
 
-        ProcessSubpattern(propertyPattern.Subpatterns.PropertySubpattern);
+        processSubpattern(propertyPattern.Subpatterns.PropertySubpattern);
         foreach(var subpattern in propertyPattern.Subpatterns.PropertySubpatterns)
         {
-            ProcessSubpattern(subpattern);
+            processSubpattern(subpattern);
         }
 
         // The condition is a null check — the dynamic property access in the
@@ -13284,7 +13284,7 @@ internal sealed class CSharpSourceWriter
 
                     if(switchExpr.Arms is not null)
                     {
-                        void EmitArm(SwitchArmNode arm)
+                        void emitArm(SwitchArmNode arm)
                         {
                             _ = sb.Append('\n');
                             for(var i = 0; i < indentLevel; i++)
@@ -13352,10 +13352,10 @@ internal sealed class CSharpSourceWriter
                             _ = sb.Append($" => {EmitExpression(arm.Result)},");
                         }
 
-                        EmitArm(switchExpr.Arms.SwitchArm);
+                        emitArm(switchExpr.Arms.SwitchArm);
                         foreach(var arm in switchExpr.Arms.SwitchArms)
                         {
-                            EmitArm(arm);
+                            emitArm(arm);
                         }
                     }
 
@@ -13838,7 +13838,7 @@ internal sealed class CSharpSourceWriter
                 {
                     var parts = new List<string>();
 
-                    string FormatAnonymousProperty(AnonymousPropertyNode prop)
+                    string formatAnonymousProperty(AnonymousPropertyNode prop)
                     {
                         return prop switch
                         {
@@ -13850,10 +13850,10 @@ internal sealed class CSharpSourceWriter
                         };
                     }
 
-                    parts.Add(FormatAnonymousProperty(anonType.Properties.AnonymousProperty));
+                    parts.Add(formatAnonymousProperty(anonType.Properties.AnonymousProperty));
                     foreach(var additional in anonType.Properties.AnonymousPropertys)
                     {
-                        parts.Add(FormatAnonymousProperty(additional));
+                        parts.Add(formatAnonymousProperty(additional));
                     }
 
                     return $"new {{ {string.Join(", ", parts)} }}";
@@ -13865,7 +13865,7 @@ internal sealed class CSharpSourceWriter
                     // Emit C# tuple literal: (expr1, expr2) or (name1: expr1, name2: expr2).
                     var parts = new List<string>();
 
-                    string FormatTupleLiteralElement(TupleLiteralElementNode element)
+                    string formatTupleLiteralElement(TupleLiteralElementNode element)
                     {
                         return element switch
                         {
@@ -13877,11 +13877,11 @@ internal sealed class CSharpSourceWriter
                         };
                     }
 
-                    parts.Add(FormatTupleLiteralElement(tupleLit.First));
-                    parts.Add(FormatTupleLiteralElement(tupleLit.Rest));
+                    parts.Add(formatTupleLiteralElement(tupleLit.First));
+                    parts.Add(formatTupleLiteralElement(tupleLit.Rest));
                     foreach(var additional in tupleLit.TupleLiteralElements)
                     {
-                        parts.Add(FormatTupleLiteralElement(additional));
+                        parts.Add(formatTupleLiteralElement(additional));
                     }
 
                     return $"({string.Join(", ", parts)})";

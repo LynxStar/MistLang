@@ -148,7 +148,7 @@ rule Start = IDENTIFIER;
         };
     }
 
-    private static readonly object emitLock = new();
+    private static readonly object EmitLock = new();
 
     private static (string runtimeSource, string lexerSource) GenerateLexerCode(
         string grammarBody, string grammarName, string ns)
@@ -171,7 +171,7 @@ rule Start = IDENTIFIER;
 
         var context = new EmissionContext(ns, grammarName, loweringResult.Grammar!);
         string runtimeSource, lexerSource;
-        lock(emitLock)
+        lock(EmitLock)
         {
             runtimeSource = AstEmitter.EmitRuntimeTypes();
             lexerSource = LexerEmitter.Emit(context);

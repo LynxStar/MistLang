@@ -100,9 +100,9 @@ public class AbstractRoundTripPropertyTests
 
         if(parentAbstractName is not null)
         {
-            var _abstractList = MakeBaseList(parentAbstractName);
-            decl.AbstractList = _abstractList;
-            decl.Abstracts = _abstractList;
+            var abstractList = MakeBaseList(parentAbstractName);
+            decl.AbstractList = abstractList;
+            decl.Abstracts = abstractList;
         }
 
         return decl;
@@ -123,9 +123,9 @@ public class AbstractRoundTripPropertyTests
 
         if(baseOrAbstractName is not null)
         {
-            var _baseList = MakeBaseList(baseOrAbstractName);
-            decl.BaseClause = _baseList;
-            decl.BaseList = _baseList;
+            var baseList = MakeBaseList(baseOrAbstractName);
+            decl.BaseClause = baseList;
+            decl.BaseList = baseList;
         }
 
         return decl;
@@ -146,9 +146,9 @@ public class AbstractRoundTripPropertyTests
 
         if(abstractName is not null)
         {
-            var _abstractList = MakeBaseList(abstractName);
-            decl.AbstractList = _abstractList;
-            decl.Abstracts = _abstractList;
+            var abstractList = MakeBaseList(abstractName);
+            decl.AbstractList = abstractList;
+            decl.Abstracts = abstractList;
         }
 
         return decl;

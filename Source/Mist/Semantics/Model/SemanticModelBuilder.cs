@@ -9457,7 +9457,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         MistCompilation compilation,
         DiagnosticBag diagnostics)
     {
-        const int MaxDepth = 64;
+        const int maxDepth = 64;
 
         // Track structs that have already been verified as cycle-free so we
         // don't re-walk them.
@@ -9535,7 +9535,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 chain.Add(current);
 
                 // Check max depth (only count edges, not the root itself).
-                if(chain.Count - 1 > MaxDepth)
+                if(chain.Count - 1 > maxDepth)
                 {
                     // Depth exceeded — emit diagnostic on the original struct.
                     var declaringNode = symbolTable.GetDeclaringNode(symbol);
@@ -9548,7 +9548,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         diagnostics.Add(MakeDiagnosticWithLocation(
                             StructMaxDepth.Value,
                             DiagnosticSeverity.Error,
-                            $"Struct '{structType.DisplayName}' exceeds the maximum inheritance depth of {MaxDepth}.",
+                            $"Struct '{structType.DisplayName}' exceeds the maximum inheritance depth of {maxDepth}.",
                             declaringNode,
                             sourceText));
                     }
@@ -9558,7 +9558,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             StructMaxDepth,
                             DiagnosticSeverity.Error,
                             PipelineStage.SemanticModelConstruction,
-                            $"Struct '{structType.DisplayName}' exceeds the maximum inheritance depth of {MaxDepth}.",
+                            $"Struct '{structType.DisplayName}' exceeds the maximum inheritance depth of {maxDepth}.",
                             Location: default,
                             CompilationUnitPath: "<unknown>",
                             AnalyzerName: null));
@@ -15428,7 +15428,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // (Type1 a, Type2 b, ...) = expr; — resolve each element's declared type.
                     _ = ResolveExpression(typedTuple.Initializer, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
-                    void RegisterDeconstructionElement(TupleDeconstructionElementNode element)
+                    void registerDeconstructionElement(TupleDeconstructionElementNode element)
                     {
                         var declaredType = ResolveTypeReference(element.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
                         var name = element.Name.Lexeme;
@@ -15443,11 +15443,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         symbolTable.Register(sym, varDecl);
                     }
 
-                    RegisterDeconstructionElement(typedTuple.First);
-                    RegisterDeconstructionElement(typedTuple.Rest);
+                    registerDeconstructionElement(typedTuple.First);
+                    registerDeconstructionElement(typedTuple.Rest);
                     foreach(var additional in typedTuple.TupleDeconstructionElements)
                     {
-                        RegisterDeconstructionElement(additional);
+                        registerDeconstructionElement(additional);
                     }
 
                     break;
@@ -22751,7 +22751,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var tupleElementNames = new List<string?>(tupleElementCount);
                     var tupleHasAnyName = false;
 
-                    void ResolveTupleLiteralElement(TupleLiteralElementNode element)
+                    void resolveTupleLiteralElement(TupleLiteralElementNode element)
                     {
                         switch(element)
                         {
@@ -22767,11 +22767,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         }
                     }
 
-                    ResolveTupleLiteralElement(tupleLit.First);
-                    ResolveTupleLiteralElement(tupleLit.Rest);
+                    resolveTupleLiteralElement(tupleLit.First);
+                    resolveTupleLiteralElement(tupleLit.Rest);
                     foreach(var additional in tupleLit.TupleLiteralElements)
                     {
-                        ResolveTupleLiteralElement(additional);
+                        resolveTupleLiteralElement(additional);
                     }
 
                     result = new TupleType(tupleElementTypes, tupleHasAnyName ? tupleElementNames : null);
@@ -22973,7 +22973,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var propertyTypes = new List<IType>();
                     var seenNames = new HashSet<string>(StringComparer.Ordinal);
 
-                    void ProcessAnonymousProperty(AnonymousPropertyNode prop)
+                    void processAnonymousProperty(AnonymousPropertyNode prop)
                     {
                         switch(prop)
                         {
@@ -23058,12 +23058,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     }
 
                     // Process the first property.
-                    ProcessAnonymousProperty(anonTypeExpr.Properties.AnonymousProperty);
+                    processAnonymousProperty(anonTypeExpr.Properties.AnonymousProperty);
 
                     // Process additional properties.
                     foreach(var additional in anonTypeExpr.Properties.AnonymousPropertys)
                     {
-                        ProcessAnonymousProperty(additional);
+                        processAnonymousProperty(additional);
                     }
 
                     // Construct the AnonymousType and register it.
@@ -25976,7 +25976,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Numeric widening: decimal > double > float > ulong > long > uint > int > smaller types.
         // Use DisplayName-based ranking to handle both legacy (e.g., "int")
         // and stdlib (e.g., "Int32") type instances.
-        static int NumericRank(IType t)
+        static int numericRank(IType t)
         {
             return t.DisplayName switch
             {
@@ -25995,8 +25995,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             };
         }
 
-        var leftRank = NumericRank(left);
-        var rightRank = NumericRank(right);
+        var leftRank = numericRank(left);
+        var rightRank = numericRank(right);
 
         if(leftRank >= 0 && rightRank >= 0)
         {

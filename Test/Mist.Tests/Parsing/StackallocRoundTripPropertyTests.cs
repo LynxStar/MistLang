@@ -66,10 +66,10 @@ public class StackallocRoundTripPropertyTests
     private static List<StackallocExpressionPrimaryNode> CollectStackallocNodes(SyntaxNode node)
     {
         var found = new List<StackallocExpressionPrimaryNode>();
-        Walk(node);
+        walk(node);
         return found;
 
-        void Walk(SyntaxNode current)
+        void walk(SyntaxNode current)
         {
             if(current is StackallocExpressionPrimaryNode stackallocNode)
             {
@@ -80,7 +80,7 @@ public class StackallocRoundTripPropertyTests
             {
                 if(child is not null)
                 {
-                    Walk(child);
+                    walk(child);
                 }
             }
         }

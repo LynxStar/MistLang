@@ -76,7 +76,7 @@ public class HasRefReturnProperty
 public class HasNonPublicMembers
 {
     public int PublicField = 1;
-    internal int InternalField = 2;
+    internal int internalField = 2;
     protected int ProtectedField = 3;
 
     public int PublicMethod()
@@ -86,7 +86,7 @@ public class HasNonPublicMembers
 
     internal int InternalMethod()
     {
-        return InternalField;
+        return internalField;
     }
 
     protected int ProtectedMethod()

@@ -250,7 +250,7 @@ public class MemoizationEmitterTests
 
     private const string MemoizedRuleName = "SelfRep";
 
-    private static readonly object parserEmitLock = new();
+    private static readonly object ParserEmitLock = new();
 
     /// <summary>
     /// Minimal stub for <c>Mist.Common.Source.NodeOrigin</c> so the emitted
@@ -274,7 +274,7 @@ public class MemoizationEmitterTests
             : new EmissionContext(ns, grammarName, grammarIr, plan);
 
         string runtimeSource, astSource, lexerSource, parserSource;
-        lock(parserEmitLock)
+        lock(ParserEmitLock)
         {
             runtimeSource = AstEmitter.EmitRuntimeTypes();
             astSource = AstEmitter.EmitAstNodes(context);

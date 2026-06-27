@@ -84,11 +84,11 @@ public class InvalidAbstractReferencePropertyTests
 
         if(parentAbstractName is not null)
         {
-            var _abstractList1 = MakeBaseList(parentAbstractName);
+            var abstractList1 = MakeBaseList(parentAbstractName);
 
-            decl.AbstractList = _abstractList1;
+            decl.AbstractList = abstractList1;
 
-            decl.Abstracts = _abstractList1;
+            decl.Abstracts = abstractList1;
         }
 
         return decl;
@@ -118,11 +118,11 @@ public class InvalidAbstractReferencePropertyTests
 
         if(abstractName is not null)
         {
-            var _abstractList2 = MakeBaseList(abstractName);
+            var abstractList2 = MakeBaseList(abstractName);
 
-            decl.AbstractList = _abstractList2;
+            decl.AbstractList = abstractList2;
 
-            decl.Abstracts = _abstractList2;
+            decl.Abstracts = abstractList2;
         }
 
         return decl;

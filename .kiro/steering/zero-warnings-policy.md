@@ -20,9 +20,23 @@ If a change you are making introduces a build warning, you MUST:
 
 If the user approves suppressing a warning (e.g., `#pragma warning disable`, `<NoWarn>`, `SuppressMessage`), add a code comment explaining why the suppression is acceptable. Never suppress silently.
 
+## Format Verification
+
+After making changes to files under `Source/` or `Test/`, run `dotnet format --verify-no-changes` as part of your final sanity check before presenting the result. If it reports violations, fix them before committing.
+
+This catches:
+- Whitespace and indentation issues (WHITESPACE)
+- Unused usings (IDE0005)
+- Unused parameters (IDE0060)
+- Unnecessary assignments (IDE0059)
+- Style violations enforced by `.editorconfig`
+
+If `dotnet format` crashes due to a namespace mismatch (IDE0130), fix that manually first and re-run.
+
 ## Applies To
 
 - All C# compiler warnings (CS*)
 - All Storm source generator warnings (STORM*)
 - All .NET SDK / MSBuild warnings
+- All `dotnet format` diagnostics enforced by `.editorconfig`
 - Trim warnings from third-party packages are excluded (they come from dependencies we don't control)

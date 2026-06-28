@@ -21207,10 +21207,35 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // Construct resolution hints from the call site context.
                     var typeArgCount = methodCall.TypeArgs is not null ? CountTypeArgs(methodCall.TypeArgs) : (int?)null;
                     var importedNamespaces = CollectImportedNamespaces(fileScope);
+
+                    // Eagerly resolve non-lambda argument types for applicability-based
+                    // overload selection. Lambda arguments are left as null (wildcard)
+                    // because their parameter types depend on the selected overload.
+                    IReadOnlyList<IType?>? resolvedArgTypes = null;
+                    if(methodCall.Arguments is not null)
+                    {
+                        var argExprs = methodCall.Arguments.GetAllExpressions();
+                        var argTypeList = new IType?[argExprs.Length];
+                        for(var ai = 0; ai < argExprs.Length; ai++)
+                        {
+                            if(argExprs[ai] is LambdaFormExpressionNode)
+                            {
+                                argTypeList[ai] = null; // wildcard — lambda needs target type
+                            }
+                            else
+                            {
+                                argTypeList[ai] = ResolveExpression(argExprs[ai], currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                            }
+                        }
+
+                        resolvedArgTypes = argTypeList;
+                    }
+
                     var unifiedHints = new MethodResolutionHints(
                         TypeArgCount: typeArgCount,
-                        ArgumentCount: null,
-                        PreferLambdaCompatible: false);
+                        ArgumentCount: resolvedArgTypes?.Count,
+                        PreferLambdaCompatible: false,
+                        ArgumentTypes: resolvedArgTypes);
                     var unifiedResult = ResolveMethodMember(targetType, memberName, unifiedHints, importedNamespaces);
 
                     // Determine memberType: use unified result if available, otherwise
@@ -21578,8 +21603,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             && methodSymForInference.TypeParameters.Count > 0
                             && ContainsTypeParameter(memberType))
                         {
-                            var resolvedArgTypes = CollectResolvedArgumentTypes(methodCall.Arguments, expressionTypes);
-                            if(resolvedArgTypes.Count > 0)
+                            var inferenceArgTypes = CollectResolvedArgumentTypes(methodCall.Arguments, expressionTypes);
+                            if(inferenceArgTypes.Count > 0)
                             {
                                 var inferParamTypes = ParameterSignature.Extract(methodSymForInference, symbolTable);
                                 // Skip receiver param for extension methods.
@@ -21590,7 +21615,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 }
 
                                 var inferenceResult = TypeArgumentInferenceEngine.TryInfer(
-                                    methodSymForInference.TypeParameters, inferParamTypes, resolvedArgTypes);
+                                    methodSymForInference.TypeParameters, inferParamTypes, inferenceArgTypes);
                                 if(inferenceResult.Success && inferenceResult.InferredTypeArguments is not null)
                                 {
                                     memberType = SubstituteTypeInMember(
@@ -24668,10 +24693,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// <summary>
     /// Hints for narrowing method resolution during overload selection.
     /// </summary>
+    /// <param name="TypeArgCount">Number of explicit type arguments at the call site (null if none).</param>
+    /// <param name="ArgumentCount">Number of arguments at the call site (null if unknown).</param>
+    /// <param name="PreferLambdaCompatible">When true, prefer overloads with delegate/func parameters.</param>
+    /// <param name="ArgumentTypes">
+    /// Resolved argument types at the call site for applicability-based filtering.
+    /// Null entries represent lambda arguments whose type depends on the selected overload
+    /// (wildcard — matches any parameter type). When the entire list is null, argument-type
+    /// filtering is skipped and the fallback heuristics are used.
+    /// </param>
     private readonly record struct MethodResolutionHints(
         int? TypeArgCount,
         int? ArgumentCount,
-        bool PreferLambdaCompatible);
+        bool PreferLambdaCompatible,
+        IReadOnlyList<IType?>? ArgumentTypes = null);
 
     /// <summary>
     /// The result of a unified method resolution pass, combining both the
@@ -25025,6 +25060,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// Selects the best overload from a list of candidates based on the resolution hints.
     /// Priority: type argument arity match → parameter count match with lambda preference → first match.
     /// </summary>
+    /// <summary>
+    /// Selects the best overload from a set of candidates using resolution hints.
+    /// Priority: argument-type applicability → type argument arity → parameter count with lambda preference.
+    /// Returns null when no candidate matches (the caller will propagate ErrorType).
+    /// </summary>
     private static ISymbol? SelectOverloadFromHints(IReadOnlyList<ISymbol> candidates, MethodResolutionHints hints)
     {
         if(candidates.Count == 0)
@@ -25049,7 +25089,125 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
             }
 
-            // No arity match — fall through to param count / first match.
+            // No arity match — fall through to argument-type / param count filtering.
+        }
+
+        // ── Argument-type applicability filtering ────────────────────────────
+        // When resolved argument types are available, filter candidates by checking
+        // that each non-null argument type is assignable to the corresponding parameter type.
+        // This is the same applicability check the type checker's OverloadResolver performs.
+        if(hints.ArgumentTypes is { } argTypes && argTypes.Count > 0)
+        {
+            var applicable = new List<(ISymbol Symbol, IReadOnlyList<IType> ParamTypes)>();
+
+            foreach(var candidate in candidates)
+            {
+                if(candidate is not Symbol s)
+                {
+                    continue;
+                }
+
+                // Parameter count must match argument count.
+                if(s.Parameters.Count != argTypes.Count)
+                {
+                    continue;
+                }
+
+                // Extract parameter types from the candidate.
+                var paramTypes = new IType[s.Parameters.Count];
+                var hasAllTypes = true;
+                for(var i = 0; i < s.Parameters.Count; i++)
+                {
+                    if(s.Parameters[i].DeclaredType is { } pt)
+                    {
+                        paramTypes[i] = pt;
+                    }
+                    else
+                    {
+                        hasAllTypes = false;
+                        break;
+                    }
+                }
+
+                if(!hasAllTypes)
+                {
+                    continue;
+                }
+
+                // Check each argument against its corresponding parameter.
+                var allAssignable = true;
+                for(var i = 0; i < argTypes.Count; i++)
+                {
+                    // Null argument type = lambda/wildcard — matches any parameter type.
+                    if(argTypes[i] is null)
+                    {
+                        continue;
+                    }
+
+                    if(!TypeCheckerAnalyzer.IsAssignable(argTypes[i]!, paramTypes[i]))
+                    {
+                        allAssignable = false;
+                        break;
+                    }
+                }
+
+                if(allAssignable)
+                {
+                    applicable.Add((candidate, paramTypes));
+                }
+            }
+
+            // Exactly one applicable candidate — return it.
+            if(applicable.Count == 1)
+            {
+                return applicable[0].Symbol;
+            }
+
+            // Multiple applicable — find the most specific.
+            if(applicable.Count > 1)
+            {
+                var best = applicable[0];
+                var bestIsValid = true;
+
+                for(var i = 1; i < applicable.Count; i++)
+                {
+                    if(IsMoreSpecific(applicable[i].ParamTypes, best.ParamTypes))
+                    {
+                        best = applicable[i];
+                        bestIsValid = true;
+                    }
+                    else if(!IsMoreSpecific(best.ParamTypes, applicable[i].ParamTypes))
+                    {
+                        bestIsValid = false;
+                    }
+                }
+
+                if(bestIsValid)
+                {
+                    // Verify best is more specific than ALL others.
+                    foreach(var other in applicable)
+                    {
+                        if(ReferenceEquals(other.Symbol, best.Symbol))
+                        {
+                            continue;
+                        }
+
+                        if(!IsMoreSpecific(best.ParamTypes, other.ParamTypes))
+                        {
+                            // Ambiguous — return first applicable (type checker will report the error).
+                            return applicable[0].Symbol;
+                        }
+                    }
+
+                    return best.Symbol;
+                }
+
+                // Ambiguous — return first applicable (type checker will report the error).
+                return applicable[0].Symbol;
+            }
+
+            // Zero applicable via argument types — fall through to param count / lambda heuristics.
+            // This can happen when argument types are partially resolved (e.g., all null/lambda).
         }
 
         // If argument count hint is provided, filter by parameter count.
@@ -25097,7 +25255,40 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         // Final fallback: return the first candidate.
+        // This path is reached only when no argument types were available AND no
+        // argument count was provided (should not happen in normal Pass 2 resolution).
         return candidates[0];
+    }
+
+    /// <summary>
+    /// Determines whether candidate A's parameter types are more specific than candidate B's.
+    /// A is more specific if all of A's types are assignable to B's corresponding types,
+    /// and at least one of B's types is NOT assignable to A's.
+    /// </summary>
+    private static bool IsMoreSpecific(IReadOnlyList<IType> aParams, IReadOnlyList<IType> bParams)
+    {
+        if(aParams.Count != bParams.Count)
+        {
+            return false;
+        }
+
+        var allAtoB = true;
+        var anyBnotToA = false;
+
+        for(var i = 0; i < aParams.Count; i++)
+        {
+            if(!TypeCheckerAnalyzer.IsAssignable(aParams[i], bParams[i]))
+            {
+                allAtoB = false;
+            }
+
+            if(!TypeCheckerAnalyzer.IsAssignable(bParams[i], aParams[i]))
+            {
+                anyBnotToA = true;
+            }
+        }
+
+        return allAtoB && anyBnotToA;
     }
 
     /// <summary>

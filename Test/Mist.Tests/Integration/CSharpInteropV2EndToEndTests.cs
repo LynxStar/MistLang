@@ -124,6 +124,8 @@ public sealed class CSharpInteropV2EndToEndTests : IDisposable
             canRead=True
             encodedLength=2
             decoded=Hi
+            fileName=mist.exe
+            fileExt=.exe
             efConfigured=True
             --- C# Interop V2 Done ---
             """;

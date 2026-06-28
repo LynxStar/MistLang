@@ -47,6 +47,17 @@ public class Program
         var decoded = Encoding.UTF8.GetString(encoded);
         Console.WriteLine($"decoded={decoded}");
 
+        // PROOF: Overload resolution selects the correct overload when multiple candidates
+        //        share the same arity but differ in parameter types. Path.GetFileName has
+        //        GetFileName(ReadOnlySpan<char>) listed BEFORE GetFileName(String) in the
+        //        member scope — without argument-type-based applicability filtering, the
+        //        wrong overload (ReadOnlySpan<char>) would be selected for a string argument.
+        var filePath = "/usr/local/bin/mist.exe";
+        var fileName = Path.GetFileName(filePath);
+        Console.WriteLine($"fileName={fileName}");
+        var fileExt = Path.GetExtension(filePath);
+        Console.WriteLine($"fileExt={fileExt}");
+
         // PROOF: Extension methods from NuGet packages resolve on non-generic class receivers.
         // DbContextOptionsBuilder is a class; UseNpgsql is an extension method in namespace
         // Microsoft.EntityFrameworkCore from the Npgsql.EntityFrameworkCore.PostgreSQL package.

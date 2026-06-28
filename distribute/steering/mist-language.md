@@ -182,6 +182,20 @@ string p = Permission.Read;   // implicit conversion → "Read"
 
 For string-backed enums, members without explicit values use their variant name as the string value. This applies when the underlying type is `string` (explicit annotation or inferred from other members' string values).
 
+### Enum Variant Pattern Matching
+
+Use `is EnumName.MemberName` to test for a specific enum variant:
+
+```mist
+WorkItemState state = WorkItemState.Pending;
+if (state is WorkItemState.Pending) { Console.WriteLine("Still pending"); }
+
+// Works in any pattern context
+bool isActive = status is Status.Active;
+```
+
+This is equivalent to C#'s constant pattern (`is SomeEnum.Value`). The Mist emitter lowers it to an equality comparison (`==`) since Mist enums are record classes with static readonly fields rather than CLR enum constants.
+
 ## Extension Syntax
 
 Extensions use an `extension(Receiver self) { }` block, not a `static class` with `this` parameters.

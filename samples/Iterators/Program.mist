@@ -90,6 +90,27 @@ public class Program
             Console.WriteLine($"typed={n}");
         }
 
+        // PROOF: foreach with var infers element type from array
+        Console.WriteLine("--- Var Foreach (Array) ---");
+        foreach (var n in numbers)
+        {
+            Console.WriteLine($"var_n={n}");
+        }
+
+        // PROOF: foreach with var infers element type from user-defined IEnumerable<int>
+        Console.WriteLine("--- Var Foreach (Struct Enumerator) ---");
+        foreach (var x in range)
+        {
+            Console.WriteLine($"var_x={x}");
+        }
+
+        // PROOF: foreach with var infers element type from IEnumerable<string>
+        Console.WriteLine("--- Var Foreach (Class Enumerator) ---");
+        foreach (var w in words)
+        {
+            Console.WriteLine($"var_w={w}");
+        }
+
         Console.WriteLine("--- Iterators Done ---");
     }
 

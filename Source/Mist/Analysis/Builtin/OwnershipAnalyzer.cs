@@ -1736,7 +1736,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // Check collection expression for use-after-move.
-        CheckExpressionForUseAfterMove(foreachStmt.Collection, state, model, diagnostics);
+        CheckExpressionForUseAfterMove(foreachStmt.GetCollection(), state, model, diagnostics);
 
         // Snapshot which owned variables are Live before the loop body.
         var liveBeforeLoop = new Dictionary<ISymbol, VariableOwnershipState>();
@@ -1750,7 +1750,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
         // Walk the loop body with isLoop=true.
         state.EnterScope();
-        WalkBlock(foreachStmt.Body, state, model, diagnostics, isLoop: true);
+        WalkBlock(foreachStmt.GetBody(), state, model, diagnostics, isLoop: true);
         state.ExitScope();
 
         // After walking the body, any variable that was Live before and is now Moved

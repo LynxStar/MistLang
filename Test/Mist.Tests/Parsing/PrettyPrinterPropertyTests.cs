@@ -428,7 +428,7 @@ public class PrettyPrinterPropertyTests
         // foreach (int item in items) { }
         var foreachStmt = new ForeachStatementStatementNode
         {
-            ForeachStatement = new ForeachStatementNode
+            ForeachStatement = new TypedForeachForeachStatementNode
             {
                 Type = new TypeReferenceNode
                 {

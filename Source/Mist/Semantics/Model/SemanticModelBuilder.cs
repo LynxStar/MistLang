@@ -16141,8 +16141,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        var elementType = ResolveTypeReference(foreachStmt.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-        var collectionType = ResolveExpression(foreachStmt.Collection, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        var typeRef = foreachStmt.GetTypeOrNull();
+        var elementType = typeRef is not null
+            ? ResolveTypeReference(typeRef, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics)
+            : ErrorType.Instance;
+        var collectionType = ResolveExpression(foreachStmt.GetCollection(), blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
         // Resolve IEnumerable<TElement> implementation on the collection type to infer
         // the element type. This handles both Mist-native and CLR IEnumerable types.
@@ -16159,13 +16162,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Create a scope for the foreach body with the iteration variable.
         var foreachScope = new Scope(parent: blockScope);
-        var varName = foreachStmt.Name.Lexeme;
-        var varSpan = ToMistSourceSpan(foreachStmt.Name.Span);
+        var varName = foreachStmt.GetName().Lexeme;
+        var varSpan = ToMistSourceSpan(foreachStmt.GetName().Span);
         var varSymbol = new Symbol(varName, SymbolKind.LocalVariable, SymbolOrigin.UserCode, foreachScope, elementType, varSpan);
         foreachScope.AddMember(varSymbol);
         symbolTable.Register(varSymbol, foreachStmt);
 
-        ResolveBlock(foreachStmt.Body, foreachScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        ResolveBlock(foreachStmt.GetBody(), foreachScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
     }
 
     /// <summary>
@@ -19668,7 +19671,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 break;
 
             case ForeachStatementStatementNode foreachStmt:
-                CollectReturnTypesFromBlock(foreachStmt.ForeachStatement.Body, expressionTypes, returnTypes);
+                CollectReturnTypesFromBlock(foreachStmt.ForeachStatement.GetBody(), expressionTypes, returnTypes);
                 break;
 
             case ReadonlyBlockStatementStatementNode readonlyBlockStmt:

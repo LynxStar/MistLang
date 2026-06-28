@@ -4,8 +4,6 @@
 
 Mist does **not** support C#'s `new T[] { ... }` or `new T[] { e1, e2, ... }` array creation syntax. Use **array literals** instead.
 
-Additionally, Mist's `foreach` requires an **explicit type annotation** — `var` is not allowed in foreach declarations.
-
 ## What Fails
 
 ```mist
@@ -17,14 +15,9 @@ var items = new WorkItemState[] {
 
 // BAD: same issue — no size expression between brackets
 return new string[] { "a", "b", "c" };
-
-// BAD: foreach does not support var
-foreach (var item in items) { }
 ```
 
 The Mist grammar's `ArrayCreationExpression` requires an explicit size: `new T[size]`. Empty brackets `new T[]` with a braced initializer is not recognized by the parser.
-
-The `ForeachStatement` grammar rule requires `type:TypeReference`, not `var`. Using `var` causes MIST_PARSE_INCOMPLETE.
 
 ## What Works
 
@@ -49,10 +42,11 @@ var buffer = new int[5];
 buffer[0] = 10;
 buffer[1] = 20;
 
+// GOOD: foreach with var (type-inferred)
+foreach (var state in allStates) { }
+
 // GOOD: foreach with explicit type
 foreach (WorkItemState state in allStates) { }
-foreach (int n in numbers) { }
-foreach (string item in items) { }
 ```
 
 ## Mapping
@@ -63,16 +57,14 @@ foreach (string item in items) { }
 | `new T[3]` | `new T[3]` (supported — explicit size) |
 | `new List<T> { a, b, c }` | Not supported — use `var list = new List<T>(); list.Add(a);` etc. |
 | `int[] x = { 1, 2, 3 };` | `int[] x = [1, 2, 3];` |
-| `foreach (var x in items)` | `foreach (T x in items)` (explicit type required) |
+| `foreach (var x in items)` | `foreach (var x in items)` (supported) |
 
 ## Why This Matters
 
-The parser error surfaces as `MIST_PARSE_INCOMPLETE` at the enclosing class or method level, making it look like the return type or method signature is the problem. The actual failure point is either:
-- A `new T[]` expression without a size
-- A `foreach (var ...)` without an explicit type
+The parser error surfaces as `MIST_PARSE_INCOMPLETE` at the enclosing class or method level, making it look like the return type or method signature is the problem. The actual failure point is a `new T[]` expression without a size.
 
 ## Applies To
 
 - All `.mist` source files
-- Any code generation that produces Mist array initialization or foreach loops
+- Any code generation that produces Mist array initialization
 - Sample apps and test files under `samples/` and `Pendragon/`

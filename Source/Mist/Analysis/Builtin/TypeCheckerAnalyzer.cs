@@ -2709,7 +2709,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             case ForeachStatementStatementNode foreachStmt:
                 // Check collection expression for reads.
-                AnalyzeExpressionForReads(foreachStmt.ForeachStatement.Collection, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                AnalyzeExpressionForReads(foreachStmt.ForeachStatement.GetCollection(), state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
                 // Conservative: body may not execute.
                 var foreachBodyState = state.Clone();
                 // The foreach iteration variable is implicitly assigned by the loop mechanism.
@@ -2719,7 +2719,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     _ = foreachBodyState.AssignedLocals.Add(foreachVarSymbol);
                 }
 
-                AnalyzeBlockDataflow(foreachStmt.ForeachStatement.Body, foreachBodyState, propertyToBackingField, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                AnalyzeBlockDataflow(foreachStmt.ForeachStatement.GetBody(), foreachBodyState, propertyToBackingField, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
                 break;
 
             case BlockStatementStatementNode blockStmt:
@@ -7226,10 +7226,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     private void CheckForeachStatement(ForeachStatementNode foreachStmt, IType returnType, ISemanticModel model, DiagnosticBag diagnostics)
     {
-        CheckExpression(foreachStmt.Collection, model, diagnostics);
+        CheckExpression(foreachStmt.GetCollection(), model, diagnostics);
 
         // Resolve the collection expression's type and validate it implements IEnumerable<TElement>.
-        var collectionType = model.GetTypeOf(foreachStmt.Collection);
+        var collectionType = model.GetTypeOf(foreachStmt.GetCollection());
         if(collectionType is not null && !IsErrorType(collectionType))
         {
             var elementType = FindIEnumerableImplementation(collectionType, model);
@@ -7239,7 +7239,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_FOREACH_NOT_ENUMERABLE",
                     $"Type '{collectionType.DisplayName}' does not implement 'IEnumerable<TElement>' and cannot be used in a foreach statement",
-                    foreachStmt.Collection));
+                    foreachStmt.GetCollection()));
 
                 // Bind iteration variable to ErrorType for error recovery.
                 if(model.GetDeclaredSymbol(foreachStmt) is Symbol iterVarSymbol)
@@ -7250,27 +7250,39 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             else
             {
                 // Validate explicit type annotation against the resolved TElement.
-                var declaredType = ResolveTypeReferenceToType(foreachStmt.Type, model);
-                if(declaredType is not null && !IsErrorType(declaredType))
+                var typeRef = foreachStmt.GetTypeOrNull();
+                if(typeRef is not null)
                 {
-                    if(!IsAssignable(elementType, declaredType, model))
+                    var declaredType = ResolveTypeReferenceToType(typeRef, model);
+                    if(declaredType is not null && !IsErrorType(declaredType))
                     {
-                        // Emit diagnostic: TElement is not assignable to the declared type.
-                        diagnostics.Add(MakeDiagnostic(
-                            "MIST_TC_FOREACH_TYPE_MISMATCH",
-                            $"Cannot convert element type '{elementType.DisplayName}' to declared type '{declaredType.DisplayName}' in foreach statement",
-                            foreachStmt.Type));
-                    }
+                        if(!IsAssignable(elementType, declaredType, model))
+                        {
+                            // Emit diagnostic: TElement is not assignable to the declared type.
+                            diagnostics.Add(MakeDiagnostic(
+                                "MIST_TC_FOREACH_TYPE_MISMATCH",
+                                $"Cannot convert element type '{elementType.DisplayName}' to declared type '{declaredType.DisplayName}' in foreach statement",
+                                typeRef));
+                        }
 
-                    // Bind the iteration variable to the declared type (user's intent).
-                    if(model.GetDeclaredSymbol(foreachStmt) is Symbol iterVarSymbol)
+                        // Bind the iteration variable to the declared type (user's intent).
+                        if(model.GetDeclaredSymbol(foreachStmt) is Symbol iterVarSymbol)
+                        {
+                            iterVarSymbol.DeclaredType = declaredType;
+                        }
+                    }
+                    else
                     {
-                        iterVarSymbol.DeclaredType = declaredType;
+                        // Declared type could not be resolved; fall back to TElement.
+                        if(model.GetDeclaredSymbol(foreachStmt) is Symbol iterVarSymbol)
+                        {
+                            iterVarSymbol.DeclaredType = elementType;
+                        }
                     }
                 }
                 else
                 {
-                    // Declared type could not be resolved; fall back to TElement.
+                    // Var foreach: bind the iteration variable to the inferred element type.
                     if(model.GetDeclaredSymbol(foreachStmt) is Symbol iterVarSymbol)
                     {
                         iterVarSymbol.DeclaredType = elementType;
@@ -7279,7 +7291,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
         }
 
-        CheckBlock(foreachStmt.Body, returnType, model, diagnostics);
+        CheckBlock(foreachStmt.GetBody(), returnType, model, diagnostics);
     }
 
     /// <summary>
@@ -7662,7 +7674,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return BlockHasReturnWithValue(forStmt.ForStatement.Body);
 
             case ForeachStatementStatementNode foreachStmt:
-                return BlockHasReturnWithValue(foreachStmt.ForeachStatement.Body);
+                return BlockHasReturnWithValue(foreachStmt.ForeachStatement.GetBody());
 
             case ReadonlyBlockStatementStatementNode readonlyBlockStmt:
                 return BlockHasReturnWithValue(readonlyBlockStmt.ReadonlyBlock.Body);

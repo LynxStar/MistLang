@@ -381,7 +381,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
                     break;
 
                 case ForeachStatementNode foreachStmt:
-                    WalkBlockForUninferredContextTypes(foreachStmt.Body, model, diagnostics);
+                    WalkBlockForUninferredContextTypes(foreachStmt.GetBody(), model, diagnostics);
                     break;
 
                 case BlockNode block:
@@ -836,8 +836,8 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
                 return;
 
             case ForeachStatementNode foreachStmt:
-                WalkNodeForCallSites(foreachStmt.Collection, availableContextTypes, enclosingMethod, model, methodsWithContext, diagnostics);
-                WalkBlockForCallSites(foreachStmt.Body, availableContextTypes, enclosingMethod, model, methodsWithContext, diagnostics);
+                WalkNodeForCallSites(foreachStmt.GetCollection(), availableContextTypes, enclosingMethod, model, methodsWithContext, diagnostics);
+                WalkBlockForCallSites(foreachStmt.GetBody(), availableContextTypes, enclosingMethod, model, methodsWithContext, diagnostics);
                 return;
 
             case BlockNode block:

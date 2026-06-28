@@ -726,8 +726,8 @@ public sealed class DropAnalyzer : IAnalyzer
                 break;
 
             case ForeachStatementStatementNode foreachStmt:
-                ProcessExpression(foreachStmt.ForeachStatement.Collection, state, model, diagnostics, isDropMethod);
-                WalkBlock(foreachStmt.ForeachStatement.Body, state, model, diagnostics, isDropMethod);
+                ProcessExpression(foreachStmt.ForeachStatement.GetCollection(), state, model, diagnostics, isDropMethod);
+                WalkBlock(foreachStmt.ForeachStatement.GetBody(), state, model, diagnostics, isDropMethod);
                 break;
 
             case ReturnStatementStatementNode returnStmt:

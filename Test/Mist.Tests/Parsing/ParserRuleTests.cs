@@ -235,9 +235,9 @@ public class ParserRuleTests
             var method = (typeDecl!.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode)!.Method;
             var stmt = method.Body.GetBlock()!.Statements[0] as ForeachStatementStatementNode;
             Assert.NotNull(stmt);
-            Assert.NotNull(stmt!.ForeachStatement.Type);
-            Assert.NotNull(stmt.ForeachStatement.Collection);
-            Assert.NotNull(stmt.ForeachStatement.Body);
+            Assert.NotNull(stmt!.ForeachStatement.GetTypeOrNull());
+            Assert.NotNull(stmt.ForeachStatement.GetCollection());
+            Assert.NotNull(stmt.ForeachStatement.GetBody());
         }
     }
 

@@ -581,7 +581,10 @@ rule ForInitializer
     | expression:Expression                                                            as ForInitializerExpression
     ;
 
-rule ForeachStatement = FOREACH LEFT_PARENTHESIS type:TypeReference name:(IDENTIFIER | DISCARD) IN collection:Expression RIGHT_PARENTHESIS body:Block;
+rule ForeachStatement
+    = FOREACH LEFT_PARENTHESIS type:TypeReference name:(IDENTIFIER | DISCARD) IN collection:Expression RIGHT_PARENTHESIS body:Block  as TypedForeach
+    | FOREACH LEFT_PARENTHESIS VAR name:(IDENTIFIER | DISCARD) IN collection:Expression RIGHT_PARENTHESIS body:Block                 as VarForeach
+    ;
 
 rule BreakStatement = BREAK SEMICOLON;
 

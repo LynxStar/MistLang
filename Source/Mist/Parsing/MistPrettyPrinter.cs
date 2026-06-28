@@ -1594,14 +1594,15 @@ public sealed class MistPrettyPrinter
 
     private void EmitForeachStatement(ForeachStatementNode foreachStmt)
     {
-        var type = EmitTypeReference(foreachStmt.Type);
-        var name = foreachStmt.Name.Lexeme;
-        var collection = EmitExpression(foreachStmt.Collection);
+        var typeRef = foreachStmt.GetTypeOrNull();
+        var type = typeRef is not null ? EmitTypeReference(typeRef) : "var";
+        var name = foreachStmt.GetName().Lexeme;
+        var collection = EmitExpression(foreachStmt.GetCollection());
 
         AppendLine($"foreach ({type} {name} in {collection}) {{");
         indentLevel++;
 
-        foreach(var stmt in foreachStmt.Body.Statements)
+        foreach(var stmt in foreachStmt.GetBody().Statements)
         {
             EmitStatement(stmt);
         }

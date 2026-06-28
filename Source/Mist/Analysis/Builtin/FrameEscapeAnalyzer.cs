@@ -360,9 +360,10 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // foreach over a span is a safe in-frame use (R8.6).
-        if(foreachStmt.Body is not null)
+        var body = foreachStmt.GetBody();
+        if(body is not null)
         {
-            WalkBlock(foreachStmt.Body, state, model, diagnostics);
+            WalkBlock(body, state, model, diagnostics);
         }
     }
 

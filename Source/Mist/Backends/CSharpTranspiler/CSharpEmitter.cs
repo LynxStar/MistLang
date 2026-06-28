@@ -1360,8 +1360,8 @@ internal sealed class CSharpSourceWriter
                 break;
 
             case ForeachStatementStatementNode foreachStmt:
-                ScanExpressionForValueReturningCalls(foreachStmt.ForeachStatement.Collection, voidMethodNames);
-                ScanBlockForValueReturningCalls(foreachStmt.ForeachStatement.Body, voidMethodNames);
+                ScanExpressionForValueReturningCalls(foreachStmt.ForeachStatement.GetCollection(), voidMethodNames);
+                ScanBlockForValueReturningCalls(foreachStmt.ForeachStatement.GetBody(), voidMethodNames);
                 break;
 
             case ReadonlyBlockStatementStatementNode readonlyBlockStmt:
@@ -10476,12 +10476,13 @@ internal sealed class CSharpSourceWriter
     /// <remarks>Requirements: 10.4, 10.5.</remarks>
     private void EmitForeachStatement(ForeachStatementNode foreachStmt)
     {
-        var type = EmitTypeReference(foreachStmt.Type, isValueContext: true);
-        var name = foreachStmt.Name.Lexeme;
-        var collection = EmitExpression(foreachStmt.Collection);
+        var typeRef = foreachStmt.GetTypeOrNull();
+        var type = typeRef is not null ? EmitTypeReference(typeRef, isValueContext: true) : "var";
+        var name = foreachStmt.GetName().Lexeme;
+        var collection = EmitExpression(foreachStmt.GetCollection());
 
         AppendLine($"foreach ({type} {name} in {collection})");
-        EmitBlock(foreachStmt.Body);
+        EmitBlock(foreachStmt.GetBody());
     }
 
     // ─── Property / Collection Initializer Entry Emission ────────────────

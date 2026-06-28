@@ -1174,6 +1174,19 @@ w=mist
 typed=10
 typed=20
 typed=30
+--- Var Foreach (Array) ---
+var_n=10
+var_n=20
+var_n=30
+--- Var Foreach (Struct Enumerator) ---
+var_x=0
+var_x=1
+var_x=2
+var_x=3
+--- Var Foreach (Class Enumerator) ---
+var_w=hello
+var_w=world
+var_w=mist
 --- Iterators Done ---
 identity_int=42
 identity_string=hello

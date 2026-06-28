@@ -255,6 +255,24 @@ Mist has no `out` parameters, so any CLR method using one is **hidden** — nota
 - Use LINQ instead of `out`-based APIs.
 - Wrap the hidden API in a C# helper if needed.
 
+### Optional parameters require explicit arguments
+
+Mist has no optional parameters. CLR methods with default parameter values (e.g., `CancellationToken cancellationToken = default`) are projected with their full parameter count — you cannot omit trailing optional arguments as you would in C#.
+
+Pass `default` for parameters where you'd normally rely on the default value:
+
+```mist
+// C#: await db.SaveChangesAsync();           — CancellationToken is optional
+// Mist: must pass the argument explicitly
+await db.SaveChangesAsync(default);           // default inferred as CancellationToken
+
+// C#: Task.Delay(1000);                      — CancellationToken is optional
+// Mist:
+await Task.Delay(1000, default);
+```
+
+The bare `default` keyword is target-type-inferred from the parameter type, so you don't need to write `default(CancellationToken)` — just `default`.
+
 ### Per-overload visibility filtering
 
 When a method group contains overloads that use unsupported types, only the **individual offending overloads** are hidden — the remaining overloads in the same group stay callable. This means you can call `Encoding.GetBytes(string)` even though some sibling overloads use pointer types. The per-overload filter triggers for:

@@ -99,9 +99,9 @@ public static class PromptBuilder
     }
 
     /// <summary>
-    /// Builds the remediation prompt for a single finding, including project context and build instructions.
+    /// Builds the remediation prompt for all open findings on a file, including project context and build instructions.
     /// </summary>
-    public static string BuildRemediationPrompt(string filePath, Finding finding)
+    public static string BuildRemediationPrompt(string filePath, IReadOnlyList<Finding> findings)
     {
         var sb = new StringBuilder();
 
@@ -126,38 +126,44 @@ public static class PromptBuilder
         _ = sb.AppendLine();
         _ = sb.AppendLine($"## File: `{filePath}`");
         _ = sb.AppendLine();
-        _ = sb.AppendLine("## Finding to Resolve");
+        _ = sb.AppendLine("## Findings to Address");
         _ = sb.AppendLine();
-        _ = sb.AppendLine($"**Category:** {finding.Category}");
+        _ = sb.AppendLine("Address these findings holistically. They are often interrelated (e.g., resolving SRP by extracting classes also fixes Size and simplifies Methods).");
         _ = sb.AppendLine();
-        _ = sb.AppendLine($"**Note:** {finding.Note}");
 
-        if(finding.Targets.Count > 0)
+        for(var i = 0; i < findings.Count; i++)
         {
+            var finding = findings[i];
+            _ = sb.AppendLine($"### Finding {i + 1}: {finding.Category}");
             _ = sb.AppendLine();
-            _ = sb.AppendLine($"**Targets:** {string.Join(", ", finding.Targets)}");
+            _ = sb.AppendLine($"**Note:** {finding.Note}");
+
+            if(finding.Targets.Count > 0)
+            {
+                _ = sb.AppendLine();
+                _ = sb.AppendLine($"**Targets:** {string.Join(", ", finding.Targets)}");
+            }
+
+            _ = sb.AppendLine();
         }
 
-        _ = sb.AppendLine();
         _ = sb.AppendLine("## Instructions");
         _ = sb.AppendLine();
         _ = sb.AppendLine("1. Read the file listed above.");
-        _ = sb.AppendLine("2. Apply the minimal set of changes to resolve this specific finding.");
+        _ = sb.AppendLine("2. Address all findings together with a cohesive refactoring plan.");
         _ = sb.AppendLine("3. If you need to create new files, place them in the same directory as the original.");
         _ = sb.AppendLine("4. Do not change any public API signatures (other files depend on them).");
         _ = sb.AppendLine("5. Build the solution (`dotnet build Mist.slnx`) and verify zero warnings.");
         _ = sb.AppendLine("6. Run `dotnet format --verify-no-changes Mist.slnx` and fix any violations.");
         _ = sb.AppendLine();
-        _ = sb.AppendLine("Focus only on this one finding. Do not address other code quality issues you may notice.");
-        _ = sb.AppendLine();
         _ = sb.AppendLine("## Required Output");
         _ = sb.AppendLine();
-        _ = sb.AppendLine("When finished, print exactly one line starting with `RESULT:` followed by one of:");
+        _ = sb.AppendLine("When finished, print a summary with one line per finding, each starting with `RESULT <N>:` where N is the finding number:");
         _ = sb.AppendLine();
-        _ = sb.AppendLine("- `RESULT: RESOLVED: <brief summary of what you changed>`");
-        _ = sb.AppendLine("- `RESULT: DISMISSED: <why this finding is invalid or does not apply>`");
+        _ = sb.AppendLine("- `RESULT 1: RESOLVED: <brief summary of what you changed>`");
+        _ = sb.AppendLine("- `RESULT 2: DISMISSED: <why this finding is invalid or does not apply>`");
         _ = sb.AppendLine();
-        _ = sb.AppendLine("Use DISMISSED if the finding is incorrect (e.g., the code it flags is actually used, the issue doesn't exist). Use RESOLVED if you made changes to fix it.");
+        _ = sb.AppendLine("Use DISMISSED if a finding is incorrect (e.g., the code it flags is actually used). Use RESOLVED if you made changes to fix it.");
 
         return sb.ToString();
     }

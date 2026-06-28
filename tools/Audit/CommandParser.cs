@@ -12,8 +12,7 @@ public enum Command
 public sealed record ParsedCommand(
     Command Command,
     string? FilePath,
-    int TimeoutSeconds = 120,
-    int? FindingIndex = null);
+    int TimeoutSeconds = 120);
 
 public static class CommandParser
 {
@@ -38,7 +37,6 @@ public static class CommandParser
 
         string? filePath = null;
         var timeoutSeconds = 120;
-        int? findingIndex = null;
 
         for(var i = 1; i < args.Length; i++)
         {
@@ -58,28 +56,6 @@ public static class CommandParser
                     }
 
                     filePath = args[++i];
-                    break;
-
-                case "--finding":
-                    if(command != Command.Remediate)
-                    {
-                        errorOutput.WriteLine($"Error: --finding is not supported for the '{args[0]}' command.");
-                        return null;
-                    }
-
-                    if(i + 1 >= args.Length)
-                    {
-                        errorOutput.WriteLine("Error: --finding requires an index argument.");
-                        return null;
-                    }
-
-                    if(!int.TryParse(args[++i], out var parsedIndex) || parsedIndex <= 0)
-                    {
-                        errorOutput.WriteLine("Error: --finding value must be a positive integer.");
-                        return null;
-                    }
-
-                    findingIndex = parsedIndex;
                     break;
 
                 case "--timeout":
@@ -111,7 +87,7 @@ public static class CommandParser
             }
         }
 
-        return new ParsedCommand(command, filePath, timeoutSeconds, findingIndex);
+        return new ParsedCommand(command, filePath, timeoutSeconds);
     }
 
     private static bool TryParseCommand(string value, out Command command)
@@ -153,8 +129,5 @@ public static class CommandParser
         output.WriteLine("Options (audit, remediate only):");
         output.WriteLine("  --file <path>       Target a specific file");
         output.WriteLine("  --timeout <seconds> Agent timeout (default: 120)");
-        output.WriteLine();
-        output.WriteLine("Options (remediate only):");
-        output.WriteLine("  --finding <index>   Target a specific finding (1-based)");
     }
 }

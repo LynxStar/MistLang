@@ -4,7 +4,9 @@ using Audit.Models;
 
 namespace Audit;
 
-public sealed record AgentResult(bool Succeeded, IReadOnlyList<Finding>? Findings, string? ErrorMessage, decimal CreditsUsed = 0, bool Dismissed = false, string? Resolution = null);
+public sealed record AgentResult(bool Succeeded, IReadOnlyList<Finding>? Findings, string? ErrorMessage, decimal CreditsUsed = 0, bool Dismissed = false, string? Resolution = null, IReadOnlyList<RemediationResult>? Resolutions = null);
+
+public sealed record RemediationResult(int FindingIndex, bool Dismissed, string Summary);
 
 public sealed partial class AgentDispatcher
 {
@@ -52,9 +54,9 @@ public sealed partial class AgentDispatcher
     /// <summary>
     /// Dispatches a remediation prompt for specific findings on a file.
     /// </summary>
-    public AgentResult DispatchRemediation(string filePath, Finding finding)
+    public AgentResult DispatchRemediation(string filePath, IReadOnlyList<Finding> findings)
     {
-        var prompt = PromptBuilder.BuildRemediationPrompt(filePath, finding);
+        var prompt = PromptBuilder.BuildRemediationPrompt(filePath, findings);
         var (exitCode, stdout, stderr, timedOut) = RunProcess(prompt);
         var credits = ExtractCredits(stderr);
 
@@ -71,8 +73,8 @@ public sealed partial class AgentDispatcher
             return new AgentResult(false, null, errorMessage, credits);
         }
 
-        var (dismissed, resolution) = ExtractResolution(stdout);
-        return new AgentResult(true, null, null, credits, dismissed, resolution);
+        var resolutions = ExtractResolutions(stdout);
+        return new AgentResult(true, null, null, credits, Resolutions: resolutions);
     }
 
     private (int ExitCode, string Stdout, string Stderr, bool TimedOut) RunProcess(string prompt)
@@ -108,9 +110,11 @@ public sealed partial class AgentDispatcher
         return (process.ExitCode, stdout, stderr, false);
     }
 
-    private static (bool Dismissed, string? Resolution) ExtractResolution(string stdout)
+    private static IReadOnlyList<RemediationResult> ExtractResolutions(string stdout)
     {
+        var results = new List<RemediationResult>();
         var cleaned = StripAnsiCodes(stdout);
+
         foreach(var line in cleaned.Split('\n'))
         {
             var trimmed = line.Trim();
@@ -119,24 +123,49 @@ public sealed partial class AgentDispatcher
                 trimmed = trimmed[2..];
             }
 
-            if(trimmed.StartsWith("RESULT:", StringComparison.OrdinalIgnoreCase))
+            // Match "RESULT <N>: RESOLVED/DISMISSED: ..."
+            if(!trimmed.StartsWith("RESULT", StringComparison.OrdinalIgnoreCase))
             {
-                var value = trimmed["RESULT:".Length..].Trim();
-                if(value.StartsWith("DISMISSED:", StringComparison.OrdinalIgnoreCase))
-                {
-                    return (true, value["DISMISSED:".Length..].Trim());
-                }
-
-                if(value.StartsWith("RESOLVED:", StringComparison.OrdinalIgnoreCase))
-                {
-                    return (false, value["RESOLVED:".Length..].Trim());
-                }
-
-                return (false, value);
+                continue;
             }
+
+            var afterResult = trimmed["RESULT".Length..].TrimStart();
+
+            // Try to parse the finding index
+            var colonIdx = afterResult.IndexOf(':');
+            if(colonIdx < 0)
+            {
+                continue;
+            }
+
+            var indexStr = afterResult[..colonIdx].Trim();
+            if(!int.TryParse(indexStr, out var findingIndex))
+            {
+                continue;
+            }
+
+            var value = afterResult[(colonIdx + 1)..].Trim();
+            var dismissed = false;
+            string summary;
+
+            if(value.StartsWith("DISMISSED:", StringComparison.OrdinalIgnoreCase))
+            {
+                dismissed = true;
+                summary = value["DISMISSED:".Length..].Trim();
+            }
+            else if(value.StartsWith("RESOLVED:", StringComparison.OrdinalIgnoreCase))
+            {
+                summary = value["RESOLVED:".Length..].Trim();
+            }
+            else
+            {
+                summary = value;
+            }
+
+            results.Add(new RemediationResult(findingIndex, dismissed, summary));
         }
 
-        return (false, null);
+        return results;
     }
 
     private static decimal ExtractCredits(string stdout)

@@ -308,78 +308,106 @@ internal class Program
                 .Where(f => f.Status == FindingStatus.Open)
                 .ToList();
 
-            if(command.FindingIndex is not null)
+            if(openFindings.Count == 0)
             {
-                var idx = command.FindingIndex.Value - 1;
-                if(idx < 0 || idx >= file.Findings.Count)
-                {
-                    Console.Error.WriteLine($"Error: Finding index {command.FindingIndex.Value} is out of range (file has {file.Findings.Count} findings).");
-                    return 1;
-                }
-
-                var targetFinding = file.Findings[idx];
-                if(targetFinding.Status != FindingStatus.Open)
-                {
-                    Console.Error.WriteLine($"Error: Finding {command.FindingIndex.Value} is not open (status: {targetFinding.Status}).");
-                    return 1;
-                }
-
-                openFindings = [targetFinding];
+                continue;
             }
 
-            foreach(var finding in openFindings)
+            Console.WriteLine($"Remediating: {file.RelativePath} ({openFindings.Count} findings)");
+
+            // Transition all open findings to InProgress
+            var updatedFindings = file.Findings
+                .Select(f => f.Status == FindingStatus.Open
+                    ? f with { Status = FindingStatus.InProgress }
+                    : f)
+                .ToList();
+
+            state = ReplaceFileEntry(state, file.RelativePath,
+                file with { Findings = updatedFindings });
+            store.Save(state);
+
+            // Dispatch remediation for all findings at once
+            var result = dispatcher.DispatchRemediation(file.RelativePath, openFindings);
+
+            if(result.Succeeded)
             {
-                Console.WriteLine($"Remediating: {file.RelativePath} [{finding.Category}]");
+                // Apply per-finding resolutions from the agent's output
+                var resolutions = result.Resolutions ?? [];
+                var finalFindings = updatedFindings.ToList();
 
-                // Transition this finding to InProgress
-                state = ReplaceFinding(state, file.RelativePath, finding,
-                    finding with { Status = FindingStatus.InProgress });
-                store.Save(state);
-
-                // Dispatch remediation for this single finding
-                var result = dispatcher.DispatchRemediation(file.RelativePath, finding);
-
-                if(result.Succeeded)
+                for(var i = 0; i < finalFindings.Count; i++)
                 {
-                    var newStatus = result.Dismissed ? FindingStatus.Dismissed : FindingStatus.Resolved;
-                    state = ReplaceFinding(state, file.RelativePath,
-                        finding with { Status = FindingStatus.InProgress },
-                        finding with
+                    if(finalFindings[i].Status != FindingStatus.InProgress)
+                    {
+                        continue;
+                    }
+
+                    // Find the resolution for this finding (1-based index among open findings)
+                    var openIndex = openFindings.IndexOf(file.Findings[i]);
+                    var resolution = resolutions.FirstOrDefault(
+                        r => r.FindingIndex == openIndex + 1);
+
+                    if(resolution is not null)
+                    {
+                        var newStatus = resolution.Dismissed
+                            ? FindingStatus.Dismissed
+                            : FindingStatus.Resolved;
+                        finalFindings[i] = finalFindings[i] with
                         {
                             Status = newStatus,
-                            CreditsUsed = finding.CreditsUsed + result.CreditsUsed,
-                            Resolution = result.Resolution,
-                        });
-                    store.Save(state);
+                            Resolution = resolution.Summary,
+                            CreditsUsed = finalFindings[i].CreditsUsed + (result.CreditsUsed / openFindings.Count),
+                        };
 
-                    if(result.Dismissed)
-                    {
-                        Console.WriteLine($"  Dismissed: {result.Resolution} ({result.CreditsUsed} credits)");
+                        var label = resolution.Dismissed ? "Dismissed" : "Resolved";
+                        Console.WriteLine($"  [{i + 1}] {label}: {resolution.Summary}");
                     }
                     else
                     {
-                        Console.WriteLine($"  Resolved: {result.Resolution} ({result.CreditsUsed} credits)");
+                        // No explicit resolution — assume resolved if agent succeeded
+                        finalFindings[i] = finalFindings[i] with
+                        {
+                            Status = FindingStatus.Resolved,
+                            CreditsUsed = finalFindings[i].CreditsUsed + (result.CreditsUsed / openFindings.Count),
+                        };
+                        Console.WriteLine($"  [{i + 1}] Resolved (no explicit summary)");
                     }
                 }
-                else
-                {
-                    state = ReplaceFinding(state, file.RelativePath,
-                        finding with { Status = FindingStatus.InProgress },
-                        finding with { Status = FindingStatus.Open, CreditsUsed = finding.CreditsUsed + result.CreditsUsed });
-                    store.Save(state);
-                    Console.WriteLine($"  Failed: {result.ErrorMessage}");
-                }
-            }
 
-            // Check if all findings for this file are resolved or dismissed
-            var currentFile = state.Files.First(
-                f => string.Equals(f.RelativePath, file.RelativePath, StringComparison.Ordinal));
+                // Check if all findings are now resolved/dismissed
+                var allDone = finalFindings.All(
+                    f => f.Status is FindingStatus.Resolved or FindingStatus.Dismissed);
+                var fileStatus = allDone ? AuditStatus.Remediated : file.Status;
 
-            if(currentFile.Findings.All(f => f.Status is FindingStatus.Resolved or FindingStatus.Dismissed))
-            {
                 state = ReplaceFileEntry(state, file.RelativePath,
-                    currentFile with { Status = AuditStatus.Remediated });
+                    file with
+                    {
+                        Status = fileStatus,
+                        Findings = finalFindings,
+                        CreditsUsed = file.CreditsUsed + result.CreditsUsed,
+                    });
                 store.Save(state);
+                Console.WriteLine($"  Total: {result.CreditsUsed} credits");
+            }
+            else
+            {
+                // Revert all InProgress back to Open
+                var revertedFindings = updatedFindings
+                    .Select(f => f.Status == FindingStatus.InProgress
+                        ? f with { Status = FindingStatus.Open }
+                        : f)
+                    .ToList();
+
+                state = ReplaceFileEntry(state, file.RelativePath,
+                    file with
+                    {
+                        Status = AuditStatus.Failed,
+                        Findings = revertedFindings,
+                        FailureReason = result.ErrorMessage,
+                        CreditsUsed = file.CreditsUsed + result.CreditsUsed,
+                    });
+                store.Save(state);
+                Console.WriteLine($"  Failed: {result.ErrorMessage}");
             }
         }
 
@@ -387,24 +415,6 @@ internal class Program
         WriteReport(state, repoRoot);
 
         return 0;
-    }
-
-    private static AuditState ReplaceFinding(AuditState state, string relativePath, Finding original, Finding updated)
-    {
-        var files = state.Files.Select(f =>
-        {
-            if(!string.Equals(f.RelativePath, relativePath, StringComparison.Ordinal))
-            {
-                return f;
-            }
-
-            var updatedFindings = f.Findings.Select(finding =>
-                ReferenceEquals(finding, original) || finding == original ? updated : finding)
-                .ToList();
-            return f with { Findings = updatedFindings };
-        }).ToList();
-
-        return new AuditState(files);
     }
 
     private static int RunReport(StateStore store, string repoRoot)

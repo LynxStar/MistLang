@@ -178,6 +178,21 @@ public sealed class CSharpEmitter
     {
         var csprojPath = Path.Combine(outputDirectory, $"{projectName}.csproj");
         var outputTypeValue = outputType == ProjectOutputType.Library ? "Library" : "Exe";
+
+        // Library projects that inline referenced sources with Main methods conflict with
+        // the test SDK's auto-generated entry point (CS0017). Suppress by disabling the
+        // test SDK's generated Program file so the inlined Main is the sole entry point.
+        // This workaround is temporary until multi-project emission is implemented
+        // (see project/TODO-multi-project-emission.md).
+        var libraryEntryPointWorkaround = outputType == ProjectOutputType.Library
+            ? """
+
+              <PropertyGroup>
+                <GenerateProgramFile>false</GenerateProgramFile>
+              </PropertyGroup>
+            """
+            : "";
+
         var csprojContent = $"""
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
@@ -187,7 +202,7 @@ public sealed class CSharpEmitter
                 <Nullable>enable</Nullable>
                 <Deterministic>true</Deterministic>
                 <EnableNETAnalyzers>false</EnableNETAnalyzers>
-              </PropertyGroup>
+              </PropertyGroup>{libraryEntryPointWorkaround}
               <!--
                 Microsoft.CSharp provides the DLR machinery (`System.Runtime.CompilerServices.CSharpArgumentInfo`,
                 `System.Runtime.CompilerServices.Binder`, etc.) that `dynamic` dispatch compiles against. The

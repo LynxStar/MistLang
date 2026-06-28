@@ -71,6 +71,42 @@ The compiler locates the installed shared-framework reference assemblies for the
 
 The framework must be installed on the host machine for the target framework. If not installed, the compiler emits `MIST_FWREF_001`. If the name is not a recognized shared framework, the compiler emits `MIST_FWREF_002`.
 
+## Passing MSBuild Properties to the Generated csproj
+
+To inject arbitrary MSBuild properties into the generated `.csproj` (e.g., for .NET User Secrets, connection strings, or custom build configuration), add a `[csproj_properties]` table to `mist.toml`. Each entry is a key-value pair where both the key and value must be strings:
+
+```toml
+name = "MyApp"
+
+[packages]
+Npgsql.EntityFrameworkCore.PostgreSQL = "9.0.4"
+
+[csproj_properties]
+UserSecretsId = "my-app-secrets-id"
+DockerDefaultTargetOS = "Linux"
+```
+
+The compiler emits these as `<PropertyGroup>` entries in the generated `.csproj`:
+
+```xml
+<PropertyGroup>
+  <UserSecretsId>my-app-secrets-id</UserSecretsId>
+  <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+</PropertyGroup>
+```
+
+### Common Use Cases
+
+- **User Secrets** — `UserSecretsId` enables `dotnet user-secrets` for local development secrets (connection strings, API keys) without checking them into source control. Access them via `IConfiguration` from `Microsoft.Extensions.Configuration`.
+- **Docker settings** — `DockerDefaultTargetOS`, `DockerfileContext`, etc.
+- **Custom build properties** — any MSBuild property your build pipeline needs.
+
+### Rules
+
+- Keys must match `[a-zA-Z0-9\-_\.]+` and be at most 128 characters.
+- Values must be non-empty strings (XML-escaped automatically on emit).
+- Overriding compiler-managed properties (`OutputType`, `TargetFramework`, `RootNamespace`, `ImplicitUsings`, `Nullable`) emits a warning (`MIST_CSPROJ_PROP_MANAGED_OVERRIDE`) — do so only if you know what you're doing.
+
 ## Cross-Assembly Inheritance
 
 CLR inheritance relationships that span assemblies are fully resolved. A projected derived type is assignable to its projected base type across assemblies, and inherited members are callable on the derived type:

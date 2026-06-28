@@ -4,9 +4,9 @@ using Audit.Models;
 
 namespace Audit;
 
-public sealed record AgentResult(bool Succeeded, IReadOnlyList<Finding>? Findings, string? ErrorMessage);
+public sealed record AgentResult(bool Succeeded, IReadOnlyList<Finding>? Findings, string? ErrorMessage, decimal CreditsUsed = 0);
 
-public sealed class AgentDispatcher
+public sealed partial class AgentDispatcher
 {
     private readonly string workingDirectory;
     private readonly TimeSpan timeout;
@@ -24,10 +24,11 @@ public sealed class AgentDispatcher
     {
         var prompt = PromptBuilder.BuildAuditPrompt(filePath, fileContent, metrics);
         var (exitCode, stdout, stderr, timedOut) = RunProcess(prompt);
+        var credits = ExtractCredits(stderr);
 
         if(timedOut)
         {
-            return new AgentResult(false, null, "Agent timed out");
+            return new AgentResult(false, null, "Agent timed out", credits);
         }
 
         if(exitCode != 0)
@@ -35,16 +36,17 @@ public sealed class AgentDispatcher
             var errorMessage = string.IsNullOrWhiteSpace(stderr)
                 ? $"Agent exited with code {exitCode}"
                 : stderr.Trim();
-            return new AgentResult(false, null, errorMessage);
+            return new AgentResult(false, null, errorMessage, credits);
         }
 
         var findings = ExtractFindings(stdout);
         if(findings is null)
         {
-            return new AgentResult(false, null, "No JSON array found in agent output");
+            var truncated = stdout.Length > 500 ? stdout[..500] + "..." : stdout;
+            return new AgentResult(false, null, $"No JSON array found in agent output. Response:\n{truncated}", credits);
         }
 
-        return new AgentResult(true, findings, null);
+        return new AgentResult(true, findings, null, credits);
     }
 
     /// <summary>
@@ -54,10 +56,11 @@ public sealed class AgentDispatcher
     {
         var prompt = PromptBuilder.BuildRemediationPrompt(filePath, findings);
         var (exitCode, _, stderr, timedOut) = RunProcess(prompt);
+        var credits = ExtractCredits(stderr);
 
         if(timedOut)
         {
-            return new AgentResult(false, null, "Agent timed out");
+            return new AgentResult(false, null, "Agent timed out", credits);
         }
 
         if(exitCode != 0)
@@ -65,10 +68,10 @@ public sealed class AgentDispatcher
             var errorMessage = string.IsNullOrWhiteSpace(stderr)
                 ? $"Agent exited with code {exitCode}"
                 : stderr.Trim();
-            return new AgentResult(false, null, errorMessage);
+            return new AgentResult(false, null, errorMessage, credits);
         }
 
-        return new AgentResult(true, null, null);
+        return new AgentResult(true, null, null, credits);
     }
 
     private (int ExitCode, string Stdout, string Stderr, bool TimedOut) RunProcess(string prompt)
@@ -104,17 +107,52 @@ public sealed class AgentDispatcher
         return (process.ExitCode, stdout, stderr, false);
     }
 
+    private static decimal ExtractCredits(string stdout)
+    {
+        var cleaned = StripAnsiCodes(stdout);
+        foreach(var line in cleaned.Split('\n'))
+        {
+            var trimmed = line.Trim();
+            // Look for "Credits: 0.06" pattern
+            var creditsIndex = trimmed.IndexOf("Credits:", StringComparison.OrdinalIgnoreCase);
+            if(creditsIndex < 0)
+            {
+                continue;
+            }
+
+            var afterCredits = trimmed[(creditsIndex + "Credits:".Length)..].Trim();
+            // Take until next space or bullet
+            var endIndex = afterCredits.IndexOfAny([' ', '\u2022', '\u25b8']);
+            var valueStr = endIndex >= 0 ? afterCredits[..endIndex] : afterCredits;
+            if(decimal.TryParse(valueStr, System.Globalization.NumberStyles.Number,
+                System.Globalization.CultureInfo.InvariantCulture, out var credits))
+            {
+                return credits;
+            }
+        }
+
+        return 0;
+    }
+
     private static IReadOnlyList<Finding>? ExtractFindings(string stdout)
     {
-        var firstBracket = stdout.IndexOf('[');
-        var lastBracket = stdout.LastIndexOf(']');
+        // Strip ANSI escape codes from kiro-cli output
+        var cleaned = StripAnsiCodes(stdout);
+
+        // Strip kiro-cli output prefixes (lines starting with "> ")
+        var lines = cleaned.Split('\n')
+            .Select(line => line.StartsWith("> ", StringComparison.Ordinal) ? line[2..] : line);
+        cleaned = string.Join('\n', lines);
+
+        var firstBracket = cleaned.IndexOf('[');
+        var lastBracket = cleaned.LastIndexOf(']');
 
         if(firstBracket < 0 || lastBracket < 0 || lastBracket <= firstBracket)
         {
             return null;
         }
 
-        var json = stdout[firstBracket..(lastBracket + 1)];
+        var json = cleaned[firstBracket..(lastBracket + 1)];
 
         var options = new JsonSerializerOptions
         {
@@ -195,4 +233,12 @@ public sealed class AgentDispatcher
         public string? Note { get; set; }
         public IReadOnlyList<string>? Targets { get; set; }
     }
+
+    private static string StripAnsiCodes(string input)
+    {
+        return AnsiEscapeRegex().Replace(input, string.Empty);
+    }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"\x1B\[[0-9;]*m")]
+    private static partial System.Text.RegularExpressions.Regex AnsiEscapeRegex();
 }

@@ -104,14 +104,14 @@ public static class ReportGenerator
 
             _ = sb.AppendLine($"## {projectName}/");
             _ = sb.AppendLine();
-            _ = sb.AppendLine("| File | Lines | Status | Findings |");
-            _ = sb.AppendLine("|------|-------|--------|----------|");
+            _ = sb.AppendLine("| File | Lines | Types | Status | Findings |");
+            _ = sb.AppendLine("|------|-------|-------|--------|----------|");
 
             foreach(var file in projectFiles)
             {
                 var relativePath = file.RelativePath[prefix.Length..];
                 var findings = FormatFindings(file.Findings);
-                _ = sb.AppendLine($"| {relativePath} | {file.Metrics.LineCount} | {file.Status} | {findings} |");
+                _ = sb.AppendLine($"| {relativePath} | {file.Metrics.LineCount} | {file.Metrics.Types.Count} | {file.Status} | {findings} |");
             }
 
             _ = sb.AppendLine();

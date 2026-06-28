@@ -5,4 +5,5 @@ public sealed record FileEntry(
     AuditStatus Status,
     FileMetrics Metrics,
     IReadOnlyList<Finding> Findings,
-    string? FailureReason);
+    string? FailureReason,
+    decimal CreditsUsed = 0);

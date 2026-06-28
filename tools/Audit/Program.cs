@@ -52,7 +52,7 @@ internal class Program
     private static void WriteReport(AuditState state, string repoRoot)
     {
         var auditDir = Path.Combine(repoRoot, ".audit");
-        Directory.CreateDirectory(auditDir);
+        _ = Directory.CreateDirectory(auditDir);
         var reportPath = Path.Combine(auditDir, "audit.md");
         File.WriteAllText(reportPath, ReportGenerator.Generate(state));
     }
@@ -103,6 +103,48 @@ internal class Program
             if(!enumeratedSet.Contains(existing.RelativePath))
             {
                 mergedEntries.Add(existing with { Status = AuditStatus.Removed });
+            }
+        }
+
+        // Cross-reference pass: compute external dependents for each type
+        var declaredTypes = MetricsComputer.CollectDeclaredTypes(repoRoot, files.ToList());
+
+        var typeToFile = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach(var (typeName, (filePath, _)) in declaredTypes)
+        {
+            typeToFile[typeName] = filePath;
+        }
+
+        var dependents = MetricsComputer.ComputeExternalDependents(repoRoot, files.ToList(), typeToFile);
+
+        // Update FileMetrics entries with dependents counts
+        for(var i = 0; i < mergedEntries.Count; i++)
+        {
+            var entry = mergedEntries[i];
+            if(entry.Metrics.Types.Count == 0)
+            {
+                continue;
+            }
+
+            var updatedTypes = new List<TypeInfo>(entry.Metrics.Types.Count);
+            var changed = false;
+
+            foreach(var typeInfo in entry.Metrics.Types)
+            {
+                if(dependents.TryGetValue(typeInfo.Name, out var count) && count > 0)
+                {
+                    updatedTypes.Add(typeInfo with { ExternalDependents = count });
+                    changed = true;
+                }
+                else
+                {
+                    updatedTypes.Add(typeInfo);
+                }
+            }
+
+            if(changed)
+            {
+                mergedEntries[i] = entry with { Metrics = new FileMetrics(entry.Metrics.LineCount, updatedTypes) };
             }
         }
 
@@ -191,9 +233,10 @@ internal class Program
                     {
                         Status = AuditStatus.Completed,
                         Findings = findings,
+                        CreditsUsed = file.CreditsUsed + result.CreditsUsed,
                     });
                 store.Save(state);
-                Console.WriteLine($"  Completed: {findings.Count} finding(s)");
+                Console.WriteLine($"  Completed: {findings.Count} finding(s) ({result.CreditsUsed} credits)");
             }
             else
             {
@@ -202,6 +245,7 @@ internal class Program
                     {
                         Status = AuditStatus.Failed,
                         FailureReason = result.ErrorMessage,
+                        CreditsUsed = file.CreditsUsed + result.CreditsUsed,
                     });
                 store.Save(state);
                 Console.WriteLine($"  Failed: {result.ErrorMessage}");
@@ -294,9 +338,14 @@ internal class Program
                 var updatedStatus = allResolved ? AuditStatus.Remediated : file.Status;
 
                 state = ReplaceFileEntry(state, file.RelativePath,
-                    file with { Status = updatedStatus, Findings = resolvedFindings });
+                    file with
+                    {
+                        Status = updatedStatus,
+                        Findings = resolvedFindings,
+                        CreditsUsed = file.CreditsUsed + result.CreditsUsed,
+                    });
                 store.Save(state);
-                Console.WriteLine($"  Resolved: {openFindings.Count} finding(s)");
+                Console.WriteLine($"  Resolved: {openFindings.Count} finding(s) ({result.CreditsUsed} credits)");
             }
             else
             {
@@ -313,6 +362,7 @@ internal class Program
                         Status = AuditStatus.Failed,
                         Findings = revertedFindings,
                         FailureReason = result.ErrorMessage,
+                        CreditsUsed = file.CreditsUsed + result.CreditsUsed,
                     });
                 store.Save(state);
                 Console.WriteLine($"  Failed: {result.ErrorMessage}");

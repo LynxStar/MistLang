@@ -12,7 +12,7 @@ public sealed class StateStore
     public StateStore(string repositoryRoot)
     {
         var auditDir = Path.Combine(repositoryRoot, ".audit");
-        Directory.CreateDirectory(auditDir);
+        _ = Directory.CreateDirectory(auditDir);
         statePath = Path.Combine(auditDir, "audit-state.json");
         jsonOptions = new JsonSerializerOptions
         {

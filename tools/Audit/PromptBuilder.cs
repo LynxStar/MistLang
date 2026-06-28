@@ -19,9 +19,25 @@ public static class PromptBuilder
         _ = sb.AppendLine("## Metrics");
         _ = sb.AppendLine();
         _ = sb.AppendLine($"- Lines: {metrics.LineCount}");
-        _ = sb.AppendLine($"- Type declarations: {metrics.TypeCount}");
-        _ = sb.AppendLine($"- Methods/constructors: {metrics.MethodCount}");
+        _ = sb.AppendLine($"- Types: {metrics.Types.Count}");
         _ = sb.AppendLine();
+
+        if(metrics.Types.Count > 0)
+        {
+            _ = sb.AppendLine("### Types in this file");
+            _ = sb.AppendLine();
+            _ = sb.AppendLine("| Type | Kind | Pure Data | Methods | External Dependents |");
+            _ = sb.AppendLine("|------|------|-----------|---------|---------------------|");
+
+            foreach(var type in metrics.Types)
+            {
+                var pureData = type.IsPureData ? "yes" : "no";
+                _ = sb.AppendLine($"| {type.Name} | {type.Kind} | {pureData} | {type.MethodCount} | {type.ExternalDependents} |");
+            }
+
+            _ = sb.AppendLine();
+        }
+
         _ = sb.AppendLine("## File Content");
         _ = sb.AppendLine();
         _ = sb.AppendLine("```csharp");
@@ -47,10 +63,10 @@ public static class PromptBuilder
         _ = sb.AppendLine();
         _ = sb.AppendLine("Apply these rules when considering the Split category:");
         _ = sb.AppendLine();
-        _ = sb.AppendLine("- Helper types that are private or exclusively used by the file's primary class are OK to keep in the same file.");
-        _ = sb.AppendLine("- Split is warranted when secondary types exceed approximately 50 lines and distract from the primary class's readability.");
-        _ = sb.AppendLine("- Split is warranted when a file contains multiple public or internal classes that are referenced from outside the file.");
-        _ = sb.AppendLine("- Split is warranted when model or data types used outside the file are defined alongside their consumer.");
+        _ = sb.AppendLine("- Helper types that are private or exclusively used by the file's primary class (External Dependents = 0) are OK to keep in the same file.");
+        _ = sb.AppendLine("- Any type with External Dependents > 0 that is NOT the file's primary type should be split into its own file. Other files already depend on it directly, so it deserves independent discoverability.");
+        _ = sb.AppendLine("- Split is especially warranted when secondary types exceed approximately 50 lines and distract from the primary class's readability.");
+        _ = sb.AppendLine("- Split is warranted when a file contains multiple public or internal classes that are each referenced from outside the file.");
         _ = sb.AppendLine();
         _ = sb.AppendLine("## Instructions");
         _ = sb.AppendLine();

@@ -24394,6 +24394,68 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // Generic definitions must match.
                 if(!ReferenceEquals(patternConstructed.GenericDefinition, actualConstructed.GenericDefinition))
                 {
+                    // The generic definitions differ — check if the actual type implements
+                    // the pattern's interface through its Abstracts list. This handles cases
+                    // like IQueryable<TSource> (pattern) matching DbSet<Request> (actual) where
+                    // DbSet<T> implements IQueryable<T>.
+                    if(patternConstructed.GenericDefinition is AbstractType patternAbstractDef)
+                    {
+                        var actualAbstracts = actualConstructed.GenericDefinition switch
+                        {
+                            ClassType ct => ct.Abstracts,
+                            StructType st => st.Abstracts,
+                            AbstractType at => at.Abstracts,
+                            _ => null
+                        };
+
+                        if(actualAbstracts is not null)
+                        {
+                            foreach(var abs in actualAbstracts)
+                            {
+                                if(abs is ConstructedType absCtImpl)
+                                {
+                                    // Check if this abstract's GenericDefinition matches the pattern's.
+                                    var genDefMatches = ReferenceEquals(absCtImpl.GenericDefinition, patternAbstractDef)
+                                        || (absCtImpl.GenericDefinition is AbstractType absGenDef
+                                            && absGenDef.DisplayName == patternAbstractDef.DisplayName
+                                            && absGenDef.ContainingNamespace == patternAbstractDef.ContainingNamespace
+                                            && absGenDef.TypeParameters.Count == patternAbstractDef.TypeParameters.Count);
+
+                                    if(genDefMatches && absCtImpl.TypeArguments.Count == patternConstructed.TypeArguments.Count)
+                                    {
+                                        // Unify the pattern's type arguments with the interface's
+                                        // type arguments, substituting actual type args for the
+                                        // original type parameters.
+                                        var allUnified = true;
+                                        for(var i = 0; i < patternConstructed.TypeArguments.Count; i++)
+                                        {
+                                            var ifaceArg = absCtImpl.TypeArguments[i];
+                                            // If the interface's type argument is a TypeParameterType
+                                            // from the generic definition, substitute it with the
+                                            // actual's corresponding type argument.
+                                            if(ifaceArg is TypeParameterType ifaceTpt
+                                                && ifaceTpt.Ordinal < actualConstructed.TypeArguments.Count)
+                                            {
+                                                ifaceArg = actualConstructed.TypeArguments[ifaceTpt.Ordinal];
+                                            }
+
+                                            if(!UnifyTypes(patternConstructed.TypeArguments[i], ifaceArg, typeParameters, bindings))
+                                            {
+                                                allUnified = false;
+                                                break;
+                                            }
+                                        }
+
+                                        if(allUnified)
+                                        {
+                                            return true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     return false;
                 }
 

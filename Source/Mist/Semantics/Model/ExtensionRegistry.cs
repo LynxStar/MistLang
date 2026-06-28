@@ -362,6 +362,7 @@ public sealed class ExtensionRegistry
                 AbstractType at => at.Abstracts,
                 _ => null
             };
+
             if(valueAbstracts is not null && ImplementsAbstract(valueAbstracts, receiverPattern.GenericDefinition))
             {
                 return true;
@@ -439,6 +440,25 @@ public sealed class ExtensionRegistry
                 return true;
             }
 
+            // Structural name-based fallback: generic type definitions (AbstractType,
+            // ClassType, StructType) may exist as multiple instances when projected from
+            // different entry points. The provider's cache ensures canonical instances for
+            // types resolved via ResolveTypeCore, but ProjectGenericDefinitionReference
+            // creates ephemeral shells during constraint/interface projection when the
+            // cache-only resolver returns null (the target type isn't cached yet because
+            // it's being projected for the first time via a different entry point). Using
+            // the full resolver here is unsafe (causes infinite recursion through constraint
+            // cycles), so these shells are intentionally disconnected. This fallback
+            // treats two AbstractTypes with the same namespace, display name, and arity as
+            // the same logical type for extension applicability purposes.
+            if(abs is AbstractType absAbstract && extensionReceiverType is AbstractType targetAbstract
+                && absAbstract.DisplayName == targetAbstract.DisplayName
+                && absAbstract.ContainingNamespace == targetAbstract.ContainingNamespace
+                && absAbstract.TypeParameters.Count == targetAbstract.TypeParameters.Count)
+            {
+                return true;
+            }
+
             // ConstructedType structural match: two IEnumerable<int> instances
             // from different projection sites are logically the same type.
             if(abs is ConstructedType absCt && extensionReceiverType is ConstructedType targetCt)
@@ -451,11 +471,22 @@ public sealed class ExtensionRegistry
 
             // An extension targeting a generic definition (e.g., IEnumerable<T> with
             // TypeParameters.Count > 0) matches any constructed form of that definition
-            // in the implements list.
-            if(abs is ConstructedType absCtForDef
-                && ReferenceEquals(absCtForDef.GenericDefinition, extensionReceiverType))
+            // in the implements list. Uses structural fallback for the same reason as above.
+            if(abs is ConstructedType absCtForDef)
             {
-                return true;
+                if(ReferenceEquals(absCtForDef.GenericDefinition, extensionReceiverType))
+                {
+                    return true;
+                }
+
+                if(absCtForDef.GenericDefinition is AbstractType absGenDef
+                    && extensionReceiverType is AbstractType extAbsDef
+                    && absGenDef.DisplayName == extAbsDef.DisplayName
+                    && absGenDef.ContainingNamespace == extAbsDef.ContainingNamespace
+                    && absGenDef.TypeParameters.Count == extAbsDef.TypeParameters.Count)
+                {
+                    return true;
+                }
             }
 
             // Conversely, if the extension receiver is a ConstructedType pattern and

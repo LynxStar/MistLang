@@ -21078,6 +21078,50 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // via model.GetTypeOf(postfix.Target).
         expressionTypes[node.Target] = targetType;
 
+        // ── Primitive keyword static member access ──────────────────────────
+        // When a type literal (e.g., `string`, `int`, `List<int>`) is followed
+        // by a member access or method call suffix, check if the referenced type
+        // has the member as a static member. If yes, redirect the target type
+        // to the referenced type so static members are accessible
+        // (e.g., `string.IsNullOrWhiteSpace(x)`). If not, keep the metatype
+        // so that reflection properties like `int.Name` still work via typeof().
+        if(node.Target is TypeLiteralExpressionPrimaryNode typeLiteralTarget
+            && node.Suffix.Length > 0
+            && node.Suffix[0] is MemberAccessSuffixPostfixSuffixNode or MethodCallSuffixPostfixSuffixNode or OptionalMethodCallSuffixPostfixSuffixNode or OptionalMemberAccessSuffixPostfixSuffixNode)
+        {
+            var referencedType = ResolveTypeReference(
+                typeLiteralTarget.TypeRef, fileScope, ambientTypeResolver,
+                symbolTable, sourceText, diagnostics);
+
+            if(referencedType is not null and not ErrorType)
+            {
+                // Determine the member name from the first suffix.
+                var firstSuffix = node.Suffix[0];
+                var firstMemberName = firstSuffix is MemberAccessSuffixPostfixSuffixNode ma ? ma.Name.Lexeme
+                    : firstSuffix is MethodCallSuffixPostfixSuffixNode mc ? mc.Name.Lexeme
+                    : firstSuffix is OptionalMemberAccessSuffixPostfixSuffixNode oma ? oma.Name.Lexeme
+                    : firstSuffix is OptionalMethodCallSuffixPostfixSuffixNode omc ? omc.Name.Lexeme
+                    : default;
+
+                if(firstMemberName is not null)
+                {
+                    // Probe: does the referenced type have this member?
+                    var probeDiagnostics = new DiagnosticBag();
+                    var probedMember = LookupMemberType(
+                        referencedType, firstMemberName, ambientTypeResolver,
+                        fileScope, symbolTable, sourceText, probeDiagnostics);
+
+                    if(probedMember is not ErrorType)
+                    {
+                        // The referenced type has the member — redirect.
+                        targetType = referencedType;
+                        expressionTypes[node.Target] = targetType;
+                    }
+                    // Otherwise keep the metatype (typeof) — member is on System.Type.
+                }
+            }
+        }
+
         // Look up the primary node's symbol for parameter type threading
         // in direct invocations (e.g., method(void)).
         IReadOnlyList<IType>? primaryParamTypes = null;

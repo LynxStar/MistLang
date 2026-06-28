@@ -183,6 +183,11 @@ public static class CliArgumentParser
         // Version command needs no project folder or further validation.
         if(command == CliCommand.Version)
         {
+            if(errors.Count > 0)
+            {
+                return new CliParseResult(null, errors);
+            }
+
             return new CliParseResult(
                 new CliArguments("", Command: command),
                 errors);
@@ -191,6 +196,11 @@ public static class CliArgumentParser
         // None command (bare `mist` with no args) needs no project folder.
         if(command == CliCommand.None)
         {
+            if(errors.Count > 0)
+            {
+                return new CliParseResult(null, errors);
+            }
+
             return new CliParseResult(
                 new CliArguments("", Command: command),
                 errors);

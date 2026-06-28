@@ -12875,28 +12875,39 @@ internal sealed class CSharpSourceWriter
 
     private string EmitPostfix(PostfixNode postfix)
     {
-        // Special case: TypeLiteralExpression followed by member access or method call
-        // represents a static member access on a dependent type (e.g., FixedBuffer<5>.Size).
-        // Emit the type name directly without typeof() wrapping.
-        // This ONLY applies when the type reference contains dependent type arguments
-        // (literal values like <5>, <true>, etc.). For plain types like `int.Name`,
-        // we fall through to the normal typeof() path below.
+        // Special case: TypeLiteralExpression followed by member access or method call.
+        // If the referenced type has the member (static member access like
+        // string.IsNullOrWhiteSpace), emit the type name directly without typeof().
+        // If the referenced type does NOT have the member (reflection access like
+        // int.Name), fall through to the normal typeof() path below.
         if(postfix.Target is TypeLiteralExpressionPrimaryNode typeLiteral
             && postfix.Suffix.Length > 0
-            && TypeReferenceHasDependentTypeArguments(typeLiteral.TypeRef))
+            && postfix.Suffix[0] is MemberAccessSuffixPostfixSuffixNode or MethodCallSuffixPostfixSuffixNode or OptionalMethodCallSuffixPostfixSuffixNode or OptionalMemberAccessSuffixPostfixSuffixNode)
         {
-            var result = EmitTypeReference(typeLiteral.TypeRef, isValueContext: true);
+            // Check if the semantic model resolved the target to the actual type
+            // (not the metatype). If model.GetTypeOf returns a ClassType/StructType
+            // that is NOT Standard.Type, the semantic model decided it's a static
+            // member access and we should emit without typeof().
+            var resolvedTargetType = model.GetTypeOf(postfix.Target);
+            var isStaticMemberAccess = resolvedTargetType is not null
+                && resolvedTargetType.DisplayName != "Type"
+                && resolvedTargetType is not ErrorType;
 
-            var receiverType = model.GetTypeOf(postfix.Target);
-
-            for(var i = 0; i < postfix.Suffix.Length; i++)
+            if(isStaticMemberAccess)
             {
-                var suffix = postfix.Suffix[i];
-                result = EmitPostfixSuffix(result, suffix, receiverType);
-                receiverType = model.GetTypeOf(suffix);
-            }
+                var result = EmitTypeReference(typeLiteral.TypeRef, isValueContext: true);
 
-            return result;
+                var receiverType = resolvedTargetType;
+
+                for(var i = 0; i < postfix.Suffix.Length; i++)
+                {
+                    var suffix = postfix.Suffix[i];
+                    result = EmitPostfixSuffix(result, suffix, receiverType);
+                    receiverType = model.GetTypeOf(suffix);
+                }
+
+                return result;
+            }
         }
 
         var primaryResult = EmitPrimary(postfix.Target);

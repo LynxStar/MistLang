@@ -5,15 +5,12 @@ namespace Mist.CLI.Tests.Args;
 public class CliArgumentParserTests
 {
     [Fact]
-    public void Parse_NoArgs_ReturnsDefaultsWithCwd()
+    public void Parse_NoArgs_ReturnsHelpCommand()
     {
         var result = CliArgumentParser.Parse([]);
 
         Assert.NotNull(result.Arguments);
-        Assert.Equal(Directory.GetCurrentDirectory(), result.Arguments!.ProjectFolder);
-        Assert.Equal("csharp", result.Arguments.BackendId);
-        Assert.Equal(Path.Combine(Directory.GetCurrentDirectory(), "out"), result.Arguments.OutputDirectory);
-        Assert.Equal(Path.Combine(Directory.GetCurrentDirectory(), "bin"), result.Arguments.BinDirectory);
+        Assert.Equal(CliCommand.None, result.Arguments!.Command);
         Assert.Empty(result.Errors);
     }
 
@@ -39,28 +36,55 @@ public class CliArgumentParserTests
     [Fact]
     public void Parse_BackendFlag_IsParsed()
     {
-        var result = CliArgumentParser.Parse(["--backend", "js"]);
+        var tempDir = Path.Combine(Path.GetTempPath(), $"mist_test_{Guid.NewGuid():N}");
+        _ = Directory.CreateDirectory(tempDir);
+        try
+        {
+            var result = CliArgumentParser.Parse(["build", tempDir, "--backend", "js"]);
 
-        Assert.NotNull(result.Arguments);
-        Assert.Equal("js", result.Arguments!.BackendId);
+            Assert.NotNull(result.Arguments);
+            Assert.Equal("js", result.Arguments!.BackendId);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
     }
 
     [Fact]
     public void Parse_OutputFlag_IsParsed()
     {
-        var result = CliArgumentParser.Parse(["--output", "/tmp/build"]);
+        var tempDir = Path.Combine(Path.GetTempPath(), $"mist_test_{Guid.NewGuid():N}");
+        _ = Directory.CreateDirectory(tempDir);
+        try
+        {
+            var result = CliArgumentParser.Parse(["build", tempDir, "--output", "/tmp/build"]);
 
-        Assert.NotNull(result.Arguments);
-        Assert.Equal("/tmp/build", result.Arguments!.OutputDirectory);
+            Assert.NotNull(result.Arguments);
+            Assert.Equal("/tmp/build", result.Arguments!.OutputDirectory);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
     }
 
     [Fact]
     public void Parse_BinFlag_IsParsed()
     {
-        var result = CliArgumentParser.Parse(["--bin", "/tmp/bin"]);
+        var tempDir = Path.Combine(Path.GetTempPath(), $"mist_test_{Guid.NewGuid():N}");
+        _ = Directory.CreateDirectory(tempDir);
+        try
+        {
+            var result = CliArgumentParser.Parse(["build", tempDir, "--bin", "/tmp/bin"]);
 
-        Assert.NotNull(result.Arguments);
-        Assert.Equal("/tmp/bin", result.Arguments!.BinDirectory);
+            Assert.NotNull(result.Arguments);
+            Assert.Equal("/tmp/bin", result.Arguments!.BinDirectory);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
     }
 
     [Fact]
@@ -202,11 +226,20 @@ public class CliArgumentParserTests
     }
 
     [Fact]
-    public void Parse_BuildCommand_DefaultWhenNoVerb()
+    public void Parse_BuildCommand_DefaultWhenPathWithoutVerb()
     {
-        var result = CliArgumentParser.Parse([]);
+        var tempDir = Path.Combine(Path.GetTempPath(), $"mist_test_{Guid.NewGuid():N}");
+        _ = Directory.CreateDirectory(tempDir);
+        try
+        {
+            var result = CliArgumentParser.Parse([tempDir]);
 
-        Assert.NotNull(result.Arguments);
-        Assert.Equal(CliCommand.Build, result.Arguments!.Command);
+            Assert.NotNull(result.Arguments);
+            Assert.Equal(CliCommand.Build, result.Arguments!.Command);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
     }
 }

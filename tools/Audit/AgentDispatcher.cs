@@ -4,7 +4,7 @@ using Audit.Models;
 
 namespace Audit;
 
-public sealed record AgentResult(bool Succeeded, IReadOnlyList<Finding>? Findings, string? ErrorMessage, decimal CreditsUsed = 0);
+public sealed record AgentResult(bool Succeeded, IReadOnlyList<Finding>? Findings, string? ErrorMessage, decimal CreditsUsed = 0, bool Dismissed = false, string? Resolution = null);
 
 public sealed partial class AgentDispatcher
 {
@@ -52,10 +52,10 @@ public sealed partial class AgentDispatcher
     /// <summary>
     /// Dispatches a remediation prompt for specific findings on a file.
     /// </summary>
-    public AgentResult DispatchRemediation(string filePath, IReadOnlyList<Finding> findings)
+    public AgentResult DispatchRemediation(string filePath, Finding finding)
     {
-        var prompt = PromptBuilder.BuildRemediationPrompt(filePath, findings);
-        var (exitCode, _, stderr, timedOut) = RunProcess(prompt);
+        var prompt = PromptBuilder.BuildRemediationPrompt(filePath, finding);
+        var (exitCode, stdout, stderr, timedOut) = RunProcess(prompt);
         var credits = ExtractCredits(stderr);
 
         if(timedOut)
@@ -71,7 +71,8 @@ public sealed partial class AgentDispatcher
             return new AgentResult(false, null, errorMessage, credits);
         }
 
-        return new AgentResult(true, null, null, credits);
+        var (dismissed, resolution) = ExtractResolution(stdout);
+        return new AgentResult(true, null, null, credits, dismissed, resolution);
     }
 
     private (int ExitCode, string Stdout, string Stderr, bool TimedOut) RunProcess(string prompt)
@@ -105,6 +106,37 @@ public sealed partial class AgentDispatcher
         }
 
         return (process.ExitCode, stdout, stderr, false);
+    }
+
+    private static (bool Dismissed, string? Resolution) ExtractResolution(string stdout)
+    {
+        var cleaned = StripAnsiCodes(stdout);
+        foreach(var line in cleaned.Split('\n'))
+        {
+            var trimmed = line.Trim();
+            if(trimmed.StartsWith("> ", StringComparison.Ordinal))
+            {
+                trimmed = trimmed[2..];
+            }
+
+            if(trimmed.StartsWith("RESULT:", StringComparison.OrdinalIgnoreCase))
+            {
+                var value = trimmed["RESULT:".Length..].Trim();
+                if(value.StartsWith("DISMISSED:", StringComparison.OrdinalIgnoreCase))
+                {
+                    return (true, value["DISMISSED:".Length..].Trim());
+                }
+
+                if(value.StartsWith("RESOLVED:", StringComparison.OrdinalIgnoreCase))
+                {
+                    return (false, value["RESOLVED:".Length..].Trim());
+                }
+
+                return (false, value);
+            }
+        }
+
+        return (false, null);
     }
 
     private static decimal ExtractCredits(string stdout)

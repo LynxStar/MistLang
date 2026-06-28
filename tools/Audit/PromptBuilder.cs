@@ -99,38 +99,65 @@ public static class PromptBuilder
     }
 
     /// <summary>
-    /// Builds the remediation prompt including file path, findings, and instructions.
+    /// Builds the remediation prompt for a single finding, including project context and build instructions.
     /// </summary>
-    public static string BuildRemediationPrompt(string filePath, IReadOnlyList<Finding> findings)
+    public static string BuildRemediationPrompt(string filePath, Finding finding)
     {
         var sb = new StringBuilder();
 
-        _ = sb.AppendLine("# Code Remediation Request");
+        _ = sb.AppendLine("# Code Remediation");
         _ = sb.AppendLine();
-        _ = sb.AppendLine($"## File: {filePath}");
+        _ = sb.AppendLine("## Project Context");
         _ = sb.AppendLine();
-        _ = sb.AppendLine("## Findings to Address");
+        _ = sb.AppendLine("- Solution: `Mist.slnx` (at the repository root)");
+        _ = sb.AppendLine("- Build: `dotnet build Mist.slnx`");
+        _ = sb.AppendLine("- Format check: `dotnet format --verify-no-changes Mist.slnx`");
+        _ = sb.AppendLine("- Zero warnings policy: the build must produce no warnings after your changes");
+        _ = sb.AppendLine("- Source projects: `Source/Mist/` (compiler core), `Source/Mist.CLI/` (CLI frontend), `Source/Storm.SourceGenerator/` (parser generator)");
         _ = sb.AppendLine();
+        _ = sb.AppendLine("## Coding Style");
+        _ = sb.AppendLine();
+        _ = sb.AppendLine("- Always use braces for control flow (even single-line bodies)");
+        _ = sb.AppendLine("- Private fields use plain camelCase (no `_` prefix)");
+        _ = sb.AppendLine("- Use `var` when the type is apparent from the right-hand side");
+        _ = sb.AppendLine("- Use block bodies for methods, not expression bodies");
+        _ = sb.AppendLine("- Discard unused return values: `_ = sb.Append(...);`");
+        _ = sb.AppendLine("- File-scoped namespaces");
+        _ = sb.AppendLine();
+        _ = sb.AppendLine($"## File: `{filePath}`");
+        _ = sb.AppendLine();
+        _ = sb.AppendLine("## Finding to Resolve");
+        _ = sb.AppendLine();
+        _ = sb.AppendLine($"**Category:** {finding.Category}");
+        _ = sb.AppendLine();
+        _ = sb.AppendLine($"**Note:** {finding.Note}");
 
-        for(var i = 0; i < findings.Count; i++)
+        if(finding.Targets.Count > 0)
         {
-            var finding = findings[i];
-            _ = sb.AppendLine($"### Finding {i + 1}: {finding.Category}");
             _ = sb.AppendLine();
-            _ = sb.AppendLine($"**Note:** {finding.Note}");
-
-            if(finding.Targets.Count > 0)
-            {
-                _ = sb.AppendLine();
-                _ = sb.AppendLine($"**Targets:** {string.Join(", ", finding.Targets)}");
-            }
-
-            _ = sb.AppendLine();
+            _ = sb.AppendLine($"**Targets:** {string.Join(", ", finding.Targets)}");
         }
 
+        _ = sb.AppendLine();
         _ = sb.AppendLine("## Instructions");
         _ = sb.AppendLine();
-        _ = sb.AppendLine("Apply code changes to the file above that resolve each finding listed. Make the minimal set of changes necessary to address the issues while maintaining correctness. Do not introduce new warnings or break existing functionality.");
+        _ = sb.AppendLine("1. Read the file listed above.");
+        _ = sb.AppendLine("2. Apply the minimal set of changes to resolve this specific finding.");
+        _ = sb.AppendLine("3. If you need to create new files, place them in the same directory as the original.");
+        _ = sb.AppendLine("4. Do not change any public API signatures (other files depend on them).");
+        _ = sb.AppendLine("5. Build the solution (`dotnet build Mist.slnx`) and verify zero warnings.");
+        _ = sb.AppendLine("6. Run `dotnet format --verify-no-changes Mist.slnx` and fix any violations.");
+        _ = sb.AppendLine();
+        _ = sb.AppendLine("Focus only on this one finding. Do not address other code quality issues you may notice.");
+        _ = sb.AppendLine();
+        _ = sb.AppendLine("## Required Output");
+        _ = sb.AppendLine();
+        _ = sb.AppendLine("When finished, print exactly one line starting with `RESULT:` followed by one of:");
+        _ = sb.AppendLine();
+        _ = sb.AppendLine("- `RESULT: RESOLVED: <brief summary of what you changed>`");
+        _ = sb.AppendLine("- `RESULT: DISMISSED: <why this finding is invalid or does not apply>`");
+        _ = sb.AppendLine();
+        _ = sb.AppendLine("Use DISMISSED if the finding is incorrect (e.g., the code it flags is actually used, the issue doesn't exist). Use RESOLVED if you made changes to fix it.");
 
         return sb.ToString();
     }

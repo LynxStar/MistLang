@@ -15788,6 +15788,53 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // Bare type pattern: `Type` (no binding name) — pure type test.
                     // No whole-tuple variable to register.
                     //
+                    // Special case: if the type reference is a qualified name like
+                    // EnumName.MemberName, ResolveTypeReference will fail (it's not a type).
+                    // We detect this and resolve it as an enum member access pattern instead.
+                    if(bareTypePattern.Type.First is NamedSingleTypeRefSingleTypeRefNode namedPatternRef)
+                    {
+                        var qualifiedName = ExtractQualifiedName(namedPatternRef.Name, sourceText);
+                        var dotIndex = qualifiedName.LastIndexOf('.');
+                        if(dotIndex > 0)
+                        {
+                            var enumName = qualifiedName[..dotIndex];
+                            var memberName = qualifiedName[(dotIndex + 1)..];
+
+                            var enumSymbol = fileScope.Lookup(enumName);
+
+                            if(enumSymbol is null)
+                            {
+                                var patternImportedNamespaces = CollectImportedNamespaces(fileScope);
+                                var patternGlobalScope = FindGlobalScope(fileScope);
+                                if(patternGlobalScope is not null)
+                                {
+                                    foreach(var ns in patternImportedNamespaces)
+                                    {
+                                        var nsScope = FindExistingNamespaceScope(patternGlobalScope, symbolTable, ns);
+                                        if(nsScope is not null)
+                                        {
+                                            enumSymbol = nsScope.Lookup(enumName);
+                                            if(enumSymbol is not null)
+                                            {
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            if(enumSymbol is not null && enumSymbol.Kind == SymbolKind.Enum && enumSymbol.DeclaredType is EnumType enumType)
+                            {
+                                var enumMember = enumType.MemberScope.Lookup(memberName);
+                                if(enumMember is not null)
+                                {
+                                    // Valid enum member pattern — no variable bindings to collect.
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
                     // However, if the type is a named tuple type (e.g., `(int i, string str)`),
                     // the named elements introduce local bindings in the then-scope,
                     // matching C# semantics where `is (int i, string str)` introduces
@@ -20529,7 +20576,33 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             // Qualified name with a dot — try to resolve as EnumName.MemberName.
                             var enumName = qualifiedName[..dotIndex];
                             var memberName = qualifiedName[(dotIndex + 1)..];
+
+                            // First try the scope chain (covers same-namespace enums).
                             var enumSymbol = fileScope.Lookup(enumName);
+
+                            // If not found, search imported namespace scopes (covers
+                            // enums from referenced projects accessed via using directives).
+                            if(enumSymbol is null)
+                            {
+                                var patternImportedNamespaces = CollectImportedNamespaces(fileScope);
+                                var patternGlobalScope = FindGlobalScope(fileScope);
+                                if(patternGlobalScope is not null)
+                                {
+                                    foreach(var ns in patternImportedNamespaces)
+                                    {
+                                        var nsScope = FindExistingNamespaceScope(patternGlobalScope, symbolTable, ns);
+                                        if(nsScope is not null)
+                                        {
+                                            enumSymbol = nsScope.Lookup(enumName);
+                                            if(enumSymbol is not null)
+                                            {
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
                             if(enumSymbol is not null && enumSymbol.Kind == SymbolKind.Enum && enumSymbol.DeclaredType is EnumType enumType)
                             {
                                 var enumMember = enumType.MemberScope.Lookup(memberName);

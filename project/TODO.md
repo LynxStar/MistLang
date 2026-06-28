@@ -136,3 +136,33 @@ qt.Property(q => q.Resolution).HasConversion(v => v, v => (ResolutionTier)v ?? R
 1. Fix expression lambda body type validation — compare `model.GetTypeOf(body)` against `GetFuncReturnType(resolvedType)` when the lambda has a resolved Func target type. Handle async wrapping (body `T` → expected `Task<T>`) and avoid false positives.
 2. Fix generic method inference propagation — after inferring type args for a generic method, substitute them into parameter types BEFORE resolving lambda bodies. This is the same pattern `ResolveArgumentListWithParameterTypes` already does when parameter types are known; it just needs to also handle the case where parameter types require substitution from inferred type args.
 3. Add a test case: expression lambda with `(EnumType)v` inside a generic method that expects `Func<underlying, EnumType>` — must produce a diagnostic.
+
+
+---
+
+## 🟡 Parameter-level attributes not supported
+
+**Severity: medium (missing feature)** — Mist supports class-level and method-level attributes (e.g. `[ApiController]`, `[HttpPost]`), but does not support attributes on parameters. This means attributes like `[FromBody]`, `[FromQuery]`, `[FromRoute]`, `[FromHeader]`, and `[FromServices]` cannot be expressed in Mist.
+
+**Current workaround:** For ASP.NET controllers, applying `[ApiController]` at the class level enables automatic model binding from the request body for complex types, so `[FromBody]` is not required. However, this does not cover:
+
+- `[FromQuery]` — binding from query string parameters
+- `[FromRoute]` — binding from route template segments
+- `[FromHeader]` — binding from HTTP headers
+- `[FromServices]` — binding from the DI container
+- Validation attributes on parameters (e.g. `[Required]`, `[Range]`, `[StringLength]`)
+- `[CallerMemberName]`, `[CallerFilePath]`, `[CallerLineNumber]` — compiler-injected caller info
+- `[EnumeratorCancellation]` — for async iterators
+- `[NotNullWhen]`, `[MaybeNullWhen]` — nullable flow analysis annotations
+
+**Scope:** This requires changes to:
+1. **Syntax** — the grammar needs to allow `[Attribute]` before a parameter name in function/method/constructor/lambda parameter lists.
+2. **Semantic model** — `ParameterSymbol` needs an `Attributes` collection (currently only `ClassSymbol`, `MethodSymbol`, etc. carry attributes).
+3. **C# emitter** — attribute metadata must be emitted on the parameter in the generated C# output.
+
+**Action:**
+1. Design the syntax (likely `fn handle([FromQuery] name: string, [FromBody] request: CreateRequest)` mirroring the class/method attribute syntax).
+2. Extend the parser to recognize attribute lists in parameter position.
+3. Add `Attributes` storage to `ParameterSymbol`.
+4. Update the C# backend to emit parameter attributes.
+5. Add tests covering ASP.NET binding attributes, caller info attributes, and nullable annotations.

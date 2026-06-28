@@ -1747,9 +1747,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // 1. Resolve the target type (already set by Pass 2).
+        //    For enum reverse casts, the model builder sets the expression type to
+        //    EnumType | void — unwrap to get the raw target type for operator lookup.
         var targetType = model.GetTypeOf(castExpr);
         if(targetType is null || IsErrorType(targetType))
         {
+            return;
+        }
+
+        if(targetType is UnionType castUnion
+            && castUnion.Constituents.Count == 2
+            && castUnion.Constituents.Any(c => c is EnumType)
+            && castUnion.Constituents.Any(c => c.IsVoid()))
+        {
+            // Already validated as an enum reverse cast by the model builder.
+            // The expression type is correct (EnumType | void). Nothing more to check.
             return;
         }
 
@@ -1757,6 +1769,28 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var sourceType = model.GetTypeOf(castExpr.Operand);
         if(sourceType is null || IsErrorType(sourceType))
         {
+            return;
+        }
+
+        // Handle enum reverse cast that the model builder couldn't resolve
+        // (e.g., cross-file enums whose UnderlyingType wasn't resolved yet in Pass 2).
+        if(targetType is EnumType targetEnumForCast
+            && targetEnumForCast.UnderlyingType is not null
+            && IsAssignable(sourceType, targetEnumForCast.UnderlyingType))
+        {
+            // Valid cast — update the expression type to EnumType | void.
+            var voidType = model.AllSymbols
+                .Where(s => s.Name == "Void" && s.Kind is SymbolKind.Struct or SymbolKind.Class
+                         && s.DeclaredType is StructType { ContainingNamespace: "Standard" })
+                .Select(s => s.DeclaredType!)
+                .FirstOrDefault();
+
+            if(voidType is not null)
+            {
+                var nullableEnumType = new UnionType(new List<IType> { targetEnumForCast, voidType });
+                model.SetTypeOf(castExpr, nullableEnumType);
+            }
+
             return;
         }
 
@@ -7543,6 +7577,29 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             case ExpressionLambdaLambdaExpressionNode exprLambda:
                 CheckExpression(exprLambda.Body, model, diagnostics);
+
+                // Validate expression lambda body type against expected return type.
+                // Specifically catches fallible casts (e.g., enum reverse cast returning
+                // EnumType | void) being used where a non-optional type is expected.
+                if(resolvedType is ConstructedType exprFuncCt
+                    && SemanticModelBuilder.IsFuncType(exprFuncCt)
+                    && !IsAsyncLambda(lambda))
+                {
+                    var expectedReturnType = SemanticModelBuilder.GetFuncReturnType(exprFuncCt);
+                    var bodyType = model.GetTypeOf(exprLambda.Body);
+                    if(bodyType is UnionType bodyUnion
+                        && expectedReturnType is not null && !IsErrorType(expectedReturnType)
+                        && expectedReturnType is not UnionType
+                        && !expectedReturnType.IsVoid()
+                        && !IsAssignable(bodyType, expectedReturnType))
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            "MIST_TC_0002",
+                            $"Expression lambda body type '{bodyUnion.DisplayName}' is not assignable to expected return type '{expectedReturnType.DisplayName}'",
+                            exprLambda.Body));
+                    }
+                }
+
                 break;
             case BlockLambdaLambdaExpressionNode blockLambda:
                 CheckBlock(blockLambda.Body, GetLambdaBodyReturnType(resolvedType), model, diagnostics);

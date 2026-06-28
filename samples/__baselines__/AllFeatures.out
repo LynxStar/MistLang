@@ -1,4 +1,4 @@
-﻿=== AllFeatures Mist Sample ===
+=== AllFeatures Mist Sample ===
 === FirstClassFunctions Sample ===
 --- Expression Lambda ---
 doubler(5)=10
@@ -329,6 +329,12 @@ narrowed-back value: 42
   Environment.Development as string = dev
   Environment.Staging as string = Staging
   Environment.Production as string = prod
+--- Explicit cast from underlying ---
+  (Priority)1 = High
+  (Priority)99 = no match
+  (Color)0 = Red
+  (Direction)"N" = North
+  (Direction)"X" = no match
 Done!
 === Single-level inheritance ===
 Rex is a German Shepherd, age 5

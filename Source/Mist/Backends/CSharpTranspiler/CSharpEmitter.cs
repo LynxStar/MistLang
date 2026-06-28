@@ -2371,6 +2371,25 @@ internal sealed class CSharpSourceWriter
         // Emit implicit conversion operator to the underlying type.
         AppendLine($"public static implicit operator {underlyingTypeName}({name} e) => e.Value;");
 
+        // Emit explicit conversion operator from the underlying type to the enum.
+        // Returns null when no variant matches the value, which Mist maps to T | void.
+        // Uses Equals for value comparison (works for primitives, strings, and structs
+        // that implement Equals correctly).
+        AppendLine();
+        AppendLine($"public static explicit operator {name}?({underlyingTypeName} value)");
+        AppendLine("{");
+        indentLevel++;
+        for(var i = 0; i < memberNodes.Count; i++)
+        {
+            var memberName = memberNodes[i].Name.Lexeme;
+            var prefix = i == 0 ? "if" : "else if";
+            AppendLine($"{prefix} (Equals(value, {memberName}.Value)) return {memberName};");
+        }
+
+        AppendLine("return null;");
+        indentLevel--;
+        AppendLine("}");
+
         // Emit ToString() override that returns the variant name.
         // This makes string interpolation of enum values produce the variant name
         // (e.g., "North") rather than the default record ToString format.

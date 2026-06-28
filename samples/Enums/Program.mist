@@ -354,6 +354,46 @@ public class Program
         Console.WriteLine($"  Environment.Staging as string = {stagingStr}");
         Console.WriteLine($"  Environment.Production as string = {prodStr}");
 
+        // 22. Explicit cast from underlying type to enum (returns EnumType?)
+        Console.WriteLine("--- Explicit cast from underlying ---");
+        Priority? maybePri = (Priority)1;
+        if (maybePri is Priority foundPri)
+        {
+            Console.WriteLine($"  (Priority)1 = {foundPri}");
+        }
+
+        Priority? noPri = (Priority)99;
+        if (noPri is Priority foundNoPri)
+        {
+            Console.WriteLine($"  (Priority)99 = {foundNoPri}");
+        }
+        else
+        {
+            Console.WriteLine("  (Priority)99 = no match");
+        }
+
+        Color? maybeColor = (Color)0;
+        if (maybeColor is Color foundColor)
+        {
+            Console.WriteLine($"  (Color)0 = {foundColor}");
+        }
+
+        Direction? maybeDir = (Direction)"N";
+        if (maybeDir is Direction foundDir)
+        {
+            Console.WriteLine($"  (Direction)\"N\" = {foundDir}");
+        }
+
+        Direction? noDir = (Direction)"X";
+        if (noDir is Direction foundNoDir)
+        {
+            Console.WriteLine($"  (Direction)\"X\" = {foundNoDir}");
+        }
+        else
+        {
+            Console.WriteLine("  (Direction)\"X\" = no match");
+        }
+
         Console.WriteLine("Done!");
     }
 

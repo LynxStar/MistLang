@@ -20998,10 +20998,25 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // 2. Resolve the operand expression to get its type.
         _ = ResolveUnary(castExpr.Operand, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
-        // 3. Record the target type as the expression type of the cast expression node.
+        // 3. For casts targeting an enum type, the result is always
+        //    EnumType | void (the cast is fallible — the value may not match any variant).
+        //    This applies regardless of whether the source type is fully resolved
+        //    (e.g., in lambda bodies where parameter types depend on target-type propagation).
+        if(targetType is EnumType targetEnum && targetEnum.UnderlyingType is not null)
+        {
+            var voidType = TryLookupVoidType(fileScope, symbolTable);
+            if(voidType is not null)
+            {
+                var nullableEnumType = new UnionType(new List<IType> { targetEnum, voidType });
+                expressionTypes[castExpr] = nullableEnumType;
+                return nullableEnumType;
+            }
+        }
+
+        // 4. Record the target type as the expression type of the cast expression node.
         expressionTypes[castExpr] = targetType;
 
-        // 4. Return the target type.
+        // 5. Return the target type.
         return targetType;
     }
 
@@ -22093,6 +22108,23 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         return new UnionType(new List<IType> { type, voidType });
+    }
+
+    /// <summary>
+    /// Attempts to look up the Standard.Void type for constructing nullable unions.
+    /// Returns null if the stdlib is not loaded (e.g., in minimal test contexts).
+    /// </summary>
+    private static IType? TryLookupVoidType(Scope fileScope, SymbolTable symbolTable)
+    {
+        try
+        {
+            var globalScope = FindGlobalScope(fileScope) ?? fileScope;
+            return ResolveVoidKeyword(globalScope, symbolTable);
+        }
+        catch(StdlibMissingException)
+        {
+            return LegacyPrimitiveTypes.Void;
+        }
     }
 
     // ─── Switch Arm Resolution ───────────────────────────────────────────

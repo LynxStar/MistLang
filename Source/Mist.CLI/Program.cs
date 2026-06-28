@@ -282,9 +282,11 @@ internal class Program
 
     private static int RunRunCommand(CliArguments cliArgs)
     {
-        ICompilationProgressReporter reporter = cliArgs.Quiet
-            ? NullProgressReporter.Instance
-            : new ConsoleProgressReporter(Console.Out);
+        // For `run`, timing/progress output is hidden by default (clean stdout for the program).
+        // Use --verbose to see it. --quiet still suppresses everything.
+        ICompilationProgressReporter reporter = cliArgs.Verbose
+            ? new ConsoleProgressReporter(Console.Out)
+            : NullProgressReporter.Instance;
         var totalStopwatch = Stopwatch.StartNew();
 
         // Discover all .mist source files from the project folder, sorted ordinally.

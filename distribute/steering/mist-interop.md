@@ -247,6 +247,32 @@ Ref struct types (any CLR type carrying `IsByRefLikeAttribute`) are projected as
 
 The visibility filter hides what Mist can't express, rather than erroring: pointer types, events, non-public members, and any method whose signature references an excluded type. The rest of the type's API remains usable.
 
+## IDisposable Types Are Automatically Droppable
+
+CLR types that implement `System.IDisposable` are automatically recognized as droppable during type projection. You can use them in `with` blocks without any wrapper code — the emitter generates `.Dispose()` (not `.Drop()`) in the cleanup path.
+
+```mist
+using System.IO;
+
+// StreamWriter implements IDisposable — it works in with-blocks directly.
+with (var writer = new StreamWriter("output.txt"))
+{
+    writer.WriteLine("Hello from Mist");
+}
+// writer.Dispose() is called automatically at block exit
+```
+
+### Rules
+
+- **IDisposable detected transitively** — if the type implements `IDisposable` through an interface chain (e.g., `Stream : IDisposable`), it is still recognized.
+- **Explicit Drop wins** — if a projected CLR type also has an explicit `Drop()` method, the emitter uses `.Drop()` instead of `.Dispose()`. This lets you wrap CLR types with custom cleanup.
+- **IAsyncDisposable alone is not enough** — a type implementing only `IAsyncDisposable` (without `IDisposable`) is *not* auto-recognized as droppable.
+- **Mist-declared types are unaffected** — this auto-recognition applies only to CLR types imported from .NET assemblies. Mist types that implement `IDisposable` must still declare an explicit `Drop()` method to be usable in `with` blocks.
+
+### Synthetic Drop Inference Exclusion
+
+Fields whose type is an IDisposable-droppable CLR type are excluded from synthetic drop inference. This prevents the compiler from generating spurious `.Drop()` calls on fields that should be disposed through their owning container's cleanup logic, not individually.
+
 ## What Works As Expected
 
 These project faithfully and need no special handling:

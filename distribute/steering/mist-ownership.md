@@ -285,6 +285,31 @@ public linear class Session
 }
 ```
 
+## IDisposable CLR Types in With-Blocks
+
+CLR types that implement `System.IDisposable` are automatically recognized as droppable and work in `with` blocks without any Mist-side declaration. The emitter generates `.Dispose()` — not `.Drop()` — for these types.
+
+```mist
+using System.IO;
+
+// StreamWriter implements IDisposable — use directly in with-block.
+with (var writer = new StreamWriter("log.txt"))
+{
+    writer.WriteLine("entry");
+}
+// Emits: writer.Dispose() in the finally block
+```
+
+### Precedence Rules
+
+- **Explicit `Drop()` wins** — if the CLR type also has a `Drop()` method, the emitter calls `.Drop()` instead.
+- **Mist types are not auto-droppable** — a Mist-declared type implementing `IDisposable` must still declare `Drop()` explicitly. This preserves Mist's richer drop semantics (return values, chaining, substructural disciplines).
+- **IAsyncDisposable alone does not qualify** — only `System.IDisposable` triggers auto-recognition.
+
+### Synthetic Drop Exclusion
+
+Fields typed as IDisposable-droppable CLR types are excluded from synthetic drop inference. The owning type's drop logic (or `with`-block) handles their lifetime — individual fields are not disposed separately by the synthesized `Drop()`.
+
 ## Value Types and Ownership
 
 Value types (structs, primitives) satisfy all lending tiers because they are copied — no aliasing occurs:

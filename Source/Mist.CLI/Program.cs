@@ -64,7 +64,7 @@ internal class Program
                 return 0;
 
             case CliCommand.Version:
-                Console.WriteLine("mist 0.312.1");
+                Console.WriteLine("mist 0.313.0");
                 return 0;
 
             case CliCommand.Build:

@@ -159,6 +159,9 @@ Found a small rectangle (both sides 1-10)
 --- Relational and Logical Patterns ---
 Score 85 is between 1 and 99
 Temperature 72 is comfortable
+--- Combined Binding + Condition ---
+Big circle with radius 8
+Small circle with radius 2
 --- List Patterns ---
 Array has two positive elements
 Array starts with a positive number

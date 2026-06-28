@@ -20189,7 +20189,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         if(node.Right is not null && !ReferenceEquals(node.Right, node.Left))
         {
-            _ = ResolveEquality(node.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            // C#-style definite assignment for pattern variables: a variable
+            // introduced by an `is` pattern on the LHS of `&&` is definitely
+            // assigned on the RHS (short-circuit semantics guarantee the RHS
+            // only executes when the LHS is true). Create a child scope that
+            // contains those pattern bindings so the RHS can reference them.
+            var rhsScope = currentScope;
+            if(LhsContainsIsPattern(node.Left))
+            {
+                rhsScope = new Scope(parent: currentScope);
+                CollectFromEquality(node.Left, rhsScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+            }
+
+            _ = ResolveEquality(node.Right, rhsScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
             var result = ResolvePrimitiveByKeyword("bool", fileScope, symbolTable);
             expressionTypes[node] = result;
             return result;
@@ -20197,6 +20209,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         expressionTypes[node] = leftType;
         return leftType;
+    }
+
+    /// <summary>
+    /// Quick structural check: returns <c>true</c> if the given <see cref="EqualityNode"/>
+    /// contains an <see cref="IsExpressionRelationalNode"/> with a binding pattern. Used by
+    /// <see cref="ResolveLogicalAnd"/> to decide whether pattern variables need to be
+    /// injected into a child scope for the RHS of <c>&amp;&amp;</c>.
+    /// </summary>
+    private static bool LhsContainsIsPattern(EqualityNode node)
+    {
+        if(node.Left is not IsExpressionRelationalNode)
+        {
+            return false;
+        }
+
+        return true;
     }
 
     private static IType ResolveEquality(

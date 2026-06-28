@@ -91,7 +91,22 @@ public class Program
             Console.WriteLine($"Temperature {temperature} is comfortable");
         }
 
-        // 4. List pattern — match arrays by element position using
+        // 4. Combined binding and condition — use the bound variable
+        //    on the RHS of && in the same if-condition.
+        Console.WriteLine("--- Combined Binding + Condition ---");
+        Shape shape3 = new Circle(8);
+        if (shape3 is Circle bigC && bigC.Radius > 5)
+        {
+            Console.WriteLine($"Big circle with radius {bigC.Radius}");
+        }
+
+        Shape shape4 = new Circle(2);
+        if (shape4 is Circle smallC && smallC.Radius <= 5)
+        {
+            Console.WriteLine($"Small circle with radius {smallC.Radius}");
+        }
+
+        // 5. List pattern — match arrays by element position using
         //    relational subpatterns and slice patterns.
         Console.WriteLine("--- List Patterns ---");
         var pair = new int[2];

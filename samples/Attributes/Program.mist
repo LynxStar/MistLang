@@ -1,0 +1,98 @@
+namespace Attributes;
+
+using System.ComponentModel.DataAnnotations;
+using System.Diagnostics;
+
+// PROOF: Attribute on a class declaration with no arguments
+[Serializable]
+class Config
+{
+    string name;
+
+    Config(string name)
+    {
+        this.name = name;
+    }
+}
+
+// PROOF: Multiple attributes in separate lists on a class
+[Serializable]
+[Obsolete("Use NewService instead")]
+class OldService
+{
+}
+
+// PROOF: Attribute with positional arguments on a method
+// PROOF: Attribute with named argument on a method
+class MyTests
+{
+    [Obsolete("use TestAdditionV2")]
+    public void TestAddition()
+    {
+        var result = 1 + 1;
+        Console.WriteLine($"TestAddition: {result}");
+    }
+
+    [Range(0, 100)]
+    public int Score;
+
+    [Obsolete("use TestSumV2")]
+    public void TestSum(int a, int b, int expected)
+    {
+        var sum = a + b;
+        Console.WriteLine($"TestSum({a},{b}): {sum} == {expected}");
+    }
+}
+
+// PROOF: Attribute on a struct
+[Serializable]
+struct Point
+{
+    int x;
+    int y;
+
+    Point(int x, int y)
+    {
+        this.x = x;
+        this.y = y;
+    }
+}
+
+// PROOF: Attribute with typeof argument (type literal)
+[DebuggerTypeProxy(List<int>)]
+class CustomCollection
+{
+}
+
+// PROOF: Multiple attributes in a single list
+[Serializable, Obsolete("combined")]
+class MultiAttr
+{
+}
+
+// PROOF: Generic attribute type arguments
+[JsonConverter<int>]
+class TypedConfig
+{
+}
+
+class Program
+{
+    public static void RunDemo()
+    {
+        Console.WriteLine("--- Attributes Demo ---");
+        var config = new Config("test");
+        Console.WriteLine($"Config created: {config}");
+        var p = new Point(1, 2);
+        Console.WriteLine($"Point created: ({p.x}, {p.y})");
+        var tests = new MyTests();
+        tests.TestAddition();
+        tests.TestSum(1, 2, 3);
+        Console.WriteLine("--- Attributes Demo End ---");
+    }
+
+    public static void Main()
+    {
+        RunDemo();
+    }
+}

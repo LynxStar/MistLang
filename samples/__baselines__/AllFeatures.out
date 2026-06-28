@@ -1646,4 +1646,10 @@ Done!
   ManualDisposable.Dispose() called
   manually disposed
 === Done ===
+--- Attributes Demo ---
+Config created: Attributes.Config
+Point created: (1, 2)
+TestAddition: 2
+TestSum(1,2): 3 == 3
+--- Attributes Demo End ---
 === Done! ===

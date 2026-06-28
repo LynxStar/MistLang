@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-class Countdown : System.Collections.Generic.IEnumerable<int>
+public class Countdown : System.Collections.Generic.IEnumerable<int>
 {
     public struct Enumerator : System.Collections.Generic.IEnumerator<int>
     {

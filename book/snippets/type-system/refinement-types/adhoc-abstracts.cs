@@ -2,11 +2,11 @@ using System;
 
 namespace Snippet;
 
-interface IStrictProcessor
+public interface IStrictProcessor
 {
     string Process(int x);
 }
-class WeakerProcessor : IStrictProcessor
+public class WeakerProcessor : IStrictProcessor
 {
     public string Process(int x)
     {
@@ -19,7 +19,7 @@ class WeakerProcessor : IStrictProcessor
         return inst;
     }
 }
-class LenientProcessor : IStrictProcessor
+public class LenientProcessor : IStrictProcessor
 {
     public string Process(int x)
     {

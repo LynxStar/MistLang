@@ -2,11 +2,11 @@ using System;
 
 namespace Snippet;
 
-interface IPrintable
+public interface IPrintable
 {
     string Print();
 }
-class PrintableCreator<T>
+public class PrintableCreator<T>
     where T : class, IPrintable, new()
 {
     public T CreateNew()

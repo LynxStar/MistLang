@@ -8,7 +8,8 @@ namespace Mist.Driver.Contracts;
 /// </summary>
 public sealed record MistCompilation(
     ImmutableArray<CompilationUnit> Units,
-    string? EntryPoint = null)
+    string? EntryPoint = null,
+    ProjectOutputType OutputType = ProjectOutputType.Executable)
 {
     public string DisplayName { get; init; } = "";
 }

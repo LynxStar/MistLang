@@ -1,0 +1,28 @@
+[Serializable]
+class Config
+{
+    string name;
+
+    Config(string name)
+    {
+        this.name = name;
+    }
+}
+
+class Service
+{
+    [Obsolete("use RunV2")]
+    public void Run()
+    {
+        Console.WriteLine("Service.Run called");
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var svc = new Service();
+        svc.Run();
+    }
+}

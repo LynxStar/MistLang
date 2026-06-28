@@ -2,15 +2,15 @@ using System;
 
 namespace Snippet;
 
-interface IStringable
+public interface IStringable
 {
     string Stringify();
 }
-interface IResettable
+public interface IResettable
 {
     string GetState();
 }
-interface IStatefulProducer<TState>
+public interface IStatefulProducer<TState>
     where TState : IStringable, IResettable
 {
     string GetProducerName();

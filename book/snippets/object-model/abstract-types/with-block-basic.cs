@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-interface INamed
+public interface INamed
 {
     string Name();
 }

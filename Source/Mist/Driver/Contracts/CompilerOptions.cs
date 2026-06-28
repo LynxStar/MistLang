@@ -24,6 +24,7 @@ namespace Mist.Driver.Contracts;
 /// <param name="TargetFramework">Target framework moniker for dependency resolution (e.g., <c>net10.0</c>).</param>
 /// <param name="VerboseResolution">When true, the package-resolution stage reports detailed progress.</param>
 /// <param name="CsprojProperties">Arbitrary MSBuild properties declared in <c>[csproj_properties]</c> to emit into the generated csproj.</param>
+/// <param name="OutputType">Controls whether the project emits an executable or a class library.</param>
 public sealed record CompilerOptions(
     string ProjectFolder,
     ImmutableArray<string> SourcePaths,
@@ -40,4 +41,5 @@ public sealed record CompilerOptions(
     ImmutableArray<FrameworkReference> FrameworkReferences = default,
     string TargetFramework = "net10.0",
     bool VerboseResolution = false,
-    ImmutableArray<CsprojProperty> CsprojProperties = default);
+    ImmutableArray<CsprojProperty> CsprojProperties = default,
+    ProjectOutputType OutputType = ProjectOutputType.Executable);

@@ -10,6 +10,14 @@ public record class Permission(string Value)
 
     public static implicit operator string(Permission e) => e.Value;
 
+    public static explicit operator Permission?(string value)
+    {
+        if (Equals(value, Read.Value)) return Read;
+        else if (Equals(value, Write.Value)) return Write;
+        else if (Equals(value, Execute.Value)) return Execute;
+        return null;
+    }
+
     public override string ToString()
     {
         if (ReferenceEquals(this, Read)) return "Read";
@@ -25,6 +33,14 @@ public record class Environment(string Value)
     public static readonly Environment Production = new Environment("prod");
 
     public static implicit operator string(Environment e) => e.Value;
+
+    public static explicit operator Environment?(string value)
+    {
+        if (Equals(value, Development.Value)) return Development;
+        else if (Equals(value, Staging.Value)) return Staging;
+        else if (Equals(value, Production.Value)) return Production;
+        return null;
+    }
 
     public override string ToString()
     {

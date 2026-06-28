@@ -2,16 +2,16 @@ using System;
 
 namespace Snippet;
 
-interface IStringable
+public interface IStringable
 {
     string Stringify();
 }
-interface IProducer<TOutput>
+public interface IProducer<TOutput>
     where TOutput : IStringable
 {
     TOutput CreateOutput(string msg);
 }
-class Helpers
+public class Helpers
 {
     public static string Describe<T, TOutput>(T producer)
         where T : IProducer<TOutput>

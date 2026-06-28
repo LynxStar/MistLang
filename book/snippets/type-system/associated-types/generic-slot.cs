@@ -2,11 +2,11 @@ using System;
 
 namespace Snippet;
 
-interface ITransform<TIn, TOut>
+public interface ITransform<TIn, TOut>
 {
     TOut Transform(TIn input);
 }
-interface IMapper<TIn>
+public interface IMapper<TIn>
 {
     ITransform<TIn, TOut> GetMapper<TOut>();
 }

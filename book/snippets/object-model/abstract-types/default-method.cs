@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-interface IGreetable
+public interface IGreetable
 {
     string Name();
     string Greet()

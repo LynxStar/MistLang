@@ -27,6 +27,14 @@ public record class Severity(Label Value)
 
     public static implicit operator Label(Severity e) => e.Value;
 
+    public static explicit operator Severity?(Label value)
+    {
+        if (Equals(value, Critical.Value)) return Critical;
+        else if (Equals(value, Warning.Value)) return Warning;
+        else if (Equals(value, Info.Value)) return Info;
+        return null;
+    }
+
     public override string ToString()
     {
         if (ReferenceEquals(this, Critical)) return "Critical";

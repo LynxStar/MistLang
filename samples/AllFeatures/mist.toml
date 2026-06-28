@@ -65,3 +65,4 @@ TargetTypedNew = { path = "../TargetTypedNew" }
 AsOperator = { path = "../AsOperator" }
 AnonymousTypes = { path = "../AnonymousTypes" }
 DisposableDropInterop = { path = "../DisposableDropInterop" }
+Attributes = { path = "../Attributes" }

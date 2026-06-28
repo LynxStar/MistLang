@@ -4,6 +4,7 @@
   "fileTypes": [".mist"],
   "patterns": [
     { "include": "#comments" },
+    { "include": "#attributes" },
     { "include": "#interpolated-strings" },
     { "include": "#strings" },
     { "include": "#regex-literals" },
@@ -17,6 +18,108 @@
     { "include": "#punctuation" }
   ],
   "repository": {
+    "attributes": {
+      "comment": "Attribute annotation: [Name], [Name(args)], [Name<T>] at declaration position (line start)",
+      "name": "meta.attribute.mist",
+      "begin": "^(\\s*)(\\[)",
+      "end": "(\\])",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.attribute.begin.mist" }
+      },
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.attribute.end.mist" }
+      },
+      "patterns": [
+        {
+          "comment": "Attribute name (qualified identifier): e.g., System.Serializable, Fact, JsonConverter",
+          "match": "(?<=\\[|,\\s*)\\s*([a-zA-Z_]\\w*(?:\\.[a-zA-Z_]\\w*)*)",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.mist" }
+          }
+        },
+        {
+          "comment": "Type arguments within attribute: <Type, Type>",
+          "begin": "(<)",
+          "end": "(>)",
+          "beginCaptures": {
+            "1": { "name": "punctuation.definition.typeparameters.begin.mist" }
+          },
+          "endCaptures": {
+            "1": { "name": "punctuation.definition.typeparameters.end.mist" }
+          },
+          "patterns": [
+            {
+              "comment": "Primitive type in type argument position",
+              "name": "storage.type.primitive.mist",
+              "match": "\\b(int|uint|long|ulong|short|ushort|byte|sbyte|float|double|decimal|bool|char|string|regex|unknown)\\b"
+            },
+            {
+              "comment": "Type name in type argument position",
+              "name": "entity.name.type.mist",
+              "match": "\\b[A-Z]\\w*\\b"
+            },
+            {
+              "comment": "Other identifier in type argument position",
+              "name": "variable.other.mist",
+              "match": "\\b[a-zA-Z_]\\w*\\b"
+            },
+            {
+              "name": "punctuation.separator.comma.mist",
+              "match": ","
+            }
+          ]
+        },
+        {
+          "comment": "String arguments within attribute parentheses",
+          "name": "string.quoted.double.mist",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.mist",
+              "match": "\\\\(\\\\|\\\"|n|r|t|0|')"
+            }
+          ]
+        },
+        {
+          "comment": "Boolean literal arguments",
+          "name": "constant.language.boolean.mist",
+          "match": "\\b(true|false)\\b"
+        },
+        {
+          "comment": "Hex numeric literal arguments",
+          "name": "constant.numeric.hex.mist",
+          "match": "\\b0[xX][0-9a-fA-F](?:_?[0-9a-fA-F])*\\b"
+        },
+        {
+          "comment": "Binary numeric literal arguments",
+          "name": "constant.numeric.binary.mist",
+          "match": "\\b0[bB][01](?:_?[01])*\\b"
+        },
+        {
+          "comment": "Float numeric literal arguments",
+          "name": "constant.numeric.float.mist",
+          "match": "\\b[0-9](?:_?[0-9])*\\.[0-9](?:_?[0-9])*[fFdDmM]?\\b|\\b[0-9](?:_?[0-9])*[fFdDmM]\\b"
+        },
+        {
+          "comment": "Integer numeric literal arguments",
+          "name": "constant.numeric.integer.mist",
+          "match": "-?\\b[0-9](?:_?[0-9])*([lLuU]|UL|ul|Ul|uL|Lu|lU|LU|lu)?\\b"
+        },
+        {
+          "comment": "Named argument identifier (before =)",
+          "match": "([a-zA-Z_]\\w*)\\s*(=)(?!=)",
+          "captures": {
+            "1": { "name": "variable.other.property.mist" },
+            "2": { "name": "keyword.operator.assignment.mist" }
+          }
+        },
+        {
+          "name": "punctuation.separator.comma.mist",
+          "match": ","
+        }
+      ]
+    },
     "comments": {
       "name": "comment.line.double-slash.mist",
       "match": "//.*$"

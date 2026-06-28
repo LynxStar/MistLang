@@ -1349,6 +1349,50 @@ hljs.registerLanguage("mist", function(hljs) {
       'variable.language': MODIFIERS
     },
     contains: [
+      // Attributes: [Name], [Name(args)], [Name<T>]
+      {
+        className: 'meta',
+        begin: /^\s*\[/,
+        end: /\]/,
+        contains: [
+          // Attribute name (possibly dotted)
+          { className: 'keyword', begin: /[A-Za-z_][A-Za-z0-9_.]*/, relevance: 0 },
+          // Type arguments <T>
+          {
+            begin: /</,
+            end: />/,
+            contains: [
+              { className: 'type', begin: /[A-Za-z_][A-Za-z0-9_.]*/, relevance: 0 }
+            ]
+          },
+          // Argument list
+          {
+            begin: /\(/,
+            end: /\)/,
+            contains: [
+              // Named arguments: Name = value
+              { className: 'attr', begin: /[A-Za-z_][A-Za-z0-9_]*(?=\s*=)/, relevance: 0 },
+              // String arguments
+              hljs.QUOTE_STRING_MODE,
+              // Boolean arguments
+              { className: 'literal', begin: /\b(?:true|false)\b/ },
+              // Numeric arguments
+              {
+                className: 'number',
+                variants: [
+                  { begin: '\\b0x[0-9a-fA-F_]+\\b' },
+                  { begin: '\\b0b[01_]+\\b' },
+                  { begin: '-?\\b[0-9][0-9_]*(\\.[0-9_]+)?\\b' }
+                ],
+                relevance: 0
+              },
+              // Type arguments (PascalCase identifiers in arg position)
+              { className: 'type', begin: /[A-Z][A-Za-z0-9_]*/, relevance: 0 }
+            ]
+          }
+        ]
+      },
+
       // Comments
       hljs.C_LINE_COMMENT_MODE,
       hljs.C_BLOCK_COMMENT_MODE,

@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Emit;
 using Mist.Backends.Contracts;
 using Mist.Common.Diagnostics;
+using Mist.Driver.Contracts;
 using MistDiagnosticSeverity = Mist.Common.Diagnostics.DiagnosticSeverity;
 using RoslynApi = Microsoft.CodeAnalysis;
 
@@ -234,7 +235,8 @@ public sealed class CSharpCompilationDriver
         DiagnosticBag diagnostics,
         int emittedFileCount = 0,
         string? mainTypeName = null,
-        ImmutableArray<string> additionalReferencePaths = default)
+        ImmutableArray<string> additionalReferencePaths = default,
+        ProjectOutputType outputType = ProjectOutputType.Executable)
     {
         if(!Directory.Exists(binDirectory))
         {
@@ -265,8 +267,11 @@ public sealed class CSharpCompilationDriver
             .ToList();
 
         // Build the Roslyn compilation
+        var roslynOutputKind = outputType == ProjectOutputType.Library
+            ? RoslynApi.OutputKind.DynamicallyLinkedLibrary
+            : RoslynApi.OutputKind.ConsoleApplication;
         var compilationOptions = new CSharpCompilationOptions(
-            RoslynApi.OutputKind.ConsoleApplication,
+            roslynOutputKind,
             optimizationLevel: RoslynApi.OptimizationLevel.Debug,
             nullableContextOptions: RoslynApi.NullableContextOptions.Enable,
             deterministic: true,

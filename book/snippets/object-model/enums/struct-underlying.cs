@@ -28,6 +28,15 @@ public record class CardinalDir(Vec2 Value)
 
     public static implicit operator Vec2(CardinalDir e) => e.Value;
 
+    public static explicit operator CardinalDir?(Vec2 value)
+    {
+        if (Equals(value, Up.Value)) return Up;
+        else if (Equals(value, Down.Value)) return Down;
+        else if (Equals(value, Left.Value)) return Left;
+        else if (Equals(value, Right.Value)) return Right;
+        return null;
+    }
+
     public override string ToString()
     {
         if (ReferenceEquals(this, Up)) return "Up";

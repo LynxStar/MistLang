@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-class ValOnly<T>
+public class ValOnly<T>
     where T : struct
 {
     public T Item;

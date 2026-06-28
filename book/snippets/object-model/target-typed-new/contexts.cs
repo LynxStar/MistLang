@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-class Point
+public class Point
 {
     public int X;
 
@@ -19,11 +19,11 @@ class Point
         return $"Point({X}, {Y})";
     }
 }
-class Container
+public class Container
 {
     public Point Origin = new Point(0, 0);
 }
-class Program
+public class Program
 {
     public static Point MakePoint(int x, int y)
     {

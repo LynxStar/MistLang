@@ -235,7 +235,7 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
     }
 
     // Regex patterns for verifying emitted C#
-    [GeneratedRegex(@"^\s*interface\s+(\w+)(?:\s*:\s*(\w+))?", RegexOptions.Multiline)]
+    [GeneratedRegex(@"^\s*(?:public\s+)?interface\s+(\w+)(?:\s*:\s*(\w+))?", RegexOptions.Multiline)]
     private static partial Regex InterfaceDeclPattern();
 
     [GeneratedRegex(@"^\s*(?:(?:public|private|static)\s+)*class\s+(\w+)(?:\s*:\s*(\w+))?", RegexOptions.Multiline)]
@@ -736,10 +736,10 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
         var model = BuildModel(ast, source);
         var csContent = EmitAndGetCsContent(model);
 
-        Assert.Contains("interface IEmpty", csContent);
+        Assert.Contains("public interface IEmpty", csContent);
         // Empty emitted interface should have opening and closing braces with nothing between
         var lines = csContent.Split('\n').Select(l => l.Trim()).ToArray();
-        var ifaceLineIdx = Array.FindIndex(lines, l => l.StartsWith("interface IEmpty"));
+        var ifaceLineIdx = Array.FindIndex(lines, l => l.StartsWith("public interface IEmpty"));
         Assert.True(ifaceLineIdx >= 0);
     }
 

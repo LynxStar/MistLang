@@ -2,12 +2,12 @@ using System;
 
 namespace Snippet;
 
-interface IIterator<TCursor>
+public interface IIterator<TCursor>
     where TCursor : struct
 {
     TCursor CreateCursor(int pos);
 }
-class RangeIterator : IIterator<RangeIterator.Cursor>
+public class RangeIterator : IIterator<RangeIterator.Cursor>
 {
     public struct Cursor
     {

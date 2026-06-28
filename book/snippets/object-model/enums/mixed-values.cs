@@ -12,6 +12,16 @@ public record class HttpStatus(int Value)
 
     public static implicit operator int(HttpStatus e) => e.Value;
 
+    public static explicit operator HttpStatus?(int value)
+    {
+        if (Equals(value, Ok.Value)) return Ok;
+        else if (Equals(value, Created.Value)) return Created;
+        else if (Equals(value, BadRequest.Value)) return BadRequest;
+        else if (Equals(value, NotFound.Value)) return NotFound;
+        else if (Equals(value, InternalError.Value)) return InternalError;
+        return null;
+    }
+
     public override string ToString()
     {
         if (ReferenceEquals(this, Ok)) return "Ok";

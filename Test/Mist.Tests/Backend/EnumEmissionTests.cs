@@ -138,7 +138,7 @@ public sealed class EnumEmissionTests
     /// **Validates: Requirement 10.3**
     /// </summary>
     [Fact]
-    public void DefaultVisibility_EmitsWithoutExplicitModifier()
+    public void DefaultVisibility_EmitsPublicWhenNoExplicitModifier()
     {
         var mistSource = """
             enum Direction : int {
@@ -153,11 +153,10 @@ public sealed class EnumEmissionTests
 
         var emittedCSharp = CompileAndGetEmittedCSharp(mistSource);
 
-        // Should contain "record class Direction" without a preceding access modifier
-        Assert.Contains("record class Direction(int Value)", emittedCSharp);
+        // Mist enums without an explicit access modifier default to public in emitted C#
+        Assert.Contains("public record class Direction(int Value)", emittedCSharp);
 
-        // Should NOT contain "public record class Direction" or "private record class Direction"
-        Assert.DoesNotContain("public record class Direction", emittedCSharp);
+        // Should NOT contain "private" or "internal" modifiers
         Assert.DoesNotContain("private record class Direction", emittedCSharp);
         Assert.DoesNotContain("internal record class Direction", emittedCSharp);
     }

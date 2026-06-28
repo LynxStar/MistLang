@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-class MultiFactory<T>
+public class MultiFactory<T>
     where T : new()
 {
     private readonly Func<int, T> _factoryT_int;

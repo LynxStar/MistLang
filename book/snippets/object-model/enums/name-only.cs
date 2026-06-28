@@ -10,6 +10,14 @@ public record class Color(byte Value)
 
     public static implicit operator byte(Color e) => e.Value;
 
+    public static explicit operator Color?(byte value)
+    {
+        if (Equals(value, Red.Value)) return Red;
+        else if (Equals(value, Green.Value)) return Green;
+        else if (Equals(value, Blue.Value)) return Blue;
+        return null;
+    }
+
     public override string ToString()
     {
         if (ReferenceEquals(this, Red)) return "Red";

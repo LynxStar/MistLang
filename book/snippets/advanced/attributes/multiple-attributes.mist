@@ -1,0 +1,19 @@
+[Serializable, Obsolete("combined")]
+class Legacy
+{
+}
+
+[Serializable]
+[Obsolete("use NewService")]
+class OldService
+{
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        Console.WriteLine("Multiple attributes in one list: [Serializable, Obsolete]");
+        Console.WriteLine("Multiple attribute lists: [Serializable] [Obsolete]");
+    }
+}

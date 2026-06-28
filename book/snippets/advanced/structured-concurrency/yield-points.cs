@@ -2,7 +2,7 @@ using System;
 
 namespace Standard;
 
-interface IClonable<T>
+public interface IClonable<T>
 {
     T Clone();
 }

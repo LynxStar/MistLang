@@ -50,6 +50,12 @@ namespace Mist.Driver.Contracts;
 /// a dedicated <c>&lt;PropertyGroup&gt;</c> in the generated <c>.csproj</c> file.
 /// Defaults to an empty array when no <c>[csproj_properties]</c> section is present.
 /// </param>
+/// <param name="OutputType">
+/// The kind of output artifact the project produces. Parsed from the optional
+/// <c>output_type</c> field in <c>mist.toml</c>. Valid values are <c>"executable"</c>
+/// and <c>"library"</c>. Defaults to <see cref="ProjectOutputType.Executable"/> when
+/// the field is absent.
+/// </param>
 public sealed record ProjectConfiguration(
     string Name,
     string NamespaceRoot,
@@ -59,4 +65,5 @@ public sealed record ProjectConfiguration(
     ImmutableArray<NuGetPackageReference> Packages = default,
     ImmutableArray<FrameworkReference> FrameworkReferences = default,
     string TargetFramework = "net10.0",
-    ImmutableArray<CsprojProperty> CsprojProperties = default);
+    ImmutableArray<CsprojProperty> CsprojProperties = default,
+    ProjectOutputType OutputType = ProjectOutputType.Executable);

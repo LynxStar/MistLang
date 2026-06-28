@@ -25,6 +25,13 @@ public class Outer
 
         public static implicit operator string(Status e) => e.Value;
 
+        public static explicit operator Status?(string value)
+        {
+            if (Equals(value, Active.Value)) return Active;
+            else if (Equals(value, Inactive.Value)) return Inactive;
+            return null;
+        }
+
         public override string ToString()
         {
             if (ReferenceEquals(this, Active)) return "Active";

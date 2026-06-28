@@ -96,6 +96,10 @@ public readonly record struct DiagnosticId(string Value)
     public static readonly DiagnosticId ProjectEmptyEntryPoint =
         new("MIST_PROJECT_EMPTY_ENTRY_POINT");
 
+    /// <summary>The output_type field has an invalid value (not "executable" or "library").</summary>
+    public static readonly DiagnosticId ProjectInvalidOutputType =
+        new("MIST_PROJECT_INVALID_OUTPUT_TYPE");
+
     // ── Default keyword diagnostics ──────────────────────────────────────
 
     /// <summary><c>default(T)</c> where T is not a defaultable type.</summary>
@@ -171,6 +175,9 @@ public readonly record struct DiagnosticId(string Value)
 
     /// <summary><c>entry_point</c> specifies a class that doesn't exist or lacks a <c>static void Main</c>.</summary>
     public static readonly DiagnosticId EntryPointClassNotFound = new("MIST_EP_0007");
+
+    /// <summary>A library project contains top-level statements, which imply an entry point.</summary>
+    public static readonly DiagnosticId LibraryWithTopLevelStatements = new("MIST_EP_0008");
 
     // ── Associated type diagnostics ──────────────────────────────────────
 

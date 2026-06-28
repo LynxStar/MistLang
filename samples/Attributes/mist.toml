@@ -1,0 +1,4 @@
+name = "Attributes"
+
+[global_usings]
+namespaces = ["Standard", "System.Collections.Generic"]

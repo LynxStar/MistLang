@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace Snippet;
 
-class Program
+public class Program
 {
     public static void Main(string[] args)
     {

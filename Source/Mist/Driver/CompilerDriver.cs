@@ -240,7 +240,7 @@ public sealed class CompilerDriver : ICompilerDriver
         combinedUnits.AddRange(refUnits);
         combinedUnits.AddRange(userUnits);
 
-        var compilation = new MistCompilation(combinedUnits.ToImmutable(), options.EntryPoint);
+        var compilation = new MistCompilation(combinedUnits.ToImmutable(), options.EntryPoint, options.OutputType);
 
         loadingStopwatch.Stop();
         var stdlibCount = compilation.Units.Count(u => u.IsStdlib);
@@ -587,7 +587,7 @@ public sealed class CompilerDriver : ICompilerDriver
 
         if(options.EmitToDisk)
         {
-            backendResult = backend.Emit(semanticModel, options.OutputDirectory, options.BinDirectory, projectName, backendBag);
+            backendResult = backend.Emit(semanticModel, options.OutputDirectory, options.BinDirectory, projectName, backendBag, options.OutputType);
 
             // Patch the emitted .csproj with declared NuGet packages and framework references
             // so the downstream C# compilation can resolve the referenced types.

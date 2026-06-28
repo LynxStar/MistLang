@@ -1,0 +1,7 @@
+name = "Testing"
+output_type = "library"
+
+[packages]
+xunit = "2.9.3"
+"xunit.runner.visualstudio" = "3.0.2"
+"Microsoft.NET.Test.Sdk" = "17.12.0"

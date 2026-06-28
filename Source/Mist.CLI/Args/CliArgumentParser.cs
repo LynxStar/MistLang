@@ -12,7 +12,7 @@ public sealed record CliParseResult(CliArguments? Arguments, IReadOnlyList<CliPa
 
 /// <summary>
 /// Hand-rolled argument parser for the Mist CLI.
-/// Parses: <c>mist &lt;build|run|steering|inspect|restore&gt; [project-folder] [--backend &lt;id&gt;] [--output &lt;dir&gt;] [--bin &lt;dir&gt;] [--mode &lt;compile|lex&gt;] [--quiet] [--verbose]</c>
+/// Parses: <c>mist &lt;build|run|test|steering|inspect|restore&gt; [project-folder] [--backend &lt;id&gt;] [--output &lt;dir&gt;] [--bin &lt;dir&gt;] [--mode &lt;compile|lex&gt;] [--quiet] [--verbose]</c>
 /// </summary>
 public static class CliArgumentParser
 {
@@ -143,6 +143,11 @@ public static class CliArgumentParser
                 positionalArgs.RemoveAt(0);
             }
         }
+        else if(positionalArgs.Count > 0 && positionalArgs[0] == "test")
+        {
+            command = CliCommand.Test;
+            positionalArgs.RemoveAt(0);
+        }
         else if(positionalArgs.Count > 0 && positionalArgs[0] == "restore")
         {
             command = CliCommand.Restore;
@@ -153,6 +158,12 @@ public static class CliArgumentParser
         if(command == CliCommand.Run && mode == CompilerMode.Lex)
         {
             errors.Add(new CliParseError("The 'run' command is not compatible with '--mode lex'."));
+        }
+
+        // Validate test + lex mode combination
+        if(command == CliCommand.Test && mode == CompilerMode.Lex)
+        {
+            errors.Add(new CliParseError("The 'test' command is not compatible with '--mode lex'."));
         }
 
         // Validate positional arguments

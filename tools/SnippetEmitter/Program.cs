@@ -136,7 +136,7 @@ string? EmitSnippet(string mistPath)
 
         // Emit to memory.
         var emitDiag = new DiagnosticBag();
-        var emittedFiles = CSharpEmitter.EmitToMemory(capture.CapturedModel, "Snippet", emitDiag);
+        var emittedFiles = CSharpEmitter.EmitToMemory(capture.CapturedModel, emitDiag);
 
         // Find the emitted file (should be named after the .mist file with .cs extension).
         var expectedCsName = Path.ChangeExtension(fileName, ".cs");

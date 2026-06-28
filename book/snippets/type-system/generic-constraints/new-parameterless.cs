@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-class Creator<T>
+public class Creator<T>
     where T : new()
 {
     public T Create()

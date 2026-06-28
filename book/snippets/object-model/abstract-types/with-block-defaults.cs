@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-interface ITaggable
+public interface ITaggable
 {
     string Tag();
     string DisplayTag()

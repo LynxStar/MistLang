@@ -2,16 +2,16 @@ using System;
 
 namespace Snippet;
 
-interface IStringable
+public interface IStringable
 {
     string Stringify();
 }
-interface IProducer<TOutput>
+public interface IProducer<TOutput>
     where TOutput : IStringable
 {
     TOutput CreateOutput(string msg);
 }
-class MessageProducer : IProducer<MessageProducer.Output>
+public class MessageProducer : IProducer<MessageProducer.Output>
 {
     public class Output : IStringable
     {

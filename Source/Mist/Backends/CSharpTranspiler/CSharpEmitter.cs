@@ -3,6 +3,7 @@ using System.Text;
 using Mist.Analysis.Builtin;
 using Mist.Backends.CSharpTranspiler.Intrinsics;
 using Mist.Common.Diagnostics;
+using Mist.Driver.Contracts;
 using Mist.Generated;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
@@ -22,10 +23,10 @@ public sealed class CSharpEmitter
     /// Delegates to <see cref="EmitToMemory"/> for content generation, then
     /// writes each file to disk.
     /// </summary>
-    public static void Emit(ISemanticModel model, string outputDirectory, string projectName, DiagnosticBag diagnostics)
+    public static void Emit(ISemanticModel model, string outputDirectory, string projectName, DiagnosticBag diagnostics, ProjectOutputType outputType = ProjectOutputType.Executable)
     {
         _ = Directory.CreateDirectory(outputDirectory);
-        EmitCsproj(outputDirectory, projectName);
+        EmitCsproj(outputDirectory, projectName, outputType);
 
         var files = EmitToMemory(model, diagnostics);
 
@@ -173,13 +174,14 @@ public sealed class CSharpEmitter
             && !content.Contains("enum ");
     }
 
-    private static void EmitCsproj(string outputDirectory, string projectName)
+    private static void EmitCsproj(string outputDirectory, string projectName, ProjectOutputType outputType)
     {
         var csprojPath = Path.Combine(outputDirectory, $"{projectName}.csproj");
-        var csprojContent = """
+        var outputTypeValue = outputType == ProjectOutputType.Library ? "Library" : "Exe";
+        var csprojContent = $"""
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
-                <OutputType>Exe</OutputType>
+                <OutputType>{outputTypeValue}</OutputType>
                 <TargetFramework>net10.0</TargetFramework>
                 <ImplicitUsings>enable</ImplicitUsings>
                 <Nullable>enable</Nullable>
@@ -2277,6 +2279,7 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private void EmitNewtypeConstructorDeclaration(ConstructorDeclarationNode ctorDecl, string newtypeName)
     {
+        EmitAttributeLists(ctorDecl.Attributes);
         var modifiers = EmitModifiers(ctorDecl.Modifiers);
         var parameters = EmitParameterList(ctorDecl.Parameters);
 
@@ -2320,6 +2323,12 @@ internal sealed class CSharpSourceWriter
         }
 
         var modifiers = EmitModifiers(enumDecl.Modifiers);
+        // Mist enums without an explicit access modifier default to public in emitted C#.
+        if(!modifiers.Contains("public") && !modifiers.Contains("private"))
+        {
+            modifiers = "public " + modifiers;
+        }
+
         var name = enumDecl.Name.Lexeme;
 
         // Determine the C# type name for the underlying type.
@@ -2327,6 +2336,9 @@ internal sealed class CSharpSourceWriter
         var underlyingTypeName = enumType.UnderlyingType is UnionType ut
             ? UnionHelperGenerator.GetHelperTypeName(ut)
             : CSharpTypeMap.GetTypeName(enumType.UnderlyingType);
+
+        // Emit user-declared attribute annotations from source.
+        EmitAttributeLists(enumDecl.Attributes);
 
         AppendLine($"{modifiers}record class {name}({underlyingTypeName} Value)");
         AppendLine("{");
@@ -2931,6 +2943,12 @@ internal sealed class CSharpSourceWriter
         }
 
         var modifiers = EmitModifiers(classDecl.Modifiers);
+        // Mist classes without an explicit access modifier default to public in emitted C#.
+        if(!modifiers.Contains("public") && !modifiers.Contains("private"))
+        {
+            modifiers = "public " + modifiers;
+        }
+
         var name = classDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(classDecl.TypeParams);
         var baseClause = "";
@@ -2980,6 +2998,9 @@ internal sealed class CSharpSourceWriter
                 baseClause = $" : {string.Join(", ", parts)}";
             }
         }
+        // Emit user-declared attribute annotations from source.
+        EmitAttributeLists(classDecl.Attributes);
+
         // Emit [DependentType(...)] attributes for each dependent type parameter.
         if(symbol?.DeclaredType is not null)
         {
@@ -3327,6 +3348,9 @@ internal sealed class CSharpSourceWriter
                 : $"<{synthesizedParams}>";
         }
 
+        // Emit user-declared attribute annotations from source.
+        EmitAttributeLists(abstractDecl.Attributes);
+
         // Emit [DependentType(...)] attributes for each dependent type parameter.
         if(abstractSymbol?.DeclaredType is AbstractType abstractTypeForAttrs)
         {
@@ -3336,7 +3360,7 @@ internal sealed class CSharpSourceWriter
         // EmitTypeReferenceWithSubstitution can erase them to constraint interfaces.
         var previousParameterizedSlots = currentParameterizedSlots;
         currentParameterizedSlots = parameterizedSlots.Count > 0 ? parameterizedSlots : null;
-        AppendLine($"interface {name}{typeParams}{abstractList}");
+        AppendLine($"public interface {name}{typeParams}{abstractList}");
         // Emit constraint clauses (where T : ...) for constrained type parameters.
         if(abstractSymbol?.DeclaredType is AbstractType abstractTypeForConstraints)
         {
@@ -4104,6 +4128,12 @@ internal sealed class CSharpSourceWriter
         }
 
         var modifiers = EmitModifiers(structDecl.Modifiers);
+        // Mist structs without an explicit access modifier default to public in emitted C#.
+        if(!modifiers.Contains("public") && !modifiers.Contains("private"))
+        {
+            modifiers = "public " + modifiers;
+        }
+
         var name = structDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(structDecl.TypeParams);
         var abstractList = "";
@@ -4165,6 +4195,9 @@ internal sealed class CSharpSourceWriter
                 abstractList = $" : {string.Join(", ", parts)}";
             }
         }
+        // Emit user-declared attribute annotations from source.
+        EmitAttributeLists(structDecl.Attributes);
+
         // Emit [DependentType(...)] attributes for each dependent type parameter.
         if(symbol?.DeclaredType is not null)
         {
@@ -4812,7 +4845,15 @@ internal sealed class CSharpSourceWriter
 
     private void EmitFieldDeclaration(FieldDeclarationNode fieldDecl)
     {
+        EmitAttributeLists(fieldDecl.Attributes);
         var modifiers = EmitModifiers(fieldDecl.Modifiers);
+
+        // Struct fields default to public when no explicit modifier is specified.
+        if(insideStruct && modifiers.Length == 0)
+        {
+            modifiers = "public ";
+        }
+
         var type = EmitTypeReference(fieldDecl.Type, isValueContext: true);
         var name = fieldDecl.Name.Lexeme;
 
@@ -4897,7 +4938,16 @@ internal sealed class CSharpSourceWriter
 
     private void EmitConstructorDeclaration(ConstructorDeclarationNode ctorDecl)
     {
+        EmitAttributeLists(ctorDecl.Attributes);
         var modifiers = EmitModifiers(ctorDecl.Modifiers);
+
+        // Constructors without explicit modifiers default to public in Mist
+        // (no constructor access restriction is enforced by the type checker).
+        if(modifiers.Length == 0)
+        {
+            modifiers = "public ";
+        }
+
         var name = ctorDecl.Name.Lexeme;
         var parameters = EmitParameterList(ctorDecl.Parameters);
 
@@ -5262,6 +5312,7 @@ internal sealed class CSharpSourceWriter
 
     private void EmitMethodDeclaration(MethodDeclarationNode methodDecl)
     {
+        EmitAttributeLists(methodDecl.Attributes);
         var modifiers = EmitModifiers(methodDecl.Modifiers);
         var name = methodDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(methodDecl.TypeParams);
@@ -14145,6 +14196,111 @@ internal sealed class CSharpSourceWriter
         }
 
         return string.Join(" ", parts) + " ";
+    }
+
+    // ─── Attribute Emission Helpers ─────────────────────────────────────
+
+    /// <summary>
+    /// Emits C# attribute annotations for a declaration's attribute lists.
+    /// Each <see cref="AttributeListNode"/> is emitted as <c>[attr1, attr2]</c> on its own line.
+    /// </summary>
+    private void EmitAttributeLists(ImmutableArray<AttributeListNode> attributeLists)
+    {
+        if(attributeLists.IsDefaultOrEmpty)
+        {
+            return;
+        }
+
+        foreach(var attrList in attributeLists)
+        {
+            var attrs = new List<AttributeNode> { attrList.Attribute };
+            foreach(var additional in attrList.Attributes)
+            {
+                attrs.Add(additional);
+            }
+
+            var parts = new List<string>(attrs.Count);
+            foreach(var attr in attrs)
+            {
+                var name = ExtractQualifiedName(attr.Name);
+                var typeArgs = EmitTypeArgumentList(attr.TypeArgs);
+                var args = EmitAttributeArguments(attr);
+                parts.Add($"{name}{typeArgs}{args}");
+            }
+
+            AppendLine($"[{string.Join(", ", parts)}]");
+        }
+    }
+
+    /// <summary>
+    /// Emits the parenthesized argument list for a single attribute.
+    /// Returns an empty string if the attribute has no arguments (no parens in source).
+    /// Returns "()" if the attribute has empty parentheses.
+    /// Emits positional arguments first, then named arguments as <c>Name = value</c>.
+    /// </summary>
+    private string EmitAttributeArguments(AttributeNode attr)
+    {
+        if(attr.Arguments is null)
+        {
+            return "";
+        }
+
+        if(attr.Arguments.ArgList is null)
+        {
+            return "()";
+        }
+
+        var argList = attr.Arguments.ArgList;
+        var allArgs = new List<AttributeArgumentNode>(1 + argList.AttributeArguments.Length)
+        {
+            argList.AttributeArgument
+        };
+
+        foreach(var additional in argList.AttributeArguments)
+        {
+            allArgs.Add(additional);
+        }
+
+        // Emit positional arguments first, then named arguments.
+        var parts = new List<string>(allArgs.Count);
+        foreach(var arg in allArgs)
+        {
+            if(arg is PositionalAttributeArgumentAttributeArgumentNode positional)
+            {
+                parts.Add(EmitAttributeExpression(positional.Value));
+            }
+        }
+
+        foreach(var arg in allArgs)
+        {
+            if(arg is NamedAttributeArgumentAttributeArgumentNode named)
+            {
+                parts.Add($"{named.Name.Lexeme} = {EmitAttributeExpression(named.Value)}");
+            }
+        }
+
+        return $"({string.Join(", ", parts)})";
+    }
+
+    /// <summary>
+    /// Emits a single attribute expression, handling both generic type literal expressions
+    /// (e.g., <c>List&lt;int&gt;</c> → <c>typeof(List&lt;int&gt;)</c>) and regular expressions.
+    /// </summary>
+    private string EmitAttributeExpression(AttributeExpressionNode attrExpr)
+    {
+        if(attrExpr is GenericTypeLiteralExpressionAttributeExpressionNode genericTypeLiteral)
+        {
+            var name = ExtractQualifiedName(genericTypeLiteral.Name);
+            var typeArgs = EmitTypeArgumentList(genericTypeLiteral.TypeArgs);
+            return $"typeof({name}{typeArgs})";
+        }
+
+        if(attrExpr is RegularExpressionAttributeExpressionNode regular)
+        {
+            return EmitExpression(regular.Expr);
+        }
+
+        return attrExpr.ToString() ?? "";
     }
 
     // ─── Dependent Type Emission Helpers ─────────────────────────────────

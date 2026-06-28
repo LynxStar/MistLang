@@ -1,0 +1,25 @@
+using System.ComponentModel.DataAnnotations;
+
+class Validator
+{
+    [Range(1, 100)]
+    public int Score;
+
+    [Obsolete("use ValidateV2", true)]
+    public void Validate()
+    {
+        Console.WriteLine("Validating");
+    }
+
+    [Display(Name = "User Score")]
+    public int DisplayScore;
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var v = new Validator();
+        Console.WriteLine($"Score field exists: true");
+    }
+}

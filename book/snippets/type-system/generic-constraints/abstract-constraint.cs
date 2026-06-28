@@ -2,11 +2,11 @@ using System;
 
 namespace Snippet;
 
-interface IOrderable
+public interface IOrderable
 {
     int GetOrder();
 }
-class Sorter<T>
+public class Sorter<T>
     where T : IOrderable
 {
     public T First;

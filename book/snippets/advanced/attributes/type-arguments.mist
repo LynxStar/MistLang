@@ -1,0 +1,20 @@
+using System.Diagnostics;
+
+[DebuggerTypeProxy(List<int>)]
+class CustomList
+{
+}
+
+[JsonConverter<int>]
+class TypedConfig
+{
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        Console.WriteLine("Type literal arg: [DebuggerTypeProxy(List<int>)]");
+        Console.WriteLine("Generic type arg: [JsonConverter<int>]");
+    }
+}

@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-interface IDescribable
+public interface IDescribable
 {
     string Describe();
 }

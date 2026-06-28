@@ -32,6 +32,7 @@ This file is always loaded. Deeper references live in separate manual-inclusion 
 | `#mist-ownership` | `owned`/`borrowed`/`frozen`/`readonly ref`, move semantics, lending, `IClonable`, or `linear`/`affine`/`relevant` drop semantics |
 | `#mist-advanced-features` | abstract types, default implementations, `with` blocks (retroactive conformance), structured context (`with` clauses), refinement types, dependent types, associated types, extension blocks |
 | `#mist-interop` | adding NuGet packages, framework references, consuming C#/.NET types, named delegate types, delegate-func conversion, `mist inspect`, `mist restore`, or diagnosing dependency resolution |
+| `#mist-testing` | setting up test projects, writing `[Fact]`/`[Theory]` methods, `mist test` workflow, xUnit packages |
 | `#mist-gitignore` | setting up version control — what Mist generates and what to ignore |
 
 ## Project Model
@@ -42,6 +43,7 @@ Mist projects are configured with `mist.toml`, not `.csproj`. Source files use t
 name = "MyApp"                  # required; default namespace root + assembly name
 namespace_root = "MyCompany.App"  # optional; overrides namespace root
 entry_point = "top-level"       # optional; disambiguates entry point
+output_type = "executable"      # optional; "executable" (default) or "library"
 
 [references]
 SharedLib = { path = "../SharedLib" }  # key MUST match referenced project's name
@@ -59,17 +61,21 @@ Newtonsoft.Json = "13.0.3"  # NuGet deps — exact versions, no ranges
 - Namespace is inferred from directory structure: `Models/Player.mist` → `{namespace_root}.Models`.
 - `Standard` is Mist's core namespace (the equivalent of `System`): `using Standard;` gives you `Console`, `List<T>`, etc.
 - `[packages]` adds NuGet dependencies (the equivalent of `<PackageReference>`); `[framework_references]` enables shared frameworks like ASP.NET Core. All .NET SDK types are available without any declaration. For consuming C#/.NET, see `#mist-interop`.
+- `output_type` controls the kind of project emitted. Valid values: `"executable"` (default when absent) produces an .exe and requires a Main entry point; `"library"` produces a .dll with no Main required. Library projects cannot have top-level statements. `mist run` only works on executable projects.
 
 CLI:
 
 ```bash
 mist build              # compile (quiet by default)
-mist run                # compile and execute
+mist run                # compile and execute (executable projects only)
+mist test               # compile and run tests via backend runner (dotnet test)
 mist build --verbose    # show package/framework resolution detail
 mist build ./project    # target a folder
 mist restore            # resolve packages/frameworks without building
 mist inspect System.IO.Stream  # show projected/hidden members of a CLR type
 ```
+
+`mist test` compiles the project using the standard pipeline and invokes `dotnet test` on the emitted .csproj. It works on any project regardless of `output_type` — if there are no test-attributed methods, the runner simply finds zero tests and exits cleanly.
 
 ## No `null`
 

@@ -1,5 +1,6 @@
 using Mist.Analysis.Contracts;
 using Mist.Common.Diagnostics;
+using Mist.Driver.Contracts;
 using Mist.Generated;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model.Types;
@@ -11,6 +12,8 @@ namespace Mist.Analysis.Builtin;
 /// and <c>static void Main</c> methods. Enforces single-TLS-file constraints,
 /// TLS+Main conflict resolution via <c>entry_point</c> config, and namespace
 /// restrictions in TLS files.
+/// When the project output type is Library, all Main entry point validation is
+/// skipped but top-level statements are still rejected.
 /// </summary>
 public sealed class EntryPointAnalyzer : IAnalyzer
 {
@@ -21,6 +24,26 @@ public sealed class EntryPointAnalyzer : IAnalyzer
         var tlsUnits = model.Compilation.Units
             .Where(u => !u.IsStdlib && u.OriginProjectPath is null && u.HasTopLevelStatements)
             .ToList();
+
+        // Library mode: skip Main entry point validation entirely.
+        // Only check that no top-level statements exist (they imply an entry point).
+        if(model.Compilation.OutputType == ProjectOutputType.Library)
+        {
+            if(tlsUnits.Count > 0)
+            {
+                var paths = string.Join(", ", tlsUnits.Select(u => u.Source.Path));
+                diagnostics.Add(new Diagnostic(
+                    DiagnosticId.LibraryWithTopLevelStatements,
+                    DiagnosticSeverity.Error,
+                    PipelineStage.Analysis,
+                    $"Library projects cannot have top-level statements. Files: {paths}",
+                    Location: default,
+                    CompilationUnitPath: tlsUnits[0].Source.Path,
+                    AnalyzerName: AnalyzerId));
+            }
+
+            return;
+        }
 
         // Rule 1: Multiple TLS files
         if(tlsUnits.Count > 1)

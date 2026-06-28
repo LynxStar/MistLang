@@ -764,6 +764,45 @@ public static partial class ProjectFileParser
             }
         }
 
-        return new ProjectConfiguration(name, namespaceRoot, references.ToImmutable(), entryPoint, globalUsings, packages, frameworkReferences, targetFramework, csprojProperties);
+        // 15. Read output_type field (optional string), defaulting to Executable
+        var outputType = ProjectOutputType.Executable;
+
+        if(model.TryGetValue("output_type", out var outputTypeObj))
+        {
+            if(outputTypeObj is not string outputTypeStr)
+            {
+                diagnostics.Add(new Diagnostic(
+                    DiagnosticId.ProjectInvalidOutputType,
+                    DiagnosticSeverity.Error,
+                    PipelineStage.Driver,
+                    $"The 'output_type' field in '{filePath}' must be a string. Valid values are \"executable\" or \"library\".",
+                    Location: default,
+                    CompilationUnitPath: filePath,
+                    AnalyzerName: null));
+                return null;
+            }
+
+            switch(outputTypeStr)
+            {
+                case "executable":
+                    outputType = ProjectOutputType.Executable;
+                    break;
+                case "library":
+                    outputType = ProjectOutputType.Library;
+                    break;
+                default:
+                    diagnostics.Add(new Diagnostic(
+                        DiagnosticId.ProjectInvalidOutputType,
+                        DiagnosticSeverity.Error,
+                        PipelineStage.Driver,
+                        $"Invalid output_type '{outputTypeStr}' in '{filePath}'. Valid values are \"executable\" or \"library\".",
+                        Location: default,
+                        CompilationUnitPath: filePath,
+                        AnalyzerName: null));
+                    return null;
+            }
+        }
+
+        return new ProjectConfiguration(name, namespaceRoot, references.ToImmutable(), entryPoint, globalUsings, packages, frameworkReferences, targetFramework, csprojProperties, outputType);
     }
 }

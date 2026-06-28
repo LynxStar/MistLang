@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Text.RegularExpressions;
 using Mist.Analysis.Contracts;
 using Mist.Common.Diagnostics;
+using Mist.Driver.Contracts;
 using Mist.Generated;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
@@ -1141,6 +1142,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static void CheckEntryPoint(ISemanticModel model, DiagnosticBag diagnostics)
     {
+        // Library projects do not require an entry point — skip validation entirely.
+        if(model.Compilation.OutputType == ProjectOutputType.Library)
+        {
+            return;
+        }
+
         // Build a set of source file paths from referenced project units
         // so we can skip their Main methods during entry point detection.
         var referencedSourcePaths = new HashSet<string>(StringComparer.Ordinal);
@@ -16598,17 +16605,27 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // R9.1, R9.3: Private member access check.
         // Members with no modifier default to private (R9.3).
+        // Exception: Struct members without an explicit modifier default to public,
+        // matching C++ struct semantics where value types expose their fields by default.
         if(!modifiers.IsPublic)
         {
-            // Private members are only accessible within the declaring type.
+            // Check if the declaring type is a struct — struct members default to public.
             var declaringType = GetDeclaringTypeOfMember(memberSymbol);
-            if(declaringType is not null && !IsSameType(declaringType, currentEnclosingType))
+            var isStructMember = declaringType is StructType;
+            var hasExplicitPrivate = modifiers.IsPrivate;
+
+            // Struct members are private only when explicitly marked private.
+            // Non-struct members are private by default (no modifier = private).
+            if(hasExplicitPrivate || !isStructMember)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0014",
-                    $"'{memberName}' is inaccessible due to its protection level",
-                    accessNode));
-                return; // Don't emit additional diagnostics for the same access.
+                if(declaringType is not null && !IsSameType(declaringType, currentEnclosingType))
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_TC_0014",
+                        $"'{memberName}' is inaccessible due to its protection level",
+                        accessNode));
+                    return; // Don't emit additional diagnostics for the same access.
+                }
             }
         }
 

@@ -75,6 +75,7 @@ public class Program
         AsOperator.Program.RunDemo();
         AnonymousTypes.Program.RunDemo();
         DisposableDropInterop.Program.RunDemo();
+        Attributes.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

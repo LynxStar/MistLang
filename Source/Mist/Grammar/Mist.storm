@@ -191,25 +191,51 @@ rule Constraint
 
 rule ConstraintParameterTypeList = TypeReference (COMMA TypeReference)*;
 
+// ─── Parser Rules — Attributes ───────────────────────────────────────────────
+
+rule AttributeList = LEFT_BRACKET Attribute (COMMA Attribute)* RIGHT_BRACKET;
+
+rule Attribute = name:QualifiedIdentifier typeArgs:TypeArgumentList?
+    arguments:AttributeArguments?;
+
+rule AttributeArguments = LEFT_PARENTHESIS argList:AttributeArgumentList? RIGHT_PARENTHESIS;
+
+rule AttributeArgumentList = AttributeArgument (COMMA AttributeArgument)*;
+
+rule AttributeArgument
+    = name:IDENTIFIER EQUAL value:AttributeExpression  as NamedAttributeArgument
+    | value:AttributeExpression               as PositionalAttributeArgument
+    ;
+
+// Attribute expressions are like regular expressions but with special handling
+// for type literals with type arguments (e.g., List<int>) which would otherwise
+// be ambiguous with relational comparisons in the general expression grammar.
+// PEG ordered choice tries the generic type literal first; if it fails (no TypeArgumentList
+// follows the identifier), it falls through to the regular expression path.
+rule AttributeExpression
+    = name:QualifiedIdentifier typeArgs:TypeArgumentList  as GenericTypeLiteralExpression
+    | expr:Expression                                     as RegularExpression
+    ;
+
 // ─── Parser Rules — Type Declarations ────────────────────────────────────────
 
 rule BaseTypeRef = name:IDENTIFIER typeArgs:TypeArgumentList?;
 
 rule BaseList = first:BaseTypeRef (COMMA rest:BaseTypeRef)*;
 
-rule ClassDeclaration = modifiers:Modifier* CLASS name:IDENTIFIER
+rule ClassDeclaration = attributes:AttributeList* modifiers:Modifier* CLASS name:IDENTIFIER
     typeParams:TypeParameterList?
     baseClause:(COLON baseList:BaseList)?
     constraints:WhereClause*
     LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
 
-rule StructDeclaration = modifiers:Modifier* STRUCT name:IDENTIFIER
+rule StructDeclaration = attributes:AttributeList* modifiers:Modifier* STRUCT name:IDENTIFIER
     typeParams:TypeParameterList?
     abstractList:(COLON abstracts:BaseList)?
     constraints:WhereClause*
     LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
 
-rule AbstractDeclaration = modifiers:Modifier* ABSTRACT name:IDENTIFIER
+rule AbstractDeclaration = attributes:AttributeList* modifiers:Modifier* ABSTRACT name:IDENTIFIER
     typeParams:TypeParameterList?
     abstractList:(COLON abstracts:BaseList)?
     constraints:WhereClause*
@@ -261,7 +287,7 @@ rule ModifiedAssociatedTypeSlotDeclaration = modifiers:Modifier+ TYPE name:IDENT
 
 // ─── Parser Rules — Enum Declarations ────────────────────────────────────────
 
-rule EnumDeclaration = modifiers:Modifier* ENUM name:IDENTIFIER
+rule EnumDeclaration = attributes:AttributeList* modifiers:Modifier* ENUM name:IDENTIFIER
     typeAnnotation:(COLON type:TypeReference)?
     LEFT_BRACE members:EnumMemberList? RIGHT_BRACE;
 
@@ -348,7 +374,7 @@ rule DefaultBlockDeclaration = DEFAULT LEFT_BRACE entries:DefaultFieldInitialize
 
 // ─── Parser Rules — Members ─────────────────────────────────────────────────
 
-rule FieldDeclaration = modifiers:Modifier* ownershipSpecifier:OwnershipSpecifier? type:TypeReference name:IDENTIFIER initializer:(EQUAL Expression)? SEMICOLON;
+rule FieldDeclaration = attributes:AttributeList* modifiers:Modifier* ownershipSpecifier:OwnershipSpecifier? type:TypeReference name:IDENTIFIER initializer:(EQUAL Expression)? SEMICOLON;
 
 rule PropertyDeclaration
     = modifiers:Modifier* type:TypeReference name:IDENTIFIER
@@ -380,7 +406,7 @@ rule IndexerBody
     | SEMICOLON                                                    as IntrinsicIndexerBody
     ;
 
-rule ConstructorDeclaration = modifiers:Modifier* name:IDENTIFIER LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
+rule ConstructorDeclaration = attributes:AttributeList* modifiers:Modifier* name:IDENTIFIER LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
                               withClauses:WithClause*
                               constraints:WhereClause*
                               chain:ConstructorChain? body:MethodBody;
@@ -390,7 +416,7 @@ rule ConstructorChain
     | COLON BASE LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS  as BaseChain
     ;
 
-rule MethodDeclaration = modifiers:Modifier* returnOwnership:OwnershipSpecifier? returnType:TypeReference name:IDENTIFIER
+rule MethodDeclaration = attributes:AttributeList* modifiers:Modifier* returnOwnership:OwnershipSpecifier? returnType:TypeReference name:IDENTIFIER
                          typeParams:TypeParameterList?
                          LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
                          withClauses:WithClause*

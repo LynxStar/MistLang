@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Mist.Backends.Contracts;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
+using Mist.Driver.Contracts;
 using Mist.Generated;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model.Types;
@@ -117,7 +118,7 @@ public sealed class CSharpTranspilerBackend : IBackend
         }
     }
 
-    public BackendResult Emit(ISemanticModel model, string outputDirectory, string binDirectory, string projectName, DiagnosticBag diagnostics)
+    public BackendResult Emit(ISemanticModel model, string outputDirectory, string binDirectory, string projectName, DiagnosticBag diagnostics, ProjectOutputType outputType = ProjectOutputType.Executable)
     {
         var bag = new DiagnosticBag();
 
@@ -128,7 +129,7 @@ public sealed class CSharpTranspilerBackend : IBackend
             NeedsAsyncPropagationPass.Run(model);
 
             // Step 1: Emit C# source files
-            CSharpEmitter.Emit(model, outputDirectory, projectName, bag);
+            CSharpEmitter.Emit(model, outputDirectory, projectName, bag, outputType);
 
             if(bag.HasErrors)
             {
@@ -155,7 +156,7 @@ public sealed class CSharpTranspilerBackend : IBackend
             var mainTypeName = DetermineMainTypeName(model);
 
             // Step 2: Compile the emitted C# project
-            var compileResult = CSharpCompilationDriver.Compile(outputDirectory, binDirectory, projectName, bag, emittedFileCount, mainTypeName, lastAdditionalAssemblyPaths);
+            var compileResult = CSharpCompilationDriver.Compile(outputDirectory, binDirectory, projectName, bag, emittedFileCount, mainTypeName, lastAdditionalAssemblyPaths, outputType);
 
             return compileResult;
         }

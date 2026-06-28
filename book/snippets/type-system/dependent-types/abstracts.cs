@@ -3,7 +3,7 @@ using System;
 namespace Snippet;
 
 [DependentType("Size", typeof(int))]
-interface IFixedCollection<TSize>
+public interface IFixedCollection<TSize>
     where TSize : IConstInt
 {
     int GetSize();

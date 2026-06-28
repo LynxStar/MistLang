@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-interface IShape
+public interface IShape
 {
     string Name { get; }
     string Describe();

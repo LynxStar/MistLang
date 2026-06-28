@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-class IntFactory<T>
+public class IntFactory<T>
 {
     private readonly Func<int, T> _factoryT_int;
 

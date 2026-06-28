@@ -1,0 +1,30 @@
+namespace Testing;
+
+using Xunit;
+
+class MathTests
+{
+    [Fact]
+    public void Addition()
+    {
+        var result = 2 + 2;
+        Assert.Equal(4, result);
+    }
+
+    [Fact]
+    public void Subtraction()
+    {
+        var result = 10 - 3;
+        Assert.Equal(7, result);
+    }
+
+    [Theory]
+    [InlineData(1, 2, 3)]
+    [InlineData(0, 0, 0)]
+    [InlineData(-1, 1, 0)]
+    public void ParameterizedAdd(int a, int b, int expected)
+    {
+        var result = a + b;
+        Assert.Equal(expected, result);
+    }
+}

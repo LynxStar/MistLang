@@ -11,6 +11,15 @@ public record class Direction(string Value)
 
     public static implicit operator string(Direction e) => e.Value;
 
+    public static explicit operator Direction?(string value)
+    {
+        if (Equals(value, North.Value)) return North;
+        else if (Equals(value, South.Value)) return South;
+        else if (Equals(value, East.Value)) return East;
+        else if (Equals(value, West.Value)) return West;
+        return null;
+    }
+
     public override string ToString()
     {
         if (ReferenceEquals(this, North)) return "North";

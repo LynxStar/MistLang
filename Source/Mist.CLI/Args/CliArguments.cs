@@ -5,7 +5,9 @@ namespace Mist.CLI.Args;
 /// </summary>
 public enum CliCommand
 {
-    /// <summary>Compile the project (default).</summary>
+    /// <summary>No command provided — show help.</summary>
+    None,
+    /// <summary>Compile the project.</summary>
     Build,
     /// <summary>Compile the project and execute the resulting artifact.</summary>
     Run,
@@ -17,6 +19,8 @@ public enum CliCommand
     Inspect,
     /// <summary>Resolve packages and framework references without building.</summary>
     Restore,
+    /// <summary>Print the compiler version.</summary>
+    Version,
 }
 
 /// <summary>

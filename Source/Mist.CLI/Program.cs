@@ -34,19 +34,24 @@ internal class Program
                 Console.Error.WriteLine($"error: {error.Message}");
             }
 
-            Console.Error.WriteLine("Usage: mist <build|run|test|steering|inspect|restore> [project-folder] [--backend <id>] [--output <dir>] [--bin <dir>] [--mode <compile|lex>] [--quiet] [--verbose]");
+            Console.Error.WriteLine("Usage: mist <command> [project-folder] [options]");
             Console.Error.WriteLine();
             Console.Error.WriteLine("Commands:");
-            Console.Error.WriteLine("  build              Compile the project (default)");
+            Console.Error.WriteLine("  build              Compile the project");
             Console.Error.WriteLine("  run                Compile and execute the project");
             Console.Error.WriteLine("  test               Compile and run tests");
             Console.Error.WriteLine("  steering           Install Mist steering files");
             Console.Error.WriteLine("  inspect <TypeName> Inspect a CLR type's projected and hidden members");
             Console.Error.WriteLine("  restore            Resolve packages and framework references without building");
+            Console.Error.WriteLine("  version            Print the compiler version");
             Console.Error.WriteLine();
-            Console.Error.WriteLine("Flags:");
-            Console.Error.WriteLine("  --verbose, -v      Show detailed package/framework resolution output");
-            Console.Error.WriteLine("  --quiet, -q        Suppress progress output (mutually exclusive with --verbose)");
+            Console.Error.WriteLine("Options:");
+            Console.Error.WriteLine("  --backend <id>     Backend to use (default: csharp)");
+            Console.Error.WriteLine("  --output <dir>     Output directory for emitted files");
+            Console.Error.WriteLine("  --bin <dir>        Binary output directory");
+            Console.Error.WriteLine("  --mode <mode>      Compiler mode: compile, lex");
+            Console.Error.WriteLine("  --verbose, -v      Show detailed output");
+            Console.Error.WriteLine("  --quiet, -q        Suppress progress output");
             return 1;
         }
 
@@ -54,6 +59,14 @@ internal class Program
 
         switch(cliArgs.Command)
         {
+            case CliCommand.None:
+                PrintHelp();
+                return 0;
+
+            case CliCommand.Version:
+                Console.WriteLine("mist 0.312.0");
+                return 0;
+
             case CliCommand.Build:
                 return RunBuildPipeline(cliArgs);
 
@@ -76,6 +89,30 @@ internal class Program
                 Console.Error.WriteLine($"error: Unknown command '{cliArgs.Command}'.");
                 return 1;
         }
+    }
+
+    private static void PrintHelp()
+    {
+        Console.WriteLine("The Mist programming language compiler");
+        Console.WriteLine();
+        Console.WriteLine("Usage: mist <command> [project-folder] [options]");
+        Console.WriteLine();
+        Console.WriteLine("Commands:");
+        Console.WriteLine("  build              Compile the project");
+        Console.WriteLine("  run                Compile and execute the project");
+        Console.WriteLine("  test               Compile and run tests");
+        Console.WriteLine("  steering           Install Mist steering files");
+        Console.WriteLine("  inspect <TypeName> Inspect a CLR type's projected and hidden members");
+        Console.WriteLine("  restore            Resolve packages and framework references without building");
+        Console.WriteLine("  version            Print the compiler version");
+        Console.WriteLine();
+        Console.WriteLine("Options:");
+        Console.WriteLine("  --backend <id>     Backend to use (default: csharp)");
+        Console.WriteLine("  --output <dir>     Output directory for emitted files");
+        Console.WriteLine("  --bin <dir>        Binary output directory");
+        Console.WriteLine("  --mode <mode>      Compiler mode: compile, lex");
+        Console.WriteLine("  --verbose, -v      Show detailed output");
+        Console.WriteLine("  --quiet, -q        Suppress progress output");
     }
 
     private static int RunBuildPipeline(CliArguments cliArgs)

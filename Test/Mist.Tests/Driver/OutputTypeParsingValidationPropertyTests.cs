@@ -50,7 +50,7 @@ public sealed class OutputTypeParsingValidationPropertyTests
         var randomStrings = Gen.Choose(1, 30).SelectMany(len =>
             Gen.ArrayOf(Gen.Elements(alphaChars), len)
                 .Select(chars => new string(chars))
-                .Where(s => s != "executable" && s != "library"));
+                .Where(s => s is not "executable" and not "library"));
 
         return Gen.Frequency(
             (3, nearMisses),

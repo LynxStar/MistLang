@@ -112,8 +112,10 @@ public static class CliArgumentParser
             errors.Add(new CliParseError("The '--verbose' and '--quiet' flags are mutually exclusive."));
         }
 
-        // Detect command verb from the first positional argument
-        var command = CliCommand.Build;
+        // Detect command verb from the first positional argument.
+        // If no positional arguments exist and no flags were provided,
+        // the command stays None (triggers help output).
+        var command = CliCommand.None;
         string? inspectTypeName = null;
 
         if(positionalArgs.Count > 0 && positionalArgs[0] == "build")
@@ -153,6 +155,11 @@ public static class CliArgumentParser
             command = CliCommand.Restore;
             positionalArgs.RemoveAt(0);
         }
+        else if(positionalArgs.Count > 0 && positionalArgs[0] == "version")
+        {
+            command = CliCommand.Version;
+            positionalArgs.RemoveAt(0);
+        }
 
         // Validate run + lex mode combination
         if(command == CliCommand.Run && mode == CompilerMode.Lex)
@@ -164,6 +171,29 @@ public static class CliArgumentParser
         if(command == CliCommand.Test && mode == CompilerMode.Lex)
         {
             errors.Add(new CliParseError("The 'test' command is not compatible with '--mode lex'."));
+        }
+
+        // If no explicit command verb was given but there are positional args
+        // (a project folder path), treat it as an implicit `build` command.
+        if(command == CliCommand.None && positionalArgs.Count > 0)
+        {
+            command = CliCommand.Build;
+        }
+
+        // Version command needs no project folder or further validation.
+        if(command == CliCommand.Version)
+        {
+            return new CliParseResult(
+                new CliArguments("", Command: command),
+                errors);
+        }
+
+        // None command (bare `mist` with no args) needs no project folder.
+        if(command == CliCommand.None)
+        {
+            return new CliParseResult(
+                new CliArguments("", Command: command),
+                errors);
         }
 
         // Validate positional arguments

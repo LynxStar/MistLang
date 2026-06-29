@@ -9805,6 +9805,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         break;
                     }
 
+                    // When the scrutinee is unknown, the positional pattern acts as a runtime
+                    // type check (narrowing to a tuple type). Skip element validation since
+                    // element types are not known at compile time.
+                    if(scrutineeType is UnknownType)
+                    {
+                        break;
+                    }
+
                     if(scrutineeType is not TupleType tupleType)
                     {
                         diagnostics.Add(MakeDiagnostic(

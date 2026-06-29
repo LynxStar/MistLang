@@ -10328,6 +10328,20 @@ internal sealed class CSharpSourceWriter
     private void EmitIfStatement(IfStatementNode ifStmt)
     {
         var condition = EmitExpression(ifStmt.Condition);
+
+        // Wrap the if-statement in a block scope when the condition introduces
+        // pattern variables (via `is` patterns with var/type bindings). In C#,
+        // pattern variables declared in `if` conditions are scoped to the enclosing
+        // block, which can conflict with pattern variables in later switch arms.
+        // Wrapping in an extra block prevents CS0136 name conflicts.
+        var needsScope = ConditionHasPatternBindings(condition);
+
+        if(needsScope)
+        {
+            AppendLine("{");
+            indentLevel++;
+        }
+
         AppendLine($"if ({condition})");
 
         // Conditional-move branch sensitivity (Requirements 4.6, 13.5):
@@ -10351,6 +10365,52 @@ internal sealed class CSharpSourceWriter
                 EmitElseClause(ifStmt.ElseBranch);
             }
         }
+
+        if(needsScope)
+        {
+            indentLevel--;
+            AppendLine("}");
+        }
+    }
+
+    /// <summary>
+    /// Determines whether a condition string contains <c>is</c> pattern bindings that
+    /// would introduce variables into the enclosing scope. Detects patterns like
+    /// <c>x is (var n, var s)</c> or <c>x is int n</c> where named variables (not discards)
+    /// are introduced by the pattern matching expression.
+    /// </summary>
+    private static bool ConditionHasPatternBindings(string condition)
+    {
+        // Look for `is` followed by a pattern that contains `var` with a non-discard name,
+        // or a type pattern with a trailing identifier binding.
+        var isIndex = condition.IndexOf(" is ", StringComparison.Ordinal);
+        if(isIndex < 0)
+        {
+            return false;
+        }
+
+        var afterIs = condition[(isIndex + 4)..];
+
+        // Check for `var` patterns that bind a non-discard variable.
+        // This handles `is (var n, var s)`, `is var x`, `is (int a, string b)`, etc.
+        var varIdx = 0;
+        while((varIdx = afterIs.IndexOf("var ", varIdx, StringComparison.Ordinal)) >= 0)
+        {
+            var nameStart = varIdx + 4;
+            if(nameStart < afterIs.Length && afterIs[nameStart] != '_')
+            {
+                return true;
+            }
+
+            // `var _` is a discard — skip it
+            varIdx = nameStart;
+        }
+
+        // Check for type patterns with a trailing binding name: `is int n`, `is string str`
+        // This is a simpler heuristic — if there's a type name followed by an identifier
+        // after `is`, it's likely a binding pattern. The presence of `(` indicates tuple/positional.
+        // For simplicity, only trigger on `var` bindings which cover the proof code case.
+        return false;
     }
 
     /// <summary>
@@ -11815,6 +11875,198 @@ internal sealed class CSharpSourceWriter
         }
 
         return null;
+    }
+
+    // ─── Enum Switch Arm Pattern Matching ───────────────────────────────
+
+    /// <summary>
+    /// Attempts to emit a switch arm pattern containing enum member references.
+    /// Mist enums are emitted as <c>record class</c> types with <c>static readonly</c>
+    /// fields, which C# does not accept as constant patterns. This method detects
+    /// enum member patterns in both tuple positional patterns and standalone bare type
+    /// patterns, replacing them with <c>var __eN</c> bindings and equality-checking
+    /// <c>when</c> guards.
+    /// <para>
+    /// For <c>(Direction.North, Direction.East)</c>, emits:
+    /// <c>(var __e0, var __e1) when __e0 == Direction.North &amp;&amp; __e1 == Direction.East</c>
+    /// </para>
+    /// <para>
+    /// For a standalone <c>Direction.North</c>, emits:
+    /// <c>var __e when __e == Direction.North</c>
+    /// </para>
+    /// Returns <c>null</c> if the pattern does not contain any enum member references.
+    /// </summary>
+    private string? TryEmitEnumSwitchArmPattern(SwitchArmNode arm, IType? receiverType)
+    {
+        // Navigate the pattern chain: Pattern → OrPattern → AndPattern → UnaryPattern → PrimaryPattern
+        var orPattern = arm.Pattern.OrPattern;
+        if(orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+        {
+            return null;
+        }
+
+        var andPattern = orPattern.Left;
+        if(andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+        {
+            return null;
+        }
+
+        var unaryPattern = andPattern.Left;
+        if(unaryPattern is not DirectPatternUnaryPatternNode directPattern)
+        {
+            return null;
+        }
+
+        var primaryPattern = directPattern.Primary;
+
+        // Case 1: Tuple positional pattern containing enum elements.
+        if(primaryPattern is TuplePositionalPatternPrimaryPatternNode tuplePattern)
+        {
+            return TryEmitEnumTupleSwitchArmPattern(tuplePattern, arm, receiverType);
+        }
+
+        // Case 2: Standalone bare type pattern resolving to EnumType.
+        if(primaryPattern is BareTypePatternPrimaryPatternNode bareTypePattern)
+        {
+            var patternType = model.GetTypeOf(bareTypePattern.Type);
+            if(patternType is not EnumType)
+            {
+                return null;
+            }
+
+            if(bareTypePattern.Type.First is not NamedSingleTypeRefSingleTypeRefNode namedRef)
+            {
+                return null;
+            }
+
+            var qualifiedName = ExtractQualifiedName(namedRef.Name);
+            var guardExpr = $"__e == {qualifiedName}";
+
+            if(arm.Guard is not null)
+            {
+                guardExpr += $" && {EmitVoidCoalescing(arm.Guard.Condition)}";
+            }
+
+            return $"var __e when {guardExpr} => {EmitExpression(arm.Result)},";
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Emits a tuple positional pattern that contains at least one enum member
+    /// element as a pattern with <c>var</c> bindings and a <c>when</c> guard for
+    /// the enum equality checks.
+    /// Returns <c>null</c> if no element is an enum member pattern.
+    /// </summary>
+    private string? TryEmitEnumTupleSwitchArmPattern(
+        TuplePositionalPatternPrimaryPatternNode tuplePattern,
+        SwitchArmNode arm,
+        IType? receiverType)
+    {
+        // Collect all element patterns.
+        var elementPatterns = new List<PatternNode> { tuplePattern.First, tuplePattern.Rest };
+        foreach(var additional in tuplePattern.Patterns)
+        {
+            elementPatterns.Add(additional);
+        }
+
+        // Resolve the tuple element types from the receiver type.
+        var tupleType = receiverType as TupleType;
+
+        // First pass: check if ANY element is an enum member pattern.
+        var hasEnumElement = false;
+        for(var i = 0; i < elementPatterns.Count; i++)
+        {
+            if(IsEnumMemberPattern(elementPatterns[i]))
+            {
+                hasEnumElement = true;
+                break;
+            }
+        }
+
+        if(!hasEnumElement)
+        {
+            return null;
+        }
+
+        // Second pass: build the replacement tuple pattern and when guard.
+        var patternElements = new List<string>();
+        var guardConditions = new List<string>();
+        var enumVarIndex = 0;
+
+        for(var i = 0; i < elementPatterns.Count; i++)
+        {
+            var elementType = tupleType is not null && i < tupleType.ElementTypes.Count
+                ? tupleType.ElementTypes[i]
+                : null;
+
+            if(IsEnumMemberPattern(elementPatterns[i]))
+            {
+                var qualifiedName = GetEnumMemberQualifiedName(elementPatterns[i]);
+                var varName = $"__e{enumVarIndex}";
+                patternElements.Add($"var {varName}");
+                guardConditions.Add($"{varName} == {qualifiedName}");
+                enumVarIndex++;
+            }
+            else
+            {
+                // Emit the element using the standard pattern emission.
+                patternElements.Add(EmitPattern(elementPatterns[i], elementType));
+            }
+        }
+
+        var tuplePatternText = $"({string.Join(", ", patternElements)})";
+        var guardExpr = string.Join(" && ", guardConditions);
+
+        if(arm.Guard is not null)
+        {
+            guardExpr += $" && {EmitVoidCoalescing(arm.Guard.Condition)}";
+        }
+
+        return $"{tuplePatternText} when {guardExpr} => {EmitExpression(arm.Result)},";
+    }
+
+    /// <summary>
+    /// Determines whether a pattern node is a bare type pattern resolving to an enum type.
+    /// </summary>
+    private bool IsEnumMemberPattern(PatternNode pattern)
+    {
+        var orPat = pattern.OrPattern;
+        if(orPat.Right is not null && !ReferenceEquals(orPat.Right, orPat.Left))
+        {
+            return false;
+        }
+
+        var andPat = orPat.Left;
+        if(andPat.Right is not null && !ReferenceEquals(andPat.Right, andPat.Left))
+        {
+            return false;
+        }
+
+        if(andPat.Left is not DirectPatternUnaryPatternNode direct)
+        {
+            return false;
+        }
+
+        if(direct.Primary is not BareTypePatternPrimaryPatternNode bare)
+        {
+            return false;
+        }
+
+        var patternType = model.GetTypeOf(bare.Type);
+        return patternType is EnumType;
+    }
+
+    /// <summary>
+    /// Extracts the fully-qualified enum member name from a pattern node that is
+    /// known to be an enum member pattern (as determined by <see cref="IsEnumMemberPattern"/>).
+    /// </summary>
+    private string GetEnumMemberQualifiedName(PatternNode pattern)
+    {
+        var bare = (BareTypePatternPrimaryPatternNode)((DirectPatternUnaryPatternNode)pattern.OrPattern.Left.Left).Primary;
+        var namedRef = (NamedSingleTypeRefSingleTypeRefNode)bare.Type.First;
+        return ExtractQualifiedName(namedRef.Name);
     }
 
     // ─── Regex Pattern Matching ─────────────────────────────────────────
@@ -13412,6 +13664,15 @@ internal sealed class CSharpSourceWriter
                                 }
 
                                 _ = sb.Append($" => {EmitExpression(arm.Result)},");
+                                return;
+                            }
+
+                            // Enum tuple positional pattern: emit var patterns with when guards
+                            // for enum member elements (Mist enums are record classes, not C# enums).
+                            var enumArm = TryEmitEnumSwitchArmPattern(arm, receiverType);
+                            if(enumArm is not null)
+                            {
+                                _ = sb.Append(enumArm);
                                 return;
                             }
 

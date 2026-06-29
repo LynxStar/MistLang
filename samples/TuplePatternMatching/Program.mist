@@ -101,13 +101,13 @@ public class Program
         // PROOF: Tuple positional pattern with when guard in switch arm
         Console.WriteLine("--- When guard ---");
         var measurement = (100, 200);
-        var category = measurement switch
+        var sizeCategory = measurement switch
         {
             (var x, var y) when x + y > 250 => "large",
             (var x, var y) when x + y > 100 => "medium",
             (var _, var _) => "small",
         };
-        Console.WriteLine($"({measurement.Item1},{measurement.Item2}) => {category}");
+        Console.WriteLine($"({measurement.Item1},{measurement.Item2}) => {sizeCategory}");
 
         // PROOF: 3-element tuple positional pattern
         Console.WriteLine("--- 3-element tuple ---");
@@ -117,6 +117,134 @@ public class Program
             Console.WriteLine("red-ish color with no blue");
         }
 
+        // PROOF: Tuple positional patterns with enum member constants in switch arms
+        // PROOF: Parser produces TuplePositionalPatternPrimaryPatternNode (not BareTypePatternPrimaryPatternNode)
+        // PROOF: Emitter generates C# positional pattern in switch arm context
+        Console.WriteLine("--- Enum tuple switch ---");
+        var current = Direction.North;
+        var target = Direction.East;
+        var turnLabel = (current, target) switch
+        {
+            (Direction.North, Direction.East) => "right turn",
+            (Direction.North, Direction.West) => "left turn",
+            (Direction.North, Direction.South) => "u-turn",
+            (Direction.South, Direction.North) => "u-turn",
+            (Direction.East, Direction.South) => "right turn",
+            (Direction.West, Direction.South) => "left turn",
+            _ => "other",
+        };
+        Console.WriteLine($"({current},{target}) => {turnLabel}");
+
+        // PROOF: String-backed enum in tuple positional patterns
+        // PROOF: Enum with explicit string values resolves correctly in pattern position
+        Console.WriteLine("--- String-backed enum tuple switch ---");
+        var severity = LogLevel.Error;
+        var category = LogCategory.Security;
+        var action = (severity, category) switch
+        {
+            (LogLevel.Error, LogCategory.Security) => "page oncall immediately",
+            (LogLevel.Error, LogCategory.Database) => "alert DBA team",
+            (LogLevel.Warning, LogCategory.Security) => "log and review",
+            (LogLevel.Info, _) => "store in archive",
+            _ => "standard logging",
+        };
+        Console.WriteLine($"({severity},{category}) => {action}");
+
+        // PROOF: Three-element tuple positional pattern in switch arm
+        // PROOF: Parser handles arity > 2 correctly
+        Console.WriteLine("--- Three-element tuple switch ---");
+        var method = HttpMethod.Post;
+        var status = HttpStatus.Forbidden;
+        var retryable = false;
+        var resolution = (method, status, retryable) switch
+        {
+            (HttpMethod.Get, HttpStatus.NotFound, _) => "return empty",
+            (HttpMethod.Post, HttpStatus.Forbidden, _) => "escalate to auth",
+            (_, HttpStatus.ServerError, true) => "retry with backoff",
+            (_, HttpStatus.ServerError, false) => "fail permanently",
+            _ => "handle normally",
+        };
+        Console.WriteLine($"({method},{status},{retryable}) => {resolution}");
+
+        // PROOF: Mixed enum and discard subpatterns in tuple positional pattern switch arms
+        Console.WriteLine("--- Mixed enum and discard ---");
+        var state = Direction.North;
+        var anyTarget = Direction.West;
+        var description = (state, anyTarget) switch
+        {
+            (Direction.North, _) => "heading north",
+            (_, Direction.South) => "going south",
+            _ => "other direction",
+        };
+        Console.WriteLine($"({state},{anyTarget}) => {description}");
+
+        // PROOF: Enum tuple switch with var binding in element position
+        Console.WriteLine("--- Enum with var binding ---");
+        var fromDir = Direction.East;
+        var toDir = Direction.West;
+        var moveDesc = (fromDir, toDir) switch
+        {
+            (Direction.East, var d) => $"leaving east, heading {d}",
+            (var s, Direction.West) => $"from {s} to west",
+            _ => "other move",
+        };
+        Console.WriteLine($"({fromDir},{toDir}) => {moveDesc}");
+
+        // PROOF: Cross-type tuple (enum + int) in switch positional pattern
+        // PROOF: Tuple elements of different types resolve independently
+        Console.WriteLine("--- Cross-type tuple (enum + int) ---");
+        var level = LogLevel.Warning;
+        int code = 429;
+        var response = (level, code) switch
+        {
+            (LogLevel.Error, 500) => "internal server error",
+            (LogLevel.Error, 503) => "service unavailable",
+            (LogLevel.Warning, 429) => "rate limited - slow down",
+            (LogLevel.Warning, _) => "generic warning",
+            _ => "no action",
+        };
+        Console.WriteLine($"({level},{code}) => {response}");
+
         Console.WriteLine("Done!");
     }
+}
+
+public enum Direction
+{
+    North,
+    South,
+    East,
+    West,
+}
+
+public enum LogLevel : string
+{
+    Error = "ERROR",
+    Warning = "WARN",
+    Info = "INFO",
+    Debug = "DEBUG",
+}
+
+public enum LogCategory : string
+{
+    Security,
+    Database,
+    Network,
+    Application,
+}
+
+public enum HttpMethod : string
+{
+    Get,
+    Post,
+    Put,
+    Delete,
+}
+
+public enum HttpStatus : int
+{
+    Ok = 200,
+    NotFound = 404,
+    Forbidden = 403,
+    ServerError = 500,
 }

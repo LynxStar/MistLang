@@ -1295,6 +1295,18 @@ nested: both positive with label
 (100,200) => large
 --- 3-element tuple ---
 red-ish color with no blue
+--- Enum tuple switch ---
+(North,East) => right turn
+--- String-backed enum tuple switch ---
+(Error,Security) => page oncall immediately
+--- Three-element tuple switch ---
+(Post,Forbidden,False) => escalate to auth
+--- Mixed enum and discard ---
+(North,West) => heading north
+--- Enum with var binding ---
+(East,West) => leaving east, heading West
+--- Cross-type tuple (enum + int) ---
+(Warning,429) => rate limited - slow down
 Done!
 === Arity Overloads Sample ===
 --- Mist arity overloads ---

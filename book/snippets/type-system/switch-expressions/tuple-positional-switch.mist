@@ -1,0 +1,25 @@
+public enum Season
+{
+    Spring,
+    Summer,
+    Autumn,
+    Winter,
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var weather = Season.Winter;
+        var region = Season.Summer;
+        var advisory = (weather, region) switch
+        {
+            (Season.Winter, Season.Winter) => "stay indoors",
+            (Season.Summer, Season.Summer) => "stay hydrated",
+            (Season.Winter, _) => "pack warm layers",
+            (_, Season.Winter) => "expect cold snap",
+            _ => "no advisory",
+        };
+        Console.WriteLine($"advisory: {advisory}");
+    }
+}

@@ -196,6 +196,45 @@ bool isActive = status is Status.Active;
 
 This is equivalent to C#'s constant pattern (`is SomeEnum.Value`). The Mist emitter lowers it to an equality comparison (`==`) since Mist enums are record classes with static readonly fields rather than CLR enum constants.
 
+### Enum Patterns in Switch Arms and Tuple Positional Patterns
+
+Enum members work in switch expression arms and inside tuple positional patterns exactly as you'd write them in C#:
+
+```mist
+var result = (current, target) switch
+{
+    (WorkItemState.Pending, WorkItemState.Searching) => true,
+    (WorkItemState.Searching, WorkItemState.Downloading) => true,
+    _ => false,
+};
+
+var label = direction switch
+{
+    Direction.North => "N",
+    Direction.South => "S",
+    _ => "?",
+};
+```
+
+**Important**: Because Mist enums are `record class` types (not CLR enum constants), the emitter automatically transforms these into `var` patterns with `when` equality guards in the generated C#. You do NOT need to write this transformation yourself — just use enum members directly in pattern position and the compiler handles it. The emitted C# looks like:
+
+```csharp
+// Emitted — you never write this
+(var __e0, var __e1) when __e0 == WorkItemState.Pending && __e1 == WorkItemState.Searching => true,
+```
+
+Mixed patterns (enum + discard, enum + var binding, enum + constant) all work naturally:
+
+```mist
+var desc = (severity, category) switch
+{
+    (LogLevel.Error, LogCategory.Security) => "page oncall",
+    (LogLevel.Info, _) => "archive",
+    (var lvl, LogCategory.Database) => $"{lvl} db issue",
+    _ => "standard",
+};
+```
+
 ## Extension Syntax
 
 Extensions use an `extension(Receiver self) { }` block, not a `static class` with `this` parameters.

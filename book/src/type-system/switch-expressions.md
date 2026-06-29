@@ -155,3 +155,22 @@ Tuple positional patterns match tuple elements by position using parenthesized s
 {{#endtabs }}
 
 Each arm's pattern is a tuple positional pattern that tests both elements of `coord`. The switch evaluates arms top-to-bottom — the first matching pattern determines the result. A catch-all arm using `(var _, var _)` ensures exhaustiveness when earlier arms don't cover all possible values.
+
+## Tuple Positional Patterns in Switch Arms
+
+Tuple positional patterns can also match enum values by position, which is particularly useful for state-machine transitions and multi-field matching. Instead of the verbose `{ Item1: ..., Item2: ... }` property pattern workaround, you write the patterns directly in parenthesized form — each element matches the corresponding tuple position.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/switch-expressions/tuple-positional-switch.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/switch-expressions/tuple-positional-switch.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+Each arm matches a specific combination of enum values in the tuple. You can mix enum constants with discard patterns (`_`) to match "any value" in a position — for example, `(Season.Winter, _)` matches any tuple where the first element is `Season.Winter` regardless of the second element. A plain `_` catch-all at the end covers all remaining combinations.

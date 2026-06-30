@@ -36,6 +36,15 @@ public sealed class ProgramModelBuilder
             CompilationUnitPath: "<experimental>",
             AnalyzerName: null));
 
+        //Create Scope per file
+
+        //Pass 1
+        //Loop files
+        //Handle namespaces registration
+        //Add namespaces to scope
+        
+        //Pass 2 
+
         return null;
     }
 }

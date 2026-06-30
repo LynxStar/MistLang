@@ -85,89 +85,16 @@ public sealed class CompilerDriver : ICompilerDriver
 
         // Stage 2: Lexing
         var lexResult = Lex(compilation, allDiagnostics);
-        var tokenStreams = lexResult.TokenStreams;
-        var stdlibTokensForCache = lexResult.StdlibTokensForCache;
-        var cachedStdlib = lexResult.CachedStdlib;
 
         // Stage 3: Parsing
-        var parsingStopwatch = Stopwatch.StartNew();
-        progressReporter.ReportStageStart("3", "Parsing");
-
-        var asts = ImmutableArray.CreateBuilder<Storm.Runtime.SyntaxNode>();
-        var stdlibAstsForCache = cachedStdlib.HasValue
-            ? null
-            : ImmutableArray.CreateBuilder<Storm.Runtime.SyntaxNode>();
-
-        // If we have cached stdlib ASTs, prepend them first.
-        if(cachedStdlib.HasValue)
-        {
-            asts.AddRange(cachedStdlib.Value.Asts);
-        }
-
-        var unitsWithTopLevelStatements = new HashSet<CompilationUnit>();
-
-        foreach(var (unit, tokenStream) in tokenStreams)
-        {
-            var parseBag = new DiagnosticBag();
-            var parseResult = parser.Parse(tokenStream, parseBag);
-
-            foreach(var d in parseBag.ToImmutableArray())
-            {
-                allDiagnostics.Add(d);
-            }
-
-            foreach(var d in parseResult.Diagnostics)
-            {
-                allDiagnostics.Add(d);
-            }
-
-            if(parseResult.Root is not null && !parseBag.HasErrors)
-            {
-                parseResult.Root.SetParentLinks();
-                asts.Add(parseResult.Root);
-                if(unit.IsStdlib)
-                {
-                    stdlibAstsForCache?.Add(parseResult.Root);
-                }
-
-                // Detect top-level statements in the parsed AST.
-                if(parseResult.Root is CompilationUnitNode cu
-                    && cu.Items.Any(item => item is StatementItemTopLevelItemNode))
-                {
-                    _ = unitsWithTopLevelStatements.Add(unit);
-                }
-            }
-            // If parse errors, exclude AST from semantic model (R16.4)
-        }
-
-        // Update CompilationUnits that contain top-level statements.
-        if(unitsWithTopLevelStatements.Count > 0)
-        {
-            var updatedUnits = compilation.Units.Select(u =>
-                unitsWithTopLevelStatements.Contains(u)
-                    ? u with { HasTopLevelStatements = true }
-                    : u).ToImmutableArray();
-            compilation = compilation with { Units = updatedUnits };
-        }
-
-        // Populate the stdlib cache if this is the first successful compile.
-        if(!cachedStdlib.HasValue && stdlibTokensForCache is not null && stdlibAstsForCache is not null)
-        {
-            lock(StdlibCacheLock)
-            {
-                if(!stdlibCache.HasValue)
-                {
-                    stdlibCache = (stdlibTokensForCache.ToImmutable(), stdlibAstsForCache.ToImmutable());
-                }
-            }
-        }
-
-        parsingStopwatch.Stop();
-        var totalNodes = asts.Sum(SyntaxTreeMetrics.CountNodes);
-        progressReporter.ReportStageComplete("3", parsingStopwatch.Elapsed, new[]
-        {
-            $"{totalNodes} AST nodes",
-        });
+        var parseResult = Parse(
+            compilation,
+            lexResult.TokenStreams,
+            lexResult.StdlibTokensForCache,
+            lexResult.CachedStdlib,
+            allDiagnostics);
+        var asts = parseResult.Asts;
+        compilation = parseResult.Compilation;
 
         // Stage 4: Semantic Model
         var semanticStopwatch = Stopwatch.StartNew();
@@ -178,7 +105,7 @@ public sealed class CompilerDriver : ICompilerDriver
         ISemanticModel? semanticModel;
         try
         {
-            semanticModel = semanticModelBuilder.Build(compilation, asts.ToImmutable(), ambientTypeResolver, options.NamespaceRoot, options.ProjectFolder, semanticBag, directReferencePaths);
+            semanticModel = semanticModelBuilder.Build(compilation, asts, ambientTypeResolver, options.NamespaceRoot, options.ProjectFolder, semanticBag, directReferencePaths);
         }
         catch(Exception ex)
         {
@@ -606,6 +533,108 @@ public sealed class CompilerDriver : ICompilerDriver
         });
 
         return new LexResult(tokenStreams, stdlibTokensForCache, cachedStdlib);
+    }
+
+    /// <summary>
+    /// Result of Stage 3 (Parsing): the parsed ASTs and the (possibly updated)
+    /// compilation reflecting any units that contain top-level statements.
+    /// </summary>
+    private sealed record ParseResult(
+        ImmutableArray<Storm.Runtime.SyntaxNode> Asts,
+        MistCompilation Compilation);
+
+    /// <summary>
+    /// Stage 3 – Parsing: parses each unit's token stream, collects diagnostics,
+    /// detects top-level statements, and writes the stdlib cache if this is the
+    /// first successful compile. Returns the ASTs and updated compilation.
+    /// </summary>
+    private ParseResult Parse(
+        MistCompilation compilation,
+        Dictionary<CompilationUnit, TokenStream> tokenStreams,
+        ImmutableArray<TokenStream>.Builder? stdlibTokensForCache,
+        (ImmutableArray<TokenStream> Tokens, ImmutableArray<Storm.Runtime.SyntaxNode> Asts)? cachedStdlib,
+        DiagnosticBag allDiagnostics)
+    {
+        var parsingStopwatch = Stopwatch.StartNew();
+        progressReporter.ReportStageStart("3", "Parsing");
+
+        var asts = ImmutableArray.CreateBuilder<Storm.Runtime.SyntaxNode>();
+        var stdlibAstsForCache = cachedStdlib.HasValue
+            ? null
+            : ImmutableArray.CreateBuilder<Storm.Runtime.SyntaxNode>();
+
+        // If we have cached stdlib ASTs, prepend them first.
+        if(cachedStdlib.HasValue)
+        {
+            asts.AddRange(cachedStdlib.Value.Asts);
+        }
+
+        var unitsWithTopLevelStatements = new HashSet<CompilationUnit>();
+
+        foreach(var (unit, tokenStream) in tokenStreams)
+        {
+            var parseBag = new DiagnosticBag();
+            var unitParseResult = parser.Parse(tokenStream, parseBag);
+
+            foreach(var d in parseBag.ToImmutableArray())
+            {
+                allDiagnostics.Add(d);
+            }
+
+            foreach(var d in unitParseResult.Diagnostics)
+            {
+                allDiagnostics.Add(d);
+            }
+
+            if(unitParseResult.Root is not null && !parseBag.HasErrors)
+            {
+                unitParseResult.Root.SetParentLinks();
+                asts.Add(unitParseResult.Root);
+                if(unit.IsStdlib)
+                {
+                    stdlibAstsForCache?.Add(unitParseResult.Root);
+                }
+
+                // Detect top-level statements in the parsed AST.
+                if(unitParseResult.Root is CompilationUnitNode cu
+                    && cu.Items.Any(item => item is StatementItemTopLevelItemNode))
+                {
+                    _ = unitsWithTopLevelStatements.Add(unit);
+                }
+            }
+            // If parse errors, exclude AST from semantic model (R16.4)
+        }
+
+        // Update CompilationUnits that contain top-level statements.
+        if(unitsWithTopLevelStatements.Count > 0)
+        {
+            var updatedUnits = compilation.Units.Select(u =>
+                unitsWithTopLevelStatements.Contains(u)
+                    ? u with { HasTopLevelStatements = true }
+                    : u).ToImmutableArray();
+            compilation = compilation with { Units = updatedUnits };
+        }
+
+        // Populate the stdlib cache if this is the first successful compile.
+        if(!cachedStdlib.HasValue && stdlibTokensForCache is not null && stdlibAstsForCache is not null)
+        {
+            lock(StdlibCacheLock)
+            {
+                if(!stdlibCache.HasValue)
+                {
+                    stdlibCache = (stdlibTokensForCache.ToImmutable(), stdlibAstsForCache.ToImmutable());
+                }
+            }
+        }
+
+        parsingStopwatch.Stop();
+        var totalNodes = asts.Sum(SyntaxTreeMetrics.CountNodes);
+        progressReporter.ReportStageComplete("3", parsingStopwatch.Elapsed, new[]
+        {
+            $"{totalNodes} AST nodes",
+        });
+
+        return new ParseResult(asts.ToImmutable(), compilation);
     }
 
     /// <summary>

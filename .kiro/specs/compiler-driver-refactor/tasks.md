@@ -4,24 +4,30 @@
 
 Prep work for the v2 pipeline (ProgramModel + new emitter). Extract stages into focused methods, move misplaced concerns to their correct homes, and create the insertion point for the new pipeline.
 
+Target file: `Source/Mist/Driver/CompilerDriver.cs` (the `Compile()` method is ~600 lines orchestrating Stages 1-6 inline).
+
+Related files:
+- `Source/Mist/Backends/CSharpTranspiler/CSharpEmitter.cs` (tasks 8-9 move code here)
+- `Source/Mist/Backends/Contracts/IBackend.cs` (may need signature changes for tasks 8-9)
+
 ## Tasks
 
-- [ ] 1. Extract Stage 1 (Loading) into its own method
+- [x] 1. Extract Stage 1 (Loading) into its own method
   Extract Steps 1a–1d (user source loading, stdlib loading, project reference resolution, combining units) into a method like `LoadCompilationUnits(...)` that returns a `MistCompilation`.
 
-- [ ] 2. Extract Stage 1.5 (Package Resolution) into its own method
+- [x] 2. Extract Stage 1.5 (Package Resolution) into its own method
   Extract NuGet package and framework reference resolution into `ResolvePackages(...)` that returns the resolved assembly paths and `LoadedAssemblyInfo`.
 
-- [ ] 3. Extract Stage 2 (Lexing) into its own method
+- [x] 3. Extract Stage 2 (Lexing) into its own method
   Extract tokenization loop into `Lex(...)` that takes `MistCompilation` and returns the token arrays.
 
-- [ ] 4. Extract Stage 3 (Parsing) into its own method
+- [x] 4. Extract Stage 3 (Parsing) into its own method
   Extract parsing loop into `Parse(...)` that takes token arrays and returns ASTs plus metrics.
 
-- [ ] 5. Extract Stage 4 (Semantic Model) into its own method
+- [x] 5. Extract Stage 4 (Semantic Model) into its own method
   Extract semantic model building + inference engines (4b, 4c.5, 4d) into `BuildSemanticModel(...)` that takes ASTs and returns `ISemanticModel`.
 
-- [ ] 6. Extract Stage 5 (Analysis) into its own method
+- [-] 6. Extract Stage 5 (Analysis) into its own method
   Extract analyzer runner invocation into `RunAnalysis(...)` that takes `ISemanticModel` and returns diagnostics.
 
 - [ ] 7. Extract Stage 6 (Emit) into its own method

@@ -106,30 +106,9 @@ public sealed class CompilerDriver : ICompilerDriver
         var semanticModel = semanticResult.Model;
 
         // Stage 5: Analysis
-        var analysisStopwatch = Stopwatch.StartNew();
-        progressReporter.ReportStageStart("5", "Analysis");
-
-        var filteredAnalyzers = options.EnabledAnalyzerIds.IsEmpty
-            ? analyzers
-            : analyzers.Where(a => options.EnabledAnalyzerIds.Contains(a.AnalyzerId)).ToImmutableArray();
-
-        var runner = new AnalyzerRunner(filteredAnalyzers);
-        var analyzerResult = runner.RunAll(semanticModel);
-
-        analysisStopwatch.Stop();
-        var analyzerDetails = analyzerResult.Timings
-            .Select(entry => $"{entry.AnalyzerId}  {entry.Elapsed.TotalSeconds:F2}s")
-            .ToArray();
-        progressReporter.ReportStageComplete("5", analysisStopwatch.Elapsed, analyzerDetails);
-
-        foreach(var d in analyzerResult.Diagnostics)
+        var hasAnalysisErrors = RunAnalysis(semanticModel, options, allDiagnostics);
+        if(hasAnalysisErrors)
         {
-            allDiagnostics.Add(d);
-        }
-
-        if(analyzerResult.Diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
-        {
-            // Skip backend if analyzer errors (R13.6)
             return new CompilerResult(false, null, allDiagnostics.ToImmutableArray());
         }
 
@@ -662,6 +641,37 @@ public sealed class CompilerDriver : ICompilerDriver
         SyntheticDropInferenceEngine.RunInference(semanticModel);
 
         return new SemanticModelResult(semanticModel, false);
+    }
+
+    /// <summary>
+    /// Stage 5 – Analysis: filters enabled analyzers, runs them against the
+    /// semantic model, and adds any diagnostics to the shared bag.
+    /// Returns <c>true</c> if any analyzer produced an error diagnostic.
+    /// </summary>
+    private bool RunAnalysis(ISemanticModel semanticModel, CompilerOptions options, DiagnosticBag allDiagnostics)
+    {
+        var analysisStopwatch = Stopwatch.StartNew();
+        progressReporter.ReportStageStart("5", "Analysis");
+
+        var filteredAnalyzers = options.EnabledAnalyzerIds.IsEmpty
+            ? analyzers
+            : analyzers.Where(a => options.EnabledAnalyzerIds.Contains(a.AnalyzerId)).ToImmutableArray();
+
+        var runner = new AnalyzerRunner(filteredAnalyzers);
+        var analyzerResult = runner.RunAll(semanticModel);
+
+        analysisStopwatch.Stop();
+        var analyzerDetails = analyzerResult.Timings
+            .Select(entry => $"{entry.AnalyzerId}  {entry.Elapsed.TotalSeconds:F2}s")
+            .ToArray();
+        progressReporter.ReportStageComplete("5", analysisStopwatch.Elapsed, analyzerDetails);
+
+        foreach(var d in analyzerResult.Diagnostics)
+        {
+            allDiagnostics.Add(d);
+        }
+
+        return analyzerResult.Diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
     }
 
     /// <summary>

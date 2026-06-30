@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.Driver.Contracts;
+using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts;
 
 namespace Mist.Driver;
@@ -40,19 +41,8 @@ public sealed class ExperimentalPipeline : ICompilationPipeline
     /// </summary>
     private static IProgramModel? BuildProgramModel(PipelineInput input, DiagnosticBag diagnostics)
     {
-        // TODO: Invoke ProgramModelBuilder to construct IProgramModel from input.Asts
-        _ = input;
-
-        diagnostics.Add(new Diagnostic(
-            new DiagnosticId("MIST_EXPERIMENTAL"),
-            DiagnosticSeverity.Error,
-            PipelineStage.SemanticModelConstruction,
-            "The experimental pipeline's ProgramModelBuilder is not yet implemented.",
-            Location: default,
-            CompilationUnitPath: "<experimental>",
-            AnalyzerName: null));
-
-        return null;
+        var builder = new ProgramModelBuilder();
+        return builder.Build(input.Asts, diagnostics);
     }
 
     /// <summary>

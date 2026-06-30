@@ -308,7 +308,10 @@ internal class Program
             TargetFramework: config.TargetFramework,
             VerboseResolution: cliArgs.Verbose,
             CsprojProperties: config.CsprojProperties,
-            OutputType: config.OutputType);
+            OutputType: config.OutputType,
+            Pipeline: cliArgs.Pipeline == "experimental"
+                ? PipelineMode.Experimental
+                : PipelineMode.Classic);
 
         // Construct the compiler pipeline
         var lexer = new MistLexer();

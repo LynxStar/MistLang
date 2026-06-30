@@ -35,7 +35,8 @@ public sealed record CliArguments(
     CompilerMode Mode = CompilerMode.Compile,
     bool Quiet = false,
     bool Verbose = false,
-    string? InspectTypeName = null);
+    string? InspectTypeName = null,
+    string Pipeline = "classic");
 
 /// <summary>
 /// The compiler execution mode.

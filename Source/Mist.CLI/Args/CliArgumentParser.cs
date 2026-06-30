@@ -26,6 +26,7 @@ public static class CliArgumentParser
         var mode = CompilerMode.Compile;
         var quiet = false;
         var verbose = false;
+        var pipeline = "classic";
 
         for(var i = 0; i < args.Length; i++)
         {
@@ -95,6 +96,22 @@ public static class CliArgumentParser
             else if(arg is "--verbose" or "-v")
             {
                 verbose = true;
+            }
+            else if(arg == "--pipeline")
+            {
+                if(i + 1 >= args.Length)
+                {
+                    errors.Add(new CliParseError("Missing value for --pipeline flag."));
+                }
+                else
+                {
+                    i++;
+                    pipeline = args[i].ToLowerInvariant();
+                    if(pipeline is not ("classic" or "experimental"))
+                    {
+                        errors.Add(new CliParseError($"Unknown pipeline: '{args[i]}'. Valid pipelines: classic, experimental"));
+                    }
+                }
             }
             else if(arg.StartsWith("--"))
             {
@@ -252,7 +269,7 @@ public static class CliArgumentParser
         }
 
         return new CliParseResult(
-            new CliArguments(projectFolder!, Command: command, backendId, outputDirectory, binDirectory, mode, quiet, verbose, inspectTypeName),
+            new CliArguments(projectFolder!, Command: command, backendId, outputDirectory, binDirectory, mode, quiet, verbose, inspectTypeName, pipeline),
             errors);
     }
 }

@@ -42,4 +42,5 @@ public sealed record CompilerOptions(
     string TargetFramework = "net10.0",
     bool VerboseResolution = false,
     ImmutableArray<CsprojProperty> CsprojProperties = default,
-    ProjectOutputType OutputType = ProjectOutputType.Executable);
+    ProjectOutputType OutputType = ProjectOutputType.Executable,
+    PipelineMode Pipeline = PipelineMode.Classic);

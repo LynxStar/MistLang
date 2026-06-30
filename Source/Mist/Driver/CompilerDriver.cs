@@ -30,7 +30,8 @@ public sealed class CompilerDriver : ICompilerDriver
     private IParser parser;
     private ImmutableDictionary<string, IBackend> backends;
     private readonly ICompilationProgressReporter progressReporter;
-    private readonly ICompilationPipeline pipeline;
+    private readonly ICompilationPipeline classicPipeline;
+    private readonly ICompilationPipeline experimentalPipeline;
 
     public CompilerDriver(
         ILexer lexer,
@@ -44,7 +45,8 @@ public sealed class CompilerDriver : ICompilerDriver
         this.parser = parser;
         this.backends = backends.ToImmutableDictionary(b => b.Id.Value);
         this.progressReporter = progressReporter ?? NullProgressReporter.Instance;
-        pipeline = new ClassicPipeline(semanticModelBuilder, analyzers, this.progressReporter);
+        classicPipeline = new ClassicPipeline(semanticModelBuilder, analyzers, this.progressReporter);
+        experimentalPipeline = new ExperimentalPipeline();
     }
 
     public CompilerResult Compile(CompilerOptions options)
@@ -93,10 +95,13 @@ public sealed class CompilerDriver : ICompilerDriver
         compilation = parseResult.Compilation;
 
         // Dispatch to the compilation pipeline (Stages 4-6).
-        // The branching point for v2 pipeline selection is here.
         var pipelineInput = new PipelineInput(
             compilation, asts, backend, resolvedAssemblyPaths,
             options, directReferencePaths, allDiagnostics);
+
+        var pipeline = options.Pipeline == PipelineMode.Experimental
+            ? experimentalPipeline
+            : classicPipeline;
 
         return pipeline.Execute(pipelineInput);
     }

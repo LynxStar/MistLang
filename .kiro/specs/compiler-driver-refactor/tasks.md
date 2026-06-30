@@ -27,19 +27,19 @@ Related files:
 - [x] 5. Extract Stage 4 (Semantic Model) into its own method
   Extract semantic model building + inference engines (4b, 4c.5, 4d) into `BuildSemanticModel(...)` that takes ASTs and returns `ISemanticModel`.
 
-- [-] 6. Extract Stage 5 (Analysis) into its own method
+- [x] 6. Extract Stage 5 (Analysis) into its own method
   Extract analyzer runner invocation into `RunAnalysis(...)` that takes `ISemanticModel` and returns diagnostics.
 
-- [ ] 7. Extract Stage 6 (Emit) into its own method
+- [x] 7. Extract Stage 6 (Emit) into its own method
   Extract backend emit + csproj patching into `Emit(...)` that takes `ISemanticModel` and options, returns `BackendResult`.
 
-- [ ] 8. Move `PatchCsprojWithReferences` to the C# emitter backend
+- [x] 8. Move `PatchCsprojWithReferences` to the C# emitter backend
   This is a post-emit fixup on the generated .csproj -- it belongs in the emitter, not the driver. The emitter's `Emit` method should handle package/framework reference injection internally.
 
-- [ ] 9. Move `PatchCsprojWithProperties` to the C# emitter backend
+- [x] 9. Move `PatchCsprojWithProperties` to the C# emitter backend
   Same rationale -- MSBuild property patching is an emitter concern. Move it into the backend so the driver just calls `backend.Emit(...)` and gets a complete result.
 
-- [ ] 10. Add insertion point for v2 pipeline
+- [x] 10. Add insertion point for v2 pipeline
   After Stage 3, add a conditional branch where the new pipeline (ProgramModelBuilder -> new analyzers -> new emitter) can be invoked. Initially gated behind a flag or config option. Both pipelines receive the same ASTs from Stage 3.
 
 ## Task Dependency Graph

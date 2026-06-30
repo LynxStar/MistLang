@@ -81,94 +81,7 @@ public sealed class CompilerDriver : ICompilerDriver
         var directReferencePaths = loadResult.DirectReferencePaths;
 
         // Stage 1.5: Package Resolution (runs only when deps are declared)
-        var resolvedAssemblyPaths = ImmutableArray<string>.Empty;
-
-        var hasPackages = !options.Packages.IsDefaultOrEmpty;
-        var hasFrameworkRefs = !options.FrameworkReferences.IsDefaultOrEmpty;
-
-        if(hasPackages || hasFrameworkRefs)
-        {
-            var resolutionStopwatch = Stopwatch.StartNew();
-
-            if(options.VerboseResolution)
-            {
-                progressReporter.ReportStageStart("1.5", "Package Resolution");
-            }
-
-            var resolutionDiagnostics = new DiagnosticBag();
-
-            // Resolve NuGet packages (passes framework references for deduplication
-            // against framework-provided assemblies to prevent duplicate loading)
-            var packageResult = PackageResolver.ResolvePackages(
-                options.Packages, options.FrameworkReferences, options.TargetFramework, resolutionDiagnostics);
-
-            // Resolve framework references
-            var frameworkResult = FrameworkReferenceResolver.Resolve(
-                options.FrameworkReferences, options.TargetFramework, resolutionDiagnostics);
-
-            // Merge assembly paths (union, dedupe by path)
-            var mergedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach(var path in packageResult.AssemblyPaths)
-            {
-                _ = mergedPaths.Add(path);
-            }
-
-            foreach(var path in frameworkResult.AssemblyPaths)
-            {
-                _ = mergedPaths.Add(path);
-            }
-
-            resolvedAssemblyPaths = [.. mergedPaths];
-
-            // Add diagnostics to the shared bag (they always surface through
-            // normal diagnostic printing regardless of verbose).
-            foreach(var d in resolutionDiagnostics.ToImmutableArray())
-            {
-                allDiagnostics.Add(d);
-            }
-
-            resolutionStopwatch.Stop();
-
-            // Verbose output: emit detail lines and summary
-            if(options.VerboseResolution)
-            {
-                var details = new List<string>();
-
-                // Per-package detail lines
-                foreach(var pkg in packageResult.Resolved)
-                {
-                    details.Add($"Restored {pkg.Name} {pkg.Version} ({pkg.SelectedTfm})");
-                }
-
-                // Per-framework detail lines
-                foreach(var fw in frameworkResult.Resolved)
-                {
-                    details.Add($"Resolved {fw.Name} {fw.Version}");
-                }
-
-                // Zero-assemblies notes for packages with AssemblyCount == 0
-                foreach(var pkg in packageResult.Resolved)
-                {
-                    if(pkg.AssemblyCount == 0)
-                    {
-                        details.Add($"{pkg.Name} contributed no assemblies for {options.TargetFramework}");
-                    }
-                }
-
-                // Elapsed ms
-                details.Add($"{(int)resolutionStopwatch.Elapsed.TotalMilliseconds} ms");
-
-                // Summary line with success/failure counts
-                var successCount = packageResult.Resolved.Length + frameworkResult.Resolved.Length;
-                var failureCountTotal = packageResult.FailureCount + frameworkResult.FailureCount;
-                details.Add($"{successCount} succeeded, {failureCountTotal} failed");
-
-                progressReporter.ReportStageComplete("1.5", resolutionStopwatch.Elapsed, details);
-            }
-
-            // On resolution failure: continue the build with whatever resolved
-            // successfully (Req 2.6, 5.8). Do NOT abort.
-        }
+        var resolvedAssemblyPaths = ResolvePackages(options, allDiagnostics);
 
         // Stage 2: Lexing
         var lexingStopwatch = Stopwatch.StartNew();
@@ -418,7 +331,7 @@ public sealed class CompilerDriver : ICompilerDriver
 
             // Patch the emitted .csproj with declared NuGet packages and framework references
             // so the downstream C# compilation can resolve the referenced types.
-            if(backendResult.Succeeded && (hasPackages || hasFrameworkRefs))
+            if(backendResult.Succeeded && (!options.Packages.IsDefaultOrEmpty || !options.FrameworkReferences.IsDefaultOrEmpty))
             {
                 PatchCsprojWithReferences(options.OutputDirectory, projectName, options.Packages, options.FrameworkReferences);
             }
@@ -668,6 +581,105 @@ public sealed class CompilerDriver : ICompilerDriver
         });
 
         return new LoadResult(compilation, directReferencePaths);
+    }
+
+    /// <summary>
+    /// Stage 1.5 – Package Resolution: resolves NuGet packages and framework
+    /// references, returning the merged set of assembly paths. Returns an empty
+    /// array when no packages or framework references are declared.
+    /// On resolution failure: continues with whatever resolved successfully.
+    /// </summary>
+    private ImmutableArray<string> ResolvePackages(CompilerOptions options, DiagnosticBag allDiagnostics)
+    {
+        var hasPackages = !options.Packages.IsDefaultOrEmpty;
+        var hasFrameworkRefs = !options.FrameworkReferences.IsDefaultOrEmpty;
+
+        if(!hasPackages && !hasFrameworkRefs)
+        {
+            return ImmutableArray<string>.Empty;
+        }
+
+        var resolutionStopwatch = Stopwatch.StartNew();
+
+        if(options.VerboseResolution)
+        {
+            progressReporter.ReportStageStart("1.5", "Package Resolution");
+        }
+
+        var resolutionDiagnostics = new DiagnosticBag();
+
+        // Resolve NuGet packages (passes framework references for deduplication
+        // against framework-provided assemblies to prevent duplicate loading)
+        var packageResult = PackageResolver.ResolvePackages(
+            options.Packages, options.FrameworkReferences, options.TargetFramework, resolutionDiagnostics);
+
+        // Resolve framework references
+        var frameworkResult = FrameworkReferenceResolver.Resolve(
+            options.FrameworkReferences, options.TargetFramework, resolutionDiagnostics);
+
+        // Merge assembly paths (union, dedupe by path)
+        var mergedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach(var path in packageResult.AssemblyPaths)
+        {
+            _ = mergedPaths.Add(path);
+        }
+
+        foreach(var path in frameworkResult.AssemblyPaths)
+        {
+            _ = mergedPaths.Add(path);
+        }
+
+        var resolvedAssemblyPaths = ImmutableArray.CreateRange(mergedPaths);
+
+        // Add diagnostics to the shared bag (they always surface through
+        // normal diagnostic printing regardless of verbose).
+        foreach(var d in resolutionDiagnostics.ToImmutableArray())
+        {
+            allDiagnostics.Add(d);
+        }
+
+        resolutionStopwatch.Stop();
+
+        // Verbose output: emit detail lines and summary
+        if(options.VerboseResolution)
+        {
+            var details = new List<string>();
+
+            // Per-package detail lines
+            foreach(var pkg in packageResult.Resolved)
+            {
+                details.Add($"Restored {pkg.Name} {pkg.Version} ({pkg.SelectedTfm})");
+            }
+
+            // Per-framework detail lines
+            foreach(var fw in frameworkResult.Resolved)
+            {
+                details.Add($"Resolved {fw.Name} {fw.Version}");
+            }
+
+            // Zero-assemblies notes for packages with AssemblyCount == 0
+            foreach(var pkg in packageResult.Resolved)
+            {
+                if(pkg.AssemblyCount == 0)
+                {
+                    details.Add($"{pkg.Name} contributed no assemblies for {options.TargetFramework}");
+                }
+            }
+
+            // Elapsed ms
+            details.Add($"{(int)resolutionStopwatch.Elapsed.TotalMilliseconds} ms");
+
+            // Summary line with success/failure counts
+            var successCount = packageResult.Resolved.Length + frameworkResult.Resolved.Length;
+            var failureCountTotal = packageResult.FailureCount + frameworkResult.FailureCount;
+            details.Add($"{successCount} succeeded, {failureCountTotal} failed");
+
+            progressReporter.ReportStageComplete("1.5", resolutionStopwatch.Elapsed, details);
+        }
+
+        // On resolution failure: continue the build with whatever resolved
+        // successfully (Req 2.6, 5.8). Do NOT abort.
+        return resolvedAssemblyPaths;
     }
 
     /// <summary>

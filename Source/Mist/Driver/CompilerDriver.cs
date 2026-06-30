@@ -113,68 +113,13 @@ public sealed class CompilerDriver : ICompilerDriver
         }
 
         // Stage 6: Emit via backend
-        var emitStopwatch = Stopwatch.StartNew();
-        progressReporter.ReportStageStart("6", "Emit");
-
-        var backendBag = new DiagnosticBag();
-        var projectName = options.ProjectName;
-
-        IReadOnlyDictionary<string, string>? emittedFiles = null;
-        BackendResult backendResult;
-
-        if(options.EmitToDisk)
-        {
-            backendResult = backend.Emit(semanticModel, options.OutputDirectory, options.BinDirectory, projectName, backendBag, options.OutputType);
-
-            // Patch the emitted .csproj with declared NuGet packages and framework references
-            // so the downstream C# compilation can resolve the referenced types.
-            if(backendResult.Succeeded && (!options.Packages.IsDefaultOrEmpty || !options.FrameworkReferences.IsDefaultOrEmpty))
-            {
-                PatchCsprojWithReferences(options.OutputDirectory, projectName, options.Packages, options.FrameworkReferences);
-            }
-
-            // Patch the emitted .csproj with user-declared MSBuild properties from [csproj_properties].
-            if(backendResult.Succeeded)
-            {
-                PatchCsprojWithProperties(options.OutputDirectory, projectName, options.CsprojProperties);
-            }
-        }
-        else
-        {
-            // In-memory emit: use CSharpEmitter.EmitToMemory directly to avoid disk I/O.
-            var files = Backends.CSharpTranspiler.CSharpEmitter.EmitToMemory(semanticModel, backendBag);
-            emittedFiles = files;
-            backendResult = new BackendResult(
-                Succeeded: !backendBag.HasErrors,
-                PrimaryArtifactPath: null,
-                Diagnostics: backendBag.ToImmutableArray(),
-                EmittedFileCount: files.Count);
-        }
-
-        emitStopwatch.Stop();
-        var emitDetails = new List<string> { $"{backendResult.EmittedFileCount} .cs files written" };
-        if(backendResult.PrimaryArtifactPath is not null)
-        {
-            emitDetails.Add(backendResult.PrimaryArtifactPath);
-        }
-
-        progressReporter.ReportStageComplete("6", emitStopwatch.Elapsed, emitDetails);
-
-        foreach(var d in backendBag.ToImmutableArray())
-        {
-            allDiagnostics.Add(d);
-        }
-
-        foreach(var d in backendResult.Diagnostics)
-        {
-            allDiagnostics.Add(d);
-        }
+        var emitResult = Emit(semanticModel, backend, options, allDiagnostics);
 
         return new CompilerResult(
-            backendResult.Succeeded,
-            backendResult.PrimaryArtifactPath,
+            emitResult.Succeeded,
+            emitResult.PrimaryArtifactPath,
             allDiagnostics.ToImmutableArray(),
-            emittedFiles);
+            emitResult.EmittedFiles);
     }
 
     /// <summary>
@@ -672,6 +617,89 @@ public sealed class CompilerDriver : ICompilerDriver
         }
 
         return analyzerResult.Diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
+    }
+
+    /// <summary>
+    /// Result of Stage 6 (Emit): whether emit succeeded, the primary artifact
+    /// path (when emitting to disk), and any in-memory emitted files.
+    /// </summary>
+    private sealed record EmitResult(
+        bool Succeeded,
+        string? PrimaryArtifactPath,
+        IReadOnlyDictionary<string, string>? EmittedFiles);
+
+    /// <summary>
+    /// Stage 6 – Emit: invokes the backend to emit C# code (to disk or memory),
+    /// patches the .csproj with references and properties when emitting to disk,
+    /// reports progress, and adds backend diagnostics to <paramref name="allDiagnostics"/>.
+    /// </summary>
+    private EmitResult Emit(
+        ISemanticModel semanticModel,
+        IBackend backend,
+        CompilerOptions options,
+        DiagnosticBag allDiagnostics)
+    {
+        var emitStopwatch = Stopwatch.StartNew();
+        progressReporter.ReportStageStart("6", "Emit");
+
+        var backendBag = new DiagnosticBag();
+        var projectName = options.ProjectName;
+
+        IReadOnlyDictionary<string, string>? emittedFiles = null;
+        BackendResult backendResult;
+
+        if(options.EmitToDisk)
+        {
+            backendResult = backend.Emit(semanticModel, options.OutputDirectory, options.BinDirectory, projectName, backendBag, options.OutputType);
+
+            // Patch the emitted .csproj with declared NuGet packages and framework references
+            // so the downstream C# compilation can resolve the referenced types.
+            if(backendResult.Succeeded && (!options.Packages.IsDefaultOrEmpty || !options.FrameworkReferences.IsDefaultOrEmpty))
+            {
+                PatchCsprojWithReferences(options.OutputDirectory, projectName, options.Packages, options.FrameworkReferences);
+            }
+
+            // Patch the emitted .csproj with user-declared MSBuild properties from [csproj_properties].
+            if(backendResult.Succeeded)
+            {
+                PatchCsprojWithProperties(options.OutputDirectory, projectName, options.CsprojProperties);
+            }
+        }
+        else
+        {
+            // In-memory emit: use CSharpEmitter.EmitToMemory directly to avoid disk I/O.
+            var files = Backends.CSharpTranspiler.CSharpEmitter.EmitToMemory(semanticModel, backendBag);
+            emittedFiles = files;
+            backendResult = new BackendResult(
+                Succeeded: !backendBag.HasErrors,
+                PrimaryArtifactPath: null,
+                Diagnostics: backendBag.ToImmutableArray(),
+                EmittedFileCount: files.Count);
+        }
+
+        emitStopwatch.Stop();
+        var emitDetails = new List<string> { $"{backendResult.EmittedFileCount} .cs files written" };
+        if(backendResult.PrimaryArtifactPath is not null)
+        {
+            emitDetails.Add(backendResult.PrimaryArtifactPath);
+        }
+
+        progressReporter.ReportStageComplete("6", emitStopwatch.Elapsed, emitDetails);
+
+        foreach(var d in backendBag.ToImmutableArray())
+        {
+            allDiagnostics.Add(d);
+        }
+
+        foreach(var d in backendResult.Diagnostics)
+        {
+            allDiagnostics.Add(d);
+        }
+
+        return new EmitResult(
+            backendResult.Succeeded,
+            backendResult.PrimaryArtifactPath,
+            emittedFiles);
     }
 
     /// <summary>

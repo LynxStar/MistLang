@@ -630,7 +630,6 @@ public sealed class CompilerDriver : ICompilerDriver
 
     /// <summary>
     /// Stage 6 – Emit: invokes the backend to emit C# code (to disk or memory),
-    /// patches the .csproj with references and properties when emitting to disk,
     /// reports progress, and adds backend diagnostics to <paramref name="allDiagnostics"/>.
     /// </summary>
     private EmitResult Emit(
@@ -650,20 +649,7 @@ public sealed class CompilerDriver : ICompilerDriver
 
         if(options.EmitToDisk)
         {
-            backendResult = backend.Emit(semanticModel, options.OutputDirectory, options.BinDirectory, projectName, backendBag, options.OutputType);
-
-            // Patch the emitted .csproj with declared NuGet packages and framework references
-            // so the downstream C# compilation can resolve the referenced types.
-            if(backendResult.Succeeded && (!options.Packages.IsDefaultOrEmpty || !options.FrameworkReferences.IsDefaultOrEmpty))
-            {
-                PatchCsprojWithReferences(options.OutputDirectory, projectName, options.Packages, options.FrameworkReferences);
-            }
-
-            // Patch the emitted .csproj with user-declared MSBuild properties from [csproj_properties].
-            if(backendResult.Succeeded)
-            {
-                PatchCsprojWithProperties(options.OutputDirectory, projectName, options.CsprojProperties);
-            }
+            backendResult = backend.Emit(semanticModel, options.OutputDirectory, options.BinDirectory, projectName, backendBag, options.OutputType, options.Packages, options.FrameworkReferences, options.CsprojProperties);
         }
         else
         {
@@ -799,108 +785,5 @@ public sealed class CompilerDriver : ICompilerDriver
         // On resolution failure: continue the build with whatever resolved
         // successfully (Req 2.6, 5.8). Do NOT abort.
         return resolvedAssemblyPaths;
-    }
-
-    /// <summary>
-    /// Patches the emitted .csproj file with a custom <c>&lt;PropertyGroup&gt;</c> containing
-    /// user-declared MSBuild properties from the <c>[csproj_properties]</c> table. The new
-    /// PropertyGroup is inserted immediately after the first <c>&lt;/PropertyGroup&gt;</c> tag
-    /// (i.e., after the hardcoded compiler-managed PropertyGroup, before any ItemGroups).
-    /// Values are XML-escaped via <see cref="System.Security.SecurityElement.Escape"/>.
-    /// </summary>
-    private static void PatchCsprojWithProperties(
-        string outputDirectory,
-        string projectName,
-        ImmutableArray<CsprojProperty> csprojProperties)
-    {
-        if(csprojProperties.IsDefaultOrEmpty)
-        {
-            return;
-        }
-
-        var csprojPath = Path.Combine(outputDirectory, $"{projectName}.csproj");
-        if(!File.Exists(csprojPath))
-        {
-            return;
-        }
-
-        var content = File.ReadAllText(csprojPath);
-
-        // Build the custom PropertyGroup fragment.
-        var sb = new System.Text.StringBuilder();
-        _ = sb.AppendLine();
-        _ = sb.AppendLine("  <PropertyGroup>");
-        foreach(var prop in csprojProperties)
-        {
-            var escapedValue = System.Security.SecurityElement.Escape(prop.Value) ?? prop.Value;
-            _ = sb.AppendLine($"    <{prop.Key}>{escapedValue}</{prop.Key}>");
-        }
-
-        _ = sb.AppendLine("  </PropertyGroup>");
-
-        // Insert after the first </PropertyGroup> tag.
-        const string marker = "</PropertyGroup>";
-        var insertionPoint = content.IndexOf(marker, StringComparison.Ordinal);
-        if(insertionPoint >= 0)
-        {
-            insertionPoint += marker.Length;
-            content = content.Insert(insertionPoint, sb.ToString());
-            File.WriteAllText(csprojPath, content);
-        }
-    }
-
-    /// <summary>
-    /// Patches the emitted .csproj file with PackageReference and FrameworkReference entries
-    /// so the downstream C# compilation resolves types from declared packages and frameworks.
-    /// </summary>
-    private static void PatchCsprojWithReferences(
-        string outputDirectory,
-        string projectName,
-        ImmutableArray<NuGetPackageReference> packages,
-        ImmutableArray<FrameworkReference> frameworkReferences)
-    {
-        var csprojPath = Path.Combine(outputDirectory, $"{projectName}.csproj");
-        if(!File.Exists(csprojPath))
-        {
-            return;
-        }
-
-        var content = File.ReadAllText(csprojPath);
-
-        // Build the additional ItemGroup entries.
-        var sb = new System.Text.StringBuilder();
-
-        if(!packages.IsDefaultOrEmpty)
-        {
-            _ = sb.AppendLine("  <ItemGroup>");
-            foreach(var pkg in packages)
-            {
-                _ = sb.AppendLine($"    <PackageReference Include=\"{pkg.Name}\" Version=\"{pkg.Version}\" />");
-            }
-
-            _ = sb.AppendLine("  </ItemGroup>");
-        }
-
-        if(!frameworkReferences.IsDefaultOrEmpty)
-        {
-            _ = sb.AppendLine("  <ItemGroup>");
-            foreach(var fw in frameworkReferences)
-            {
-                _ = sb.AppendLine($"    <FrameworkReference Include=\"{fw.Name}\" />");
-            }
-
-            _ = sb.AppendLine("  </ItemGroup>");
-        }
-
-        if(sb.Length > 0)
-        {
-            // Insert before the closing </Project> tag.
-            var insertionPoint = content.LastIndexOf("</Project>", StringComparison.Ordinal);
-            if(insertionPoint >= 0)
-            {
-                content = content.Insert(insertionPoint, sb.ToString());
-                File.WriteAllText(csprojPath, content);
-            }
-        }
     }
 }

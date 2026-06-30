@@ -118,7 +118,7 @@ public sealed class CSharpTranspilerBackend : IBackend
         }
     }
 
-    public BackendResult Emit(ISemanticModel model, string outputDirectory, string binDirectory, string projectName, DiagnosticBag diagnostics, ProjectOutputType outputType = ProjectOutputType.Executable)
+    public BackendResult Emit(ISemanticModel model, string outputDirectory, string binDirectory, string projectName, DiagnosticBag diagnostics, ProjectOutputType outputType = ProjectOutputType.Executable, ImmutableArray<NuGetPackageReference> packages = default, ImmutableArray<FrameworkReference> frameworkReferences = default, ImmutableArray<CsprojProperty> csprojProperties = default)
     {
         var bag = new DiagnosticBag();
 
@@ -157,6 +157,19 @@ public sealed class CSharpTranspilerBackend : IBackend
 
             // Step 2: Compile the emitted C# project
             var compileResult = CSharpCompilationDriver.Compile(outputDirectory, binDirectory, projectName, bag, emittedFileCount, mainTypeName, lastAdditionalAssemblyPaths, outputType);
+
+            // Step 3: Patch the emitted .csproj with declared references and properties.
+            // This runs after compilation so the .csproj exists on disk. The patches
+            // are consumed by subsequent `dotnet build` invocations by the user.
+            if(compileResult.Succeeded)
+            {
+                if(!packages.IsDefaultOrEmpty || !frameworkReferences.IsDefaultOrEmpty)
+                {
+                    PatchCsprojWithReferences(outputDirectory, projectName, packages, frameworkReferences);
+                }
+
+                PatchCsprojWithProperties(outputDirectory, projectName, csprojProperties);
+            }
 
             return compileResult;
         }
@@ -354,6 +367,109 @@ public sealed class CSharpTranspilerBackend : IBackend
         catch
         {
             // Best-effort cleanup; the compilation already failed.
+        }
+    }
+
+    /// <summary>
+    /// Patches the emitted .csproj file with PackageReference and FrameworkReference entries
+    /// so the downstream C# compilation resolves types from declared packages and frameworks.
+    /// </summary>
+    private static void PatchCsprojWithReferences(
+        string outputDirectory,
+        string projectName,
+        ImmutableArray<NuGetPackageReference> packages,
+        ImmutableArray<FrameworkReference> frameworkReferences)
+    {
+        var csprojPath = Path.Combine(outputDirectory, $"{projectName}.csproj");
+        if(!File.Exists(csprojPath))
+        {
+            return;
+        }
+
+        var content = File.ReadAllText(csprojPath);
+
+        // Build the additional ItemGroup entries.
+        var sb = new System.Text.StringBuilder();
+
+        if(!packages.IsDefaultOrEmpty)
+        {
+            _ = sb.AppendLine("  <ItemGroup>");
+            foreach(var pkg in packages)
+            {
+                _ = sb.AppendLine($"    <PackageReference Include=\"{pkg.Name}\" Version=\"{pkg.Version}\" />");
+            }
+
+            _ = sb.AppendLine("  </ItemGroup>");
+        }
+
+        if(!frameworkReferences.IsDefaultOrEmpty)
+        {
+            _ = sb.AppendLine("  <ItemGroup>");
+            foreach(var fw in frameworkReferences)
+            {
+                _ = sb.AppendLine($"    <FrameworkReference Include=\"{fw.Name}\" />");
+            }
+
+            _ = sb.AppendLine("  </ItemGroup>");
+        }
+
+        if(sb.Length > 0)
+        {
+            // Insert before the closing </Project> tag.
+            var insertionPoint = content.LastIndexOf("</Project>", StringComparison.Ordinal);
+            if(insertionPoint >= 0)
+            {
+                content = content.Insert(insertionPoint, sb.ToString());
+                File.WriteAllText(csprojPath, content);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Patches the emitted .csproj file with a custom <c>&lt;PropertyGroup&gt;</c> containing
+    /// user-declared MSBuild properties from the <c>[csproj_properties]</c> table. The new
+    /// PropertyGroup is inserted immediately after the first <c>&lt;/PropertyGroup&gt;</c> tag
+    /// (i.e., after the hardcoded compiler-managed PropertyGroup, before any ItemGroups).
+    /// Values are XML-escaped via <see cref="System.Security.SecurityElement.Escape"/>.
+    /// </summary>
+    private static void PatchCsprojWithProperties(
+        string outputDirectory,
+        string projectName,
+        ImmutableArray<CsprojProperty> csprojProperties)
+    {
+        if(csprojProperties.IsDefaultOrEmpty)
+        {
+            return;
+        }
+
+        var csprojPath = Path.Combine(outputDirectory, $"{projectName}.csproj");
+        if(!File.Exists(csprojPath))
+        {
+            return;
+        }
+
+        var content = File.ReadAllText(csprojPath);
+
+        // Build the custom PropertyGroup fragment.
+        var sb = new System.Text.StringBuilder();
+        _ = sb.AppendLine();
+        _ = sb.AppendLine("  <PropertyGroup>");
+        foreach(var prop in csprojProperties)
+        {
+            var escapedValue = System.Security.SecurityElement.Escape(prop.Value) ?? prop.Value;
+            _ = sb.AppendLine($"    <{prop.Key}>{escapedValue}</{prop.Key}>");
+        }
+
+        _ = sb.AppendLine("  </PropertyGroup>");
+
+        // Insert after the first </PropertyGroup> tag.
+        const string marker = "</PropertyGroup>";
+        var insertionPoint = content.IndexOf(marker, StringComparison.Ordinal);
+        if(insertionPoint >= 0)
+        {
+            insertionPoint += marker.Length;
+            content = content.Insert(insertionPoint, sb.ToString());
+            File.WriteAllText(csprojPath, content);
         }
     }
 }

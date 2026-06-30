@@ -13,5 +13,5 @@ public interface IBackend
 {
     BackendId Id { get; }
     IAmbientTypeResolver? GetAmbientTypeResolver(string targetFramework, ImmutableArray<string> additionalAssemblyPaths);
-    BackendResult Emit(ISemanticModel model, string outputDirectory, string binDirectory, string projectName, DiagnosticBag diagnostics, ProjectOutputType outputType = ProjectOutputType.Executable);
+    BackendResult Emit(ISemanticModel model, string outputDirectory, string binDirectory, string projectName, DiagnosticBag diagnostics, ProjectOutputType outputType = ProjectOutputType.Executable, ImmutableArray<NuGetPackageReference> packages = default, ImmutableArray<FrameworkReference> frameworkReferences = default, ImmutableArray<CsprojProperty> csprojProperties = default);
 }

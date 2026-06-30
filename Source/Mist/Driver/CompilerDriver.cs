@@ -71,187 +71,14 @@ public sealed class CompilerDriver : ICompilerDriver
         }
 
         // Stage 1: Loading
-        var loadingStopwatch = Stopwatch.StartNew();
-        progressReporter.ReportStageStart("1", "Loading");
-
-        // Step 1: Load source files into CompilationUnits
-        var userUnits = ImmutableArray.CreateBuilder<CompilationUnit>();
-        foreach(var path in options.SourcePaths)
-        {
-            try
-            {
-                var contents = File.ReadAllText(path);
-                var sourceText = new SourceText(path, contents);
-                userUnits.Add(new CompilationUnit(sourceText));
-            }
-            catch(Exception ex)
-            {
-                allDiagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_FILE_ERROR"),
-                    DiagnosticSeverity.Error,
-                    PipelineStage.Driver,
-                    $"Failed to read source file '{path}': {ex.Message}",
-                    Location: default,
-                    CompilationUnitPath: path,
-                    AnalyzerName: null));
-            }
-        }
-
-        // Step 1b: Load Standard Library sources and prepend them to the
-        // user units (design § 8). The loader reads every *.mist file under
-        // AppContext.BaseDirectory/Standard and returns them as
-        // CompilationUnits with IsStdlib=true. If the loader emits any
-        // MIST_STDLIB_PARSE error, the compilation cannot proceed because
-        // primitive keyword resolution (Stage 4) and operator overload
-        // resolution depend on stdlib types being present.
-        var stdlibBag = new DiagnosticBag();
-        var stdlibUnits = StdlibLoader.LoadFor(backend, stdlibBag);
-
-        foreach(var d in stdlibBag.ToImmutableArray())
-        {
-            allDiagnostics.Add(d);
-        }
-
-        if(stdlibBag.HasErrors)
+        var loadResult = LoadCompilationUnits(options, backend, allDiagnostics);
+        if(loadResult is null)
         {
             return new CompilerResult(false, null, allDiagnostics.ToImmutableArray());
         }
 
-        // Step 1c: Resolve project references (if any)
-        // Only attempt reference resolution when a mist.toml exists in the
-        // project folder. Many test scenarios and CLI invocations supply a
-        // ProjectFolder without a mist.toml; in those cases we skip this
-        // step entirely.
-        var refUnits = ImmutableArray<CompilationUnit>.Empty;
-        ImmutableHashSet<string>? directReferencePaths = null;
-
-        // Track the root project's global usings. When a mist.toml is parsed,
-        // we use its GlobalUsings for user units; otherwise we fall back to
-        // CompilerOptions.GlobalUsings (the test path).
-        var userGlobalUsings = options.GlobalUsings.IsDefault
-            ? ImmutableArray<string>.Empty
-            : options.GlobalUsings;
-
-        if(!string.IsNullOrEmpty(options.ProjectFolder)
-            && File.Exists(Path.Combine(options.ProjectFolder, ProjectFileParser.FileName)))
-        {
-            var refParseBag = new DiagnosticBag();
-            var projectConfig = ProjectFileParser.Parse(options.ProjectFolder, refParseBag);
-
-            foreach(var d in refParseBag.ToImmutableArray())
-            {
-                allDiagnostics.Add(d);
-            }
-
-            if(projectConfig is not null && !refParseBag.HasErrors)
-            {
-                // Use the root project config's GlobalUsings for user units.
-                userGlobalUsings = projectConfig.GlobalUsings.IsDefault
-                    ? ImmutableArray<string>.Empty
-                    : projectConfig.GlobalUsings;
-
-                if(!projectConfig.References.IsEmpty)
-                {
-                    // Build the set of directly-referenced canonical paths from
-                    // the root project's declared references. This set is passed
-                    // to the semantic model builder to enforce transitive
-                    // visibility: only symbols from direct references (and
-                    // stdlib / user code) are visible during name resolution.
-                    directReferencePaths = projectConfig.References
-                        .Select(r => r.Path)
-                        .ToImmutableHashSet(StringComparer.Ordinal);
-
-                    var resolveBag = new DiagnosticBag();
-                    var resolved = ProjectReferenceResolver.Resolve(
-                        options.ProjectFolder,
-                        projectConfig.References,
-                        resolveBag);
-
-                    foreach(var d in resolveBag.ToImmutableArray())
-                    {
-                        allDiagnostics.Add(d);
-                    }
-
-                    if(!resolveBag.HasErrors)
-                    {
-                        var refUnitBuilder = ImmutableArray.CreateBuilder<CompilationUnit>();
-                        foreach(var proj in resolved)
-                        {
-                            var projGlobalUsings = proj.Configuration.GlobalUsings.IsDefault
-                                ? ImmutableArray<string>.Empty
-                                : proj.Configuration.GlobalUsings;
-
-                            foreach(var path in proj.SourcePaths)
-                            {
-                                try
-                                {
-                                    var contents = File.ReadAllText(path);
-                                    var sourceText = new SourceText(path, contents);
-                                    refUnitBuilder.Add(new CompilationUnit(sourceText)
-                                    {
-                                        NamespaceRoot = proj.Configuration.NamespaceRoot,
-                                        ProjectFolder = proj.ProjectFolder,
-                                        OriginProjectPath = proj.CanonicalTomlPath,
-                                        GlobalUsings = projGlobalUsings,
-                                    });
-                                }
-                                catch(Exception ex)
-                                {
-                                    allDiagnostics.Add(new Diagnostic(
-                                        new DiagnosticId("MIST_FILE_ERROR"),
-                                        DiagnosticSeverity.Error,
-                                        PipelineStage.Driver,
-                                        $"Failed to read referenced source file '{path}': {ex.Message}",
-                                        Location: default,
-                                        CompilationUnitPath: path,
-                                        AnalyzerName: null));
-                                }
-                            }
-                        }
-
-                        refUnits = refUnitBuilder.ToImmutable();
-                    }
-                    else
-                    {
-                        return new CompilerResult(false, null, allDiagnostics.ToImmutableArray());
-                    }
-                }
-            }
-            else if(refParseBag.HasErrors)
-            {
-                return new CompilerResult(false, null, allDiagnostics.ToImmutableArray());
-            }
-        }
-
-        // Apply global usings to user compilation units.
-        if(!userGlobalUsings.IsEmpty)
-        {
-            for(var i = 0; i < userUnits.Count; i++)
-            {
-                userUnits[i] = userUnits[i] with { GlobalUsings = userGlobalUsings };
-            }
-        }
-
-        // Step 1d: Combine units
-        // Order: stdlib → referenced project units (deepest first) → user units
-        var combinedUnits = ImmutableArray.CreateBuilder<CompilationUnit>(
-            stdlibUnits.Length + refUnits.Length + userUnits.Count);
-        combinedUnits.AddRange(stdlibUnits);
-        combinedUnits.AddRange(refUnits);
-        combinedUnits.AddRange(userUnits);
-
-        var compilation = new MistCompilation(combinedUnits.ToImmutable(), options.EntryPoint, options.OutputType);
-
-        loadingStopwatch.Stop();
-        var stdlibCount = compilation.Units.Count(u => u.IsStdlib);
-        var refCount = compilation.Units.Count(u => !u.IsStdlib && u.OriginProjectPath is not null);
-        var userFileCount = compilation.Units.Count(u => !u.IsStdlib && u.OriginProjectPath is null);
-        progressReporter.ReportStageComplete("1", loadingStopwatch.Elapsed, new[]
-        {
-            $"{stdlibCount} stdlib files",
-            $"{refCount} referenced project files",
-            $"{userFileCount} user files",
-        });
+        var compilation = loadResult.Compilation;
+        var directReferencePaths = loadResult.DirectReferencePaths;
 
         // Stage 1.5: Package Resolution (runs only when deps are declared)
         var resolvedAssemblyPaths = ImmutableArray<string>.Empty;
@@ -638,6 +465,209 @@ public sealed class CompilerDriver : ICompilerDriver
             backendResult.PrimaryArtifactPath,
             allDiagnostics.ToImmutableArray(),
             emittedFiles);
+    }
+
+    /// <summary>
+    /// Result of Stage 1 (Loading): the combined compilation and any
+    /// directly-referenced project paths for transitive visibility enforcement.
+    /// </summary>
+    private sealed record LoadResult(
+        MistCompilation Compilation,
+        ImmutableHashSet<string>? DirectReferencePaths);
+
+    /// <summary>
+    /// Stage 1 – Loading: reads user source files, stdlib, and project
+    /// references, combining them into a single <see cref="MistCompilation"/>.
+    /// Returns <c>null</c> when a fatal error prevents compilation from proceeding.
+    /// </summary>
+    private LoadResult? LoadCompilationUnits(
+        CompilerOptions options,
+        IBackend backend,
+        DiagnosticBag allDiagnostics)
+    {
+        var loadingStopwatch = Stopwatch.StartNew();
+        progressReporter.ReportStageStart("1", "Loading");
+
+        // Step 1a: Load source files into CompilationUnits
+        var userUnits = ImmutableArray.CreateBuilder<CompilationUnit>();
+        foreach(var path in options.SourcePaths)
+        {
+            try
+            {
+                var contents = File.ReadAllText(path);
+                var sourceText = new SourceText(path, contents);
+                userUnits.Add(new CompilationUnit(sourceText));
+            }
+            catch(Exception ex)
+            {
+                allDiagnostics.Add(new Diagnostic(
+                    new DiagnosticId("MIST_FILE_ERROR"),
+                    DiagnosticSeverity.Error,
+                    PipelineStage.Driver,
+                    $"Failed to read source file '{path}': {ex.Message}",
+                    Location: default,
+                    CompilationUnitPath: path,
+                    AnalyzerName: null));
+            }
+        }
+
+        // Step 1b: Load Standard Library sources and prepend them to the
+        // user units (design § 8). The loader reads every *.mist file under
+        // AppContext.BaseDirectory/Standard and returns them as
+        // CompilationUnits with IsStdlib=true. If the loader emits any
+        // MIST_STDLIB_PARSE error, the compilation cannot proceed because
+        // primitive keyword resolution (Stage 4) and operator overload
+        // resolution depend on stdlib types being present.
+        var stdlibBag = new DiagnosticBag();
+        var stdlibUnits = StdlibLoader.LoadFor(backend, stdlibBag);
+
+        foreach(var d in stdlibBag.ToImmutableArray())
+        {
+            allDiagnostics.Add(d);
+        }
+
+        if(stdlibBag.HasErrors)
+        {
+            return null;
+        }
+
+        // Step 1c: Resolve project references (if any)
+        // Only attempt reference resolution when a mist.toml exists in the
+        // project folder. Many test scenarios and CLI invocations supply a
+        // ProjectFolder without a mist.toml; in those cases we skip this
+        // step entirely.
+        var refUnits = ImmutableArray<CompilationUnit>.Empty;
+        ImmutableHashSet<string>? directReferencePaths = null;
+
+        // Track the root project's global usings. When a mist.toml is parsed,
+        // we use its GlobalUsings for user units; otherwise we fall back to
+        // CompilerOptions.GlobalUsings (the test path).
+        var userGlobalUsings = options.GlobalUsings.IsDefault
+            ? ImmutableArray<string>.Empty
+            : options.GlobalUsings;
+
+        if(!string.IsNullOrEmpty(options.ProjectFolder)
+            && File.Exists(Path.Combine(options.ProjectFolder, ProjectFileParser.FileName)))
+        {
+            var refParseBag = new DiagnosticBag();
+            var projectConfig = ProjectFileParser.Parse(options.ProjectFolder, refParseBag);
+
+            foreach(var d in refParseBag.ToImmutableArray())
+            {
+                allDiagnostics.Add(d);
+            }
+
+            if(projectConfig is not null && !refParseBag.HasErrors)
+            {
+                // Use the root project config's GlobalUsings for user units.
+                userGlobalUsings = projectConfig.GlobalUsings.IsDefault
+                    ? ImmutableArray<string>.Empty
+                    : projectConfig.GlobalUsings;
+
+                if(!projectConfig.References.IsEmpty)
+                {
+                    // Build the set of directly-referenced canonical paths from
+                    // the root project's declared references. This set is passed
+                    // to the semantic model builder to enforce transitive
+                    // visibility: only symbols from direct references (and
+                    // stdlib / user code) are visible during name resolution.
+                    directReferencePaths = projectConfig.References
+                        .Select(r => r.Path)
+                        .ToImmutableHashSet(StringComparer.Ordinal);
+
+                    var resolveBag = new DiagnosticBag();
+                    var resolved = ProjectReferenceResolver.Resolve(
+                        options.ProjectFolder,
+                        projectConfig.References,
+                        resolveBag);
+
+                    foreach(var d in resolveBag.ToImmutableArray())
+                    {
+                        allDiagnostics.Add(d);
+                    }
+
+                    if(!resolveBag.HasErrors)
+                    {
+                        var refUnitBuilder = ImmutableArray.CreateBuilder<CompilationUnit>();
+                        foreach(var proj in resolved)
+                        {
+                            var projGlobalUsings = proj.Configuration.GlobalUsings.IsDefault
+                                ? ImmutableArray<string>.Empty
+                                : proj.Configuration.GlobalUsings;
+
+                            foreach(var path in proj.SourcePaths)
+                            {
+                                try
+                                {
+                                    var contents = File.ReadAllText(path);
+                                    var sourceText = new SourceText(path, contents);
+                                    refUnitBuilder.Add(new CompilationUnit(sourceText)
+                                    {
+                                        NamespaceRoot = proj.Configuration.NamespaceRoot,
+                                        ProjectFolder = proj.ProjectFolder,
+                                        OriginProjectPath = proj.CanonicalTomlPath,
+                                        GlobalUsings = projGlobalUsings,
+                                    });
+                                }
+                                catch(Exception ex)
+                                {
+                                    allDiagnostics.Add(new Diagnostic(
+                                        new DiagnosticId("MIST_FILE_ERROR"),
+                                        DiagnosticSeverity.Error,
+                                        PipelineStage.Driver,
+                                        $"Failed to read referenced source file '{path}': {ex.Message}",
+                                        Location: default,
+                                        CompilationUnitPath: path,
+                                        AnalyzerName: null));
+                                }
+                            }
+                        }
+
+                        refUnits = refUnitBuilder.ToImmutable();
+                    }
+                    else
+                    {
+                        return null;
+                    }
+                }
+            }
+            else if(refParseBag.HasErrors)
+            {
+                return null;
+            }
+        }
+
+        // Apply global usings to user compilation units.
+        if(!userGlobalUsings.IsEmpty)
+        {
+            for(var i = 0; i < userUnits.Count; i++)
+            {
+                userUnits[i] = userUnits[i] with { GlobalUsings = userGlobalUsings };
+            }
+        }
+
+        // Step 1d: Combine units
+        // Order: stdlib → referenced project units (deepest first) → user units
+        var combinedUnits = ImmutableArray.CreateBuilder<CompilationUnit>(
+            stdlibUnits.Length + refUnits.Length + userUnits.Count);
+        combinedUnits.AddRange(stdlibUnits);
+        combinedUnits.AddRange(refUnits);
+        combinedUnits.AddRange(userUnits);
+
+        var compilation = new MistCompilation(combinedUnits.ToImmutable(), options.EntryPoint, options.OutputType);
+
+        loadingStopwatch.Stop();
+        var stdlibCount = compilation.Units.Count(u => u.IsStdlib);
+        var refCount = compilation.Units.Count(u => !u.IsStdlib && u.OriginProjectPath is not null);
+        var userFileCount = compilation.Units.Count(u => !u.IsStdlib && u.OriginProjectPath is null);
+        progressReporter.ReportStageComplete("1", loadingStopwatch.Elapsed, new[]
+        {
+            $"{stdlibCount} stdlib files",
+            $"{refCount} referenced project files",
+            $"{userFileCount} user files",
+        });
+
+        return new LoadResult(compilation, directReferencePaths);
     }
 
     /// <summary>

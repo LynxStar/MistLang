@@ -97,77 +97,13 @@ public sealed class CompilerDriver : ICompilerDriver
         compilation = parseResult.Compilation;
 
         // Stage 4: Semantic Model
-        var semanticStopwatch = Stopwatch.StartNew();
-        progressReporter.ReportStageStart("4", "Semantic Model");
-
-        var ambientTypeResolver = backend.GetAmbientTypeResolver(options.TargetFramework, resolvedAssemblyPaths);
-        var semanticBag = new DiagnosticBag();
-        ISemanticModel? semanticModel;
-        try
-        {
-            semanticModel = semanticModelBuilder.Build(compilation, asts, ambientTypeResolver, options.NamespaceRoot, options.ProjectFolder, semanticBag, directReferencePaths);
-        }
-        catch(Exception ex)
-        {
-            allDiagnostics.Add(new Diagnostic(
-                new DiagnosticId("MIST_SEMANTIC_FAILURE"),
-                DiagnosticSeverity.Error,
-                PipelineStage.SemanticModelConstruction,
-                $"Semantic model construction failed: {ex.Message}",
-                Location: default,
-                CompilationUnitPath: "<unknown>",
-                AnalyzerName: null));
-            semanticModel = null;
-        }
-
-        semanticStopwatch.Stop();
-        var topLevelConstructs = semanticModel?.AllSymbols.Count(s =>
-            s.Origin == SymbolOrigin.UserCode &&
-            s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract) ?? 0;
-        progressReporter.ReportStageComplete("4", semanticStopwatch.Elapsed, new[]
-        {
-            $"{topLevelConstructs} top-level constructs",
-        });
-
-        foreach(var d in semanticBag.ToImmutableArray())
-        {
-            allDiagnostics.Add(d);
-        }
-
-        if(semanticModel is null)
-        {
-            // Skip analyzers and backend if semantic model fails (R16.5)
-            return new CompilerResult(false, null, allDiagnostics.ToImmutableArray());
-        }
-
-        // Short-circuit if the semantic model produced errors.
-        // The builder always returns a non-null model (using ErrorType to
-        // suppress cascading issues), but error diagnostics still mean the
-        // program is invalid and we should not proceed to emission.
-        if(semanticBag.HasErrors)
+        var semanticResult = BuildSemanticModel(compilation, asts, backend, resolvedAssemblyPaths, options, directReferencePaths, allDiagnostics);
+        if(semanticResult.Model is null || semanticResult.HasErrors)
         {
             return new CompilerResult(false, null, allDiagnostics.ToImmutableArray());
         }
 
-        // Stage 4b: Readonly Inference
-        // Run the inference engine after the semantic model is built but before
-        // analyzers. This classifies members as InferredReadonly or Mutable.
-        ReadonlyInferenceEngine.RunInference(semanticModel);
-
-        // Stage 4c.5: IClonable Derivation (Ownership v2, Phase 2.5)
-        // Computes ImplementsIClonable for every user and bootstrap class/struct
-        // type — true if the type explicitly declares IClonable<T> or every field's
-        // type implements IClonable<T> (recursive, cycle-safe greatest fixpoint).
-        // Must run after the semantic model is built and before the OwnershipAnalyzer
-        // (Stage 5) which consults the cached result via MoveBoundaryResolver.
-        IClonableDerivationEngine.RunInference(semanticModel);
-
-        // Stage 4d: Synthetic Drop Inference
-        // Synthesizes a void Drop() for types that have droppable fields but no
-        // explicit Drop(), cascading the obligation transitively in dependency
-        // order. Runs after the semantic model is built because it reads
-        // the finalized IsOwnedType / Discipline state.
-        SyntheticDropInferenceEngine.RunInference(semanticModel);
+        var semanticModel = semanticResult.Model;
 
         // Stage 5: Analysis
         var analysisStopwatch = Stopwatch.StartNew();
@@ -635,6 +571,97 @@ public sealed class CompilerDriver : ICompilerDriver
         });
 
         return new ParseResult(asts.ToImmutable(), compilation);
+    }
+
+    /// <summary>
+    /// Result of Stage 4 (Semantic Model): the built model (or null on catastrophic
+    /// failure) and whether the semantic-specific diagnostic bag contained errors.
+    /// </summary>
+    private sealed record SemanticModelResult(ISemanticModel? Model, bool HasErrors);
+
+    /// <summary>
+    /// Stage 4 – Semantic Model: builds the semantic model from the parsed ASTs,
+    /// runs inference engines (readonly, IClonable derivation, synthetic drop),
+    /// and returns the model with an error flag. Adds all semantic diagnostics
+    /// to <paramref name="allDiagnostics"/>.
+    /// </summary>
+    private SemanticModelResult BuildSemanticModel(
+        MistCompilation compilation,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        IBackend backend,
+        ImmutableArray<string> resolvedAssemblyPaths,
+        CompilerOptions options,
+        ImmutableHashSet<string>? directReferencePaths,
+        DiagnosticBag allDiagnostics)
+    {
+        var semanticStopwatch = Stopwatch.StartNew();
+        progressReporter.ReportStageStart("4", "Semantic Model");
+
+        var ambientTypeResolver = backend.GetAmbientTypeResolver(options.TargetFramework, resolvedAssemblyPaths);
+        var semanticBag = new DiagnosticBag();
+        ISemanticModel? semanticModel;
+        try
+        {
+            semanticModel = semanticModelBuilder.Build(compilation, asts, ambientTypeResolver, options.NamespaceRoot, options.ProjectFolder, semanticBag, directReferencePaths);
+        }
+        catch(Exception ex)
+        {
+            allDiagnostics.Add(new Diagnostic(
+                new DiagnosticId("MIST_SEMANTIC_FAILURE"),
+                DiagnosticSeverity.Error,
+                PipelineStage.SemanticModelConstruction,
+                $"Semantic model construction failed: {ex.Message}",
+                Location: default,
+                CompilationUnitPath: "<unknown>",
+                AnalyzerName: null));
+            semanticModel = null;
+        }
+
+        semanticStopwatch.Stop();
+        var topLevelConstructs = semanticModel?.AllSymbols.Count(s =>
+            s.Origin == SymbolOrigin.UserCode &&
+            s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract) ?? 0;
+        progressReporter.ReportStageComplete("4", semanticStopwatch.Elapsed, new[]
+        {
+            $"{topLevelConstructs} top-level constructs",
+        });
+
+        foreach(var d in semanticBag.ToImmutableArray())
+        {
+            allDiagnostics.Add(d);
+        }
+
+        if(semanticModel is null)
+        {
+            return new SemanticModelResult(null, true);
+        }
+
+        if(semanticBag.HasErrors)
+        {
+            return new SemanticModelResult(semanticModel, true);
+        }
+
+        // Stage 4b: Readonly Inference
+        // Run the inference engine after the semantic model is built but before
+        // analyzers. This classifies members as InferredReadonly or Mutable.
+        ReadonlyInferenceEngine.RunInference(semanticModel);
+
+        // Stage 4c.5: IClonable Derivation (Ownership v2, Phase 2.5)
+        // Computes ImplementsIClonable for every user and bootstrap class/struct
+        // type — true if the type explicitly declares IClonable<T> or every field's
+        // type implements IClonable<T> (recursive, cycle-safe greatest fixpoint).
+        // Must run after the semantic model is built and before the OwnershipAnalyzer
+        // (Stage 5) which consults the cached result via MoveBoundaryResolver.
+        IClonableDerivationEngine.RunInference(semanticModel);
+
+        // Stage 4d: Synthetic Drop Inference
+        // Synthesizes a void Drop() for types that have droppable fields but no
+        // explicit Drop(), cascading the obligation transitively in dependency
+        // order. Runs after the semantic model is built because it reads
+        // the finalized IsOwnedType / Discipline state.
+        SyntheticDropInferenceEngine.RunInference(semanticModel);
+
+        return new SemanticModelResult(semanticModel, false);
     }
 
     /// <summary>

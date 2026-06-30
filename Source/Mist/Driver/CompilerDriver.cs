@@ -99,9 +99,10 @@ public sealed class CompilerDriver : ICompilerDriver
             compilation, asts, backend, resolvedAssemblyPaths,
             options, directReferencePaths, allDiagnostics);
 
-        var pipeline = options.Pipeline == PipelineMode.Experimental
-            ? experimentalPipeline
-            : classicPipeline;
+        var pipeline = options.Pipeline == PipelineMode.Classic
+            ? classicPipeline
+            : experimentalPipeline
+            ;
 
         return pipeline.Execute(pipelineInput);
     }

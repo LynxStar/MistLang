@@ -84,55 +84,10 @@ public sealed class CompilerDriver : ICompilerDriver
         var resolvedAssemblyPaths = ResolvePackages(options, allDiagnostics);
 
         // Stage 2: Lexing
-        var lexingStopwatch = Stopwatch.StartNew();
-        progressReporter.ReportStageStart("2", "Lexing");
-
-        // Try to retrieve cached stdlib lex/parse results.
-        var cachedStdlib = stdlibCache;
-
-        var tokenStreams = new Dictionary<CompilationUnit, TokenStream>();
-        var stdlibTokensForCache = cachedStdlib.HasValue
-            ? null
-            : ImmutableArray.CreateBuilder<TokenStream>();
-
-        foreach(var unit in compilation.Units)
-        {
-            if(unit.IsStdlib && cachedStdlib.HasValue)
-            {
-                // Stdlib tokens are already cached; skip lexing.
-                continue;
-            }
-
-            var lexBag = new DiagnosticBag();
-            var tokenStream = lexer.Lex(unit.Source, lexBag);
-
-            foreach(var d in lexBag.ToImmutableArray())
-            {
-                allDiagnostics.Add(d);
-            }
-
-            if(!lexBag.HasErrors)
-            {
-                tokenStreams[unit] = tokenStream;
-                if(unit.IsStdlib)
-                {
-                    stdlibTokensForCache?.Add(tokenStream);
-                }
-            }
-            // If lex errors, skip parse for this unit (R16.3)
-        }
-
-        lexingStopwatch.Stop();
-        var totalTokens = tokenStreams.Values.Sum(ts => ts.DefaultChannelTokens.Length);
-        if(cachedStdlib.HasValue)
-        {
-            totalTokens += cachedStdlib.Value.Tokens.Sum(ts => ts.DefaultChannelTokens.Length);
-        }
-
-        progressReporter.ReportStageComplete("2", lexingStopwatch.Elapsed, new[]
-        {
-            $"{totalTokens} tokens",
-        });
+        var lexResult = Lex(compilation, allDiagnostics);
+        var tokenStreams = lexResult.TokenStreams;
+        var stdlibTokensForCache = lexResult.StdlibTokensForCache;
+        var cachedStdlib = lexResult.CachedStdlib;
 
         // Stage 3: Parsing
         var parsingStopwatch = Stopwatch.StartNew();
@@ -581,6 +536,76 @@ public sealed class CompilerDriver : ICompilerDriver
         });
 
         return new LoadResult(compilation, directReferencePaths);
+    }
+
+    /// <summary>
+    /// Result of Stage 2 (Lexing): the token streams for each successfully
+    /// lexed unit, any stdlib tokens awaiting cache write, and the cached
+    /// stdlib tuple (if present) for Stage 3 to consume.
+    /// </summary>
+    private sealed record LexResult(
+        Dictionary<CompilationUnit, TokenStream> TokenStreams,
+        ImmutableArray<TokenStream>.Builder? StdlibTokensForCache,
+        (ImmutableArray<TokenStream> Tokens, ImmutableArray<Storm.Runtime.SyntaxNode> Asts)? CachedStdlib);
+
+    /// <summary>
+    /// Stage 2 – Lexing: tokenizes each compilation unit, skipping stdlib
+    /// units when the cache is populated. Reports progress and returns the
+    /// token streams plus cache metadata for Stage 3.
+    /// </summary>
+    private LexResult Lex(MistCompilation compilation, DiagnosticBag allDiagnostics)
+    {
+        var lexingStopwatch = Stopwatch.StartNew();
+        progressReporter.ReportStageStart("2", "Lexing");
+
+        // Try to retrieve cached stdlib lex/parse results.
+        var cachedStdlib = stdlibCache;
+
+        var tokenStreams = new Dictionary<CompilationUnit, TokenStream>();
+        var stdlibTokensForCache = cachedStdlib.HasValue
+            ? null
+            : ImmutableArray.CreateBuilder<TokenStream>();
+
+        foreach(var unit in compilation.Units)
+        {
+            if(unit.IsStdlib && cachedStdlib.HasValue)
+            {
+                // Stdlib tokens are already cached; skip lexing.
+                continue;
+            }
+
+            var lexBag = new DiagnosticBag();
+            var tokenStream = lexer.Lex(unit.Source, lexBag);
+
+            foreach(var d in lexBag.ToImmutableArray())
+            {
+                allDiagnostics.Add(d);
+            }
+
+            if(!lexBag.HasErrors)
+            {
+                tokenStreams[unit] = tokenStream;
+                if(unit.IsStdlib)
+                {
+                    stdlibTokensForCache?.Add(tokenStream);
+                }
+            }
+            // If lex errors, skip parse for this unit (R16.3)
+        }
+
+        lexingStopwatch.Stop();
+        var totalTokens = tokenStreams.Values.Sum(ts => ts.DefaultChannelTokens.Length);
+        if(cachedStdlib.HasValue)
+        {
+            totalTokens += cachedStdlib.Value.Tokens.Sum(ts => ts.DefaultChannelTokens.Length);
+        }
+
+        progressReporter.ReportStageComplete("2", lexingStopwatch.Elapsed, new[]
+        {
+            $"{totalTokens} tokens",
+        });
+
+        return new LexResult(tokenStreams, stdlibTokensForCache, cachedStdlib);
     }
 
     /// <summary>

@@ -164,7 +164,7 @@ internal sealed class NamespaceBuilder
     /// Determines the file's effective namespace. If the file declares a file-scoped
     /// namespace, that is used. Otherwise, the namespace is inferred from the file path.
     /// </summary>
-    private static string DetermineFileNamespace(
+    private string DetermineFileNamespace(
         CompilationUnitNode ast,
         SourceText sourceText,
         string namespaceRoot,
@@ -265,18 +265,25 @@ internal sealed class NamespaceBuilder
     // Helpers
     // ═══════════════════════════════════════════════════════════════════════
 
-    private static string ExtractNamespaceName(NamespaceDeclarationNode namespaceNode, SourceText sourceText)
+    private string ExtractNamespaceName(NamespaceDeclarationNode namespaceNode, SourceText sourceText)
     {
-        var qualifiedId = namespaceNode switch
-        {
-            FileScopedNamespaceNamespaceDeclarationNode fileScopedNs => fileScopedNs.Name,
-            BlockNamespaceNamespaceDeclarationNode blockNs => blockNs.Name,
-            _ => null
-        };
+        QualifiedIdentifierNode? qualifiedId;
 
-        if(qualifiedId is null)
+        switch(namespaceNode)
         {
-            return "<unknown>";
+            case FileScopedNamespaceNamespaceDeclarationNode fileScopedNs:
+                qualifiedId = fileScopedNs.Name;
+                break;
+            case BlockNamespaceNamespaceDeclarationNode blockNs:
+                qualifiedId = blockNs.Name;
+                break;
+            default:
+                context.ReportError(
+                    "MIST_INTERNAL_UNEXPECTED_NS_NODE",
+                    $"Internal compiler error: unexpected namespace declaration node type '{namespaceNode.GetType().Name}'.",
+                    namespaceNode,
+                    sourceText);
+                return "<error>";
         }
 
         var span = qualifiedId.Span;

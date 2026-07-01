@@ -32,7 +32,7 @@ internal sealed class NamespaceBuilder
         string projectFolder)
     {
         // Step 1: Validate namespace declarations.
-        if(ValidateNamespaceDeclarations(ast, sourceText))
+        if(ValidateNamespaceDeclarations(ast))
         {
             return false;
         }
@@ -62,7 +62,7 @@ internal sealed class NamespaceBuilder
     /// - MIST0305: file-scoped namespace inside a block namespace.
     /// Returns true if any errors were found.
     /// </summary>
-    private bool ValidateNamespaceDeclarations(CompilationUnitNode ast, SourceText sourceText)
+    private bool ValidateNamespaceDeclarations(CompilationUnitNode ast)
     {
         var hasErrors = false;
         var fileScopedCount = 0;
@@ -87,8 +87,7 @@ internal sealed class NamespaceBuilder
                     context.ReportError(
                         "MIST0301",
                         "Only one file-scoped namespace is permitted per file.",
-                        nsDecl,
-                        sourceText);
+                        nsDecl);
                     hasErrors = true;
                 }
                 else if(hasBlockNamespace)
@@ -96,13 +95,12 @@ internal sealed class NamespaceBuilder
                     context.ReportError(
                         "MIST0302",
                         "File-scoped and block namespaces cannot be mixed in the same file.",
-                        nsDecl,
-                        sourceText);
+                        nsDecl);
                     hasErrors = true;
                 }
 
                 hasFileScopedNamespace = true;
-                CheckForFileScopedInsideBlock(nsDecl, sourceText);
+                CheckForFileScopedInsideBlock(nsDecl);
             }
             else if(nsDecl is BlockNamespaceNamespaceDeclarationNode)
             {
@@ -111,13 +109,12 @@ internal sealed class NamespaceBuilder
                     context.ReportError(
                         "MIST0302",
                         "File-scoped and block namespaces cannot be mixed in the same file.",
-                        nsDecl,
-                        sourceText);
+                        nsDecl);
                     hasErrors = true;
                 }
 
                 hasBlockNamespace = true;
-                CheckForFileScopedInsideBlock(nsDecl, sourceText);
+                CheckForFileScopedInsideBlock(nsDecl);
             }
         }
 
@@ -128,7 +125,7 @@ internal sealed class NamespaceBuilder
     /// Recursively checks namespace bodies for file-scoped namespace declarations
     /// inside block namespaces (MIST0305).
     /// </summary>
-    private void CheckForFileScopedInsideBlock(NamespaceDeclarationNode nsDecl, SourceText sourceText)
+    private void CheckForFileScopedInsideBlock(NamespaceDeclarationNode nsDecl)
     {
         var bodyItems = GetNamespaceBody(nsDecl);
 
@@ -146,12 +143,11 @@ internal sealed class NamespaceBuilder
                 context.ReportError(
                     "MIST0305",
                     "File-scoped namespace declarations cannot appear inside a block namespace.",
-                    nestedNsDecl,
-                    sourceText);
+                    nestedNsDecl);
             }
             else if(nestedNsDecl is BlockNamespaceNamespaceDeclarationNode)
             {
-                CheckForFileScopedInsideBlock(nestedNsDecl, sourceText);
+                CheckForFileScopedInsideBlock(nestedNsDecl);
             }
         }
     }
@@ -243,14 +239,12 @@ internal sealed class NamespaceBuilder
     /// </summary>
     private static void PopulateImports(CompilationUnitNode ast, SourceText sourceText, Scope fileScope)
     {
-        // Process using declarations before the namespace.
         foreach(var usingDecl in ast.Usings)
         {
             var usingName = ExtractQualifiedName(usingDecl.Name, sourceText);
             fileScope.AddImportedNamespace(usingName);
         }
 
-        // Process using declarations after a file-scoped namespace.
         foreach(var item in ast.Items)
         {
             if(item is UsingItemTopLevelItemNode usingItem)
@@ -281,8 +275,7 @@ internal sealed class NamespaceBuilder
                 context.ReportError(
                     "MIST_INTERNAL_UNEXPECTED_NS_NODE",
                     $"Internal compiler error: unexpected namespace declaration node type '{namespaceNode.GetType().Name}'.",
-                    namespaceNode,
-                    sourceText);
+                    namespaceNode);
                 return "<error>";
         }
 
@@ -311,7 +304,6 @@ internal sealed class NamespaceBuilder
             }
         }
 
-        // Fallback: reconstruct the dotted name from the AST tokens.
         if(qualifiedId.IDENTIFIERs.IsDefaultOrEmpty)
         {
             return qualifiedId.IDENTIFIER.Lexeme;

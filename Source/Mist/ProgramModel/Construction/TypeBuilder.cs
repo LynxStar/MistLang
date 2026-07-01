@@ -23,14 +23,14 @@ internal sealed class TypeBuilder
     /// Processes all type declarations in a compilation unit, including types
     /// inside block namespaces.
     /// </summary>
-    public void Build(Scope fileScope, CompilationUnitNode ast, SourceText sourceText)
+    public void Build(Scope fileScope, CompilationUnitNode ast)
     {
         foreach(var item in ast.Items)
         {
             switch(item)
             {
                 case TypeItemTopLevelItemNode typeItem:
-                    RegisterType(fileScope, typeItem.TypeDeclaration, sourceText, declaringType: null);
+                    RegisterType(fileScope, typeItem.TypeDeclaration, declaringType: null);
                     break;
 
                 case NewtypeItemTopLevelItemNode newtypeItem:
@@ -43,12 +43,12 @@ internal sealed class TypeBuilder
 
                 case NamespaceItemTopLevelItemNode nsItem
                     when nsItem.NamespaceDeclaration is BlockNamespaceNamespaceDeclarationNode blockNs:
-                    ProcessBlockNamespace(fileScope, blockNs, sourceText);
+                    ProcessBlockNamespace(fileScope, blockNs);
                     break;
 
                 case NamespaceItemTopLevelItemNode nsItem
                     when nsItem.NamespaceDeclaration is FileScopedNamespaceNamespaceDeclarationNode fileScopedNs:
-                    ProcessNamespaceBody(fileScope, fileScopedNs.Body, sourceText);
+                    ProcessNamespaceBody(fileScope, fileScopedNs.Body);
                     break;
             }
         }
@@ -58,33 +58,27 @@ internal sealed class TypeBuilder
     /// Processes types inside a block namespace. Creates a nested scope for
     /// the block and registers types under the block's namespace.
     /// </summary>
-    private void ProcessBlockNamespace(
-        Scope parentScope,
-        BlockNamespaceNamespaceDeclarationNode blockNs,
-        SourceText sourceText)
+    private void ProcessBlockNamespace(Scope parentScope, BlockNamespaceNamespaceDeclarationNode blockNs)
     {
-        var blockNamespace = ExtractNameFromBlockNamespace(blockNs, sourceText);
+        var blockNamespace = ExtractNameFromNode(blockNs.Name);
 
         var blockScope = new Scope(parentScope);
         blockScope.SetNamespace(blockNamespace);
 
-        ProcessNamespaceBody(blockScope, blockNs.Body, sourceText);
+        ProcessNamespaceBody(blockScope, blockNs.Body);
     }
 
     /// <summary>
     /// Processes namespace body items, registering any type declarations found.
     /// </summary>
-    private void ProcessNamespaceBody(
-        Scope parentScope,
-        ImmutableArray<NamespaceBodyItemNode> body,
-        SourceText sourceText)
+    private void ProcessNamespaceBody(Scope parentScope, ImmutableArray<NamespaceBodyItemNode> body)
     {
         foreach(var bodyItem in body)
         {
             switch(bodyItem)
             {
                 case NamespaceTypeItemNamespaceBodyItemNode typeItem:
-                    RegisterType(parentScope, typeItem.TypeDeclaration, sourceText, declaringType: null);
+                    RegisterType(parentScope, typeItem.TypeDeclaration, declaringType: null);
                     break;
 
                 case NamespaceNewtypeItemNamespaceBodyItemNode newtypeItem:
@@ -97,7 +91,7 @@ internal sealed class TypeBuilder
 
                 case NamespaceNamespaceItemNamespaceBodyItemNode nestedNsItem
                     when nestedNsItem.NamespaceDeclaration is BlockNamespaceNamespaceDeclarationNode nestedBlockNs:
-                    ProcessBlockNamespace(parentScope, nestedBlockNs, sourceText);
+                    ProcessBlockNamespace(parentScope, nestedBlockNs);
                     break;
             }
         }
@@ -110,10 +104,9 @@ internal sealed class TypeBuilder
     private void RegisterType(
         Scope parentScope,
         TypeDeclarationNode typeDecl,
-        SourceText sourceText,
         TypeDefinition? declaringType)
     {
-        var typeDef = CreateTypeDefinition(typeDecl, sourceText, parentScope, declaringType);
+        var typeDef = CreateTypeDefinition(typeDecl, parentScope, declaringType);
         if(typeDef is null)
         {
             return;
@@ -127,7 +120,7 @@ internal sealed class TypeBuilder
         declaringType?.NestedTypes.Add(typeDef);
 
         // Recurse into nested types within the type body.
-        RegisterNestedTypes(typeDef.Scope, typeDecl, sourceText, typeDef);
+        RegisterNestedTypes(typeDef.Scope, typeDecl, typeDef);
     }
 
     /// <summary>
@@ -137,7 +130,6 @@ internal sealed class TypeBuilder
     private void RegisterNestedTypes(
         Scope typeScope,
         TypeDeclarationNode typeDecl,
-        SourceText sourceText,
         TypeDefinition declaringType)
     {
         var members = GetMembers(typeDecl);
@@ -150,7 +142,7 @@ internal sealed class TypeBuilder
         {
             if(member is NestedTypeMemberMemberDeclarationNode nestedTypeMember)
             {
-                RegisterType(typeScope, nestedTypeMember.NestedType, sourceText, declaringType);
+                RegisterType(typeScope, nestedTypeMember.NestedType, declaringType);
             }
         }
     }
@@ -195,7 +187,6 @@ internal sealed class TypeBuilder
     /// </summary>
     private TypeDefinition? CreateTypeDefinition(
         TypeDeclarationNode typeDecl,
-        SourceText sourceText,
         Scope parentScope,
         TypeDefinition? declaringType)
     {
@@ -222,8 +213,7 @@ internal sealed class TypeBuilder
                 context.ReportError(
                     "MIST_INTERNAL_UNKNOWN_TYPE_DECL",
                     $"Internal compiler error: unrecognized type declaration node '{typeDecl.GetType().Name}'.",
-                    typeDecl,
-                    sourceText);
+                    typeDecl);
                 return null;
         }
     }
@@ -243,25 +233,50 @@ internal sealed class TypeBuilder
     }
 
     /// <summary>
-    /// Extracts the namespace name from a block namespace declaration node.
+    /// Extracts a qualified name from an AST node by reading from its origin source.
+    /// Falls back to the first identifier token's lexeme if source is unavailable.
     /// </summary>
-    private static string ExtractNameFromBlockNamespace(
-        BlockNamespaceNamespaceDeclarationNode blockNs,
-        SourceText sourceText)
+    private static string ExtractNameFromNode(QualifiedIdentifierNode qualifiedId)
     {
-        var qualifiedId = blockNs.Name;
-        var span = qualifiedId.Span;
-
-        if(span.Length > 0 && span.Start + span.Length <= sourceText.Contents.Length)
+        var sourceText = GetSourceFromOrigin(qualifiedId);
+        if(sourceText is not null)
         {
-            var extracted = sourceText.Contents.Substring(span.Start, span.Length);
-            if(IsValidQualifiedIdentifier(extracted))
+            var span = qualifiedId.Span;
+            if(span.Length > 0 && span.Start + span.Length <= sourceText.Contents.Length)
             {
-                return extracted;
+                var extracted = sourceText.Contents.Substring(span.Start, span.Length);
+                if(IsValidQualifiedIdentifier(extracted))
+                {
+                    return extracted;
+                }
             }
         }
 
         return qualifiedId.IDENTIFIER.Lexeme;
+    }
+
+    /// <summary>
+    /// Retrieves the source text from a node's origin, unwrapping synthetic origins.
+    /// Returns null for test origins or nodes without origin.
+    /// </summary>
+    private static SourceText? GetSourceFromOrigin(Storm.Runtime.SyntaxNode node)
+    {
+        var origin = node.Origin;
+        while(origin is not null)
+        {
+            switch(origin)
+            {
+                case ParsedOrigin parsed:
+                    return parsed.Source;
+                case SyntheticOrigin synthetic:
+                    origin = synthetic.DerivedFrom;
+                    break;
+                default:
+                    return null;
+            }
+        }
+
+        return null;
     }
 
     private static bool IsValidQualifiedIdentifier(string text)

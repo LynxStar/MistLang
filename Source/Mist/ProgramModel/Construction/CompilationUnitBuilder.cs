@@ -45,7 +45,7 @@ internal sealed class CompilationUnitBuilder
         }
 
         // Register type declarations.
-        typeBuilder.Build(fileScope, ast, sourceText);
+        typeBuilder.Build(fileScope, ast);
 
         return fileScope;
     }

@@ -1,5 +1,4 @@
 using Mist.Common.Diagnostics;
-using Mist.Common.Source;
 using Mist.ProgramModel.Model;
 
 namespace Mist.ProgramModel.Construction;
@@ -14,11 +13,11 @@ internal sealed record BuilderContext(
 {
     /// <summary>
     /// Creates and reports an error diagnostic located at the given AST node.
+    /// Source file and location are resolved from the node's origin.
     /// </summary>
-    public void ReportError(string id, string message, Storm.Runtime.SyntaxNode node, SourceText source)
+    public void ReportError(string id, string message, Storm.Runtime.SyntaxNode node)
     {
-        var span = new SourceSpan(node.Span.Start, node.Span.Length);
-        var location = source.ToLinePositionSpan(span);
+        var (path, location, _) = DiagnosticHelper.ResolveLocation(node);
 
         Diagnostics.Add(new Diagnostic(
             new DiagnosticId(id),
@@ -26,7 +25,7 @@ internal sealed record BuilderContext(
             PipelineStage.SemanticModelConstruction,
             message,
             Location: location,
-            CompilationUnitPath: source.Path,
+            CompilationUnitPath: path,
             AnalyzerName: null));
     }
 }

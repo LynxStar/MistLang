@@ -25,23 +25,20 @@ internal sealed class TypeBuilder
     /// </summary>
     public void Build(Scope fileScope, CompilationUnitNode ast, SourceText sourceText)
     {
-        var fileNamespace = fileScope.Namespace!;
-
-        // Process top-level items (file-scoped namespace or no namespace).
         foreach(var item in ast.Items)
         {
             switch(item)
             {
                 case TypeItemTopLevelItemNode typeItem:
-                    RegisterType(fileScope, typeItem.TypeDeclaration, sourceText, fileNamespace, declaringType: null);
+                    RegisterType(fileScope, typeItem.TypeDeclaration, sourceText, declaringType: null);
                     break;
 
                 case NewtypeItemTopLevelItemNode newtypeItem:
-                    RegisterNewtype(fileScope, newtypeItem.NewtypeDeclaration, fileNamespace);
+                    RegisterNewtype(fileScope, newtypeItem.NewtypeDeclaration);
                     break;
 
                 case TypeAliasItemTopLevelItemNode aliasItem:
-                    RegisterTypeAlias(fileScope, aliasItem.TypeAliasDeclaration, fileNamespace);
+                    RegisterTypeAlias(fileScope, aliasItem.TypeAliasDeclaration);
                     break;
 
                 case NamespaceItemTopLevelItemNode nsItem
@@ -51,7 +48,7 @@ internal sealed class TypeBuilder
 
                 case NamespaceItemTopLevelItemNode nsItem
                     when nsItem.NamespaceDeclaration is FileScopedNamespaceNamespaceDeclarationNode fileScopedNs:
-                    ProcessFileScopedNamespaceBody(fileScope, fileScopedNs.Body, sourceText, fileNamespace);
+                    ProcessNamespaceBody(fileScope, fileScopedNs.Body, sourceText);
                     break;
             }
         }
@@ -68,22 +65,10 @@ internal sealed class TypeBuilder
     {
         var blockNamespace = ExtractNameFromBlockNamespace(blockNs, sourceText);
 
-        var blockScope = new Scope(parent: parentScope);
+        var blockScope = new Scope(parentScope);
         blockScope.SetNamespace(blockNamespace);
 
-        ProcessNamespaceBody(blockScope, blockNs.Body, sourceText, blockNamespace);
-    }
-
-    /// <summary>
-    /// Processes types inside a file-scoped namespace body.
-    /// </summary>
-    private void ProcessFileScopedNamespaceBody(
-        Scope fileScope,
-        ImmutableArray<NamespaceBodyItemNode> body,
-        SourceText sourceText,
-        string namespaceName)
-    {
-        ProcessNamespaceBody(fileScope, body, sourceText, namespaceName);
+        ProcessNamespaceBody(blockScope, blockNs.Body, sourceText);
     }
 
     /// <summary>
@@ -92,23 +77,22 @@ internal sealed class TypeBuilder
     private void ProcessNamespaceBody(
         Scope parentScope,
         ImmutableArray<NamespaceBodyItemNode> body,
-        SourceText sourceText,
-        string namespaceName)
+        SourceText sourceText)
     {
         foreach(var bodyItem in body)
         {
             switch(bodyItem)
             {
                 case NamespaceTypeItemNamespaceBodyItemNode typeItem:
-                    RegisterType(parentScope, typeItem.TypeDeclaration, sourceText, namespaceName, declaringType: null);
+                    RegisterType(parentScope, typeItem.TypeDeclaration, sourceText, declaringType: null);
                     break;
 
                 case NamespaceNewtypeItemNamespaceBodyItemNode newtypeItem:
-                    RegisterNewtype(parentScope, newtypeItem.NewtypeDeclaration, namespaceName);
+                    RegisterNewtype(parentScope, newtypeItem.NewtypeDeclaration);
                     break;
 
                 case NamespaceTypeAliasItemNamespaceBodyItemNode aliasItem:
-                    RegisterTypeAlias(parentScope, aliasItem.TypeAliasDeclaration, namespaceName);
+                    RegisterTypeAlias(parentScope, aliasItem.TypeAliasDeclaration);
                     break;
 
                 case NamespaceNamespaceItemNamespaceBodyItemNode nestedNsItem
@@ -127,24 +111,23 @@ internal sealed class TypeBuilder
         Scope parentScope,
         TypeDeclarationNode typeDecl,
         SourceText sourceText,
-        string namespaceName,
         TypeDefinition? declaringType)
     {
-        var typeDef = CreateTypeDefinition(typeDecl, sourceText, namespaceName, parentScope, declaringType);
+        var typeDef = CreateTypeDefinition(typeDecl, sourceText, parentScope, declaringType);
         if(typeDef is null)
         {
             return;
         }
 
         // Register in the namespace.
-        var ns = context.ProgramModel.GetOrAddNamespace(namespaceName);
+        var ns = context.ProgramModel.GetOrAddNamespace(typeDef.NamespaceName);
         ns.Types[typeDef.Name] = typeDef;
 
         // If nested, add to the declaring type.
         declaringType?.NestedTypes.Add(typeDef);
 
         // Recurse into nested types within the type body.
-        RegisterNestedTypes(typeDef.Scope, typeDecl, sourceText, namespaceName, typeDef);
+        RegisterNestedTypes(typeDef.Scope, typeDecl, sourceText, typeDef);
     }
 
     /// <summary>
@@ -155,7 +138,6 @@ internal sealed class TypeBuilder
         Scope typeScope,
         TypeDeclarationNode typeDecl,
         SourceText sourceText,
-        string namespaceName,
         TypeDefinition declaringType)
     {
         var members = GetMembers(typeDecl);
@@ -168,7 +150,7 @@ internal sealed class TypeBuilder
         {
             if(member is NestedTypeMemberMemberDeclarationNode nestedTypeMember)
             {
-                RegisterType(typeScope, nestedTypeMember.NestedType, sourceText, namespaceName, declaringType);
+                RegisterType(typeScope, nestedTypeMember.NestedType, sourceText, declaringType);
             }
         }
     }
@@ -176,12 +158,11 @@ internal sealed class TypeBuilder
     /// <summary>
     /// Registers a newtype declaration in the program model.
     /// </summary>
-    private void RegisterNewtype(
-        Scope parentScope,
-        NewtypeDeclarationNode newtypeDecl,
-        string namespaceName)
+    private void RegisterNewtype(Scope parentScope, NewtypeDeclarationNode newtypeDecl)
     {
+        var namespaceName = parentScope.Namespace!;
         var name = newtypeDecl.Name.Lexeme;
+
         var typeScope = new Scope(parentScope);
         typeScope.SetNamespace(namespaceName);
 
@@ -194,12 +175,11 @@ internal sealed class TypeBuilder
     /// <summary>
     /// Registers a type alias (including refinement types) in the program model.
     /// </summary>
-    private void RegisterTypeAlias(
-        Scope parentScope,
-        TypeAliasDeclarationNode aliasDecl,
-        string namespaceName)
+    private void RegisterTypeAlias(Scope parentScope, TypeAliasDeclarationNode aliasDecl)
     {
+        var namespaceName = parentScope.Namespace!;
         var name = aliasDecl.Name.Lexeme;
+
         var typeScope = new Scope(parentScope);
         typeScope.SetNamespace(namespaceName);
 
@@ -216,10 +196,11 @@ internal sealed class TypeBuilder
     private TypeDefinition? CreateTypeDefinition(
         TypeDeclarationNode typeDecl,
         SourceText sourceText,
-        string namespaceName,
         Scope parentScope,
         TypeDefinition? declaringType)
     {
+        var namespaceName = parentScope.Namespace!;
+
         var typeScope = new Scope(parentScope);
         typeScope.SetNamespace(namespaceName);
 

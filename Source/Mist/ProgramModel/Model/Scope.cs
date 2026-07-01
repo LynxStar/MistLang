@@ -19,9 +19,24 @@ internal sealed class Scope
     public Scope? Parent { get; }
 
     /// <summary>
+    /// The namespace this scope belongs to. For a file scope this is the file's
+    /// effective namespace; for nested scopes (block namespaces) it is the block's
+    /// namespace. Null for the global scope.
+    /// </summary>
+    public string? Namespace { get; private set; }
+
+    /// <summary>
     /// Namespaces imported into this scope (via using declarations or global usings).
     /// </summary>
     public IReadOnlyList<string> ImportedNamespaces => importedNamespaces;
+
+    /// <summary>
+    /// Sets the namespace this scope belongs to.
+    /// </summary>
+    public void SetNamespace(string namespaceName)
+    {
+        Namespace = namespaceName;
+    }
 
     /// <summary>
     /// Adds a namespace to this scope's import list.

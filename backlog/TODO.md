@@ -140,6 +140,37 @@ qt.Property(q => q.Resolution).HasConversion(v => v, v => (ResolutionTier)v ?? R
 
 ---
 
+## 🔴 CRITICAL: AST and CompilationUnit arrays can go out of sync in the driver
+
+**Severity: critical** — The compiler driver maintains two parallel arrays — `compilation.Units` (metadata for each source file) and `asts` (parsed syntax trees) — that are correlated by positional index. When a unit fails to lex or parse, its AST is excluded from `asts` but its entry remains in `compilation.Units`. This causes every subsequent index to be off by one, silently pairing the wrong metadata with the wrong AST.
+
+**Root cause:** In `CompilerDriver.Parse()`, the `asts` builder only adds entries for units that successfully parse (`unitParseResult.Root is not null && !parseBag.HasErrors`). Meanwhile, `compilation.Units` is never filtered — it retains all units from Stage 1 regardless of lex/parse outcome. The `PipelineInput` record bundles these two arrays without an invariant assertion that they have equal length.
+
+**Current impact:** Low in practice because:
+1. Stdlib files are well-tested and never fail.
+2. User files that fail to *read from disk* are never added to `compilation.Units`.
+3. If any unit fails to lex/parse, the resulting error diagnostics are reported and the classic pipeline's `SemanticModelBuilder` has its own internal correlation logic.
+
+However, `ProgramModelBuilder.Build()` in the experimental pipeline uses raw index-based pairing (`compilation.Units[i]` ↔ `asts[i]`), which will silently produce wrong results if the arrays ever diverge. The existing null guard (`i < compilation.Units.Length ? compilation.Units[i] : null`) protects against the wrong direction (asts longer than units) and masks the real bug (units longer than asts → wrong pairing).
+
+**Proposed fix (choose one):**
+
+1. **Paired tuples** — Change `ParseResult` to return `ImmutableArray<(CompilationUnit Unit, SyntaxNode Ast)>` instead of two separate arrays. Consumers iterate tuples, making misalignment impossible by construction.
+
+2. **Filter Units in sync** — When a unit's AST is excluded from `asts`, also exclude the corresponding unit from `compilation.Units`. Both arrays shrink together.
+
+3. **Assert the invariant** — Add `Debug.Assert(asts.Length == compilation.Units.Length)` at the top of `ProgramModelBuilder.Build()` and in `PipelineInput` construction, so any divergence crashes immediately with a clear message instead of silently corrupting.
+
+Option 1 is the strongest guarantee (misalignment is structurally impossible). Option 3 is the cheapest short-term fix.
+
+**Affected code:**
+- `Source/Mist/Driver/CompilerDriver.cs` — `Parse()` method
+- `Source/Mist/Driver/Contracts/PipelineInput.cs` — record definition
+- `Source/Mist/ProgramModel/Construction/ProgramModelBuilder.cs` — `Build()` loop
+- `Source/Mist/Semantics/SemanticModelBuilder.cs` — same parallel-array pattern (classic pipeline)
+
+---
+
 ## 🟡 Parameter-level attributes not supported
 
 **Severity: medium (missing feature)** — Mist supports class-level and method-level attributes (e.g. `[ApiController]`, `[HttpPost]`), but does not support attributes on parameters. This means attributes like `[FromBody]`, `[FromQuery]`, `[FromRoute]`, `[FromHeader]`, and `[FromServices]` cannot be expressed in Mist.

@@ -49,6 +49,12 @@ public sealed record CompilationUnit(Common.Source.SourceText Source)
     public bool HasTopLevelStatements { get; init; }
 
     /// <summary>
+    /// The parsed AST root for this compilation unit. Assigned after Stage 3
+    /// (parsing) when the unit is prepared for semantic model construction.
+    /// </summary>
+    public Storm.Runtime.SyntaxNode? Ast { get; init; }
+
+    /// <summary>
     /// The global usings declared in this unit's owning project's <c>mist.toml</c>.
     /// Applied during semantic model construction as implicit imports.
     /// Empty for stdlib units.

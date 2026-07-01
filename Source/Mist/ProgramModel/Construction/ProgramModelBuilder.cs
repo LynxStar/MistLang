@@ -1,7 +1,6 @@
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.Driver.Contracts;
-using Mist.Generated;
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Model;
 
@@ -28,28 +27,37 @@ public sealed class ProgramModelBuilder
         CompilerOptions options,
         DiagnosticBag diagnostics)
     {
+        if(asts.Length != compilation.Units.Length)
+        {
+            diagnostics.Add(new Diagnostic(
+                new DiagnosticId("MIST_INTERNAL_AST_UNIT_MISMATCH"),
+                DiagnosticSeverity.Error,
+                PipelineStage.SemanticModelConstruction,
+                $"Internal compiler error: AST count ({asts.Length}) does not match compilation unit count ({compilation.Units.Length}). " +
+                "This indicates a driver bug where a failed lex/parse dropped an AST without dropping its corresponding compilation unit.",
+                Location: default,
+                CompilationUnitPath: "<internal>",
+                AnalyzerName: null));
+
+            return null;
+        }
+
         var globalScope = CreateGlobalScope(options);
         var programModel = new Model.ProgramModel();
+        var context = new BuilderContext(globalScope, programModel, diagnostics);
+        var unitBuilder = new CompilationUnitBuilder(context);
 
         // Process each compilation unit.
         for(var i = 0; i < asts.Length; i++)
         {
-            var compilationUnit = (CompilationUnitNode)asts[i];
+            var unit = compilation.Units[i] with
+            {
+                Ast = asts[i],
+                NamespaceRoot = compilation.Units[i].NamespaceRoot ?? options.NamespaceRoot,
+                ProjectFolder = compilation.Units[i].ProjectFolder ?? options.ProjectFolder,
+            };
 
-            var unit = i < compilation.Units.Length ? compilation.Units[i] : null;
-            var sourceText = unit?.Source;
-            var effectiveNamespaceRoot = unit?.NamespaceRoot ?? options.NamespaceRoot;
-            var effectiveProjectFolder = unit?.ProjectFolder ?? options.ProjectFolder;
-
-            var unitBuilder = new CompilationUnitBuilder(
-                globalScope,
-                programModel,
-                diagnostics,
-                sourceText,
-                effectiveNamespaceRoot,
-                effectiveProjectFolder);
-
-            _ = unitBuilder.Build(compilationUnit);
+            _ = unitBuilder.Build(unit);
         }
 
         return programModel;
@@ -62,7 +70,8 @@ public sealed class ProgramModelBuilder
         // Normalize: ImmutableArray default is a null-backed struct that throws on iteration.
         var globalUsings = options.GlobalUsings.IsDefault
             ? ImmutableArray<string>.Empty
-            : options.GlobalUsings;
+            : options.GlobalUsings
+            ;
 
         foreach(var ns in globalUsings)
         {

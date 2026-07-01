@@ -38,8 +38,17 @@ The old and new systems are intentionally separate. The only bridge between them
 ```
 Source/Mist/ProgramModel/
     Contracts/          — Interfaces and enums defining the public API
-    Model/              — Concrete implementations (future)
-    Builder/            — Builds IProgramModel from ASTs (future)
+    Model/              — Concrete implementations
+    Construction/       — Builds IProgramModel from ASTs
+```
+
+## Formatting
+
+When working on ProgramModel code, scope `dotnet format` to this folder to save time:
+
+```bash
+dotnet format Mist.slnx --include Source/Mist/ProgramModel/
+dotnet format Mist.slnx --verify-no-changes --include Source/Mist/ProgramModel/
 ```
 
 ## Dual-Path Strategy

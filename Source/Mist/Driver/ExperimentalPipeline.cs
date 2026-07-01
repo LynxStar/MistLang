@@ -1,6 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.Driver.Contracts;
-using Mist.ProgramModel;
+using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Contracts;
 
 namespace Mist.Driver;
@@ -41,8 +41,7 @@ public sealed class ExperimentalPipeline : ICompilationPipeline
     /// </summary>
     private static IProgramModel? BuildProgramModel(PipelineInput input, DiagnosticBag diagnostics)
     {
-        var builder = new ProgramModelBuilder();
-        return builder.Build(input.Asts, diagnostics);
+        return ProgramModelBuilder.Build(input.Compilation, input.Asts, input.Options, diagnostics);
     }
 
     /// <summary>

@@ -13,16 +13,18 @@ internal sealed class CompilationUnitBuilder
 {
     private readonly BuilderContext context;
     private readonly NamespaceBuilder namespaceBuilder;
+    private readonly TypeBuilder typeBuilder;
 
     public CompilationUnitBuilder(BuilderContext context)
     {
         this.context = context;
         namespaceBuilder = new NamespaceBuilder(context);
+        typeBuilder = new TypeBuilder(context);
     }
 
     /// <summary>
     /// Processes a compilation unit: creates the file scope, resolves namespaces
-    /// and imports, and (in future) builds type declarations.
+    /// and imports, and registers type declarations.
     /// Returns the file scope, or null if namespace validation produced fatal errors.
     /// </summary>
     public Scope? Build(CompilationUnit unit)
@@ -42,8 +44,8 @@ internal sealed class CompilationUnitBuilder
             return null;
         }
 
-        // Future: TypeBuilder, MemberBuilder, etc. will use fileScope.Namespace
-        // to register types into the correct namespace.
+        // Register type declarations.
+        typeBuilder.Build(fileScope, ast, sourceText);
 
         return fileScope;
     }

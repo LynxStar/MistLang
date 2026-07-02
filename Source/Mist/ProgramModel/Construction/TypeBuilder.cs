@@ -112,6 +112,9 @@ internal sealed class TypeBuilder
             return;
         }
 
+        // Stash the AST node for Phase 2 member resolution.
+        typeDef.DeclarationNode = typeDecl;
+
         // Register in the namespace.
         var ns = context.ProgramModel.GetOrAddNamespace(typeDef.NamespaceName);
         ns.Types[typeDef.Name] = typeDef;

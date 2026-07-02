@@ -60,6 +60,21 @@ public sealed class ProgramModelBuilder
             _ = unitBuilder.Build(unit);
         }
 
+        // Phase 2: Resolve member signatures on all registered types.
+        var typeResolver = new TypeReferenceResolver(context);
+        var memberBuilder = new MemberBuilder(context, typeResolver);
+
+        foreach(var ns in programModel.Namespaces.Values)
+        {
+            foreach(var typeDef in ns.Types.Values)
+            {
+                if(typeDef is TypeDefinition td)
+                {
+                    memberBuilder.BuildMembers(td);
+                }
+            }
+        }
+
         return programModel;
     }
 

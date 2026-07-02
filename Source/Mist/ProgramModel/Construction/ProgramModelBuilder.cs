@@ -62,15 +62,21 @@ public sealed class ProgramModelBuilder
 
         // Phase 2: Resolve member signatures on all registered types.
         var typeResolver = new TypeReferenceResolver(context);
-        var memberBuilder = new MemberBuilder(context, typeResolver);
+        var concreteTypeBuilder = new ConcreteTypeBuilder(context, typeResolver);
+        var abstractTypeBuilder = new AbstractTypeBuilder(context, typeResolver);
 
         foreach(var ns in programModel.Namespaces.Values)
         {
             foreach(var typeDef in ns.Types.Values)
             {
-                if(typeDef is MemberTypeDefinition memberTypeDef)
+                switch(typeDef)
                 {
-                    memberBuilder.BuildMembers(memberTypeDef);
+                    case ConcreteTypeDefinition concrete:
+                        concreteTypeBuilder.BuildMembers(concrete);
+                        break;
+                    case AbstractDefinition abstractDef:
+                        abstractTypeBuilder.BuildMembers(abstractDef);
+                        break;
                 }
             }
         }

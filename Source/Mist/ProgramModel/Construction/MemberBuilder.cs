@@ -45,18 +45,23 @@ internal sealed class MemberBuilder
     /// </summary>
     private void ResolveMember(MemberDeclarationNode member, MemberTypeDefinition typeDef)
     {
-        _ = typeDef;
-
         switch(member)
         {
-            case FieldMemberMemberDeclarationNode:
+            case FieldMemberMemberDeclarationNode fieldMember when typeDef is ConcreteTypeDefinition concrete:
+                ResolveField(fieldMember.Field, concrete);
+                break;
+
             case PropertyMemberMemberDeclarationNode:
             case IndexerMemberMemberDeclarationNode:
             case ConstructorMemberMemberDeclarationNode:
             case MethodMemberMemberDeclarationNode:
             case OperatorMemberMemberDeclarationNode:
             case CastOperatorMemberMemberDeclarationNode:
-                // These will be implemented in subsequent tasks (8–17).
+                // These will be implemented in subsequent tasks (10–17).
+                break;
+
+            case FieldMemberMemberDeclarationNode:
+                // Field on a non-concrete type (shouldn't happen via grammar).
                 break;
 
             case NestedTypeMemberMemberDeclarationNode:
@@ -88,6 +93,59 @@ internal sealed class MemberBuilder
             StructTypeTypeDeclarationNode st => st.StructDeclaration.Members,
             _ => default
         };
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Fields
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Resolves a field declaration: name, type, ownership, readonly, static.
+    /// </summary>
+    private void ResolveField(FieldDeclarationNode fieldDecl, ConcreteTypeDefinition typeDef)
+    {
+        var name = fieldDecl.Name.Lexeme;
+        var type = typeResolver.Resolve(fieldDecl.Type, typeDef.Scope);
+        var ownership = ResolveOwnership(fieldDecl.OwnershipSpecifier);
+        var isReadonly = HasModifier<ReadonlyModifierModifierNode>(fieldDecl.Modifiers);
+        var isStatic = HasModifier<StaticModifierModifierNode>(fieldDecl.Modifiers);
+
+        var field = new FieldDefinition(name, type, ownership, isReadonly, isStatic);
+        typeDef.FieldsList.Add(field);
+    }
+
+    /// <summary>
+    /// Maps an optional <see cref="OwnershipSpecifierNode"/> to an <see cref="OwnershipKind"/>.
+    /// </summary>
+    private static OwnershipKind ResolveOwnership(OwnershipSpecifierNode? specifier)
+    {
+        return specifier switch
+        {
+            OwnedSpecifierOwnershipSpecifierNode => OwnershipKind.Owned,
+            BorrowedSpecifierOwnershipSpecifierNode => OwnershipKind.Borrowed,
+            _ => OwnershipKind.Unrestricted
+        };
+    }
+
+    /// <summary>
+    /// Checks whether a modifier of the specified type is present in a modifiers list.
+    /// </summary>
+    private static bool HasModifier<T>(ImmutableArray<ModifierNode> modifiers) where T : ModifierNode
+    {
+        if(modifiers.IsDefault)
+        {
+            return false;
+        }
+
+        foreach(var mod in modifiers)
+        {
+            if(mod is T)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // ═══════════════════════════════════════════════════════════════════════

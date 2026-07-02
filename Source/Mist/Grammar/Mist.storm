@@ -374,7 +374,13 @@ rule DefaultBlockDeclaration = DEFAULT LEFT_BRACE entries:DefaultFieldInitialize
 
 // ─── Parser Rules — Members ─────────────────────────────────────────────────
 
-rule FieldDeclaration = attributes:AttributeList* modifiers:Modifier* ownershipSpecifier:OwnershipSpecifier? type:TypeReference name:IDENTIFIER initializer:(EQUAL Expression)? SEMICOLON;
+rule FieldDeclaration = attributes:AttributeList* 
+    modifiers:Modifier* 
+    ownershipSpecifier:OwnershipSpecifier? 
+    type:TypeReference 
+    name:IDENTIFIER 
+    initializer:(EQUAL Expression)? SEMICOLON
+    ;
 
 rule PropertyDeclaration
     = modifiers:Modifier* type:TypeReference name:IDENTIFIER

@@ -8,5 +8,5 @@ namespace Mist.ProgramModel.Model;
 /// </summary>
 internal sealed class ClassDefinition(
     string name, string namespaceName, Scope scope, TypeDefinition? declaringType, TypeDeclarationNode declarationNode)
-    : ConcreteTypeDefinition(name, TypeDefinitionKind.Class, namespaceName, scope, declaringType, declarationNode),
+    : ConcreteTypeDefinition(name, namespaceName, scope, declaringType, declarationNode),
     IClassDefinition;

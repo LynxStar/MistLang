@@ -8,5 +8,5 @@ namespace Mist.ProgramModel.Model;
 /// </summary>
 internal sealed class AbstractDefinition(
     string name, string namespaceName, Scope scope, TypeDefinition? declaringType, TypeDeclarationNode declarationNode)
-    : MemberTypeDefinition(name, TypeDefinitionKind.Abstract, namespaceName, scope, declaringType, declarationNode),
+    : MemberTypeDefinition(name, namespaceName, scope, declaringType, declarationNode),
     IAbstractDefinition;

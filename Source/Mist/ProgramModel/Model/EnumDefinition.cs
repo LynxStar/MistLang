@@ -7,4 +7,4 @@ namespace Mist.ProgramModel.Model;
 /// </summary>
 internal sealed class EnumDefinition(
     string name, string namespaceName, Scope scope, TypeDefinition? declaringType)
-    : TypeDefinition(name, TypeDefinitionKind.Enum, namespaceName, scope, declaringType), IEnumDefinition;
+    : TypeDefinition(name, namespaceName, scope, declaringType), IEnumDefinition;

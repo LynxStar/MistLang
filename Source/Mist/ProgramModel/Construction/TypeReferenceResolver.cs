@@ -134,19 +134,11 @@ internal sealed class TypeReferenceResolver
                 return new NamedTypeReference(typeDef);
             }
 
-            // Second, try as a nested type: look up the first segment via scope,
-            // then find the full qualified key in its namespace.
-            var firstSegment = name;
-            var parentType = LookupSimpleName(firstSegment, scope);
-            if(parentType is not null)
+            // Second, try as a nested type key in any reachable namespace.
+            var nestedType = LookupNestedQualifiedName(qualifiedName, scope);
+            if(nestedType is not null)
             {
-                var nestedKey = qualifiedName;
-                var ns = context.ProgramModel.Namespaces;
-                if(ns.TryGetValue(parentType.NamespaceName, out var parentNs)
-                    && parentNs.Types.TryGetValue(nestedKey, out var nestedType))
-                {
-                    return new NamedTypeReference(nestedType);
-                }
+                return new NamedTypeReference(nestedType);
             }
 
             context.ReportError(
@@ -157,16 +149,12 @@ internal sealed class TypeReferenceResolver
         }
 
         // Simple name lookup through scope chain.
-        var resolved = LookupSimpleName(name, scope);
+        var resolved = ResolveNamedType(name, scope, namedRef);
         if(resolved is not null)
         {
             return new NamedTypeReference(resolved);
         }
 
-        context.ReportError(
-            "MIST_PM_UNRESOLVED_TYPE",
-            $"The type '{name}' could not be found.",
-            namedRef);
         return ErrorTypeReference.Instance;
     }
 
@@ -222,35 +210,11 @@ internal sealed class TypeReferenceResolver
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Looks up a type by simple name through the scope chain and returns a
-    /// <see cref="INamedTypeReference"/> if found, or null if not.
-    /// Used for base type resolution where the AST node is a bare identifier.
-    /// </summary>
-    public ITypeReference? LookupByName(string name, Scope scope)
-    {
-        var typeDef = LookupSimpleName(name, scope);
-        if(typeDef is not null)
-        {
-            return new NamedTypeReference(typeDef);
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Looks up a type by simple name and returns the <see cref="ITypeDefinition"/>
-    /// directly. Returns null if not found.
-    /// </summary>
-    public ITypeDefinition? LookupTypeByName(string name, Scope scope)
-    {
-        return LookupSimpleName(name, scope);
-    }
-
-    /// <summary>
     /// Looks up a simple (unqualified) name by walking the scope chain.
-    /// Checks the current namespace, then imported namespaces.
+    /// Checks local types, then current namespace, then imported namespaces.
+    /// Emits a <c>MIST_PM_UNRESOLVED_TYPE</c> diagnostic if not found.
     /// </summary>
-    private ITypeDefinition? LookupSimpleName(string name, Scope scope)
+    public ITypeDefinition? ResolveNamedType(string name, Scope scope, Storm.Runtime.SyntaxNode locationNode)
     {
         var current = scope;
         while(current is not null)
@@ -275,6 +239,44 @@ internal sealed class TypeReferenceResolver
             foreach(var imported in current.ImportedNamespaces)
             {
                 var found = LookupInNamespace(imported, name);
+                if(found is not null)
+                {
+                    return found;
+                }
+            }
+
+            current = current.Parent;
+        }
+
+        context.ReportError(
+            "MIST_PM_UNRESOLVED_TYPE",
+            $"The type '{name}' could not be found.",
+            locationNode);
+
+        return null;
+    }
+
+    /// <summary>
+    /// Looks up a qualified name (e.g., "Outer.Inner") as a nested type key
+    /// in any namespace reachable from the scope. Does not report diagnostics.
+    /// </summary>
+    private ITypeDefinition? LookupNestedQualifiedName(string qualifiedName, Scope scope)
+    {
+        var current = scope;
+        while(current is not null)
+        {
+            if(current.Namespace is not null)
+            {
+                var found = LookupInNamespace(current.Namespace, qualifiedName);
+                if(found is not null)
+                {
+                    return found;
+                }
+            }
+
+            foreach(var imported in current.ImportedNamespaces)
+            {
+                var found = LookupInNamespace(imported, qualifiedName);
                 if(found is not null)
                 {
                     return found;

@@ -11,12 +11,11 @@ internal abstract class ConcreteTypeDefinition : MemberTypeDefinition, IConcrete
 {
     protected ConcreteTypeDefinition(
         string name,
-        TypeDefinitionKind kind,
         string namespaceName,
         Scope scope,
         TypeDefinition? declaringType,
         TypeDeclarationNode declarationNode)
-        : base(name, kind, namespaceName, scope, declaringType, declarationNode)
+        : base(name, namespaceName, scope, declaringType, declarationNode)
     {
     }
 

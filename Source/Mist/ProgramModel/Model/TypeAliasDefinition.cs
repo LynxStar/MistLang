@@ -7,4 +7,4 @@ namespace Mist.ProgramModel.Model;
 /// </summary>
 internal sealed class TypeAliasDefinition(
     string name, string namespaceName, Scope scope, TypeDefinition? declaringType)
-    : TypeDefinition(name, TypeDefinitionKind.TypeAlias, namespaceName, scope, declaringType), ITypeAliasDefinition;
+    : TypeDefinition(name, namespaceName, scope, declaringType), ITypeAliasDefinition;

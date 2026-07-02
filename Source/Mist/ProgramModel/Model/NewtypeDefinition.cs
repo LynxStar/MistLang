@@ -7,4 +7,4 @@ namespace Mist.ProgramModel.Model;
 /// </summary>
 internal sealed class NewtypeDefinition(
     string name, string namespaceName, Scope scope, TypeDefinition? declaringType)
-    : TypeDefinition(name, TypeDefinitionKind.Newtype, namespaceName, scope, declaringType), INewtypeDefinition;
+    : TypeDefinition(name, namespaceName, scope, declaringType), INewtypeDefinition;

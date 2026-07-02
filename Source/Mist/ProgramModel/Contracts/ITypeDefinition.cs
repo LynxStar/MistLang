@@ -1,5 +1,3 @@
-using Mist.ProgramModel.Model;
-
 namespace Mist.ProgramModel.Contracts;
 
 /// <summary>
@@ -13,11 +11,6 @@ public interface ITypeDefinition
     /// The simple (unqualified) name of the type.
     /// </summary>
     string Name { get; }
-
-    /// <summary>
-    /// The kind of type (class, struct, abstract, enum, newtype, type alias).
-    /// </summary>
-    TypeDefinitionKind Kind { get; }
 
     /// <summary>
     /// The fully qualified namespace this type belongs to.

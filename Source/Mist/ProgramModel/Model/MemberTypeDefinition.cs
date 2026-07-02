@@ -11,12 +11,11 @@ internal abstract class MemberTypeDefinition : TypeDefinition, IMemberTypeDefini
 {
     protected MemberTypeDefinition(
         string name,
-        TypeDefinitionKind kind,
         string namespaceName,
         Scope scope,
         TypeDefinition? declaringType,
         TypeDeclarationNode declarationNode)
-        : base(name, kind, namespaceName, scope, declaringType)
+        : base(name, namespaceName, scope, declaringType)
     {
         DeclarationNode = declarationNode;
     }

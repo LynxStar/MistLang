@@ -10,21 +10,17 @@ internal abstract class TypeDefinition : ITypeDefinition
 {
     protected TypeDefinition(
         string name,
-        TypeDefinitionKind kind,
         string namespaceName,
         Scope scope,
         TypeDefinition? declaringType)
     {
         Name = name;
-        Kind = kind;
         NamespaceName = namespaceName;
         Scope = scope;
         DeclaringType = declaringType;
     }
 
     public string Name { get; }
-
-    public TypeDefinitionKind Kind { get; }
 
     public string NamespaceName { get; }
 

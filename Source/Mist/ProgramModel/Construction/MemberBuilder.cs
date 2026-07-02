@@ -148,36 +148,40 @@ internal sealed class MemberBuilder
     private bool TryResolveConcreteBase(BaseTypeRefNode baseTypeRef, ConcreteTypeDefinition typeDef)
     {
         var name = baseTypeRef.Name.Lexeme;
-        if(string.IsNullOrEmpty(name))
-        {
-            return false;
-        }
 
-        var resolved = typeResolver.LookupTypeByName(name, typeDef.Scope);
+        var resolved = typeResolver.ResolveNamedType(name, typeDef.Scope, baseTypeRef);
         if(resolved is null)
         {
-            // Can't resolve — will be reported by ResolveAbstractBase.
-            return false;
+            // Diagnostic already emitted by ResolveNamedType.
+            return true;
         }
 
-        // Check if it's a concrete type (class or struct).
-        if(resolved.Kind is not (TypeDefinitionKind.Class or TypeDefinitionKind.Struct))
+        // Not a concrete type — let ResolveAbstractBase handle it.
+        if(resolved is not ConcreteTypeDefinition resolvedConcrete)
         {
-            // It's an abstract — let ResolveAbstractBase handle it.
             return false;
         }
 
         // Verify kind match: class must inherit from class, struct from struct.
-        if(resolved.Kind != typeDef.Kind)
+        var isSameKind = (typeDef, resolvedConcrete) switch
         {
+            (ClassDefinition, ClassDefinition) => true,
+            (StructDefinition, StructDefinition) => true,
+            _ => false
+        };
+
+        if(!isSameKind)
+        {
+            var ownerKind = typeDef is ClassDefinition ? "class" : "struct";
+            var baseKind = resolvedConcrete is ClassDefinition ? "class" : "struct";
             context.ReportError(
                 "MIST_PM_BASE_TYPE_KIND_MISMATCH",
-                $"A {typeDef.Kind.ToString().ToLowerInvariant()} cannot inherit from a {resolved.Kind.ToString().ToLowerInvariant()} ('{name}').",
+                $"A {ownerKind} cannot inherit from a {baseKind} ('{name}').",
                 baseTypeRef);
             return true;
         }
 
-        typeDef.BaseType = (TypeDefinition)resolved;
+        typeDef.BaseType = resolvedConcrete;
         return true;
     }
 
@@ -188,22 +192,15 @@ internal sealed class MemberBuilder
     private void ResolveAbstractBase(BaseTypeRefNode baseTypeRef, MemberTypeDefinition typeDef)
     {
         var name = baseTypeRef.Name.Lexeme;
-        if(string.IsNullOrEmpty(name))
-        {
-            return;
-        }
 
-        var resolved = typeResolver.LookupTypeByName(name, typeDef.Scope);
+        var resolved = typeResolver.ResolveNamedType(name, typeDef.Scope, baseTypeRef);
         if(resolved is null)
         {
-            context.ReportError(
-                "MIST_PM_UNRESOLVED_BASE_TYPE",
-                $"The base type '{name}' could not be found.",
-                baseTypeRef);
+            // Diagnostic already emitted by ResolveNamedType.
             return;
         }
 
-        if(resolved.Kind is TypeDefinitionKind.Class or TypeDefinitionKind.Struct)
+        if(resolved is ConcreteTypeDefinition)
         {
             context.ReportError(
                 "MIST_PM_CONCRETE_IN_ABSTRACT_LIST",
@@ -212,15 +209,15 @@ internal sealed class MemberBuilder
             return;
         }
 
-        if(resolved.Kind is not TypeDefinitionKind.Abstract)
+        if(resolved is not AbstractDefinition abstractDef)
         {
             context.ReportError(
                 "MIST_PM_INVALID_BASE_TYPE",
-                $"'{name}' is a {resolved.Kind.ToString().ToLowerInvariant()} and cannot be used as a base type.",
+                $"'{name}' is not an abstract and cannot be used as a base type.",
                 baseTypeRef);
             return;
         }
 
-        typeDef.BaseAbstractTypes.Add((TypeDefinition)resolved);
+        typeDef.BaseAbstractTypes.Add(abstractDef);
     }
 }

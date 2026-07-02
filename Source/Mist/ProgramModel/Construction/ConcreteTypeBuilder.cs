@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Mist.Common.Collections;
 using Mist.Generated;
 using Mist.ProgramModel.Model;
 
@@ -99,10 +100,10 @@ internal sealed class ConcreteTypeBuilder
         var name = fieldDecl.Name.Lexeme;
         var type = typeResolver.Resolve(fieldDecl.Type, typeDef.Scope);
         var ownership = ResolveOwnership(fieldDecl.OwnershipSpecifier);
-        var isReadonly = HasModifier<ReadonlyModifierModifierNode>(fieldDecl.Modifiers);
-        var isStatic = HasModifier<StaticModifierModifierNode>(fieldDecl.Modifiers);
+        var isReadonly = fieldDecl.Modifiers.HasAny<ModifierNode, ReadonlyModifierModifierNode>();
+        var isStatic = fieldDecl.Modifiers.HasAny<ModifierNode, StaticModifierModifierNode>();
 
-        var field = new FieldDefinition(name, type, ownership, isReadonly, isStatic);
+        var field = new FieldDefinition(name, type, ownership, isReadonly, isStatic, fieldDecl);
         typeDef.FieldsList.Add(field);
     }
 
@@ -121,26 +122,5 @@ internal sealed class ConcreteTypeBuilder
             BorrowedSpecifierOwnershipSpecifierNode => OwnershipKind.Borrowed,
             _ => OwnershipKind.Unrestricted
         };
-    }
-
-    /// <summary>
-    /// Checks whether a modifier of the specified type is present in a modifiers list.
-    /// </summary>
-    internal static bool HasModifier<T>(ImmutableArray<ModifierNode> modifiers) where T : ModifierNode
-    {
-        if(modifiers.IsDefault)
-        {
-            return false;
-        }
-
-        foreach(var mod in modifiers)
-        {
-            if(mod is T)
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 }

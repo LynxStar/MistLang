@@ -1,3 +1,4 @@
+using Mist.Generated;
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.TypeReferences;
 
@@ -11,7 +12,8 @@ internal sealed class FieldDefinition(
     ITypeReference type,
     OwnershipKind ownership,
     bool isReadonly,
-    bool isStatic) : IFieldDefinition
+    bool isStatic,
+    FieldDeclarationNode declarationNode) : IFieldDefinition
 {
     public string Name { get; } = name;
 
@@ -22,4 +24,10 @@ internal sealed class FieldDefinition(
     public bool IsReadonly { get; } = isReadonly;
 
     public bool IsStatic { get; } = isStatic;
+
+    /// <summary>
+    /// The AST node for this field. Used by later phases to process
+    /// the initializer expression.
+    /// </summary>
+    internal FieldDeclarationNode DeclarationNode { get; } = declarationNode;
 }

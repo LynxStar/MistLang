@@ -1,6 +1,5 @@
 using Mist.Generated;
 using Mist.ProgramModel.Contracts;
-using Mist.ProgramModel.Contracts.TypeReferences;
 
 namespace Mist.ProgramModel.Model;
 
@@ -28,13 +27,16 @@ internal abstract class MemberTypeDefinition : TypeDefinition, IMemberTypeDefini
     /// </summary>
     internal TypeDeclarationNode DeclarationNode { get; }
 
-    public List<ITypeReference> BaseTypes { get; } = [];
+    /// <summary>
+    /// Abstracts that this type implements or refines.
+    /// </summary>
+    public List<TypeDefinition> BaseAbstractTypes { get; } = [];
 
     public List<MethodDefinition> MethodsList { get; } = [];
 
     public List<PropertyDefinition> PropertiesList { get; } = [];
 
-    IReadOnlyList<ITypeReference> IMemberTypeDefinition.BaseTypes => BaseTypes;
+    IReadOnlyList<ITypeDefinition> IMemberTypeDefinition.BaseAbstractTypes => BaseAbstractTypes;
 
     IReadOnlyList<IMethodDefinition> IMemberTypeDefinition.Methods => MethodsList;
 

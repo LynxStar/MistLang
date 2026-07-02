@@ -1,5 +1,3 @@
-using Mist.ProgramModel.Contracts.TypeReferences;
-
 namespace Mist.ProgramModel.Contracts;
 
 /// <summary>
@@ -10,9 +8,9 @@ namespace Mist.ProgramModel.Contracts;
 public interface IMemberTypeDefinition : ITypeDefinition
 {
     /// <summary>
-    /// Base types and implemented abstracts.
+    /// Abstracts that this type implements or refines.
     /// </summary>
-    IReadOnlyList<ITypeReference> BaseTypes { get; }
+    IReadOnlyList<ITypeDefinition> BaseAbstractTypes { get; }
 
     /// <summary>
     /// Methods declared on this type.

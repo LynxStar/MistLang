@@ -95,88 +95,97 @@ internal sealed class MemberBuilder
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Resolves base types for classes (BaseList) and structs (Abstracts).
-    /// All entries in the base list are resolved and added to
-    /// <see cref="MemberTypeDefinition.BaseTypes"/>.
+    /// Resolves the base type list for any member-bearing type declaration.
+    /// Extracts the <see cref="BaseListNode"/> uniformly from all three type kinds.
     /// </summary>
     private void ResolveBaseTypes(TypeDeclarationNode typeDecl, MemberTypeDefinition typeDef)
     {
-        switch(typeDecl)
+        var baseList = typeDecl switch
         {
-            case ClassTypeTypeDeclarationNode ct:
-                ResolveClassBaseTypes(ct.ClassDeclaration, typeDef);
-                break;
-            case StructTypeTypeDeclarationNode st:
-                ResolveStructBaseTypes(st.StructDeclaration, typeDef);
-                break;
-            case AbstractTypeTypeDeclarationNode at:
-                ResolveAbstractBaseTypes(at.AbstractDeclaration, typeDef);
-                break;
-        }
-    }
+            ClassTypeTypeDeclarationNode ct => ct.ClassDeclaration.BaseList,
+            StructTypeTypeDeclarationNode st => st.StructDeclaration.BaseList,
+            AbstractTypeTypeDeclarationNode at => at.AbstractDeclaration.BaseList,
+            _ => null
+        };
 
-    /// <summary>
-    /// Resolves the base list on a class declaration. Includes the base class
-    /// (if any) and all abstract implementations.
-    /// </summary>
-    private void ResolveClassBaseTypes(ClassDeclarationNode classDecl, MemberTypeDefinition typeDef)
-    {
-        if(classDecl.BaseList is null)
+        if(baseList is null)
         {
             return;
         }
 
-        ResolveBaseTypeRef(classDecl.BaseList.First, typeDef);
-
-        foreach(var entry in classDecl.BaseList.BaseTypeRefs)
+        // Collect all entries: first + rest.
+        var allEntries = new List<BaseTypeRefNode>(baseList.BaseTypeRefs.Length + 1) { baseList.First };
+        foreach(var entry in baseList.BaseTypeRefs)
         {
-            ResolveBaseTypeRef(entry, typeDef);
+            allEntries.Add(entry);
+        }
+
+        var startIndex = 0;
+
+        // For concrete types, check if the first entry is a concrete base type.
+        if(typeDef is ConcreteTypeDefinition concreteTypeDef)
+        {
+            var firstHandled = TryResolveConcreteBase(allEntries[0], concreteTypeDef);
+            if(firstHandled)
+            {
+                startIndex = 1;
+            }
+        }
+
+        // Remaining entries must all be abstracts.
+        for(var i = startIndex; i < allEntries.Count; i++)
+        {
+            ResolveAbstractBase(allEntries[i], typeDef);
         }
     }
 
     /// <summary>
-    /// Resolves the abstracts list on a struct declaration. The first entry
-    /// may be a base struct or an abstract; all are treated uniformly here.
+    /// Attempts to resolve the first base list entry as a concrete base type
+    /// (class inheriting from class, struct inheriting from struct).
+    /// Returns true if the entry was consumed as a concrete base, false if it
+    /// should be treated as an abstract.
     /// </summary>
-    private void ResolveStructBaseTypes(StructDeclarationNode structDecl, MemberTypeDefinition typeDef)
+    private bool TryResolveConcreteBase(BaseTypeRefNode baseTypeRef, ConcreteTypeDefinition typeDef)
     {
-        if(structDecl.BaseList is null)
+        var name = baseTypeRef.Name.Lexeme;
+        if(string.IsNullOrEmpty(name))
         {
-            return;
+            return false;
         }
 
-        ResolveBaseTypeRef(structDecl.BaseList.First, typeDef);
-
-        foreach(var entry in structDecl.BaseList.BaseTypeRefs)
+        var resolved = typeResolver.LookupTypeByName(name, typeDef.Scope);
+        if(resolved is null)
         {
-            ResolveBaseTypeRef(entry, typeDef);
+            // Can't resolve — will be reported by ResolveAbstractBase.
+            return false;
         }
+
+        // Check if it's a concrete type (class or struct).
+        if(resolved.Kind is not (TypeDefinitionKind.Class or TypeDefinitionKind.Struct))
+        {
+            // It's an abstract — let ResolveAbstractBase handle it.
+            return false;
+        }
+
+        // Verify kind match: class must inherit from class, struct from struct.
+        if(resolved.Kind != typeDef.Kind)
+        {
+            context.ReportError(
+                "MIST_PM_BASE_TYPE_KIND_MISMATCH",
+                $"A {typeDef.Kind.ToString().ToLowerInvariant()} cannot inherit from a {resolved.Kind.ToString().ToLowerInvariant()} ('{name}').",
+                baseTypeRef);
+            return true;
+        }
+
+        typeDef.BaseType = (TypeDefinition)resolved;
+        return true;
     }
 
     /// <summary>
-    /// Resolves the base abstracts on an abstract declaration. An abstract can
-    /// refine/extend other abstracts.
+    /// Resolves a single base type entry that is expected to be an abstract.
+    /// Emits a diagnostic if it resolves to a concrete type.
     /// </summary>
-    private void ResolveAbstractBaseTypes(AbstractDeclarationNode abstractDecl, MemberTypeDefinition typeDef)
-    {
-        if(abstractDecl.BaseList is null)
-        {
-            return;
-        }
-
-        ResolveBaseTypeRef(abstractDecl.BaseList.First, typeDef);
-
-        foreach(var entry in abstractDecl.BaseList.BaseTypeRefs)
-        {
-            ResolveBaseTypeRef(entry, typeDef);
-        }
-    }
-
-    /// <summary>
-    /// Resolves a single <see cref="BaseTypeRefNode"/> and adds the result
-    /// to the type's base types list.
-    /// </summary>
-    private void ResolveBaseTypeRef(BaseTypeRefNode baseTypeRef, MemberTypeDefinition typeDef)
+    private void ResolveAbstractBase(BaseTypeRefNode baseTypeRef, MemberTypeDefinition typeDef)
     {
         var name = baseTypeRef.Name.Lexeme;
         if(string.IsNullOrEmpty(name))
@@ -184,18 +193,34 @@ internal sealed class MemberBuilder
             return;
         }
 
-        var resolved = typeResolver.LookupByName(name, typeDef.Scope);
-        if(resolved is not null)
-        {
-            typeDef.BaseTypes.Add(resolved);
-        }
-        else
+        var resolved = typeResolver.LookupTypeByName(name, typeDef.Scope);
+        if(resolved is null)
         {
             context.ReportError(
                 "MIST_PM_UNRESOLVED_BASE_TYPE",
                 $"The base type '{name}' could not be found.",
                 baseTypeRef);
-            typeDef.BaseTypes.Add(Model.TypeReferences.ErrorTypeReference.Instance);
+            return;
         }
+
+        if(resolved.Kind is TypeDefinitionKind.Class or TypeDefinitionKind.Struct)
+        {
+            context.ReportError(
+                "MIST_PM_CONCRETE_IN_ABSTRACT_LIST",
+                $"A concrete type ('{name}') cannot appear in the abstract implementations list. Only the first entry may be a concrete base type.",
+                baseTypeRef);
+            return;
+        }
+
+        if(resolved.Kind is not TypeDefinitionKind.Abstract)
+        {
+            context.ReportError(
+                "MIST_PM_INVALID_BASE_TYPE",
+                $"'{name}' is a {resolved.Kind.ToString().ToLowerInvariant()} and cannot be used as a base type.",
+                baseTypeRef);
+            return;
+        }
+
+        typeDef.BaseAbstractTypes.Add((TypeDefinition)resolved);
     }
 }

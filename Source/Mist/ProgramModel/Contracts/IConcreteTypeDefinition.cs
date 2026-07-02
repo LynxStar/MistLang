@@ -9,6 +9,12 @@ namespace Mist.ProgramModel.Contracts;
 public interface IConcreteTypeDefinition : IMemberTypeDefinition
 {
     /// <summary>
+    /// The base type this concrete type inherits from (class → class, struct → struct).
+    /// Null if no concrete base is declared.
+    /// </summary>
+    ITypeDefinition? BaseType { get; }
+
+    /// <summary>
     /// Fields declared on this type.
     /// </summary>
     IReadOnlyList<IFieldDefinition> Fields { get; }

@@ -20,6 +20,12 @@ internal abstract class ConcreteTypeDefinition : MemberTypeDefinition, IConcrete
     {
     }
 
+    /// <summary>
+    /// The base type this concrete type inherits from (class → class, struct → struct).
+    /// Null if no concrete base is declared.
+    /// </summary>
+    public TypeDefinition? BaseType { get; internal set; }
+
     public List<FieldDefinition> FieldsList { get; } = [];
 
     public List<IndexerDefinition> IndexersList { get; } = [];
@@ -29,6 +35,8 @@ internal abstract class ConcreteTypeDefinition : MemberTypeDefinition, IConcrete
     public List<OperatorDefinition> OperatorsList { get; } = [];
 
     public List<CastOperatorDefinition> CastOperatorsList { get; } = [];
+
+    ITypeDefinition? IConcreteTypeDefinition.BaseType => BaseType;
 
     IReadOnlyList<IFieldDefinition> IConcreteTypeDefinition.Fields => FieldsList;
 

@@ -238,6 +238,15 @@ internal sealed class TypeReferenceResolver
     }
 
     /// <summary>
+    /// Looks up a type by simple name and returns the <see cref="ITypeDefinition"/>
+    /// directly. Returns null if not found.
+    /// </summary>
+    public ITypeDefinition? LookupTypeByName(string name, Scope scope)
+    {
+        return LookupSimpleName(name, scope);
+    }
+
+    /// <summary>
     /// Looks up a simple (unqualified) name by walking the scope chain.
     /// Checks the current namespace, then imported namespaces.
     /// </summary>

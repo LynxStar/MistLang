@@ -3336,9 +3336,9 @@ internal sealed class CSharpSourceWriter
         var name = abstractDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(abstractDecl.TypeParams);
         var abstractList = "";
-        if(abstractDecl.Abstracts is not null)
+        if(abstractDecl.BaseList is not null)
         {
-            abstractList = $" : {EmitBaseListWithTypeArgs(abstractDecl.Abstracts)}";
+            abstractList = $" : {EmitBaseListWithTypeArgs(abstractDecl.BaseList)}";
         }
 
         // ── Associated type generic lifting ──────────────────────────────
@@ -4152,7 +4152,7 @@ internal sealed class CSharpSourceWriter
         var name = structDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(structDecl.TypeParams);
         var abstractList = "";
-        if(structDecl.AbstractList is not null)
+        if(structDecl.BaseClause is not null)
         {
             // If the struct has a base struct, skip the first entry in the base list
             // (it was consumed as the base struct type, not an interface). The CLR does
@@ -4162,20 +4162,20 @@ internal sealed class CSharpSourceWriter
             var baseParts = hasBaseStruct
                 ? (implementorScope is not null
                     ? EmitBaseListSkippingFirstWithAssociatedTypeArgs(
-                        structDecl.AbstractList,
+                        structDecl.BaseClause,
                         implementorScope,
                         null,
                         name,
                         typeParams)
-                    : EmitBaseListSkippingFirst(structDecl.AbstractList))
+                    : EmitBaseListSkippingFirst(structDecl.BaseClause))
                 : (implementorScope is not null
                     ? EmitBaseListWithAssociatedTypeArgs(
-                        structDecl.AbstractList,
+                        structDecl.BaseClause,
                         implementorScope,
                         null,
                         name,
                         typeParams)
-                    : EmitBaseListWithTypeArgs(structDecl.AbstractList));
+                    : EmitBaseListWithTypeArgs(structDecl.BaseClause));
 
             // Append with-block conformance interfaces to the inheritance list.
             var withBlockInterfaces = CollectWithBlockInterfaceNames(symbol?.DeclaredType);

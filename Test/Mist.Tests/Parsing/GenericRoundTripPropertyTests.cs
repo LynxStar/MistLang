@@ -207,7 +207,7 @@ public class GenericRoundTripPropertyTests
 
         if(abstracts is not null)
         {
-            structDecl.Abstracts = abstracts;
+            structDecl.BaseList = abstracts;
         }
 
         return structDecl;
@@ -243,7 +243,7 @@ public class GenericRoundTripPropertyTests
 
         if(abstracts is not null)
         {
-            abstractDecl.Abstracts = abstracts;
+            abstractDecl.BaseList = abstracts;
         }
 
         return abstractDecl;

@@ -101,8 +101,8 @@ public class AbstractRoundTripPropertyTests
         if(parentAbstractName is not null)
         {
             var abstractList = MakeBaseList(parentAbstractName);
-            decl.AbstractList = abstractList;
-            decl.Abstracts = abstractList;
+            decl.BaseClause = abstractList;
+            decl.BaseList = abstractList;
         }
 
         return decl;
@@ -147,8 +147,8 @@ public class AbstractRoundTripPropertyTests
         if(abstractName is not null)
         {
             var abstractList = MakeBaseList(abstractName);
-            decl.AbstractList = abstractList;
-            decl.Abstracts = abstractList;
+            decl.BaseClause = abstractList;
+            decl.BaseList = abstractList;
         }
 
         return decl;

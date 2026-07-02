@@ -109,6 +109,9 @@ internal sealed class MemberBuilder
             case StructTypeTypeDeclarationNode st:
                 ResolveStructBaseTypes(st.StructDeclaration, typeDef);
                 break;
+            case AbstractTypeTypeDeclarationNode at:
+                ResolveAbstractBaseTypes(at.AbstractDeclaration, typeDef);
+                break;
         }
     }
 
@@ -137,14 +140,33 @@ internal sealed class MemberBuilder
     /// </summary>
     private void ResolveStructBaseTypes(StructDeclarationNode structDecl, MemberTypeDefinition typeDef)
     {
-        if(structDecl.Abstracts is null)
+        if(structDecl.BaseList is null)
         {
             return;
         }
 
-        ResolveBaseTypeRef(structDecl.Abstracts.First, typeDef);
+        ResolveBaseTypeRef(structDecl.BaseList.First, typeDef);
 
-        foreach(var entry in structDecl.Abstracts.BaseTypeRefs)
+        foreach(var entry in structDecl.BaseList.BaseTypeRefs)
+        {
+            ResolveBaseTypeRef(entry, typeDef);
+        }
+    }
+
+    /// <summary>
+    /// Resolves the base abstracts on an abstract declaration. An abstract can
+    /// refine/extend other abstracts.
+    /// </summary>
+    private void ResolveAbstractBaseTypes(AbstractDeclarationNode abstractDecl, MemberTypeDefinition typeDef)
+    {
+        if(abstractDecl.BaseList is null)
+        {
+            return;
+        }
+
+        ResolveBaseTypeRef(abstractDecl.BaseList.First, typeDef);
+
+        foreach(var entry in abstractDecl.BaseList.BaseTypeRefs)
         {
             ResolveBaseTypeRef(entry, typeDef);
         }

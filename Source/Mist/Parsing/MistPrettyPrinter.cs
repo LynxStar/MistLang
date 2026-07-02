@@ -277,9 +277,9 @@ public sealed class MistPrettyPrinter
         var name = structDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(structDecl.TypeParams);
         var abstractClause = "";
-        if(structDecl.Abstracts is not null)
+        if(structDecl.BaseList is not null)
         {
-            abstractClause = $" : {EmitBaseList(structDecl.Abstracts)}";
+            abstractClause = $" : {EmitBaseList(structDecl.BaseList)}";
         }
 
         var constraints = EmitConstraintClauses(structDecl.Constraints);
@@ -297,9 +297,9 @@ public sealed class MistPrettyPrinter
         var name = abstractDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(abstractDecl.TypeParams);
         var abstractClause = "";
-        if(abstractDecl.Abstracts is not null)
+        if(abstractDecl.BaseList is not null)
         {
-            abstractClause = $" : {EmitBaseList(abstractDecl.Abstracts)}";
+            abstractClause = $" : {EmitBaseList(abstractDecl.BaseList)}";
         }
 
         var constraints = EmitConstraintClauses(abstractDecl.Constraints);

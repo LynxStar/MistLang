@@ -254,7 +254,7 @@ public class MissingTypeArgumentsPropertyTests
                     {
                         Name = MakeToken(scenario.DerivedTypeName),
                         Members = ImmutableArray<MemberDeclarationNode>.Empty,
-                        Abstracts = MakeBaseList([MakeBaseTypeRef(scenario.GenericTypeName)]),
+                        BaseList = MakeBaseList([MakeBaseTypeRef(scenario.GenericTypeName)]),
                     };
                     derivedTypeDecl = new StructTypeTypeDeclarationNode { StructDeclaration = structDecl };
                     break;
@@ -275,7 +275,7 @@ public class MissingTypeArgumentsPropertyTests
                     {
                         Name = MakeToken(scenario.DerivedTypeName),
                         Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
-                        Abstracts = MakeBaseList([MakeBaseTypeRef(scenario.GenericTypeName)]),
+                        BaseList = MakeBaseList([MakeBaseTypeRef(scenario.GenericTypeName)]),
                     };
                     derivedTypeDecl = new AbstractTypeTypeDeclarationNode { AbstractDeclaration = derivedAbstractDecl };
                     break;
@@ -383,7 +383,7 @@ public class MissingTypeArgumentsPropertyTests
         {
             Name = MakeToken("Box"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
-            Abstracts = MakeBaseList([MakeBaseTypeRef("IContainer")]),
+            BaseList = MakeBaseList([MakeBaseTypeRef("IContainer")]),
         };
 
         var ast = MakeCompilationUnit(

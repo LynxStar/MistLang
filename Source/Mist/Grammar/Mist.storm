@@ -231,13 +231,13 @@ rule ClassDeclaration = attributes:AttributeList* modifiers:Modifier* CLASS name
 
 rule StructDeclaration = attributes:AttributeList* modifiers:Modifier* STRUCT name:IDENTIFIER
     typeParams:TypeParameterList?
-    abstractList:(COLON abstracts:BaseList)?
+    baseClause:(COLON baseList:BaseList)?
     constraints:WhereClause*
     LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
 
 rule AbstractDeclaration = attributes:AttributeList* modifiers:Modifier* ABSTRACT name:IDENTIFIER
     typeParams:TypeParameterList?
-    abstractList:(COLON abstracts:BaseList)?
+    baseClause:(COLON baseList:BaseList)?
     constraints:WhereClause*
     LEFT_BRACE members:AbstractMemberDeclaration* RIGHT_BRACE;
 

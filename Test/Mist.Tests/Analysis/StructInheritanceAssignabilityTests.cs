@@ -223,8 +223,8 @@ public class StructInheritanceAssignabilityTests
         if(baseStructName is not null)
         {
             var baseList = MakeBaseList([MakeBaseTypeRef(baseStructName, baseTypeArgs)]);
-            decl.AbstractList = baseList;
-            decl.Abstracts = baseList;
+            decl.BaseClause = baseList;
+            decl.BaseList = baseList;
         }
 
         return decl;
@@ -491,8 +491,8 @@ public class StructInheritanceAssignabilityTests
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
         var baseList = MakeBaseList([MakeBaseTypeRef("IFoo")]);
-        baseStruct.AbstractList = baseList;
-        baseStruct.Abstracts = baseList;
+        baseStruct.BaseClause = baseList;
+        baseStruct.BaseList = baseList;
 
         // struct Derived : Base { }
         var derivedStruct = MakeStructDecl("Derived", baseStructName: "Base");

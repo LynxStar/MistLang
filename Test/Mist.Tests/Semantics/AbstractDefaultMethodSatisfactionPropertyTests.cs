@@ -164,8 +164,8 @@ public class AbstractDefaultMethodSatisfactionPropertyTests
         if(parentAbstractName is not null)
         {
             var parentList = MakeBaseList(parentAbstractName);
-            decl.AbstractList = parentList;
-            decl.Abstracts = parentList;
+            decl.BaseClause = parentList;
+            decl.BaseList = parentList;
         }
 
         return decl;

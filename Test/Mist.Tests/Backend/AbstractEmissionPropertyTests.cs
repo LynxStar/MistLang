@@ -105,9 +105,9 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
         {
             var abstractList1 = MakeBaseList(parentAbstractName);
 
-            decl.AbstractList = abstractList1;
+            decl.BaseClause = abstractList1;
 
-            decl.Abstracts = abstractList1;
+            decl.BaseList = abstractList1;
         }
 
         return decl;
@@ -151,9 +151,9 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
         {
             var abstractList2 = MakeBaseList(abstractName);
 
-            decl.AbstractList = abstractList2;
+            decl.BaseClause = abstractList2;
 
-            decl.Abstracts = abstractList2;
+            decl.BaseList = abstractList2;
         }
 
         return decl;

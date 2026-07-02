@@ -151,9 +151,9 @@ public class AbstractSignatureMismatchPropertyTests
         {
             var abstractList1 = MakeBaseList(abstractName);
 
-            decl.AbstractList = abstractList1;
+            decl.BaseClause = abstractList1;
 
-            decl.Abstracts = abstractList1;
+            decl.BaseList = abstractList1;
         }
 
         return decl;

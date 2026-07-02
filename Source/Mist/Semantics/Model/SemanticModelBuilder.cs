@@ -5549,12 +5549,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 continue;
             }
 
-            if(structDecl.Abstracts is null)
+            if(structDecl.BaseList is null)
             {
                 continue;
             }
 
-            var entries = ExtractBaseListEntries(structDecl.Abstracts);
+            var entries = ExtractBaseListEntries(structDecl.BaseList);
             if(entries.Count == 0)
             {
                 continue;
@@ -6572,12 +6572,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return;
         }
 
-        if(structDecl.Abstracts is null)
+        if(structDecl.BaseList is null)
         {
             return;
         }
 
-        var entries = ExtractBaseListEntries(structDecl.Abstracts);
+        var entries = ExtractBaseListEntries(structDecl.BaseList);
         if(entries.Count == 0)
         {
             return;
@@ -6648,12 +6648,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return;
         }
 
-        if(abstractDecl.Abstracts is null)
+        if(abstractDecl.BaseList is null)
         {
             return;
         }
 
-        var entries = ExtractBaseListEntries(abstractDecl.Abstracts);
+        var entries = ExtractBaseListEntries(abstractDecl.BaseList);
         if(entries.Count == 0)
         {
             return;

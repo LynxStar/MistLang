@@ -3,6 +3,6 @@ namespace Mist.ProgramModel.Contracts;
 /// <summary>
 /// A struct type definition.
 /// </summary>
-public interface IStructDefinition : ITypeDefinition
+public interface IStructDefinition : IConcreteTypeDefinition
 {
 }

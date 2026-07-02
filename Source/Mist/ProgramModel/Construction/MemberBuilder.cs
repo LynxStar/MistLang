@@ -22,39 +22,28 @@ internal sealed class MemberBuilder
 
     /// <summary>
     /// Resolves all member signatures for the given type definition.
-    /// Reads the stashed <see cref="TypeDefinition.DeclarationNode"/> to
-    /// access the AST member list.
     /// </summary>
-    public void BuildMembers(TypeDefinition typeDef)
+    public void BuildMembers(MemberTypeDefinition memberTypeDef)
     {
-        if(typeDef.DeclarationNode is not TypeDeclarationNode typeDecl)
-        {
-            return;
-        }
+        var typeDecl = memberTypeDef.DeclarationNode;
 
         // Resolve base types first.
-        ResolveBaseTypes(typeDecl, typeDef);
+        ResolveBaseTypes(typeDecl, memberTypeDef);
 
         var members = GetMembers(typeDecl);
         if(!members.IsDefault)
         {
             foreach(var member in members)
             {
-                ResolveMember(member, typeDef);
+                ResolveMember(member, memberTypeDef);
             }
-        }
-
-        // Recurse into nested types.
-        foreach(var nestedType in typeDef.NestedTypes)
-        {
-            BuildMembers(nestedType);
         }
     }
 
     /// <summary>
     /// Dispatches a single member declaration to the appropriate handler.
     /// </summary>
-    private void ResolveMember(MemberDeclarationNode member, TypeDefinition typeDef)
+    private void ResolveMember(MemberDeclarationNode member, MemberTypeDefinition typeDef)
     {
         _ = typeDef;
 
@@ -67,7 +56,7 @@ internal sealed class MemberBuilder
             case MethodMemberMemberDeclarationNode:
             case OperatorMemberMemberDeclarationNode:
             case CastOperatorMemberMemberDeclarationNode:
-                // These will be implemented in subsequent tasks (7–17).
+                // These will be implemented in subsequent tasks (8–17).
                 break;
 
             case NestedTypeMemberMemberDeclarationNode:
@@ -108,9 +97,9 @@ internal sealed class MemberBuilder
     /// <summary>
     /// Resolves base types for classes (BaseList) and structs (Abstracts).
     /// All entries in the base list are resolved and added to
-    /// <see cref="TypeDefinition.BaseTypes"/>.
+    /// <see cref="MemberTypeDefinition.BaseTypes"/>.
     /// </summary>
-    private void ResolveBaseTypes(TypeDeclarationNode typeDecl, TypeDefinition typeDef)
+    private void ResolveBaseTypes(TypeDeclarationNode typeDecl, MemberTypeDefinition typeDef)
     {
         switch(typeDecl)
         {
@@ -127,7 +116,7 @@ internal sealed class MemberBuilder
     /// Resolves the base list on a class declaration. Includes the base class
     /// (if any) and all abstract implementations.
     /// </summary>
-    private void ResolveClassBaseTypes(ClassDeclarationNode classDecl, TypeDefinition typeDef)
+    private void ResolveClassBaseTypes(ClassDeclarationNode classDecl, MemberTypeDefinition typeDef)
     {
         if(classDecl.BaseList is null)
         {
@@ -146,7 +135,7 @@ internal sealed class MemberBuilder
     /// Resolves the abstracts list on a struct declaration. The first entry
     /// may be a base struct or an abstract; all are treated uniformly here.
     /// </summary>
-    private void ResolveStructBaseTypes(StructDeclarationNode structDecl, TypeDefinition typeDef)
+    private void ResolveStructBaseTypes(StructDeclarationNode structDecl, MemberTypeDefinition typeDef)
     {
         if(structDecl.Abstracts is null)
         {
@@ -165,7 +154,7 @@ internal sealed class MemberBuilder
     /// Resolves a single <see cref="BaseTypeRefNode"/> and adds the result
     /// to the type's base types list.
     /// </summary>
-    private void ResolveBaseTypeRef(BaseTypeRefNode baseTypeRef, TypeDefinition typeDef)
+    private void ResolveBaseTypeRef(BaseTypeRefNode baseTypeRef, MemberTypeDefinition typeDef)
     {
         var name = baseTypeRef.Name.Lexeme;
         if(string.IsNullOrEmpty(name))

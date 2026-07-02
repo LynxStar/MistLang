@@ -68,9 +68,9 @@ public sealed class ProgramModelBuilder
         {
             foreach(var typeDef in ns.Types.Values)
             {
-                if(typeDef is TypeDefinition td)
+                if(typeDef is MemberTypeDefinition memberTypeDef)
                 {
-                    memberBuilder.BuildMembers(td);
+                    memberBuilder.BuildMembers(memberTypeDef);
                 }
             }
         }

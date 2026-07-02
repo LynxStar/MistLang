@@ -122,14 +122,31 @@ internal sealed class TypeReferenceResolver
     {
         var name = namedRef.Name.IDENTIFIER.Lexeme;
 
-        // Try qualified name first (if it has dots).
+        // Try qualified name (has dots — could be namespace.type or parent.nested).
         if(namedRef.Name.IDENTIFIERs.Length > 0)
         {
             var qualifiedName = BuildQualifiedName(namedRef.Name);
+
+            // First, try as a fully-qualified namespace.type.
             var typeDef = LookupQualifiedName(qualifiedName);
             if(typeDef is not null)
             {
                 return new NamedTypeReference(typeDef);
+            }
+
+            // Second, try as a nested type: look up the first segment via scope,
+            // then find the full qualified key in its namespace.
+            var firstSegment = name;
+            var parentType = LookupSimpleName(firstSegment, scope);
+            if(parentType is not null)
+            {
+                var nestedKey = qualifiedName;
+                var ns = context.ProgramModel.Namespaces;
+                if(ns.TryGetValue(parentType.NamespaceName, out var parentNs)
+                    && parentNs.Types.TryGetValue(nestedKey, out var nestedType))
+                {
+                    return new NamedTypeReference(nestedType);
+                }
             }
 
             context.ReportError(
@@ -229,6 +246,12 @@ internal sealed class TypeReferenceResolver
         var current = scope;
         while(current is not null)
         {
+            // Check types directly visible in this scope (e.g., nested types).
+            if(current.LocalTypes.TryGetValue(name, out var localType))
+            {
+                return localType;
+            }
+
             // Check current namespace.
             if(current.Namespace is not null)
             {

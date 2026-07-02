@@ -1,3 +1,4 @@
+using Mist.Generated;
 using Mist.ProgramModel.Contracts;
 
 namespace Mist.ProgramModel.Model;
@@ -6,5 +7,6 @@ namespace Mist.ProgramModel.Model;
 /// An abstract (interface-like) type definition in the program model.
 /// </summary>
 internal sealed class AbstractDefinition(
-    string name, string namespaceName, Scope scope, TypeDefinition? declaringType)
-    : TypeDefinition(name, TypeDefinitionKind.Abstract, namespaceName, scope, declaringType), IAbstractDefinition;
+    string name, string namespaceName, Scope scope, TypeDefinition? declaringType, TypeDeclarationNode declarationNode)
+    : MemberTypeDefinition(name, TypeDefinitionKind.Abstract, namespaceName, scope, declaringType, declarationNode),
+    IAbstractDefinition;

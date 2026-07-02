@@ -112,15 +112,20 @@ internal sealed class TypeBuilder
             return;
         }
 
-        // Stash the AST node for Phase 2 member resolution.
-        typeDef.DeclarationNode = typeDecl;
-
-        // Register in the namespace.
+        // Register in the namespace with a qualified key for nested types.
         var ns = context.ProgramModel.GetOrAddNamespace(typeDef.NamespaceName);
-        ns.Types[typeDef.Name] = typeDef;
+        var registrationName = declaringType is not null
+            ? $"{declaringType.Name}.{typeDef.Name}"
+            : typeDef.Name;
+        ns.Types[registrationName] = typeDef;
 
-        // If nested, add to the declaring type.
-        declaringType?.NestedTypes.Add(typeDef);
+        // If nested, add to the declaring type and make visible by simple name
+        // in the parent type's scope.
+        if(declaringType is not null)
+        {
+            declaringType.NestedTypes.Add(typeDef);
+            declaringType.Scope.AddLocalType(typeDef.Name, typeDef);
+        }
 
         // Recurse into nested types within the type body.
         RegisterNestedTypes(typeDef.Scope, typeDecl, typeDef);
@@ -201,13 +206,13 @@ internal sealed class TypeBuilder
         switch(typeDecl)
         {
             case ClassTypeTypeDeclarationNode ct:
-                return new ClassDefinition(ct.ClassDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType);
+                return new ClassDefinition(ct.ClassDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType, typeDecl);
 
             case StructTypeTypeDeclarationNode st:
-                return new StructDefinition(st.StructDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType);
+                return new StructDefinition(st.StructDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType, typeDecl);
 
             case AbstractTypeTypeDeclarationNode at:
-                return new AbstractDefinition(at.AbstractDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType);
+                return new AbstractDefinition(at.AbstractDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType, typeDecl);
 
             case EnumTypeTypeDeclarationNode et:
                 return new EnumDefinition(et.EnumDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType);

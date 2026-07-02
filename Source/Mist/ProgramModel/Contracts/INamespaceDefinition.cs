@@ -11,7 +11,10 @@ public interface INamespaceDefinition
     string FullyQualifiedName { get; }
 
     /// <summary>
-    /// Type definitions declared directly within this namespace, keyed by simple name.
+    /// Type definitions declared within this namespace, keyed by name.
+    /// Top-level types use their simple name (e.g., "MyClass").
+    /// Nested types use a dot-qualified path from their outermost parent
+    /// (e.g., "Outer.Inner").
     /// </summary>
     IReadOnlyDictionary<string, ITypeDefinition> Types { get; }
 }

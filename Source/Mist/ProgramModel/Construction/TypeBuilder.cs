@@ -212,7 +212,7 @@ internal sealed class TypeBuilder
                 return new StructDefinition(st.StructDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType, typeDecl);
 
             case AbstractTypeTypeDeclarationNode at:
-                return new AbstractDefinition(at.AbstractDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType, typeDecl);
+                return new AbstractType(at.AbstractDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType, typeDecl);
 
             case EnumTypeTypeDeclarationNode et:
                 return new EnumDefinition(et.EnumDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType);

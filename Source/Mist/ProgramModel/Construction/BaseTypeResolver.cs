@@ -134,7 +134,7 @@ internal sealed class BaseTypeResolver
             return;
         }
 
-        if(resolved is not AbstractDefinition abstractDef)
+        if(resolved is not AbstractType abstractDef)
         {
             context.ReportError(
                 "MIST_PM_INVALID_BASE_TYPE",

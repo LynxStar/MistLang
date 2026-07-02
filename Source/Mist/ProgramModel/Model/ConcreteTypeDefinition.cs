@@ -25,6 +25,21 @@ internal abstract class ConcreteTypeDefinition : MemberTypeDefinition, IConcrete
     /// </summary>
     public TypeDefinition? BaseType { get; internal set; }
 
+    /// <summary>
+    /// Whether this type is backend-backed (intrinsic keyword).
+    /// </summary>
+    public bool IsIntrinsic { get; internal set; }
+
+    /// <summary>
+    /// Whether this type has owned semantics (owned keyword).
+    /// </summary>
+    public bool IsOwned { get; internal set; }
+
+    /// <summary>
+    /// The substructural discipline (affine, linear, relevant, or none).
+    /// </summary>
+    public SubstructuralDiscipline Discipline { get; internal set; }
+
     public List<FieldDefinition> FieldsList { get; } = [];
 
     public List<IndexerDefinition> IndexersList { get; } = [];

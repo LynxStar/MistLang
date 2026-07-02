@@ -72,10 +72,10 @@ public sealed class ProgramModelBuilder
                 switch(typeDef)
                 {
                     case ConcreteTypeDefinition concrete:
-                        concreteTypeBuilder.BuildMembers(concrete);
+                        concreteTypeBuilder.Build(concrete);
                         break;
-                    case AbstractDefinition abstractDef:
-                        abstractTypeBuilder.BuildMembers(abstractDef);
+                    case AbstractType abstractDef:
+                        abstractTypeBuilder.Build(abstractDef);
                         break;
                 }
             }

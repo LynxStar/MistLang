@@ -27,6 +27,11 @@ internal abstract class MemberTypeDefinition : TypeDefinition, IMemberTypeDefini
     internal TypeDeclarationNode DeclarationNode { get; }
 
     /// <summary>
+    /// Whether this type is declared as readonly.
+    /// </summary>
+    public bool IsReadonly { get; internal set; }
+
+    /// <summary>
     /// Abstracts that this type implements or refines.
     /// </summary>
     public List<TypeDefinition> BaseAbstractTypes { get; } = [];

@@ -9,4 +9,10 @@ namespace Mist.ProgramModel.Model;
 internal sealed class StructDefinition(
     string name, string namespaceName, Scope scope, TypeDefinition? declaringType, TypeDeclarationNode declarationNode)
     : ConcreteTypeDefinition(name, namespaceName, scope, declaringType, declarationNode),
-    IStructDefinition;
+    IStructDefinition
+{
+    /// <summary>
+    /// Whether this struct is a ref struct (stack-only, no heap allocation).
+    /// </summary>
+    public bool IsRef { get; internal set; }
+}

@@ -1,3 +1,4 @@
+using Mist.Common.Collections;
 using Mist.Generated;
 using Mist.ProgramModel.Model;
 
@@ -21,31 +22,48 @@ internal sealed class AbstractTypeBuilder
     }
 
     /// <summary>
-    /// Resolves base abstracts and all member signatures for an abstract type.
+    /// Entry point: resolves the full type definition for an abstract type.
     /// </summary>
-    public void BuildMembers(AbstractDefinition typeDef)
+    public void Build(AbstractType typeDef)
     {
-        var typeDecl = typeDef.DeclarationNode;
+        BuildDeclaration(typeDef);
+        BuildMembers(typeDef);
+    }
 
-        // Resolve base abstracts.
-        baseTypeResolver.Resolve(typeDecl, typeDef);
+    /// <summary>
+    /// Resolves declaration-level information: base abstracts, modifiers, generics.
+    /// </summary>
+    private void BuildDeclaration(AbstractType typeDef)
+    {
+        baseTypeResolver.Resolve(typeDef.DeclarationNode, typeDef);
 
-        // Abstract member resolution will be implemented in tasks 13, 16.
-        if(typeDecl is not AbstractTypeTypeDeclarationNode at)
+        if(typeDef.DeclarationNode is AbstractTypeTypeDeclarationNode at)
         {
-            return;
+            typeDef.IsReadonly = at.AbstractDeclaration.Modifiers.HasAny<ModifierNode, ReadonlyModifierModifierNode>();
+        }
+    }
+
+    /// <summary>
+    /// Resolves all member signatures for the abstract type.
+    /// </summary>
+    private void BuildMembers(AbstractType typeDef)
+    {
+        if(typeDef.DeclarationNode is not AbstractTypeTypeDeclarationNode at)
+        {
+            throw new InvalidOperationException(
+                $"Internal compiler error: AbstractTypeBuilder received unexpected declaration node '{typeDef.DeclarationNode.GetType().Name}'.");
         }
 
         foreach(var member in at.AbstractDeclaration.Members)
         {
-            ResolveAbstractMember(member, typeDef);
+            ResolveMember(member, typeDef);
         }
     }
 
     /// <summary>
     /// Dispatches a single abstract member declaration.
     /// </summary>
-    private void ResolveAbstractMember(AbstractMemberDeclarationNode member, AbstractDefinition typeDef)
+    private void ResolveMember(AbstractMemberDeclarationNode member, AbstractType typeDef)
     {
         _ = typeDef;
 

@@ -53,14 +53,7 @@ public static partial class ProjectFileParser
         // 1. File existence check
         if(!File.Exists(filePath))
         {
-            diagnostics.Add(new Diagnostic(
-                new DiagnosticId("MIST_PROJECT_FILE_NOT_FOUND"),
-                DiagnosticSeverity.Error,
-                PipelineStage.Driver,
-                $"Project file '{filePath}' not found.",
-                Location: default,
-                CompilationUnitPath: filePath,
-                AnalyzerName: null));
+            diagnostics.Report(DriverDiagnostics.ProjectFileNotFound, default, filePath, (object?)filePath);
             return null;
         }
 
@@ -72,14 +65,7 @@ public static partial class ProjectFileParser
         }
         catch(Exception ex)
         {
-            diagnostics.Add(new Diagnostic(
-                new DiagnosticId("MIST_PROJECT_FILE_READ_ERROR"),
-                DiagnosticSeverity.Error,
-                PipelineStage.Driver,
-                $"Failed to read project file '{filePath}': {ex.Message}",
-                Location: default,
-                CompilationUnitPath: filePath,
-                AnalyzerName: null));
+            diagnostics.Report(DriverDiagnostics.ProjectFileReadError, default, filePath, (object?)filePath, ex.Message);
             return null;
         }
 
@@ -91,28 +77,14 @@ public static partial class ProjectFileParser
         }
         catch(TomlException ex)
         {
-            diagnostics.Add(new Diagnostic(
-                new DiagnosticId("MIST_PROJECT_TOML_ERROR"),
-                DiagnosticSeverity.Error,
-                PipelineStage.Driver,
-                $"Failed to parse project file '{filePath}': {ex.Message}",
-                Location: default,
-                CompilationUnitPath: filePath,
-                AnalyzerName: null));
+            diagnostics.Report(DriverDiagnostics.ProjectTomlError, default, filePath, (object?)filePath, ex.Message);
             return null;
         }
 
         // 4. name field presence check
         if(!model.TryGetValue("name", out var nameObj) || nameObj is not string)
         {
-            diagnostics.Add(new Diagnostic(
-                new DiagnosticId("MIST_PROJECT_MISSING_NAME"),
-                DiagnosticSeverity.Error,
-                PipelineStage.Driver,
-                $"Project file '{filePath}' is missing the required 'name' field.",
-                Location: default,
-                CompilationUnitPath: filePath,
-                AnalyzerName: null));
+            diagnostics.Report(DriverDiagnostics.ProjectMissingName, default, filePath, (object?)filePath);
             return null;
         }
 
@@ -121,14 +93,7 @@ public static partial class ProjectFileParser
         // 5. name non-empty/non-whitespace check
         if(string.IsNullOrWhiteSpace(name))
         {
-            diagnostics.Add(new Diagnostic(
-                new DiagnosticId("MIST_PROJECT_EMPTY_NAME"),
-                DiagnosticSeverity.Error,
-                PipelineStage.Driver,
-                $"Project name in '{filePath}' must not be empty or whitespace.",
-                Location: default,
-                CompilationUnitPath: filePath,
-                AnalyzerName: null));
+            diagnostics.Report(DriverDiagnostics.ProjectEmptyName, default, filePath, (object?)filePath);
             return null;
         }
 
@@ -141,28 +106,14 @@ public static partial class ProjectFileParser
                 .OrderBy(c => c);
             var invalidList = string.Join(", ", invalidChars.Select(c => $"'{c}'"));
 
-            diagnostics.Add(new Diagnostic(
-                new DiagnosticId("MIST_PROJECT_INVALID_NAME"),
-                DiagnosticSeverity.Error,
-                PipelineStage.Driver,
-                $"Project name in '{filePath}' contains invalid characters: {invalidList}. Only alphanumeric characters, hyphens, underscores, and periods are allowed.",
-                Location: default,
-                CompilationUnitPath: filePath,
-                AnalyzerName: null));
+            diagnostics.Report(DriverDiagnostics.ProjectInvalidName, default, filePath, (object?)filePath, invalidList);
             return null;
         }
 
         // 7. name length check
         if(name.Length > MaxNameLength)
         {
-            diagnostics.Add(new Diagnostic(
-                new DiagnosticId("MIST_PROJECT_NAME_TOO_LONG"),
-                DiagnosticSeverity.Error,
-                PipelineStage.Driver,
-                $"Project name in '{filePath}' exceeds the maximum length of {MaxNameLength} characters (got {name.Length}).",
-                Location: default,
-                CompilationUnitPath: filePath,
-                AnalyzerName: null));
+            diagnostics.Report(DriverDiagnostics.ProjectNameTooLong, default, filePath, (object?)filePath, MaxNameLength, name.Length);
             return null;
         }
 
@@ -173,14 +124,7 @@ public static partial class ProjectFileParser
             // 8a. non-empty/non-whitespace check
             if(string.IsNullOrWhiteSpace(nsRootStr))
             {
-                diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_PROJECT_EMPTY_NAMESPACE_ROOT"),
-                    DiagnosticSeverity.Error,
-                    PipelineStage.Driver,
-                    $"Namespace root in '{filePath}' must not be empty or whitespace when specified.",
-                    Location: default,
-                    CompilationUnitPath: filePath,
-                    AnalyzerName: null));
+                diagnostics.Report(DriverDiagnostics.ProjectEmptyNamespaceRoot, default, filePath, (object?)filePath);
                 return null;
             }
 
@@ -193,14 +137,7 @@ public static partial class ProjectFileParser
                     .OrderBy(c => c);
                 var invalidList = string.Join(", ", invalidChars.Select(c => $"'{c}'"));
 
-                diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_PROJECT_INVALID_NAMESPACE_ROOT"),
-                    DiagnosticSeverity.Error,
-                    PipelineStage.Driver,
-                    $"Namespace root in '{filePath}' contains invalid characters: {invalidList}. Only alphanumeric characters, hyphens, underscores, and periods are allowed.",
-                    Location: default,
-                    CompilationUnitPath: filePath,
-                    AnalyzerName: null));
+                diagnostics.Report(DriverDiagnostics.ProjectInvalidNamespaceRoot, default, filePath, (object?)filePath, invalidList);
                 return null;
             }
 
@@ -218,14 +155,7 @@ public static partial class ProjectFileParser
         {
             if(string.IsNullOrWhiteSpace(epStr))
             {
-                diagnostics.Add(new Diagnostic(
-                    DiagnosticId.ProjectEmptyEntryPoint,
-                    DiagnosticSeverity.Error,
-                    PipelineStage.Driver,
-                    $"Entry point in '{filePath}' must not be empty or whitespace when specified.",
-                    Location: default,
-                    CompilationUnitPath: filePath,
-                    AnalyzerName: null));
+                diagnostics.Report(DriverDiagnostics.ProjectEmptyEntryPoint, default, filePath, (object?)filePath);
                 return null;
             }
 
@@ -239,14 +169,7 @@ public static partial class ProjectFileParser
         {
             if(refsObj is not TomlTable refsTable)
             {
-                diagnostics.Add(new Diagnostic(
-                    DiagnosticId.ProjectReferenceInvalidFormat,
-                    DiagnosticSeverity.Error,
-                    PipelineStage.Driver,
-                    $"The 'references' field in '{filePath}' must be a table ([references]).",
-                    Location: default,
-                    CompilationUnitPath: filePath,
-                    AnalyzerName: null));
+                diagnostics.Report(DriverDiagnostics.ProjectReferencesNotTable, default, filePath, (object?)filePath);
                 return null;
             }
 
@@ -255,81 +178,39 @@ public static partial class ProjectFileParser
                 // 9a. Validate reference key name (empty → pattern → length)
                 if(string.IsNullOrWhiteSpace(refName))
                 {
-                    diagnostics.Add(new Diagnostic(
-                        DiagnosticId.ProjectReferenceInvalidName,
-                        DiagnosticSeverity.Error,
-                        PipelineStage.Driver,
-                        $"Reference key '{refName}' in '{filePath}' must not be empty or whitespace.",
-                        Location: default,
-                        CompilationUnitPath: filePath,
-                        AnalyzerName: null));
+                    diagnostics.Report(DriverDiagnostics.ProjectReferenceEmptyName, default, filePath, (object?)refName, filePath);
                     return null;
                 }
 
                 if(!ValidNamePattern().IsMatch(refName))
                 {
-                    diagnostics.Add(new Diagnostic(
-                        DiagnosticId.ProjectReferenceInvalidName,
-                        DiagnosticSeverity.Error,
-                        PipelineStage.Driver,
-                        $"Reference key '{refName}' in '{filePath}' contains invalid characters. Only alphanumeric characters, hyphens, underscores, and periods are allowed.",
-                        Location: default,
-                        CompilationUnitPath: filePath,
-                        AnalyzerName: null));
+                    diagnostics.Report(DriverDiagnostics.ProjectReferenceInvalidName, default, filePath, (object?)refName, filePath);
                     return null;
                 }
 
                 if(refName.Length > MaxNameLength)
                 {
-                    diagnostics.Add(new Diagnostic(
-                        DiagnosticId.ProjectReferenceInvalidName,
-                        DiagnosticSeverity.Error,
-                        PipelineStage.Driver,
-                        $"Reference key '{refName}' in '{filePath}' exceeds the maximum length of {MaxNameLength} characters (got {refName.Length}).",
-                        Location: default,
-                        CompilationUnitPath: filePath,
-                        AnalyzerName: null));
+                    diagnostics.Report(DriverDiagnostics.ProjectReferenceNameTooLong, default, filePath, (object?)refName, filePath, MaxNameLength, refName.Length);
                     return null;
                 }
 
                 // 9b. Validate reference value is a table
                 if(refValue is not TomlTable refEntry)
                 {
-                    diagnostics.Add(new Diagnostic(
-                        DiagnosticId.ProjectReferenceInvalidFormat,
-                        DiagnosticSeverity.Error,
-                        PipelineStage.Driver,
-                        $"Reference '{refName}' in '{filePath}' must be a table (e.g., {refName} = {{ path = \"...\" }}).",
-                        Location: default,
-                        CompilationUnitPath: filePath,
-                        AnalyzerName: null));
+                    diagnostics.Report(DriverDiagnostics.ProjectReferenceInvalidFormat, default, filePath, (object?)refName, filePath);
                     return null;
                 }
 
                 // 9c. Extract and validate 'path' field
                 if(!refEntry.TryGetValue("path", out var pathObj) || pathObj is not string rawPath)
                 {
-                    diagnostics.Add(new Diagnostic(
-                        DiagnosticId.ProjectReferenceMissingPath,
-                        DiagnosticSeverity.Error,
-                        PipelineStage.Driver,
-                        $"Reference '{refName}' in '{filePath}' is missing the required 'path' field.",
-                        Location: default,
-                        CompilationUnitPath: filePath,
-                        AnalyzerName: null));
+                    diagnostics.Report(DriverDiagnostics.ProjectReferenceMissingPath, default, filePath, (object?)refName, filePath);
                     return null;
                 }
 
                 if(string.IsNullOrWhiteSpace(rawPath))
                 {
-                    diagnostics.Add(new Diagnostic(
-                        DiagnosticId.ProjectReferenceEmptyPath,
-                        DiagnosticSeverity.Error,
-                        PipelineStage.Driver,
-                        $"Reference '{refName}' in '{filePath}' has an empty or whitespace 'path' field.",
-                        Location: default,
-                        CompilationUnitPath: filePath,
-                        AnalyzerName: null));
+                    diagnostics.Report(DriverDiagnostics.ProjectReferenceEmptyPath, default, filePath, (object?)refName, filePath);
                     return null;
                 }
 
@@ -356,40 +237,19 @@ public static partial class ProjectFileParser
         {
             if(guObj is not TomlTable guTable)
             {
-                diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_GLOBAL_USING_INVALID_FORMAT"),
-                    DiagnosticSeverity.Error,
-                    PipelineStage.Driver,
-                    $"The '[global_usings]' section in '{filePath}' must be a table.",
-                    Location: default,
-                    CompilationUnitPath: filePath,
-                    AnalyzerName: null));
+                diagnostics.Report(DriverDiagnostics.GlobalUsingInvalidFormat, default, filePath, (object?)filePath);
                 return null;
             }
 
             if(!guTable.TryGetValue("namespaces", out var nsObj))
             {
-                diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_GLOBAL_USING_MISSING_NAMESPACES"),
-                    DiagnosticSeverity.Error,
-                    PipelineStage.Driver,
-                    $"The '[global_usings]' section in '{filePath}' is missing the required 'namespaces' field.",
-                    Location: default,
-                    CompilationUnitPath: filePath,
-                    AnalyzerName: null));
+                diagnostics.Report(DriverDiagnostics.GlobalUsingMissingNamespaces, default, filePath, (object?)filePath);
                 return null;
             }
 
             if(nsObj is not TomlArray nsArray)
             {
-                diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_GLOBAL_USING_INVALID_FORMAT"),
-                    DiagnosticSeverity.Error,
-                    PipelineStage.Driver,
-                    $"The 'namespaces' field in '[global_usings]' section of '{filePath}' must be an array.",
-                    Location: default,
-                    CompilationUnitPath: filePath,
-                    AnalyzerName: null));
+                diagnostics.Report(DriverDiagnostics.GlobalUsingNamespacesNotArray, default, filePath, (object?)filePath);
                 return null;
             }
 
@@ -400,27 +260,13 @@ public static partial class ProjectFileParser
             {
                 if(nsArray[i] is not string entry)
                 {
-                    diagnostics.Add(new Diagnostic(
-                        new DiagnosticId("MIST_GLOBAL_USING_INVALID_FORMAT"),
-                        DiagnosticSeverity.Error,
-                        PipelineStage.Driver,
-                        $"Element at index {i} in 'namespaces' array of '{filePath}' must be a string.",
-                        Location: default,
-                        CompilationUnitPath: filePath,
-                        AnalyzerName: null));
+                    diagnostics.Report(DriverDiagnostics.GlobalUsingElementNotString, default, filePath, (object?)i, filePath);
                     return null;
                 }
 
                 if(string.IsNullOrWhiteSpace(entry))
                 {
-                    diagnostics.Add(new Diagnostic(
-                        new DiagnosticId("MIST_GLOBAL_USING_EMPTY_NAMESPACE"),
-                        DiagnosticSeverity.Error,
-                        PipelineStage.Driver,
-                        $"Namespace entry at index {i} in '{filePath}' must not be empty or whitespace.",
-                        Location: default,
-                        CompilationUnitPath: filePath,
-                        AnalyzerName: null));
+                    diagnostics.Report(DriverDiagnostics.GlobalUsingEmptyNamespace, default, filePath, (object?)i, filePath);
                     return null;
                 }
 
@@ -432,27 +278,13 @@ public static partial class ProjectFileParser
                         .OrderBy(c => c);
                     var invalidList = string.Join(", ", invalidChars.Select(c => $"'{c}'"));
 
-                    diagnostics.Add(new Diagnostic(
-                        new DiagnosticId("MIST_GLOBAL_USING_INVALID_NAMESPACE"),
-                        DiagnosticSeverity.Error,
-                        PipelineStage.Driver,
-                        $"Namespace entry '{entry}' in '{filePath}' contains invalid characters: {invalidList}.",
-                        Location: default,
-                        CompilationUnitPath: filePath,
-                        AnalyzerName: null));
+                    diagnostics.Report(DriverDiagnostics.GlobalUsingInvalidNamespace, default, filePath, (object?)entry, filePath, invalidList);
                     return null;
                 }
 
                 if(!seen.Add(entry))
                 {
-                    diagnostics.Add(new Diagnostic(
-                        new DiagnosticId("MIST_GLOBAL_USING_DUPLICATE_NAMESPACE"),
-                        DiagnosticSeverity.Warning,
-                        PipelineStage.Driver,
-                        $"Duplicate namespace '{entry}' in '{filePath}' will be ignored.",
-                        Location: default,
-                        CompilationUnitPath: filePath,
-                        AnalyzerName: null));
+                    diagnostics.Report(DriverDiagnostics.GlobalUsingDuplicateNamespace, default, filePath, (object?)entry, filePath);
                     continue;
                 }
 
@@ -469,14 +301,7 @@ public static partial class ProjectFileParser
         {
             if(pkgsObj is not TomlTable pkgsTable)
             {
-                diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_PKG_TABLE_EXPECTED"),
-                    DiagnosticSeverity.Error,
-                    PipelineStage.Driver,
-                    $"The 'packages' field in '{filePath}' must be a table ([packages]).",
-                    Location: default,
-                    CompilationUnitPath: filePath,
-                    AnalyzerName: null));
+                diagnostics.Report(DriverDiagnostics.PackageTableExpected, default, filePath, (object?)filePath);
                 return null;
             }
 
@@ -493,55 +318,27 @@ public static partial class ProjectFileParser
                         .OrderBy(c => c);
                     var invalidList = string.Join(", ", invalidChars.Select(c => $"'{c}'"));
 
-                    diagnostics.Add(new Diagnostic(
-                        new DiagnosticId("MIST_PKG_INVALID_NAME"),
-                        DiagnosticSeverity.Error,
-                        PipelineStage.Driver,
-                        $"Package name '{pkgName}' in '{filePath}' contains invalid characters: {invalidList}. Only alphanumeric characters, hyphens, underscores, and periods are allowed.",
-                        Location: default,
-                        CompilationUnitPath: filePath,
-                        AnalyzerName: null));
+                    diagnostics.Report(DriverDiagnostics.PackageInvalidName, default, filePath, (object?)pkgName, filePath, invalidList);
                     continue;
                 }
 
                 // 11b. Validate package name: length check
                 if(pkgName.Length > MaxNameLength)
                 {
-                    diagnostics.Add(new Diagnostic(
-                        new DiagnosticId("MIST_PKG_INVALID_NAME"),
-                        DiagnosticSeverity.Error,
-                        PipelineStage.Driver,
-                        $"Package name '{pkgName}' in '{filePath}' exceeds the maximum length of {MaxNameLength} characters (got {pkgName.Length}).",
-                        Location: default,
-                        CompilationUnitPath: filePath,
-                        AnalyzerName: null));
+                    diagnostics.Report(DriverDiagnostics.PackageNameTooLong, default, filePath, (object?)pkgName, filePath, MaxNameLength, pkgName.Length);
                     continue;
                 }
 
                 // 11c. Validate version value: must be a non-empty string
                 if(pkgValue is not string versionStr)
                 {
-                    diagnostics.Add(new Diagnostic(
-                        new DiagnosticId("MIST_PKG_INVALID_VERSION"),
-                        DiagnosticSeverity.Error,
-                        PipelineStage.Driver,
-                        $"Package '{pkgName}' in '{filePath}' must have a string version value.",
-                        Location: default,
-                        CompilationUnitPath: filePath,
-                        AnalyzerName: null));
+                    diagnostics.Report(DriverDiagnostics.PackageInvalidVersion, default, filePath, (object?)pkgName, filePath);
                     continue;
                 }
 
                 if(string.IsNullOrWhiteSpace(versionStr))
                 {
-                    diagnostics.Add(new Diagnostic(
-                        new DiagnosticId("MIST_PKG_INVALID_VERSION"),
-                        DiagnosticSeverity.Error,
-                        PipelineStage.Driver,
-                        $"Package '{pkgName}' in '{filePath}' has an empty or whitespace version string.",
-                        Location: default,
-                        CompilationUnitPath: filePath,
-                        AnalyzerName: null));
+                    diagnostics.Report(DriverDiagnostics.PackageEmptyVersion, default, filePath, (object?)pkgName, filePath);
                     continue;
                 }
 
@@ -569,14 +366,7 @@ public static partial class ProjectFileParser
             {
                 // Present but not a table → emit diagnostic, produce empty list,
                 // and continue (do not abort the parse).
-                diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_FWREF_TABLE_EXPECTED"),
-                    DiagnosticSeverity.Error,
-                    PipelineStage.Driver,
-                    $"The 'framework_references' field in '{filePath}' must be a table ([framework_references]).",
-                    Location: default,
-                    CompilationUnitPath: filePath,
-                    AnalyzerName: null));
+                diagnostics.Report(DriverDiagnostics.FrameworkReferenceTableExpected, default, filePath, (object?)filePath);
             }
             else
             {
@@ -590,42 +380,21 @@ public static partial class ProjectFileParser
                     // 13a. Validate framework name: empty/whitespace after trim
                     if(fwName.Length == 0)
                     {
-                        diagnostics.Add(new Diagnostic(
-                            new DiagnosticId("MIST_FWREF_INVALID_NAME"),
-                            DiagnosticSeverity.Error,
-                            PipelineStage.Driver,
-                            $"Framework reference name '{rawFwName}' in '{filePath}' must not be empty or whitespace after trimming.",
-                            Location: default,
-                            CompilationUnitPath: filePath,
-                            AnalyzerName: null));
+                        diagnostics.Report(DriverDiagnostics.FrameworkReferenceInvalidName, default, filePath, (object?)rawFwName, filePath);
                         continue;
                     }
 
                     // 13b. Validate framework name: length check (after trim)
                     if(fwName.Length > MaxFrameworkReferenceNameLength)
                     {
-                        diagnostics.Add(new Diagnostic(
-                            new DiagnosticId("MIST_FWREF_INVALID_NAME"),
-                            DiagnosticSeverity.Error,
-                            PipelineStage.Driver,
-                            $"Framework reference name '{fwName}' in '{filePath}' exceeds the maximum length of {MaxFrameworkReferenceNameLength} characters (got {fwName.Length}).",
-                            Location: default,
-                            CompilationUnitPath: filePath,
-                            AnalyzerName: null));
+                        diagnostics.Report(DriverDiagnostics.FrameworkReferenceNameTooLong, default, filePath, (object?)fwName, filePath, MaxFrameworkReferenceNameLength, fwName.Length);
                         continue;
                     }
 
                     // 13c. Validate value: must be a TOML boolean
                     if(fwValue is not bool enabled)
                     {
-                        diagnostics.Add(new Diagnostic(
-                            new DiagnosticId("MIST_FWREF_INVALID_VALUE"),
-                            DiagnosticSeverity.Error,
-                            PipelineStage.Driver,
-                            $"Framework reference '{fwName}' in '{filePath}' must have a boolean value (true or false).",
-                            Location: default,
-                            CompilationUnitPath: filePath,
-                            AnalyzerName: null));
+                        diagnostics.Report(DriverDiagnostics.FrameworkReferenceInvalidValue, default, filePath, (object?)fwName, filePath);
                         continue;
                     }
 
@@ -653,14 +422,7 @@ public static partial class ProjectFileParser
         {
             if(csprojPropsObj is not TomlTable csprojPropsTable)
             {
-                diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_CSPROJ_PROP_TABLE_EXPECTED"),
-                    DiagnosticSeverity.Error,
-                    PipelineStage.Driver,
-                    $"The 'csproj_properties' field in '{filePath}' must be a table ([csproj_properties]).",
-                    Location: default,
-                    CompilationUnitPath: filePath,
-                    AnalyzerName: null));
+                diagnostics.Report(DriverDiagnostics.CsprojPropertyTableExpected, default, filePath, (object?)filePath);
             }
             else
             {
@@ -671,14 +433,7 @@ public static partial class ProjectFileParser
                     // 14a. Validate key: empty/whitespace
                     if(string.IsNullOrWhiteSpace(rawKey))
                     {
-                        diagnostics.Add(new Diagnostic(
-                            new DiagnosticId("MIST_CSPROJ_PROP_EMPTY_KEY"),
-                            DiagnosticSeverity.Error,
-                            PipelineStage.Driver,
-                            $"Property key in '[csproj_properties]' of '{filePath}' must not be empty or whitespace.",
-                            Location: default,
-                            CompilationUnitPath: filePath,
-                            AnalyzerName: null));
+                        diagnostics.Report(DriverDiagnostics.CsprojPropertyEmptyKey, default, filePath, (object?)filePath);
                         continue;
                     }
 
@@ -691,70 +446,35 @@ public static partial class ProjectFileParser
                             .OrderBy(c => c);
                         var invalidList = string.Join(", ", invalidChars.Select(c => $"'{c}'"));
 
-                        diagnostics.Add(new Diagnostic(
-                            new DiagnosticId("MIST_CSPROJ_PROP_INVALID_KEY"),
-                            DiagnosticSeverity.Error,
-                            PipelineStage.Driver,
-                            $"Property key '{rawKey}' in '[csproj_properties]' of '{filePath}' contains invalid characters: {invalidList}.",
-                            Location: default,
-                            CompilationUnitPath: filePath,
-                            AnalyzerName: null));
+                        diagnostics.Report(DriverDiagnostics.CsprojPropertyInvalidKey, default, filePath, (object?)rawKey, filePath, invalidList);
                         continue;
                     }
 
                     // 14c. Validate key: length check
                     if(rawKey.Length > MaxNameLength)
                     {
-                        diagnostics.Add(new Diagnostic(
-                            new DiagnosticId("MIST_CSPROJ_PROP_KEY_TOO_LONG"),
-                            DiagnosticSeverity.Error,
-                            PipelineStage.Driver,
-                            $"Property key '{rawKey[..32]}...' in '[csproj_properties]' of '{filePath}' exceeds the maximum length of {MaxNameLength} characters (got {rawKey.Length}).",
-                            Location: default,
-                            CompilationUnitPath: filePath,
-                            AnalyzerName: null));
+                        diagnostics.Report(DriverDiagnostics.CsprojPropertyKeyTooLong, default, filePath, (object?)(rawKey[..32] + "..."), filePath, MaxNameLength, rawKey.Length);
                         continue;
                     }
 
                     // 14d. Validate value: must be a string
                     if(propValue is not string valueStr)
                     {
-                        diagnostics.Add(new Diagnostic(
-                            new DiagnosticId("MIST_CSPROJ_PROP_INVALID_VALUE"),
-                            DiagnosticSeverity.Error,
-                            PipelineStage.Driver,
-                            $"Property '{rawKey}' in '[csproj_properties]' of '{filePath}' must have a string value.",
-                            Location: default,
-                            CompilationUnitPath: filePath,
-                            AnalyzerName: null));
+                        diagnostics.Report(DriverDiagnostics.CsprojPropertyInvalidValue, default, filePath, (object?)rawKey, filePath);
                         continue;
                     }
 
                     // 14e. Validate value: non-empty/non-whitespace
                     if(string.IsNullOrWhiteSpace(valueStr))
                     {
-                        diagnostics.Add(new Diagnostic(
-                            new DiagnosticId("MIST_CSPROJ_PROP_EMPTY_VALUE"),
-                            DiagnosticSeverity.Error,
-                            PipelineStage.Driver,
-                            $"Property '{rawKey}' in '[csproj_properties]' of '{filePath}' has an empty or whitespace value.",
-                            Location: default,
-                            CompilationUnitPath: filePath,
-                            AnalyzerName: null));
+                        diagnostics.Report(DriverDiagnostics.CsprojPropertyEmptyValue, default, filePath, (object?)rawKey, filePath);
                         continue;
                     }
 
                     // 14f. Warn if key shadows a compiler-managed property
                     if(CompilerManagedProperties.Contains(rawKey))
                     {
-                        diagnostics.Add(new Diagnostic(
-                            new DiagnosticId("MIST_CSPROJ_PROP_MANAGED_OVERRIDE"),
-                            DiagnosticSeverity.Warning,
-                            PipelineStage.Driver,
-                            $"Property '{rawKey}' in '[csproj_properties]' of '{filePath}' overrides a compiler-managed property. This may cause unexpected build behavior.",
-                            Location: default,
-                            CompilationUnitPath: filePath,
-                            AnalyzerName: null));
+                        diagnostics.Report(DriverDiagnostics.CsprojPropertyManagedOverride, default, filePath, (object?)rawKey, filePath);
                     }
 
                     csprojPropBuilder.Add(new CsprojProperty(rawKey, valueStr));
@@ -771,14 +491,7 @@ public static partial class ProjectFileParser
         {
             if(outputTypeObj is not string outputTypeStr)
             {
-                diagnostics.Add(new Diagnostic(
-                    DiagnosticId.ProjectInvalidOutputType,
-                    DiagnosticSeverity.Error,
-                    PipelineStage.Driver,
-                    $"The 'output_type' field in '{filePath}' must be a string. Valid values are \"executable\" or \"library\".",
-                    Location: default,
-                    CompilationUnitPath: filePath,
-                    AnalyzerName: null));
+                diagnostics.Report(DriverDiagnostics.ProjectInvalidOutputType, default, filePath, (object?)"<non-string>", filePath);
                 return null;
             }
 
@@ -791,14 +504,7 @@ public static partial class ProjectFileParser
                     outputType = ProjectOutputType.Library;
                     break;
                 default:
-                    diagnostics.Add(new Diagnostic(
-                        DiagnosticId.ProjectInvalidOutputType,
-                        DiagnosticSeverity.Error,
-                        PipelineStage.Driver,
-                        $"Invalid output_type '{outputTypeStr}' in '{filePath}'. Valid values are \"executable\" or \"library\".",
-                        Location: default,
-                        CompilationUnitPath: filePath,
-                        AnalyzerName: null));
+                    diagnostics.Report(DriverDiagnostics.ProjectInvalidOutputType, default, filePath, (object?)outputTypeStr, filePath);
                     return null;
             }
         }

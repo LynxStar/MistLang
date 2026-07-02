@@ -175,7 +175,7 @@ public class ResolveBinaryOperatorTests
             left: addNode.Left,
             right: addNode.Right,
             surrounding: addNode,
-            noApplicableDiagnosticId: "MIST_TC_0003",
+            noApplicableDescriptor: TypeCheckDiagnostics.OperatorNotApplicableArithmetic,
             model: model,
             diagnostics: diagnostics);
 
@@ -241,7 +241,7 @@ public class ResolveBinaryOperatorTests
             left: addNode.Left,
             right: addNode.Right,
             surrounding: addNode,
-            noApplicableDiagnosticId: "MIST_TC_0003",
+            noApplicableDescriptor: TypeCheckDiagnostics.OperatorNotApplicableArithmetic,
             model: model,
             diagnostics: diagnostics);
 
@@ -328,7 +328,7 @@ public class ResolveBinaryOperatorTests
             left: addNode.Left,
             right: addNode.Right,
             surrounding: addNode,
-            noApplicableDiagnosticId: "MIST_TC_0003",
+            noApplicableDescriptor: TypeCheckDiagnostics.OperatorNotApplicableArithmetic,
             model: model,
             diagnostics: diagnostics);
 

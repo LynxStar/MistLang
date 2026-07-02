@@ -35,14 +35,7 @@ public sealed class MistParser : IParser
         {
             // The Storm-generated parser is skeletal — parse methods are not yet implemented.
             // This is expected during early development. Return null root gracefully.
-            diagnostics.Add(new Diagnostic(
-                new DiagnosticId("MIST_PARSE_STUB"),
-                DiagnosticSeverity.Warning,
-                PipelineStage.Parsing,
-                "Parser is not yet implemented (Storm-generated parser is skeletal). Source file was lexed but not parsed.",
-                Location: default,
-                CompilationUnitPath: tokens.Source.Path,
-                AnalyzerName: null));
+            diagnostics.Report(ParserDiagnostics.ParseStub, default, tokens.Source.Path);
         }
 
         // Map Storm diagnostics to Mist diagnostics.
@@ -54,14 +47,7 @@ public sealed class MistParser : IParser
                     new LinePosition(entry.Line, entry.Column))
                 : default;
 
-            diagnostics.Add(new Diagnostic(
-                new DiagnosticId("MIST_PARSE_ERROR"),
-                DiagnosticSeverity.Error,
-                PipelineStage.Parsing,
-                entry.Message,
-                Location: location,
-                CompilationUnitPath: entry.FilePath ?? tokens.Source.Path,
-                AnalyzerName: null));
+            diagnostics.Report(ParserDiagnostics.ParseError, location, entry.FilePath ?? tokens.Source.Path, entry.Message);
         }
 
         // The Storm-generated parser is a backtracking PEG parser: when the
@@ -113,14 +99,7 @@ public sealed class MistParser : IParser
                     new LinePosition(unconsumedToken.Start.Line, unconsumedToken.Start.Column),
                     new LinePosition(unconsumedToken.Start.Line, unconsumedToken.Start.Column));
 
-                diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_PARSE_INCOMPLETE"),
-                    DiagnosticSeverity.Error,
-                    PipelineStage.Parsing,
-                    $"Parser did not consume all input. Unparseable content begins at line {unconsumedToken.Start.Line}.",
-                    Location: location,
-                    CompilationUnitPath: tokens.Source.Path,
-                    AnalyzerName: null));
+                diagnostics.Report(ParserDiagnostics.ParseIncomplete, location, tokens.Source.Path, unconsumedToken.Start.Line);
             }
         }
 
@@ -198,15 +177,7 @@ public sealed class MistParser : IParser
                 new LinePosition(stackallocToken.End.Line, stackallocToken.End.Column))
             : default;
 
-        diagnostics.Add(new Diagnostic(
-            new DiagnosticId("MIST_PARSE_STACKALLOC_SIZE"),
-            DiagnosticSeverity.Error,
-            PipelineStage.Parsing,
-            "A 'stackalloc' expression requires an element type and a bracketed size, "
-                + "for example 'stackalloc T[n]'.",
-            Location: location,
-            CompilationUnitPath: sourcePath,
-            AnalyzerName: null));
+        diagnostics.Report(ParserDiagnostics.StackallocSize, location, sourcePath);
     }
 
     /// <summary>
@@ -235,14 +206,7 @@ public sealed class MistParser : IParser
                         new LinePosition(token.End.Line, token.End.Column))
                     : default;
 
-                diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_REMOVED_INTERFACE_KEYWORD"),
-                    DiagnosticSeverity.Error,
-                    PipelineStage.Parsing,
-                    "The 'interface' keyword has been removed. Use 'abstract' instead.",
-                    Location: location,
-                    CompilationUnitPath: tokens.Source.Path,
-                    AnalyzerName: null));
+                diagnostics.Report(ParserDiagnostics.RemovedInterfaceKeyword, location, tokens.Source.Path);
             }
         }
     }
@@ -274,14 +238,7 @@ public sealed class MistParser : IParser
                         new LinePosition(token.End.Line, token.End.Column))
                     : default;
 
-                diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_REMOVED_TRAIT_KEYWORD"),
-                    DiagnosticSeverity.Error,
-                    PipelineStage.Parsing,
-                    "The 'trait' keyword has been removed. Use 'abstract' with nominal typing (': AbstractType') or a 'with' block for retroactive conformance.",
-                    Location: location,
-                    CompilationUnitPath: tokens.Source.Path,
-                    AnalyzerName: null));
+                diagnostics.Report(ParserDiagnostics.RemovedTraitKeyword, location, tokens.Source.Path);
             }
         }
     }
@@ -492,14 +449,7 @@ public sealed class MistParser : IParser
                 new LinePosition(token.End.Line, token.End.Column))
             : default;
 
-        diagnostics.Add(new Diagnostic(
-            new DiagnosticId("MIST_ABSTRACT_PROPERTY_DEFAULT"),
-            DiagnosticSeverity.Error,
-            PipelineStage.Parsing,
-            "Property slots cannot have default implementations. Only methods can have defaults.",
-            Location: location,
-            CompilationUnitPath: sourcePath,
-            AnalyzerName: null));
+        diagnostics.Report(ParserDiagnostics.AbstractPropertyDefault, location, sourcePath);
     }
 
     /// <summary>

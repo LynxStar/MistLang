@@ -7,8 +7,8 @@
 //      scenario from the design's "Error scenarios" section and asserts the
 //      diagnostic id (plus key message tokens) appears in the diagnostics.
 //
-//   2. A message-builder LOCK-DOWN test that calls the centralized message builder
-//      on OwnershipAnalyzer directly and asserts the key tokens are present. This
+//   2. A message-builder LOCK-DOWN test that formats the descriptor's MessageTemplate
+//      on OwnershipDiagnostics directly and asserts the key tokens are present. This
 //      pins the message content NOW, independent of whether the emission site is
 //      wired yet.
 //
@@ -150,7 +150,7 @@ public sealed class OwnershipV2DiagnosticTests
     [Fact]
     public void MutableHidden_Message_ContainsMethodTypeAndReadonlyHint()
     {
-        var message = OwnershipAnalyzer.MutableHiddenMessage("SetValue", "Widget");
+        var message = string.Format(OwnershipDiagnostics.MutableHidden.MessageTemplate, "SetValue", "Widget");
 
         Assert.Contains("SetValue", message, StringComparison.Ordinal);
         Assert.Contains("Widget", message, StringComparison.Ordinal);
@@ -209,7 +209,7 @@ public sealed class OwnershipV2DiagnosticTests
     [Fact]
     public void RequiresOwned_Message_ContainsDestinationSourceAndOwnedHint()
     {
-        var message = OwnershipAnalyzer.RequiresOwnedMessage("item", "shared");
+        var message = string.Format(OwnershipDiagnostics.RequiresOwned.MessageTemplate, "item", "shared");
 
         Assert.Contains("item", message, StringComparison.Ordinal);
         Assert.Contains("shared", message, StringComparison.Ordinal);
@@ -256,7 +256,7 @@ public sealed class OwnershipV2DiagnosticTests
     [Fact]
     public void NotClonable_Message_ContainsTypeAndIClonableSuggestion()
     {
-        var message = OwnershipAnalyzer.NotClonableMessage("SharedThing");
+        var message = string.Format(OwnershipDiagnostics.NotClonable.MessageTemplate, "SharedThing");
 
         Assert.Contains("SharedThing", message, StringComparison.Ordinal);
         Assert.Contains("IClonable", message, StringComparison.Ordinal);
@@ -310,7 +310,7 @@ public sealed class OwnershipV2DiagnosticTests
     [Fact]
     public void ContractViolation_Message_ContainsMethodFieldAndSource()
     {
-        var message = OwnershipAnalyzer.ContractViolationMessage("Configure", "setting", "input");
+        var message = string.Format(OwnershipDiagnostics.ContractViolation.MessageTemplate, "Configure", "setting", "input");
 
         Assert.Contains("Configure", message, StringComparison.Ordinal);
         Assert.Contains("setting", message, StringComparison.Ordinal);
@@ -485,7 +485,7 @@ public sealed class OwnershipV2DiagnosticTests
     [Fact]
     public void SubstructuralBinding_Message_ContainsBindingAndSubstructuralType()
     {
-        var message = OwnershipAnalyzer.SubstructuralBindingMessage("r", "LinearResource");
+        var message = string.Format(OwnershipDiagnostics.SubstructuralBinding.MessageTemplate, "r", "LinearResource");
 
         Assert.Contains("r", message, StringComparison.Ordinal);
         Assert.Contains("LinearResource", message, StringComparison.Ordinal);

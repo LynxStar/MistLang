@@ -189,7 +189,7 @@ public sealed class MoveBoundaryResolver
                 if(flowState.VariableStates.TryGetValue(refSym, out var currentState) &&
                     !IsMovePermitted(currentState))
                 {
-                    ReportMoveStateViolation(refSym, currentState, source, model, diagnostics);
+                    ReportMoveStateViolation(refSym, currentState, source, diagnostics);
                     return new MoveResolution(MoveOutcome.Error, ConsumedBinding: null);
                 }
 
@@ -237,35 +237,24 @@ public sealed class MoveBoundaryResolver
         ISymbol variable,
         VariableOwnershipState state,
         SyntaxNode node,
-        ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        var (id, message) = state switch
+        switch(state)
         {
-            VariableOwnershipState.Moved =>
-                (OwnershipAnalyzer.UseAfterMove,
-                    $"Variable '{variable.Name}' has been moved and cannot be moved again here."),
+            case VariableOwnershipState.Moved:
+                diagnostics.ReportAtNode(OwnershipDiagnostics.UseAfterMove, node, "Ownership", variable.Name);
+                break;
 
-            VariableOwnershipState.LentRef =>
-                (OwnershipAnalyzer.ExclusiveViolation,
-                    $"Cannot move '{variable.Name}' while a borrowed ref is outstanding. " +
-                    $"The owner has no access until the ref is returned."),
+            case VariableOwnershipState.LentFrozen:
+                diagnostics.ReportAtNode(OwnershipDiagnostics.MutationBlocked, node, "Ownership", variable.Name);
+                break;
 
-            VariableOwnershipState.LentFrozen =>
-                (OwnershipAnalyzer.MutationBlocked,
-                    $"Cannot move '{variable.Name}' while a frozen ref is outstanding. " +
-                    $"The new owner would start in Live state and could mutate, violating the frozen guarantee."),
-
-            VariableOwnershipState.LentReadonly =>
-                (OwnershipAnalyzer.ExclusiveViolation,
-                    $"Cannot move '{variable.Name}' while a readonly ref is outstanding. " +
-                    $"Moving would create a new owner with exclusive access, which is false while a readonly ref exists."),
-
-            _ => (OwnershipAnalyzer.ExclusiveViolation,
-                    $"Cannot move '{variable.Name}' in state '{state}'."),
-        };
-
-        diagnostics.Add(MakeDiagnostic(id, message, node, model));
+            case VariableOwnershipState.LentRef:
+            case VariableOwnershipState.LentReadonly:
+            default:
+                diagnostics.ReportAtNode(OwnershipDiagnostics.ExclusiveViolation, node, "Ownership", variable.Name);
+                break;
+        }
     }
 
     /// <summary>
@@ -284,20 +273,14 @@ public sealed class MoveBoundaryResolver
         // clone-specific guidance.
         if(sourceType is not null && IsNamedReferenceType(sourceType))
         {
-            diagnostics.Add(MakeDiagnostic(
-                OwnershipAnalyzer.NotClonable,
-                OwnershipAnalyzer.NotClonableMessage(sourceType.DisplayName),
-                source,
-                model));
+            diagnostics.ReportAtNode(
+                OwnershipDiagnostics.NotClonable, source, "Ownership", sourceType.DisplayName);
             return;
         }
 
         var sourceText = GetNodeText(source, model);
-        diagnostics.Add(MakeDiagnostic(
-            OwnershipAnalyzer.RequiresOwned,
-            OwnershipAnalyzer.RequiresOwnedMessage(sourceText, sourceText),
-            source,
-            model));
+        diagnostics.ReportAtNode(
+            OwnershipDiagnostics.RequiresOwned, source, "Ownership", sourceText, sourceText);
     }
 
     // ── Provenance helpers (absorbed from v1 OwnershipAnalyzer) ───────────
@@ -655,56 +638,5 @@ public sealed class MoveBoundaryResolver
         }
 
         return "<expression>";
-    }
-
-    /// <summary>
-    /// Creates an analysis diagnostic with source location resolved from the AST node span.
-    /// Mirrors <c>OwnershipAnalyzer.MakeDiagnostic</c> so the resolver's diagnostics carry the
-    /// same location and analyzer attribution.
-    /// </summary>
-    private static Diagnostic MakeDiagnostic(
-        DiagnosticId id,
-        string message,
-        SyntaxNode node,
-        ISemanticModel model)
-    {
-        Common.Source.LinePositionSpan? location = null;
-        string? compilationUnitPath = null;
-
-        var span = node.Span;
-        if(span.Length > 0)
-        {
-            var asts = model.Asts;
-            var units = model.Units;
-            var astIndex = -1;
-
-            for(var i = 0; i < asts.Length; i++)
-            {
-                var astSpan = asts[i].Span;
-                if(span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
-                {
-                    astIndex = i;
-                    break;
-                }
-            }
-
-            if(astIndex >= 0 && astIndex < units.Count)
-            {
-                var source = units[astIndex].Source;
-                compilationUnitPath = source.Path;
-
-                var sourceSpan = new Common.Source.SourceSpan(span.Start, span.Length);
-                location = source.ToLinePositionSpan(sourceSpan);
-            }
-        }
-
-        return new Diagnostic(
-            id,
-            DiagnosticSeverity.Error,
-            PipelineStage.Analysis,
-            message,
-            Location: location ?? default,
-            CompilationUnitPath: compilationUnitPath ?? "",
-            AnalyzerName: "Ownership");
     }
 }

@@ -18,19 +18,6 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
 {
     public string AnalyzerId => "readonly-context";
 
-    // ── Diagnostic IDs ───────────────────────────────────────────────────
-    internal static readonly DiagnosticId FieldAssignmentInReadonlyContext = new("MIST_RO_0001");
-    internal static readonly DiagnosticId NonReadonlyMethodCallInReadonlyContext = new("MIST_RO_0002");
-    internal static readonly DiagnosticId NonReadonlyGetterCallInReadonlyContext = new("MIST_RO_0003");
-    internal static readonly DiagnosticId SetterCallInReadonlyContext = new("MIST_RO_0004");
-    internal static readonly DiagnosticId NonReadonlyConstructorAllocation = new("MIST_RO_0005");
-    internal static readonly DiagnosticId NonReadonlyMethodOnReadonlyParam = new("MIST_RO_0006");
-    internal static readonly DiagnosticId FieldAssignmentOnReadonlyParam = new("MIST_RO_0007");
-    internal static readonly DiagnosticId SetterCallOnReadonlyParam = new("MIST_RO_0008");
-    internal static readonly DiagnosticId ReadonlyFieldAssignmentOutsideConstructor = new("MIST_RO_0009");
-    internal static readonly DiagnosticId FieldAssignmentInReadonlyBlock = new("MIST_RO_0010");
-    internal static readonly DiagnosticId ClosedUnknownNonReadonlyAccess = new("MIST_TC_0062");
-
     /// <summary>
     /// Tracks the current enforcement mode as the analyzer walks into
     /// readonly methods, getters, setters, constructors, and blocks.
@@ -518,11 +505,11 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         }
 
         // The field is readonly and we're outside a constructor — emit MIST_RO_0009.
-        diagnostics.Add(MakeDiagnostic(
-            ReadonlyFieldAssignmentOutsideConstructor,
-            $"Cannot assign to readonly field '{targetInfo.MemberName}' outside of a constructor",
+        diagnostics.ReportAtNode(
+            ReadonlyDiagnostics.ReadonlyFieldAssignmentOutsideConstructor,
             assignment,
-            model));
+            "ReadonlyContext",
+            $"Cannot assign to readonly field '{targetInfo.MemberName}' outside of a constructor");
     }
 
     /// <summary>
@@ -570,11 +557,11 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         }
 
         // The property/indexer is readonly and we're outside a constructor — emit MIST_RO_0004.
-        diagnostics.Add(MakeDiagnostic(
-            SetterCallInReadonlyContext,
-            $"Cannot call property setter '{targetInfo.MemberName}' within a readonly context",
+        diagnostics.ReportAtNode(
+            ReadonlyDiagnostics.SetterCallInReadonlyContext,
             assignment,
-            model));
+            "ReadonlyContext",
+            $"Cannot call property setter '{targetInfo.MemberName}' within a readonly context");
     }
 
     // ── Readonly parameter analysis (MIST_RO_0006, MIST_RO_0007, MIST_RO_0008) ──
@@ -873,11 +860,11 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
             if(sym.Kind == SymbolKind.Field)
             {
                 // Field assignment on readonly parameter → MIST_RO_0007
-                diagnostics.Add(MakeDiagnostic(
-                    FieldAssignmentOnReadonlyParam,
-                    $"Cannot assign to field '{memberName}' on readonly parameter '{receiverName}'",
+                diagnostics.ReportAtNode(
+                    ReadonlyDiagnostics.FieldAssignmentOnReadonlyParam,
                     assignment,
-                    model));
+                    "ReadonlyContext",
+                    $"Cannot assign to field '{memberName}' on readonly parameter '{receiverName}'");
                 return;
             }
 
@@ -887,11 +874,11 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                 if(!IsReadonly(sym.ReadonlyStatus))
                 {
                     // Non-readonly setter on readonly parameter → MIST_RO_0008
-                    diagnostics.Add(MakeDiagnostic(
-                        SetterCallOnReadonlyParam,
-                        $"Cannot call property setter '{memberName}' on readonly parameter '{receiverName}'",
+                    diagnostics.ReportAtNode(
+                        ReadonlyDiagnostics.SetterCallOnReadonlyParam,
                         assignment,
-                        model));
+                        "ReadonlyContext",
+                        $"Cannot call property setter '{memberName}' on readonly parameter '{receiverName}'");
                 }
 
                 return;
@@ -899,11 +886,11 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         }
 
         // If we can't resolve the symbol, conservatively treat it as a field assignment.
-        diagnostics.Add(MakeDiagnostic(
-            FieldAssignmentOnReadonlyParam,
-            $"Cannot assign to field '{memberName}' on readonly parameter '{receiverName}'",
+        diagnostics.ReportAtNode(
+            ReadonlyDiagnostics.FieldAssignmentOnReadonlyParam,
             assignment,
-            model));
+            "ReadonlyContext",
+            $"Cannot assign to field '{memberName}' on readonly parameter '{receiverName}'");
     }
 
     /// <summary>
@@ -967,11 +954,11 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                     var symbol = model.GetDeclaredSymbol(methodCall);
                     if(symbol is Symbol sym && !IsReadonly(sym.ReadonlyStatus))
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            NonReadonlyMethodOnReadonlyParam,
-                            $"Cannot call non-readonly method '{sym.Name}' on readonly parameter '{receiverName}'",
+                        diagnostics.ReportAtNode(
+                            ReadonlyDiagnostics.NonReadonlyMethodOnReadonlyParam,
                             methodCall,
-                            model));
+                            "ReadonlyContext",
+                            $"Cannot call non-readonly method '{sym.Name}' on readonly parameter '{receiverName}'");
                     }
                 }
                 // After a method call, the receiver is no longer the parameter — stop checking.
@@ -1403,20 +1390,20 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                 // indicating that constructor privilege is suspended.
                 if(context == ContextKind.ReadonlyBlock)
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        FieldAssignmentInReadonlyBlock,
-                        $"Cannot assign to field '{targetInfo.MemberName}' within a readonly block (constructor privilege is suspended)",
+                    diagnostics.ReportAtNode(
+                        ReadonlyDiagnostics.FieldAssignmentInReadonlyBlock,
                         assignment,
-                        model));
+                        "ReadonlyContext",
+                        $"Cannot assign to field '{targetInfo.MemberName}' within a readonly block (constructor privilege is suspended)");
                     break;
                 }
 
                 // In all other readonly contexts, field assignment is prohibited (base rule 6).
-                diagnostics.Add(MakeDiagnostic(
-                    FieldAssignmentInReadonlyContext,
-                    $"Cannot assign to field '{targetInfo.MemberName}' within a readonly context",
+                diagnostics.ReportAtNode(
+                    ReadonlyDiagnostics.FieldAssignmentInReadonlyContext,
                     assignment,
-                    model));
+                    "ReadonlyContext",
+                    $"Cannot assign to field '{targetInfo.MemberName}' within a readonly context");
                 break;
 
             case AssignmentTargetKind.PropertyOrIndexerSetter:
@@ -1431,11 +1418,11 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                 }
 
                 // In all readonly contexts, setter calls are prohibited (base rule 9).
-                diagnostics.Add(MakeDiagnostic(
-                    SetterCallInReadonlyContext,
-                    $"Cannot call property setter '{targetInfo.MemberName}' within a readonly context",
+                diagnostics.ReportAtNode(
+                    ReadonlyDiagnostics.SetterCallInReadonlyContext,
                     assignment,
-                    model));
+                    "ReadonlyContext",
+                    $"Cannot call property setter '{targetInfo.MemberName}' within a readonly context");
                 break;
         }
     }
@@ -1652,11 +1639,11 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         }
 
         // Non-readonly method call in a readonly context.
-        diagnostics.Add(MakeDiagnostic(
-            NonReadonlyMethodCallInReadonlyContext,
-            $"Cannot call non-readonly method '{sym.Name}' within a readonly context",
+        diagnostics.ReportAtNode(
+            ReadonlyDiagnostics.NonReadonlyMethodCallInReadonlyContext,
             methodCall,
-            model));
+            "ReadonlyContext",
+            $"Cannot call non-readonly method '{sym.Name}' within a readonly context");
     }
 
     // ── Member access checking (MIST_RO_0003, MIST_RO_0004) ─────────────
@@ -1690,11 +1677,11 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         {
             if(!IsReadonly(sym.ReadonlyStatus))
             {
-                diagnostics.Add(MakeDiagnostic(
-                    NonReadonlyGetterCallInReadonlyContext,
-                    $"Cannot call non-readonly property getter '{sym.Name}' within a readonly context",
+                diagnostics.ReportAtNode(
+                    ReadonlyDiagnostics.NonReadonlyGetterCallInReadonlyContext,
                     memberAccess,
-                    model));
+                    "ReadonlyContext",
+                    $"Cannot call non-readonly property getter '{sym.Name}' within a readonly context");
             }
         }
     }
@@ -1747,11 +1734,11 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
 
         // No readonly constructor found — prohibited (base rule 10).
         var typeName = createdType.DisplayName;
-        diagnostics.Add(MakeDiagnostic(
-            NonReadonlyConstructorAllocation,
-            $"Cannot allocate type '{typeName}' within a readonly context: constructor is not readonly",
+        diagnostics.ReportAtNode(
+            ReadonlyDiagnostics.NonReadonlyConstructorAllocation,
             objectCreation,
-            model));
+            "ReadonlyContext",
+            $"Cannot allocate type '{typeName}' within a readonly context: constructor is not readonly");
     }
 
     // ── Helper methods ───────────────────────────────────────────────────
@@ -2135,11 +2122,11 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                             var symbol = model.GetDeclaredSymbol(methodCall);
                             if(symbol is Symbol sym && !IsReadonly(sym.ReadonlyStatus))
                             {
-                                diagnostics.Add(MakeDiagnostic(
-                                    NonReadonlyMethodCallInReadonlyContext,
-                                    $"Cannot call non-readonly method '{sym.Name}' within a readonly context",
+                                diagnostics.ReportAtNode(
+                                    ReadonlyDiagnostics.NonReadonlyMethodCallInReadonlyContext,
                                     methodCall,
-                                    model));
+                                    "ReadonlyContext",
+                                    $"Cannot call non-readonly method '{sym.Name}' within a readonly context");
                             }
                         }
                         // After a method call, the receiver type changes — stop checking.
@@ -2165,11 +2152,11 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                                 {
                                     if(!IsReadonly(sym.ReadonlyStatus))
                                     {
-                                        diagnostics.Add(MakeDiagnostic(
-                                            NonReadonlyGetterCallInReadonlyContext,
-                                            $"Cannot call non-readonly property getter '{sym.Name}' within a readonly context",
+                                        diagnostics.ReportAtNode(
+                                            ReadonlyDiagnostics.NonReadonlyGetterCallInReadonlyContext,
                                             memberAccess,
-                                            model));
+                                            "ReadonlyContext",
+                                            $"Cannot call non-readonly property getter '{sym.Name}' within a readonly context");
                                     }
                                 }
                             }
@@ -2233,32 +2220,32 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
             if(sym.Kind == SymbolKind.Field)
             {
                 // Field assignment on readonly-constrained type parameter.
-                diagnostics.Add(MakeDiagnostic(
-                    FieldAssignmentInReadonlyContext,
-                    $"Cannot assign to field '{memberName}' within a readonly context",
+                diagnostics.ReportAtNode(
+                    ReadonlyDiagnostics.FieldAssignmentInReadonlyContext,
                     assignment,
-                    model));
+                    "ReadonlyContext",
+                    $"Cannot assign to field '{memberName}' within a readonly context");
                 return;
             }
 
             if(sym.Kind is SymbolKind.Property or SymbolKind.Indexer)
             {
                 // Setter call on readonly-constrained type parameter.
-                diagnostics.Add(MakeDiagnostic(
-                    SetterCallInReadonlyContext,
-                    $"Cannot call property setter '{memberName}' within a readonly context",
+                diagnostics.ReportAtNode(
+                    ReadonlyDiagnostics.SetterCallInReadonlyContext,
                     assignment,
-                    model));
+                    "ReadonlyContext",
+                    $"Cannot call property setter '{memberName}' within a readonly context");
                 return;
             }
         }
 
         // If we can't resolve the symbol, conservatively treat it as a field assignment.
-        diagnostics.Add(MakeDiagnostic(
-            FieldAssignmentInReadonlyContext,
-            $"Cannot assign to field '{memberName}' within a readonly context",
+        diagnostics.ReportAtNode(
+            ReadonlyDiagnostics.FieldAssignmentInReadonlyContext,
             assignment,
-            model));
+            "ReadonlyContext",
+            $"Cannot assign to field '{memberName}' within a readonly context");
     }
 
     // ── Fifth pass: Closed Generic With Unknown access ───────────────────
@@ -2557,11 +2544,11 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                         var sym = LookupMemberByName(currentType, methodCall.Name.Lexeme);
                         if(sym is not null && !IsReadonly(sym.ReadonlyStatus))
                         {
-                            diagnostics.Add(MakeDiagnostic(
-                                ClosedUnknownNonReadonlyAccess,
-                                $"Cannot call non-readonly method '{sym.Name}' on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.",
+                            diagnostics.ReportAtNode(
+                                ReadonlyDiagnostics.ClosedUnknownNonReadonlyAccess,
                                 methodCall,
-                                model));
+                                "ReadonlyContext",
+                                $"Cannot call non-readonly method '{sym.Name}' on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.");
                         }
 
                         // Update current type to the result of the method call.
@@ -2584,11 +2571,11 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                                 // Property/indexer getter access — check if readonly.
                                 if(!IsReadonly(sym.ReadonlyStatus))
                                 {
-                                    diagnostics.Add(MakeDiagnostic(
-                                        ClosedUnknownNonReadonlyAccess,
-                                        $"Cannot access non-readonly property '{sym.Name}' on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.",
+                                    diagnostics.ReportAtNode(
+                                        ReadonlyDiagnostics.ClosedUnknownNonReadonlyAccess,
                                         memberAccess,
-                                        model));
+                                        "ReadonlyContext",
+                                        $"Cannot access non-readonly property '{sym.Name}' on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.");
                                 }
                             }
                         }
@@ -2605,11 +2592,11 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                         var sym = LookupMemberByName(currentType, "this[]");
                         if(sym is not null && !IsReadonly(sym.ReadonlyStatus))
                         {
-                            diagnostics.Add(MakeDiagnostic(
-                                ClosedUnknownNonReadonlyAccess,
-                                $"Cannot access non-readonly indexer on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.",
+                            diagnostics.ReportAtNode(
+                                ReadonlyDiagnostics.ClosedUnknownNonReadonlyAccess,
                                 indexSuffix,
-                                model));
+                                "ReadonlyContext",
+                                $"Cannot access non-readonly indexer on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.");
                         }
 
                         // Update current type to the result of the index access.
@@ -2680,43 +2667,43 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                         if(sym.Kind == SymbolKind.Field)
                         {
                             // Field assignment on Closed_Generic_With_Unknown receiver.
-                            diagnostics.Add(MakeDiagnostic(
-                                ClosedUnknownNonReadonlyAccess,
-                                $"Cannot assign to field '{memberName}' on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.",
+                            diagnostics.ReportAtNode(
+                                ReadonlyDiagnostics.ClosedUnknownNonReadonlyAccess,
                                 assignment,
-                                model));
+                                "ReadonlyContext",
+                                $"Cannot assign to field '{memberName}' on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.");
                             return;
                         }
 
                         if(sym.Kind is SymbolKind.Property or SymbolKind.Indexer)
                         {
                             // Setter call on Closed_Generic_With_Unknown receiver.
-                            diagnostics.Add(MakeDiagnostic(
-                                ClosedUnknownNonReadonlyAccess,
-                                $"Cannot call property setter '{memberName}' on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.",
+                            diagnostics.ReportAtNode(
+                                ReadonlyDiagnostics.ClosedUnknownNonReadonlyAccess,
                                 assignment,
-                                model));
+                                "ReadonlyContext",
+                                $"Cannot call property setter '{memberName}' on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.");
                             return;
                         }
                     }
 
                     // If we can't resolve the symbol, conservatively treat it as a field assignment.
-                    diagnostics.Add(MakeDiagnostic(
-                        ClosedUnknownNonReadonlyAccess,
-                        $"Cannot assign to field '{memberName}' on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.",
+                    diagnostics.ReportAtNode(
+                        ReadonlyDiagnostics.ClosedUnknownNonReadonlyAccess,
                         assignment,
-                        model));
+                        "ReadonlyContext",
+                        $"Cannot assign to field '{memberName}' on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.");
                     break;
                 }
 
             case IndexSuffixPostfixSuffixNode:
                 {
                     // Index write (setter) on Closed_Generic_With_Unknown receiver — always prohibited.
-                    diagnostics.Add(MakeDiagnostic(
-                        ClosedUnknownNonReadonlyAccess,
-                        $"Cannot call indexer setter on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.",
+                    diagnostics.ReportAtNode(
+                        ReadonlyDiagnostics.ClosedUnknownNonReadonlyAccess,
                         assignment,
-                        model));
+                        "ReadonlyContext",
+                        $"Cannot call indexer setter on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.");
                     break;
                 }
         }
@@ -2791,54 +2778,5 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         }
 
         return false;
-    }
-
-    /// <summary>
-    /// Creates a diagnostic with location information derived from the given AST node.
-    /// </summary>
-    private static Diagnostic MakeDiagnostic(
-        DiagnosticId id,
-        string message,
-        SyntaxNode node,
-        ISemanticModel model)
-    {
-        Common.Source.LinePositionSpan? location = null;
-        string? compilationUnitPath = null;
-
-        var span = node.Span;
-        if(span.Length > 0)
-        {
-            var asts = model.Asts;
-            var units = model.Units;
-            var astIndex = -1;
-
-            for(var i = 0; i < asts.Length; i++)
-            {
-                var astSpan = asts[i].Span;
-                if(span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
-                {
-                    astIndex = i;
-                    break;
-                }
-            }
-
-            if(astIndex >= 0 && astIndex < units.Count)
-            {
-                var source = units[astIndex].Source;
-                compilationUnitPath = source.Path;
-
-                var sourceSpan = new Common.Source.SourceSpan(span.Start, span.Length);
-                location = source.ToLinePositionSpan(sourceSpan);
-            }
-        }
-
-        return new Diagnostic(
-            id,
-            DiagnosticSeverity.Error,
-            PipelineStage.Analysis,
-            message,
-            Location: location ?? default,
-            CompilationUnitPath: compilationUnitPath ?? "",
-            AnalyzerName: "ReadonlyContext");
     }
 }

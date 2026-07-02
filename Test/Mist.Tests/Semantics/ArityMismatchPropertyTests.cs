@@ -297,7 +297,7 @@ public class ArityMismatchPropertyTests
 
         // Should emit at least one MIST_ARITY_MISMATCH diagnostic
         var arityDiags = diagnostics
-            .Where(d => d.Id == DiagnosticId.ArityMismatch)
+            .Where(d => d.Id == GenericsDiagnostics.ArityMismatch.Id)
             .ToList();
 
         return arityDiags.Count >= 1;
@@ -347,7 +347,7 @@ public class ArityMismatchPropertyTests
 
         // Should emit at least one MIST_METHOD_ARITY_MISMATCH diagnostic
         var arityDiags = diagnostics
-            .Where(d => d.Id == DiagnosticId.MethodArityMismatch)
+            .Where(d => d.Id == GenericsDiagnostics.MethodArityMismatch.Id)
             .ToList();
 
         return arityDiags.Count >= 1;
@@ -383,7 +383,7 @@ public class ArityMismatchPropertyTests
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
-        var arityDiags = diagnostics.Where(d => d.Id == DiagnosticId.ArityMismatch).ToList();
+        var arityDiags = diagnostics.Where(d => d.Id == GenericsDiagnostics.ArityMismatch.Id).ToList();
         _ = Assert.Single(arityDiags);
         Assert.Contains("Map", arityDiags[0].Message);
     }
@@ -416,7 +416,7 @@ public class ArityMismatchPropertyTests
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
-        var arityDiags = diagnostics.Where(d => d.Id == DiagnosticId.ArityMismatch).ToList();
+        var arityDiags = diagnostics.Where(d => d.Id == GenericsDiagnostics.ArityMismatch.Id).ToList();
         _ = Assert.Single(arityDiags);
         Assert.Contains("Box", arityDiags[0].Message);
     }
@@ -451,7 +451,7 @@ public class ArityMismatchPropertyTests
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
-        var arityDiags = diagnostics.Where(d => d.Id == DiagnosticId.MethodArityMismatch).ToList();
+        var arityDiags = diagnostics.Where(d => d.Id == GenericsDiagnostics.MethodArityMismatch.Id).ToList();
         _ = Assert.Single(arityDiags);
         Assert.Contains("DoWork", arityDiags[0].Message);
     }

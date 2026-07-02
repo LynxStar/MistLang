@@ -60,7 +60,7 @@ internal readonly record struct UnresolvedRelationship(
     public Diagnostic ToDiagnostic()
     {
         return new(
-        DiagnosticId.CrossAssemblyRelationshipUnresolved,
+        CommonDiagnostics.CrossAssemblyRelationshipUnresolved.Id,
         DiagnosticSeverity.Info,
         PipelineStage.Driver,
         Describe(),

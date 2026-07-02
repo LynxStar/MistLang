@@ -789,14 +789,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
             catch(Exception ex)
             {
-                diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_SEMANTIC_ERROR"),
-                    DiagnosticSeverity.Error,
-                    PipelineStage.SemanticModelConstruction,
-                    $"Error during semantic model construction: {ex.Message}",
-                    Location: default,
-                    CompilationUnitPath: "<unknown>",
-                    AnalyzerName: null));
+                diagnostics.Report(SemanticDiagnostics.SemanticError, default, "<unknown>", (object)$"Error during semantic model construction: {ex.Message}");
             }
         }
 
@@ -1068,14 +1061,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
             catch(Exception ex)
             {
-                diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_SEMANTIC_ERROR"),
-                    DiagnosticSeverity.Error,
-                    PipelineStage.SemanticModelConstruction,
-                    $"Error during type resolution: {ex.Message}",
-                    Location: default,
-                    CompilationUnitPath: "<unknown>",
-                    AnalyzerName: null));
+                diagnostics.Report(SemanticDiagnostics.SemanticError, default, "<unknown>", (object)$"Error during type resolution: {ex.Message}");
             }
         }
 
@@ -3041,7 +3027,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if(!seenSlotNames.Add(slotName))
             {
                 diagnostics.Add(MakeDiagnosticWithLocation(
-                    DiagnosticId.DuplicateAssociatedTypeSlot.Value,
+                    CommonDiagnostics.DuplicateAssociatedTypeSlot.Id.Value,
                     DiagnosticSeverity.Error,
                     $"Abstract type '{typeName}' declares duplicate associated type slot '{slotName}'",
                     declarationNode,
@@ -3068,7 +3054,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Point to the first modifier node.
         var firstModifier = modifiedDecl.Modifiers[0];
         diagnostics.Add(MakeDiagnosticWithLocation(
-            DiagnosticId.ModifiersOnAssociatedTypeSlot.Value,
+            CommonDiagnostics.ModifiersOnAssociatedTypeSlot.Id.Value,
             DiagnosticSeverity.Error,
             "Modifiers are not permitted on associated type slot declarations",
             firstModifier,
@@ -3085,7 +3071,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics)
     {
         diagnostics.Add(MakeDiagnosticWithTokenLocation(
-            DiagnosticId.AssociatedTypeSlotInWrongContext.Value,
+            CommonDiagnostics.AssociatedTypeSlotInWrongContext.Id.Value,
             DiagnosticSeverity.Error,
             "Abstract type slots are only permitted in abstract types",
             typeKeywordToken,
@@ -3302,7 +3288,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if(classType.DefaultBlockNode is not null)
                 {
                     diagnostics.Add(MakeDiagnosticWithLocation(
-                        DiagnosticId.DefaultDuplicateBlock.Value,
+                        CommonDiagnostics.DefaultDuplicateBlock.Id.Value,
                         DiagnosticSeverity.Error,
                         $"Type '{classType.DisplayName}' declares more than one default block; only one is permitted per type.",
                         defaultBlockNode,
@@ -3318,7 +3304,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if(structType.DefaultBlockNode is not null)
                 {
                     diagnostics.Add(MakeDiagnosticWithLocation(
-                        DiagnosticId.DefaultDuplicateBlock.Value,
+                        CommonDiagnostics.DefaultDuplicateBlock.Id.Value,
                         DiagnosticSeverity.Error,
                         $"Type '{structType.DisplayName}' declares more than one default block; only one is permitted per type.",
                         defaultBlockNode,
@@ -3987,7 +3973,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if(!seenNames.Add(name))
         {
             diagnostics.Add(MakeDiagnosticWithLocation(
-                DiagnosticId.DuplicateTypeParameter.Value,
+                GenericsDiagnostics.DuplicateTypeParameter.Id.Value,
                 DiagnosticSeverity.Error,
                 $"Duplicate type parameter name '{name}'.",
                 node,
@@ -3998,7 +3984,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if(enclosingTypeName is not null && name == enclosingTypeName)
         {
             diagnostics.Add(MakeDiagnosticWithLocation(
-                DiagnosticId.TypeParameterShadowsType.Value,
+                GenericsDiagnostics.TypeParameterShadowsType.Id.Value,
                 DiagnosticSeverity.Warning,
                 $"Type parameter '{name}' shadows the enclosing type name.",
                 node,
@@ -5744,7 +5730,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // The referenced type is not generic — emit MIST_NOT_GENERIC.
                 var sourceText = GetSourceTextFromOrigin(declaringNode);
                 diagnostics.Add(MakeDiagnosticWithLocation(
-                    DiagnosticId.NotGeneric.Value,
+                    GenericsDiagnostics.NotGeneric.Id.Value,
                     DiagnosticSeverity.Error,
                     $"Type '{typeName}' is not generic and does not accept type arguments.",
                     declaringNode,
@@ -5769,7 +5755,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // Arity mismatch — emit MIST_ARITY_MISMATCH.
                     var sourceText = GetSourceTextFromOrigin(declaringNode);
                     diagnostics.Add(MakeDiagnosticWithLocation(
-                        DiagnosticId.ArityMismatch.Value,
+                        GenericsDiagnostics.ArityMismatch.Id.Value,
                         DiagnosticSeverity.Error,
                         $"Type '{typeName}' expects {typeParamCount} type argument(s) but received {typeArgCount}.",
                         declaringNode,
@@ -5791,7 +5777,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // Arity mismatch — emit MIST_ARITY_MISMATCH.
                     var sourceText = GetSourceTextFromOrigin(declaringNode);
                     diagnostics.Add(MakeDiagnosticWithLocation(
-                        DiagnosticId.ArityMismatch.Value,
+                        GenericsDiagnostics.ArityMismatch.Id.Value,
                         DiagnosticSeverity.Error,
                         $"Type '{typeName}' expects {typeParamCount} type argument(s) but received {typeArgCount}.",
                         declaringNode,
@@ -5818,7 +5804,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     var sourceText = GetSourceTextFromOrigin(declaringNode);
                     diagnostics.Add(MakeDiagnosticWithLocation(
-                        DiagnosticId.MissingTypeArguments.Value,
+                        GenericsDiagnostics.MissingTypeArguments.Id.Value,
                         DiagnosticSeverity.Error,
                         $"Generic type '{typeName}' requires type arguments.",
                         declaringNode,
@@ -6179,7 +6165,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             {
                                 var sourceText = GetSourceTextFromOrigin(declaringNode);
                                 diagnostics.Add(MakeDiagnosticWithLocation(
-                                    DiagnosticId.NotGeneric.Value,
+                                    GenericsDiagnostics.NotGeneric.Id.Value,
                                     DiagnosticSeverity.Error,
                                     $"Type '{argName}' is not generic and does not accept type arguments.",
                                     declaringNode,
@@ -6192,7 +6178,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             {
                                 var sourceText = GetSourceTextFromOrigin(declaringNode);
                                 diagnostics.Add(MakeDiagnosticWithLocation(
-                                    DiagnosticId.ArityMismatch.Value,
+                                    GenericsDiagnostics.ArityMismatch.Id.Value,
                                     DiagnosticSeverity.Error,
                                     $"Type '{argName}' expects {nestedTypeParams.Count} type argument(s) but received {nestedArgs.Count}.",
                                     declaringNode,
@@ -6214,7 +6200,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // Type argument could not be resolved.
                     var srcText = GetSourceTextFromOrigin(declaringNode);
                     diagnostics.Add(MakeDiagnosticWithLocation(
-                        DiagnosticId.UndefinedTypeArgument.Value,
+                        GenericsDiagnostics.UndefinedTypeArgument.Id.Value,
                         DiagnosticSeverity.Error,
                         $"Type argument '{argName}' could not be resolved.",
                         declaringNode,
@@ -6714,26 +6700,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 if(declNode is not null)
                 {
-                    diagnostics.Add(MakeDiagnosticWithLocation(
-                        "MIST_UNDEFINED_ABSTRACT",
-                        DiagnosticSeverity.Error,
-                        $"The abstract type '{name}' could not be found.",
-                        declNode,
-                        sourceText));
+                    LinePositionSpan undefinedAbstractLocation = default;
+                    var undefinedAbstractPath = sourceText?.Path ?? "<unknown>";
+                    if(sourceText is not null && declNode.Span.Length > 0)
+                    {
+                        var mistSpan = new SourceSpan(declNode.Span.Start, declNode.Span.Length);
+                        undefinedAbstractLocation = sourceText.ToLinePositionSpan(mistSpan);
+                    }
+
+                    diagnostics.Report(SemanticDiagnostics.UndefinedAbstract, undefinedAbstractLocation, undefinedAbstractPath, (object)name);
                 }
                 else
                 {
                     var compilationUnitPath = FindCompilationUnitPathForSymbol(
                         findPathForSymbol, symbolTable, asts, compilation);
 
-                    diagnostics.Add(new Diagnostic(
-                        new DiagnosticId("MIST_UNDEFINED_ABSTRACT"),
-                        DiagnosticSeverity.Error,
-                        PipelineStage.SemanticModelConstruction,
-                        $"The abstract type '{name}' could not be found.",
-                        Location: default,
-                        CompilationUnitPath: compilationUnitPath ?? "<unknown>",
-                        AnalyzerName: null));
+                    diagnostics.Report(SemanticDiagnostics.UndefinedAbstract, default, compilationUnitPath ?? "<unknown>", (object)name);
                 }
 
                 continue;
@@ -6804,26 +6786,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 if(declNode is not null)
                 {
-                    diagnostics.Add(MakeDiagnosticWithLocation(
-                        "MIST_NOT_AN_ABSTRACT",
-                        DiagnosticSeverity.Error,
-                        $"'{name}' is not an abstract type; only abstract types can appear in an abstract type list.",
-                        declNode,
-                        sourceText));
+                    LinePositionSpan notAbstractLocation = default;
+                    var notAbstractPath = sourceText?.Path ?? "<unknown>";
+                    if(sourceText is not null && declNode.Span.Length > 0)
+                    {
+                        var mistSpan = new SourceSpan(declNode.Span.Start, declNode.Span.Length);
+                        notAbstractLocation = sourceText.ToLinePositionSpan(mistSpan);
+                    }
+
+                    diagnostics.Report(SemanticDiagnostics.NotAnAbstract, notAbstractLocation, notAbstractPath, (object)name);
                 }
                 else
                 {
                     var compilationUnitPath = FindCompilationUnitPathForSymbol(
                         findPathForSymbol, symbolTable, asts, compilation);
 
-                    diagnostics.Add(new Diagnostic(
-                        new DiagnosticId("MIST_NOT_AN_ABSTRACT"),
-                        DiagnosticSeverity.Error,
-                        PipelineStage.SemanticModelConstruction,
-                        $"'{name}' is not an abstract type; only abstract types can appear in an abstract type list.",
-                        Location: default,
-                        CompilationUnitPath: compilationUnitPath ?? "<unknown>",
-                        AnalyzerName: null));
+                    diagnostics.Report(SemanticDiagnostics.NotAnAbstract, default, compilationUnitPath ?? "<unknown>", (object)name);
                 }
             }
         }
@@ -9179,26 +9157,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             if(closingNode is not null)
             {
-                diagnostics.Add(MakeDiagnosticWithLocation(
-                    "MIST_CIRCULAR_ABSTRACT_INHERITANCE",
-                    DiagnosticSeverity.Error,
-                    $"Circular abstract type inheritance detected: '{chainStr}'.",
-                    closingNode,
-                    sourceText));
+                LinePositionSpan location = default;
+                var cuPath = sourceText?.Path ?? "<unknown>";
+                if(sourceText is not null && closingNode.Span.Length > 0)
+                {
+                    var mistSpan = new SourceSpan(closingNode.Span.Start, closingNode.Span.Length);
+                    location = sourceText.ToLinePositionSpan(mistSpan);
+                }
+
+                diagnostics.Report(SemanticDiagnostics.CircularAbstractInheritance, location, cuPath, (object)chainStr);
             }
             else
             {
                 var compilationUnitPath = FindCompilationUnitPathForAbstractType(
                     closingAbstract, symbolTable, asts, compilation);
 
-                diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_CIRCULAR_ABSTRACT_INHERITANCE"),
-                    DiagnosticSeverity.Error,
-                    PipelineStage.SemanticModelConstruction,
-                    $"Circular abstract type inheritance detected: '{chainStr}'.",
-                    Location: default,
-                    CompilationUnitPath: compilationUnitPath ?? "<unknown>",
-                    AnalyzerName: null));
+                diagnostics.Report(SemanticDiagnostics.CircularAbstractInheritance, default, compilationUnitPath ?? "<unknown>", (object)chainStr);
             }
 
             // Break the cycle by removing the back-edge from the closing
@@ -9332,25 +9306,21 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                     if(closingNode is not null)
                     {
-                        diagnostics.Add(MakeDiagnosticWithLocation(
-                            "MIST_CIRCULAR_INHERITANCE",
-                            DiagnosticSeverity.Error,
-                            $"Circular inheritance detected: '{chainStr}'.",
-                            closingNode,
-                            closingSourceText));
+                        LinePositionSpan closingLocation = default;
+                        var closingPath = closingSourceText?.Path ?? "<unknown>";
+                        if(closingSourceText is not null && closingNode.Span.Length > 0)
+                        {
+                            var mistSpan = new SourceSpan(closingNode.Span.Start, closingNode.Span.Length);
+                            closingLocation = closingSourceText.ToLinePositionSpan(mistSpan);
+                        }
+
+                        diagnostics.Report(SemanticDiagnostics.CircularInheritance, closingLocation, closingPath, (object)chainStr);
                     }
                     else
                     {
                         var compilationUnitPath = FindCompilationUnitPathForClass(closingClass, symbolTable, asts, compilation);
 
-                        diagnostics.Add(new Diagnostic(
-                            new DiagnosticId("MIST_CIRCULAR_INHERITANCE"),
-                            DiagnosticSeverity.Error,
-                            PipelineStage.SemanticModelConstruction,
-                            $"Circular inheritance detected: '{chainStr}'.",
-                            Location: default,
-                            CompilationUnitPath: compilationUnitPath ?? "<unknown>",
-                            AnalyzerName: null));
+                        diagnostics.Report(SemanticDiagnostics.CircularInheritance, default, compilationUnitPath ?? "<unknown>", (object)chainStr);
                     }
 
                     // Break the cycle by nulling the BaseType on the closing class.
@@ -9760,26 +9730,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                         if(refMismatchNode is not null)
                         {
-                            diagnostics.Add(MakeDiagnosticWithLocation(
-                                "MIST_REF_0012",
-                                DiagnosticSeverity.Error,
-                                refMessage,
-                                refMismatchNode,
-                                refMismatchSourceText));
+                            LinePositionSpan refLocation = default;
+                            var refPath = refMismatchSourceText?.Path ?? "<unknown>";
+                            if(refMismatchSourceText is not null && refMismatchNode.Span.Length > 0)
+                            {
+                                var mistSpan = new SourceSpan(refMismatchNode.Span.Start, refMismatchNode.Span.Length);
+                                refLocation = refMismatchSourceText.ToLinePositionSpan(mistSpan);
+                            }
+
+                            diagnostics.Report(SemanticDiagnostics.RefKindMismatch, refLocation, refPath, (object)refMessage);
                         }
                         else
                         {
                             var refMismatchPath = FindCompilationUnitPathForType(
                                 typeName, symbolTable, asts, compilation);
 
-                            diagnostics.Add(new Diagnostic(
-                                new DiagnosticId("MIST_REF_0012"),
-                                DiagnosticSeverity.Error,
-                                PipelineStage.SemanticModelConstruction,
-                                refMessage,
-                                Location: default,
-                                CompilationUnitPath: refMismatchPath ?? "<unknown>",
-                                AnalyzerName: null));
+                            diagnostics.Report(SemanticDiagnostics.RefKindMismatch, default, refMismatchPath ?? "<unknown>", (object)refMessage);
                         }
 
                         break;
@@ -9804,14 +9770,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 var missingPath = FindCompilationUnitPathForType(
                     typeName, symbolTable, asts, compilation);
 
-                diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_MISSING_ABSTRACT_PROPERTY"),
-                    DiagnosticSeverity.Error,
-                    PipelineStage.SemanticModelConstruction,
-                    $"'{typeName}' does not implement abstract type property '{requiredAbstract.DisplayName}.{requiredProperty.Name}'.",
-                    Location: default,
-                    CompilationUnitPath: missingPath ?? "<unknown>",
-                    AnalyzerName: null));
+                diagnostics.Report(SemanticDiagnostics.MissingAbstractProperty, default, missingPath ?? "<unknown>", (object)typeName, requiredAbstract.DisplayName, requiredProperty.Name);
                 continue;
             }
 
@@ -9825,27 +9784,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if(requiredPropInfo.HasGet && !implPropInfo.HasGet)
             {
                 var path = FindCompilationUnitPathForType(typeName, symbolTable, asts, compilation);
-                diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_MISSING_ABSTRACT_PROPERTY_ACCESSOR"),
-                    DiagnosticSeverity.Error,
-                    PipelineStage.SemanticModelConstruction,
-                    $"'{typeName}.{requiredProperty.Name}' does not implement 'get' accessor required by abstract type '{requiredAbstract.DisplayName}'.",
-                    Location: default,
-                    CompilationUnitPath: path ?? "<unknown>",
-                    AnalyzerName: null));
+                diagnostics.Report(SemanticDiagnostics.MissingAbstractPropertyAccessor, default, path ?? "<unknown>", (object)typeName, requiredProperty.Name, "get", requiredAbstract.DisplayName);
             }
 
             if(requiredPropInfo.HasSet && !implPropInfo.HasSet && !implPropInfo.HasInit)
             {
                 var path = FindCompilationUnitPathForType(typeName, symbolTable, asts, compilation);
-                diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_MISSING_ABSTRACT_PROPERTY_ACCESSOR"),
-                    DiagnosticSeverity.Error,
-                    PipelineStage.SemanticModelConstruction,
-                    $"'{typeName}.{requiredProperty.Name}' does not implement 'set' accessor required by abstract type '{requiredAbstract.DisplayName}'.",
-                    Location: default,
-                    CompilationUnitPath: path ?? "<unknown>",
-                    AnalyzerName: null));
+                diagnostics.Report(SemanticDiagnostics.MissingAbstractPropertyAccessor, default, path ?? "<unknown>", (object)typeName, requiredProperty.Name, "set", requiredAbstract.DisplayName);
             }
         }
 
@@ -10089,7 +10034,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if(declaringNode is not null)
                 {
                     diagnostics.Add(MakeDiagnosticWithLocation(
-                        DiagnosticId.MissingAssociatedTypeMember.Value,
+                        CommonDiagnostics.MissingAssociatedTypeMember.Id.Value,
                         DiagnosticSeverity.Error,
                         message,
                         declaringNode,
@@ -10100,7 +10045,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var path = FindCompilationUnitPathForType(typeName, symbolTable, asts, compilation);
 
                     diagnostics.Add(new Diagnostic(
-                        DiagnosticId.MissingAssociatedTypeMember,
+                        CommonDiagnostics.MissingAssociatedTypeMember.Id,
                         DiagnosticSeverity.Error,
                         PipelineStage.SemanticModelConstruction,
                         message,
@@ -10224,7 +10169,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if(declaringNode is not null)
         {
             diagnostics.Add(MakeDiagnosticWithLocation(
-                DiagnosticId.UnsatisfiedAssociatedTypeConstraint.Value,
+                CommonDiagnostics.UnsatisfiedAssociatedTypeConstraint.Id.Value,
                 DiagnosticSeverity.Error,
                 message,
                 declaringNode,
@@ -10235,7 +10180,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var path = FindCompilationUnitPathForType(implementorTypeName, symbolTable, asts, compilation);
 
             diagnostics.Add(new Diagnostic(
-                DiagnosticId.UnsatisfiedAssociatedTypeConstraint,
+                CommonDiagnostics.UnsatisfiedAssociatedTypeConstraint.Id,
                 DiagnosticSeverity.Error,
                 PipelineStage.SemanticModelConstruction,
                 message,
@@ -11502,26 +11447,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         if(memberNode is not null)
         {
-            diagnostics.Add(MakeDiagnosticWithLocation(
-                "MIST_MEMBER_REDECLARATION",
-                DiagnosticSeverity.Error,
-                $"'{classType.DisplayName}' cannot redeclare member '{member.Name}' already defined in '{ancestor.DisplayName}'.",
-                memberNode,
-                redeclSourceText));
+            LinePositionSpan redeclLocation = default;
+            var redeclPath = redeclSourceText?.Path ?? "<unknown>";
+            if(redeclSourceText is not null && memberNode.Span.Length > 0)
+            {
+                var mistSpan = new SourceSpan(memberNode.Span.Start, memberNode.Span.Length);
+                redeclLocation = redeclSourceText.ToLinePositionSpan(mistSpan);
+            }
+
+            diagnostics.Report(SemanticDiagnostics.MemberRedeclaration, redeclLocation, redeclPath, (object)classType.DisplayName, member.Name, ancestor.DisplayName);
         }
         else
         {
             var compilationUnitPath = FindCompilationUnitPathForClass(
                 classType, symbolTable, asts, compilation);
 
-            diagnostics.Add(new Diagnostic(
-                new DiagnosticId("MIST_MEMBER_REDECLARATION"),
-                DiagnosticSeverity.Error,
-                PipelineStage.SemanticModelConstruction,
-                $"'{classType.DisplayName}' cannot redeclare member '{member.Name}' already defined in '{ancestor.DisplayName}'.",
-                Location: default,
-                CompilationUnitPath: compilationUnitPath ?? "<unknown>",
-                AnalyzerName: null));
+            diagnostics.Report(SemanticDiagnostics.MemberRedeclaration, default, compilationUnitPath ?? "<unknown>", (object)classType.DisplayName, member.Name, ancestor.DisplayName);
         }
     }
 
@@ -11621,26 +11562,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 if(classNode is not null)
                 {
-                    diagnostics.Add(MakeDiagnosticWithLocation(
-                        "MIST_BASE_CTOR_UNSATISFIED",
-                        DiagnosticSeverity.Error,
-                        $"Base class '{baseType.DisplayName}' requires constructor arguments that are not provided.",
-                        classNode,
-                        classSourceText));
+                    LinePositionSpan ctorLocation = default;
+                    var ctorPath = classSourceText?.Path ?? "<unknown>";
+                    if(classSourceText is not null && classNode.Span.Length > 0)
+                    {
+                        var mistSpan = new SourceSpan(classNode.Span.Start, classNode.Span.Length);
+                        ctorLocation = classSourceText.ToLinePositionSpan(mistSpan);
+                    }
+
+                    diagnostics.Report(SemanticDiagnostics.BaseCtorUnsatisfied, ctorLocation, ctorPath, (object)baseType.DisplayName);
                 }
                 else
                 {
                     var compilationUnitPath = FindCompilationUnitPathForClass(
                         classType, symbolTable, asts, compilation);
 
-                    diagnostics.Add(new Diagnostic(
-                        new DiagnosticId("MIST_BASE_CTOR_UNSATISFIED"),
-                        DiagnosticSeverity.Error,
-                        PipelineStage.SemanticModelConstruction,
-                        $"Base class '{baseType.DisplayName}' requires constructor arguments that are not provided.",
-                        Location: default,
-                        CompilationUnitPath: compilationUnitPath ?? "<unknown>",
-                        AnalyzerName: null));
+                    diagnostics.Report(SemanticDiagnostics.BaseCtorUnsatisfied, default, compilationUnitPath ?? "<unknown>", (object)baseType.DisplayName);
                 }
 
                 continue;
@@ -11666,12 +11603,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var ctorSourceText = FindSourceTextForClassType(
                         classType, symbolTable);
 
-                    diagnostics.Add(MakeDiagnosticWithLocation(
-                        "MIST_BASE_CTOR_UNSATISFIED",
-                        DiagnosticSeverity.Error,
-                        $"Base class '{baseType.DisplayName}' requires constructor arguments that are not provided.",
-                        ctorDecl,
-                        ctorSourceText));
+                    LinePositionSpan perCtorLocation = default;
+                    var perCtorPath = ctorSourceText?.Path ?? "<unknown>";
+                    if(ctorSourceText is not null && ctorDecl.Span.Length > 0)
+                    {
+                        var mistSpan = new SourceSpan(ctorDecl.Span.Start, ctorDecl.Span.Length);
+                        perCtorLocation = ctorSourceText.ToLinePositionSpan(mistSpan);
+                    }
+
+                    diagnostics.Report(SemanticDiagnostics.BaseCtorUnsatisfied, perCtorLocation, perCtorPath, (object)baseType.DisplayName);
                 }
             }
         }
@@ -12112,14 +12052,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
             else
             {
-                diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_GLOBAL_USING_UNDEFINED_NAMESPACE"),
-                    DiagnosticSeverity.Warning,
-                    PipelineStage.SemanticModelConstruction,
-                    $"Global using namespace '{globalNs}' could not be found.",
-                    Location: default,
-                    CompilationUnitPath: sourceText?.Path ?? "<unknown>",
-                    AnalyzerName: null));
+                diagnostics.Report(SemanticDiagnostics.GlobalUsingUndefinedNamespace, default, sourceText?.Path ?? "<unknown>", (object)globalNs);
             }
         }
 
@@ -17187,7 +17120,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         if(namedRef.TypeArgs is not null)
                         {
                             diagnostics.Add(MakeDiagnosticWithLocation(
-                                DiagnosticId.NotGeneric.Value,
+                                GenericsDiagnostics.NotGeneric.Id.Value,
                                 DiagnosticSeverity.Error,
                                 $"Type '{typeName}' is not generic and does not accept type arguments.",
                                 namedRef,
@@ -17210,7 +17143,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         if(namedRef.TypeArgs is not null)
                         {
                             diagnostics.Add(MakeDiagnosticWithLocation(
-                                DiagnosticId.NotGeneric.Value,
+                                GenericsDiagnostics.NotGeneric.Id.Value,
                                 DiagnosticSeverity.Error,
                                 $"Type '{typeName}' is not generic and does not accept type arguments.",
                                 namedRef,
@@ -17253,7 +17186,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             // The left part is a type parameter but the right part is not
                             // an associated type slot of any constraining abstract type.
                             diagnostics.Add(MakeDiagnosticWithLocation(
-                                DiagnosticId.UnresolvedAssociatedTypeReference.Value,
+                                CommonDiagnostics.UnresolvedAssociatedTypeReference.Id.Value,
                                 DiagnosticSeverity.Error,
                                 $"Type parameter '{leftPart}' does not have an associated type '{rightPart}'; '{leftPart}' is not constrained by an abstract type declaring '{rightPart}'.",
                                 namedRef,
@@ -18224,14 +18157,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         if(ambiguousNs is not null && userResolvedNs is not null)
         {
-            diagnostics.Add(new Diagnostic(
-                new DiagnosticId("MIST_AMBIGUOUS_TYPE"),
-                DiagnosticSeverity.Error,
-                PipelineStage.SemanticModelConstruction,
-                $"The type name '{typeName}' is ambiguous between namespaces '{userResolvedNs}' and '{ambiguousNs}'.",
-                Location: default,
-                CompilationUnitPath: sourceText?.Path ?? "<unknown>",
-                AnalyzerName: null));
+            diagnostics.Report(SemanticDiagnostics.AmbiguousType, default, sourceText?.Path ?? "<unknown>", (object)typeName, userResolvedNs, ambiguousNs);
             return ErrorType.Instance;
         }
 
@@ -18270,14 +18196,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             if(ambientAmbiguousNs is not null && ambientResolvedNs is not null)
             {
-                diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_AMBIGUOUS_TYPE"),
-                    DiagnosticSeverity.Error,
-                    PipelineStage.SemanticModelConstruction,
-                    $"The type name '{typeName}' is ambiguous between namespaces '{ambientResolvedNs}' and '{ambientAmbiguousNs}'.",
-                    Location: default,
-                    CompilationUnitPath: sourceText?.Path ?? "<unknown>",
-                    AnalyzerName: null));
+                diagnostics.Report(SemanticDiagnostics.AmbiguousType, default, sourceText?.Path ?? "<unknown>", (object)typeName, ambientResolvedNs, ambientAmbiguousNs);
                 return ErrorType.Instance;
             }
 
@@ -18342,14 +18261,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         // 4. Not found → emit diagnostic, return ErrorType.
-        diagnostics.Add(new Diagnostic(
-            new DiagnosticId("MIST_UNDEFINED_TYPE"),
-            DiagnosticSeverity.Error,
-            PipelineStage.SemanticModelConstruction,
-            $"The type '{typeName}' could not be found.",
-            Location: default,
-            CompilationUnitPath: sourceText?.Path ?? "<unknown>",
-            AnalyzerName: null));
+        diagnostics.Report(SemanticDiagnostics.UndefinedType, default, sourceText?.Path ?? "<unknown>", (object)typeName);
 
         return ErrorType.Instance;
     }
@@ -18604,7 +18516,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             // The type is not generic — emit MIST_NOT_GENERIC.
             diagnostics.Add(MakeDiagnosticWithLocation(
-                DiagnosticId.NotGeneric.Value,
+                GenericsDiagnostics.NotGeneric.Id.Value,
                 DiagnosticSeverity.Error,
                 $"Type '{typeName}' is not generic and does not accept type arguments.",
                 typeArgList,
@@ -18632,7 +18544,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             // Arity mismatch — emit MIST_ARITY_MISMATCH.
             diagnostics.Add(MakeDiagnosticWithLocation(
-                DiagnosticId.ArityMismatch.Value,
+                GenericsDiagnostics.ArityMismatch.Id.Value,
                 DiagnosticSeverity.Error,
                 $"Type '{typeName}' expects {typeParams.Count} type argument(s) but received {resolvedTypeArgs.Count}.",
                 typeArgList,
@@ -18951,7 +18863,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                         // Unresolved identifier in a dependent position — emit diagnostic.
                         diagnostics.Add(MakeDiagnosticWithLocation(
-                            DiagnosticId.UndefinedTypeArgument.Value,
+                            GenericsDiagnostics.UndefinedTypeArgument.Id.Value,
                             DiagnosticSeverity.Error,
                             $"Type argument '{argName}' could not be resolved.",
                             typeRefArg,
@@ -19043,7 +18955,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     if(!userResolved && ambientResolved is null)
                     {
                         diagnostics.Add(MakeDiagnosticWithLocation(
-                            DiagnosticId.UndefinedTypeArgument.Value,
+                            GenericsDiagnostics.UndefinedTypeArgument.Id.Value,
                             DiagnosticSeverity.Error,
                             $"Type argument '{argName}' could not be resolved.",
                             namedRef,
@@ -21484,7 +21396,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             {
                                 // Method arity mismatch.
                                 diagnostics.Add(MakeDiagnosticWithLocation(
-                                    DiagnosticId.MethodArityMismatch.Value,
+                                    GenericsDiagnostics.MethodArityMismatch.Id.Value,
                                     DiagnosticSeverity.Error,
                                     $"Method '{memberName}' expects {sym.TypeParameters.Count} type argument(s) but received {resolvedTypeArgs.Count}.",
                                     methodCall.TypeArgs,
@@ -21511,7 +21423,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         {
                             // Method is not generic but type arguments were provided.
                             diagnostics.Add(MakeDiagnosticWithLocation(
-                                DiagnosticId.MethodArityMismatch.Value,
+                                GenericsDiagnostics.MethodArityMismatch.Id.Value,
                                 DiagnosticSeverity.Error,
                                 $"Method '{memberName}' expects 0 type argument(s) but received {CountTypeArgs(methodCall.TypeArgs)}.",
                                 methodCall.TypeArgs,
@@ -22697,14 +22609,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // Check for abstract type instantiation.
                     if(createdType is ClassType { IsAbstract: true } abstractClass)
                     {
-                        diagnostics.Add(new Diagnostic(
-                            new DiagnosticId("MIST_ABSTRACT_INSTANTIATION"),
-                            DiagnosticSeverity.Error,
-                            PipelineStage.SemanticModelConstruction,
-                            $"Cannot create an instance of abstract type '{abstractClass.DisplayName}'.",
-                            Location: default,
-                            CompilationUnitPath: sourceText?.Path ?? "<unknown>",
-                            AnalyzerName: null));
+                        diagnostics.Report(SemanticDiagnostics.AbstractInstantiation, default, sourceText?.Path ?? "<unknown>", (object)abstractClass.DisplayName);
                     }
 
                     // Handle type arguments on new expressions (e.g., new Box<int>()).
@@ -22777,14 +22682,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // Check for abstract type instantiation.
                     if(createdType is ClassType { IsAbstract: true } abstractClass)
                     {
-                        diagnostics.Add(new Diagnostic(
-                            new DiagnosticId("MIST_ABSTRACT_INSTANTIATION"),
-                            DiagnosticSeverity.Error,
-                            PipelineStage.SemanticModelConstruction,
-                            $"Cannot create an instance of abstract type '{abstractClass.DisplayName}'.",
-                            Location: default,
-                            CompilationUnitPath: sourceText?.Path ?? "<unknown>",
-                            AnalyzerName: null));
+                        diagnostics.Report(SemanticDiagnostics.AbstractInstantiation, default, sourceText?.Path ?? "<unknown>", (object)abstractClass.DisplayName);
                     }
 
                     // Handle type arguments on new expressions (e.g., new Box<int> { ... }).
@@ -23374,14 +23272,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
 
             // Neither a type nor a namespace — emit diagnostic.
-            diagnostics.Add(new Diagnostic(
-                new DiagnosticId("MIST_UNDEFINED_MEMBER"),
-                DiagnosticSeverity.Error,
-                PipelineStage.SemanticModelConstruction,
-                $"'{nsRef.NamespaceName}' does not contain a definition for '{memberName}'.",
-                Location: default,
-                CompilationUnitPath: sourceText?.Path ?? "<unknown>",
-                AnalyzerName: null));
+            diagnostics.Report(SemanticDiagnostics.UndefinedMember, default, sourceText?.Path ?? "<unknown>", (object)nsRef.NamespaceName, memberName);
             return ErrorType.Instance;
         }
 
@@ -23767,14 +23658,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
 
             // No match — report MIST_TC_0063 (undefined tuple member access).
-            diagnostics.Add(new Diagnostic(
-                new DiagnosticId("MIST_TC_0063"),
-                DiagnosticSeverity.Error,
-                PipelineStage.SemanticModelConstruction,
-                $"Tuple type '{tupleTarget.DisplayName}' does not contain a member '{memberName}'.",
-                Location: default,
-                CompilationUnitPath: sourceText?.Path ?? "<unknown>",
-                AnalyzerName: null));
+            diagnostics.Report(SemanticDiagnostics.UndefinedTupleMember, default, sourceText?.Path ?? "<unknown>", (object)tupleTarget.DisplayName, memberName);
 
             return ErrorType.Instance;
         }
@@ -23791,14 +23675,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
 
             // Property not found — report undefined member.
-            diagnostics.Add(new Diagnostic(
-                new DiagnosticId("MIST_UNDEFINED_MEMBER"),
-                DiagnosticSeverity.Error,
-                PipelineStage.SemanticModelConstruction,
-                $"'{anonTarget.DisplayName}' does not contain a definition for '{memberName}'.",
-                Location: default,
-                CompilationUnitPath: sourceText?.Path ?? "<unknown>",
-                AnalyzerName: null));
+            diagnostics.Report(SemanticDiagnostics.UndefinedMember, default, sourceText?.Path ?? "<unknown>", (object)anonTarget.DisplayName, memberName);
 
             return ErrorType.Instance;
         }
@@ -24041,14 +23918,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 // Ambiguity: emit MIST_TC_0082.
                 var candidateDescriptions = string.Join(", ", candidates.Select(c => $"extension({c.ReceiverType.DisplayName})"));
-                diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_TC_0082"),
-                    DiagnosticSeverity.Error,
-                    PipelineStage.SemanticModelConstruction,
-                    $"Ambiguous extension method resolution: member '{memberName}' is provided by multiple equally-specific extension blocks: {candidateDescriptions}.",
-                    Location: default,
-                    CompilationUnitPath: sourceText?.Path ?? "<unknown>",
-                    AnalyzerName: null));
+                diagnostics.Report(SemanticDiagnostics.AmbiguousExtensionMethod, default, sourceText?.Path ?? "<unknown>",
+                    (object)$"Ambiguous extension method resolution: member '{memberName}' is provided by multiple equally-specific extension blocks: {candidateDescriptions}.");
 
                 return ErrorType.Instance;
             }
@@ -24149,14 +24020,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 // Ambiguity among static extension members.
                 var staticCandidateDescriptions = string.Join(", ", staticCandidates.Select(c => $"extension({c.ReceiverType.DisplayName})"));
-                diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_TC_0082"),
-                    DiagnosticSeverity.Error,
-                    PipelineStage.SemanticModelConstruction,
-                    $"Ambiguous extension method resolution: static member '{memberName}' is provided by multiple equally-specific extension blocks: {staticCandidateDescriptions}.",
-                    Location: default,
-                    CompilationUnitPath: sourceText?.Path ?? "<unknown>",
-                    AnalyzerName: null));
+                diagnostics.Report(SemanticDiagnostics.AmbiguousExtensionMethod, default, sourceText?.Path ?? "<unknown>",
+                    (object)$"Ambiguous extension method resolution: static member '{memberName}' is provided by multiple equally-specific extension blocks: {staticCandidateDescriptions}.");
 
                 return ErrorType.Instance;
             }
@@ -24167,14 +24032,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             ? $"{targetType.DisplayName}<{string.Join(", ", constructedTypeArgs.Select(a => a.DisplayName))}>"
             : targetType.DisplayName;
 
-        diagnostics.Add(new Diagnostic(
-            new DiagnosticId("MIST_UNDEFINED_MEMBER"),
-            DiagnosticSeverity.Error,
-            PipelineStage.SemanticModelConstruction,
-            $"'{diagnosticTypeName}' does not contain a definition for '{memberName}'.",
-            Location: default,
-            CompilationUnitPath: sourceText?.Path ?? "<unknown>",
-            AnalyzerName: null));
+        diagnostics.Report(SemanticDiagnostics.UndefinedMember, default, sourceText?.Path ?? "<unknown>", (object)diagnosticTypeName, memberName);
 
         return ErrorType.Instance;
     }
@@ -26472,14 +26330,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             if(member.Name == name)
             {
-                diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_DUPLICATE_DECLARATION"),
-                    DiagnosticSeverity.Error,
-                    PipelineStage.SemanticModelConstruction,
-                    $"A local variable named '{name}' is already declared in this scope.",
-                    Location: default,
-                    CompilationUnitPath: sourceText?.Path ?? "<unknown>",
-                    AnalyzerName: null));
+                diagnostics.Report(SemanticDiagnostics.DuplicateDeclaration, default, sourceText?.Path ?? "<unknown>", (object)name);
                 return;
             }
         }
@@ -26906,7 +26757,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // Multiple members have the default modifier — emit an error.
             enumType.Defaultability = DefaultabilityStatus.NotDefaultable;
             diagnostics.Add(new Diagnostic(
-                DiagnosticId.EnumMultipleDefaults,
+                CommonDiagnostics.EnumMultipleDefaults.Id,
                 DiagnosticSeverity.Error,
                 PipelineStage.SemanticModelConstruction,
                 $"Enum '{enumType.DisplayName}' has multiple variants with the 'default' modifier. Only one variant may be designated as default.",
@@ -26952,7 +26803,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // non-defaultable base), emit the diagnostic.
                 classType.Defaultability = DefaultabilityStatus.NotDefaultable;
                 diagnostics.Add(new Diagnostic(
-                    DiagnosticId.DefaultBaseNotDefaultable,
+                    CommonDiagnostics.DefaultBaseNotDefaultable.Id,
                     DiagnosticSeverity.Error,
                     PipelineStage.SemanticModelConstruction,
                     $"Type '{classType.DisplayName}' cannot be defaultable because its base class '{baseClass.DisplayName}' is not defaultable.",
@@ -27002,7 +26853,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     if(field.DeclaredType is AbstractType)
                     {
                         diagnostics.Add(new Diagnostic(
-                            DiagnosticId.DefaultRequiresTypeBinding,
+                            CommonDiagnostics.DefaultRequiresTypeBinding.Id,
                             DiagnosticSeverity.Error,
                             PipelineStage.SemanticModelConstruction,
                             $"Field '{field.Name}' on type '{classType.DisplayName}' has type '{field.DeclaredType.DisplayName}' which is not defaultable. Either add a constructor to explicitly assign this field, or add a `default {{}}` block with a type binding.",
@@ -27082,7 +26933,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     if(field.DeclaredType is AbstractType)
                     {
                         diagnostics.Add(new Diagnostic(
-                            DiagnosticId.DefaultRequiresTypeBinding,
+                            CommonDiagnostics.DefaultRequiresTypeBinding.Id,
                             DiagnosticSeverity.Error,
                             PipelineStage.SemanticModelConstruction,
                             $"Field '{field.Name}' on type '{structType.DisplayName}' has type '{field.DeclaredType.DisplayName}' which is not defaultable. Either add a constructor to explicitly assign this field, or add a `default {{}}` block with a type binding.",

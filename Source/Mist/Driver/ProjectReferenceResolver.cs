@@ -84,7 +84,7 @@ public static class ProjectReferenceResolver
             var cycleChain = string.Join(" → ", cycleNodes);
 
             diagnostics.Add(new Diagnostic(
-                DiagnosticId.ProjectCircularReference,
+                DriverDiagnostics.ProjectCircularReference.Id,
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
                 $"Circular project reference detected: {cycleChain}.",
@@ -107,7 +107,7 @@ public static class ProjectReferenceResolver
             {
                 // The directory exists but has no mist.toml.
                 diagnostics.Add(new Diagnostic(
-                    DiagnosticId.ProjectReferenceNoProjectFile,
+                    DriverDiagnostics.ProjectReferenceNoProjectFile.Id,
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
                     $"Referenced directory '{directory}' does not contain a 'mist.toml' file.",
@@ -118,7 +118,7 @@ public static class ProjectReferenceResolver
             else
             {
                 diagnostics.Add(new Diagnostic(
-                    DiagnosticId.ProjectReferenceNotFound,
+                    DriverDiagnostics.ProjectReferenceNotFound.Id,
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
                     $"Referenced project path '{canonicalTomlPath}' does not exist.",
@@ -135,7 +135,7 @@ public static class ProjectReferenceResolver
                  .Equals(ProjectFileParser.FileName, StringComparison.Ordinal))
         {
             diagnostics.Add(new Diagnostic(
-                DiagnosticId.ProjectReferenceNotFound,
+                DriverDiagnostics.ProjectReferenceNotFound.Id,
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
                 $"Referenced project path '{canonicalTomlPath}' does not exist.",
@@ -171,7 +171,7 @@ public static class ProjectReferenceResolver
         if(config.Name != referenceName)
         {
             diagnostics.Add(new Diagnostic(
-                DiagnosticId.ProjectReferenceNameMismatch,
+                DriverDiagnostics.ProjectReferenceNameMismatch.Id,
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
                 $"Reference key '{referenceName}' does not match the target project's name '{config.Name}' in '{canonicalTomlPath}'.",

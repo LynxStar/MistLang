@@ -135,7 +135,7 @@ public static partial class SdkDiscovery
         if(sdkRoot is null)
         {
             diagnostics.Add(new Diagnostic(
-                DiagnosticId.SdkNotFound,
+                CommonDiagnostics.SdkNotFound.Id,
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
                 "The .NET SDK installation could not be located. Searched: 'dotnet --list-sdks' and well-known paths (/usr/share/dotnet, C:\\Program Files\\dotnet, ~/.dotnet).",
@@ -150,7 +150,7 @@ public static partial class SdkDiscovery
         if(refPath is null)
         {
             diagnostics.Add(new Diagnostic(
-                DiagnosticId.SdkNoFramework,
+                CommonDiagnostics.SdkNoFramework.Id,
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
                 $"The target framework '{tfm}' reference assemblies were not found in the SDK at '{sdkRoot}'.",

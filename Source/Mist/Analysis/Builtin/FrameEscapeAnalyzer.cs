@@ -37,13 +37,7 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
 {
     public string AnalyzerId => "FRAME_ESCAPE";
 
-    // ── Diagnostic IDs ───────────────────────────────────────────────────
 
-    /// <summary>A stackalloc-backed span is returned from a method (R8.2).</summary>
-    internal static readonly DiagnosticId StackBackedReturn = new("MIST2008");
-
-    /// <summary>A stackalloc-backed span escapes its frame via a store (R8.3, R8.5).</summary>
-    internal static readonly DiagnosticId StackBackedEscape = new("MIST2009");
 
     // ── Stack-backing lattice ────────────────────────────────────────────
 
@@ -269,11 +263,11 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         // The LHS is not a simple local — it's a field, property, static, indexed
         // element, or other escaping location. Reject with MIST2009.
         var storeNode = GetStoreLocationNode(assignment);
-        diagnostics.Add(MakeDiagnostic(
-            StackBackedEscape,
-            "A stackalloc-backed span cannot be stored in a location that outlives its stack frame",
+        diagnostics.ReportAtNode(
+            OwnershipDiagnostics.StackBackedEscape,
             storeNode,
-            model));
+            "FrameEscape",
+            "A stackalloc-backed span cannot be stored in a location that outlives its stack frame");
     }
 
     // ── Return statement ─────────────────────────────────────────────────
@@ -299,11 +293,11 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         var backing = DetermineExpressionBacking(returnStmt.Value, state, model);
         if(backing == StackBacking.StackBacked)
         {
-            diagnostics.Add(MakeDiagnostic(
-                StackBackedReturn,
-                "A stackalloc-backed span cannot be returned from a method because it would escape its stack frame",
+            diagnostics.ReportAtNode(
+                OwnershipDiagnostics.StackBackedReturn,
                 returnStmt.Value,
-                model));
+                "FrameEscape",
+                "A stackalloc-backed span cannot be returned from a method because it would escape its stack frame");
         }
     }
 
@@ -635,53 +629,5 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
     private static bool IsSpanType(IType? type)
     {
         return type is SpanType;
-    }
-
-    // ── Diagnostic creation (mirrors OwnershipAnalyzer.MakeDiagnostic) ───
-
-    private static Diagnostic MakeDiagnostic(
-        DiagnosticId id,
-        string message,
-        SyntaxNode node,
-        ISemanticModel model)
-    {
-        Common.Source.LinePositionSpan? location = null;
-        string? compilationUnitPath = null;
-
-        var span = node.Span;
-        if(span.Length > 0)
-        {
-            var asts = model.Asts;
-            var units = model.Units;
-            var astIndex = -1;
-
-            for(var i = 0; i < asts.Length; i++)
-            {
-                var astSpan = asts[i].Span;
-                if(span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
-                {
-                    astIndex = i;
-                    break;
-                }
-            }
-
-            if(astIndex >= 0 && astIndex < units.Count)
-            {
-                var source = units[astIndex].Source;
-                compilationUnitPath = source.Path;
-
-                var sourceSpan = new Common.Source.SourceSpan(span.Start, span.Length);
-                location = source.ToLinePositionSpan(sourceSpan);
-            }
-        }
-
-        return new Diagnostic(
-            id,
-            DiagnosticSeverity.Error,
-            PipelineStage.Analysis,
-            message,
-            Location: location ?? default,
-            CompilationUnitPath: compilationUnitPath ?? "",
-            AnalyzerName: "FrameEscape");
     }
 }

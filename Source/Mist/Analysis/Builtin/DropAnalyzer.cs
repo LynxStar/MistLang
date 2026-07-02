@@ -11,9 +11,8 @@ namespace Mist.Analysis.Builtin;
 
 /// <summary>
 /// Built-in analyzer that enforces drop-semantics rules against the semantic model.
-/// This analyzer follows the <see cref="OwnershipAnalyzer"/> pattern: it defines
-/// analyzer-local descriptive diagnostic IDs (not central numeric codes) and builds
-/// diagnostics through a local <c>MakeDiagnostic</c> helper.
+/// This analyzer uses centralized descriptors from <see cref="OwnershipDiagnostics"/>
+/// and reports diagnostics through the <c>ReportAtNode</c> extension method.
 /// <para>
 /// It is registered AFTER <see cref="OwnershipAnalyzer"/> so that drop analysis observes
 /// the ownership state (<c>IsOwnedType</c>/<c>Discipline</c>) the ownership pipeline
@@ -30,26 +29,6 @@ namespace Mist.Analysis.Builtin;
 public sealed class DropAnalyzer : IAnalyzer
 {
     public string AnalyzerId => "DROP";
-
-    // ── Diagnostic IDs ───────────────────────────────────────────────────
-
-    /// <summary>Use-after-drop/move on a linear value.</summary>
-    internal static readonly DiagnosticId UseAfterMove = new("MIST_DROP_USE_AFTER_MOVE");
-
-    /// <summary>Use-after-drop on an affine value.</summary>
-    internal static readonly DiagnosticId UseAfterDrop = new("MIST_DROP_USE_AFTER_DROP");
-
-    /// <summary>Non-owned container declares an affine or linear field.</summary>
-    internal static readonly DiagnosticId FieldNotOwned = new("MIST_DROP_FIELD_NOT_OWNED");
-
-    /// <summary>Field <c>Drop()</c> called outside of the containing type's <c>Drop()</c> method.</summary>
-    internal static readonly DiagnosticId FieldOutsideContainer = new("MIST_DROP_FIELD_OUTSIDE_CONTAINER");
-
-    /// <summary>Conflicting substructural/ownership type modifiers.</summary>
-    internal static readonly DiagnosticId ConflictingModifiers = new("MIST_DROP_CONFLICTING_MODIFIERS");
-
-    /// <summary>A <c>Drop()</c> method declared with one or more parameters.</summary>
-    internal static readonly DiagnosticId DropParameters = new("MIST_DROP_PARAMETERS");
 
     public void Analyze(ISemanticModel model, DiagnosticBag diagnostics)
     {
@@ -98,11 +77,11 @@ public sealed class DropAnalyzer : IAnalyzer
             // Validation 1: conflicting modifiers (MIST_DROP_CONFLICTING_MODIFIERS).
             if(modifiers is { } mods && HasConflictingModifiers(mods))
             {
-                diagnostics.Add(MakeDiagnostic(
-                    ConflictingModifiers,
-                    "Conflicting type modifiers.",
+                diagnostics.ReportAtNode(
+                    OwnershipDiagnostics.DropConflictingModifiers,
                     declaringNode,
-                    model));
+                    "Drop",
+                    "Conflicting type modifiers.");
             }
 
             // Validation 2: Drop() with parameters (MIST_DROP_PARAMETERS).
@@ -198,11 +177,11 @@ public sealed class DropAnalyzer : IAnalyzer
                 continue;
             }
 
-            diagnostics.Add(MakeDiagnostic(
-                DropParameters,
-                "Drop() method must not accept parameters.",
+            diagnostics.ReportAtNode(
+                OwnershipDiagnostics.DropParameters,
                 memberNode,
-                model));
+                "Drop",
+                "Drop() method must not accept parameters.");
         }
     }
 
@@ -277,12 +256,12 @@ public sealed class DropAnalyzer : IAnalyzer
                         _ => "linear"
                     };
 
-                    diagnostics.Add(MakeDiagnostic(
-                        FieldNotOwned,
-                        $"{containerKeyword} type '{typeSymbol.Name}' contains field '{member.Name}' of unconstrained type parameter '{tpType.Name}'. " +
-                        $"Add a substructural constraint (e.g., 'where {tpType.Name} : {suggestedConstraint}') to ensure the field's discipline is compatible.",
+                    diagnostics.ReportAtNode(
+                        OwnershipDiagnostics.DropFieldNotOwned,
                         fieldNode,
-                        model));
+                        "Drop",
+                        $"{containerKeyword} type '{typeSymbol.Name}' contains field '{member.Name}' of unconstrained type parameter '{tpType.Name}'. " +
+                        $"Add a substructural constraint (e.g., 'where {tpType.Name} : {suggestedConstraint}') to ensure the field's discipline is compatible.");
                     continue;
                 }
 
@@ -461,7 +440,7 @@ public sealed class DropAnalyzer : IAnalyzer
                 "The container has no substructural discipline and cannot guarantee the field's drop requirements."
         };
 
-        diagnostics.Add(MakeDiagnostic(FieldNotOwned, message, fieldNode, model));
+        diagnostics.ReportAtNode(OwnershipDiagnostics.DropFieldNotOwned, fieldNode, "Drop", message);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────
@@ -515,56 +494,6 @@ public sealed class DropAnalyzer : IAnalyzer
         }
 
         return count;
-    }
-
-    /// <summary>
-    /// Creates a diagnostic with source location information resolved from the AST node.
-    /// Mirrors the <see cref="OwnershipAnalyzer"/> helper of the same name.
-    /// </summary>
-    private static Diagnostic MakeDiagnostic(
-        DiagnosticId id,
-        string message,
-        SyntaxNode node,
-        ISemanticModel model)
-    {
-        Common.Source.LinePositionSpan? location = null;
-        string? compilationUnitPath = null;
-
-        var span = node.Span;
-        if(span.Length > 0)
-        {
-            var asts = model.Asts;
-            var units = model.Units;
-            var astIndex = -1;
-
-            for(var i = 0; i < asts.Length; i++)
-            {
-                var astSpan = asts[i].Span;
-                if(span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
-                {
-                    astIndex = i;
-                    break;
-                }
-            }
-
-            if(astIndex >= 0 && astIndex < units.Count)
-            {
-                var source = units[astIndex].Source;
-                compilationUnitPath = source.Path;
-
-                var sourceSpan = new Common.Source.SourceSpan(span.Start, span.Length);
-                location = source.ToLinePositionSpan(sourceSpan);
-            }
-        }
-
-        return new Diagnostic(
-            id,
-            DiagnosticSeverity.Error,
-            PipelineStage.Analysis,
-            message,
-            Location: location ?? default,
-            CompilationUnitPath: compilationUnitPath ?? "",
-            AnalyzerName: "Drop");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -977,19 +906,19 @@ public sealed class DropAnalyzer : IAnalyzer
 
                 if(discipline == SubstructuralDiscipline.Affine)
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        UseAfterDrop,
-                        $"Use of dropped value '{symbol.Name}'.",
+                    diagnostics.ReportAtNode(
+                        OwnershipDiagnostics.DropUseAfterDrop,
                         identifier,
-                        model));
+                        "Drop",
+                        $"Use of dropped value '{symbol.Name}'.");
                 }
                 else
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        UseAfterMove,
-                        $"Use of moved/dropped value '{symbol.Name}'.",
+                    diagnostics.ReportAtNode(
+                        OwnershipDiagnostics.DropUseAfterMove,
                         identifier,
-                        model));
+                        "Drop",
+                        $"Use of moved/dropped value '{symbol.Name}'.");
                 }
             }
         }
@@ -1069,11 +998,11 @@ public sealed class DropAnalyzer : IAnalyzer
 
                     if(!permitted)
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            FieldOutsideContainer,
-                            $"Cannot drop field '{fieldAccess.Name.Lexeme}' outside of the containing type's Drop() method.",
+                        diagnostics.ReportAtNode(
+                            OwnershipDiagnostics.DropFieldOutsideContainer,
                             prev,
-                            model));
+                            "Drop",
+                            $"Cannot drop field '{fieldAccess.Name.Lexeme}' outside of the containing type's Drop() method.");
                     }
                 }
             }

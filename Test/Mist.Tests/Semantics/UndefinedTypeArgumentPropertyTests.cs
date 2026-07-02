@@ -201,7 +201,7 @@ public class UndefinedTypeArgumentPropertyTests
 
         // Should emit at least one MIST_UNDEFINED_TYPE_ARGUMENT diagnostic
         var undefinedDiags = diagnostics
-            .Where(d => d.Id == DiagnosticId.UndefinedTypeArgument)
+            .Where(d => d.Id == GenericsDiagnostics.UndefinedTypeArgument.Id)
             .ToList();
 
         return undefinedDiags.Count >= 1;
@@ -237,7 +237,7 @@ public class UndefinedTypeArgumentPropertyTests
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
-        var undefinedDiags = diagnostics.Where(d => d.Id == DiagnosticId.UndefinedTypeArgument).ToList();
+        var undefinedDiags = diagnostics.Where(d => d.Id == GenericsDiagnostics.UndefinedTypeArgument.Id).ToList();
         _ = Assert.Single(undefinedDiags);
         Assert.Contains("Nonexistent", undefinedDiags[0].Message);
     }
@@ -270,7 +270,7 @@ public class UndefinedTypeArgumentPropertyTests
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
-        var undefinedDiags = diagnostics.Where(d => d.Id == DiagnosticId.UndefinedTypeArgument).ToList();
+        var undefinedDiags = diagnostics.Where(d => d.Id == GenericsDiagnostics.UndefinedTypeArgument.Id).ToList();
         Assert.Equal(2, undefinedDiags.Count);
     }
 
@@ -314,7 +314,7 @@ public class UndefinedTypeArgumentPropertyTests
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
-        var undefinedDiags = diagnostics.Where(d => d.Id == DiagnosticId.UndefinedTypeArgument).ToList();
+        var undefinedDiags = diagnostics.Where(d => d.Id == GenericsDiagnostics.UndefinedTypeArgument.Id).ToList();
         _ = Assert.Single(undefinedDiags);
         Assert.Contains("Nonexistent", undefinedDiags[0].Message);
     }

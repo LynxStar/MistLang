@@ -139,7 +139,7 @@ public sealed class CooperationContractVerifier
         // cloning it would duplicate global state. Reject it directly as a contract violation.
         if(IsStaticOrGlobalRead(source, model))
         {
-            ReportContractViolation(methodSymbol, assignment, model, diagnostics);
+            ReportContractViolation(methodSymbol, assignment, diagnostics);
             return;
         }
 
@@ -157,7 +157,7 @@ public sealed class CooperationContractVerifier
 
         if(resolution.Outcome == MoveOutcome.Error)
         {
-            ReportContractViolation(methodSymbol, assignment, model, diagnostics);
+            ReportContractViolation(methodSymbol, assignment, diagnostics);
         }
     }
 
@@ -168,15 +168,14 @@ public sealed class CooperationContractVerifier
     private static void ReportContractViolation(
         ISymbol methodSymbol,
         FieldAssignment assignment,
-        ISemanticModel model,
         DiagnosticBag diagnostics)
     {
         var sourceText = GetNodeText(assignment.Source);
-        diagnostics.Add(MakeDiagnostic(
-            OwnershipAnalyzer.ContractViolation,
-            OwnershipAnalyzer.ContractViolationMessage(methodSymbol.Name, assignment.Field.Name, sourceText),
+        diagnostics.ReportAtNode(
+            OwnershipDiagnostics.ContractViolation,
             assignment.Node,
-            model));
+            "Ownership",
+            methodSymbol.Name, assignment.Field.Name, sourceText);
     }
 
     // ── Field-assignment discovery ────────────────────────────────────────
@@ -533,10 +532,6 @@ public sealed class CooperationContractVerifier
     // ── Source / diagnostic plumbing (mirrors MoveBoundaryResolver) ─────────
 
     /// <summary>
-    /// Extracts the source text covered by a node's span for embedding in the diagnostic
-    /// message. Returns a placeholder when the span cannot be resolved.
-    /// </summary>
-    /// <summary>
     /// Renders a readable name for a source expression directly from the syntax tree, for
     /// embedding in the diagnostic message. Source spans are local to each compilation unit
     /// and a node does not carry its owning unit, so slicing source text by span is
@@ -616,56 +611,5 @@ public sealed class CooperationContractVerifier
         }
 
         return childCount == 1 && singleChild is not null ? RenderExpression(singleChild) : "";
-    }
-
-    /// <summary>
-    /// Creates an analysis diagnostic with source location resolved from the AST node span.
-    /// Mirrors <c>OwnershipAnalyzer.MakeDiagnostic</c> / <c>MoveBoundaryResolver.MakeDiagnostic</c>
-    /// so the verifier's diagnostics carry the same location and analyzer attribution.
-    /// </summary>
-    private static Diagnostic MakeDiagnostic(
-        DiagnosticId id,
-        string message,
-        SyntaxNode node,
-        ISemanticModel model)
-    {
-        Common.Source.LinePositionSpan? location = null;
-        string? compilationUnitPath = null;
-
-        var span = node.Span;
-        if(span.Length > 0)
-        {
-            var asts = model.Asts;
-            var units = model.Units;
-            var astIndex = -1;
-
-            for(var i = 0; i < asts.Length; i++)
-            {
-                var astSpan = asts[i].Span;
-                if(span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
-                {
-                    astIndex = i;
-                    break;
-                }
-            }
-
-            if(astIndex >= 0 && astIndex < units.Count)
-            {
-                var source = units[astIndex].Source;
-                compilationUnitPath = source.Path;
-
-                var sourceSpan = new Common.Source.SourceSpan(span.Start, span.Length);
-                location = source.ToLinePositionSpan(sourceSpan);
-            }
-        }
-
-        return new Diagnostic(
-            id,
-            DiagnosticSeverity.Error,
-            PipelineStage.Analysis,
-            message,
-            Location: location ?? default,
-            CompilationUnitPath: compilationUnitPath ?? "",
-            AnalyzerName: "Ownership");
     }
 }

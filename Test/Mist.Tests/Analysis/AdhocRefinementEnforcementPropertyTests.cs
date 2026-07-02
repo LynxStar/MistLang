@@ -326,7 +326,7 @@ public class AdhocRefinementEnforcementPropertyTests
         var diagnostics = CompileAndGetDiagnostics(scenario.ToSource());
 
         var violations = diagnostics
-            .Where(d => d.Id == TypeCheckerAnalyzer.RefinementConstraintViolation)
+            .Where(d => d.Id == TypeCheckDiagnostics.RefinementConstraintViolation.Id)
             .ToList();
 
         var passed = scenario.ShouldAccept
@@ -356,7 +356,7 @@ public class AdhocRefinementEnforcementPropertyTests
         var diagnostics = CompileAndGetDiagnostics(scenario.ToSource());
 
         var violations = diagnostics
-            .Where(d => d.Id == TypeCheckerAnalyzer.ParameterRefinementViolation)
+            .Where(d => d.Id == TypeCheckDiagnostics.ParameterRefinementViolation.Id)
             .ToList();
 
         var passed = scenario.ShouldAccept
@@ -386,7 +386,7 @@ public class AdhocRefinementEnforcementPropertyTests
         var diagnostics = CompileAndGetDiagnostics(scenario.ToSource());
 
         var violations = diagnostics
-            .Where(d => d.Id == TypeCheckerAnalyzer.ParameterRefinementViolation)
+            .Where(d => d.Id == TypeCheckDiagnostics.ParameterRefinementViolation.Id)
             .ToList();
 
         var passed = scenario.ShouldAccept
@@ -416,7 +416,7 @@ public class AdhocRefinementEnforcementPropertyTests
         var diagnostics = CompileAndGetDiagnostics(scenario.ToSource());
 
         var violations = diagnostics
-            .Where(d => d.Id == TypeCheckerAnalyzer.ParameterRefinementViolation)
+            .Where(d => d.Id == TypeCheckDiagnostics.ParameterRefinementViolation.Id)
             .ToList();
 
         var passed = scenario.ShouldAccept

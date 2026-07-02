@@ -29,14 +29,7 @@ public sealed class MistLexer : ILexer
                     new LinePosition(entry.Line, entry.Column))
                 : default;
 
-            diagnostics.Add(new Diagnostic(
-                new DiagnosticId("MIST_LEX_ERROR"),
-                DiagnosticSeverity.Error,
-                PipelineStage.Lexing,
-                entry.Message,
-                Location: location,
-                CompilationUnitPath: entry.FilePath ?? source.Path,
-                AnalyzerName: null));
+            diagnostics.Report(LexerDiagnostics.LexError, location, entry.FilePath ?? source.Path, entry.Message);
         }
 
         return new TokenStream(source, stormTokenStream.AllTokens);

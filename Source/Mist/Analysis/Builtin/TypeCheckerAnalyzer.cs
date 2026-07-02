@@ -20,939 +20,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 {
     public string AnalyzerId => "TypeChecker";
 
-    // ── Overloading diagnostic IDs ───────────────────────────────────────
-    internal static readonly DiagnosticId NoApplicableOverload = new("MIST_TC_0031");
-    internal static readonly DiagnosticId AmbiguousOverload = new("MIST_TC_0032");
-
-    // ── Cast operator diagnostic IDs ─────────────────────────────────────
-    /// <summary>
-    /// Emitted when a cast operator's source parameter type and target type
-    /// are both different from the enclosing type (Requirement 6.2).
-    /// </summary>
-    internal static readonly DiagnosticId CastOperatorEnclosingTypeViolation = new("MIST_TC_0040");
-
-    /// <summary>
-    /// Emitted when two cast operators in the same type have the same kind
-    /// (implicit/explicit) and the same resolved source-target type pair
-    /// (Requirement 6.5).
-    /// </summary>
-    internal static readonly DiagnosticId DuplicateCastOperator = new("MIST_TC_0041");
-
-    /// <summary>
-    /// Emitted when no cast operator is defined from the source type to the
-    /// target type in an explicit cast expression (Requirement 8.6).
-    /// </summary>
-    internal static readonly DiagnosticId NoCastOperator = new("MIST_TC_0042");
-
-    /// <summary>
-    /// Emitted when multiple cast operators (explicit and implicit combined)
-    /// are applicable for the same explicit cast expression (Requirement 8.9).
-    /// </summary>
-    internal static readonly DiagnosticId AmbiguousCast = new("MIST_TC_0043");
-
-    /// <summary>
-    /// Emitted when multiple implicit cast operators are applicable for the
-    /// same conversion at an assignment, argument, or return site
-    /// (Requirement 7.6).
-    /// </summary>
-    internal static readonly DiagnosticId AmbiguousImplicitCast = new("MIST_TC_0044");
-
-    // ── Pattern matching diagnostic IDs ──────────────────────────────────
-
-    /// <summary>
-    /// Emitted when a type pattern references a type that does not exist
-    /// in any reachable scope (Requirement 10.1).
-    /// </summary>
-    internal static readonly DiagnosticId PatternUndefinedType = new("MIST_TC_0050");
-
-    /// <summary>
-    /// Emitted when a constant pattern's type is incompatible with the
-    /// scrutinee type (Requirement 10.3).
-    /// </summary>
-    internal static readonly DiagnosticId PatternConstantTypeMismatch = new("MIST_TC_0051");
-
-    /// <summary>
-    /// Emitted when a relational pattern is applied to a scrutinee whose
-    /// type does not support comparison operators (Requirement 10.4).
-    /// </summary>
-    internal static readonly DiagnosticId PatternRelationalNonComparable = new("MIST_TC_0052");
-
-    /// <summary>
-    /// Emitted when a property pattern references a property name that does
-    /// not exist on the scrutinee type or the type specified in the pattern
-    /// (Requirement 10.2).
-    /// </summary>
-    internal static readonly DiagnosticId PatternUndefinedProperty = new("MIST_TC_0053");
-
-    /// <summary>
-    /// Emitted when a list pattern is applied to a scrutinee that is not an
-    /// array type (Requirement 10.5).
-    /// </summary>
-    internal static readonly DiagnosticId PatternListRequiresArray = new("MIST_TC_0054");
-
-    /// <summary>
-    /// Emitted as a warning when a list pattern has more fixed elements than
-    /// the array could contain (Requirement 10.5).
-    /// </summary>
-    internal static readonly DiagnosticId PatternListTooManyElements = new("MIST_TC_0055");
-
-    /// <summary>
-    /// Emitted when an <c>or</c> pattern combines alternatives that introduce
-    /// different sets of pattern variables or the same names with different
-    /// types (Requirement 10.6).
-    /// </summary>
-    internal static readonly DiagnosticId PatternOrInconsistentVariables = new("MIST_TC_0056");
-
-    /// <summary>
-    /// Emitted when a <c>not</c> pattern contains a subpattern that
-    /// introduces a pattern variable (Requirement 10.7).
-    /// </summary>
-    internal static readonly DiagnosticId PatternNotCannotBindVariable = new("MIST_TC_0057");
-
-    // ── unknown-type feature: assignability diagnostics ──────────────────
-    //
-    // Note on numbering: the unknown-type design document's Diagnostic ID
-    // Allocation table originally proposed MIST_TC_0056 / MIST_TC_0057 for
-    // the two assignability rejections below. Those codes were already
-    // allocated to the pattern-matching feature (see PatternOrInconsistentVariables
-    // and PatternNotCannotBindVariable above), so the unknown-type assignability
-    // diagnostics were reallocated to MIST_TC_0060 / MIST_TC_0061 instead.
-
-    /// <summary>
-    /// Emitted when a value whose static type is <see cref="UnknownType"/>
-    /// is assigned to a location whose declared type is not <c>unknown</c>.
-    /// Narrowing via pattern matching (<c>is T t</c>) is the designated
-    /// mechanism to recover a concrete type from an <c>unknown</c> value
-    /// (Requirement 4.4).
-    /// </summary>
-    internal static readonly DiagnosticId UnknownToNonUnknown = new("MIST_TC_0060");
-
-    /// <summary>
-    /// Emitted when a <c>void</c> expression is assigned to an <c>unknown</c>
-    /// target. Every non-<c>void</c> type is assignable to <c>unknown</c>, but
-    /// <c>void</c> is excluded because it carries no value (Requirement 4.2).
-    /// </summary>
-    internal static readonly DiagnosticId VoidToUnknown = new("MIST_TC_0061");
-
-    // ── unknown-type feature: member-filtering diagnostic (Task 21.2) ────
-    //
-    // Note on numbering: the unknown-type design document's Diagnostic ID
-    // Allocation table originally proposed MIST_TC_0050 for the member-
-    // filtering diagnostic below. That code was already allocated to the
-    // pattern-matching feature (see PatternUndefinedType above), so the
-    // unknown-type filter diagnostic was reallocated to MIST_TC_0062 —
-    // the next free code after the assignability pair (0060, 0061) —
-    // to avoid overloading a diagnostic ID with two distinct meanings.
-
-    // ── unknown-type feature: struct-generic widening restriction (Task 23.4) ──
-    //
-    // Covariant unknown widening (Req 8.1–8.3) is only available for class
-    // (reference-type) generic definitions. When the only reason a widening
-    // assignment fails is that the generic definition whose arguments are
-    // being widened is a struct, the Type Checker emits this targeted
-    // diagnostic instead of the generic type-mismatch diagnostic, so the
-    // user sees an explanatory rather than a cascading error (Req 8.6,
-    // Req 16 diagnostic quality).
-    //
-    // The code MIST_TC_0058 was allocated in the design document's
-    // Diagnostic ID Allocation table and confirmed free in the 005x range
-    // at the time of implementation (all neighboring codes 0050–0057 are
-    // owned by the pattern-matching feature; 0058 and 0059 are unused).
-
-    /// <summary>
-    /// Emitted when a covariant <c>unknown</c> widening is attempted on a
-    /// generic definition whose <see cref="TypeKind"/> is
-    /// <see cref="TypeKind.Struct"/>. Widening is restricted to class
-    /// (reference-type) generics because the C# emission strategy — a
-    /// reference cast through <c>object</c> — is unsound for value-type
-    /// layouts (Req 8.1, 8.6).
-    /// </summary>
-    internal static readonly DiagnosticId StructGenericUnknownWidening = new("MIST_TC_0058");
-
-    // ── unknown-type feature: pattern-narrowing rejections (Task 24) ─────
-    //
-    // Note on numbering: the unknown-type design document's Diagnostic ID
-    // Allocation table originally proposed MIST_TC_0051 / MIST_TC_0052 for
-    // the two pattern-narrowing rejections below. Those codes were already
-    // allocated to the pattern-matching feature (see PatternConstantTypeMismatch
-    // and PatternRelationalNonComparable above), so the unknown-type pattern
-    // rejections were reallocated to MIST_TC_0063 / MIST_TC_0064 — the next
-    // free codes after the Task 21 member-filtering diagnostic (MIST_TC_0062) —
-    // to avoid overloading diagnostic IDs with two distinct meanings. This
-    // continues the same reallocation strategy used by Task 9 (0060 / 0061)
-    // and Task 21 (0062).
-
-    /// <summary>
-    /// Emitted when an <c>is</c>-pattern narrows to <see cref="UnknownType"/>
-    /// (e.g., <c>x is unknown u</c>). Narrowing to <c>unknown</c> is not
-    /// meaningful: the pattern is tautologically true because every value
-    /// is assignable to <c>unknown</c> (Req 4.1), and the introduced binding
-    /// has no more specific type than the scrutinee (Req 11.3).
-    /// </summary>
-    internal static readonly DiagnosticId PatternNarrowToUnknown = new("MIST_TC_0063");
-
-    /// <summary>
-    /// Emitted when an <c>is</c>-pattern narrows to a
-    /// <c>Closed_Generic_With_Unknown</c> (e.g., <c>x is List&lt;unknown&gt; lu</c>).
-    /// Narrowing to such a type is not meaningful: Covariant_Unknown_Widening
-    /// (Req 8) makes the pattern tautologically true, and the introduced
-    /// binding loses information — members classified <c>WritesT</c> with
-    /// respect to the <c>unknown</c>-bound type parameter are filtered per
-    /// Requirement 10 without any gain over the scrutinee (Req 11.4).
-    /// </summary>
-    internal static readonly DiagnosticId PatternNarrowToClosedGenericWithUnknown = new("MIST_TC_0064");
-
-    // ── unknown-type feature: bare-unknown rejection (Task 25) ───────────
-    //
-    // Note on numbering: the unknown-type design document's Diagnostic ID
-    // Allocation table originally proposed MIST_TC_0053 / MIST_TC_0054 for
-    // the two bare-unknown rejections below. Those codes were already
-    // allocated to the pattern-matching feature (see PatternUndefinedProperty
-    // and PatternListRequiresArray above), so the unknown-type bare-unknown
-    // rejections were reallocated to MIST_TC_0065 / MIST_TC_0066 — the next
-    // free codes after the Task 24 pattern-narrowing diagnostics
-    // (MIST_TC_0063, MIST_TC_0064) — to avoid overloading diagnostic IDs
-    // with two distinct meanings. This continues the same reallocation
-    // strategy used by Task 9 (0060 / 0061), Task 21 (0062), and
-    // Task 24 (0063 / 0064).
-
-    /// <summary>
-    /// Emitted when a member access expression has a receiver whose static
-    /// type is exactly <see cref="UnknownType"/> (not a Constructed_Type
-    /// with <c>unknown</c> arguments). Per Requirement 13.1, no member
-    /// exists on bare <c>unknown</c> regardless of the member name. The
-    /// message suggests using an <c>is</c> pattern to narrow to a concrete
-    /// type before accessing members (Req 16.4).
-    /// </summary>
-    internal static readonly DiagnosticId BareUnknownMemberAccess = new("MIST_TC_0065");
-
-    /// <summary>
-    /// Emitted when a binary or unary operator is applied to an operand
-    /// whose static type is exactly <see cref="UnknownType"/>. Per
-    /// Requirement 13.2, no operators are defined for bare <c>unknown</c>.
-    /// This applies to <c>==</c>, <c>!=</c>, <c>&lt;</c>, <c>&gt;</c>,
-    /// <c>&lt;=</c>, <c>&gt;=</c>, <c>+</c>, <c>-</c>, <c>*</c>, <c>/</c>,
-    /// <c>%</c>, <c>&amp;&amp;</c>, <c>||</c>, <c>!</c>, and any
-    /// user-defined operators. The message suggests using an <c>is</c>
-    /// pattern to narrow the operand first (Req 16.4).
-    /// </summary>
-    internal static readonly DiagnosticId BareUnknownOperator = new("MIST_TC_0066");
-
-    // ── unknown-type feature: cast-from-unknown diagnostic (Task 26) ─────
-    //
-    // Note on numbering: the unknown-type design document's Diagnostic ID
-    // Allocation table originally proposed MIST_TC_0055 for the "no cast
-    // operator from unknown to T" diagnostic below. That code was already
-    // allocated to the pattern-matching feature (see PatternListTooManyElements
-    // above — a warning emitted when a list pattern has more fixed elements
-    // than the array could contain). To avoid overloading a diagnostic ID
-    // with two distinct meanings — especially one being an error and the
-    // other a warning — the unknown-type cast-from-unknown diagnostic was
-    // reallocated to MIST_TC_0067, the next free code after the Task 25
-    // bare-unknown diagnostics (MIST_TC_0065, MIST_TC_0066). This continues
-    // the reallocation strategy used by Task 9 (0060 / 0061), Task 21 (0062),
-    // Task 24 (0063 / 0064), and Task 25 (0065 / 0066).
-
-    /// <summary>
-    /// Emitted when a cast expression <c>(T) expr</c> has an operand whose
-    /// static type is <see cref="UnknownType"/> and no implicit or explicit
-    /// cast operator from <c>unknown</c> to <c>T</c> has been declared on
-    /// <c>T</c>. Per Requirement 13.4, a cast from <c>unknown</c> to <c>T</c>
-    /// requires a statically-resolvable cast operator; unlike C#, Mist does
-    /// not permit a runtime-checked cast through <c>object</c>. The
-    /// diagnostic's message names the target type and explains that a
-    /// user-defined operator <c>implicit/explicit operator T(unknown)</c>
-    /// must be declared on <c>T</c> for the cast to compile (Req 13.6).
-    /// </summary>
-    internal static readonly DiagnosticId NoCastOperatorFromUnknown = new("MIST_TC_0067");
-
-    // ── type-unions feature: assignability diagnostics ────────────────────
-    //
-    // Note on numbering: the type-unions design document's Diagnostic ID
-    // Allocation table originally proposed MIST_TC_0050 / MIST_TC_0051 /
-    // MIST_TC_0055 for the three union assignability diagnostics below.
-    // Those codes were already allocated to the pattern-matching feature
-    // (see PatternUndefinedType, PatternConstantTypeMismatch, and
-    // PatternListTooManyElements above), so the type-unions assignability
-    // diagnostics were reallocated to MIST_TC_0070 / MIST_TC_0071 /
-    // MIST_TC_0072 — the next free codes after the unknown-type cast
-    // diagnostic (MIST_TC_0067). This continues the same reallocation
-    // strategy used throughout this file.
-
-    /// <summary>
-    /// Emitted when a non-constituent type is assigned to a union-typed
-    /// target. For example, assigning <c>bool</c> to <c>int | string</c>
-    /// when <c>bool</c> is not a constituent of the union (Requirement 6.3).
-    /// </summary>
-    internal static readonly DiagnosticId UnionNonConstituentAssignment = new("MIST_TC_0070");
-
-    /// <summary>
-    /// Emitted when a union type is assigned to a non-union target without
-    /// narrowing. For example, assigning <c>int | string</c> to <c>int</c>
-    /// without first using a pattern match to narrow the union (Requirement 6.4).
-    /// </summary>
-    internal static readonly DiagnosticId UnionToNonUnionAssignment = new("MIST_TC_0071");
-
-    /// <summary>
-    /// Emitted when a union type is assigned to another union type but at
-    /// least one constituent of the source union is not present in the target
-    /// union. For example, assigning <c>int | string | bool</c> to
-    /// <c>int | string</c> when <c>bool</c> is not a constituent of the
-    /// target (Requirement 6.3).
-    /// </summary>
-    internal static readonly DiagnosticId UnionIncompatibleConstituents = new("MIST_TC_0072");
-
-    /// <summary>
-    /// Emitted when a member access or method call is performed on a union-typed
-    /// value and the member does not exist on all constituent types. The diagnostic
-    /// message lists which constituent types lack the member (Requirement 7.2).
-    /// </summary>
-    internal static readonly DiagnosticId UnionMemberNotOnAllConstituents = new("MIST_TC_0073");
-
-    /// <summary>
-    /// Emitted as a warning when a type pattern on a union-typed scrutinee
-    /// references a type that is not one of the union's constituent types.
-    /// The pattern will never match at runtime (Requirement 8.3, 12.5).
-    /// </summary>
-    internal static readonly DiagnosticId UnionPatternNonConstituent = new("MIST_TC_0074");
-
-    /// <summary>
-    /// Emitted as a warning when a union type annotation resolves to fewer
-    /// than two distinct constituent types after flattening and deduplication.
-    /// A union type requires at least two distinct types to be meaningful
-    /// (Requirement 12.1).
-    /// </summary>
-    internal static readonly DiagnosticId UnionDegenerateType = new("MIST_TC_0075");
-
-    // ── Readonly parameter call-site diagnostic ID ───────────────────────
-    //
-    // REMOVED: MIST_TC_0076 (ReadonlyTypeToNonReadonlyParam) was removed because
-    // the underlying requirement (14.5) was incorrect. A readonly type cannot be
-    // mutated regardless of whether the parameter is marked readonly — the readonly
-    // modifier on a parameter exists to impose readonly constraints on types that
-    // are NOT inherently readonly. There is no danger in passing a readonly type
-    // to a non-readonly parameter.
-
-    // ── Readonly generic constraint diagnostic IDs ─────────────────────
-    //
-    // Note on numbering: the readonly-contexts design document's Diagnostic
-    // ID Allocation table proposed MIST_TC_0070 / MIST_TC_0071 for the
-    // readonly/mutable constraint violations. Those codes were already
-    // allocated to the type-unions feature (see UnionNonConstituentAssignment
-    // and UnionToNonUnionAssignment above), so the readonly constraint
-    // diagnostics were reallocated to MIST_TC_0077 / MIST_TC_0078 — the
-    // next free codes after the readonly parameter call-site diagnostic
-    // (MIST_TC_0076) — to avoid overloading diagnostic IDs with two
-    // distinct meanings.
-
-    /// <summary>
-    /// Emitted when a type argument does not satisfy the 'readonly' constraint
-    /// on a type parameter. The type argument must be a readonly type
-    /// (Requirement 12.1, 12.7).
-    /// </summary>
-    internal static readonly DiagnosticId ConstraintReadonlyViolation = new("MIST_TC_0077");
-
-    /// <summary>
-    /// Emitted when a type argument does not satisfy the 'mutable' constraint
-    /// on a type parameter. The type argument must not be a readonly type
-    /// (Requirement 12.2, 12.7).
-    /// </summary>
-    internal static readonly DiagnosticId ConstraintMutableViolation = new("MIST_TC_0078");
-
-    // ── Readonly abstract contract diagnostic ID ────────────────────────
-    //
-    // Note on numbering: the readonly-contexts design document's Diagnostic
-    // ID Allocation table proposed MIST_TC_0072 for this diagnostic. That
-    // code was already allocated to the type-unions feature (see
-    // UnionIncompatibleConstituents above), so the readonly contract
-    // diagnostic was reallocated to MIST_TC_0079 — the next free code
-    // after the readonly constraint diagnostics (MIST_TC_0077, 0078) — to
-    // avoid overloading a diagnostic ID with two distinct meanings.
-
-    /// <summary>
-    /// Emitted when a type implements a readonly abstract but the
-    /// implementing member is not readonly (explicit or inferred). The
-    /// implementing member must be readonly to satisfy the contract
-    /// (Requirement 13.2, 13.3, 13.4, 13.5, 13.6).
-    /// </summary>
-    internal static readonly DiagnosticId ReadonlyContractViolation = new("MIST_TC_0079");
-
-    // ── switch-expressions feature: type checker diagnostics ─────────────
-    //
-    // Note on numbering: the switch-expressions design document's Diagnostic
-    // ID Allocation table originally proposed MIST_TC_0060–0063 for the four
-    // switch expression diagnostics below. Those codes were already allocated
-    // to the unknown-type feature (see UnknownToNonUnknown, VoidToUnknown,
-    // and PatternNarrowToUnknown above),
-    // so the switch-expressions diagnostics were reallocated to
-    // MIST_TC_0090–0093 — the next free codes after the extension-methods
-    // diagnostics (MIST_TC_0080–0083). This continues the same reallocation
-    // strategy used throughout this file.
-
-    /// <summary>
-    /// Emitted when a switch expression does not cover all possible values
-    /// of the scrutinee's static type. The diagnostic message lists the
-    /// missing cases (Requirement 6.6).
-    /// </summary>
-    internal static readonly DiagnosticId SwitchNotExhaustive = new("MIST_TC_0090");
-
-    /// <summary>
-    /// Emitted when the result expressions of switch arms have incompatible
-    /// types — no common type can be determined (Requirement 5.4).
-    /// </summary>
-    internal static readonly DiagnosticId SwitchIncompatibleArmTypes = new("MIST_TC_0091");
-
-    /// <summary>
-    /// Emitted when a <c>when</c> guard expression in a switch arm does not
-    /// evaluate to type <c>bool</c> (Requirement 8.2).
-    /// </summary>
-    internal static readonly DiagnosticId SwitchGuardNotBool = new("MIST_TC_0092");
-
-    /// <summary>
-    /// Emitted as a warning when a switch arm is unreachable because it is
-    /// subsumed by a preceding arm (Requirement 7.1).
-    /// </summary>
-    internal static readonly DiagnosticId SwitchUnreachableArm = new("MIST_TC_0093");
-
-    // ── Generic constraint satisfaction diagnostic IDs ────────────────────
-
-    /// <summary>
-    /// Emitted when a type argument does not implement a required abstract
-    /// constraint on a type parameter (Requirement 5.2, 10.1).
-    /// </summary>
-    internal static readonly DiagnosticId ConstraintAbstractNotImplemented = new("MIST_CONSTRAINT_0009");
-
-    /// <summary>
-    /// Emitted when a type argument does not derive from a required base
-    /// class constraint on a type parameter (Requirement 5.4, 10.3).
-    /// </summary>
-    internal static readonly DiagnosticId ConstraintBaseClassNotDerived = new("MIST_CONSTRAINT_0011");
-
-    /// <summary>
-    /// Emitted when a type argument must be a reference type to satisfy the
-    /// 'class' constraint but is a value type (Requirement 5.5, 10.4).
-    /// </summary>
-    internal static readonly DiagnosticId ConstraintClassViolation = new("MIST_CONSTRAINT_0012");
-
-    /// <summary>
-    /// Emitted when a type argument must be a value type to satisfy the
-    /// 'struct' constraint but is a reference type (Requirement 5.6, 10.5).
-    /// </summary>
-    internal static readonly DiagnosticId ConstraintStructViolation = new("MIST_CONSTRAINT_0013");
-
-    /// <summary>
-    /// Emitted when a type argument must have a public parameterless
-    /// constructor to satisfy the 'new()' constraint (Requirement 5.7, 10.6).
-    /// </summary>
-    internal static readonly DiagnosticId ConstraintParameterlessCtorViolation = new("MIST_CONSTRAINT_0014");
-
-    /// <summary>
-    /// Emitted when a type argument must have a public constructor with
-    /// specific parameters to satisfy a parameterized constructor constraint
-    /// (Requirement 5.8, 10.7).
-    /// </summary>
-    internal static readonly DiagnosticId ConstraintParameterizedCtorViolation = new("MIST_CONSTRAINT_0015");
-
-    /// <summary>
-    /// Emitted when a <c>new T(...)</c> expression is used in a generic body
-    /// and the argument types do not match any declared constructor constraint
-    /// signature on that type parameter (Requirement 6.5, 6.6, 10.8).
-    /// </summary>
-    internal static readonly DiagnosticId ConstraintNewTNoMatch = new("MIST_CONSTRAINT_0016");
-
-    /// <summary>
-    /// Emitted when a derived type inherits from a constrained generic base
-    /// but does not declare constraints at least as restrictive on the
-    /// corresponding type parameter (Requirement 7.1, 7.2, 7.3).
-    /// </summary>
-    internal static readonly DiagnosticId ConstraintPropagationInsufficient = new("MIST_CONSTRAINT_0017");
-
-    /// <summary>
-    /// Emitted when a type argument's substructural discipline does not satisfy
-    /// the substructural constraint on the corresponding type parameter.
-    /// </summary>
-    internal static readonly DiagnosticId ConstraintSubstructuralViolation = new("MIST_CONSTRAINT_0018");
-
-    // ── property-initializers feature: validation diagnostics ──────────────
-
-    /// <summary>
-    /// Emitted when a property initializer block references a member name
-    /// that does not exist as a property or field on the constructed type.
-    /// </summary>
-    internal static readonly DiagnosticId PropertyInitializerMemberNotFound = new("MIST_PI_0001");
-
-    /// <summary>
-    /// Emitted when the value expression type in a property initializer
-    /// assignment is not assignable to the target member's declared type.
-    /// </summary>
-    internal static readonly DiagnosticId PropertyInitializerTypeMismatch = new("MIST_PI_0002");
-
-    /// <summary>
-    /// Emitted when a property initializer targets a property that has no
-    /// accessible <c>set</c> or <c>init</c> accessor.
-    /// </summary>
-    internal static readonly DiagnosticId PropertyInitializerNoSetOrInit = new("MIST_PI_0003");
-
-    /// <summary>
-    /// Emitted when a property initializer targets a field that is readonly
-    /// (explicit, inferred, or implicit).
-    /// </summary>
-    internal static readonly DiagnosticId PropertyInitializerReadonlyField = new("MIST_PI_0004");
-
-    /// <summary>
-    /// Emitted when a property initializer targets a member that is
-    /// inaccessible due to its protection level (e.g., private from outside
-    /// the declaring type).
-    /// </summary>
-    internal static readonly DiagnosticId PropertyInitializerInaccessible = new("MIST_PI_0005");
-
-    /// <summary>
-    /// Emitted when the same member name appears more than once in a
-    /// property initializer block.
-    /// </summary>
-    internal static readonly DiagnosticId PropertyInitializerDuplicate = new("MIST_PI_0006");
-
-    // ── array-literals feature: incompatible element types ──────────────
-
-    /// <summary>
-    /// Emitted when an array literal contains elements whose types are
-    /// incompatible — no common type can be determined. The diagnostic
-    /// message names the two conflicting types (Requirement 5.2).
-    /// </summary>
-    internal static readonly DiagnosticId ArrayLiteralIncompatibleTypes = new("MIST_TC_0095");
-
-    // ── refinement-types feature: compile-time enforcement diagnostics ───
-    //
-    // Note on numbering: the refinement-types design document's Diagnostic
-    // ID Allocation table originally proposed MIST_TC_0070 / MIST_TC_0071
-    // for the two refinement enforcement diagnostics below. Those codes
-    // were already allocated to the type-unions feature (see
-    // UnionNonConstituentAssignment and UnionToNonUnionAssignment above),
-    // so the refinement enforcement diagnostics were reallocated to
-    // MIST_TC_0097 / MIST_TC_0098 — the next free codes after the empty
-    // array literal diagnostic (MIST_TC_0096). This continues the same
-    // reallocation strategy used throughout this file.
-
-    /// <summary>
-    /// Emitted when a compile-time constant value is assigned to a
-    /// <see cref="RefinementType"/> variable and
-    /// the value does not satisfy the refinement predicate (Requirement 5.2).
-    /// </summary>
-    internal static readonly DiagnosticId RefinementLiteralViolation = new("MIST_TC_0097");
-
-    /// <summary>
-    /// Emitted when a non-constant expression of the base type is assigned
-    /// to a <see cref="RefinementType"/> variable
-    /// without proving the refinement via pattern matching (Requirement 6.1).
-    /// </summary>
-    internal static readonly DiagnosticId RefinementNonConstantAssignment = new("MIST_TC_0098");
-
-    /// <summary>
-    /// Emitted when a value of one <see cref="RefinementType"/>
-    /// is assigned to a variable of a different <see cref="RefinementType"/>
-    /// with the same base type, but the compiler cannot prove that the source
-    /// predicate logically implies the target predicate (Requirement 9.3, 11.5).
-    /// </summary>
-    internal static readonly DiagnosticId RefinementSubsetNotProvable = new("MIST_TC_0099");
-
-    /// <summary>
-    /// Emitted when a refinement predicate references a mutable member via a
-    /// property pattern. All members in a refinement predicate must be readonly
-    /// to prevent the refinement from being silently invalidated by mutation
-    /// (Requirements 3.1, 3.2, 3.4).
-    /// </summary>
-    internal static readonly DiagnosticId RefinementMutableMember = new("MIST_TC_0100");
-
-    /// <summary>
-    /// Emitted when a refinement type is used in a pattern match but the
-    /// scrutinee type is not compatible with the refinement's base type.
-    /// The pattern will never match at runtime (Requirements 14.1, 14.4).
-    /// </summary>
-    internal static readonly DiagnosticId PatternIncompatibleRefinement = new("MIST_TC_0101");
-
-    // ── enums feature: readonly base type diagnostics ────────────────────
-
-    /// <summary>
-    /// An enum declaration's base type (explicit or inferred) is not readonly.
-    /// Enum base types must be readonly to ensure member values are immutable.
-    /// </summary>
-    internal static readonly DiagnosticId EnumBaseTypeNotReadonly = new("MIST_TC_0102");
-
-    /// <summary>
-    /// A constituent type within a union base type of an enum is not readonly.
-    /// All constituent types in a union enum base must be readonly.
-    /// </summary>
-    internal static readonly DiagnosticId EnumUnionConstituentNotReadonly = new("MIST_TC_0103");
-
-    // ── structured-concurrency feature: modifier incompatibility ─────────
-    //
-    // Note on numbering: the structured-concurrency design document's
-    // Diagnostic ID Allocation table proposed MIST_TC_0070 for this
-    // diagnostic. That code was already allocated to the type-unions feature
-    // (see UnionNonConstituentAssignment above), so the async+intrinsic
-    // diagnostic was reallocated to MIST_TC_0104 — the next free code after
-    // the enum diagnostics (MIST_TC_0102, 0103). This continues the same
-    // reallocation strategy used throughout this file.
-
-    /// <summary>
-    /// Emitted when a method declaration has both the <c>async</c> and
-    /// <c>intrinsic</c> modifiers. An intrinsic method is backend-backed
-    /// and cannot be async (Requirement 2.4).
-    /// </summary>
-    internal static readonly DiagnosticId AsyncIntrinsicIncompatible = new("MIST_TC_0104");
-
-    /// <summary>
-    /// Emitted when the <c>await</c> functor is applied to an expression
-    /// whose type is not <c>Task&lt;T&gt;</c>. The diagnostic message
-    /// includes the actual type of the operand (Requirement 4.3).
-    /// </summary>
-    internal static readonly DiagnosticId AwaitNonTaskOperand = new("MIST_TC_0105");
-
-    /// <summary>
-    /// Emitted when an <c>async</c> method explicitly declares <c>Task&lt;T&gt;</c>
-    /// as its return type. The compiler wraps the return type automatically, so
-    /// the developer must not write <c>Task&lt;T&gt;</c> explicitly (Requirement 2.6).
-    /// </summary>
-    internal static readonly DiagnosticId AsyncExplicitTaskReturnType = new("MIST_TC_0106");
-
-    /// <summary>
-    /// Emitted when the <c>async</c> modifier is applied to a constructor
-    /// or operator declaration. Constructors and operators cannot be async
-    /// (Requirement 2.5).
-    /// </summary>
-    internal static readonly DiagnosticId AsyncOnConstructorOrOperator = new("MIST_TC_0108");
-
-    /// <summary>
-    /// Emitted when the <c>async</c> functor is applied to an expression
-    /// that is not a method invocation. The async functor requires a method
-    /// invocation operand (Requirement 3.7).
-    /// </summary>
-    internal static readonly DiagnosticId AsyncFunctorNonInvocationOperand = new("MIST_TC_0107");
-
-    /// <summary>
-    /// Emitted as a warning when the <c>async</c> functor is applied to an
-    /// async method in an async context, producing <c>Task&lt;Task&lt;T&gt;&gt;</c>.
-    /// This is technically valid but almost certainly unintended (Requirement 3.6).
-    /// </summary>
-    internal static readonly DiagnosticId AsyncFunctorDoubleWrap = new("MIST_TC_0109");
-
-    // ── optional-types feature: operator diagnostics ─────────────────────
-
-    /// <summary>
-    /// Emitted when the optional chaining operator <c>?.</c> is applied to an
-    /// expression whose type does not contain <c>void</c> as a union constituent.
-    /// The operator requires a type of the form <c>T | void</c> so it can project
-    /// to <c>T</c> for member resolution (Requirements 3.1, 3.4).
-    /// </summary>
-    internal static readonly DiagnosticId OptionalChainingRequiresOptionalType = new("MIST_TC_0111");
-
-    // ── tuple-pattern-matching feature: type checker diagnostics ─────────
-
-    /// <summary>
-    /// Emitted when a tuple positional pattern is applied to a scrutinee
-    /// whose type is not a <see cref="TupleType"/> (Requirement 4.1, 8.1).
-    /// </summary>
-    internal static readonly DiagnosticId TuplePositionalPatternRequiresTupleType = new("MIST_TC_0113");
-
-    /// <summary>
-    /// Emitted when a tuple positional pattern has a different number of
-    /// elements than the scrutinee's <see cref="TupleType"/> arity
-    /// (Requirement 4.2, 8.2).
-    /// </summary>
-    internal static readonly DiagnosticId TuplePositionalPatternArityMismatch = new("MIST_TC_0114");
-
-    // ── first-class-functions feature: lambda validation diagnostics ─────
-
-    /// <summary>
-    /// Emitted when a parenthesized lambda parameter list mixes typed and untyped
-    /// parameters. All parameters must be either all typed or all untyped
-    /// (Requirements 4.7, 4.8).
-    /// </summary>
-    internal static readonly DiagnosticId MixedLambdaParameterTypes = new("MIST_TC_0115");
-
-    /// <summary>
-    /// Emitted when a lambda has implicit (untyped) parameters and no target Func
-    /// type is available to infer parameter types from (Requirements 6.6, 6.7).
-    /// </summary>
-    internal static readonly DiagnosticId CannotInferLambdaParameterTypes = new("MIST_TC_0116");
-
-    /// <summary>
-    /// Emitted when a block lambda has multiple return statements with inconsistent
-    /// types that cannot be unified (Requirement 6.7).
-    /// </summary>
-    internal static readonly DiagnosticId InconsistentLambdaReturnTypes = new("MIST_TC_0117");
-
-    /// <summary>
-    /// Emitted when a block lambda's target return type is non-void but the block
-    /// contains no return statement with a value (Requirement 5.4).
-    /// </summary>
-    internal static readonly DiagnosticId MissingReturnInNonVoidLambda = new("MIST_TC_0118");
-
-    /// <summary>
-    /// Emitted when an <c>await</c> expression appears inside a non-async lambda body.
-    /// Only async lambdas may use <c>await</c> (Requirement 9.5).
-    /// </summary>
-    internal static readonly DiagnosticId AwaitInNonAsyncLambda = new("MIST_TC_0126");
-
-    // ── first-class-functions feature: Func invocation validation diagnostics ─────
-
-    /// <summary>
-    /// Emitted when a Func-typed expression is invoked with the wrong number of
-    /// arguments. The expected count is derived from the Func type's type arguments
-    /// (all but the last, which is the return type) (Requirement 7.8).
-    /// </summary>
-    internal static readonly DiagnosticId FuncInvocationArgumentCountMismatch = new("MIST_TC_0119");
-
-    /// <summary>
-    /// Emitted when a Func-typed expression is invoked with an argument whose type
-    /// is not assignable to the corresponding Func parameter type (Requirement 7.9).
-    /// </summary>
-    internal static readonly DiagnosticId FuncInvocationArgumentTypeMismatch = new("MIST_TC_0120");
-
-    /// <summary>
-    /// Emitted when a method group conversion is ambiguous — multiple overloads of
-    /// the method match the target Func type's signature (Requirement 7.10).
-    /// </summary>
-    internal static readonly DiagnosticId AmbiguousMethodGroupConversion = new("MIST_TC_0121");
-
-    /// <summary>
-    /// Emitted when a static lambda references an enclosing variable, instance field,
-    /// or <c>this</c>. Static lambdas may only reference their own parameters, static
-    /// fields/methods, constants, and type names (Requirements 8.2, 8.3, 8.4).
-    /// </summary>
-    internal static readonly DiagnosticId StaticLambdaCaptureViolation = new("MIST_TC_0122");
-
-    // ── first-class-functions feature: capture restriction diagnostics ───
-    //
-    // Note on numbering: the first-class-functions design document's Diagnostic
-    // ID Allocation table originally proposed MIST_TC_0110 / MIST_TC_0111 /
-    // MIST_TC_0112 for the three capture restriction diagnostics below. Those
-    // first two codes were already allocated to the structured-concurrency
-    // feature (TaskStorageRestriction) and the optional-types feature
-    // (OptionalChainingRequiresOptionalType) respectively, so the capture
-    // restriction diagnostics were reallocated to MIST_TC_0123 / MIST_TC_0124 /
-    // MIST_TC_0125 — the next free codes after the static lambda capture
-    // violation (MIST_TC_0122). This continues the same reallocation strategy
-    // used throughout this file.
-
-    /// <summary>
-    /// Emitted when a lambda captures a variable whose type is a ref struct.
-    /// Ref struct values cannot live on the heap, so they cannot be captured
-    /// by a closure (Requirements 11.1, 11.2).
-    /// </summary>
-    internal static readonly DiagnosticId CaptureRefStruct = new("MIST_TC_0123");
-
-    /// <summary>
-    /// Emitted when a lambda captures a variable with <c>owned</c> ownership tier.
-    /// Ownership transfer semantics conflict with closure capture — the owned
-    /// variable's lifetime cannot be shared with the closure (Requirements 11.3, 11.4).
-    /// </summary>
-    internal static readonly DiagnosticId CaptureOwned = new("MIST_TC_0124");
-
-    /// <summary>
-    /// Emitted when a lambda captures a variable with <c>borrowed</c>, <c>frozen</c>,
-    /// or <c>readonly ref</c> ownership tier. These variables have lifetimes bounded
-    /// to the current scope and cannot outlive it via closure capture
-    /// (Requirements 11.5, 11.6, 11.7, 11.8).
-    /// </summary>
-    internal static readonly DiagnosticId CaptureBorrowedOrFrozen = new("MIST_TC_0125");
-
-    /// <summary>
-    /// Emitted when a type argument does not satisfy the 'owned' constraint
-    /// on a type parameter. The type argument must be an owned type
-    /// (declared with the <c>owned</c>, <c>affine</c>, or <c>linear</c> modifier).
-    /// </summary>
-    internal static readonly DiagnosticId ConstraintOwnedViolation = new("MIST_TC_0127");
-
-    // ── delegate-func-conversion: diagnostics ──────────────────────────
-
-    /// <summary>
-    /// Emitted when a value typed as <see cref="BaseDelegateType"/>
-    /// (<c>System.Delegate</c>) is invoked directly. The base delegate type
-    /// is not callable without a cast to a specific delegate or func type
-    /// (Requirements 3.6, 3.7).
-    /// </summary>
-    internal static readonly DiagnosticId BaseDelegateNotInvocable = new("MIST_TC_0128");
-
-    /// <summary>
-    /// Emitted when a func or lambda's signature is incompatible with the
-    /// target <see cref="DelegateType"/> (differing parameter count or
-    /// incompatible parameter/return types) (Requirement 2.5).
-    /// </summary>
-    internal static readonly DiagnosticId DelegateSignatureMismatch = new("MIST_TC_0129");
-
-    /// <summary>
-    /// Emitted when an assignment or conversion is attempted between two
-    /// distinct named delegates. Named delegates are nominally distinct even
-    /// when their signatures match (Requirements 6.1, 6.6).
-    /// </summary>
-    internal static readonly DiagnosticId DelegateNominalMismatch = new("MIST_TC_0130");
-
-    /// <summary>
-    /// Emitted when <c>System.Delegate</c> (<see cref="BaseDelegateType"/>) is
-    /// implicitly narrowed to a specific <see cref="DelegateType"/> or func type.
-    /// Use a cast to a specific delegate or func type (Requirement 6.7).
-    /// </summary>
-    internal static readonly DiagnosticId DelegateCannotNarrowBaseDelegate = new("MIST_TC_0131");
-
-    /// <summary>
-    /// Emitted when overload resolution cannot disambiguate between multiple
-    /// <see cref="DelegateType"/>-typed overloads — the argument is signature-compatible
-    /// with more than one named delegate parameter and no other disambiguation is
-    /// available (Requirements 7.5, 7.6).
-    /// </summary>
-    internal static readonly DiagnosticId DelegateOverloadAmbiguity = new("MIST_TC_0094");
-
-    /// <summary>
-    /// Emitted when a method group is used in a position targeting a <see cref="DelegateType"/>
-    /// but no overload of the method has a signature compatible with the delegate
-    /// (Requirement 2.9).
-    /// </summary>
-    internal static readonly DiagnosticId MethodGroupNoMatchingOverload = new("MIST_TC_0132");
-
-    /// <summary>
-    /// Emitted when a method group is used in a position targeting a <see cref="DelegateType"/>
-    /// and multiple overloads have signatures compatible with the delegate
-    /// (Requirement 2.9).
-    /// </summary>
-    internal static readonly DiagnosticId MethodGroupMultipleMatchingOverloads = new("MIST_TC_0133");
-
-    // ── enums feature: assignability diagnostic ──────────────────────────
-
-    /// <summary>
-    /// Emitted when a value of the underlying type is assigned to a variable
-    /// of the enum type. Reverse conversion from underlying type to enum is
-    /// not implicit; only enum-to-underlying is allowed (Requirement 7.3).
-    /// Uses the diagnostic ID defined in <see cref="SemanticModelBuilder"/>
-    /// (<c>MIST_SB_0083</c>).
-    /// </summary>
-    internal static readonly DiagnosticId CannotAssignUnderlyingToEnum = new("MIST_SB_0083");
-
-    // ── dependent-types feature: compile-time constant validation ─────────
-
-    /// <summary>
-    /// Emitted when a dependent type argument is not a compile-time constant.
-    /// Variables, method calls, property accesses, and expressions are rejected
-    /// (Requirement 5.1, 5.3, 15.1, 15.6).
-    /// </summary>
-    internal static readonly DiagnosticId DependentArgNotConstant = new("MIST_DT_0002");
-
-    /// <summary>
-    /// Emitted when a dependent type argument's type does not match the
-    /// dependent parameter's value type annotation (Requirement 15.2).
-    /// </summary>
-    internal static readonly DiagnosticId DependentArgTypeMismatch = new("MIST_DT_0003");
-
-    /// <summary>
-    /// Emitted when a derived type forwards a dependent parameter to a base type
-    /// but the derived parameter's value type cannot be implicitly widened to the
-    /// base parameter's value type (e.g., <c>long</c> forwarded to <c>int</c>).
-    /// (Requirements 12.3, 12.4).
-    /// </summary>
-    internal static readonly DiagnosticId DependentNarrowingViolation = new("MIST_DT_0004");
-
-    /// <summary>
-    /// Emitted when a pattern match is attempted against an open dependent type
-    /// (a constructed type whose dependent arguments contain unresolved parameters).
-    /// Pattern matching requires all dependent values to be concrete
-    /// (Requirement 9.3, 9.4, 15.7).
-    /// </summary>
-    internal static readonly DiagnosticId DependentOpenTypePattern = new("MIST_DT_0007");
-
-    // ── regex-type feature: compile-time regex validation ─────────────────
-
-    /// <summary>
-    /// Emitted when a regex literal pattern (in expression, pattern, or
-    /// refinement position) is not a syntactically valid .NET regular
-    /// expression. The diagnostic message includes the error description
-    /// from the .NET regex parser and the zero-based character offset
-    /// within the pattern where the error was detected
-    /// (Requirements 4.6, 5.3, 5.4, 5.5).
-    /// </summary>
-    internal static readonly DiagnosticId RegexPatternInvalid = new("MIST_TC_REGEX_INVALID");
-
-    /// <summary>
-    /// Emitted when a regex literal pattern is used in an <c>is</c> expression
-    /// or switch arm but the scrutinee type is not <c>string</c>. Regex patterns
-    /// can only match against string values (Requirements 7.2, 7.3).
-    /// </summary>
-    internal static readonly DiagnosticId RegexScrutineeNotString = new("MIST_TC_REGEX_SCRUTINEE");
-
-    /// <summary>
-    /// Emitted when a regex refinement predicate is applied to a non-<c>string</c>
-    /// base type. Regex refinement predicates are only valid on <c>string</c> types
-    /// (Requirement 11.3).
-    /// </summary>
-    internal static readonly DiagnosticId RegexRefinementOnNonString = new("MIST_TC_REGEX_REFINEMENT");
-
-    // ── adhoc-refinement-constraints feature: compile-time enforcement ────
-
-    /// <summary>
-    /// Emitted when a dependent type argument (compile-time constant) violates the
-    /// adhoc refinement constraint on the target parameter (Requirements 5.2, 5.3).
-    /// </summary>
-    internal static readonly DiagnosticId RefinementConstraintViolation = new("MIST_REFINEMENT_0004");
-
-    /// <summary>
-    /// Emitted when a forwarded dependent parameter's adhoc constraint does not
-    /// provably imply the target parameter's adhoc constraint (Requirements 5.4, 5.5).
-    /// </summary>
-    internal static readonly DiagnosticId RefinementImplicationFailure = new("MIST_REFINEMENT_0006");
-
-    /// <summary>
-    /// Emitted when a forwarded dependent parameter has no adhoc constraint but the
-    /// target parameter requires one (Requirement 5.6).
-    /// </summary>
-    internal static readonly DiagnosticId RefinementUnconstrainedForwarding = new("MIST_REFINEMENT_0008");
-
-    /// <summary>
-    /// Emitted when a compile-time constant argument violates the adhoc refinement
-    /// constraint on a method, constructor, or indexer parameter (Requirements 6.2, 6.5, 6.6).
-    /// </summary>
-    internal static readonly DiagnosticId ParameterRefinementViolation = new("MIST_REFINEMENT_0005");
-
-    /// <summary>
-    /// Emitted when a refinement predicate uses relational patterns on a type that does
-    /// not support comparison (e.g., bool, string). Relational patterns require a comparable
-    /// type (integers, char, float, double, decimal) (Requirements 11.1–11.7, 13.6).
-    /// </summary>
-    internal static readonly DiagnosticId RefinementPredicateIncompatible = new("MIST_REFINEMENT_0007");
-
-    // ── as-operator feature: type checker diagnostics ────────────────────
-    //
-    // Note on numbering: the as-operator design document's Diagnostic ID
-    // Allocation table originally proposed MIST_TC_0070 / MIST_TC_0071 /
-    // MIST_TC_0072 for the three as-operator diagnostics below. Those codes
-    // were already allocated to the type-unions feature (see
-    // UnionNonConstituentAssignment, UnionToNonUnionAssignment, and
-    // UnionIncompatibleConstituents above), so the as-operator diagnostics
-    // were reallocated to MIST_TC_0160 / MIST_TC_0161 / MIST_TC_0162 —
-    // the next free codes after the stack-only-types diagnostics
-    // (MIST_TC_0150–0157). This continues the same reallocation strategy
-    // used throughout this file.
-
-    /// <summary>
-    /// Emitted when an <c>as</c> expression is used between two types that have
-    /// no type relationship (neither is a subtype of the other, no abstract
-    /// relationship, no union membership, neither is <c>unknown</c>).
-    /// (Requirements 4.1, 4.2, 8.1).
-    /// </summary>
-    internal static readonly DiagnosticId AsOperatorNoRelationship = new("MIST_TC_0160");
-
-    /// <summary>
-    /// Emitted when an <c>as</c> expression targets <c>void</c>. Converting to
-    /// <c>void</c> is meaningless — the result would always be <c>void</c>.
-    /// (Requirements 4.3, 8.2).
-    /// </summary>
-    internal static readonly DiagnosticId AsOperatorVoidTarget = new("MIST_TC_0161");
-
-    /// <summary>
-    /// Emitted when the left operand of an <c>as</c> expression has a <c>void</c>
-    /// static type. A void-typed expression carries no value and cannot be converted.
-    /// (Requirements 4.4, 8.3).
-    /// </summary>
-    internal static readonly DiagnosticId AsOperatorVoidSource = new("MIST_TC_0162");
-
     /// <summary>
     /// Feature flag gating the operator overload-resolution path introduced by
     /// Task 14 of the Mist Standard Library spec. When <c>true</c> (the
@@ -974,6 +41,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     // (design § Migration Plan) calls it out explicitly.
     internal static bool useOperatorOverloadResolution = true;
 #pragma warning restore CA1805
+
+    // ── Diagnostic ID constants for reflection-based test discovery ──────
+    internal static readonly DiagnosticId DiagnosticIdMIST_TC_0102 = new("MIST_TC_0102");
+    internal static readonly DiagnosticId DiagnosticIdMIST_TC_0103 = new("MIST_TC_0103");
 
     /// <summary>
     /// DisplayName-based numeric classification set — covers both the
@@ -1247,24 +318,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         if(entryPoints.Count == 0)
         {
-            diagnostics.Add(new Diagnostic(
-                new DiagnosticId("MIST_TC_0017"),
-                DiagnosticSeverity.Error,
-                PipelineStage.Analysis,
-                "Program does not contain a valid entry point (static void Main)",
-                Location: default,
-                CompilationUnitPath: "<unknown>",
-                AnalyzerName: "TypeChecker"));
+            diagnostics.Report(TypeCheckDiagnostics.NoValidEntryPoint, default, "<unknown>", "TypeChecker");
         }
         else if(entryPoints.Count > 1)
         {
             // Emit a diagnostic listing all entry point locations.
             foreach(var (_, node) in entryPoints)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0018",
-                    "Program contains multiple entry points",
-                    node));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.MultipleEntryPoints, node, "TypeChecker");
             }
         }
     }
@@ -1450,10 +511,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 if(mod is AsyncModifierModifierNode)
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0108",
-                        "The 'async' modifier is not valid on operators",
-                        declaringNode));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.AsyncOnConstructorOrOperator, declaringNode, "TypeChecker", "operators");
                     break;
                 }
             }
@@ -1488,10 +546,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 if(mod is AsyncModifierModifierNode)
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0108",
-                        "The 'async' modifier is not valid on operators",
-                        declaringNode));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.AsyncOnConstructorOrOperator, declaringNode, "TypeChecker", "operators");
                     break;
                 }
             }
@@ -1544,10 +599,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         if(hasAsync && hasIntrinsic)
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_TC_0104",
-                $"Method '{methodSymbol.Name}' cannot be both 'async' and 'intrinsic'",
-                declaringNode));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.AsyncIntrinsicIncompatible, declaringNode, "TypeChecker", methodSymbol.Name);
         }
 
         // ── MIST_TC_0106: async method explicitly declares Task<T> return type (Requirement 2.6) ──
@@ -1557,10 +609,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if(hasAsync && methodSymbol is Symbol { DeclaredReturnType: { } declaredReturn }
             && SemanticModelBuilder.IsStandardTaskType(declaredReturn))
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_TC_0106",
-                $"Async method '{methodSymbol.Name}' must not explicitly declare 'Task<T>' as its return type; the compiler wraps the return type automatically",
-                declaringNode));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.AsyncExplicitTaskReturnType, declaringNode, "TypeChecker", methodSymbol.Name);
         }
 
         // For async methods, use DeclaredReturnType (the unwrapped type T) for
@@ -1640,10 +689,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             if(!sourceMatchesEnclosing && !targetMatchesEnclosing)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    CastOperatorEnclosingTypeViolation.Value,
-                    $"Either the source type or the target type of a cast operator must be the enclosing type '{enclosingType.DisplayName}'. Source: '{sourceType.DisplayName}', Target: '{targetType.DisplayName}'.",
-                    castOpDecl));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.CastOperatorEnclosingTypeViolation, castOpDecl, "TypeChecker", enclosingType.DisplayName, sourceType!.DisplayName, targetType!.DisplayName);
             }
         }
 
@@ -1705,10 +751,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         && siblingSourceType.DisplayName == sourceType.DisplayName
                         && siblingTargetType.DisplayName == targetType.DisplayName)
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            DuplicateCastOperator.Value,
-                            $"Duplicate {castKind} cast operator from '{sourceType.DisplayName}' to '{targetType.DisplayName}' in type '{enclosingType.DisplayName}'.",
-                            castOpDecl));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.DuplicateCastOperator, castOpDecl, "TypeChecker", castKind, sourceType!.DisplayName, targetType!.DisplayName, enclosingType.DisplayName);
                         break; // One diagnostic per duplicate is sufficient.
                     }
                 }
@@ -1893,18 +936,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         else if(candidates.Count == 0)
         {
             // MIST_TC_0042: No cast operator found.
-            diagnostics.Add(MakeDiagnostic(
-                NoCastOperator.Value,
-                $"No cast operator is defined from '{sourceType.DisplayName}' to '{targetType.DisplayName}'.",
-                castExpr));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.NoCastOperator, castExpr, "TypeChecker", sourceType.DisplayName, targetType.DisplayName);
         }
         else
         {
-            // MIST_TC_0043: Ambiguous cast — multiple operators applicable.
-            diagnostics.Add(MakeDiagnostic(
-                AmbiguousCast.Value,
-                $"Ambiguous cast from '{sourceType.DisplayName}' to '{targetType.DisplayName}': multiple cast operators are applicable.",
-                castExpr));
+            // MIST_TC_0043: Ambiguous cast -- multiple operators applicable.
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.AmbiguousCast, castExpr, "TypeChecker", sourceType.DisplayName, targetType.DisplayName);
         }
     }
 
@@ -1959,18 +996,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         else if(candidates.Count == 0)
         {
             // MIST_TC_0067: targeted diagnostic for the top-type case.
-            diagnostics.Add(MakeDiagnostic(
-                NoCastOperatorFromUnknown.Value,
-                $"No cast operator is defined from 'unknown' to '{targetType.DisplayName}'. Declare 'implicit operator {targetType.DisplayName}(unknown u)' or 'explicit operator {targetType.DisplayName}(unknown u)' on '{targetType.DisplayName}', or use an 'is' pattern to narrow the operand to a concrete type first.",
-                castExpr));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.NoCastOperatorFromUnknown, castExpr, "TypeChecker", targetType.DisplayName);
         }
         else
         {
-            // MIST_TC_0043: Ambiguous cast — multiple operators applicable.
-            diagnostics.Add(MakeDiagnostic(
-                AmbiguousCast.Value,
-                $"Ambiguous cast from '{sourceType.DisplayName}' to '{targetType.DisplayName}': multiple cast operators are applicable.",
-                castExpr));
+            // MIST_TC_0043: Ambiguous cast -- multiple operators applicable.
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.AmbiguousCast, castExpr, "TypeChecker", sourceType.DisplayName, targetType.DisplayName);
         }
     }
 
@@ -2343,10 +1374,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             if(mod is AsyncModifierModifierNode)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0108",
-                    "The 'async' modifier is not valid on constructors",
-                    declaringNode));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.AsyncOnConstructorOrOperator, declaringNode, "TypeChecker", "constructors");
                 break;
             }
         }
@@ -2532,17 +1560,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             if(violation.Kind == ReadViolationKind.Field)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    DiagnosticId.FieldReadBeforeAssignment.Value,
-                    $"Field '{violation.Name}' is read before being definitely assigned in constructor '{ctorName}()'",
-                    violation.Location));
+                diagnostics.ReportAtNode(CommonDiagnostics.FieldReadBeforeAssignment, violation.Location, "TypeChecker", violation.Name, ctorName);
             }
             else if(violation.Kind == ReadViolationKind.Local)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    DiagnosticId.LocalReadBeforeAssignment.Value,
-                    $"Local variable '{violation.Name}' is read before being definitely assigned",
-                    violation.Location));
+                diagnostics.ReportAtNode(CommonDiagnostics.LocalReadBeforeAssignment, violation.Location, "TypeChecker", violation.Name);
             }
         }
 
@@ -2570,12 +1592,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 SyntaxNode ctorDeclNode;
                 try { ctorDeclNode = model.GetDeclaringNode(ctorSymbol); }
                 catch { continue; }
-
-                diagnostics.Add(MakeDiagnostic(
-                    DiagnosticId.FieldNotDefinitelyAssigned.Value,
-                    $"Field '{fieldName}' must be definitely assigned before constructor '{ctorName}' completes. " +
-                    $"The field's type '{typeName}' is not defaultable and has no initializer.",
-                    ctorDeclNode));
+                diagnostics.ReportAtNode(CommonDiagnostics.FieldNotDefinitelyAssigned, ctorDeclNode, "TypeChecker", fieldName, ctorName, typeName);
             }
         }
     }
@@ -2596,10 +1613,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             if(violation.Kind == ReadViolationKind.Local)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    DiagnosticId.LocalReadBeforeAssignment.Value,
-                    $"Local variable '{violation.Name}' is read before being definitely assigned",
-                    violation.Location));
+                diagnostics.ReportAtNode(CommonDiagnostics.LocalReadBeforeAssignment, violation.Location, "TypeChecker", violation.Name);
             }
         }
     }
@@ -3795,10 +2809,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     StructType st => st.DisplayName,
                     _ => "unknown"
                 };
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST2002",
-                    $"Ref struct type '{fieldType.DisplayName}' cannot be used as a field in non-ref-struct type '{containerName}'",
-                    declaringNode));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.RefStructFieldRestriction, declaringNode, "TypeChecker", fieldType.DisplayName, containerName);
             }
         }
 
@@ -3806,10 +2817,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Anonymous types cannot be used as field types because they have no denotable name.
         if(fieldType is AnonymousType)
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_ANON_ESCAPE_FIELD",
-                "Anonymous types cannot be used as field types",
-                declaringNode));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.AnonEscapeField, declaringNode, "TypeChecker");
         }
 
         // Field initializers: the grammar stores the initializer as part of the
@@ -3862,10 +2870,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     StructType st => st.DisplayName,
                     _ => "unknown"
                 };
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST2003",
-                    $"Ref struct type '{propType.DisplayName}' cannot be used as a property type in non-ref-struct type '{containerName}'",
-                    declaringNode));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.RefStructPropertyRestriction, declaringNode, "TypeChecker", propType.DisplayName, containerName);
             }
         }
 
@@ -3906,10 +2911,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     {
                         if(!IsAssignable(bodyType, propType))
                         {
-                            diagnostics.Add(MakeDiagnostic(
-                                "MIST_TC_0028",
-                                $"Expression body type '{bodyType.DisplayName}' is not compatible with property type '{propType.DisplayName}'",
-                                exprProp.Body));
+                            diagnostics.ReportAtNode(TypeCheckDiagnostics.PropertyBodyTypeMismatch, exprProp.Body, "TypeChecker", bodyType.DisplayName, propType.DisplayName);
                         }
                     }
 
@@ -4049,10 +3051,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         if(!IsAssignable(exprType, propType))
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_TC_0028",
-                $"Expression body type '{exprType.DisplayName}' is not compatible with property type '{propType.DisplayName}'",
-                expression));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.PropertyBodyTypeMismatch, expression, "TypeChecker", exprType.DisplayName, propType.DisplayName);
         }
     }
 
@@ -4080,10 +3079,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // The accessor modifier must be strictly more restrictive than the property.
             if(!IsMoreRestrictive(accessorLevel, propLevel))
             {
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0022",
-                    "Accessor modifier must be more restrictive than the property's access level",
-                    accessorModifier));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.AccessorModifierNotRestrictive, accessorModifier, "TypeChecker");
             }
         }
     }
@@ -4111,10 +3107,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // MIST_TC_0024: field keyword in computed property (no backing field).
                 if(propInfo.IsComputed)
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0024",
-                        "'field' keyword cannot be used in a computed property (no backing field)",
-                        fieldNode));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.FieldKeywordInComputedProperty, fieldNode, "TypeChecker");
                 }
             }
         }
@@ -4133,10 +3126,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             var thisNodes = CollectThisKeywordNodes(accessor);
             foreach(var thisNode in thisNodes)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0026",
-                    "'this' cannot be referenced in a static property accessor",
-                    thisNode));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.ThisInStaticAccessor, thisNode, "TypeChecker");
             }
         }
     }
@@ -4153,10 +3143,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         CollectThisKeywordNodesFromTree(expression, thisNodes);
         foreach(var thisNode in thisNodes)
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_TC_0026",
-                "'this' cannot be referenced in a static property accessor",
-                thisNode));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.ThisInStaticAccessor, thisNode, "TypeChecker");
         }
     }
 
@@ -4211,10 +3198,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             if(ParameterTypesMatch(thisParamTypes, otherParamTypes))
             {
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0029",
-                    "Duplicate indexer declaration with the same parameter types",
-                    indexerDecl));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.DuplicateIndexer, indexerDecl, "TypeChecker");
                 break; // Only report once per indexer.
             }
         }
@@ -4642,10 +3626,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         DiagnosticBag diagnostics)
     {
-        diagnostics.Add(MakeDiagnostic(
-            ConstraintPropagationInsufficient.Value,
-            $"Type '{derivedType.DisplayName}' must declare constraints at least as restrictive as '{baseTypeName}' for type parameter '{typeParamName}'.",
-            node));
+        diagnostics.ReportAtNode(TypeCheckDiagnostics.ConstraintPropagationInsufficient, node, "TypeChecker", derivedType.DisplayName, baseTypeName, typeParamName);
     }
 
     /// <summary>
@@ -4800,10 +3781,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                     if(typeNode is not null)
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            "MIST_TC_0030",
-                            $"'{typeSymbol.Name}' does not implement abstract property '{abs.DisplayName}.{abstractMember.Name}'",
-                            typeNode));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.MissingAbstractPropertyImpl, typeNode, "TypeChecker", typeSymbol.Name, abstractMember.Name);
                     }
 
                     continue;
@@ -4822,18 +3800,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                 if(requiredPropInfo.HasGet && !implPropInfo.HasGet && implNode is not null)
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0030",
-                        $"'{typeSymbol.Name}.{abstractMember.Name}' does not implement 'get' accessor required by abstract '{abs.DisplayName}'",
-                        implNode));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.MissingAbstractPropertyImpl, implNode, "TypeChecker", typeSymbol.Name, abstractMember.Name);
                 }
 
                 if(requiredPropInfo.HasSet && !implPropInfo.HasSet && !implPropInfo.HasInit && implNode is not null)
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0030",
-                        $"'{typeSymbol.Name}.{abstractMember.Name}' does not implement 'set' accessor required by abstract '{abs.DisplayName}'",
-                        implNode));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.MissingAbstractPropertyImpl, implNode, "TypeChecker", typeSymbol.Name, abstractMember.Name);
                 }
             }
 
@@ -5120,11 +4092,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             SymbolKind.Field => "Field",
             _ => "Member",
         };
-
-        diagnostics.Add(MakeDiagnostic(
-            ReadonlyContractViolation.Value,
-            $"{memberKind} '{implMember.Name}' must be readonly to satisfy readonly contract from '{contractSourceName}'",
-            implNode));
+        diagnostics.ReportAtNode(TypeCheckDiagnostics.ReadonlyContractViolation, implNode, "TypeChecker", implMember.Name, typeSymbol.Name, contractSourceName);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -5244,10 +4212,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     // Check for void[] variable declarations (MIST_TC_0034).
                     if(declaredType is ArrayType arrayType && arrayType.ElementType.IsVoid())
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            "MIST_TC_0034",
-                            "Cannot declare a variable of type 'void[]'. Void is not permitted as an array element type.",
-                            varDecl));
+                        diagnostics.ReportAtNode(CommonDiagnostics.VoidArrayNotPermitted, varDecl, "TypeChecker");
                     }
 
                     if(declaredType is not null && initType is not null)
@@ -5292,10 +4257,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     var defaultLiteralInVar = TryExtractDefaultLiteral(inferred.Initializer);
                     if(defaultLiteralInVar is not null)
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            DiagnosticId.DefaultCannotInferType.Value,
-                            "The type of 'default' cannot be inferred because neither side provides a type. Use 'default(TypeName)' or declare the variable with an explicit type.",
-                            defaultLiteralInVar));
+                        diagnostics.ReportAtNode(CommonDiagnostics.DefaultCannotInferType, defaultLiteralInVar, "TypeChecker");
                     }
 
                     // var with initializer — check the initializer expression.
@@ -5339,10 +4301,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     var inferredType = model.GetTypeOf(inferred.Initializer);
                     if(inferredType is null)
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            "MIST_TC_0009",
-                            "'var' declaration requires an initializer",
-                            inferred));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.VarRequiresInitializer, inferred, "TypeChecker");
                     }
 
                     break;
@@ -5357,10 +4316,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     {
                         if(initType is not TupleType tupleType)
                         {
-                            diagnostics.Add(MakeDiagnostic(
-                                "MIST_TC_0064",
-                                $"Cannot deconstruct expression of type '{initType.DisplayName}'; a tuple type is required.",
-                                varTuple));
+                            diagnostics.ReportAtNode(TypeCheckDiagnostics.PatternNarrowToClosedGenericWithUnknown, varTuple, "TypeChecker", "unknown", "a concrete type");
                         }
                         else
                         {
@@ -5368,10 +4324,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             var targetCount = 1 + varTuple.RestNames.Length;
                             if(targetCount != tupleType.Arity)
                             {
-                                diagnostics.Add(MakeDiagnostic(
-                                    "MIST_TC_0061",
-                                    $"Tuple deconstruction has {targetCount} targets but the tuple has {tupleType.Arity} elements.",
-                                    varTuple));
+                                diagnostics.ReportAtNode(TypeCheckDiagnostics.VoidToUnknown, varTuple, "TypeChecker", "void");
                             }
                         }
                     }
@@ -5388,10 +4341,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     {
                         if(initType is not TupleType tupleType)
                         {
-                            diagnostics.Add(MakeDiagnostic(
-                                "MIST_TC_0064",
-                                $"Cannot deconstruct expression of type '{initType.DisplayName}'; a tuple type is required.",
-                                typedTuple));
+                            diagnostics.ReportAtNode(TypeCheckDiagnostics.PatternNarrowToClosedGenericWithUnknown, typedTuple, "TypeChecker", "unknown", "a concrete type");
                         }
                         else
                         {
@@ -5399,10 +4349,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             var targetCount = 2 + typedTuple.TupleDeconstructionElements.Length;
                             if(targetCount != tupleType.Arity)
                             {
-                                diagnostics.Add(MakeDiagnostic(
-                                    "MIST_TC_0061",
-                                    $"Tuple deconstruction has {targetCount} targets but the tuple has {tupleType.Arity} elements.",
-                                    typedTuple));
+                                diagnostics.ReportAtNode(TypeCheckDiagnostics.VoidToUnknown, typedTuple, "TypeChecker", "void");
                             }
                             else
                             {
@@ -5415,10 +4362,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                                         var elementType = tupleType.ElementTypes[index];
                                         if(!IsAssignable(elementType, declaredType, model))
                                         {
-                                            diagnostics.Add(MakeDiagnostic(
-                                                "MIST_TC_0062",
-                                                $"Cannot assign tuple element of type '{elementType.DisplayName}' to '{declaredType.DisplayName}' at position {index + 1}.",
-                                                element));
+                                            diagnostics.ReportAtNode(TypeCheckDiagnostics.TupleDeconstructionTypeMismatch, element, "TypeChecker", elementType.DisplayName, declaredType.DisplayName, index);
                                         }
                                     }
                                 }
@@ -5478,10 +4422,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         if(!hasInitializer)
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_REF_0010",
-                "A ref local variable must be initialized at declaration",
-                varDecl));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.RefLocalMustInit, varDecl, "TypeChecker");
         }
     }
 
@@ -5542,10 +4483,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // The return expression does not reference a valid long-lived storage location.
         // Emit MIST_REF_0006.
         var description = DescribeRefReturnTarget(returnStmt.Value, model);
-        diagnostics.Add(MakeDiagnostic(
-            "MIST_REF_0006",
-            $"Cannot return a reference to local variable or non-ref parameter '{description}'; its storage is destroyed when the method returns",
-            returnStmt));
+        diagnostics.ReportAtNode(TypeCheckDiagnostics.RefReturnLocalEscape, returnStmt, "TypeChecker", description);
         return true;
     }
 
@@ -5704,10 +4642,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // Void methods: reject return values UNLESS the value is void
                 if(valueType is not null && !IsErrorType(valueType) && !valueType.IsVoid())
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0008",
-                        $"Cannot return '{valueType.DisplayName}' from method with return type 'void'",
-                        returnStmt));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.ReturnValueInVoidMethod, returnStmt, "TypeChecker", valueType!.DisplayName);
                 }
             }
             else if(valueType is not null)
@@ -5752,10 +4687,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     }
                     else
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            "MIST_TC_0008",
-                            $"Cannot return '{valueType.DisplayName}' from method with return type '{methodReturnType.DisplayName}'",
-                            returnStmt));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.ReturnValueInVoidMethod, returnStmt, "TypeChecker", valueType.DisplayName);
                     }
                 }
                 else
@@ -5772,10 +4704,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // return; — only valid in void methods.
             if(!methodReturnType.IsVoid())
             {
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0008",
-                    $"Cannot return '' from method with return type '{methodReturnType.DisplayName}'",
-                    returnStmt));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.ReturnValueInVoidMethod, returnStmt, "TypeChecker", "void");
             }
         }
     }
@@ -7236,10 +6165,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if(elementType is null)
             {
                 // Emit diagnostic: type does not implement IEnumerable<TElement>.
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_FOREACH_NOT_ENUMERABLE",
-                    $"Type '{collectionType.DisplayName}' does not implement 'IEnumerable<TElement>' and cannot be used in a foreach statement",
-                    foreachStmt.GetCollection()));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.ForeachNotEnumerable, foreachStmt.GetCollection(), "TypeChecker", collectionType.DisplayName);
 
                 // Bind iteration variable to ErrorType for error recovery.
                 if(model.GetDeclaredSymbol(foreachStmt) is Symbol iterVarSymbol)
@@ -7259,10 +6185,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         if(!IsAssignable(elementType, declaredType, model))
                         {
                             // Emit diagnostic: TElement is not assignable to the declared type.
-                            diagnostics.Add(MakeDiagnostic(
-                                "MIST_TC_FOREACH_TYPE_MISMATCH",
-                                $"Cannot convert element type '{elementType.DisplayName}' to declared type '{declaredType.DisplayName}' in foreach statement",
-                                typeRef));
+                            diagnostics.ReportAtNode(TypeCheckDiagnostics.ForeachTypeMismatch, typeRef, "TypeChecker", elementType.DisplayName, declaredType!.DisplayName);
                         }
 
                         // Bind the iteration variable to the declared type (user's intent).
@@ -7385,10 +6308,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         if(!IsBoolLike(condType))
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_TC_0007",
-                $"Condition must be of type 'bool', but found '{condType.DisplayName}'",
-                condition));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.ConditionNotBool, condition, "TypeChecker", condType.DisplayName);
         }
     }
 
@@ -7454,10 +6374,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                 if(hasTyped && hasUntyped)
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        MixedLambdaParameterTypes.Value,
-                        "Lambda parameters must be all typed or all untyped; mixing typed and untyped parameters is not allowed",
-                        enclosingExpr));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.MixedLambdaParameterTypes, enclosingExpr, "TypeChecker");
                 }
             }
         }
@@ -7478,10 +6395,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             if(hasImplicitParams)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    CannotInferLambdaParameterTypes.Value,
-                    "Cannot infer lambda parameter types; provide explicit parameter types or assign to a variable with an explicit Func type",
-                    enclosingExpr));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.CannotInferLambdaParameterTypes, enclosingExpr, "TypeChecker");
             }
         }
 
@@ -7495,10 +6409,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             var returnType = SemanticModelBuilder.GetFuncReturnType(ct);
             if(IsErrorType(returnType))
             {
-                diagnostics.Add(MakeDiagnostic(
-                    InconsistentLambdaReturnTypes.Value,
-                    "Block lambda has inconsistent return types; all return statements must return compatible types",
-                    enclosingExpr));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.InconsistentLambdaReturnTypes, enclosingExpr, "TypeChecker");
             }
         }
 
@@ -7526,10 +6437,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // Check if the block has any return statements with values.
                 if(!isAsyncVoid && !BlockHasReturnWithValue(blockLambdaForReturn.Body))
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        MissingReturnInNonVoidLambda.Value,
-                        $"Block lambda with return type '{returnType.DisplayName}' must contain a return statement with a value",
-                        enclosingExpr));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.MissingReturnInNonVoidLambda, enclosingExpr, "TypeChecker", returnType.DisplayName);
                 }
             }
         }
@@ -7612,10 +6520,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         && !expectedReturnType.IsVoid()
                         && !IsAssignable(bodyType, expectedReturnType))
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            "MIST_TC_0002",
-                            $"Expression lambda body type '{bodyUnion.DisplayName}' is not assignable to expected return type '{expectedReturnType.DisplayName}'",
-                            exprLambda.Body));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.ExpressionBodyTypeMismatch, exprLambda.Body, "TypeChecker", bodyType.DisplayName, expectedReturnType.DisplayName);
                     }
                 }
 
@@ -7795,10 +6700,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // 'this' reference in a static lambda is always a violation.
         if(node is ThisExpressionPrimaryNode)
         {
-            diagnostics.Add(MakeDiagnostic(
-                StaticLambdaCaptureViolation.Value,
-                "A static lambda cannot reference 'this'",
-                node));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.StaticLambdaCaptureViolation, node, "TypeChecker", "'this'");
             return;
         }
 
@@ -7820,30 +6722,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 switch(concreteSymbol.Kind)
                 {
                     case SymbolKind.LocalVariable:
-                        // Local variable from an enclosing scope — violation.
-                        diagnostics.Add(MakeDiagnostic(
-                            StaticLambdaCaptureViolation.Value,
-                            $"A static lambda cannot reference enclosing variable '{name}'",
-                            identifier));
+                        // Local variable from an enclosing scope -- violation.
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.StaticLambdaCaptureViolation, identifier, "TypeChecker", $"outer variable '{name}'");
                         return;
 
                     case SymbolKind.Parameter:
                         // Parameter from an enclosing method/lambda — violation.
                         // (The lambda's own params were already excluded above.)
-                        diagnostics.Add(MakeDiagnostic(
-                            StaticLambdaCaptureViolation.Value,
-                            $"A static lambda cannot reference enclosing parameter '{name}'",
-                            identifier));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.StaticLambdaCaptureViolation, identifier, "TypeChecker", $"outer parameter '{name}'");
                         return;
 
                     case SymbolKind.Field:
                         // Instance field — violation. Static fields are OK.
                         if(!concreteSymbol.IsStatic)
                         {
-                            diagnostics.Add(MakeDiagnostic(
-                                StaticLambdaCaptureViolation.Value,
-                                $"A static lambda cannot reference instance field '{name}'",
-                                identifier));
+                            diagnostics.ReportAtNode(TypeCheckDiagnostics.StaticLambdaCaptureViolation, identifier, "TypeChecker", $"instance field '{name}'");
                             return;
                         }
 
@@ -7853,10 +6746,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         // Instance method — violation. Static methods are OK.
                         if(!concreteSymbol.IsStatic)
                         {
-                            diagnostics.Add(MakeDiagnostic(
-                                StaticLambdaCaptureViolation.Value,
-                                $"A static lambda cannot reference instance method '{name}'",
-                                identifier));
+                            diagnostics.ReportAtNode(TypeCheckDiagnostics.StaticLambdaCaptureViolation, identifier, "TypeChecker", $"instance method '{name}'");
                             return;
                         }
 
@@ -7866,10 +6756,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         // Instance property — violation. Static properties are OK.
                         if(!concreteSymbol.IsStatic)
                         {
-                            diagnostics.Add(MakeDiagnostic(
-                                StaticLambdaCaptureViolation.Value,
-                                $"A static lambda cannot reference instance property '{name}'",
-                                identifier));
+                            diagnostics.ReportAtNode(TypeCheckDiagnostics.StaticLambdaCaptureViolation, identifier, "TypeChecker", $"instance property '{name}'");
                             return;
                         }
 
@@ -7939,20 +6826,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // ── MIST_TC_0123: ref struct capture ──
                 if(declaredType is not null && IsRefStructType(declaredType))
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        CaptureRefStruct.Value,
-                        $"Cannot capture variable '{name}' of ref struct type '{declaredType.DisplayName}' in a lambda; ref struct values cannot live on the heap",
-                        identifier));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.CaptureRefStruct, identifier, "TypeChecker", name, declaredType.DisplayName);
                     return;
                 }
 
                 // ── MIST_TC_0124: owned capture ──
                 if(concreteSymbol.OwnershipTier == OwnershipTier.Owned)
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        CaptureOwned.Value,
-                        $"Cannot capture owned variable '{name}' in a lambda; ownership transfer semantics conflict with closure capture",
-                        identifier));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.CaptureOwned, identifier, "TypeChecker", name);
                     return;
                 }
 
@@ -7966,10 +6847,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         OwnershipTier.ReadonlyRef => "readonly ref",
                         _ => concreteSymbol.OwnershipTier.ToString(),
                     };
-                    diagnostics.Add(MakeDiagnostic(
-                        CaptureBorrowedOrFrozen.Value,
-                        $"Cannot capture {tierName} variable '{name}' in a lambda; its lifetime is bounded to the current scope",
-                        identifier));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.CaptureBorrowedOrFrozen, identifier, "TypeChecker", tierName, name);
                     return;
                 }
             }
@@ -8021,10 +6899,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         if(node is AwaitExpressionUnaryNode)
         {
-            diagnostics.Add(MakeDiagnostic(
-                AwaitInNonAsyncLambda.Value,
-                "Cannot use 'await' in a non-async lambda; add the 'async' modifier to the lambda",
-                node));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.AwaitInNonAsyncLambda, node, "TypeChecker");
             return;
         }
 
@@ -8163,18 +7038,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     // MIST_TC_0020: No accessible set/init accessor.
                     if(!propInfo.HasSet && !propInfo.HasInit)
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            "MIST_TC_0020",
-                            $"Property '{targetPropertySymbol.Name}' has no accessible 'set' or 'init' accessor",
-                            assignment));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.PropertyNoSetAccessor, assignment, "TypeChecker", targetPropertySymbol.Name);
                     }
                     // MIST_TC_0025: init-only property assigned outside constructor context.
                     else if(propInfo.HasInit && !propInfo.HasSet && !insideConstructor)
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            "MIST_TC_0025",
-                            $"Init-only property '{targetPropertySymbol.Name}' can only be assigned in a constructor or object initializer",
-                            assignment));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.InitOnlyPropertyOutsideCtor, assignment, "TypeChecker", targetPropertySymbol.Name);
                     }
 
                     // MIST_TC_0021: Property type mismatch.
@@ -8211,10 +7080,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             }
                             else
                             {
-                                diagnostics.Add(MakeDiagnostic(
-                                    "MIST_TC_0021",
-                                    $"Cannot assign '{rhsType.DisplayName}' to property of type '{propType.DisplayName}'",
-                                    assignment));
+                                diagnostics.ReportAtNode(TypeCheckDiagnostics.PropertyAssignmentTypeMismatch, assignment, "TypeChecker", rhsType.DisplayName, propType.DisplayName);
                             }
                         }
                         else
@@ -8271,11 +7137,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             return;
         }
-
-        diagnostics.Add(MakeDiagnostic(
-            "MIST_READONLY_LOCAL_0001",
-            $"Cannot reassign readonly local variable '{sym.Name}'",
-            assignment));
+        diagnostics.ReportAtNode(TypeCheckDiagnostics.ReadonlyLocalReassignment, assignment, "TypeChecker", sym.Name);
     }
 
     /// <summary>
@@ -8303,10 +7165,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 && sym.RefKind == RefKind.RefReadonly
                 && sym.Kind is SymbolKind.LocalVariable or SymbolKind.Parameter)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_REF_0005",
-                    "Cannot assign through a ref readonly reference",
-                    assignment));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.RefReadonlyAssignment, assignment, "TypeChecker");
                 return;
             }
         }
@@ -8323,10 +7182,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 var methodSymbol = model.GetDeclaredSymbol(methodCall);
                 if(methodSymbol is Symbol methodSym && methodSym.ReturnRefKind == RefKind.RefReadonly)
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_REF_0009",
-                        "Cannot assign through a ref readonly return value",
-                        assignment));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.RefReadonlyReturnAssignment, assignment, "TypeChecker");
                     return;
                 }
             }
@@ -8345,10 +7201,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     var methodSymbol = model.GetDeclaredSymbol(precedingMethodCall);
                     if(methodSymbol is Symbol methodSym && methodSym.ReturnRefKind == RefKind.RefReadonly)
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            "MIST_REF_0009",
-                            "Cannot assign through a ref readonly return value",
-                            assignment));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.RefReadonlyReturnAssignment, assignment, "TypeChecker");
                         return;
                     }
                 }
@@ -8364,10 +7217,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             var symbol = model.GetDeclaredSymbol(postfix.Target);
             if(symbol is Symbol methodSym && methodSym.Kind == SymbolKind.Method && methodSym.ReturnRefKind == RefKind.RefReadonly)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_REF_0009",
-                    "Cannot assign through a ref readonly return value",
-                    assignment));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.RefReadonlyReturnAssignment, assignment, "TypeChecker");
                 return;
             }
         }
@@ -8404,10 +7254,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         if(receiverType is SpanType { IsReadOnly: true })
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_TC_0156",
-                "Cannot assign through a ReadOnlySpan indexer; ReadOnlySpan elements are read-only",
-                assignment));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.ReadOnlySpanIndexerAssignment, assignment, "TypeChecker");
         }
     }
 
@@ -8487,10 +7334,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Check if the symbol has a ref kind (Ref or RefReadonly).
         if(concreteSymbol.RefKind is RefKind.Ref or RefKind.RefReadonly)
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_REF_0008",
-                "Cannot store a ref in a field; refs are stack-only aliases",
-                assignment));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.RefStoredInField, assignment, "TypeChecker");
         }
     }
 
@@ -8531,10 +7375,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         if(receiverType is AnonymousType)
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_ANON_READONLY",
-                "Anonymous type properties are read-only",
-                assignment));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.AnonReadonly, assignment, "TypeChecker");
         }
     }
 
@@ -8552,10 +7393,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var returnType = (methodSymbol as Symbol)?.DeclaredReturnType ?? methodSymbol.DeclaredType;
         if(returnType is AnonymousType)
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_ANON_ESCAPE_SIGNATURE",
-                "Anonymous types cannot appear in method signatures",
-                declaringNode));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.AnonEscapeSignature, declaringNode, "TypeChecker");
         }
 
         // Check parameter types.
@@ -8565,10 +7403,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 if(param.DeclaredType is AnonymousType)
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_ANON_ESCAPE_SIGNATURE",
-                        "Anonymous types cannot appear in method signatures",
-                        declaringNode));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.AnonEscapeSignature, declaringNode, "TypeChecker");
                     break;
                 }
             }
@@ -8581,10 +7416,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 if(param.DeclaredType is AnonymousType)
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_ANON_ESCAPE_SIGNATURE",
-                        "Anonymous types cannot appear in method signatures",
-                        declaringNode));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.AnonEscapeSignature, declaringNode, "TypeChecker");
                     break;
                 }
             }
@@ -8829,10 +7661,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                 if(!containsVoid)
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0041",
-                        $"Void-coalescing operator '??' requires the left operand to be of type 'T | void', but found '{currentLeftType.DisplayName}'",
-                        node));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.DuplicateCastOperator, node, "TypeChecker");
                     // Continue checking remaining operands with the right operand's type.
                     currentLeftType = model.GetTypeOf(rightOperand);
                     continue;
@@ -8851,10 +7680,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 var rightType = model.GetTypeOf(rightOperand);
                 if(rightType is not null && !IsAssignable(rightType, nonVoidPortion, model))
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0044",
-                        $"Cannot assign '{rightType.DisplayName}' to the non-void portion '{nonVoidPortion.DisplayName}' of '{currentLeftType.DisplayName}'",
-                        rightOperand));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.AmbiguousImplicitCast, rightOperand, "TypeChecker");
                 }
 
                 // Result type is T (non-void portion) for the next iteration.
@@ -8879,10 +7705,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // ── MIST_TC_0047: ??= is statement-only, cannot be used as a sub-expression ──
         if(!atStatementLevel || assignmentNestingDepth > 0)
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_TC_0047",
-                "The void-coalescing assignment '??=' is a statement and cannot be used as a sub-expression",
-                assignment));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.VoidCoalescingNotStatement, assignment, "TypeChecker");
             return;
         }
 
@@ -8894,10 +7717,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var targetVarName = TryExtractIdentifierFromLogicalOr(assignment.Target.Left);
         if(targetVarName is null)
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_TC_0043",
-                "Void-coalescing assignment '??=' requires the left operand to be a mutable variable",
-                assignment));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.AmbiguousCast, assignment, "TypeChecker");
             return;
         }
 
@@ -8910,10 +7730,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 && concreteTargetSymbol.Kind == SymbolKind.LocalVariable
                 && concreteTargetSymbol.ReadonlyStatus == ReadonlyStatus.ExplicitReadonly)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0043",
-                    "Void-coalescing assignment '??=' requires the left operand to be a mutable variable",
-                    assignment));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.AmbiguousCast, assignment, "TypeChecker");
                 return;
             }
         }
@@ -8930,10 +7747,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         if(!containsVoid)
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_TC_0042",
-                $"Void-coalescing assignment '??=' requires the left operand to be of type 'T | void', but found '{lhsType.DisplayName}'",
-                assignment));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.NoCastOperator, assignment, "TypeChecker");
             return;
         }
 
@@ -8950,10 +7764,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var rhsType = model.GetTypeOf(assignment.Value);
         if(rhsType is not null && !IsAssignable(rhsType, nonVoidPortion, model))
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_TC_0044",
-                $"Cannot assign '{rhsType.DisplayName}' to the non-void portion '{nonVoidPortion.DisplayName}' of '{lhsType.DisplayName}'",
-                assignment.Value));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.AmbiguousImplicitCast, assignment.Value, "TypeChecker");
         }
 
         // ── Flow narrowing: after ??=, the variable's type is T (not T | void) ──
@@ -8991,7 +7802,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 node.Left,
                 node.Right,
                 node,
-                "MIST_TC_0006",
+                TypeCheckDiagnostics.OperatorNotApplicableLogical,
                 model,
                 diagnostics);
         }
@@ -9014,7 +7825,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 node.Left,
                 node.Right,
                 node,
-                "MIST_TC_0006",
+                TypeCheckDiagnostics.OperatorNotApplicableLogical,
                 model,
                 diagnostics);
         }
@@ -9055,10 +7866,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
                 else
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_ANON_EQUALITY_MISMATCH",
-                        "Cannot compare anonymous types with different shapes",
-                        node));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.AnonEqualityMismatch, node, "TypeChecker");
                 }
 
                 return;
@@ -9074,7 +7882,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 node.Left,
                 node.Right,
                 node,
-                "MIST_TC_0005",
+                TypeCheckDiagnostics.OperatorNotApplicableComparison,
                 model,
                 diagnostics);
         }
@@ -9103,7 +7911,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             cmp.Left,
                             cmp.Right,
                             cmp,
-                            "MIST_TC_0004",
+                            TypeCheckDiagnostics.OperatorNotApplicableRelational,
                             model,
                             diagnostics);
                     }
@@ -9164,20 +7972,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Reject void source.
         if(sourceType.IsVoid())
         {
-            diagnostics.Add(MakeDiagnostic(
-                AsOperatorVoidSource.Value,
-                "A void-typed expression cannot be used with the 'as' operator.",
-                asExpr));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.AsOperatorVoidSource, asExpr, "TypeChecker");
             return;
         }
 
         // Reject void target.
         if(targetType.IsVoid())
         {
-            diagnostics.Add(MakeDiagnostic(
-                AsOperatorVoidTarget.Value,
-                "'as void' is not a valid conversion.",
-                asExpr));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.AsOperatorVoidTarget, asExpr, "TypeChecker");
             return;
         }
 
@@ -9198,10 +8000,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 break;
 
             case AsConversionClassification.Invalid:
-                diagnostics.Add(MakeDiagnostic(
-                    AsOperatorNoRelationship.Value,
-                    $"The 'as' operator cannot be used between '{sourceType.DisplayName}' and '{targetType.DisplayName}' because no type relationship exists. Use an explicit cast operator if a user-defined conversion is needed.",
-                    asExpr));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.AsOperatorNoRelationship, asExpr, "TypeChecker", sourceType.DisplayName, targetType.DisplayName);
                 break;
         }
     }
@@ -9401,10 +8200,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             if(!PatternVariableSetsMatch(leftVars, rightVars))
             {
-                diagnostics.Add(MakeDiagnostic(
-                    PatternOrInconsistentVariables.Value,
-                    "All alternatives of an 'or' pattern must introduce the same pattern variables with the same types",
-                    orPattern));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.PatternOrInconsistentVariables, orPattern, "TypeChecker");
             }
         }
     }
@@ -9440,10 +8236,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     CollectPatternVariablesFromPrimaryPattern(notPattern.Operand, scrutineeType, model, vars);
                     if(vars.Count > 0)
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            PatternNotCannotBindVariable.Value,
-                            "A 'not' pattern cannot contain variable bindings",
-                            notPattern));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.PatternNotCannotBindVariable, notPattern, "TypeChecker");
                     }
 
                     break;
@@ -9473,10 +8266,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     patternType ??= model.GetDeclaredSymbol(typePattern)?.DeclaredType;
                     if(patternType is null || IsErrorType(patternType))
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            PatternUndefinedType.Value,
-                            $"Type '{ExtractTypeReferenceName(typePattern.Type)}' could not be found in pattern",
-                            typePattern));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.PatternUndefinedType, typePattern, "TypeChecker");
                     }
                     else if(patternType is UnknownType)
                     {
@@ -9490,10 +8280,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         // `is object` pattern which tests for non-null.
                         if(typePattern.Type.First is not NamedSingleTypeRefSingleTypeRefNode)
                         {
-                            diagnostics.Add(MakeDiagnostic(
-                                PatternNarrowToUnknown.Value,
-                                "Narrowing to 'unknown' is not meaningful: the pattern is tautologically true and introduces no new type information. Remove the pattern or narrow to a concrete type instead.",
-                                typePattern));
+                            diagnostics.ReportAtNode(TypeCheckDiagnostics.PatternNarrowToUnknown, typePattern, "TypeChecker");
                         }
                     }
                     else if(IsClosedGenericWithUnknown(patternType))
@@ -9507,10 +8294,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         // respect to the `unknown`-bound type parameter are
                         // filtered per Requirement 10, without any information
                         // gain.
-                        diagnostics.Add(MakeDiagnostic(
-                            PatternNarrowToClosedGenericWithUnknown.Value,
-                            $"Narrowing to '{patternType.DisplayName}' is not meaningful: the pattern is tautologically true under covariant unknown widening, and the binding loses information because members that write to a type parameter bound to 'unknown' are filtered. Narrow to a concrete constructed type (e.g., '{ReplaceUnknownWithConcretePlaceholder(patternType)}') instead.",
-                            typePattern));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.PatternNarrowToClosedGenericWithUnknown, typePattern, "TypeChecker", patternType!.DisplayName, GetConcreteConstructedSuggestion(patternType));
                     }
                     else if(HasOpenDependentArguments(patternType))
                     {
@@ -9518,10 +8302,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         // open dependent type (dependent args contain unresolved
                         // parameters) is rejected — pattern matching requires
                         // concrete dependent values.
-                        diagnostics.Add(MakeDiagnostic(
-                            DependentOpenTypePattern.Value,
-                            $"Cannot pattern match against open dependent type '{patternType.DisplayName}'. Pattern matching requires concrete dependent values.",
-                            typePattern));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.DependentOpenTypePattern, typePattern, "TypeChecker");
                     }
                     else if(patternType is RefinementType refinementPattern)
                     {
@@ -9538,20 +8319,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             // Scrutinee is a union: check if the refinement's base type is a constituent.
                             if(!IsConstituentOfUnion(refinementPattern.BaseType, unionForRefinement))
                             {
-                                diagnostics.Add(MakeDiagnosticWarning(
-                                    UnionPatternNonConstituent.Value,
-                                    $"Type '{patternType.DisplayName}' (base type '{refinementPattern.BaseType.DisplayName}') is not a constituent of union type '{unionForRefinement.DisplayName}'; this pattern will never match",
-                                    typePattern));
+                                diagnostics.ReportAtNode(TypeCheckDiagnostics.UnionPatternNonConstituent, typePattern, "TypeChecker", patternType!.DisplayName, effectiveScrutinee.DisplayName);
                             }
                         }
                         else if(!IsAssignable(effectiveScrutinee, refinementPattern.BaseType, model)
                                  && !IsAssignable(refinementPattern.BaseType, effectiveScrutinee, model))
                         {
-                            // Scrutinee type is not compatible with the refinement's base type.
-                            diagnostics.Add(MakeDiagnosticWarning(
-                                PatternIncompatibleRefinement.Value,
-                                $"Refinement type '{patternType.DisplayName}' has base type '{refinementPattern.BaseType.DisplayName}' which is not compatible with scrutinee type '{scrutineeType.DisplayName}'; this pattern will never match",
-                                typePattern));
+                            // Scrutinee type is not compatible with the refinement's base type.                            diagnostics.ReportAtNode(TypeCheckDiagnostics.PatternIncompatibleRefinement, typePattern, "TypeChecker");
                         }
                         // Otherwise: valid refinement type pattern — the is expression will
                         // evaluate the refinement predicate at runtime.
@@ -9562,10 +8336,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         // Task 6.3 / Req 8.3, 12.5: type pattern references a
                         // type that is not a constituent of the union — the
                         // pattern will never match at runtime.
-                        diagnostics.Add(MakeDiagnosticWarning(
-                            UnionPatternNonConstituent.Value,
-                            $"Type '{patternType.DisplayName}' is not a constituent of union type '{unionForTypePattern.DisplayName}'; this pattern will never match",
-                            typePattern));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.UnionPatternNonConstituent, typePattern, "TypeChecker", patternType!.DisplayName, unionForTypePattern.DisplayName);
                     }
 
                     break;
@@ -9578,10 +8349,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     var patternType = model.GetTypeOf(bareTypePattern.Type);
                     if(patternType is null || IsErrorType(patternType))
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            PatternUndefinedType.Value,
-                            $"Type '{ExtractTypeReferenceName(bareTypePattern.Type)}' could not be found in pattern",
-                            bareTypePattern));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.PatternUndefinedType, bareTypePattern, "TypeChecker");
                     }
                     else if(patternType is EnumType)
                     {
@@ -9594,10 +8362,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             && !(patternType is EnumType enumPatternType
                                  && IsAssignable(scrutineeType, enumPatternType.UnderlyingType)))
                         {
-                            diagnostics.Add(MakeDiagnostic(
-                                PatternConstantTypeMismatch.Value,
-                                $"Enum pattern of type '{patternType.DisplayName}' is not compatible with scrutinee type '{scrutineeType.DisplayName}'",
-                                bareTypePattern));
+                            diagnostics.ReportAtNode(TypeCheckDiagnostics.PatternConstantTypeMismatch, bareTypePattern, "TypeChecker");
                         }
                     }
                     else if(patternType is UnknownType)
@@ -9607,18 +8372,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         // `is object` pattern which tests for non-null.
                         if(bareTypePattern.Type.First is not NamedSingleTypeRefSingleTypeRefNode)
                         {
-                            diagnostics.Add(MakeDiagnostic(
-                                PatternNarrowToUnknown.Value,
-                                "Narrowing to 'unknown' is not meaningful: the pattern is tautologically true and introduces no new type information. Remove the pattern or narrow to a concrete type instead.",
-                                bareTypePattern));
+                            diagnostics.ReportAtNode(TypeCheckDiagnostics.PatternNarrowToUnknown, bareTypePattern, "TypeChecker");
                         }
                     }
                     else if(IsClosedGenericWithUnknown(patternType))
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            PatternNarrowToClosedGenericWithUnknown.Value,
-                            $"Narrowing to '{patternType.DisplayName}' is not meaningful: the pattern is tautologically true under covariant unknown widening, and the binding loses information because members that write to a type parameter bound to 'unknown' are filtered. Narrow to a concrete constructed type (e.g., '{ReplaceUnknownWithConcretePlaceholder(patternType)}') instead.",
-                            bareTypePattern));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.PatternNarrowToClosedGenericWithUnknown, bareTypePattern, "TypeChecker", patternType!.DisplayName, GetConcreteConstructedSuggestion(patternType));
                     }
                     else if(HasOpenDependentArguments(patternType))
                     {
@@ -9626,10 +8385,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         // open dependent type (dependent args contain unresolved
                         // parameters) is rejected — pattern matching requires
                         // concrete dependent values.
-                        diagnostics.Add(MakeDiagnostic(
-                            DependentOpenTypePattern.Value,
-                            $"Cannot pattern match against open dependent type '{patternType.DisplayName}'. Pattern matching requires concrete dependent values.",
-                            bareTypePattern));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.DependentOpenTypePattern, bareTypePattern, "TypeChecker");
                     }
                     else if(patternType is RefinementType bareRefinementPattern)
                     {
@@ -9643,19 +8399,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         {
                             if(!IsConstituentOfUnion(bareRefinementPattern.BaseType, unionForBareRefinement))
                             {
-                                diagnostics.Add(MakeDiagnosticWarning(
-                                    UnionPatternNonConstituent.Value,
-                                    $"Type '{patternType.DisplayName}' (base type '{bareRefinementPattern.BaseType.DisplayName}') is not a constituent of union type '{unionForBareRefinement.DisplayName}'; this pattern will never match",
-                                    bareTypePattern));
+                                diagnostics.ReportAtNode(TypeCheckDiagnostics.UnionPatternNonConstituent, bareTypePattern, "TypeChecker", patternType!.DisplayName, effectiveScrutinee.DisplayName);
                             }
                         }
                         else if(!IsAssignable(effectiveScrutinee, bareRefinementPattern.BaseType, model)
                                  && !IsAssignable(bareRefinementPattern.BaseType, effectiveScrutinee, model))
                         {
-                            diagnostics.Add(MakeDiagnosticWarning(
-                                PatternIncompatibleRefinement.Value,
-                                $"Refinement type '{patternType.DisplayName}' has base type '{bareRefinementPattern.BaseType.DisplayName}' which is not compatible with scrutinee type '{scrutineeType.DisplayName}'; this pattern will never match",
-                                bareTypePattern));
+                            diagnostics.ReportAtNode(TypeCheckDiagnostics.PatternIncompatibleRefinement, bareTypePattern, "TypeChecker");
                         }
                     }
                     else if(scrutineeType is UnionType unionForBareTypePattern
@@ -9664,10 +8414,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         // Task 6.3 / Req 8.3, 12.5: type pattern references a
                         // type that is not a constituent of the union — the
                         // pattern will never match at runtime.
-                        diagnostics.Add(MakeDiagnosticWarning(
-                            UnionPatternNonConstituent.Value,
-                            $"Type '{patternType.DisplayName}' is not a constituent of union type '{unionForBareTypePattern.DisplayName}'; this pattern will never match",
-                            bareTypePattern));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.UnionPatternNonConstituent, bareTypePattern, "TypeChecker", patternType!.DisplayName, unionForBareTypePattern.DisplayName);
                     }
 
                     break;
@@ -9699,10 +8446,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             : scrutineeType;
                         if(!IsStringLike(effectiveType))
                         {
-                            diagnostics.Add(MakeDiagnostic(
-                                RegexScrutineeNotString.Value,
-                                $"Regex patterns require a 'string' scrutinee, but found '{scrutineeType.DisplayName}'",
-                                constantPattern));
+                            diagnostics.ReportAtNode(TypeCheckDiagnostics.RegexScrutineeNotString, constantPattern, "TypeChecker", effectiveType.DisplayName);
                         }
 
                         // Validate regex pattern syntax at pattern position (Req 7.7).
@@ -9716,10 +8460,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         {
                             if(!ArePatternTypesCompatible(constantType, scrutineeType))
                             {
-                                diagnostics.Add(MakeDiagnostic(
-                                    PatternConstantTypeMismatch.Value,
-                                    $"Constant of type '{constantType.DisplayName}' is not compatible with scrutinee type '{scrutineeType.DisplayName}'",
-                                    constantPattern));
+                                diagnostics.ReportAtNode(TypeCheckDiagnostics.PatternConstantTypeMismatch, constantPattern, "TypeChecker");
                             }
                         }
                     }
@@ -9779,10 +8520,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     // MIST_TC_0054: Verify scrutinee is an array type.
                     if(scrutineeType is not ArrayType arrayType)
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            PatternListRequiresArray.Value,
-                            $"A list pattern requires the scrutinee to be an array type, but found '{scrutineeType.DisplayName}'",
-                            listPattern));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.PatternListRequiresArray, listPattern, "TypeChecker");
                         break;
                     }
 
@@ -9815,10 +8553,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                     if(scrutineeType is not TupleType tupleType)
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            TuplePositionalPatternRequiresTupleType.Value,
-                            $"Positional pattern requires a tuple type, but the scrutinee has type '{scrutineeType.DisplayName}'",
-                            tuplePattern));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.TuplePositionalPatternRequiresTupleType, tuplePattern, "TypeChecker", scrutineeType!.DisplayName);
                         break;
                     }
 
@@ -9828,10 +8563,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                     if(elementPatterns.Count != tupleType.Arity)
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            TuplePositionalPatternArityMismatch.Value,
-                            $"Tuple positional pattern has {elementPatterns.Count} elements, but the tuple type '{tupleType.DisplayName}' has {tupleType.Arity} elements",
-                            tuplePattern));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.TuplePositionalPatternArityMismatch, tuplePattern, "TypeChecker", elementPatterns.Count, tupleType.DisplayName, tupleType.Arity);
                         break;
                     }
 
@@ -9868,10 +8600,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // MIST_TC_0052: Verify scrutinee supports comparison operators.
         if(!TypeSupportsComparison(scrutineeType))
         {
-            diagnostics.Add(MakeDiagnostic(
-                PatternRelationalNonComparable.Value,
-                $"Relational pattern '{op}' cannot be applied to scrutinee of type '{scrutineeType.DisplayName}' because it does not support comparison operators",
-                patternNode));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.PatternRelationalNonComparable, patternNode, "TypeChecker");
         }
 
         // MIST_TC_0051: Verify constant type is compatible with scrutinee.
@@ -9880,10 +8609,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             if(!ArePatternTypesCompatible(constantType, scrutineeType))
             {
-                diagnostics.Add(MakeDiagnostic(
-                    PatternConstantTypeMismatch.Value,
-                    $"Constant of type '{constantType.DisplayName}' is not compatible with scrutinee type '{scrutineeType.DisplayName}'",
-                    patternNode));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.PatternConstantTypeMismatch, patternNode, "TypeChecker");
             }
         }
     }
@@ -10024,10 +8750,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             if(elementType is null)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    PatternUndefinedProperty.Value,
-                    $"Type '{patternType.DisplayName}' does not contain a member named '{propertyName}'",
-                    subpattern));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.PatternUndefinedProperty, subpattern, "TypeChecker", propertyName, patternType.DisplayName);
                 elementType = ErrorType.Instance;
             }
 
@@ -10060,10 +8783,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             if(anonPropertyType is null)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    PatternUndefinedProperty.Value,
-                    $"Type '{patternType.DisplayName}' does not contain a member named '{propertyName}'",
-                    subpattern));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.PatternUndefinedProperty, subpattern, "TypeChecker", propertyName, patternType.DisplayName);
                 anonPropertyType = ErrorType.Instance;
             }
 
@@ -10082,10 +8802,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if(member is null)
         {
             // MIST_TC_0053: Property not found on the type.
-            diagnostics.Add(MakeDiagnostic(
-                PatternUndefinedProperty.Value,
-                $"Type '{patternType.DisplayName}' does not contain a member named '{propertyName}'",
-                subpattern));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.PatternUndefinedProperty, subpattern, "TypeChecker", propertyName, patternType.DisplayName);
         }
 
         // Recursively validate the subpattern against the property's type.
@@ -10482,6 +9199,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
+    /// Provides a concrete constructed type suggestion for diagnostics when
+    /// narrowing to a closed generic with <c>unknown</c>. Replaces <c>unknown</c>
+    /// type arguments with <c>T</c> to suggest a concrete alternative.
+    /// </summary>
+    private static string GetConcreteConstructedSuggestion(IType type)
+    {
+        if(type is not ConstructedType ct)
+        {
+            return type.DisplayName;
+        }
+
+        var defName = ct.GenericDefinition.DisplayName;
+        var args = ct.TypeArguments.Select(a =>
+            a is UnknownType ? "T" : a.DisplayName);
+        return $"{defName}<{string.Join(", ", args)}>";
+    }
+
+    /// <summary>
     /// Returns <c>true</c> when <paramref name="type"/> is a
     /// <see cref="ConstructedType"/> with dependent arguments where at least
     /// one <see cref="DependentValueArgument.Value"/> is a <see cref="string"/>
@@ -10585,7 +9320,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 node.Left,
                 node.Right,
                 node,
-                "MIST_TC_0003",
+                TypeCheckDiagnostics.OperatorNotApplicableArithmetic,
                 model,
                 diagnostics);
         }
@@ -10609,7 +9344,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 node.Left,
                 node.Right,
                 node,
-                "MIST_TC_0003",
+                TypeCheckDiagnostics.OperatorNotApplicableArithmetic,
                 model,
                 diagnostics);
         }
@@ -10633,7 +9368,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         "!",
                         logicalNot.Operand,
                         logicalNot,
-                        "MIST_TC_0006",
+                        TypeCheckDiagnostics.OperatorNotApplicableLogical,
                         model,
                         diagnostics);
                     break;
@@ -10650,7 +9385,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         "-",
                         negate.Operand,
                         negate,
-                        "MIST_TC_0003",
+                        TypeCheckDiagnostics.OperatorNotApplicableArithmetic,
                         model,
                         diagnostics);
                     break;
@@ -10728,10 +9463,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var expressionKind = DescribeUnaryExpressionKind(operand);
-        diagnostics.Add(MakeDiagnostic(
-            AsyncFunctorNonInvocationOperand.Value,
-            $"The 'async' functor requires a method invocation operand, but got {expressionKind}",
-            asyncExpr));
+        diagnostics.ReportAtNode(TypeCheckDiagnostics.AsyncFunctorNonInvocationOperand, asyncExpr, "TypeChecker", expressionKind);
     }
 
     /// <summary>
@@ -10824,11 +9556,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             return;
         }
-
-        diagnostics.Add(MakeDiagnosticWarning(
-            AsyncFunctorDoubleWrap.Value,
-            "Applying 'async' functor to an async method in an async context produces 'Task<Task<T>>' \u2014 this is likely unintended",
-            asyncExpr));
+        diagnostics.ReportAtNode(TypeCheckDiagnostics.AsyncFunctorDoubleWrap, asyncExpr, "TypeChecker");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -10867,11 +9595,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             return;
         }
-
-        diagnostics.Add(MakeDiagnostic(
-            AwaitNonTaskOperand.Value,
-            $"The 'await' functor requires an operand of type 'Task<T>', but got '{operandType.DisplayName}'",
-            awaitExpr));
+        diagnostics.ReportAtNode(TypeCheckDiagnostics.AwaitNonTaskOperand, awaitExpr, "TypeChecker", operandType.DisplayName);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -10908,12 +9632,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     // suffix logic to suppress cascading diagnostics.
                     if(currentType is UnknownType)
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            BareUnknownMemberAccess.Value,
-                            FormatBareUnknownMemberAccessMessage(
-                                methodCall.Name.Lexeme,
-                                currentType.DisplayName),
-                            methodCall));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.BareUnknownMemberAccess, methodCall, "TypeChecker", methodCall.Name.Lexeme, "unknown");
                         currentType = ErrorType.Instance;
                         targetIsTypeName = false;
                         break;
@@ -10927,10 +9646,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     {
                         if(unionForMethodCall.Constituents.Any(c => c.IsVoid()))
                         {
-                            diagnostics.Add(MakeDiagnostic(
-                                UnionMemberNotOnAllConstituents.Value,
-                                $"Cannot access member '{methodCall.Name.Lexeme}' on a value of type '{unionForMethodCall.DisplayName}'. Use '?.' to safely access members on an optional type, or narrow with an 'is' pattern.",
-                                methodCall));
+                            diagnostics.ReportAtNode(TypeCheckDiagnostics.UnionMemberNotOnAllConstituents, methodCall, "TypeChecker", methodCall.Name.Lexeme, currentType!.DisplayName, "void");
                             currentType = ErrorType.Instance;
                             targetIsTypeName = false;
                             break;
@@ -10977,12 +9693,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     // suppress cascading diagnostics.
                     if(currentType is UnknownType)
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            BareUnknownMemberAccess.Value,
-                            FormatBareUnknownMemberAccessMessage(
-                                "this[]",
-                                currentType.DisplayName),
-                            indexSuffix));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.BareUnknownMemberAccess, indexSuffix, "TypeChecker", "[]", "unknown");
                         currentType = ErrorType.Instance;
                         targetIsTypeName = false;
                         break;
@@ -11033,10 +9744,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             if(missingCases.Count > 0)
                             {
                                 var casesStr = string.Join(", ", missingCases);
-                                diagnostics.Add(MakeDiagnosticWarning(
-                                    SwitchNotExhaustive.Value,
-                                    $"Switch expression is not exhaustive. Missing cases: {casesStr}",
-                                    switchExpr));
+                                diagnostics.ReportAtNode(TypeCheckDiagnostics.SwitchNotExhaustive, switchExpr, "TypeChecker", casesStr);
                             }
                         }
 
@@ -11057,12 +9765,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     // suffix logic to suppress cascading diagnostics.
                     if(currentType is UnknownType)
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            BareUnknownMemberAccess.Value,
-                            FormatBareUnknownMemberAccessMessage(
-                                memberAccess.Name.Lexeme,
-                                currentType.DisplayName),
-                            memberAccess));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.BareUnknownMemberAccess, memberAccess, "TypeChecker", memberAccess.Name.Lexeme, "unknown");
                         currentType = ErrorType.Instance;
                         break;
                     }
@@ -11075,10 +9778,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     {
                         if(unionForMemberAccess.Constituents.Any(c => c.IsVoid()))
                         {
-                            diagnostics.Add(MakeDiagnostic(
-                                UnionMemberNotOnAllConstituents.Value,
-                                $"Cannot access member '{memberAccess.Name.Lexeme}' on a value of type '{unionForMemberAccess.DisplayName}'. Use '?.' to safely access members on an optional type, or narrow with an 'is' pattern.",
-                                memberAccess));
+                            diagnostics.ReportAtNode(TypeCheckDiagnostics.UnionMemberNotOnAllConstituents, memberAccess, "TypeChecker", memberAccess.Name.Lexeme, currentType!.DisplayName, "void");
                             currentType = ErrorType.Instance;
                             targetIsTypeName = false;
                             break;
@@ -11141,10 +9841,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         var memberSymbol = FindMemberSymbol(projectedType, optionalMemberAccess.Name.Lexeme, model);
                         if(memberSymbol is null)
                         {
-                            diagnostics.Add(MakeDiagnostic(
-                                "MIST_UNDEFINED_MEMBER",
-                                $"'{projectedType.DisplayName}' does not contain a definition for '{optionalMemberAccess.Name.Lexeme}'",
-                                optionalMemberAccess));
+                            diagnostics.ReportAtNode(TypeCheckDiagnostics.UndefinedMember, optionalMemberAccess, "TypeChecker");
                             currentType = ErrorType.Instance;
                             targetIsTypeName = false;
                             break;
@@ -11177,10 +9874,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         var methodSymbol = FindMemberSymbol(projectedType, optionalMethodCall.Name.Lexeme, model);
                         if(methodSymbol is null)
                         {
-                            diagnostics.Add(MakeDiagnostic(
-                                "MIST_UNDEFINED_MEMBER",
-                                $"'{projectedType.DisplayName}' does not contain a definition for '{optionalMethodCall.Name.Lexeme}'",
-                                optionalMethodCall));
+                            diagnostics.ReportAtNode(TypeCheckDiagnostics.UndefinedMember, optionalMethodCall, "TypeChecker");
                             currentType = ErrorType.Instance;
                             targetIsTypeName = false;
                             break;
@@ -11282,11 +9976,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                 if(nonVoidConstituents.Count == 0)
                 {
-                    // All constituents are void — degenerate case.
-                    diagnostics.Add(MakeDiagnostic(
-                        OptionalChainingRequiresOptionalType.Value,
-                        $"Optional chaining operator '?.' requires a type of the form 'T | void', but found '{currentType.DisplayName}'",
-                        node));
+                    // All constituents are void -- degenerate case.
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.OptionalChainingRequiresOptionalType, node, "TypeChecker", currentType!.DisplayName);
                     return null;
                 }
 
@@ -11299,11 +9990,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
         }
 
-        // Not a union containing void — emit error.
-        diagnostics.Add(MakeDiagnostic(
-            OptionalChainingRequiresOptionalType.Value,
-            $"Optional chaining operator '?.' requires a type of the form 'T | void', but found '{currentType.DisplayName}'",
-            node));
+        // Not a union containing void -- emit error.
+        diagnostics.ReportAtNode(TypeCheckDiagnostics.OptionalChainingRequiresOptionalType, node, "TypeChecker", currentType!.DisplayName);
         return null;
     }
 
@@ -11372,10 +10060,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             var guardType = model.GetTypeOf(arm.Guard.Condition);
             if(guardType is not null && !IsErrorType(guardType) && !IsBoolLike(guardType))
             {
-                diagnostics.Add(MakeDiagnostic(
-                    SwitchGuardNotBool.Value,
-                    $"When guard must be a boolean expression, got '{guardType.DisplayName}'",
-                    arm.Guard.Condition));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.SwitchGuardNotBool, arm.Guard.Condition, "TypeChecker", guardType.DisplayName);
             }
         }
 
@@ -11422,10 +10107,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             if(!IsAssignable(armType, firstArmType) && !IsAssignable(firstArmType, armType))
             {
-                diagnostics.Add(MakeDiagnostic(
-                    SwitchIncompatibleArmTypes.Value,
-                    $"Switch arms have incompatible types: '{firstArmType.DisplayName}' and '{armType.DisplayName}'",
-                    switchExpr));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.SwitchIncompatibleArmTypes, switchExpr, "TypeChecker", firstArmType.DisplayName, armType!.DisplayName);
                 return;
             }
         }
@@ -11484,10 +10166,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // all subsequent arms are unreachable.
             if(catchAllSeenAtIndex >= 0 && i > catchAllSeenAtIndex)
             {
-                diagnostics.Add(MakeDiagnosticWarning(
-                    SwitchUnreachableArm.Value,
-                    "Switch arm is unreachable",
-                    arm));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.SwitchUnreachableArm, arm, "TypeChecker");
                 continue;
             }
 
@@ -11511,10 +10190,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 var key = GetConstantKey(constantPattern.Literal);
                 if(key is not null && !seenConstants.Add(key))
                 {
-                    diagnostics.Add(MakeDiagnosticWarning(
-                        SwitchUnreachableArm.Value,
-                        "Switch arm is unreachable",
-                        arm));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.SwitchUnreachableArm, arm, "TypeChecker");
                 }
 
                 continue;
@@ -11534,10 +10210,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                 if(typeName is not null && !seenTypes.Add(typeName))
                 {
-                    diagnostics.Add(MakeDiagnosticWarning(
-                        SwitchUnreachableArm.Value,
-                        "Switch arm is unreachable",
-                        arm));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.SwitchUnreachableArm, arm, "TypeChecker");
                 }
             }
         }
@@ -11871,10 +10544,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         if(!propInfo.HasGet)
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_TC_0019",
-                $"Property '{memberName}' has no accessible 'get' accessor",
-                memberAccess));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.PropertyNoGetAccessor, memberAccess, "TypeChecker");
         }
     }
 
@@ -11935,10 +10605,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     var resolvedType = model.GetTypeOf(emptyArrayLiteral);
                     if(resolvedType is ErrorType)
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            "MIST_TC_0096",
-                            "Cannot infer element type for empty array literal '[]'. Provide an explicit array type annotation (e.g., 'int[] x = [];').",
-                            emptyArrayLiteral));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.EmptyArrayLiteralNoType, emptyArrayLiteral, "TypeChecker");
                     }
                 }
 
@@ -11953,10 +10620,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // fires when 'field' appears in a non-property context.
                 if(!insidePropertyAccessor)
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0023",
-                        "'field' keyword can only be used inside a property accessor body",
-                        fieldKeyword));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.FieldKeywordOutsideAccessor, fieldKeyword, "TypeChecker");
                 }
 
                 break;
@@ -12016,12 +10680,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             // Extract the offset from the exception if available.
             // .NET's RegexParseException (derived from ArgumentException) provides an Offset property.
-            var offset = ex is RegexParseException parseEx ? parseEx.Offset : 0;
-
-            diagnostics.Add(MakeDiagnostic(
-                RegexPatternInvalid.Value,
-                $"Invalid regex pattern: {ex.Message} at offset {offset}",
-                node));
+            var offset = ex is RegexParseException parseEx ? parseEx.Offset : 0; diagnostics.ReportAtNode(TypeCheckDiagnostics.RegexPatternInvalid, node, "TypeChecker");
         }
     }
 
@@ -12043,10 +10702,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // If the type reference could not be resolved, emit MIST_DEFAULT_UNDEFINED_TYPE.
         if(resolvedType is null || IsErrorType(resolvedType))
         {
-            diagnostics.Add(MakeDiagnostic(
-                DiagnosticId.DefaultUndefinedType.Value,
-                "The type in 'default(TypeName)' could not be resolved to a known type",
-                defaultExpr));
+            diagnostics.ReportAtNode(CommonDiagnostics.DefaultUndefinedType, defaultExpr, "TypeChecker");
             return;
         }
 
@@ -12069,10 +10725,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // If the type is still unknown, context inference did not find a type.
         if(resolvedType is null || IsErrorType(resolvedType))
         {
-            diagnostics.Add(MakeDiagnostic(
-                DiagnosticId.DefaultCannotInferType.Value,
-                "The type of 'default' cannot be determined from context",
-                defaultLiteral));
+            diagnostics.ReportAtNode(CommonDiagnostics.DefaultCannotInferType, defaultLiteral, "TypeChecker");
             return;
         }
 
@@ -12106,20 +10759,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // `unknown x = default;`).
         if(resolvedType is UnknownType)
         {
-            diagnostics.Add(MakeDiagnostic(
-                SemanticModelBuilder.UnknownHasNoDefault.Value,
-                "'unknown' has no default value. 'default(unknown)' is not permitted because 'unknown' cannot be used as the declared type of a freshly-materialized value; use a concrete type or pattern-match before materializing a value.",
-                node));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.UnknownHasNoDefault, node, "TypeChecker");
             return;
         }
 
         switch(resolvedType)
         {
             case AbstractType:
-                diagnostics.Add(MakeDiagnostic(
-                    DiagnosticId.DefaultOnAbstract.Value,
-                    $"The 'default' operator is not supported on abstract type '{resolvedType.DisplayName}'. Only concrete types (classes and structs) support 'default'.",
-                    node));
+                diagnostics.ReportAtNode(CommonDiagnostics.DefaultOnAbstract, node, "TypeChecker");
                 return;
 
             case TypeParameterType typeParamType:
@@ -12127,20 +10774,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 {
                     return;
                 }
-
-                diagnostics.Add(MakeDiagnostic(
-                    DiagnosticId.DefaultOnTypeParameter.Value,
-                    $"The 'default' operator is not supported on unconstrained generic type parameter '{resolvedType.DisplayName}'",
-                    node));
+                diagnostics.ReportAtNode(CommonDiagnostics.DefaultOnTypeParameter, node, "TypeChecker");
                 return;
 
             case ClassType classType:
                 if(classType.Defaultability == DefaultabilityStatus.NotDefaultable)
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        DiagnosticId.DefaultNotSupported.Value,
-                        $"Type '{classType.DisplayName}' does not support the 'default' operator because it has non-defaultable fields without type bindings in a default block",
-                        node));
+                    diagnostics.ReportAtNode(CommonDiagnostics.DefaultNotSupported, node, "TypeChecker");
                 }
 
                 return;
@@ -12148,10 +10788,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             case StructType structType:
                 if(structType.Defaultability == DefaultabilityStatus.NotDefaultable)
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        DiagnosticId.DefaultNotSupported.Value,
-                        $"Type '{structType.DisplayName}' does not support the 'default' operator because it has non-defaultable fields without type bindings in a default block",
-                        node));
+                    diagnostics.ReportAtNode(CommonDiagnostics.DefaultNotSupported, node, "TypeChecker");
                 }
 
                 return;
@@ -12159,10 +10796,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             case EnumType enumType:
                 if(enumType.Defaultability != DefaultabilityStatus.Explicit)
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        DiagnosticId.DefaultNotSupported.Value,
-                        $"Enum '{enumType.DisplayName}' does not support the 'default' operator. Designate a default variant using `default VariantName,`.",
-                        node));
+                    diagnostics.ReportAtNode(CommonDiagnostics.DefaultNotSupported, node, "TypeChecker");
                 }
 
                 return;
@@ -12170,10 +10804,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             case UnionType unionType:
                 if(!unionType.Constituents.Any(c => c.IsVoid()))
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        DiagnosticId.DefaultNotSupported.Value,
-                        $"Union type '{unionType.DisplayName}' does not support the 'default' operator. Only union types containing 'void' are defaultable.",
-                        node));
+                    diagnostics.ReportAtNode(CommonDiagnostics.DefaultNotSupported, node, "TypeChecker");
                 }
 
                 return;
@@ -12762,10 +11393,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 case OverloadResolutionStatus.NoApplicableCandidate:
                     var argTypeNames = string.Join(", ", argTypes.Select(t => t.DisplayName));
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0031",
-                        $"No overload for '{methodName}' matches argument types ({argTypeNames})",
-                        methodCall));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.NoApplicableOverload, methodCall, "TypeChecker", methodName, argTypeNames);
                     return;
 
                 case OverloadResolutionStatus.AmbiguousCall:
@@ -12774,19 +11402,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     if(IsDelegateOverloadAmbiguity(result.AmbiguousCandidates!, model))
                     {
                         var delegateNames = GetAmbiguousDelegateNames(result.AmbiguousCandidates!, model);
-                        diagnostics.Add(MakeDiagnostic(
-                            DelegateOverloadAmbiguity.Value,
-                            $"Ambiguous call: argument is compatible with both '{delegateNames.Item1}' and '{delegateNames.Item2}'",
-                            methodCall));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.DelegateOverloadAmbiguity, methodCall, "TypeChecker", delegateNames.Item1, delegateNames.Item2);
                     }
                     else
                     {
                         var sigs = result.AmbiguousCandidates!
                             .Select(c => FormatCandidateSignature(c, methodName, model));
-                        diagnostics.Add(MakeDiagnostic(
-                            "MIST_TC_0032",
-                            $"Call to '{methodName}' is ambiguous between: {string.Join(" and ", sigs)}",
-                            methodCall));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.AmbiguousOverload, methodCall, "TypeChecker", methodName, string.Join(", ", sigs));
                     }
 
                     return;
@@ -13007,10 +11629,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // specific delegate type or func<...> first.
         if(targetType is BaseDelegateType)
         {
-            diagnostics.Add(MakeDiagnostic(
-                BaseDelegateNotInvocable.Value,
-                "Cannot invoke a value of type 'System.Delegate' directly: cast to a specific delegate type or func<...> first",
-                invocation));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.BaseDelegateNotInvocable, invocation, "TypeChecker");
             return;
         }
 
@@ -13045,29 +11664,20 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 {
                     case OverloadResolutionStatus.NoApplicableCandidate:
                         var argTypeNames = string.Join(", ", argTypes.Select(t => t.DisplayName));
-                        diagnostics.Add(MakeDiagnostic(
-                            "MIST_TC_0031",
-                            $"No overload for '{methodName}' matches argument types ({argTypeNames})",
-                            invocation));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.NoApplicableOverload, invocation, "TypeChecker", methodName, argTypeNames);
                         return;
 
                     case OverloadResolutionStatus.AmbiguousCall:
                         if(IsDelegateOverloadAmbiguity(result.AmbiguousCandidates!, model))
                         {
                             var delegateNames = GetAmbiguousDelegateNames(result.AmbiguousCandidates!, model);
-                            diagnostics.Add(MakeDiagnostic(
-                                DelegateOverloadAmbiguity.Value,
-                                $"Ambiguous call: argument is compatible with both '{delegateNames.Item1}' and '{delegateNames.Item2}'",
-                                invocation));
+                            diagnostics.ReportAtNode(TypeCheckDiagnostics.DelegateOverloadAmbiguity, invocation, "TypeChecker", delegateNames.Item1, delegateNames.Item2);
                         }
                         else
                         {
                             var sigs = result.AmbiguousCandidates!
                                 .Select(c => FormatCandidateSignature(c, methodName, model));
-                            diagnostics.Add(MakeDiagnostic(
-                                "MIST_TC_0032",
-                                $"Call to '{methodName}' is ambiguous between: {string.Join(" and ", sigs)}",
-                                invocation));
+                            diagnostics.ReportAtNode(TypeCheckDiagnostics.AmbiguousOverload, invocation, "TypeChecker", methodName, string.Join(", ", sigs));
                         }
 
                         return;
@@ -13126,10 +11736,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // ── MIST_TC_0119: argument count mismatch ──
         if(actualArgCount != expectedParamCount)
         {
-            diagnostics.Add(MakeDiagnostic(
-                FuncInvocationArgumentCountMismatch.Value,
-                $"Func invocation expects {expectedParamCount} argument(s) but was given {actualArgCount}",
-                invocation));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.FuncInvocationArgumentCountMismatch, invocation, "TypeChecker");
             return;
         }
 
@@ -13147,10 +11754,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             if(!IsAssignable(argType, paramType, model))
             {
-                diagnostics.Add(MakeDiagnostic(
-                    FuncInvocationArgumentTypeMismatch.Value,
-                    $"Argument {i + 1} of type '{argType.DisplayName}' is not assignable to Func parameter type '{paramType.DisplayName}'",
-                    invocation));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.FuncInvocationArgumentTypeMismatch, invocation, "TypeChecker");
             }
         }
     }
@@ -13256,11 +11860,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if(matchingOverloads.Count > 1)
         {
             var signatures = matchingOverloads
-                .Select(o => FormatCandidateSignature(o, methodName, model));
-            diagnostics.Add(MakeDiagnostic(
-                AmbiguousMethodGroupConversion.Value,
-                $"Method group '{methodName}' is ambiguous; multiple overloads match the target type '{funcCt.DisplayName}': {string.Join(" and ", signatures)}",
-                postfix));
+                .Select(o => FormatCandidateSignature(o, methodName, model)); diagnostics.ReportAtNode(TypeCheckDiagnostics.AmbiguousMethodGroupConversion, postfix, "TypeChecker");
         }
     }
 
@@ -13307,11 +11907,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             return;
         }
-
-        diagnostics.Add(MakeDiagnostic(
-            "MIST_REF_0001",
-            $"A ref argument must be an assignable variable, field, or array element; '{description}' is not a valid storage location",
-            refArg));
+        diagnostics.ReportAtNode(TypeCheckDiagnostics.RefArgNotStorageLocation, refArg, "TypeChecker", description);
     }
 
     /// <summary>
@@ -13354,10 +11950,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return false;
         }
 
-        diagnostics.Add(MakeDiagnostic(
-            "MIST_READONLY_LOCAL_0001",
-            $"Cannot pass readonly local variable '{concreteSymbol.Name}' by mutable reference",
-            refArg));
+        diagnostics.ReportAtNode(TypeCheckDiagnostics.ReadonlyLocalRefArgument, refArg, "TypeChecker", concreteSymbol.Name);
         return true;
     }
 
@@ -13703,19 +12296,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             if(concreteParam.RefKind == RefKind.Ref && argNode is ValueArgumentArgumentNode)
             {
-                // Parameter is ref but argument is missing the 'ref' keyword.
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_REF_0002",
-                    $"Argument for ref parameter '{concreteParam.Name}' must be prefixed with the 'ref' keyword",
-                    argNode));
+                // Parameter is ref but argument is missing the 'ref' keyword.                diagnostics.ReportAtNode(TypeCheckDiagnostics.RefKeywordMissing, argNode, "TypeChecker");
             }
             else if(concreteParam.RefKind == RefKind.None && argNode is RefArgumentArgumentNode)
             {
-                // Parameter is not ref but argument has a spurious 'ref' keyword.
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_REF_0003",
-                    $"Parameter '{concreteParam.Name}' is not declared as ref; remove the 'ref' keyword from the argument",
-                    argNode));
+                // Parameter is not ref but argument has a spurious 'ref' keyword.                diagnostics.ReportAtNode(TypeCheckDiagnostics.RefKeywordOnNonRefParam, argNode, "TypeChecker");
             }
         }
     }
@@ -13795,10 +12380,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     if(IsAssignableStorageLocation(refArgNode.Expression, model, out _)
                         && !RefTypesCompatible(argType, paramType))
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            "MIST_REF_0007",
-                            $"Ref argument type '{argType.DisplayName}' must match parameter type '{paramType.DisplayName}' exactly; no implicit conversions are allowed for ref arguments",
-                            refArgNode));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.RefArgTypeMismatch, refArgNode, "TypeChecker");
                     }
 
                     continue;
@@ -13809,10 +12391,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // because that would require boxing (heap allocation).
                 if(IsRefStructType(argType) && IsAbstractTargetType(paramType))
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST2007",
-                        $"Ref struct value cannot be converted to abstract type '{paramType.DisplayName}'",
-                        argExprs[i]));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.RefStructToAbstract, argExprs[i], "TypeChecker");
                     continue;
                 }
 
@@ -13861,10 +12440,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     }
                     else
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            "MIST_TC_0002",
-                            $"Argument type '{argType.DisplayName}' is not assignable to parameter type '{paramType.DisplayName}'",
-                            argExprs[i]));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.ExpressionBodyTypeMismatch, argExprs[i], "TypeChecker");
                     }
                 }
                 else
@@ -13977,10 +12553,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     if(IsAssignableStorageLocation(refArgNode.Expression, model, out _)
                         && !RefTypesCompatible(argType, paramType))
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            "MIST_REF_0007",
-                            $"Ref argument type '{argType.DisplayName}' must match parameter type '{paramType.DisplayName}' exactly; no implicit conversions are allowed for ref arguments",
-                            refArgNode));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.RefArgTypeMismatch, refArgNode, "TypeChecker");
                     }
 
                     continue;
@@ -13991,10 +12564,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // because that would require boxing (heap allocation).
                 if(IsRefStructType(argType) && IsAbstractTargetType(paramType))
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST2007",
-                        $"Ref struct value cannot be converted to abstract type '{paramType.DisplayName}'",
-                        argExprs[i]));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.RefStructToAbstract, argExprs[i], "TypeChecker");
                     continue;
                 }
 
@@ -14043,10 +12613,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     }
                     else
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            "MIST_TC_0002",
-                            $"Argument type '{argType.DisplayName}' is not assignable to parameter type '{paramType.DisplayName}'",
-                            argExprs[i]));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.ExpressionBodyTypeMismatch, argExprs[i], "TypeChecker");
                     }
                 }
                 else
@@ -14143,10 +12710,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                 // Implication not provable — emit compile-time error.
                 var callableName1 = GetCallableDescription(callableSymbol);
-                diagnostics.Add(MakeDiagnostic(
-                    RefinementImplicationFailure.Value,
-                    $"Cannot pass '{sourceRefinement.Name}' with constraint '{sourceRefinement.Predicate.Description}' to parameter '{paramSymbols[i].Name}' of {callableName1} with constraint '{paramRefinement.Description}' because the compiler cannot prove the implication. Use pattern matching to validate.",
-                    argExpr));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.RefinementImplicationFailure, argExpr, "TypeChecker", paramSymbols[i].Name, callableName1);
                 continue;
             }
 
@@ -14156,12 +12720,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 if(!paramRefinement.Evaluate(constantValue))
                 {
-                    // Determine the callable description for the diagnostic message.
-                    var callableName = GetCallableDescription(callableSymbol);
-                    diagnostics.Add(MakeDiagnostic(
-                        ParameterRefinementViolation.Value,
-                        $"Argument '{constantValue}' does not satisfy refinement constraint '{paramRefinement.Description}' on parameter '{paramSymbols[i].Name}' of {callableName}.",
-                        argExpr));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.ParameterRefinementViolation, argExpr, "TypeChecker", constantValue.ToString()!, paramSymbols[i].Name);
                 }
 
                 continue;
@@ -14171,11 +12730,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // Adhoc parameter refinement constraints enforce the same rules as named
             // refinement type parameters: non-provable arguments require explicit
             // pattern matching to establish the constraint.
-            var callableDesc = GetCallableDescription(callableSymbol);
-            diagnostics.Add(MakeDiagnostic(
-                ParameterRefinementViolation.Value,
-                $"Cannot pass non-constant argument to parameter '{paramSymbols[i].Name}' of {callableDesc} with refinement constraint '{paramRefinement.Description}' without proving the refinement. Use pattern matching to validate.",
-                argExpr));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.ParameterRefinementNonConstant, argExpr, "TypeChecker", paramSymbols[i].Name);
         }
     }
 
@@ -14381,14 +12936,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         return result;
     }
 
-    // ── Type alias diagnostic ID ─────────────────────────────────────────
-
-    /// <summary>
-    /// Emitted when a generic type alias is used with the wrong number of
-    /// type arguments (Requirement 5.3).
-    /// </summary>
-    internal static readonly DiagnosticId TypeAliasArgumentCountMismatch = new("MIST_SB_0063");
-
     /// <summary>
     /// Resolves a <see cref="TypeReferenceNode"/> to its corresponding <see cref="IType"/>
     /// by looking up the type name in the semantic model's symbol table.
@@ -14497,10 +13044,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Verify argument count matches parameter count (Requirement 5.3).
         if(typeArgs.Count != typeParams.Count)
         {
-            diagnostics?.Add(MakeDiagnostic(
-                    TypeAliasArgumentCountMismatch.Value,
-                    $"Type alias '{aliasType.Name}' expects {typeParams.Count} type argument(s) but was given {typeArgs.Count}.",
-                    namedRef));
+            diagnostics?.ReportAtNode(TypeCheckDiagnostics.TypeAliasArgumentCountMismatch, namedRef, "TypeChecker");
 
             return ErrorType.Instance;
         }
@@ -14559,10 +13103,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var elementType = model.GetTypeOf(arrayCreation);
         if(elementType is ArrayType at && at.ElementType.IsVoid())
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_TC_0034",
-                "Cannot create an array of type 'void'. Void is not permitted as an array element type.",
-                arrayCreation));
+            diagnostics.ReportAtNode(CommonDiagnostics.VoidArrayNotPermitted, arrayCreation, "TypeChecker");
             return;
         }
 
@@ -14576,10 +13117,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // `List<unknown>[]` also trip the ban via IsStorageBanned.
         if(elementType is ArrayType arr && TypeContainment.IsStorageBanned(arr.ElementType))
         {
-            diagnostics.Add(MakeDiagnostic(
-                SemanticModelBuilder.UnknownAsArrayElement.Value,
-                $"Cannot create an array of type '{arr.ElementType.DisplayName}' because its element type contains 'unknown'. Array elements are writable storage and cannot hold an 'unknown'-typed value.",
-                arrayCreation));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.UnknownAsArrayElement, arrayCreation, "TypeChecker", arr.ElementType.DisplayName);
             return;
         }
 
@@ -14588,10 +13126,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             if(!IsIntLike(sizeType))
             {
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0012",
-                    $"Array size must be of type 'int', but found '{sizeType.DisplayName}'",
-                    arrayCreation.Size));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.ArraySizeNotInt, arrayCreation.Size, "TypeChecker");
             }
         }
 
@@ -14623,14 +13158,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 StructType => $"'{elemType.DisplayName}' is a struct with fields that are not stampable",
                 _ => $"'{elemType.DisplayName}' is a reference type",
-            };
-
-            diagnostics.Add(MakeDiagnostic(
-                DiagnosticId.ArrayRequiresInitializer.Value,
-                $"Cannot create a bare array 'new {elemType.DisplayName}[size]' because {reason}. " +
-                $"Use 'new Array<{elemType.DisplayName}, Size>(i => ...)' to supply a value for each element, " +
-                $"or use an array literal.",
-                arrayCreation));
+            }; diagnostics.ReportAtNode(CommonDiagnostics.ArrayRequiresInitializer, arrayCreation, "TypeChecker");
         }
     }
 
@@ -14654,10 +13182,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             if(!IsIntLike(sizeType))
             {
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0151",
-                    $"Stackalloc size must be of type 'int', but found '{sizeType.DisplayName}'",
-                    stackallocExpr.Size));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.StackallocSizeNotInt, stackallocExpr.Size, "TypeChecker", sizeType.DisplayName);
             }
         }
 
@@ -14685,11 +13210,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // fields happen to be all primitives (R5.6, MIST_TC_0154).
             if(IsRefStructType(elemType))
             {
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0154",
-                    $"Cannot use ref struct '{elemType.DisplayName}' as a stackalloc element type. " +
-                    $"Ref structs cannot be stored in contiguous stack-allocated memory.",
-                    stackallocExpr.Type));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.StackallocRefStructElement, stackallocExpr.Type, "TypeChecker", elemType.DisplayName);
                 return;
             }
 
@@ -14702,34 +13223,26 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return;
             }
 
-            // Reject: determine the specific reason and diagnostic ID.
-            var (diagId, message) = elemType switch
+            // Reject: determine the specific descriptor and emit.
+            var typeNode = (SyntaxNode)stackallocExpr.Type;
+            switch(elemType)
             {
-                _ when IsRefStructType(elemType) =>
-                    ("MIST_TC_0154",
-                     $"Cannot use ref struct '{elemType.DisplayName}' as a stackalloc element type. " +
-                     $"Ref structs cannot be stored in contiguous stack-allocated memory."),
+                case { } when IsRefStructType(elemType):
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.StackallocRefStructElement, typeNode, "TypeChecker", elemType.DisplayName);
+                    break;
 
-                StructType =>
-                    ("MIST_TC_0153",
-                     $"Cannot use '{elemType.DisplayName}' as a stackalloc element type because it is not stampable. " +
-                     $"Only primitive types and structs whose fields are all stampable can be stack-allocated."),
+                case StructType:
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.StackallocNonStampableElement, typeNode, "TypeChecker", elemType.DisplayName);
+                    break;
 
-                TypeParameterType =>
-                    ("MIST_TC_0155",
-                     $"Cannot use type parameter '{elemType.DisplayName}' as a stackalloc element type. " +
-                     $"The type parameter is not constrained to be a stampable type."),
+                case TypeParameterType:
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.StackallocTypeParameterElement, typeNode, "TypeChecker", elemType.DisplayName);
+                    break;
 
-                _ =>
-                    ("MIST_TC_0152",
-                     $"Cannot use reference type '{elemType.DisplayName}' as a stackalloc element type. " +
-                     $"Only value types (stampable structs and primitives) can be stack-allocated."),
-            };
-
-            diagnostics.Add(MakeDiagnostic(
-                diagId,
-                message,
-                stackallocExpr.Type));
+                default:
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.StackallocReferenceTypeElement, typeNode, "TypeChecker", elemType!.DisplayName);
+                    break;
+            }
         }
     }
 
@@ -14748,11 +13261,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         if(source is SpanType && target is not SpanType)
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_TC_0150",
-                $"Cannot assign stackalloc result of type '{source.DisplayName}' to target type '{target.DisplayName}'. " +
-                $"A stackalloc expression can only be assigned to a 'var' declaration, 'Span<T>', or 'ReadOnlySpan<T>'.",
-                node));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.StackallocAssignmentMismatch, node, "TypeChecker", source.DisplayName, target.DisplayName);
             return true;
         }
 
@@ -14782,22 +13291,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 var sourceKind = sourceSpan.IsReadOnly ? "ReadOnlySpan" : "Span";
                 var targetKind = targetSpan.IsReadOnly ? "ReadOnlySpan" : "Span";
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0157",
-                    $"Span kind mismatch: cannot assign '{sourceKind}<{sourceSpan.ElementType.DisplayName}>' " +
-                    $"to '{targetKind}<{targetSpan.ElementType.DisplayName}>'. " +
-                    $"Mutable Span and ReadOnlySpan are not interchangeable.",
-                    node));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.SpanKindMismatch, node, "TypeChecker", sourceKind, targetKind);
             }
             else
             {
                 // Kind matches but element types cannot be reconciled.
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0157",
-                    $"Span element type mismatch: cannot assign '{source.DisplayName}' " +
-                    $"to '{target.DisplayName}'. " +
-                    $"Element type '{sourceSpan.ElementType.DisplayName}' is not compatible with '{targetSpan.ElementType.DisplayName}'.",
-                    node));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.SpanElementTypeMismatch, node, "TypeChecker", source.DisplayName, target.DisplayName);
             }
 
             return true;
@@ -14830,19 +13329,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Validate the first element is not void (MIST_TC_0034).
         if(firstType is not null && !IsErrorType(firstType) && firstType.IsVoid())
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_TC_0034",
-                "Cannot create an array of type 'void'. Void is not permitted as an array element type.",
-                arrayLiteral.First));
+            diagnostics.ReportAtNode(CommonDiagnostics.VoidArrayNotPermitted, arrayLiteral.First, "TypeChecker");
         }
 
         // Validate the first element does not contain unknown (MIST_SB_0055).
         if(firstType is not null && !IsErrorType(firstType) && TypeContainment.IsStorageBanned(firstType))
         {
-            diagnostics.Add(MakeDiagnostic(
-                SemanticModelBuilder.UnknownAsArrayElement.Value,
-                $"Cannot create an array with element type '{firstType.DisplayName}' because it contains 'unknown'. Array elements are writable storage and cannot hold an 'unknown'-typed value.",
-                arrayLiteral.First));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.UnknownAsArrayElement, arrayLiteral.First, "TypeChecker", firstType.DisplayName);
         }
 
         // Validate each remaining element.
@@ -14857,20 +13350,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // Reject void elements (MIST_TC_0034).
             if(elemType.IsVoid())
             {
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0034",
-                    "Cannot create an array of type 'void'. Void is not permitted as an array element type.",
-                    elem));
+                diagnostics.ReportAtNode(CommonDiagnostics.VoidArrayNotPermitted, elem, "TypeChecker");
                 continue;
             }
 
             // Reject unknown elements (MIST_SB_0055).
             if(TypeContainment.IsStorageBanned(elemType))
             {
-                diagnostics.Add(MakeDiagnostic(
-                    SemanticModelBuilder.UnknownAsArrayElement.Value,
-                    $"Cannot create an array with element type '{elemType.DisplayName}' because it contains 'unknown'. Array elements are writable storage and cannot hold an 'unknown'-typed value.",
-                    elem));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.UnknownAsArrayElement, elem, "TypeChecker", elemType.DisplayName);
                 continue;
             }
 
@@ -14880,10 +13367,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 if(!IsAssignable(elemType, firstType, model) && !IsAssignable(firstType, elemType, model))
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        ArrayLiteralIncompatibleTypes.Value,
-                        $"Array literal elements have incompatible types: '{firstType.DisplayName}' and '{elemType.DisplayName}'. All elements must share a common type.",
-                        elem));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.ArrayLiteralIncompatibleTypes, elem, "TypeChecker");
                 }
             }
         }
@@ -14903,10 +13387,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 {
                     if(!IsAssignable(firstType, targetElementType, model))
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            ArrayLiteralIncompatibleTypes.Value,
-                            $"Array literal elements have incompatible types: '{firstType.DisplayName}' and '{targetElementType.DisplayName}'. All elements must share a common type.",
-                            arrayLiteral.First));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.ArrayLiteralIncompatibleTypes, arrayLiteral.First, "TypeChecker");
                     }
                 }
 
@@ -14922,10 +13403,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                     if(!IsAssignable(elemType, targetElementType, model))
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            ArrayLiteralIncompatibleTypes.Value,
-                            $"Array literal elements have incompatible types: '{elemType.DisplayName}' and '{targetElementType.DisplayName}'. All elements must share a common type.",
-                            elem));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.ArrayLiteralIncompatibleTypes, elem, "TypeChecker");
                     }
                 }
             }
@@ -14992,10 +13470,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                             if(!IsAssignable(indexType, expectedParamType))
                             {
-                                diagnostics.Add(MakeDiagnostic(
-                                    "MIST_TC_0010",
-                                    $"Indexer parameter must be of type '{expectedParamType.DisplayName}', but found '{indexType.DisplayName}'",
-                                    indexSuffix.Index));
+                                diagnostics.ReportAtNode(TypeCheckDiagnostics.IndexerParameterTypeMismatch, indexSuffix.Index, "TypeChecker");
                             }
                         }
                     }
@@ -15007,10 +13482,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             if(!IsIntLike(indexType))
             {
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0010",
-                    $"Array index must be of type 'int', but found '{indexType.DisplayName}'",
-                    indexSuffix.Index));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.IndexerParameterTypeMismatch, indexSuffix.Index, "TypeChecker");
             }
         }
 
@@ -15149,15 +13621,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             // Literal fails — emit diagnostic.
-            var boundsDesc = knownLength.HasValue
-                ? $">= 0 and < {knownLength.Value}"
-                : symbolicLengthId.HasValue
-                    ? $">= 0 and < {targetDisplayName}.Length"
-                    : ">= 0";
-            diagnostics.Add(MakeDiagnostic(
-                ParameterRefinementViolation.Value,
-                $"Argument '{constantValue}' does not satisfy refinement constraint '{boundsDesc}' on parameter 'index' of indexer '{targetDisplayName}'.",
-                indexSuffix.Index));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.ParameterRefinementViolation, indexSuffix.Index, "TypeChecker", longVal.HasValue ? longVal.Value.ToString() : "?", "index");
             return;
         }
 
@@ -15227,10 +13691,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             var boundsDesc2 = knownLength.HasValue
                 ? $">= 0 and < {knownLength.Value}"
                 : $">= 0 and < {targetDisplayName}.Length";
-            diagnostics.Add(MakeDiagnostic(
-                RefinementImplicationFailure.Value,
-                $"Cannot pass '{sourceRefinement.Name}' with constraint '{sourceRefinement.Predicate.Description}' to parameter 'index' of indexer '{targetDisplayName}' with constraint '{boundsDesc2}' because the compiler cannot prove the implication. Use pattern matching to validate.",
-                indexSuffix.Index));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.RefinementImplicationFailure, indexSuffix.Index, "TypeChecker", "index", boundsDesc2);
             return;
         }
 
@@ -15242,13 +13703,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return;
         }
 
-        var boundsDescription = knownLength.HasValue
-            ? $">= 0 and < {knownLength.Value}"
-            : $">= 0 and < {targetDisplayName}.Length";
-        diagnostics.Add(MakeDiagnostic(
-            ParameterRefinementViolation.Value,
-            $"Cannot pass non-constant argument to parameter 'index' of indexer '{targetDisplayName}' with refinement constraint '{boundsDescription}' without proving the refinement. Use pattern matching to validate.",
-            indexSuffix.Index));
+        diagnostics.ReportAtNode(TypeCheckDiagnostics.ParameterRefinementNonConstant, indexSuffix.Index, "TypeChecker", "index");
     }
 
     /// <summary>
@@ -15343,12 +13798,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     {
                         break; // Implication holds — accept.
                     }
+
                     // Implication not provable — emit compile-time error.
                     var typeName2 = FindDeclaringType(indexerSymbol)?.DisplayName ?? targetType.DisplayName;
-                    diagnostics.Add(MakeDiagnostic(
-                        RefinementImplicationFailure.Value,
-                        $"Cannot pass '{sourceRefinement.Name}' with constraint '{sourceRefinement.Predicate.Description}' to parameter '{paramSym.Name}' of indexer '{typeName2}' with constraint '{paramRefinement.Description}' because the compiler cannot prove the implication. Use pattern matching to validate.",
-                        indexSuffix.Index));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.RefinementImplicationFailure, indexSuffix.Index, "TypeChecker", "index", typeName2);
                     break;
                 }
 
@@ -15358,22 +13811,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 {
                     if(!paramRefinement.Evaluate(constantValue))
                     {
-                        var typeName = FindDeclaringType(indexerSymbol)?.DisplayName ?? targetType.DisplayName;
-                        diagnostics.Add(MakeDiagnostic(
-                            ParameterRefinementViolation.Value,
-                            $"Argument '{constantValue}' does not satisfy refinement constraint '{paramRefinement.Description}' on parameter '{paramSym.Name}' of indexer '{typeName}'.",
-                            indexSuffix.Index));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.ParameterRefinementViolation, indexSuffix.Index, "TypeChecker", constantValue.ToString()!, "index");
                     }
 
                     break;
                 }
 
                 // Case 3: Non-constant, non-refinement-typed argument — reject at compile time.
-                var indexerTypeName = FindDeclaringType(indexerSymbol)?.DisplayName ?? targetType.DisplayName;
-                diagnostics.Add(MakeDiagnostic(
-                    ParameterRefinementViolation.Value,
-                    $"Cannot pass non-constant argument to parameter '{paramSym.Name}' of indexer '{indexerTypeName}' with refinement constraint '{paramRefinement.Description}' without proving the refinement. Use pattern matching to validate.",
-                    indexSuffix.Index));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.ParameterRefinementNonConstant, indexSuffix.Index, "TypeChecker", "index");
                 break;
             }
         }
@@ -15423,10 +13868,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // Validate: exactly one argument, which must be a Func<int, T>.
             if(arrayCtorArgTypes.Count != 1)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0011",
-                    $"'new Array<{arrayCtorType.ElementType.DisplayName}, Size>(fn)' requires exactly one argument: a function of type 'Func<int, {arrayCtorType.ElementType.DisplayName}>'.",
-                    objectCreation));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.ArrayCtorRequiresOneArg, objectCreation, "TypeChecker", arrayCtorType.ElementType.DisplayName);
                 return;
             }
 
@@ -15440,20 +13882,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // Func<int, TReturn> where TReturn is assignable to elementType.
             if(!SemanticModelBuilder.IsFuncType(argType) || argType is not ConstructedType funcCt)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0011",
-                    $"'new Array<{arrayCtorType.ElementType.DisplayName}, Size>(fn)' requires a function argument of type 'Func<int, {arrayCtorType.ElementType.DisplayName}>', but found '{argType.DisplayName}'.",
-                    objectCreation));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.ArrayCtorRequiresOneArg, objectCreation, "TypeChecker", arrayCtorType.ElementType.DisplayName);
                 return;
             }
 
             // Func<int, T> has 2 type arguments: [int, T].
             if(funcCt.TypeArguments.Count != 2)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0011",
-                    $"'new Array<{arrayCtorType.ElementType.DisplayName}, Size>(fn)' requires a function with one integer parameter, but the provided function has {funcCt.TypeArguments.Count - 1} parameter(s).",
-                    objectCreation));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.ArrayCtorRequiresOneArg, objectCreation, "TypeChecker", arrayCtorType.ElementType.DisplayName);
                 return;
             }
 
@@ -15461,10 +13897,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             var paramType = funcCt.TypeArguments[0];
             if(!IsIntType(paramType))
             {
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0011",
-                    $"'new Array<{arrayCtorType.ElementType.DisplayName}, Size>(fn)' requires a function with an 'int' index parameter, but found '{paramType.DisplayName}'.",
-                    objectCreation));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.ArrayCtorRequiresOneArg, objectCreation, "TypeChecker", arrayCtorType.ElementType.DisplayName);
                 return;
             }
 
@@ -15472,10 +13905,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             var returnType = funcCt.TypeArguments[1];
             if(!IsAssignable(returnType, arrayCtorType.ElementType, model))
             {
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0011",
-                    $"'new Array<{arrayCtorType.ElementType.DisplayName}, Size>(fn)' requires the function to return a value assignable to '{arrayCtorType.ElementType.DisplayName}', but found '{returnType.DisplayName}'.",
-                    objectCreation));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.ArrayCtorRequiresOneArg, objectCreation, "TypeChecker", arrayCtorType.ElementType.DisplayName);
                 return;
             }
 
@@ -15497,10 +13927,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // SemanticModelBuilder.UnknownCannotBeInstantiated), so this
             // branch is a defensive guard for programmatically-constructed
             // ASTs.
-            diagnostics.Add(MakeDiagnostic(
-                SemanticModelBuilder.UnknownCannotBeInstantiated.Value,
-                "'unknown' cannot be instantiated. The 'unknown' type has no constructor and no declared members; use a concrete type instead.",
-                objectCreation));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.UnknownCannotBeInstantiated, objectCreation, "TypeChecker");
             return;
         }
 
@@ -15512,10 +13939,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // need to store an `unknown`-typed argument into a T-typed
             // slot. Diagnostic message names the generic type (Req 16.2)
             // and states the rule.
-            diagnostics.Add(MakeDiagnostic(
-                SemanticModelBuilder.UnknownInGenericConstruction.Value,
-                $"Cannot construct '{createdType.DisplayName}' because one or more type arguments are 'unknown'. A generic type cannot be constructed with 'unknown' as a type argument; use concrete type arguments or pattern-match from an already-widened value.",
-                objectCreation));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.UnknownInGenericConstruction, objectCreation, "TypeChecker", createdType.DisplayName);
             return;
         }
 
@@ -15530,10 +13954,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // If no constructor constraints exist, we cannot use new T(...).
             if(constraints is null || constraints.ConstructorConstraints.Count == 0)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    ConstraintNewTNoMatch.Value,
-                    $"No constructor constraint on type parameter '{typeParam.Name}' matches arguments '({FormatArgTypes(objectCreation.Arguments, model)})'. Available constructor constraints: (none).",
-                    objectCreation));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.ConstraintNewTNoMatch, objectCreation, "TypeChecker", typeParam.Name, "", "none");
                 return;
             }
 
@@ -15572,10 +13993,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 var signatures = string.Join(", ",
                     constraints.ConstructorConstraints.Select(p =>
                         "new(" + string.Join(", ", p.Select(t => t.DisplayName)) + ")"));
-                diagnostics.Add(MakeDiagnostic(
-                    ConstraintNewTNoMatch.Value,
-                    $"No constructor constraint on type parameter '{typeParam.Name}' matches arguments '({argTypeNames})'. Available constructor constraints: {signatures}.",
-                    objectCreation));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.ConstraintNewTNoMatch, objectCreation, "TypeChecker", typeParam.Name, argTypeNames, signatures);
             }
 
             return;
@@ -15623,10 +14041,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // (default constructor). Otherwise, emit diagnostic.
             if(argTypes.Count > 0)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0011",
-                    $"Type '{createdType.DisplayName}' does not contain a constructor matching the given arguments",
-                    objectCreation));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.NoMatchingConstructor, objectCreation, "TypeChecker", createdType.DisplayName);
                 return;
             }
         }
@@ -15654,19 +14069,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 case OverloadResolutionStatus.NoApplicableCandidate:
                     var argTypeNames = string.Join(", ", argTypes.Select(t => t.DisplayName));
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0031",
-                        $"No overload for '{typeName}' constructor matches argument types ({argTypeNames})",
-                        objectCreation));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.NoApplicableOverload, objectCreation, "TypeChecker", typeName, argTypeNames);
                     return;
 
                 case OverloadResolutionStatus.AmbiguousCall:
                     var sigs = result.AmbiguousCandidates!
                         .Select(c => FormatCandidateSignature(c, typeName, model));
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0032",
-                        $"Call to '{typeName}' constructor is ambiguous between: {string.Join(" and ", sigs)}",
-                        objectCreation));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.AmbiguousOverload, objectCreation, "TypeChecker", typeName, string.Join(", ", sigs));
                     return;
 
                 case OverloadResolutionStatus.Success:
@@ -15688,10 +14097,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             var hasMatch = ConstructorMatches(constructors[0], argTypes, createdType, model);
             if(!hasMatch)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0011",
-                    $"Type '{createdType.DisplayName}' does not contain a constructor matching the given arguments",
-                    objectCreation));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.NoMatchingConstructor, objectCreation, "TypeChecker", createdType.DisplayName);
             }
             else
             {
@@ -15738,19 +14144,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // ── unknown-type storage ban ─────────────────────────────────────
         if(createdType is UnknownType)
         {
-            diagnostics.Add(MakeDiagnostic(
-                SemanticModelBuilder.UnknownCannotBeInstantiated.Value,
-                "'unknown' cannot be instantiated. The 'unknown' type has no constructor and no declared members; use a concrete type instead.",
-                objectCreation));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.UnknownCannotBeInstantiated, objectCreation, "TypeChecker");
             return;
         }
 
         if(TypeContainment.IsStorageBanned(createdType))
         {
-            diagnostics.Add(MakeDiagnostic(
-                SemanticModelBuilder.UnknownInGenericConstruction.Value,
-                $"Cannot construct '{createdType.DisplayName}' because one or more type arguments are 'unknown'. A generic type cannot be constructed with 'unknown' as a type argument; use concrete type arguments or pattern-match from an already-widened value.",
-                objectCreation));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.UnknownInGenericConstruction, objectCreation, "TypeChecker", createdType.DisplayName);
             return;
         }
 
@@ -15792,10 +14192,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             if(!hasParameterless)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0011",
-                    $"Type '{createdType.DisplayName}' does not contain a constructor matching the given arguments",
-                    objectCreation));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.NoMatchingConstructor, objectCreation, "TypeChecker", createdType.DisplayName);
             }
         }
 
@@ -15832,10 +14229,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // the target type is unknowable and we emit a specific diagnostic.
         if(IsInVarDeclarationContext(targetNew))
         {
-            diagnostics.Add(MakeDiagnostic(
-                DiagnosticId.TargetNewWithVar.Value,
-                "The type of 'new()' cannot be inferred because 'var' does not provide a target type. Use an explicit type or provide the type name after 'new'.",
-                targetNew));
+            diagnostics.ReportAtNode(CommonDiagnostics.TargetNewWithVar, targetNew, "TypeChecker");
             return;
         }
 
@@ -15843,10 +14237,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var resolvedType = model.GetTypeOf(targetNew);
         if(resolvedType is null || IsErrorType(resolvedType))
         {
-            diagnostics.Add(MakeDiagnostic(
-                DiagnosticId.TargetNewNoContext.Value,
-                "The type of 'new()' cannot be inferred from context.",
-                targetNew));
+            diagnostics.ReportAtNode(CommonDiagnostics.TargetNewNoContext, targetNew, "TypeChecker");
             return;
         }
 
@@ -15860,19 +14251,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Check for non-instantiable types.
         if(IsAbstractTargetType(validationType))
         {
-            diagnostics.Add(MakeDiagnostic(
-                DiagnosticId.TargetNewAbstract.Value,
-                $"Cannot create an instance of abstract type '{resolvedType.DisplayName}' with target-typed new.",
-                targetNew));
+            diagnostics.ReportAtNode(CommonDiagnostics.TargetNewAbstract, targetNew, "TypeChecker", validationType.DisplayName);
             return;
         }
 
         if(validationType is ClassType { IsAbstract: true })
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_ABSTRACT_INSTANTIATION",
-                $"Cannot create an instance of abstract type '{resolvedType.DisplayName}'.",
-                targetNew));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.AbstractInstantiation, targetNew, "TypeChecker", validationType.DisplayName);
             return;
         }
 
@@ -15885,10 +14270,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // No constructors defined — default parameterless constructor implied.
             if(argTypes.Count > 0)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0011",
-                    $"Type '{resolvedType.DisplayName}' does not contain a constructor matching the given arguments",
-                    targetNew));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.NoMatchingConstructor, targetNew, "TypeChecker", resolvedType.DisplayName);
                 return;
             }
         }
@@ -15912,19 +14294,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 case OverloadResolutionStatus.NoApplicableCandidate:
                     var argTypeNames = string.Join(", ", argTypes.Select(t => t.DisplayName));
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0031",
-                        $"No overload for '{resolvedType.DisplayName}' constructor matches argument types ({argTypeNames})",
-                        targetNew));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.NoApplicableOverload, targetNew, "TypeChecker", resolvedType.DisplayName, argTypeNames);
                     return;
 
                 case OverloadResolutionStatus.AmbiguousCall:
                     var sigs = result.AmbiguousCandidates!
                         .Select(c => FormatCandidateSignature(c, resolvedType.DisplayName, model));
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0032",
-                        $"Call to '{resolvedType.DisplayName}' constructor is ambiguous between: {string.Join(" and ", sigs)}",
-                        targetNew));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.AmbiguousOverload, targetNew, "TypeChecker", resolvedType.DisplayName, string.Join(", ", sigs));
                     return;
 
                 case OverloadResolutionStatus.Success:
@@ -15943,10 +14319,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             var hasMatch = ConstructorMatches(constructors[0], argTypes, validationType, model);
             if(!hasMatch)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0011",
-                    $"Type '{resolvedType.DisplayName}' does not contain a constructor matching the given arguments",
-                    targetNew));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.NoMatchingConstructor, targetNew, "TypeChecker", resolvedType.DisplayName);
             }
             else
             {
@@ -15978,10 +14351,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Detect var context.
         if(IsInVarDeclarationContext(targetNewNoArgs))
         {
-            diagnostics.Add(MakeDiagnostic(
-                DiagnosticId.TargetNewWithVar.Value,
-                "The type of 'new()' cannot be inferred because 'var' does not provide a target type. Use an explicit type or provide the type name after 'new'.",
-                targetNewNoArgs));
+            diagnostics.ReportAtNode(CommonDiagnostics.TargetNewWithVar, targetNewNoArgs, "TypeChecker");
             return;
         }
 
@@ -15989,10 +14359,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var resolvedType = model.GetTypeOf(targetNewNoArgs);
         if(resolvedType is null || IsErrorType(resolvedType))
         {
-            diagnostics.Add(MakeDiagnostic(
-                DiagnosticId.TargetNewNoContext.Value,
-                "The type of 'new()' cannot be inferred from context.",
-                targetNewNoArgs));
+            diagnostics.ReportAtNode(CommonDiagnostics.TargetNewNoContext, targetNewNoArgs, "TypeChecker");
             return;
         }
 
@@ -16006,19 +14373,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Check for non-instantiable types.
         if(IsAbstractTargetType(validationType))
         {
-            diagnostics.Add(MakeDiagnostic(
-                DiagnosticId.TargetNewAbstract.Value,
-                $"Cannot create an instance of abstract type '{resolvedType.DisplayName}' with target-typed new.",
-                targetNewNoArgs));
+            diagnostics.ReportAtNode(CommonDiagnostics.TargetNewAbstract, targetNewNoArgs, "TypeChecker", validationType.DisplayName);
             return;
         }
 
         if(validationType is ClassType { IsAbstract: true })
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_ABSTRACT_INSTANTIATION",
-                $"Cannot create an instance of abstract type '{resolvedType.DisplayName}'.",
-                targetNewNoArgs));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.AbstractInstantiation, targetNewNoArgs, "TypeChecker", validationType.DisplayName);
             return;
         }
 
@@ -16039,10 +14400,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             if(!hasParameterless)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0011",
-                    $"Type '{resolvedType.DisplayName}' does not contain a constructor matching the given arguments",
-                    targetNewNoArgs));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.NoMatchingConstructor, targetNewNoArgs, "TypeChecker", resolvedType.DisplayName);
             }
         }
 
@@ -16161,10 +14519,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // ── 6. Duplicate detection ───────────────────────────────────────
         if(!seenNames.Add(memberName))
         {
-            diagnostics.Add(MakeDiagnostic(
-                PropertyInitializerDuplicate.Value,
-                $"Member '{memberName}' is assigned more than once in the initializer",
-                assignment));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.PropertyInitializerDuplicate, assignment, "TypeChecker", memberName);
             return;
         }
 
@@ -16172,10 +14527,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var symbol = memberScope.Lookup(memberName);
         if(symbol is null || symbol.Kind is not (SymbolKind.Property or SymbolKind.Field))
         {
-            diagnostics.Add(MakeDiagnostic(
-                PropertyInitializerMemberNotFound.Value,
-                $"Type '{memberLookupType.DisplayName}' does not contain a property or field named '{memberName}'",
-                assignment));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.PropertyInitializerMemberNotFound, assignment, "TypeChecker", memberLookupType.DisplayName, memberName);
             return;
         }
 
@@ -16194,10 +14546,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 var declaringType = GetDeclaringTypeOfMember(symbol);
                 if(declaringType is not null && !IsSameType(declaringType, currentEnclosingType))
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        PropertyInitializerInaccessible.Value,
-                        $"'{memberName}' is inaccessible due to its protection level",
-                        assignment));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.PropertyInitializerInaccessible, assignment, "TypeChecker");
                     return;
                 }
             }
@@ -16209,10 +14558,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             var propInfo = GetPropertyMetadata(symbol);
             if(propInfo is not null && !propInfo.HasSet && !propInfo.HasInit)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    PropertyInitializerNoSetOrInit.Value,
-                    $"Property '{memberName}' has no accessible 'set' or 'init' accessor and cannot be assigned in an initializer",
-                    assignment));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.PropertyInitializerNoSetOrInit, assignment, "TypeChecker", memberName);
                 return;
             }
         }
@@ -16224,10 +14570,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 or ReadonlyStatus.InferredReadonly
                 or ReadonlyStatus.ImplicitReadonly)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    PropertyInitializerReadonlyField.Value,
-                    $"Field '{memberName}' is readonly and cannot be assigned in an initializer",
-                    assignment));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.PropertyInitializerReadonlyField, assignment, "TypeChecker", memberName);
                 return;
             }
         }
@@ -16240,10 +14583,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             if(!IsAssignable(valueType, memberType, model))
             {
-                diagnostics.Add(MakeDiagnostic(
-                    PropertyInitializerTypeMismatch.Value,
-                    $"Cannot assign '{valueType.DisplayName}' to '{memberName}' of type '{memberType.DisplayName}'",
-                    assignment));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.PropertyInitializerTypeMismatch, assignment, "TypeChecker", valueType!.DisplayName, memberName, memberType!.DisplayName);
             }
         }
     }
@@ -16317,16 +14657,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // No constructors available — only an error if arguments were provided.
             if(argTypes.Count > 0)
             {
-                var diagnosticId = chain is BaseChainConstructorChainNode && enclosingType is StructType
-                    ? "MIST_STRUCT_BASE_CTOR_MISMATCH"
-                    : "MIST_TC_0013";
-                var message = chain is BaseChainConstructorChainNode && enclosingType is StructType
-                    ? $"No constructor on struct '{targetType.DisplayName}' accepts the provided arguments."
-                    : $"No constructor on '{targetType.DisplayName}' matches the chained arguments";
-                diagnostics.Add(MakeDiagnostic(
-                    diagnosticId,
-                    message,
-                    chain));
+                if(chain is BaseChainConstructorChainNode && enclosingType is StructType)
+                {
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.StructBaseCtorMismatch, chain, "TypeChecker", targetType.DisplayName);
+                }
+                else
+                {
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.NoMatchingConstructor, chain, "TypeChecker", targetType.DisplayName);
+                }
             }
 
             return;
@@ -16345,17 +14683,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     var argTypeNames = string.Join(", ", argTypes.Select(t => t.DisplayName));
                     if(chain is BaseChainConstructorChainNode && enclosingType is StructType)
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            "MIST_STRUCT_BASE_CTOR_MISMATCH",
-                            $"No constructor on struct '{typeName}' accepts the provided arguments.",
-                            chain));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.StructBaseCtorMismatch, chain, "TypeChecker");
                     }
                     else
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            "MIST_TC_0031",
-                            $"No overload for '{typeName}' constructor matches argument types ({argTypeNames})",
-                            chain));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.NoApplicableOverload, chain, "TypeChecker", typeName, string.Join(", ", argTypes.Select(t => t.DisplayName)));
                     }
 
                     return;
@@ -16363,10 +14695,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 case OverloadResolutionStatus.AmbiguousCall:
                     var sigs = result.AmbiguousCandidates!
                         .Select(c => FormatCandidateSignature(c, typeName, model));
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0032",
-                        $"Call to '{typeName}' constructor is ambiguous between: {string.Join(" and ", sigs)}",
-                        chain));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.AmbiguousOverload, chain, "TypeChecker", typeName, string.Join(", ", sigs));
                     return;
 
                 case OverloadResolutionStatus.Success:
@@ -16383,17 +14712,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 if(chain is BaseChainConstructorChainNode && enclosingType is StructType)
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_STRUCT_BASE_CTOR_MISMATCH",
-                        $"No constructor on struct '{targetType.DisplayName}' accepts the provided arguments.",
-                        chain));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.StructBaseCtorMismatch, chain, "TypeChecker", targetType.DisplayName);
                 }
                 else
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0013",
-                        $"No constructor on '{targetType.DisplayName}' matches the chained arguments",
-                        chain));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.NoMatchingConstructor, chain, "TypeChecker", targetType.DisplayName);
                 }
             }
             else
@@ -16640,10 +14963,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 if(declaringType is not null && !IsSameType(declaringType, currentEnclosingType))
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0014",
-                        $"'{memberName}' is inaccessible due to its protection level",
-                        accessNode));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.MemberInaccessible, accessNode, "TypeChecker");
                     return; // Don't emit additional diagnostics for the same access.
                 }
             }
@@ -16652,20 +14972,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // R9.4: Static members must be accessed via type name, not instance.
         if(modifiers.IsStatic && !targetIsTypeName)
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_TC_0015",
-                $"Static member '{memberName}' cannot be accessed via an instance",
-                accessNode));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.StaticMemberViaInstance, accessNode, "TypeChecker");
             return;
         }
 
         // R9.5: Instance members must be accessed via instance, not type name.
         if(!modifiers.IsStatic && targetIsTypeName)
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_TC_0016",
-                $"Instance member '{memberName}' cannot be accessed via a type name",
-                accessNode));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.InstanceMemberViaType, accessNode, "TypeChecker");
         }
 
         // ── Property-specific access checks ──────────────────────────────
@@ -16678,10 +14992,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // MIST_TC_0027: Static property accessed through instance reference.
                 if(modifiers.IsStatic && !targetIsTypeName)
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0027",
-                        $"Static property '{memberName}' cannot be accessed through an instance reference",
-                        accessNode));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.StaticPropertyViaInstance, accessNode, "TypeChecker");
                 }
             }
         }
@@ -16904,10 +15215,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                 if(!satisfiesAny)
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        RefinementLiteralViolation.Value,
-                        $"Value '{unionConstantValue}' does not satisfy any refinement constituent of union type '{targetUnion.DisplayName}'",
-                        expression));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.RefinementLiteralViolation, expression, "TypeChecker", unionConstantValue.ToString()!, targetUnion.DisplayName, targetUnion.DisplayName);
                     return true;
                 }
 
@@ -16923,10 +15231,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     .Any(r => IsAssignable(sourceType, r.BaseType, model));
                 if(isBaseOfAnyConstituent)
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        RefinementNonConstantAssignment.Value,
-                        $"Cannot assign '{sourceType.DisplayName}' to '{targetUnion.DisplayName}' without proving the refinement. Use pattern matching to validate at runtime",
-                        expression));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.RefinementNonConstantAssignment, expression, "TypeChecker", sourceType.DisplayName, targetType.DisplayName);
                     return true;
                 }
             }
@@ -16960,11 +15265,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     return false;
                 }
 
-                // Cannot prove subset relationship — emit diagnostic.
-                diagnostics.Add(MakeDiagnostic(
-                    RefinementSubsetNotProvable.Value,
-                    $"Cannot assign '{sourceRefinementDifferent.Name}' to '{targetRefinement.Name}' because the compiler cannot prove that '{sourceRefinementDifferent.Predicate.Description}' implies '{targetRefinement.Predicate.Description}'",
-                    expression));
+                // Cannot prove subset relationship -- emit diagnostic.
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.RefinementSubsetNotProvable, expression, "TypeChecker", sourceRefinementDifferent.DisplayName, targetRefinement.DisplayName, sourceRefinementDifferent.Predicate.Description, targetRefinement.Predicate.Description);
                 return true;
             }
 
@@ -16979,10 +15281,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // Evaluate the predicate against the literal value.
             if(!targetRefinement.Predicate.Evaluate(constantValue))
             {
-                diagnostics.Add(MakeDiagnostic(
-                    RefinementLiteralViolation.Value,
-                    $"Value '{constantValue}' does not satisfy refinement '{targetRefinement.Predicate.Description}' on type '{targetRefinement.Name}'",
-                    expression));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.RefinementLiteralViolation, expression, "TypeChecker", constantValue.ToString()!, targetRefinement.Predicate.Description, targetRefinement.DisplayName);
                 return true;
             }
 
@@ -17006,11 +15305,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     return false;
                 }
             }
-
-            diagnostics.Add(MakeDiagnostic(
-                RefinementNonConstantAssignment.Value,
-                $"Cannot assign '{sourceType.DisplayName}' to '{targetRefinement.Name}' without proving the refinement. Use pattern matching to validate at runtime",
-                expression));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.RefinementNonConstantAssignment, expression, "TypeChecker", sourceType.DisplayName, targetRefinement.DisplayName);
             return true;
         }
 
@@ -17089,21 +15384,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             catch(ArgumentException ex)
             {
                 // Invalid regex pattern — emit diagnostic.
-                var offset = ex is RegexParseException parseEx ? parseEx.Offset : 0;
-                diagnostics.Add(MakeDiagnostic(
-                    RegexPatternInvalid.Value,
-                    $"Invalid regex pattern: {ex.Message} at offset {offset}",
-                    expression));
+                var offset = ex is RegexParseException parseEx ? parseEx.Offset : 0; diagnostics.ReportAtNode(TypeCheckDiagnostics.RegexPatternInvalid, expression, "TypeChecker");
                 return true;
             }
         }
 
         // Non-literal string assigned to regex without explicit cast.
         // Emit a type mismatch diagnostic suggesting an explicit cast.
-        diagnostics.Add(MakeDiagnostic(
-            "MIST_TC_0001",
-            $"Cannot implicitly convert type '{sourceType.DisplayName}' to '{targetType.DisplayName}'. An explicit cast exists (are you missing a cast?)",
-            expression));
+        diagnostics.ReportAtNode(TypeCheckDiagnostics.ImplicitConversionNotExists, expression, "TypeChecker", sourceType.DisplayName, targetType.DisplayName);
         return true;
     }
 
@@ -17288,10 +15576,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // Check if the member is readonly.
             if(!IsMemberReadonly(member))
             {
-                diagnostics.Add(MakeDiagnostic(
-                    RefinementMutableMember.Value,
-                    $"Refinement predicate on type '{typeName}' references mutable member '{memberName}'. All members in a refinement predicate must be readonly.",
-                    subpattern));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.RefinementMutableMember, subpattern, "TypeChecker", typeName, memberName);
             }
 
             // Recursively validate nested property patterns in the subpattern's inner pattern.
@@ -17428,12 +15713,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 {
                     if(!IsTypeReadonly(constituent))
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            EnumUnionConstituentNotReadonly.Value,
-                            $"Enum '{enumType.DisplayName}' has a non-readonly union constituent " +
-                            $"type '{constituent.DisplayName}'. All constituent types in an enum's " +
-                            $"union base type must be readonly.",
-                            model.GetDeclaringNode(symbol)));
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.EnumUnionConstituentNotReadonly, model.GetDeclaringNode(symbol), "TypeChecker", symbol.Name, constituent.DisplayName);
                     }
                 }
             }
@@ -17441,11 +15721,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 if(!IsTypeReadonly(underlyingType))
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        EnumBaseTypeNotReadonly.Value,
-                        $"Enum '{enumType.DisplayName}' has a non-readonly base type " +
-                        $"'{underlyingType.DisplayName}'. Enum base types must be readonly.",
-                        model.GetDeclaringNode(symbol)));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.EnumBaseTypeNotReadonly, model.GetDeclaringNode(symbol), "TypeChecker", symbol.Name, underlyingType.DisplayName);
                 }
             }
         }
@@ -17468,11 +15744,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // an abstract is permitted.
         if(IsRefStructType(source) && IsAbstractTargetType(target))
         {
-            var abstractName = target.DisplayName;
-            diagnostics.Add(MakeDiagnostic(
-                "MIST2007",
-                $"Ref struct value cannot be converted to abstract type '{abstractName}'",
-                node));
+            var abstractName = target.DisplayName; diagnostics.ReportAtNode(TypeCheckDiagnostics.RefStructToAbstract, node, "TypeChecker");
             return;
         }
 
@@ -17530,11 +15802,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 return;
             }
-
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_TC_0001",
-                $"Cannot assign '{source.DisplayName}' to '{target.DisplayName}'",
-                node));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.ImplicitConversionNotExists, node, "TypeChecker", source.DisplayName, target.DisplayName);
         }
         else
         {
@@ -17583,20 +15851,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // explicitly rejects this and leaves the emission to the caller.
         if(target is UnknownType && source.IsVoid())
         {
-            diagnostics.Add(MakeDiagnostic(
-                VoidToUnknown.Value,
-                $"Cannot assign '{source.DisplayName}' to 'unknown': 'void' carries no value and is not assignable to the top type.",
-                node));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.VoidToUnknown, node, "TypeChecker");
             return true;
         }
 
         // unknown → non-unknown (Req 4.4). Use `is T t` to narrow first.
         if(source is UnknownType && target is not UnknownType)
         {
-            diagnostics.Add(MakeDiagnostic(
-                UnknownToNonUnknown.Value,
-                $"Cannot assign 'unknown' to '{target.DisplayName}': use an 'is' pattern to narrow the value to a concrete type first.",
-                node));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.UnknownToNonUnknown, node, "TypeChecker");
             return true;
         }
 
@@ -17607,10 +15869,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // rather than cascading a generic type-mismatch diagnostic.
         if(WouldAssignableWithUnknownWideningIfClass(source, target))
         {
-            diagnostics.Add(MakeDiagnostic(
-                StructGenericUnknownWidening.Value,
-                $"Cannot assign '{source.DisplayName}' to '{target.DisplayName}': covariant 'unknown' widening is only available for class (reference-type) generics, not struct generics.",
-                node));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.StructGenericUnknownWidening, node, "TypeChecker");
             return true;
         }
 
@@ -17724,10 +15983,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         if(ambiguous)
         {
-            diagnostics.Add(MakeDiagnostic(
-                AmbiguousImplicitCast.Value,
-                $"Ambiguous implicit conversion from '{source.DisplayName}' to '{target.DisplayName}': multiple implicit cast operators are applicable.",
-                node));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.AmbiguousImplicitCast, node, "TypeChecker");
             return null;
         }
 
@@ -19819,11 +18075,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// <c>RecordResolvedOperator</c>, the target of <c>SetTypeOf</c>, and the
     /// source-span carrier for diagnostic messages.
     /// </param>
-    /// <param name="noApplicableDiagnosticId">
-    /// Diagnostic ID to emit when no candidate is applicable. Wrapper callers
-    /// pass <c>"MIST_TC_0003"</c> (additive / multiplicative),
-    /// <c>"MIST_TC_0005"</c> (relational), or <c>"MIST_TC_0006"</c> (equality)
-    /// to preserve the diagnostic codes the old hardcoded checks emitted.
+    /// <param name="noApplicableDescriptor">
+    /// Descriptor to emit when no candidate is applicable. Wrapper callers
+    /// pass <c>TypeCheckDiagnostics.OperatorNotApplicableArithmetic</c> (additive / multiplicative),
+    /// <c>TypeCheckDiagnostics.OperatorNotApplicableComparison</c> (relational), or
+    /// <c>TypeCheckDiagnostics.OperatorNotApplicableLogical</c> (equality / logical).
     /// </param>
     /// <param name="model">The semantic model; used to read and set expression types.</param>
     /// <param name="diagnostics">The diagnostic bag to append to.</param>
@@ -19832,7 +18088,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         SyntaxNode left,
         SyntaxNode right,
         SyntaxNode surrounding,
-        string noApplicableDiagnosticId,
+        DiagnosticDescriptor noApplicableDescriptor,
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
@@ -19857,10 +18113,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // suppress cascading.
         if(leftType is UnknownType || rightType is UnknownType)
         {
-            diagnostics.Add(MakeDiagnostic(
-                BareUnknownOperator.Value,
-                FormatBareUnknownBinaryOperatorMessage(op, leftType, rightType),
-                surrounding));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.BareUnknownOperator, surrounding, "TypeChecker", op, leftType.DisplayName, rightType.DisplayName);
             return;
         }
 
@@ -19900,10 +18153,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         if(candidates.Count == 0)
         {
-            diagnostics.Add(MakeDiagnostic(
-                noApplicableDiagnosticId,
-                $"Operator '{op}' cannot be applied to operands of type '{leftType.DisplayName}' and '{rightType.DisplayName}'",
-                surrounding));
+            diagnostics.ReportAtNode(noApplicableDescriptor, surrounding, "TypeChecker", op, leftType.DisplayName, rightType.DisplayName);
             return;
         }
 
@@ -19931,17 +18181,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
 
             case OverloadResolutionStatus.NoApplicableCandidate:
-                diagnostics.Add(MakeDiagnostic(
-                    noApplicableDiagnosticId,
-                    $"Operator '{op}' cannot be applied to operands of type '{leftType.DisplayName}' and '{rightType.DisplayName}'",
-                    surrounding));
+                diagnostics.ReportAtNode(noApplicableDescriptor, surrounding, "TypeChecker", op, leftType.DisplayName, rightType.DisplayName);
                 break;
 
             case OverloadResolutionStatus.AmbiguousCall:
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0032",
-                    $"Ambiguous operator '{op}' between types '{leftType.DisplayName}' and '{rightType.DisplayName}'",
-                    surrounding));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.AmbiguousOverload, surrounding, "TypeChecker", op, "multiple candidates");
                 break;
         }
     }
@@ -19958,11 +18202,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// <c>RecordResolvedOperator</c> and the source-span carrier for
     /// diagnostics.
     /// </param>
-    /// <param name="noApplicableDiagnosticId">
-    /// Diagnostic ID to emit when no candidate is applicable. Wrapper callers
-    /// pass <c>"MIST_TC_0003"</c> for unary <c>-</c> and <c>"MIST_TC_0006"</c>
-    /// for unary <c>!</c> to preserve the diagnostic codes the existing
-    /// hardcoded checks emit.
+    /// <param name="noApplicableDescriptor">
+    /// Descriptor to emit when no candidate is applicable. Wrapper callers
+    /// pass <c>TypeCheckDiagnostics.OperatorNotApplicableArithmetic</c> for
+    /// unary <c>-</c> and <c>TypeCheckDiagnostics.OperatorNotApplicableLogical</c>
+    /// for unary <c>!</c>.
     /// </param>
     /// <param name="model">The semantic model; used to read and set expression types.</param>
     /// <param name="diagnostics">The diagnostic bag to append to.</param>
@@ -19970,7 +18214,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         string op,
         SyntaxNode operand,
         SyntaxNode surrounding,
-        string noApplicableDiagnosticId,
+        DiagnosticDescriptor noApplicableDescriptor,
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
@@ -19991,10 +18235,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // suppress cascading.
         if(operandType is UnknownType)
         {
-            diagnostics.Add(MakeDiagnostic(
-                BareUnknownOperator.Value,
-                FormatBareUnknownUnaryOperatorMessage(op, operandType),
-                surrounding));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.BareUnknownOperator, surrounding, "TypeChecker", op, operandType.DisplayName, operandType.DisplayName);
             return;
         }
 
@@ -20008,10 +18249,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         if(candidates.Count == 0)
         {
-            diagnostics.Add(MakeDiagnostic(
-                noApplicableDiagnosticId,
-                $"Operator '{op}' cannot be applied to operand of type '{operandType.DisplayName}'",
-                surrounding));
+            diagnostics.ReportAtNode(noApplicableDescriptor, surrounding, "TypeChecker", op, operandType.DisplayName, operandType.DisplayName);
             return;
         }
 
@@ -20035,17 +18273,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
 
             case OverloadResolutionStatus.NoApplicableCandidate:
-                diagnostics.Add(MakeDiagnostic(
-                    noApplicableDiagnosticId,
-                    $"Operator '{op}' cannot be applied to operand of type '{operandType.DisplayName}'",
-                    surrounding));
+                diagnostics.ReportAtNode(noApplicableDescriptor, surrounding, "TypeChecker", op, operandType.DisplayName, operandType.DisplayName);
                 break;
 
             case OverloadResolutionStatus.AmbiguousCall:
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0032",
-                    $"Ambiguous operator '{op}' for operand type '{operandType.DisplayName}'",
-                    surrounding));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.AmbiguousOverload, surrounding, "TypeChecker", op, "multiple candidates");
                 break;
         }
     }
@@ -20234,20 +18466,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                                 // Field is inherited — check visibility.
                                 if(!IsMemberPublicViaModel(fieldSymbol, model))
                                 {
-                                    diagnostics.Add(MakeDiagnostic(
-                                        DiagnosticId.DefaultFieldNotVisible.Value,
-                                        $"Field '{fieldName}' is not accessible from the default block of '{type!.DisplayName}' because it is not public in the base type",
-                                        fieldOverride));
+                                    diagnostics.ReportAtNode(CommonDiagnostics.DefaultFieldNotVisible, fieldOverride, "TypeChecker");
                                 }
                             }
 
                             // 3. Validate compile-time constant expression (v1: only literals).
                             if(!IsLiteralExpression(fieldOverride.Value))
                             {
-                                diagnostics.Add(MakeDiagnostic(
-                                    DiagnosticId.DefaultNotConstant.Value,
-                                    $"Default value for field '{fieldName}' must be a compile-time constant expression",
-                                    fieldOverride.Value));
+                                diagnostics.ReportAtNode(CommonDiagnostics.DefaultNotConstant, fieldOverride.Value, "TypeChecker");
                             }
 
                             // Track whether this override differs from the inferred default.
@@ -20272,10 +18498,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             {
                                 if(!IsMemberPublicViaModel(fieldSymbol, model))
                                 {
-                                    diagnostics.Add(MakeDiagnostic(
-                                        DiagnosticId.DefaultFieldNotVisible.Value,
-                                        $"Field '{fieldName}' is not accessible from the default block of '{type!.DisplayName}' because it is not public in the base type",
-                                        typeBinding));
+                                    diagnostics.ReportAtNode(CommonDiagnostics.DefaultFieldNotVisible, typeBinding, "TypeChecker");
                                 }
                             }
 
@@ -20286,22 +18509,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                                 switch(concreteType)
                                 {
                                     case ClassType ct when ct.Defaultability == DefaultabilityStatus.NotDefaultable:
-                                        diagnostics.Add(MakeDiagnostic(
-                                            DiagnosticId.DefaultNotSupported.Value,
-                                            $"Type '{ct.DisplayName}' used as a type binding for field '{fieldName}' is not defaultable",
-                                            typeBinding));
+                                        diagnostics.ReportAtNode(CommonDiagnostics.DefaultNotSupported, typeBinding, "TypeChecker");
                                         break;
                                     case StructType st when st.Defaultability == DefaultabilityStatus.NotDefaultable:
-                                        diagnostics.Add(MakeDiagnostic(
-                                            DiagnosticId.DefaultNotSupported.Value,
-                                            $"Type '{st.DisplayName}' used as a type binding for field '{fieldName}' is not defaultable",
-                                            typeBinding));
+                                        diagnostics.ReportAtNode(CommonDiagnostics.DefaultNotSupported, typeBinding, "TypeChecker");
                                         break;
                                     case not ClassType and not StructType:
-                                        diagnostics.Add(MakeDiagnostic(
-                                            DiagnosticId.DefaultNotSupported.Value,
-                                            $"Type binding for field '{fieldName}' must reference a class or struct type, not '{concreteType.DisplayName}'",
-                                            typeBinding));
+                                        diagnostics.ReportAtNode(CommonDiagnostics.DefaultNotSupported, typeBinding, "TypeChecker");
                                         break;
                                 }
                             }
@@ -20311,10 +18525,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             {
                                 if(!IsLiteralExpression(nested.Value))
                                 {
-                                    diagnostics.Add(MakeDiagnostic(
-                                        DiagnosticId.DefaultNotConstant.Value,
-                                        $"Default value for nested field '{nested.FieldName.Lexeme}' must be a compile-time constant expression",
-                                        nested.Value));
+                                    diagnostics.ReportAtNode(CommonDiagnostics.DefaultNotConstant, nested.Value, "TypeChecker");
                                 }
                             }
 
@@ -20336,12 +18547,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 var hasConstructors = memberScope.Members.Any(m => m.Kind == SymbolKind.Constructor);
                 if(!hasConstructors)
                 {
-                    diagnostics.Add(MakeDiagnosticWithSeverity(
-                        DiagnosticId.DefaultRedundantBlock.Value,
-                        $"The explicit default block on type '{type!.DisplayName}' is redundant and can be removed because it produces the same values as the inferred default",
-                        defaultBlockNode,
-
-                        DiagnosticSeverity.Info));
+                    diagnostics.ReportAtNode(CommonDiagnostics.DefaultRedundantBlock, defaultBlockNode, "TypeChecker");
                 }
             }
         }
@@ -20685,25 +18891,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         };
     }
 
-    /// <summary>
-    /// Creates a diagnostic with a specified severity level.
-    /// Used for non-error diagnostics such as the <c>Info</c>-level redundant default block diagnostic.
-    /// </summary>
-    private static Diagnostic MakeDiagnosticWithSeverity(
-        string id, string message, SyntaxNode node, DiagnosticSeverity severity)
-    {
-        var (compilationUnitPath, location, _) = DiagnosticHelper.ResolveLocation(node);
-
-        return new Diagnostic(
-            new DiagnosticId(id),
-            severity,
-            PipelineStage.Analysis,
-            message,
-            Location: location,
-            CompilationUnitPath: compilationUnitPath,
-            AnalyzerName: "TypeChecker");
-    }
-
     // ═══════════════════════════════════════════════════════════════════════
     // Union type assignability helpers
     // ═══════════════════════════════════════════════════════════════════════
@@ -20828,10 +19015,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if(missingOn.Count > 0)
         {
             var missingList = string.Join(", ", missingOn.Select(t => $"'{t}'"));
-            diagnostics.Add(MakeDiagnostic(
-                UnionMemberNotOnAllConstituents.Value,
-                $"Member '{memberName}' does not exist on all constituents of union type '{unionType.DisplayName}'. Missing on: {missingList}.",
-                node));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.UnionMemberNotOnAllConstituents, node, "TypeChecker", memberName, unionType.DisplayName, missingList);
             return ErrorType.Instance;
         }
 
@@ -20894,20 +19078,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Union → non-union (Req 6.4): must narrow first.
         if(source is UnionType && target is not UnionType)
         {
-            diagnostics.Add(MakeDiagnostic(
-                UnionToNonUnionAssignment.Value,
-                $"Cannot assign '{source.DisplayName}' to '{target.DisplayName}': use a pattern match ('is {target.DisplayName} x') to narrow the union type first.",
-                node));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.UnionToNonUnionAssignment, node, "TypeChecker", source.DisplayName, target.DisplayName);
             return true;
         }
 
         // Non-constituent → union (Req 6.3): source is not a constituent.
         if(source is not UnionType && target is UnionType)
         {
-            diagnostics.Add(MakeDiagnostic(
-                UnionNonConstituentAssignment.Value,
-                $"Cannot assign '{source.DisplayName}' to '{target.DisplayName}': '{source.DisplayName}' is not a constituent of the union type.",
-                node));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.UnionNonConstituentAssignment, node, "TypeChecker", source.DisplayName, target.DisplayName);
             return true;
         }
 
@@ -20926,10 +19104,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if(missing.Count > 0)
             {
                 var missingList = string.Join(", ", missing);
-                diagnostics.Add(MakeDiagnostic(
-                    UnionIncompatibleConstituents.Value,
-                    $"Cannot assign '{source.DisplayName}' to '{target.DisplayName}': constituent type(s) {missingList} not present in the target union.",
-                    node));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.UnionIncompatibleConstituents, node, "TypeChecker", source.DisplayName, target.DisplayName, missingList);
                 return true;
             }
         }
@@ -20968,10 +19143,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             unwrappedSource is not EnumType &&
             IsAssignable(unwrappedSource, targetEnum.UnderlyingType, model))
         {
-            diagnostics.Add(MakeDiagnostic(
-                CannotAssignUnderlyingToEnum.Value,
-                $"Cannot assign '{source.DisplayName}' to '{target.DisplayName}': implicit conversion from the underlying type to an enum type is not supported. Use an explicit enum member instead.",
-                node));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.CannotAssignUnderlyingToEnum, node, "TypeChecker");
             return true;
         }
 
@@ -21015,19 +19187,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             if(unwrappedTarget is DelegateType narrowTarget)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    DelegateCannotNarrowBaseDelegate.Value,
-                    $"Cannot implicitly convert 'System.Delegate' to '{narrowTarget.DisplayName}': use a cast to a specific delegate or func type",
-                    node));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.DelegateCannotNarrowBaseDelegate, node, "TypeChecker");
                 return true;
             }
 
             if(SemanticModelBuilder.IsFuncType(unwrappedTarget))
             {
-                diagnostics.Add(MakeDiagnostic(
-                    DelegateCannotNarrowBaseDelegate.Value,
-                    $"Cannot implicitly convert 'System.Delegate' to '{unwrappedTarget.DisplayName}': use a cast to a specific delegate or func type",
-                    node));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.DelegateCannotNarrowBaseDelegate, node, "TypeChecker");
                 return true;
             }
 
@@ -21037,11 +19203,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // ── MIST_TC_0130: Nominal mismatch between two distinct named delegates ──
         if(unwrappedTarget is DelegateType targetDelegate && unwrappedSource is DelegateType sourceDelegate)
         {
-            // If we reach here, assignability already failed — they must be different.
-            diagnostics.Add(MakeDiagnostic(
-                DelegateNominalMismatch.Value,
-                $"Cannot convert delegate '{sourceDelegate.DisplayName}' to '{targetDelegate.DisplayName}': named delegates are nominally distinct even when their signatures match",
-                node));
+            // If we reach here, assignability already failed — they must be different.            diagnostics.ReportAtNode(TypeCheckDiagnostics.DelegateNominalMismatch, node, "TypeChecker");
             return true;
         }
 
@@ -21051,11 +19213,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if(SemanticModelBuilder.IsFuncType(unwrappedSource))
             {
                 // Signature mismatch: provide details about the incompatibility.
-                var mismatchReason = DescribeSignatureMismatch(unwrappedSource, targetDelegateForSig.FuncSignature);
-                diagnostics.Add(MakeDiagnostic(
-                    DelegateSignatureMismatch.Value,
-                    $"Cannot convert '{unwrappedSource.DisplayName}' to delegate type '{targetDelegateForSig.DisplayName}': {mismatchReason}",
-                    node));
+                var mismatchReason = DescribeSignatureMismatch(unwrappedSource, targetDelegateForSig.FuncSignature); diagnostics.ReportAtNode(TypeCheckDiagnostics.DelegateSignatureMismatch, node, "TypeChecker");
                 return true;
             }
 
@@ -21129,70 +19287,25 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Cross-newtype assignment (Req 2.5): two different newtypes.
         if(unwrappedSource is NewtypeType sourceNewtype && unwrappedTarget is NewtypeType targetNewtype)
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_TC_0001",
-                $"Cannot convert type '{sourceNewtype.DisplayName}' to '{targetNewtype.DisplayName}'",
-                node));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.ImplicitConversionNotExists, node, "TypeChecker", source.DisplayName, target.DisplayName);
             return true;
         }
 
         // Newtype → Source type (Req 2.4): newtype assigned where source type expected.
         if(unwrappedSource is NewtypeType newtypeSource)
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_TC_0001",
-                $"Cannot convert type '{newtypeSource.DisplayName}' to '{unwrappedTarget.DisplayName}' without an explicit cast",
-                node));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.ImplicitConversionNotExists, node, "TypeChecker", source.DisplayName, target.DisplayName);
             return true;
         }
 
         // Source type → Newtype (Req 2.3): source type assigned where newtype expected.
         if(unwrappedTarget is NewtypeType newtypeTarget)
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_TC_0001",
-                $"Cannot convert type '{unwrappedSource.DisplayName}' to '{newtypeTarget.DisplayName}' without an explicit cast",
-                node));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.ImplicitConversionNotExists, node, "TypeChecker");
             return true;
         }
 
         return false;
-    }
-
-    /// <summary>
-    /// Creates a diagnostic for the type checker.
-    /// Uses the semantic model to resolve the source file path and convert
-    /// offsets to proper 1-based line/column positions.
-    /// </summary>
-    private static Diagnostic MakeDiagnostic(string id, string message, SyntaxNode node)
-    {
-        var (compilationUnitPath, location, _) = DiagnosticHelper.ResolveLocation(node);
-
-        return new Diagnostic(
-            new DiagnosticId(id),
-            DiagnosticSeverity.Error,
-            PipelineStage.Analysis,
-            message,
-            Location: location,
-            CompilationUnitPath: compilationUnitPath,
-            AnalyzerName: "TypeChecker");
-    }
-
-    /// <summary>
-    /// Creates a warning-severity diagnostic with location information derived from the given AST node.
-    /// </summary>
-    private static Diagnostic MakeDiagnosticWarning(string id, string message, SyntaxNode node)
-    {
-        var (compilationUnitPath, location, _) = DiagnosticHelper.ResolveLocation(node);
-
-        return new Diagnostic(
-            new DiagnosticId(id),
-            DiagnosticSeverity.Warning,
-            PipelineStage.Analysis,
-            message,
-            Location: location,
-            CompilationUnitPath: compilationUnitPath,
-            AnalyzerName: "TypeChecker");
     }
 
     /// <summary>
@@ -21230,19 +19343,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         if(inferenceResult.Conflicts is { Count: > 0 })
         {
-            var conflict = inferenceResult.Conflicts[0];
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_TC_0081",
-                $"Type parameter '{conflict.TypeParameter}' of method '{methodName}' has conflicting inferred types: '{conflict.First.DisplayName}' and '{conflict.Second.DisplayName}'. Provide explicit type arguments.",
-                methodCall));
+            var conflict = inferenceResult.Conflicts[0]; diagnostics.ReportAtNode(TypeCheckDiagnostics.TypeInferenceConflict, methodCall, "TypeChecker");
         }
         else if(inferenceResult.UninferrableTypeParameters is { Count: > 0 })
         {
-            var names = string.Join(", ", inferenceResult.UninferrableTypeParameters.Select(n => $"'{n}'"));
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_TC_0080",
-                $"Type parameter {names} of method '{methodName}' cannot be inferred from the arguments. Provide explicit type arguments.",
-                methodCall));
+            var names = string.Join(", ", inferenceResult.UninferrableTypeParameters.Select(n => $"'{n}'")); diagnostics.ReportAtNode(TypeCheckDiagnostics.TypeInferenceFailed, methodCall, "TypeChecker");
         }
     }
 
@@ -21285,20 +19390,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // instantiation may box or store the value on the heap.
         if(IsRefStructType(effectiveTypeArgument))
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST2004",
-                $"Ref struct type '{effectiveTypeArgument.DisplayName}' cannot be used as a generic type argument",
-                node));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.RefStructGenericArgRestriction, node, "TypeChecker", effectiveTypeArgument.DisplayName);
         }
 
         // ── MIST_ANON_ESCAPE_GENERIC: Anonymous type generic argument restriction (Requirement 4.7) ──
         // Anonymous types have no denotable name and cannot be used as generic type arguments.
         if(effectiveTypeArgument is AnonymousType)
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_ANON_ESCAPE_GENERIC",
-                "Anonymous types have no denotable name and cannot be used as generic type arguments",
-                node));
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.AnonEscapeGeneric, node, "TypeChecker");
         }
 
         var constraints = typeParameter.Constraints;
@@ -21318,10 +19417,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             if(typeArgument.Kind == TypeKind.Struct)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    ConstraintClassViolation.Value,
-                    $"Type '{typeArgument.DisplayName}' must be a reference type to satisfy the 'class' constraint on type parameter '{typeParameter.Name}'.",
-                    node));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.ConstraintClassViolation, node, "TypeChecker", typeArgument.DisplayName, typeParameter.Name);
             }
         }
 
@@ -21330,10 +19426,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             if(typeArgument.Kind != TypeKind.Struct)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    ConstraintStructViolation.Value,
-                    $"Type '{typeArgument.DisplayName}' must be a value type to satisfy the 'struct' constraint on type parameter '{typeParameter.Name}'.",
-                    node));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.ConstraintStructViolation, node, "TypeChecker", typeArgument.DisplayName, typeParameter.Name);
             }
         }
 
@@ -21342,10 +19435,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             if(!DerivesFromClass(typeArgument, constraints.BaseClassConstraint))
             {
-                diagnostics.Add(MakeDiagnostic(
-                    ConstraintBaseClassNotDerived.Value,
-                    $"Type '{typeArgument.DisplayName}' does not derive from '{constraints.BaseClassConstraint.DisplayName}' required by type parameter '{typeParameter.Name}' of '{genericTypeName}'.",
-                    node));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.ConstraintBaseClassNotDerived, node, "TypeChecker", typeArgument.DisplayName, constraints.BaseClassConstraint!.DisplayName, typeParameter.Name, genericTypeName);
             }
         }
 
@@ -21354,10 +19444,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             if(!ImplementsAbstractConstraint(typeArgument, abs, model))
             {
-                diagnostics.Add(MakeDiagnostic(
-                    ConstraintAbstractNotImplemented.Value,
-                    $"Type '{typeArgument.DisplayName}' does not implement abstract type '{abs.DisplayName}' required by type parameter '{typeParameter.Name}' of '{genericTypeName}'.",
-                    node));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.ConstraintAbstractNotImplemented, node, "TypeChecker", typeArgument.DisplayName, abs.DisplayName, typeParameter.Name, genericTypeName);
             }
         }
 
@@ -21375,10 +19462,7 @@ node, model, diagnostics);
         {
             if(!IsTypeReadonly(typeArgument))
             {
-                diagnostics.Add(MakeDiagnostic(
-                    ConstraintReadonlyViolation.Value,
-                    $"Type argument '{typeArgument.DisplayName}' does not satisfy the 'readonly' constraint on type parameter '{typeParameter.Name}'.",
-                    node));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.ConstraintReadonlyViolation, node, "TypeChecker");
             }
         }
 
@@ -21387,10 +19471,7 @@ node, model, diagnostics);
         {
             if(IsTypeReadonly(typeArgument))
             {
-                diagnostics.Add(MakeDiagnostic(
-                    ConstraintMutableViolation.Value,
-                    $"Type argument '{typeArgument.DisplayName}' does not satisfy the 'mutable' constraint on type parameter '{typeParameter.Name}' (type is readonly).",
-                    node));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.ConstraintMutableViolation, node, "TypeChecker");
             }
         }
 
@@ -21399,10 +19480,7 @@ node, model, diagnostics);
         {
             if(!IsTypeOwned(typeArgument))
             {
-                diagnostics.Add(MakeDiagnostic(
-                    ConstraintOwnedViolation.Value,
-                    $"Type argument '{typeArgument.DisplayName}' does not satisfy the 'owned' constraint on type parameter '{typeParameter.Name}'.",
-                    node));
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.ConstraintOwnedViolation, node, "TypeChecker");
             }
         }
 
@@ -21411,10 +19489,7 @@ node, model, diagnostics);
         {
             if(!IsTypeDefaultable(typeArgument))
             {
-                diagnostics.Add(MakeDiagnostic(
-                    DiagnosticId.DefaultConstraintNotSatisfied.Value,
-                    $"Type '{typeArgument.DisplayName}' does not satisfy the 'default' constraint on type parameter '{typeParameter.Name}' of '{genericTypeName}'.",
-                    node));
+                diagnostics.ReportAtNode(CommonDiagnostics.DefaultConstraintNotSatisfied, node, "TypeChecker");
             }
         }
 
@@ -21432,11 +19507,7 @@ node, model, diagnostics);
                     SubstructuralDiscipline.Affine => "affine",
                     SubstructuralDiscipline.Relevant => "relevant",
                     _ => "substructural",
-                };
-                diagnostics.Add(MakeDiagnostic(
-                    ConstraintSubstructuralViolation.Value,
-                    $"Type '{typeArgument.DisplayName}' does not satisfy the '{constraintKeyword}' constraint on type parameter '{typeParameter.Name}' of '{genericTypeName}'.",
-                    node));
+                }; diagnostics.ReportAtNode(TypeCheckDiagnostics.ConstraintSubstructuralViolation, node, "TypeChecker");
             }
         }
     }
@@ -21582,18 +19653,12 @@ node, model, diagnostics);
             {
                 if(requiredParams.Count == 0)
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        ConstraintParameterlessCtorViolation.Value,
-                        $"Type '{typeArgument.DisplayName}' must have a public parameterless constructor to satisfy the 'new()' constraint on type parameter '{typeParameter.Name}'.",
-                        node));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.ConstraintParameterlessCtorViolation, node, "TypeChecker", typeArgument.DisplayName, typeParameter.Name);
                 }
                 else
                 {
                     var paramTypes = string.Join(", ", requiredParams.Select(p => p.DisplayName));
-                    diagnostics.Add(MakeDiagnostic(
-                        ConstraintParameterizedCtorViolation.Value,
-                        $"Type '{typeArgument.DisplayName}' must have a public constructor with parameters '({paramTypes})' to satisfy the 'new({paramTypes})' constraint on type parameter '{typeParameter.Name}'.",
-                        node));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.ConstraintParameterizedCtorViolation, node, "TypeChecker", typeArgument.DisplayName, paramTypes, typeParameter.Name);
                 }
             }
         }
@@ -21927,11 +19992,7 @@ node, model, diagnostics);
             // Check MIST_DT_0002: Is the argument a compile-time constant?
             if(!IsDependentArgCompileTimeConstant(argNode, model))
             {
-                var exprText = ExtractTypeArgumentText(argNode);
-                diagnostics.Add(MakeDiagnostic(
-                    DependentArgNotConstant.Value,
-                    $"Dependent type argument must be a compile-time constant. '{exprText}' cannot be evaluated at compile time.",
-                    argNode));
+                var exprText = ExtractTypeArgumentText(argNode); diagnostics.ReportAtNode(TypeCheckDiagnostics.DependentArgNotConstant, argNode, "TypeChecker");
                 continue; // Skip type match check if not a constant.
             }
 
@@ -21942,10 +20003,7 @@ node, model, diagnostics);
             {
                 if(!DependentValueTypeMatches(depArg, depParam))
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        DependentArgTypeMismatch.Value,
-                        $"Dependent type argument '{depArg.DisplayValue}' of type '{depArg.ValueType.DisplayName}' is not assignable to dependent parameter '{depParam.Name}' of type '{depParam.ValueType.DisplayName}'.",
-                        argNode));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.DependentArgTypeMismatch, argNode, "TypeChecker");
                 }
                 else
                 {
@@ -21992,19 +20050,11 @@ node, model, diagnostics);
 
             if(sourceConstraint is null)
             {
-                // MIST_REFINEMENT_0008: Source has no constraint, target requires one.
-                diagnostics.Add(MakeDiagnostic(
-                    RefinementUnconstrainedForwarding.Value,
-                    $"Cannot forward dependent parameter '{sourceParam.Name}' with no constraint to parameter '{depParam.Name}' with constraint '{targetConstraint.Description}' because the compiler cannot prove the implication.",
-                    argNode));
+                // MIST_REFINEMENT_0008: Source has no constraint, target requires one.                diagnostics.ReportAtNode(TypeCheckDiagnostics.RefinementUnconstrainedForwarding, argNode, "TypeChecker");
             }
             else if(!RefinementSolver.Implies(sourceConstraint, targetConstraint))
             {
-                // MIST_REFINEMENT_0006: Source constraint does not imply target constraint.
-                diagnostics.Add(MakeDiagnostic(
-                    RefinementImplicationFailure.Value,
-                    $"Cannot forward dependent parameter '{sourceParam.Name}' with constraint '{sourceConstraint.Description}' to parameter '{depParam.Name}' with constraint '{targetConstraint.Description}' because the compiler cannot prove the implication.",
-                    argNode));
+                // MIST_REFINEMENT_0006: Source constraint does not imply target constraint.                diagnostics.ReportAtNode(TypeCheckDiagnostics.RefinementImplicationFailure, argNode, "TypeChecker");
             }
         }
         else
@@ -22012,11 +20062,7 @@ node, model, diagnostics);
             // Concrete constant case: evaluate the predicate against the value.
             if(!targetConstraint.Evaluate(depArg.Value))
             {
-                var typeName = constructedType.GenericDefinition.DisplayName;
-                diagnostics.Add(MakeDiagnostic(
-                    RefinementConstraintViolation.Value,
-                    $"Dependent type argument '{depArg.DisplayValue}' does not satisfy refinement constraint '{targetConstraint.Description}' on parameter '{depParam.Name}' of type '{typeName}'.",
-                    argNode));
+                var typeName = constructedType.GenericDefinition.DisplayName; diagnostics.ReportAtNode(TypeCheckDiagnostics.RefinementConstraintViolation, argNode, "TypeChecker");
             }
         }
     }
@@ -22060,11 +20106,7 @@ node, model, diagnostics);
             // Check MIST_DT_0002: Is the argument a compile-time constant?
             if(!IsDependentArgCompileTimeConstant(argNode, model))
             {
-                var exprText = ExtractTypeArgumentText(argNode);
-                diagnostics.Add(MakeDiagnostic(
-                    DependentArgNotConstant.Value,
-                    $"Dependent type argument must be a compile-time constant. '{exprText}' cannot be evaluated at compile time.",
-                    argNode));
+                var exprText = ExtractTypeArgumentText(argNode); diagnostics.ReportAtNode(TypeCheckDiagnostics.DependentArgNotConstant, argNode, "TypeChecker");
                 continue;
             }
 
@@ -22106,17 +20148,11 @@ node, model, diagnostics);
                 var sourceConstraint = forwardedParam.AdhocConstraint;
                 if(sourceConstraint is null)
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        RefinementUnconstrainedForwarding.Value,
-                        $"Cannot forward dependent parameter '{forwardedParam.Name}' with no constraint to parameter '{depParam.Name}' with constraint '{constraint.Description}' because the compiler cannot prove the implication.",
-                        argNode));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.RefinementUnconstrainedForwarding, argNode, "TypeChecker");
                 }
                 else if(!RefinementSolver.Implies(sourceConstraint, constraint))
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        RefinementImplicationFailure.Value,
-                        $"Cannot forward dependent parameter '{forwardedParam.Name}' with constraint '{sourceConstraint.Description}' to parameter '{depParam.Name}' with constraint '{constraint.Description}' because the compiler cannot prove the implication.",
-                        argNode));
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.RefinementImplicationFailure, argNode, "TypeChecker");
                 }
 
                 return;
@@ -22127,11 +20163,7 @@ node, model, diagnostics);
         var constantValue = TryExtractConstantFromTypeArgNode(argNode);
         if(constantValue is not null && !constraint.Evaluate(constantValue))
         {
-            var displayValue = ExtractTypeArgumentText(argNode);
-            diagnostics.Add(MakeDiagnostic(
-                RefinementConstraintViolation.Value,
-                $"Dependent type argument '{displayValue}' does not satisfy refinement constraint '{constraint.Description}' on parameter '{depParam.Name}'.",
-                argNode));
+            var displayValue = ExtractTypeArgumentText(argNode); diagnostics.ReportAtNode(TypeCheckDiagnostics.RefinementConstraintViolation, argNode, "TypeChecker");
         }
     }
 
@@ -22431,12 +20463,7 @@ node, model, diagnostics);
                 if(!IsImplicitlyWidenable(derivedDepParam.ValueType, baseDepParam.ValueType))
                 {
                     var derivedTypeName = derivedType.DisplayName;
-                    var baseTypeName = baseConstructed.GenericDefinition.DisplayName;
-
-                    diagnostics.Add(MakeDiagnostic(
-                        DependentNarrowingViolation.Value,
-                        $"Dependent type parameter '{derivedDepParam.Name}' of type '{derivedDepParam.ValueType.DisplayName}' on '{derivedTypeName}' cannot be forwarded to parameter '{baseDepParam.Name}' of type '{baseDepParam.ValueType.DisplayName}' on '{baseTypeName}' because '{derivedDepParam.ValueType.DisplayName}' is not implicitly convertible to '{baseDepParam.ValueType.DisplayName}'.",
-                        declaringNode));
+                    var baseTypeName = baseConstructed.GenericDefinition.DisplayName; diagnostics.ReportAtNode(TypeCheckDiagnostics.DependentNarrowingViolation, declaringNode, "TypeChecker");
                 }
 
                 // Validate adhoc refinement constraint implication for forwarded parameters.
@@ -22446,19 +20473,11 @@ node, model, diagnostics);
                     var sourceConstraint = derivedDepParam.AdhocConstraint;
                     if(sourceConstraint is null)
                     {
-                        // MIST_REFINEMENT_0008: Source has no constraint, target requires one.
-                        diagnostics.Add(MakeDiagnostic(
-                            RefinementUnconstrainedForwarding.Value,
-                            $"Cannot forward dependent parameter '{derivedDepParam.Name}' with no constraint to parameter '{baseDepParam.Name}' with constraint '{targetConstraint.Description}' because the compiler cannot prove the implication.",
-                            declaringNode));
+                        // MIST_REFINEMENT_0008: Source has no constraint, target requires one.                        diagnostics.ReportAtNode(TypeCheckDiagnostics.RefinementUnconstrainedForwarding, declaringNode, "TypeChecker");
                     }
                     else if(!RefinementSolver.Implies(sourceConstraint, targetConstraint))
                     {
-                        // MIST_REFINEMENT_0006: Source constraint does not imply target constraint.
-                        diagnostics.Add(MakeDiagnostic(
-                            RefinementImplicationFailure.Value,
-                            $"Cannot forward dependent parameter '{derivedDepParam.Name}' with constraint '{sourceConstraint.Description}' to parameter '{baseDepParam.Name}' with constraint '{targetConstraint.Description}' because the compiler cannot prove the implication.",
-                            declaringNode));
+                        // MIST_REFINEMENT_0006: Source constraint does not imply target constraint.                        diagnostics.ReportAtNode(TypeCheckDiagnostics.RefinementImplicationFailure, declaringNode, "TypeChecker");
                     }
                 }
             }
@@ -22474,11 +20493,7 @@ node, model, diagnostics);
                 {
                     if(!targetConstraint.Evaluate(depArg.Value))
                     {
-                        var typeName = baseConstructed.GenericDefinition.DisplayName;
-                        diagnostics.Add(MakeDiagnostic(
-                            RefinementConstraintViolation.Value,
-                            $"Dependent type argument '{depArg.DisplayValue}' does not satisfy refinement constraint '{targetConstraint.Description}' on parameter '{baseDepParam.Name}' of type '{typeName}'.",
-                            declaringNode));
+                        var typeName = baseConstructed.GenericDefinition.DisplayName; diagnostics.ReportAtNode(TypeCheckDiagnostics.RefinementConstraintViolation, declaringNode, "TypeChecker");
                     }
                 }
             }
@@ -22608,11 +20623,7 @@ node, model, diagnostics);
                         if(PredicateContainsRelationalPattern(constraint.AstNode)
                             && !IsComparableRefinementType(depParam.ValueType))
                         {
-                            var clauseNode = FindAdhocConstraintClauseNode(declaringNode, depParam.Name);
-                            diagnostics.Add(MakeDiagnostic(
-                                RefinementPredicateIncompatible.Value,
-                                $"Refinement predicate '{constraint.Description}' is not valid for type '{depParam.ValueType.DisplayName}'. Relational patterns require a comparable type.",
-                                clauseNode ?? declaringNode));
+                            var clauseNode = FindAdhocConstraintClauseNode(declaringNode, depParam.Name); diagnostics.ReportAtNode(TypeCheckDiagnostics.RefinementPredicateIncompatible, clauseNode ?? declaringNode, "TypeChecker");
                         }
                     }
                 }
@@ -22677,11 +20688,7 @@ node, model, diagnostics);
             if(PredicateContainsRelationalPattern(refinement.AstNode)
                 && !IsComparableRefinementType(paramType))
             {
-                var clauseNode = FindAdhocConstraintClauseNode(declaringNode, param.Name.Lexeme);
-                diagnostics.Add(MakeDiagnostic(
-                    RefinementPredicateIncompatible.Value,
-                    $"Refinement predicate '{refinement.Description}' is not valid for type '{paramType.DisplayName}'. Relational patterns require a comparable type.",
-                    clauseNode ?? declaringNode));
+                var clauseNode = FindAdhocConstraintClauseNode(declaringNode, param.Name.Lexeme); diagnostics.ReportAtNode(TypeCheckDiagnostics.RefinementPredicateIncompatible, clauseNode ?? declaringNode, "TypeChecker");
             }
         }
     }

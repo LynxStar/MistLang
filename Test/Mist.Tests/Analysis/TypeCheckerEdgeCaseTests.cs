@@ -357,7 +357,7 @@ public class TypeCheckerEdgeCaseTests
         var diagnostics = RunTypeChecker(model);
 
         Assert.Contains(diagnostics, d =>
-            d.Id.Value == "MIST_TC_0001" && d.Message.Contains("Cannot assign"));
+            d.Id.Value == "MIST_TC_0001" && d.Message.Contains("Cannot implicitly convert"));
     }
 
     [Fact]

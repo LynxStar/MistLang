@@ -290,9 +290,9 @@ public class GenericInheritanceResolutionPropertyTests
 
         // No arity or missing type argument diagnostics should be emitted
         var genericDiags = diagnostics.Where(d =>
-            d.Id == DiagnosticId.ArityMismatch ||
-            d.Id == DiagnosticId.MissingTypeArguments ||
-            d.Id == DiagnosticId.NotGeneric).ToList();
+            d.Id == GenericsDiagnostics.ArityMismatch.Id ||
+            d.Id == GenericsDiagnostics.MissingTypeArguments.Id ||
+            d.Id == GenericsDiagnostics.NotGeneric.Id).ToList();
         if(genericDiags.Count > 0)
         {
             return false;
@@ -388,9 +388,9 @@ public class GenericInheritanceResolutionPropertyTests
 
         // No arity or missing type argument diagnostics
         var genericDiags = diagnostics.Where(d =>
-            d.Id == DiagnosticId.ArityMismatch ||
-            d.Id == DiagnosticId.MissingTypeArguments ||
-            d.Id == DiagnosticId.NotGeneric).ToList();
+            d.Id == GenericsDiagnostics.ArityMismatch.Id ||
+            d.Id == GenericsDiagnostics.MissingTypeArguments.Id ||
+            d.Id == GenericsDiagnostics.NotGeneric.Id).ToList();
         if(genericDiags.Count > 0)
         {
             return false;
@@ -510,9 +510,9 @@ public class GenericInheritanceResolutionPropertyTests
 
         // No arity or missing type argument diagnostics
         var genericDiags = diagnostics.Where(d =>
-            d.Id == DiagnosticId.ArityMismatch ||
-            d.Id == DiagnosticId.MissingTypeArguments ||
-            d.Id == DiagnosticId.NotGeneric).ToList();
+            d.Id == GenericsDiagnostics.ArityMismatch.Id ||
+            d.Id == GenericsDiagnostics.MissingTypeArguments.Id ||
+            d.Id == GenericsDiagnostics.NotGeneric.Id).ToList();
         if(genericDiags.Count > 0)
         {
             return false;

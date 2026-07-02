@@ -619,7 +619,7 @@ public class TypeCheckerPreservationPropertyTests
         new("AssignmentMismatch_BoolToInt",
             BuildAssignmentMismatchProgram,
             "MIST_TC_0001",
-            "Cannot assign"),
+            "Cannot implicitly convert"),
 
         // MIST_TC_0008: Return type mismatch (int from void method)
         new("ReturnTypeMismatch_IntFromVoid",
@@ -627,11 +627,11 @@ public class TypeCheckerPreservationPropertyTests
             "MIST_TC_0008",
             "Cannot return"),
 
-        // MIST_TC_0011: Object creation mismatch (new Foo(true) but Foo(int))
+        // MIST_TC_0013: Object creation mismatch (new Foo(true) but Foo(int))
         new("ObjectCreationMismatch_BoolToInt",
             BuildObjectCreationMismatchProgram,
-            "MIST_TC_0011",
-            "does not contain a constructor"),
+            "MIST_TC_0013",
+            "No constructor"),
 
         // MIST_TC_0003: Operator type mismatch (bool + bool)
         new("OperatorMismatch_BoolAddition",

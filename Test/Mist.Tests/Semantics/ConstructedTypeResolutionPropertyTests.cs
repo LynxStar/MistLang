@@ -303,10 +303,10 @@ public class ConstructedTypeResolutionPropertyTests
 
         // No generic-related diagnostics should be emitted
         var genericDiags = diagnostics.Where(d =>
-            d.Id == DiagnosticId.ArityMismatch ||
-            d.Id == DiagnosticId.NotGeneric ||
-            d.Id == DiagnosticId.MissingTypeArguments ||
-            d.Id == DiagnosticId.UndefinedTypeArgument).ToList();
+            d.Id == GenericsDiagnostics.ArityMismatch.Id ||
+            d.Id == GenericsDiagnostics.NotGeneric.Id ||
+            d.Id == GenericsDiagnostics.MissingTypeArguments.Id ||
+            d.Id == GenericsDiagnostics.UndefinedTypeArgument.Id).ToList();
         if(genericDiags.Count > 0)
         {
             return false;
@@ -403,10 +403,10 @@ public class ConstructedTypeResolutionPropertyTests
 
         // No generic-related diagnostics should be emitted
         var genericDiags = diagnostics.Where(d =>
-            d.Id == DiagnosticId.ArityMismatch ||
-            d.Id == DiagnosticId.NotGeneric ||
-            d.Id == DiagnosticId.MissingTypeArguments ||
-            d.Id == DiagnosticId.UndefinedTypeArgument).ToList();
+            d.Id == GenericsDiagnostics.ArityMismatch.Id ||
+            d.Id == GenericsDiagnostics.NotGeneric.Id ||
+            d.Id == GenericsDiagnostics.MissingTypeArguments.Id ||
+            d.Id == GenericsDiagnostics.UndefinedTypeArgument.Id).ToList();
         if(genericDiags.Count > 0)
         {
             return false;
@@ -508,10 +508,10 @@ public class ConstructedTypeResolutionPropertyTests
 
         // No generic-related diagnostics should be emitted
         var genericDiags = diagnostics.Where(d =>
-            d.Id == DiagnosticId.ArityMismatch ||
-            d.Id == DiagnosticId.NotGeneric ||
-            d.Id == DiagnosticId.MissingTypeArguments ||
-            d.Id == DiagnosticId.UndefinedTypeArgument).ToList();
+            d.Id == GenericsDiagnostics.ArityMismatch.Id ||
+            d.Id == GenericsDiagnostics.NotGeneric.Id ||
+            d.Id == GenericsDiagnostics.MissingTypeArguments.Id ||
+            d.Id == GenericsDiagnostics.UndefinedTypeArgument.Id).ToList();
         if(genericDiags.Count > 0)
         {
             return false;

@@ -561,7 +561,7 @@ public class DefaultabilityPropertyTests
 
         // Check that MIST_DEFAULT_REQUIRES_BINDING diagnostic was emitted
         var hasRequiresBindingDiagnostic = diagnostics
-            .Any(d => d.Id == DiagnosticId.DefaultRequiresTypeBinding);
+            .Any(d => d.Id == CommonDiagnostics.DefaultRequiresTypeBinding.Id);
 
         return hasRequiresBindingDiagnostic;
     }

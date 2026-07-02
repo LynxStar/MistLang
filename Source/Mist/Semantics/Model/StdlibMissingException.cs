@@ -33,7 +33,7 @@ public sealed class StdlibMissingException : Exception
     public StdlibMissingException(string qualifiedName, string message)
         : base(message)
     {
-        DiagnosticId = DiagnosticId.StdlibMissing;
+        DiagnosticId = CommonDiagnostics.StdlibMissing.Id;
         QualifiedName = qualifiedName;
     }
 }

@@ -23,11 +23,6 @@ namespace Mist.Analysis.Builtin;
 /// </summary>
 public sealed class FieldTypeRestrictionVerifier
 {
-    /// <summary>
-    /// The diagnostic ID for owned-type field-type restriction violations.
-    /// Defined here and referenced from the orchestrator.
-    /// </summary>
-    internal static readonly DiagnosticId FieldTypeViolation = new("MIST_OWN_FIELD_TYPE_VIOLATION");
 
     /// <summary>
     /// Checks all instance fields of an owned type against the field-type restriction.
@@ -174,22 +169,22 @@ public sealed class FieldTypeRestrictionVerifier
         try { declaringNode = model.GetDeclaringNode(field); }
         catch { /* no source location available */ }
 
-        var message = fieldType is TypeParameterType
-            ? FieldTypeViolationMessageForTypeParam(field.Name, fieldType.DisplayName)
-            : FieldTypeViolationMessage(field.Name, fieldType.DisplayName);
-
         if(declaringNode is not null)
         {
-            diagnostics.Add(MakeDiagnostic(FieldTypeViolation, message, declaringNode, model));
+            diagnostics.ReportAtNode(
+                OwnershipDiagnostics.FieldTypeViolation,
+                declaringNode,
+                "Ownership",
+                field.Name, fieldType.DisplayName);
         }
         else
         {
             // Fallback: emit without source location if the declaring node is unavailable.
             diagnostics.Add(new Diagnostic(
-                FieldTypeViolation,
+                OwnershipDiagnostics.FieldTypeViolation.Id,
                 DiagnosticSeverity.Error,
                 PipelineStage.Analysis,
-                message,
+                FieldTypeViolationMessage(field.Name, fieldType.DisplayName),
                 Location: default,
                 CompilationUnitPath: "",
                 AnalyzerName: "Ownership"));
@@ -207,17 +202,6 @@ public sealed class FieldTypeRestrictionVerifier
         return $"Field '{fieldName}' of type '{typeName}' violates the owned-type field-type restriction: " +
         $"all fields of an owned type must be owned types, implement 'IClonable<T>', or be value types " +
         $"to guarantee full graph ownership.";
-    }
-
-    /// <summary>
-    /// Message for <c>MIST_OWN_FIELD_TYPE_VIOLATION</c> on a generic type parameter
-    /// that is not constrained (Req 4 AC 6).
-    /// </summary>
-    internal static string FieldTypeViolationMessageForTypeParam(string fieldName, string typeParamName)
-    {
-        return $"Field '{fieldName}' has unconstrained type parameter '{typeParamName}': generic fields in " +
-        $"an owned type must be constrained to be an owned type or to implement 'IClonable<T>' " +
-        $"to satisfy the field-type restriction.";
     }
 
     // ── Type classification helpers ──────────────────────────────────────
@@ -296,55 +280,5 @@ public sealed class FieldTypeRestrictionVerifier
             StructType st => st.MemberScope,
             _ => null
         };
-    }
-
-    /// <summary>
-    /// Creates a diagnostic with source location information resolved from the AST node.
-    /// Mirrors the pattern in <see cref="OwnershipAnalyzer"/>.
-    /// </summary>
-    private static Diagnostic MakeDiagnostic(
-        DiagnosticId id,
-        string message,
-        SyntaxNode node,
-        ISemanticModel model)
-    {
-        Common.Source.LinePositionSpan? location = null;
-        string? compilationUnitPath = null;
-
-        var span = node.Span;
-        if(span.Length > 0)
-        {
-            var asts = model.Asts;
-            var units = model.Units;
-            var astIndex = -1;
-
-            for(var i = 0; i < asts.Length; i++)
-            {
-                var astSpan = asts[i].Span;
-                if(span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
-                {
-                    astIndex = i;
-                    break;
-                }
-            }
-
-            if(astIndex >= 0 && astIndex < units.Count)
-            {
-                var source = units[astIndex].Source;
-                compilationUnitPath = source.Path;
-
-                var sourceSpan = new Common.Source.SourceSpan(span.Start, span.Length);
-                location = source.ToLinePositionSpan(sourceSpan);
-            }
-        }
-
-        return new Diagnostic(
-            id,
-            DiagnosticSeverity.Error,
-            PipelineStage.Analysis,
-            message,
-            Location: location ?? default,
-            CompilationUnitPath: compilationUnitPath ?? "",
-            AnalyzerName: "Ownership");
     }
 }

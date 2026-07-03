@@ -189,9 +189,16 @@ public static class GrammarIRLowering
         // ---------------------------------------------------------------
         var ruleIRs = new List<RuleIR>();
 
+        // Build a name→declaration lookup for inline block lowering
+        var ruleDeclarations = new Dictionary<string, StormDeclaration>(StringComparer.Ordinal);
         foreach(var (name, decl) in ruleOrder)
         {
-            var alternatives = LowerRuleAlternatives(decl.Body, tokensByName, ruleShells, syntheticTokens, diagnostics);
+            ruleDeclarations[name] = decl;
+        }
+
+        foreach(var (name, decl) in ruleOrder)
+        {
+            var alternatives = LowerRuleAlternatives(decl.Body, tokensByName, ruleShells, syntheticTokens, ruleDeclarations, diagnostics);
             var shell = ruleShells[name];
             // The shell was created with a mutable List<RuleAlternativeIR>;
             // cast back and populate it so all existing RuleRefIR pointers
@@ -446,6 +453,24 @@ public static class GrammarIRLowering
                 CollectAnonymousStringLiterals(namedAlt.Expression, syntheticTokens, existingTokens, ref tokenIndex);
                 break;
 
+            case StormInlineBlockExpr inlineBlock:
+                // Walk into the prefix rule's body and each arm's target rule body.
+                // The prefix rule and arm target rules are walked independently when
+                // their own declarations are processed. However, we still walk nested
+                // inline blocks that appear as arm expressions.
+                if(inlineBlock.Prefix is StormReferenceExpr)
+                {
+                    foreach(var arm in inlineBlock.Arms)
+                    {
+                        if(arm.Expression is StormInlineBlockExpr nestedBlock)
+                        {
+                            CollectAnonymousStringLiterals(nestedBlock, syntheticTokens, existingTokens, ref tokenIndex);
+                        }
+                    }
+                }
+
+                break;
+
             // References, char classes — no string literals to collect
             default:
                 break;
@@ -517,6 +542,7 @@ public static class GrammarIRLowering
         Dictionary<string, TokenIR> tokensByName,
         Dictionary<string, RuleIR> rulesByName,
         Dictionary<string, TokenIR> syntheticTokens,
+        Dictionary<string, StormDeclaration> ruleDeclarations,
         List<StormDiagnostic> diagnostics)
     {
         var alternatives = new List<RuleAlternativeIR>();
@@ -527,12 +553,12 @@ public static class GrammarIRLowering
         {
             foreach(var alt in altExpr.Alternatives)
             {
-                alternatives.Add(LowerSingleAlternative(alt, tokensByName, rulesByName, syntheticTokens, diagnostics));
+                alternatives.Add(LowerSingleAlternative(alt, tokensByName, rulesByName, syntheticTokens, ruleDeclarations, diagnostics));
             }
         }
         else
         {
-            alternatives.Add(LowerSingleAlternative(body, tokensByName, rulesByName, syntheticTokens, diagnostics));
+            alternatives.Add(LowerSingleAlternative(body, tokensByName, rulesByName, syntheticTokens, ruleDeclarations, diagnostics));
         }
 
         return alternatives;
@@ -547,6 +573,7 @@ public static class GrammarIRLowering
         Dictionary<string, TokenIR> tokensByName,
         Dictionary<string, RuleIR> rulesByName,
         Dictionary<string, TokenIR> syntheticTokens,
+        Dictionary<string, StormDeclaration> ruleDeclarations,
         List<StormDiagnostic> diagnostics)
     {
         string? altName = null;
@@ -559,9 +586,16 @@ public static class GrammarIRLowering
             bodyExpr = namedAlt.Expression;
         }
 
+        // If the body is an inline block, produce an InlineBlockIR with null alt name
+        if(bodyExpr is StormInlineBlockExpr inlineBlock)
+        {
+            var inlineBlockIR = LowerInlineBlock(inlineBlock, tokensByName, rulesByName, syntheticTokens, ruleDeclarations, diagnostics);
+            return new RuleAlternativeIR(null, new List<FieldLabelIR>(), inlineBlockIR);
+        }
+
         // Collect field labels
         var fieldLabels = new List<FieldLabelIR>();
-        var loweredExpr = LowerRuleExpression(bodyExpr, tokensByName, rulesByName, syntheticTokens, fieldLabels, diagnostics);
+        var loweredExpr = LowerRuleExpression(bodyExpr, tokensByName, rulesByName, syntheticTokens, ruleDeclarations, fieldLabels, diagnostics);
 
         return new RuleAlternativeIR(altName, fieldLabels, loweredExpr);
     }
@@ -576,6 +610,7 @@ public static class GrammarIRLowering
         Dictionary<string, TokenIR> tokensByName,
         Dictionary<string, RuleIR> rulesByName,
         Dictionary<string, TokenIR> syntheticTokens,
+        Dictionary<string, StormDeclaration> ruleDeclarations,
         List<FieldLabelIR> fieldLabels,
         List<StormDiagnostic> diagnostics)
     {
@@ -643,7 +678,7 @@ public static class GrammarIRLowering
                 var seqElements = new List<ExpressionIR>();
                 foreach(var element in seqExpr.Elements)
                 {
-                    seqElements.Add(LowerRuleExpression(element, tokensByName, rulesByName, syntheticTokens, fieldLabels, diagnostics));
+                    seqElements.Add(LowerRuleExpression(element, tokensByName, rulesByName, syntheticTokens, ruleDeclarations, fieldLabels, diagnostics));
                 }
 
                 return new SequenceIR(seqElements);
@@ -652,32 +687,35 @@ public static class GrammarIRLowering
                 var altElements = new List<ExpressionIR>();
                 foreach(var alt in altExpr.Alternatives)
                 {
-                    altElements.Add(LowerRuleExpression(alt, tokensByName, rulesByName, syntheticTokens, fieldLabels, diagnostics));
+                    altElements.Add(LowerRuleExpression(alt, tokensByName, rulesByName, syntheticTokens, ruleDeclarations, fieldLabels, diagnostics));
                 }
 
                 return new AlternationIR(altElements);
 
             case StormOptionalExpr optExpr:
-                return new OptionalIR(LowerRuleExpression(optExpr.Inner, tokensByName, rulesByName, syntheticTokens, fieldLabels, diagnostics));
+                return new OptionalIR(LowerRuleExpression(optExpr.Inner, tokensByName, rulesByName, syntheticTokens, ruleDeclarations, fieldLabels, diagnostics));
 
             case StormZeroOrMoreExpr zomExpr:
-                return new ZeroOrMoreIR(LowerRuleExpression(zomExpr.Inner, tokensByName, rulesByName, syntheticTokens, fieldLabels, diagnostics));
+                return new ZeroOrMoreIR(LowerRuleExpression(zomExpr.Inner, tokensByName, rulesByName, syntheticTokens, ruleDeclarations, fieldLabels, diagnostics));
 
             case StormOneOrMoreExpr oomExpr:
-                return new OneOrMoreIR(LowerRuleExpression(oomExpr.Inner, tokensByName, rulesByName, syntheticTokens, fieldLabels, diagnostics));
+                return new OneOrMoreIR(LowerRuleExpression(oomExpr.Inner, tokensByName, rulesByName, syntheticTokens, ruleDeclarations, fieldLabels, diagnostics));
 
             case StormGroupExpr groupExpr:
-                return LowerRuleExpression(groupExpr.Inner, tokensByName, rulesByName, syntheticTokens, fieldLabels, diagnostics);
+                return LowerRuleExpression(groupExpr.Inner, tokensByName, rulesByName, syntheticTokens, ruleDeclarations, fieldLabels, diagnostics);
 
             case StormLabeledExpr labeledExpr:
-                var labeledInner = LowerRuleExpression(labeledExpr.Element, tokensByName, rulesByName, syntheticTokens, fieldLabels, diagnostics);
+                var labeledInner = LowerRuleExpression(labeledExpr.Element, tokensByName, rulesByName, syntheticTokens, ruleDeclarations, fieldLabels, diagnostics);
                 fieldLabels.Add(new FieldLabelIR(labeledExpr.Label, labeledInner));
                 return labeledInner;
 
             case StormNamedAlternative namedAlt:
                 // Nested named alternatives shouldn't normally occur at this level,
                 // but handle gracefully
-                return LowerRuleExpression(namedAlt.Expression, tokensByName, rulesByName, syntheticTokens, fieldLabels, diagnostics);
+                return LowerRuleExpression(namedAlt.Expression, tokensByName, rulesByName, syntheticTokens, ruleDeclarations, fieldLabels, diagnostics);
+
+            case StormInlineBlockExpr inlineBlock:
+                return LowerInlineBlock(inlineBlock, tokensByName, rulesByName, syntheticTokens, ruleDeclarations, diagnostics);
 
             case StormCharClassExpr ccExpr:
                 // Char classes shouldn't appear in rule expressions, but handle gracefully
@@ -694,5 +732,198 @@ public static class GrammarIRLowering
                     null, 0, 0));
                 return new StringLiteralIR("");
         }
+    }
+
+    // ---------------------------------------------------------------
+    //  Inline block lowering
+    // ---------------------------------------------------------------
+
+    /// <summary>
+    /// Lowers a <see cref="StormInlineBlockExpr"/> into an <see cref="InlineBlockIR"/>.
+    /// Resolves the prefix rule, extracts its body elements and labels,
+    /// then for each arm strips the prefix reference from the arm rule's body
+    /// and lowers the remaining tail elements.
+    /// </summary>
+    private static InlineBlockIR LowerInlineBlock(
+        StormInlineBlockExpr inlineBlock,
+        Dictionary<string, TokenIR> tokensByName,
+        Dictionary<string, RuleIR> rulesByName,
+        Dictionary<string, TokenIR> syntheticTokens,
+        Dictionary<string, StormDeclaration> ruleDeclarations,
+        List<StormDiagnostic> diagnostics)
+    {
+        // 1. Resolve the prefix rule and lower its body elements
+        var prefixRuleName = ((StormReferenceExpr)inlineBlock.Prefix).Name;
+        var prefixDecl = ruleDeclarations[prefixRuleName];
+        var prefixLabels = new List<FieldLabelIR>();
+        var prefixElements = LowerPrefixBody(prefixDecl.Body, tokensByName, rulesByName, syntheticTokens, ruleDeclarations, prefixLabels, diagnostics);
+
+        // 2. Lower each arm
+        var arms = new List<InlineArmIR>();
+        foreach(var arm in inlineBlock.Arms)
+        {
+            // Handle nested inline blocks recursively
+            if(arm.Expression is StormInlineBlockExpr nestedBlock)
+            {
+                var nestedIR = LowerInlineBlock(nestedBlock, tokensByName, rulesByName, syntheticTokens, ruleDeclarations, diagnostics);
+                // For nested inline blocks, we wrap the nested InlineBlockIR as a
+                // synthetic arm. The target rule doesn't exist in this case, so we
+                // create a placeholder. In practice, nested inline blocks are processed
+                // by the emitter differently.
+                var nestedArm = new InlineArmIR(
+                    arm.AlternativeName,
+                    arm.Label,
+                    rulesByName[((StormReferenceExpr)nestedBlock.Prefix).Name],
+                    nestedIR,
+                    new List<FieldLabelIR>());
+                arms.Add(nestedArm);
+                continue;
+            }
+
+            // The arm's Expression is a StormReferenceExpr naming the target rule
+            var armRuleName = ((StormReferenceExpr)arm.Expression).Name;
+            var armRuleIR = rulesByName[armRuleName];
+            var armDecl = ruleDeclarations[armRuleName];
+
+            // Get the arm rule's body sequence elements
+            var tailLabels = new List<FieldLabelIR>();
+            var tailExpression = LowerArmTail(armDecl.Body, prefixRuleName, prefixElements.Count, tokensByName, rulesByName, syntheticTokens, ruleDeclarations, tailLabels, diagnostics);
+
+            var armIR = new InlineArmIR(
+                arm.AlternativeName,
+                arm.Label,
+                armRuleIR,
+                tailExpression,
+                tailLabels);
+            arms.Add(armIR);
+        }
+
+        return new InlineBlockIR(rulesByName[prefixRuleName], prefixElements, prefixLabels, arms);
+    }
+
+    /// <summary>
+    /// Lowers the prefix rule's body into a list of IR elements.
+    /// The prefix rule always has a single-sequence body (verified by InlinePrefixVerification).
+    /// </summary>
+    private static IReadOnlyList<ExpressionIR> LowerPrefixBody(
+        StormExpression body,
+        Dictionary<string, TokenIR> tokensByName,
+        Dictionary<string, RuleIR> rulesByName,
+        Dictionary<string, TokenIR> syntheticTokens,
+        Dictionary<string, StormDeclaration> ruleDeclarations,
+        List<FieldLabelIR> prefixLabels,
+        List<StormDiagnostic> diagnostics)
+    {
+        var elements = new List<ExpressionIR>();
+
+        if(body is StormSequenceExpr seq)
+        {
+            foreach(var element in seq.Elements)
+            {
+                elements.Add(LowerRuleExpression(element, tokensByName, rulesByName, syntheticTokens, ruleDeclarations, prefixLabels, diagnostics));
+            }
+        }
+        else
+        {
+            // Single-element body (not wrapped in a sequence)
+            elements.Add(LowerRuleExpression(body, tokensByName, rulesByName, syntheticTokens, ruleDeclarations, prefixLabels, diagnostics));
+        }
+
+        return elements;
+    }
+
+    /// <summary>
+    /// Lowers an arm rule's body after stripping the leading prefix elements.
+    /// If the arm rule starts with a reference to the prefix rule (possibly labeled),
+    /// strip just that one element. Otherwise, strip elements by prefix count
+    /// (for arm rules that have the prefix elements inline).
+    /// </summary>
+    private static ExpressionIR LowerArmTail(
+        StormExpression body,
+        string prefixRuleName,
+        int prefixElementCount,
+        Dictionary<string, TokenIR> tokensByName,
+        Dictionary<string, RuleIR> rulesByName,
+        Dictionary<string, TokenIR> syntheticTokens,
+        Dictionary<string, StormDeclaration> ruleDeclarations,
+        List<FieldLabelIR> tailLabels,
+        List<StormDiagnostic> diagnostics)
+    {
+        // Determine how many leading elements to strip
+        var stripCount = ComputeStripCount(body, prefixRuleName, prefixElementCount);
+
+        if(body is StormSequenceExpr seq)
+        {
+            if(seq.Elements.Count <= stripCount)
+            {
+                // Only the prefix elements — empty tail
+                return new SequenceIR(new List<ExpressionIR>());
+            }
+
+            var tailElements = new List<ExpressionIR>();
+            for(var i = stripCount; i < seq.Elements.Count; i++)
+            {
+                tailElements.Add(LowerRuleExpression(seq.Elements[i], tokensByName, rulesByName, syntheticTokens, ruleDeclarations, tailLabels, diagnostics));
+            }
+
+            if(tailElements.Count == 1)
+            {
+                return tailElements[0];
+            }
+
+            return new SequenceIR(tailElements);
+        }
+        else
+        {
+            // Single-element body — if strip count >= 1, it's all prefix
+            if(stripCount >= 1)
+            {
+                return new SequenceIR(new List<ExpressionIR>());
+            }
+
+            return LowerRuleExpression(body, tokensByName, rulesByName, syntheticTokens, ruleDeclarations, tailLabels, diagnostics);
+        }
+    }
+
+    /// <summary>
+    /// Determines how many leading elements to strip from the arm rule's body.
+    /// If the first element is a reference to the prefix rule (possibly labeled),
+    /// strip just 1 element. Otherwise, strip by prefix element count (inline prefix).
+    /// </summary>
+    private static int ComputeStripCount(StormExpression body, string prefixRuleName, int prefixElementCount)
+    {
+        StormExpression? firstElement = null;
+
+        if(body is StormSequenceExpr seq)
+        {
+            if(seq.Elements.Count > 0)
+            {
+                firstElement = seq.Elements[0];
+            }
+        }
+        else
+        {
+            firstElement = body;
+        }
+
+        if(firstElement == null)
+        {
+            return prefixElementCount;
+        }
+
+        // Unwrap label if present
+        if(firstElement is StormLabeledExpr labeled)
+        {
+            firstElement = labeled.Element;
+        }
+
+        // Check if the first element is a reference to the prefix rule
+        if(firstElement is StormReferenceExpr refExpr && refExpr.Name == prefixRuleName)
+        {
+            return 1; // Strip just the rule reference
+        }
+
+        // Otherwise, the prefix elements are inline — strip by count
+        return prefixElementCount;
     }
 }

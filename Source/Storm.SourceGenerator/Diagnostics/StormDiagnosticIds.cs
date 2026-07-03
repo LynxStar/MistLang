@@ -51,4 +51,7 @@ public static class StormDiagnosticIds
 
     /// <summary>A <c>@memo</c>-annotated rule was excluded from the memoization plan because it is not speculative-safe.</summary>
     public static string STORM_MEMO_IGNORED { get; } = "STORM0016";
+
+    /// <summary>An inline block arm's target rule does not begin with a reference to the declared prefix rule.</summary>
+    public static string STORM_INLINE_PREFIX_MISMATCH { get; } = "STORM0017";
 }

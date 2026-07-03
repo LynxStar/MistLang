@@ -239,6 +239,8 @@ rule UnconstrainedAssociatedTypeSlotDeclaration = TYPE name:IDENTIFIER
     typeParams:TypeParameterList?
     SEMICOLON;
 
+rule ModifiedTypeHead = modifiers:Modifier+ TYPE name:IDENTIFIER typeParams:TypeParameterList?;
+
 rule ModifiedAssociatedTypeSlotDeclaration = modifiers:Modifier+ TYPE name:IDENTIFIER
     typeParams:TypeParameterList?
     constraintClause:(COLON constraints:ConstraintList slotWhereConstraints:WhereClause*)?
@@ -308,10 +310,12 @@ rule MemberDeclaration
     | defaultBlock:DefaultBlockDeclaration as DefaultBlockMember
     | field:FieldDeclaration             as FieldMember
     | nestedType:TypeDeclaration         as NestedTypeMember
-    | memberTypeAlias:MemberTypeAliasDeclaration as MemberTypeAliasMember
+    | inline ModifiedTypeHead: {
+          memberTypeAlias:MemberTypeAliasDeclaration as MemberTypeAliasMember,
+          modifiedAssociatedType:ModifiedAssociatedTypeSlotDeclaration as ModifiedAssociatedTypeMember,
+      }
     | associatedType:AssociatedTypeSlotDeclaration as AssociatedTypeMember
     | unconstrainedAssociatedType:UnconstrainedAssociatedTypeSlotDeclaration as UnconstrainedAssociatedTypeMember
-    | modifiedAssociatedType:ModifiedAssociatedTypeSlotDeclaration as ModifiedAssociatedTypeMember
     ;
 
 rule MemberTypeAliasDeclaration = modifiers:Modifier+ TYPE name:IDENTIFIER

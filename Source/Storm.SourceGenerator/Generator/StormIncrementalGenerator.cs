@@ -241,7 +241,15 @@ public sealed class StormIncrementalGenerator : IIncrementalGenerator
             return diagnostics;
         }
 
-        // Pass 4: Reachability check
+        // Pass 4: Inline prefix verification
+        var inlinePrefixDiags = InlinePrefixVerification.Verify(grammar);
+        diagnostics.AddRange(inlinePrefixDiags);
+        if(inlinePrefixDiags.Any(d => d.Severity == StormDiagnosticSeverity.Error))
+        {
+            return diagnostics;
+        }
+
+        // Pass 5: Reachability check
         var reachDiags = ReachabilityPass.Run(grammar);
         diagnostics.AddRange(reachDiags);
 

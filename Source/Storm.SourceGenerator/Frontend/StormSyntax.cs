@@ -235,3 +235,27 @@ public sealed record StormNamedAlternative(
     StormExpression Expression,
     string AlternativeName)
     : StormExpression;
+
+/// <summary>
+/// An inline block expression: <c>inline PrefixRule: { arm, arm, ... }</c>
+/// Represents a set of alternatives that share a common prefix.
+/// </summary>
+public sealed record StormInlineBlockExpr(
+    StormExpression Prefix,
+    IReadOnlyList<StormInlineArm> Arms,
+    int Offset,
+    int Line,
+    int Column) : StormExpression;
+
+// -----------------------------------------------------------------------
+//  Inline arms
+// -----------------------------------------------------------------------
+
+/// <summary>
+/// A single arm within an inline block: <c>RuleRef as AltName</c> or
+/// <c>label:RuleRef as AltName</c>.
+/// </summary>
+public sealed record StormInlineArm(
+    StormExpression Expression,
+    string AlternativeName,
+    string? Label);

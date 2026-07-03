@@ -625,6 +625,9 @@ public static class StormParser
                         return new StormReferenceExpr(nameTok.Lexeme);
                     }
 
+                case StormTokenKind.InlineKeyword:
+                    return ParseInlineBlock();
+
                 case StormTokenKind.LeftParen:
                     {
                         _ = Advance(); // consume '('
@@ -643,6 +646,172 @@ public static class StormParser
         }
 
         // ----------------------------------------------------------
+        //  Inline block parsing
+        // ----------------------------------------------------------
+
+        /// <summary>
+        /// Parses an inline block expression:
+        /// <c>inline IDENTIFIER COLON LEFT_BRACE InlineArm (COMMA InlineArm)* COMMA? RIGHT_BRACE</c>
+        /// </summary>
+        private StormExpression ParseInlineBlock()
+        {
+            var inlineTok = Advance(); // consume 'inline'
+            var offset = inlineTok.Offset;
+            var line = inlineTok.Line;
+            var column = inlineTok.Column;
+
+            // Expect identifier (prefix name)
+            if(Current.Kind != StormTokenKind.Identifier)
+            {
+                Error($"Expected prefix rule name after 'inline', got '{Current.Lexeme}'");
+                SynchronizeToDeclaration();
+                return new StormReferenceExpr("<error>");
+            }
+
+            var prefixTok = Advance();
+            var prefix = new StormReferenceExpr(prefixTok.Lexeme);
+
+            // Expect colon
+            if(Current.Kind != StormTokenKind.Colon)
+            {
+                Error($"Expected ':' after prefix rule name '{prefixTok.Lexeme}', got '{Current.Lexeme}'");
+                SynchronizeToDeclaration();
+                return new StormReferenceExpr("<error>");
+            }
+
+            _ = Advance(); // consume ':'
+
+            // Expect left brace
+            if(Current.Kind != StormTokenKind.LeftBrace)
+            {
+                Error($"Expected '{{' after 'inline {prefixTok.Lexeme}:', got '{Current.Lexeme}'");
+                SynchronizeToDeclaration();
+                return new StormReferenceExpr("<error>");
+            }
+
+            _ = Advance(); // consume '{'
+
+            // Parse comma-separated arms
+            var arms = new List<StormInlineArm>();
+
+            // Check for empty arm list
+            if(Current.Kind == StormTokenKind.RightBrace)
+            {
+                Error("Inline block must contain at least one arm");
+                _ = Advance(); // consume '}'
+                return new StormInlineBlockExpr(prefix, arms, offset, line, column);
+            }
+
+            // Parse first arm
+            var firstArm = ParseInlineArm();
+            if(firstArm != null)
+            {
+                arms.Add(firstArm);
+            }
+
+            // Parse remaining arms separated by commas
+            while(Match(StormTokenKind.Comma))
+            {
+                // Trailing comma before '}' is allowed
+                if(Current.Kind == StormTokenKind.RightBrace)
+                {
+                    break;
+                }
+
+                var arm = ParseInlineArm();
+                if(arm != null)
+                {
+                    arms.Add(arm);
+                }
+            }
+
+            // Expect right brace
+            if(Current.Kind == StormTokenKind.RightBrace)
+            {
+                _ = Advance(); // consume '}'
+            }
+            else
+            {
+                Error("Expected '}' to close inline block");
+            }
+
+            return new StormInlineBlockExpr(prefix, arms, offset, line, column);
+        }
+
+        /// <summary>
+        /// Parses a single inline arm:
+        /// <c>(IDENTIFIER COLON)? (InlineBlock | IDENTIFIER) AS IDENTIFIER</c>
+        /// </summary>
+        private StormInlineArm? ParseInlineArm()
+        {
+            string? label = null;
+            StormExpression expression;
+
+            // Check for optional label: IDENTIFIER COLON followed by an expression start
+            // A label looks like "label:" — but we need to disambiguate from a plain identifier
+            // followed by "as". The lookahead is: if we see IDENTIFIER COLON and after the colon
+            // there's another IDENTIFIER or InlineKeyword, it's a label.
+            if(Current.Kind == StormTokenKind.Identifier
+                && Peek(1).Kind == StormTokenKind.Colon
+                && (Peek(2).Kind == StormTokenKind.Identifier || Peek(2).Kind == StormTokenKind.InlineKeyword))
+            {
+                var labelTok = Advance(); // consume label identifier
+                _ = Advance(); // consume ':'
+                label = labelTok.Lexeme;
+            }
+
+            // Parse inner expression: nested inline block or identifier (rule reference)
+            if(Current.Kind == StormTokenKind.InlineKeyword)
+            {
+                expression = ParseInlineBlock();
+            }
+            else if(Current.Kind == StormTokenKind.Identifier)
+            {
+                var refTok = Advance();
+                expression = new StormReferenceExpr(refTok.Lexeme);
+            }
+            else
+            {
+                Error($"Expected rule reference or nested inline block in arm, got '{Current.Lexeme}'");
+                // Skip to next comma or right brace to recover
+                SynchronizeToArmBoundary();
+                return null;
+            }
+
+            // Expect 'as'
+            if(Current.Kind != StormTokenKind.AsKeyword)
+            {
+                Error($"Expected 'as' after rule reference in inline arm, got '{Current.Lexeme}'");
+                // Skip to next comma or right brace to recover
+                SynchronizeToArmBoundary();
+                return null;
+            }
+
+            _ = Advance(); // consume 'as'
+
+            // Expect alternative name identifier
+            var altNameTok = Expect(StormTokenKind.Identifier, "alternative name");
+            return new StormInlineArm(expression, altNameTok.Lexeme, label);
+        }
+
+        /// <summary>
+        /// Skips tokens until we find a comma or right brace (arm boundary),
+        /// allowing recovery from malformed inline arms.
+        /// </summary>
+        private void SynchronizeToArmBoundary()
+        {
+            while(Current.Kind != StormTokenKind.EndOfFile)
+            {
+                if(Current.Kind is StormTokenKind.Comma or StormTokenKind.RightBrace)
+                {
+                    return;
+                }
+
+                _ = Advance();
+            }
+        }
+
+        // ----------------------------------------------------------
         //  Helpers
         // ----------------------------------------------------------
 
@@ -654,7 +823,7 @@ public static class StormParser
         {
             return Current.Kind switch
             {
-                StormTokenKind.StringLiteral or StormTokenKind.CharClass or StormTokenKind.RegexLiteral or StormTokenKind.Identifier or StormTokenKind.LeftParen => true,
+                StormTokenKind.StringLiteral or StormTokenKind.CharClass or StormTokenKind.RegexLiteral or StormTokenKind.Identifier or StormTokenKind.LeftParen or StormTokenKind.InlineKeyword => true,
                 _ => false,
             };
         }

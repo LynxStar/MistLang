@@ -32,6 +32,8 @@ public enum StormTokenKind
     PushKeyword,
     /// <summary>The <c>pop</c> keyword.</summary>
     PopKeyword,
+    /// <summary>The <c>inline</c> keyword.</summary>
+    InlineKeyword,
 
     // --- Literals and identifiers ---
     /// <summary>An identifier: [a-zA-Z_][a-zA-Z0-9_]*</summary>
@@ -70,6 +72,8 @@ public enum StormTokenKind
     LeftBrace,
     /// <summary><c>}</c></summary>
     RightBrace,
+    /// <summary><c>,</c></summary>
+    Comma,
 
     // --- Annotations ---
     /// <summary>An annotation: <c>@</c> followed by an identifier (e.g., <c>@memo</c>).</summary>
@@ -406,6 +410,7 @@ public static class StormLexer
             "default" => StormTokenKind.DefaultKeyword,
             "push" => StormTokenKind.PushKeyword,
             "pop" => StormTokenKind.PopKeyword,
+            "inline" => StormTokenKind.InlineKeyword,
             _ => StormTokenKind.Identifier,
         };
     }
@@ -426,6 +431,7 @@ public static class StormLexer
             '.' => (StormTokenKind?)StormTokenKind.Dot,
             '{' => (StormTokenKind?)StormTokenKind.LeftBrace,
             '}' => (StormTokenKind?)StormTokenKind.RightBrace,
+            ',' => (StormTokenKind?)StormTokenKind.Comma,
             _ => null,
         };
     }

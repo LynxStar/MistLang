@@ -80,7 +80,10 @@ internal sealed class ConcreteTypeBuilder
                 ResolveField(fieldMember.Field, typeDef);
                 break;
 
-            case PropertyMemberMemberDeclarationNode:
+            case PropertyMemberMemberDeclarationNode propertyMember:
+                ResolveProperty(propertyMember.Property, typeDef);
+                break;
+
             case IndexerMemberMemberDeclarationNode:
             case ConstructorMemberMemberDeclarationNode:
             case MethodMemberMemberDeclarationNode:
@@ -120,6 +123,119 @@ internal sealed class ConcreteTypeBuilder
 
         var field = new Field(name, type, ownership, isReadonly, isStatic, fieldDecl);
         typeDef.FieldsList.Add(field);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Properties
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Resolves a property declaration: name, type, accessors, static.
+    /// </summary>
+    private void ResolveProperty(PropertyDeclarationNode propertyDecl, MemberType typeDef)
+    {
+        switch(propertyDecl)
+        {
+            case BlockPropertyPropertyDeclarationNode blockProp:
+                ResolveBlockProperty(blockProp, typeDef);
+                break;
+
+            case ExpressionBodiedPropertyPropertyDeclarationNode exprProp:
+                ResolveExpressionBodiedProperty(exprProp, typeDef);
+                break;
+        }
+    }
+
+    private void ResolveBlockProperty(BlockPropertyPropertyDeclarationNode blockProp, MemberType typeDef)
+    {
+        var name = blockProp.Name.Lexeme;
+        var type = typeResolver.Resolve(blockProp.Type, typeDef.Scope);
+        var isStatic = blockProp.Modifiers.HasAny<ModifierNode, StaticModifierModifierNode>();
+
+        PropertyAccessor? getter = null;
+        PropertyAccessor? setter = null;
+
+        foreach(var accessor in blockProp.Accessors)
+        {
+            switch(accessor)
+            {
+                case AutoGetAccessorAccessorDeclarationNode autoGet:
+                    ValidateGetterModifier(autoGet.AccessorModifier, name, autoGet);
+                    getter = new PropertyAccessor { IsAuto = true };
+                    break;
+                case BlockGetAccessorAccessorDeclarationNode blockGet:
+                    ValidateGetterModifier(blockGet.AccessorModifier, name, blockGet);
+                    getter = new PropertyAccessor { Body = new Block(blockGet.Body) };
+                    break;
+                case ExpressionGetAccessorAccessorDeclarationNode exprGet:
+                    ValidateGetterModifier(exprGet.AccessorModifier, name, exprGet);
+                    getter = new PropertyAccessor { ExpressionBody = new Expression(exprGet.Expression) };
+                    break;
+
+                case AutoSetAccessorAccessorDeclarationNode autoSet:
+                    setter = new PropertyAccessor { IsAuto = true, IsPrivate = ValidateSetterModifier(autoSet.AccessorModifier, name, autoSet) };
+                    break;
+                case BlockSetAccessorAccessorDeclarationNode blockSet:
+                    setter = new PropertyAccessor { Body = new Block(blockSet.Body), IsPrivate = ValidateSetterModifier(blockSet.AccessorModifier, name, blockSet) };
+                    break;
+                case ExpressionSetAccessorAccessorDeclarationNode exprSet:
+                    setter = new PropertyAccessor { ExpressionBody = new Expression(exprSet.Expression), IsPrivate = ValidateSetterModifier(exprSet.AccessorModifier, name, exprSet) };
+                    break;
+
+                case AutoInitAccessorAccessorDeclarationNode autoInit:
+                    setter = new PropertyAccessor { IsAuto = true, IsInit = true, IsPrivate = ValidateSetterModifier(autoInit.AccessorModifier, name, autoInit) };
+                    break;
+                case BlockInitAccessorAccessorDeclarationNode blockInit:
+                    setter = new PropertyAccessor { IsInit = true, Body = new Block(blockInit.Body), IsPrivate = ValidateSetterModifier(blockInit.AccessorModifier, name, blockInit) };
+                    break;
+                case ExpressionInitAccessorAccessorDeclarationNode exprInit:
+                    setter = new PropertyAccessor { IsInit = true, ExpressionBody = new Expression(exprInit.Expression), IsPrivate = ValidateSetterModifier(exprInit.AccessorModifier, name, exprInit) };
+                    break;
+            }
+        }
+
+        var property = new Property(name, type, isStatic)
+        {
+            Getter = getter,
+            Setter = setter,
+            Initializer = blockProp.Initializer is { } initExpr ? new Expression(initExpr) : null,
+        };
+        typeDef.PropertiesList.Add(property);
+    }
+
+    private void ResolveExpressionBodiedProperty(ExpressionBodiedPropertyPropertyDeclarationNode exprProp, MemberType typeDef)
+    {
+        var name = exprProp.Name.Lexeme;
+        var type = typeResolver.Resolve(exprProp.Type, typeDef.Scope);
+        var isStatic = exprProp.Modifiers.HasAny<ModifierNode, StaticModifierModifierNode>();
+
+        var getter = new PropertyAccessor { ExpressionBody = new Expression(exprProp.Body) };
+        var property = new Property(name, type, isStatic) { Getter = getter };
+        typeDef.PropertiesList.Add(property);
+    }
+
+    private void ValidateGetterModifier(ModifierNode? modifier, string propertyName, Storm.Runtime.SyntaxNode locationNode)
+    {
+        if(modifier is not null)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.GetterCannotHaveModifier, locationNode, null, propertyName);
+        }
+    }
+
+    private bool ValidateSetterModifier(ModifierNode? modifier, string propertyName, Storm.Runtime.SyntaxNode locationNode)
+    {
+        if(modifier is null)
+        {
+            return false;
+        }
+
+        if(modifier is PrivateModifierModifierNode)
+        {
+            return true;
+        }
+
+        context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.SetterModifierMustBePrivate, locationNode, null, propertyName);
+        return false;
     }
 
     // ═══════════════════════════════════════════════════════════════════════

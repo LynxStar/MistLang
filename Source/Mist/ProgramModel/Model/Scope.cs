@@ -9,7 +9,7 @@ namespace Mist.ProgramModel.Model;
 internal sealed class Scope
 {
     private readonly List<string> importedNamespaces = [];
-    private readonly Dictionary<string, ITypeDefinition> localTypes = [];
+    private readonly Dictionary<string, IMistType> localTypes = [];
 
     public Scope(Scope? parent)
     {
@@ -37,7 +37,7 @@ internal sealed class Scope
     /// Types directly visible by simple name in this scope. For a type's scope,
     /// this holds its direct nested types (children visible without qualification).
     /// </summary>
-    public IReadOnlyDictionary<string, ITypeDefinition> LocalTypes => localTypes;
+    public IReadOnlyDictionary<string, IMistType> LocalTypes => localTypes;
 
     /// <summary>
     /// Sets the namespace this scope belongs to.
@@ -62,7 +62,7 @@ internal sealed class Scope
     /// Registers a type as directly visible by simple name in this scope.
     /// Used for nested types: a parent type's scope holds its children.
     /// </summary>
-    public void AddLocalType(string name, ITypeDefinition typeDef)
+    public void AddLocalType(string name, IMistType typeDef)
     {
         localTypes[name] = typeDef;
     }

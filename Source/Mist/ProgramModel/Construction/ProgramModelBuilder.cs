@@ -70,7 +70,7 @@ public sealed class ProgramModelBuilder
             {
                 switch(typeDef)
                 {
-                    case ConcreteTypeDefinition concrete:
+                    case ConcreteType concrete:
                         concreteTypeBuilder.Build(concrete);
                         break;
                     case AbstractType abstractDef:

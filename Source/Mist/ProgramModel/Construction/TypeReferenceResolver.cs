@@ -212,7 +212,7 @@ internal sealed class TypeReferenceResolver
     /// Checks local types, then current namespace, then imported namespaces.
     /// Emits a <c>MIST_PM_UNRESOLVED_TYPE</c> diagnostic if not found.
     /// </summary>
-    public ITypeDefinition? ResolveNamedType(string name, Scope scope, Storm.Runtime.SyntaxNode locationNode)
+    public IMistType? ResolveNamedType(string name, Scope scope, Storm.Runtime.SyntaxNode locationNode)
     {
         var current = scope;
         while(current is not null)
@@ -255,7 +255,7 @@ internal sealed class TypeReferenceResolver
     /// Looks up a qualified name (e.g., "Outer.Inner") as a nested type key
     /// in any namespace reachable from the scope. Does not report diagnostics.
     /// </summary>
-    private ITypeDefinition? LookupNestedQualifiedName(string qualifiedName, Scope scope)
+    private IMistType? LookupNestedQualifiedName(string qualifiedName, Scope scope)
     {
         var current = scope;
         while(current is not null)
@@ -287,7 +287,7 @@ internal sealed class TypeReferenceResolver
     /// <summary>
     /// Looks up a type by simple name within a specific namespace.
     /// </summary>
-    private ITypeDefinition? LookupInNamespace(string namespaceName, string typeName)
+    private IMistType? LookupInNamespace(string namespaceName, string typeName)
     {
         var namespaces = context.ProgramModel.Namespaces;
         if(namespaces.TryGetValue(namespaceName, out var ns) && ns.Types.TryGetValue(typeName, out var typeDef))
@@ -302,7 +302,7 @@ internal sealed class TypeReferenceResolver
     /// Looks up a fully-qualified type name (e.g., "Standard.Int32").
     /// Splits into namespace + simple name and does a direct lookup.
     /// </summary>
-    private ITypeDefinition? LookupQualifiedName(string qualifiedName)
+    private IMistType? LookupQualifiedName(string qualifiedName)
     {
         var lastDot = qualifiedName.LastIndexOf('.');
         if(lastDot < 0)

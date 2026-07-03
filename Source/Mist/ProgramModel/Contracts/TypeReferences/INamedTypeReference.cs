@@ -8,5 +8,5 @@ public interface INamedTypeReference : ITypeReference
     /// <summary>
     /// The type definition this reference resolves to.
     /// </summary>
-    ITypeDefinition Definition { get; }
+    IMistType Definition { get; }
 }

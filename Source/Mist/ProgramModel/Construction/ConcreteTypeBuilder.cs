@@ -27,7 +27,7 @@ internal sealed class ConcreteTypeBuilder
     /// <summary>
     /// Entry point: resolves the full type definition for a concrete type.
     /// </summary>
-    public void Build(ConcreteTypeDefinition typeDef)
+    public void Build(ConcreteType typeDef)
     {
         BuildDeclaration(typeDef);
         BuildMembers(typeDef);
@@ -36,7 +36,7 @@ internal sealed class ConcreteTypeBuilder
     /// <summary>
     /// Resolves declaration-level information: base types, modifiers, generics.
     /// </summary>
-    private void BuildDeclaration(ConcreteTypeDefinition typeDef)
+    private void BuildDeclaration(ConcreteType typeDef)
     {
         baseTypeResolver.Resolve(typeDef.DeclarationNode, typeDef);
 
@@ -48,7 +48,7 @@ internal sealed class ConcreteTypeBuilder
         typeDef.IsOwned = modifiers.HasAny<ModifierNode, OwnedModifierModifierNode>();
         typeDef.Discipline = ResolveDiscipline(modifiers);
 
-        if(typeDef is StructDefinition structDef)
+        if(typeDef is StructType structDef)
         {
             structDef.IsRef = modifiers.HasAny<ModifierNode, RefModifierModifierNode>();
         }
@@ -57,7 +57,7 @@ internal sealed class ConcreteTypeBuilder
     /// <summary>
     /// Resolves all member signatures for the concrete type.
     /// </summary>
-    private void BuildMembers(ConcreteTypeDefinition typeDef)
+    private void BuildMembers(ConcreteType typeDef)
     {
         var body = (BodyTypeTypeDeclarationNode)typeDef.DeclarationNode;
         var members = body.TypeBody.Members;
@@ -71,7 +71,7 @@ internal sealed class ConcreteTypeBuilder
     /// <summary>
     /// Dispatches a single member declaration to the appropriate handler.
     /// </summary>
-    private void ResolveMember(MemberDeclarationNode member, ConcreteTypeDefinition typeDef)
+    private void ResolveMember(MemberDeclarationNode member, ConcreteType typeDef)
     {
         switch(member)
         {
@@ -109,7 +109,7 @@ internal sealed class ConcreteTypeBuilder
     /// <summary>
     /// Resolves a field declaration: name, type, ownership, readonly, static.
     /// </summary>
-    private void ResolveField(FieldDeclarationNode fieldDecl, ConcreteTypeDefinition typeDef)
+    private void ResolveField(FieldDeclarationNode fieldDecl, ConcreteType typeDef)
     {
         var name = fieldDecl.Name.Lexeme;
         var type = typeResolver.Resolve(fieldDecl.Type, typeDef.Scope);
@@ -117,7 +117,7 @@ internal sealed class ConcreteTypeBuilder
         var isReadonly = fieldDecl.Modifiers.HasAny<ModifierNode, ReadonlyModifierModifierNode>();
         var isStatic = fieldDecl.Modifiers.HasAny<ModifierNode, StaticModifierModifierNode>();
 
-        var field = new FieldDefinition(name, type, ownership, isReadonly, isStatic, fieldDecl);
+        var field = new Field(name, type, ownership, isReadonly, isStatic, fieldDecl);
         typeDef.FieldsList.Add(field);
     }
 

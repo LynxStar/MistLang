@@ -8,5 +8,5 @@ public interface ITypeParameterReference : ITypeReference
     /// <summary>
     /// The type parameter definition this reference refers to.
     /// </summary>
-    ITypeParameterDefinition Parameter { get; }
+    ITypeParameter Parameter { get; }
 }

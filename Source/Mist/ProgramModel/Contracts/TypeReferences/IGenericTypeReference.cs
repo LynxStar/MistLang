@@ -8,7 +8,7 @@ public interface IGenericTypeReference : ITypeReference
     /// <summary>
     /// The generic type definition being instantiated.
     /// </summary>
-    ITypeDefinition Definition { get; }
+    IMistType Definition { get; }
 
     /// <summary>
     /// The type arguments substituted for the type parameters.

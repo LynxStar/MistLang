@@ -24,7 +24,7 @@ internal sealed class BaseTypeResolver
     /// Resolves the base type list for any member-bearing type declaration.
     /// Extracts the <see cref="BaseListNode"/> from the declaration node.
     /// </summary>
-    public void Resolve(TypeDeclarationNode typeDecl, MemberTypeDefinition typeDef)
+    public void Resolve(TypeDeclarationNode typeDecl, MemberType typeDef)
     {
         var baseList = typeDecl switch
         {
@@ -47,7 +47,7 @@ internal sealed class BaseTypeResolver
         var startIndex = 0;
 
         // For concrete types, check if the first entry is a concrete base type.
-        if(typeDef is ConcreteTypeDefinition concreteTypeDef)
+        if(typeDef is ConcreteType concreteTypeDef)
         {
             var firstHandled = TryResolveConcreteBase(allEntries[0], concreteTypeDef);
             if(firstHandled)
@@ -69,7 +69,7 @@ internal sealed class BaseTypeResolver
     /// Returns true if the entry was consumed as a concrete base, false if it
     /// should be treated as an abstract.
     /// </summary>
-    private bool TryResolveConcreteBase(BaseTypeRefNode baseTypeRef, ConcreteTypeDefinition typeDef)
+    private bool TryResolveConcreteBase(BaseTypeRefNode baseTypeRef, ConcreteType typeDef)
     {
         var name = baseTypeRef.Name.Lexeme;
 
@@ -81,7 +81,7 @@ internal sealed class BaseTypeResolver
         }
 
         // Not a concrete type — let ResolveAbstractBase handle it.
-        if(resolved is not ConcreteTypeDefinition resolvedConcrete)
+        if(resolved is not ConcreteType resolvedConcrete)
         {
             return false;
         }
@@ -89,15 +89,15 @@ internal sealed class BaseTypeResolver
         // Verify kind match: class must inherit from class, struct from struct.
         var isSameKind = (typeDef, resolvedConcrete) switch
         {
-            (ClassDefinition, ClassDefinition) => true,
-            (StructDefinition, StructDefinition) => true,
+            (ClassType, ClassType) => true,
+            (StructType, StructType) => true,
             _ => false
         };
 
         if(!isSameKind)
         {
-            var ownerKind = typeDef is ClassDefinition ? "class" : "struct";
-            var baseKind = resolvedConcrete is ClassDefinition ? "class" : "struct";
+            var ownerKind = typeDef is ClassType ? "class" : "struct";
+            var baseKind = resolvedConcrete is ClassType ? "class" : "struct";
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.BaseTypeKindMismatch, baseTypeRef, null, ownerKind, baseKind, name);
             return true;
         }
@@ -110,7 +110,7 @@ internal sealed class BaseTypeResolver
     /// Resolves a single base type entry that is expected to be an abstract.
     /// Emits a diagnostic if it resolves to a concrete type.
     /// </summary>
-    private void ResolveAbstractBase(BaseTypeRefNode baseTypeRef, MemberTypeDefinition typeDef)
+    private void ResolveAbstractBase(BaseTypeRefNode baseTypeRef, MemberType typeDef)
     {
         var name = baseTypeRef.Name.Lexeme;
 
@@ -121,7 +121,7 @@ internal sealed class BaseTypeResolver
             return;
         }
 
-        if(resolved is ConcreteTypeDefinition)
+        if(resolved is ConcreteType)
         {
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.ConcreteInAbstractList, baseTypeRef, null, name);
             return;

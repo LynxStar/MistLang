@@ -1,0 +1,48 @@
+using Mist.Generated;
+using Mist.ProgramModel.Contracts;
+
+namespace Mist.ProgramModel.Model;
+
+/// <summary>
+/// Intermediate base for types that participate in inheritance and have
+/// method/property declarations: classes, structs, and abstracts.
+/// </summary>
+internal abstract class MemberType : MistType, IMemberType
+{
+    protected MemberType(
+        string name,
+        string namespaceName,
+        Scope scope,
+        MistType? declaringType,
+        TypeDeclarationNode declarationNode)
+        : base(name, namespaceName, scope, declaringType)
+    {
+        DeclarationNode = declarationNode;
+    }
+
+    /// <summary>
+    /// The AST declaration node for this type. Stashed during Phase 1
+    /// so Phase 2 can access member declarations without re-walking.
+    /// </summary>
+    internal TypeDeclarationNode DeclarationNode { get; }
+
+    /// <summary>
+    /// Whether this type is declared as readonly.
+    /// </summary>
+    public bool IsReadonly { get; internal set; }
+
+    /// <summary>
+    /// Abstracts that this type implements or refines.
+    /// </summary>
+    public List<MistType> BaseAbstractTypes { get; } = [];
+
+    public List<Method> MethodsList { get; } = [];
+
+    public List<Property> PropertiesList { get; } = [];
+
+    IReadOnlyList<IMistType> IMemberType.BaseAbstractTypes => BaseAbstractTypes;
+
+    IReadOnlyList<IMethod> IMemberType.Methods => MethodsList;
+
+    IReadOnlyList<IProperty> IMemberType.Properties => PropertiesList;
+}

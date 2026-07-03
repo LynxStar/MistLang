@@ -1,0 +1,18 @@
+using Mist.Generated;
+using Mist.ProgramModel.Contracts;
+
+namespace Mist.ProgramModel.Model;
+
+/// <summary>
+/// A struct type definition in the program model.
+/// </summary>
+internal sealed class StructType(
+    string name, string namespaceName, Scope scope, MistType? declaringType, TypeDeclarationNode declarationNode)
+    : ConcreteType(name, namespaceName, scope, declaringType, declarationNode),
+    IStructType
+{
+    /// <summary>
+    /// Whether this struct is a ref struct (stack-only, no heap allocation).
+    /// </summary>
+    public bool IsRef { get; internal set; }
+}

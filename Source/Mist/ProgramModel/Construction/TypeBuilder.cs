@@ -91,9 +91,9 @@ internal sealed class TypeBuilder
     private void RegisterType(
         Scope parentScope,
         TypeDeclarationNode typeDecl,
-        TypeDefinition? declaringType)
+        MistType? declaringType)
     {
-        var typeDef = CreateTypeDefinition(typeDecl, parentScope, declaringType);
+        var typeDef = CreateMistType(typeDecl, parentScope, declaringType);
         if(typeDef is null)
         {
             return;
@@ -116,7 +116,7 @@ internal sealed class TypeBuilder
 
         // Newtypes and type aliases don't have member bodies — skip nested
         // type registration for them.
-        if(typeDef is NewtypeDefinition or TypeAliasDefinition)
+        if(typeDef is Newtype or TypeAlias)
         {
             return;
         }
@@ -132,7 +132,7 @@ internal sealed class TypeBuilder
     private void RegisterNestedTypes(
         Scope typeScope,
         TypeDeclarationNode typeDecl,
-        TypeDefinition declaringType)
+        MistType declaringType)
     {
         var members = GetMembers(typeDecl);
         if(members.IsDefault)
@@ -150,13 +150,13 @@ internal sealed class TypeBuilder
     }
 
     /// <summary>
-    /// Creates the appropriate concrete TypeDefinition subclass for a type declaration node.
+    /// Creates the appropriate concrete MistType subclass for a type declaration node.
     /// Reports a diagnostic and returns null for unrecognized node types.
     /// </summary>
-    private TypeDefinition? CreateTypeDefinition(
+    private MistType? CreateMistType(
         TypeDeclarationNode typeDecl,
         Scope parentScope,
-        TypeDefinition? declaringType)
+        MistType? declaringType)
     {
         var namespaceName = parentScope.Namespace!;
 
@@ -169,20 +169,20 @@ internal sealed class TypeBuilder
                 var name = body.TypeBody.Name.Lexeme;
                 return body.TypeBody.Keyword switch
                 {
-                    ClassKeywordTypeKeywordNode => new ClassDefinition(name, namespaceName, typeScope, declaringType, typeDecl),
-                    StructKeywordTypeKeywordNode => new StructDefinition(name, namespaceName, typeScope, declaringType, typeDecl),
+                    ClassKeywordTypeKeywordNode => new ClassType(name, namespaceName, typeScope, declaringType, typeDecl),
+                    StructKeywordTypeKeywordNode => new StructType(name, namespaceName, typeScope, declaringType, typeDecl),
                     AbstractKeywordTypeKeywordNode => new AbstractType(name, namespaceName, typeScope, declaringType, typeDecl),
                     _ => throw new InvalidOperationException($"Unexpected type keyword: {body.TypeBody.Keyword.GetType().Name}")
                 };
 
             case EnumTypeTypeDeclarationNode et:
-                return new EnumDefinition(et.EnumDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType);
+                return new EnumType(et.EnumDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType);
 
             case NewtypeTypeTypeDeclarationNode nt:
-                return new NewtypeDefinition(nt.NewtypeDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType);
+                return new Newtype(nt.NewtypeDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType);
 
             case TypeAliasTypeTypeDeclarationNode ta:
-                return new TypeAliasDefinition(ta.TypeAliasDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType);
+                return new TypeAlias(ta.TypeAliasDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType);
 
             default:
                 context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownTypeDeclaration, typeDecl, null, typeDecl.GetType().Name);

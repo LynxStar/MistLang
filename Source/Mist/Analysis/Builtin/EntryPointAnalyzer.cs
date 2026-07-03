@@ -32,14 +32,12 @@ public sealed class EntryPointAnalyzer : IAnalyzer
             if(tlsUnits.Count > 0)
             {
                 var paths = string.Join(", ", tlsUnits.Select(u => u.Source.Path));
-                diagnostics.Add(new Diagnostic(
-                    DiagnosticId.LibraryWithTopLevelStatements,
-                    DiagnosticSeverity.Error,
-                    PipelineStage.Analysis,
-                    $"Library projects cannot have top-level statements. Files: {paths}",
-                    Location: default,
-                    CompilationUnitPath: tlsUnits[0].Source.Path,
-                    AnalyzerName: AnalyzerId));
+                diagnostics.Report(
+                    EntryPointDiagnostics.LibraryWithTopLevelStatements,
+                    default,
+                    tlsUnits[0].Source.Path,
+                    AnalyzerId,
+                    paths);
             }
 
             return;
@@ -49,14 +47,12 @@ public sealed class EntryPointAnalyzer : IAnalyzer
         if(tlsUnits.Count > 1)
         {
             var paths = string.Join(", ", tlsUnits.Select(u => u.Source.Path));
-            diagnostics.Add(new Diagnostic(
-                DiagnosticId.MultipleTopLevelStatementFiles,
-                DiagnosticSeverity.Error,
-                PipelineStage.Analysis,
-                $"Multiple files contain top-level statements. Only one file per project may have top-level statements. Files: {paths}",
-                Location: default,
-                CompilationUnitPath: tlsUnits[0].Source.Path,
-                AnalyzerName: AnalyzerId));
+            diagnostics.Report(
+                EntryPointDiagnostics.MultipleTopLevelStatementFiles,
+                default,
+                tlsUnits[0].Source.Path,
+                AnalyzerId,
+                paths);
         }
 
         // Rule 2: TLS + Main conflict
@@ -71,26 +67,23 @@ public sealed class EntryPointAnalyzer : IAnalyzer
                     // No entry_point config → error MIST_EP_0002
                     var tlsPath = tlsUnits[0].Source.Path;
                     var className = mainClasses[0];
-                    diagnostics.Add(new Diagnostic(
-                        DiagnosticId.TlsAndMainWithoutConfig,
-                        DiagnosticSeverity.Error,
-                        PipelineStage.Analysis,
-                        $"Project has both top-level statements (in '{tlsPath}') and a static void Main (in '{className}'). Add entry_point = \"top-level\" to mist.toml to resolve this conflict.",
-                        Location: default,
-                        CompilationUnitPath: tlsPath,
-                        AnalyzerName: AnalyzerId));
+                    diagnostics.Report(
+                        EntryPointDiagnostics.TlsAndMainWithoutConfig,
+                        default,
+                        tlsPath,
+                        AnalyzerId,
+                        tlsPath,
+                        className);
                 }
                 else if(entryPoint != "top-level")
                 {
                     // entry_point is set to a class name → error MIST_EP_0003
-                    diagnostics.Add(new Diagnostic(
-                        DiagnosticId.TlsWithClassEntryPoint,
-                        DiagnosticSeverity.Error,
-                        PipelineStage.Analysis,
-                        $"Cannot specify entry_point = \"{entryPoint}\" when a top-level statement file exists. A top-level statement file must always be the entry point. Use entry_point = \"top-level\" instead.",
-                        Location: default,
-                        CompilationUnitPath: tlsUnits[0].Source.Path,
-                        AnalyzerName: AnalyzerId));
+                    diagnostics.Report(
+                        EntryPointDiagnostics.TlsWithClassEntryPoint,
+                        default,
+                        tlsUnits[0].Source.Path,
+                        AnalyzerId,
+                        entryPoint);
                 }
                 // If entryPoint == "top-level" → valid, no error
             }
@@ -107,28 +100,25 @@ public sealed class EntryPointAnalyzer : IAnalyzer
                 {
                     // No entry_point config → error MIST_EP_0004
                     var classNames = string.Join(", ", mainClasses);
-                    diagnostics.Add(new Diagnostic(
-                        DiagnosticId.MultipleMainsWithoutConfig,
-                        DiagnosticSeverity.Error,
-                        PipelineStage.Analysis,
-                        $"Multiple classes contain static void Main: {classNames}. Add entry_point = \"{mainClasses[0]}\" to mist.toml to specify which one to use.",
-                        Location: default,
-                        CompilationUnitPath: "",
-                        AnalyzerName: AnalyzerId));
+                    diagnostics.Report(
+                        EntryPointDiagnostics.MultipleMainsWithoutConfig,
+                        default,
+                        "",
+                        AnalyzerId,
+                        classNames,
+                        mainClasses[0]);
                 }
                 else if(entryPoint != "top-level")
                 {
                     // entry_point is set to a class name → validate it exists in mainClasses
                     if(!mainClasses.Contains(entryPoint))
                     {
-                        diagnostics.Add(new Diagnostic(
-                            DiagnosticId.EntryPointClassNotFound,
-                            DiagnosticSeverity.Error,
-                            PipelineStage.Analysis,
-                            $"entry_point specifies '{entryPoint}' but no class with that name contains a static void Main method.",
-                            Location: default,
-                            CompilationUnitPath: "",
-                            AnalyzerName: AnalyzerId));
+                        diagnostics.Report(
+                            EntryPointDiagnostics.EntryPointClassNotFound,
+                            default,
+                            "",
+                            AnalyzerId,
+                            entryPoint);
                     }
                     // If the class is found in mainClasses → valid, no error
                 }
@@ -139,14 +129,11 @@ public sealed class EntryPointAnalyzer : IAnalyzer
         // Rule 4: entry_point = "top-level" but no TLS file exists
         if(tlsUnits.Count == 0 && model.Compilation.EntryPoint == "top-level")
         {
-            diagnostics.Add(new Diagnostic(
-                DiagnosticId.TopLevelEntryPointButNoTls,
-                DiagnosticSeverity.Error,
-                PipelineStage.Analysis,
-                "entry_point = \"top-level\" specified in mist.toml but no file contains top-level statements.",
-                Location: default,
-                CompilationUnitPath: "",
-                AnalyzerName: AnalyzerId));
+            diagnostics.Report(
+                EntryPointDiagnostics.TopLevelEntryPointButNoTls,
+                default,
+                "",
+                AnalyzerId);
         }
 
         // Rule 5: TLS + block namespace declaration
@@ -177,14 +164,11 @@ public sealed class EntryPointAnalyzer : IAnalyzer
                 if(item is NamespaceItemTopLevelItemNode nsItem &&
                     nsItem.NamespaceDeclaration is BlockNamespaceNamespaceDeclarationNode)
                 {
-                    diagnostics.Add(new Diagnostic(
-                        DiagnosticId.TlsWithBlockNamespace,
-                        DiagnosticSeverity.Error,
-                        PipelineStage.Analysis,
-                        "Top-level statements cannot coexist with block namespace declarations in the same file. Use a file-scoped namespace (namespace X;) instead.",
-                        Location: default,
-                        CompilationUnitPath: tlsUnit.Source.Path,
-                        AnalyzerName: AnalyzerId));
+                    diagnostics.Report(
+                        EntryPointDiagnostics.TlsWithBlockNamespace,
+                        default,
+                        tlsUnit.Source.Path,
+                        AnalyzerId);
                     break; // One error per file is sufficient
                 }
             }

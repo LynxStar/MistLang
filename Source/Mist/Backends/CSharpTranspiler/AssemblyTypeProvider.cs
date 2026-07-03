@@ -420,14 +420,12 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
             }
             catch(Exception ex)
             {
-                diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_ASM_LOAD_FAILED"),
-                    DiagnosticSeverity.Error,
-                    PipelineStage.Driver,
-                    $"Failed to load assembly '{path}': {ex.Message}",
-                    Location: default,
-                    CompilationUnitPath: "<assembly>",
-                    AnalyzerName: null));
+                diagnostics.Report(
+                    BackendDiagnostics.AssemblyLoadFailed,
+                    default,
+                    "<assembly>",
+                    (object?)path,
+                    ex.Message);
             }
         }
 

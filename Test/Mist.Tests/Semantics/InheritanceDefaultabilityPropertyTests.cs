@@ -416,7 +416,7 @@ public class InheritanceDefaultabilityPropertyTests
 
         // No MIST_DEFAULT_BASE_NOT_DEFAULTABLE diagnostic should be emitted
         var hasBaseNotDefaultableDiagnostic = diagnostics
-            .Any(d => d.Id == DiagnosticId.DefaultBaseNotDefaultable);
+            .Any(d => d.Id == CommonDiagnostics.DefaultBaseNotDefaultable.Id);
 
         return !hasBaseNotDefaultableDiagnostic;
     }
@@ -463,7 +463,7 @@ public class InheritanceDefaultabilityPropertyTests
 
         // MIST_DEFAULT_BASE_NOT_DEFAULTABLE diagnostic SHOULD be emitted
         var hasBaseNotDefaultableDiagnostic = diagnostics
-            .Any(d => d.Id == DiagnosticId.DefaultBaseNotDefaultable);
+            .Any(d => d.Id == CommonDiagnostics.DefaultBaseNotDefaultable.Id);
 
         return hasBaseNotDefaultableDiagnostic;
     }

@@ -233,7 +233,7 @@ public class DuplicateTypeParameterPropertyTests
 
         // Count MIST_DUPLICATE_TYPE_PARAMETER diagnostics
         var duplicateDiags = diagnostics
-            .Where(d => d.Id == DiagnosticId.DuplicateTypeParameter)
+            .Where(d => d.Id == GenericsDiagnostics.DuplicateTypeParameter.Id)
             .ToList();
 
         // The number of duplicate diagnostics should match the expected count
@@ -256,7 +256,7 @@ public class DuplicateTypeParameterPropertyTests
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var duplicateDiags = diagnostics
-            .Where(d => d.Id == DiagnosticId.DuplicateTypeParameter)
+            .Where(d => d.Id == GenericsDiagnostics.DuplicateTypeParameter.Id)
             .ToList();
 
         _ = Assert.Single(duplicateDiags);
@@ -285,7 +285,7 @@ public class DuplicateTypeParameterPropertyTests
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var duplicateDiags = diagnostics
-            .Where(d => d.Id == DiagnosticId.DuplicateTypeParameter)
+            .Where(d => d.Id == GenericsDiagnostics.DuplicateTypeParameter.Id)
             .ToList();
 
         _ = Assert.Single(duplicateDiags);
@@ -305,7 +305,7 @@ public class DuplicateTypeParameterPropertyTests
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var duplicateDiags = diagnostics
-            .Where(d => d.Id == DiagnosticId.DuplicateTypeParameter)
+            .Where(d => d.Id == GenericsDiagnostics.DuplicateTypeParameter.Id)
             .ToList();
 
         Assert.Empty(duplicateDiags);
@@ -325,7 +325,7 @@ public class DuplicateTypeParameterPropertyTests
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var duplicateDiags = diagnostics
-            .Where(d => d.Id == DiagnosticId.DuplicateTypeParameter)
+            .Where(d => d.Id == GenericsDiagnostics.DuplicateTypeParameter.Id)
             .ToList();
 
         Assert.Equal(2, duplicateDiags.Count);

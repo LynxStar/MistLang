@@ -830,7 +830,7 @@ public class DefaultTypeCheckerPropertyTests
 
         // Own field overrides should never produce MIST_DEFAULT_FIELD_NOT_VISIBLE
         return !tcDiagnostics.Any(d =>
-            d.Id == DiagnosticId.DefaultFieldNotVisible);
+            d.Id == CommonDiagnostics.DefaultFieldNotVisible.Id);
     }
 
     /// <summary>
@@ -849,7 +849,7 @@ public class DefaultTypeCheckerPropertyTests
 
         // Public base field overrides should not produce MIST_DEFAULT_FIELD_NOT_VISIBLE
         return !tcDiagnostics.Any(d =>
-            d.Id == DiagnosticId.DefaultFieldNotVisible);
+            d.Id == CommonDiagnostics.DefaultFieldNotVisible.Id);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -882,7 +882,7 @@ public class DefaultTypeCheckerPropertyTests
 
         // The redundant default block diagnostic should be emitted
         var redundantDiag = tcDiagnostics
-            .FirstOrDefault(d => d.Id == DiagnosticId.DefaultRedundantBlock);
+            .FirstOrDefault(d => d.Id == CommonDiagnostics.DefaultRedundantBlock.Id);
 
         if(redundantDiag is null)
         {

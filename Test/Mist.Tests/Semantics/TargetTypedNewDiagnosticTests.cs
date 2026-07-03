@@ -244,9 +244,9 @@ public sealed class TargetTypedNewDiagnosticTests : IDisposable
 
         // Should get either MIST_TC_0011 (no matching constructor) or MIST_TC_0031 (no overload matches).
         var hasCtorError = diagnostics.Any(d =>
-            d.Id.Value is "MIST_TC_0011" or "MIST_TC_0031");
+            d.Id.Value is "MIST_TC_0011" or "MIST_TC_0013" or "MIST_TC_0031");
         Assert.True(hasCtorError,
-            $"Expected MIST_TC_0011 or MIST_TC_0031. Got: [{string.Join(", ", diagnostics.Select(d => d.Id.Value + ": " + d.Message))}]");
+            $"Expected MIST_TC_0011, MIST_TC_0013, or MIST_TC_0031. Got: [{string.Join(", ", diagnostics.Select(d => d.Id.Value + ": " + d.Message))}]");
     }
 
     [Fact]
@@ -269,9 +269,9 @@ public sealed class TargetTypedNewDiagnosticTests : IDisposable
         var diagnostics = CompileAndGetDiagnostics(source);
 
         var hasCtorError = diagnostics.Any(d =>
-            d.Id.Value is "MIST_TC_0011" or "MIST_TC_0031");
+            d.Id.Value is "MIST_TC_0011" or "MIST_TC_0013" or "MIST_TC_0031");
         Assert.True(hasCtorError,
-            $"Expected MIST_TC_0011 or MIST_TC_0031. Got: [{string.Join(", ", diagnostics.Select(d => d.Id.Value + ": " + d.Message))}]");
+            $"Expected MIST_TC_0011, MIST_TC_0013, or MIST_TC_0031. Got: [{string.Join(", ", diagnostics.Select(d => d.Id.Value + ": " + d.Message))}]");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -310,6 +310,7 @@ public sealed class TargetTypedNewDiagnosticTests : IDisposable
         Assert.Empty(WithId(diagnostics, "MIST_TARGET_NEW_ABSTRACT"));
         Assert.Empty(WithId(diagnostics, "MIST_ABSTRACT_INSTANTIATION"));
         Assert.Empty(WithId(diagnostics, "MIST_TC_0011"));
+        Assert.Empty(WithId(diagnostics, "MIST_TC_0013"));
         Assert.Empty(WithId(diagnostics, "MIST_TC_0031"));
     }
 }

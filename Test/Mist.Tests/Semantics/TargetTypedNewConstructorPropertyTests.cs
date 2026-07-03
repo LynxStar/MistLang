@@ -187,7 +187,8 @@ public sealed class TargetTypedNewConstructorPropertyTests : IDisposable
     /// </summary>
     private static readonly HashSet<string> ConstructorErrorIds = new()
     {
-        "MIST_TC_0011", // Type does not contain a constructor matching the given arguments
+        "MIST_TC_0011", // Array/Span constructor requires one arg
+        "MIST_TC_0013", // No constructor matches the chained arguments
         "MIST_TC_0031", // No overload for constructor matches argument types
     };
 

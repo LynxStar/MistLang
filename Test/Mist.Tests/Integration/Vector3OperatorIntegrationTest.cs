@@ -224,7 +224,7 @@ public class Vector3OperatorIntegrationTest
                 left: addNode.Left,
                 right: addNode.Right,
                 surrounding: addNode,
-                noApplicableDiagnosticId: "MIST_TC_0003",
+                noApplicableDescriptor: TypeCheckDiagnostics.OperatorNotApplicableArithmetic,
                 model: model,
                 diagnostics: diagnostics);
 

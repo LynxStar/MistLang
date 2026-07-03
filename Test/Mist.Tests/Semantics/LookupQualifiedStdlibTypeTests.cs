@@ -131,7 +131,7 @@ public class LookupQualifiedStdlibTypeTests
                 model.SymbolTable,
                 "Standard.NonExistent"));
 
-        Assert.Equal(DiagnosticId.StdlibMissing, ex.DiagnosticId);
+        Assert.Equal(CommonDiagnostics.StdlibMissing.Id, ex.DiagnosticId);
         Assert.Equal("MIST_STDLIB_MISSING", ex.DiagnosticId.Value);
         Assert.Equal("Standard.NonExistent", ex.QualifiedName);
         Assert.Contains("MIST_STDLIB_MISSING", ex.Message);
@@ -156,7 +156,7 @@ public class LookupQualifiedStdlibTypeTests
                 model.SymbolTable,
                 "Standard.Int32"));
 
-        Assert.Equal(DiagnosticId.StdlibMissing, ex.DiagnosticId);
+        Assert.Equal(CommonDiagnostics.StdlibMissing.Id, ex.DiagnosticId);
         Assert.Equal("Standard.Int32", ex.QualifiedName);
     }
 }

@@ -258,7 +258,7 @@ public class PredicateCompatibilityPropertyTests
         var diagnostics = CompileAndGetDiagnostics(source);
 
         var incompatibleDiagnostics = diagnostics
-            .Where(d => d.Id == TypeCheckerAnalyzer.RefinementPredicateIncompatible)
+            .Where(d => d.Id == TypeCheckDiagnostics.RefinementPredicateIncompatible.Id)
             .ToList();
 
         if(scenario.ShouldAccept)

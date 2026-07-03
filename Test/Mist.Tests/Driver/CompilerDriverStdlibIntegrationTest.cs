@@ -119,7 +119,7 @@ public sealed class CompilerDriverStdlibIntegrationTest : IDisposable
         Assert.NotNull(capture.Captured);
         Assert.DoesNotContain(
             result.Diagnostics,
-            d => d.Id.Value == DiagnosticId.StdlibParse.Value);
+            d => d.Id.Value == CommonDiagnostics.StdlibParse.Id.Value);
 
         var model = capture.Captured!;
 

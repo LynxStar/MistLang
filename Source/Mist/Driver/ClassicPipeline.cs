@@ -101,14 +101,11 @@ public sealed class ClassicPipeline : ICompilationPipeline
         }
         catch(Exception ex)
         {
-            allDiagnostics.Add(new Diagnostic(
-                new DiagnosticId("MIST_SEMANTIC_FAILURE"),
-                DiagnosticSeverity.Error,
-                PipelineStage.SemanticModelConstruction,
-                $"Semantic model construction failed: {ex.Message}",
-                Location: default,
-                CompilationUnitPath: "<unknown>",
-                AnalyzerName: null));
+            allDiagnostics.Report(
+                SemanticDiagnostics.SemanticFailure,
+                default,
+                "<unknown>",
+                (object?)ex.Message);
             semanticModel = null;
         }
 

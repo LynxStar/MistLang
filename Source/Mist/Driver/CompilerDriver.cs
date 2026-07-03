@@ -56,14 +56,7 @@ public sealed class CompilerDriver : ICompilerDriver
         // Resolve backend
         if(!backends.TryGetValue(options.Backend.Value, out var backend))
         {
-            allDiagnostics.Add(new Diagnostic(
-                new DiagnosticId("MIST_UNKNOWN_BACKEND"),
-                DiagnosticSeverity.Error,
-                PipelineStage.Driver,
-                $"Unknown backend '{options.Backend.Value}'.",
-                Location: default,
-                CompilationUnitPath: "<unknown>",
-                AnalyzerName: null));
+            allDiagnostics.Report(DriverDiagnostics.UnknownBackend, default, "<unknown>", (object?)options.Backend.Value);
 
             return new CompilerResult(false, null, allDiagnostics.ToImmutableArray());
         }
@@ -140,14 +133,7 @@ public sealed class CompilerDriver : ICompilerDriver
             }
             catch(Exception ex)
             {
-                allDiagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_FILE_ERROR"),
-                    DiagnosticSeverity.Error,
-                    PipelineStage.Driver,
-                    $"Failed to read source file '{path}': {ex.Message}",
-                    Location: default,
-                    CompilationUnitPath: path,
-                    AnalyzerName: null));
+                allDiagnostics.Report(DriverDiagnostics.FileError, default, path, (object?)path, ex.Message);
             }
         }
 
@@ -251,14 +237,7 @@ public sealed class CompilerDriver : ICompilerDriver
                                 }
                                 catch(Exception ex)
                                 {
-                                    allDiagnostics.Add(new Diagnostic(
-                                        new DiagnosticId("MIST_FILE_ERROR"),
-                                        DiagnosticSeverity.Error,
-                                        PipelineStage.Driver,
-                                        $"Failed to read referenced source file '{path}': {ex.Message}",
-                                        Location: default,
-                                        CompilationUnitPath: path,
-                                        AnalyzerName: null));
+                                    allDiagnostics.Report(DriverDiagnostics.FileError, default, path, (object?)path, ex.Message);
                                 }
                             }
                         }

@@ -262,9 +262,9 @@ public class Program {
         var diagnostics = emitDiag.ToImmutableArray();
 
         // 1. MIST_BE_0002 is emitted.
-        Assert.Contains(diagnostics, d => d.Id == DiagnosticId.MissingIntrinsicEmissionTemplate);
+        Assert.Contains(diagnostics, d => d.Id == BackendDiagnostics.MissingIntrinsicEmissionTemplate.Id);
 
-        var be0002 = diagnostics.First(d => d.Id == DiagnosticId.MissingIntrinsicEmissionTemplate);
+        var be0002 = diagnostics.First(d => d.Id == BackendDiagnostics.MissingIntrinsicEmissionTemplate.Id);
         Assert.Equal(DiagnosticSeverity.Error, be0002.Severity);
         Assert.Contains("FakeType", be0002.Message);
         Assert.Contains("operator+", be0002.Message);
@@ -459,7 +459,7 @@ public class Program {
         Assert.False(result.Succeeded);
 
         // MIST_BE_0002 is in the diagnostics
-        Assert.Contains(result.Diagnostics, d => d.Id == DiagnosticId.MissingIntrinsicEmissionTemplate);
+        Assert.Contains(result.Diagnostics, d => d.Id == BackendDiagnostics.MissingIntrinsicEmissionTemplate.Id);
 
         // No .cs files remain in the output directory (Requirement 5.10)
         var csFiles = Directory.Exists(outputDir)

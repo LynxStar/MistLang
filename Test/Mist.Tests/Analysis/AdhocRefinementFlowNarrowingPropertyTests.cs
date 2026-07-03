@@ -174,7 +174,7 @@ public class AdhocRefinementFlowNarrowingPropertyTests
         var diagnostics = CompileAndGetDiagnostics(scenario.ToSourceWithReassignment());
 
         var refinementDiags = diagnostics
-            .Where(d => d.Id == TypeCheckerAnalyzer.RefinementNonConstantAssignment)
+            .Where(d => d.Id == TypeCheckDiagnostics.RefinementNonConstantAssignment.Id)
             .ToList();
 
         // After reassignment, the narrowing is invalidated — the type checker must
@@ -207,7 +207,7 @@ public class AdhocRefinementFlowNarrowingPropertyTests
         var diagnostics = CompileAndGetDiagnostics(scenario.ToSourceWithoutReassignment());
 
         var refinementDiags = diagnostics
-            .Where(d => d.Id == TypeCheckerAnalyzer.RefinementNonConstantAssignment)
+            .Where(d => d.Id == TypeCheckDiagnostics.RefinementNonConstantAssignment.Id)
             .ToList();
 
         // Without reassignment, the adhoc refinement constraint establishes narrowing —

@@ -101,24 +101,22 @@ public sealed class ThisTierInferencePass
                     try { declaringNode = model.GetDeclaringNode(methodSymbol); }
                     catch { /* no source location available */ }
 
-                    var message = ThisTierInsufficientMessage(
-                        sym.Name, FormatTier(declaredTier), FormatTier(requiredTier));
-
                     if(declaringNode is not null)
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            OwnershipAnalyzer.ThisTierInsufficient,
-                            message,
+                        diagnostics.ReportAtNode(
+                            OwnershipDiagnostics.ThisTierInsufficient,
                             declaringNode,
-                            model));
+                            "Ownership",
+                            sym.Name, FormatTier(declaredTier), FormatTier(requiredTier));
                     }
                     else
                     {
                         diagnostics.Add(new Diagnostic(
-                            OwnershipAnalyzer.ThisTierInsufficient,
+                            OwnershipDiagnostics.ThisTierInsufficient.Id,
                             DiagnosticSeverity.Error,
                             PipelineStage.Analysis,
-                            message,
+                            ThisTierInsufficientMessage(
+                                sym.Name, FormatTier(declaredTier), FormatTier(requiredTier)),
                             Location: default,
                             CompilationUnitPath: "",
                             AnalyzerName: "Ownership"));
@@ -808,56 +806,6 @@ public sealed class ThisTierInferencePass
     {
         return $"Method '{methodName}' declares 'with {declaredTier}' but the body requires at least " +
         $"'{requiredTier}' access to 'this' — owned-field operations in the body demand a higher tier.";
-    }
-
-    /// <summary>
-    /// Creates a diagnostic with source location information resolved from the AST node.
-    /// Mirrors the pattern in <see cref="OwnershipAnalyzer"/>.
-    /// </summary>
-    private static Diagnostic MakeDiagnostic(
-        DiagnosticId id,
-        string message,
-        SyntaxNode node,
-        ISemanticModel model)
-    {
-        Common.Source.LinePositionSpan? location = null;
-        string? compilationUnitPath = null;
-
-        var span = node.Span;
-        if(span.Length > 0)
-        {
-            var asts = model.Asts;
-            var units = model.Units;
-            var astIndex = -1;
-
-            for(var i = 0; i < asts.Length; i++)
-            {
-                var astSpan = asts[i].Span;
-                if(span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
-                {
-                    astIndex = i;
-                    break;
-                }
-            }
-
-            if(astIndex >= 0 && astIndex < units.Count)
-            {
-                var source = units[astIndex].Source;
-                compilationUnitPath = source.Path;
-
-                var sourceSpan = new Common.Source.SourceSpan(span.Start, span.Length);
-                location = source.ToLinePositionSpan(sourceSpan);
-            }
-        }
-
-        return new Diagnostic(
-            id,
-            DiagnosticSeverity.Error,
-            PipelineStage.Analysis,
-            message,
-            Location: location ?? default,
-            CompilationUnitPath: compilationUnitPath ?? "",
-            AnalyzerName: "Ownership");
     }
 }
 

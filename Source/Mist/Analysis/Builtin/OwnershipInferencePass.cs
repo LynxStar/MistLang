@@ -50,15 +50,14 @@ public sealed class OwnershipInferencePass
             // emit MIST_OWN_INFERENCE_FAILURE and fall back to Shared.
             if(candidate.Tier == null)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    OwnershipAnalyzer.InferenceFailure,
-                    OwnershipAnalyzer.InferenceFailureMessage(
-                        candidate.Symbol.Name,
-                        FormatTier(candidate.LastConflictTier ?? OwnershipTier.Owned),
-                        candidate.LastConflictUse ?? "a use",
-                        FormatTier(candidate.LastConflictRequired ?? OwnershipTier.Unrestricted)),
+                diagnostics.ReportAtNode(
+                    OwnershipDiagnostics.InferenceFailure,
                     candidate.DeclarationNode,
-                    model));
+                    "Ownership",
+                    candidate.Symbol.Name,
+                    FormatTier(candidate.LastConflictTier ?? OwnershipTier.Owned),
+                    candidate.LastConflictUse ?? "a use",
+                    FormatTier(candidate.LastConflictRequired ?? OwnershipTier.Unrestricted));
 
                 result[candidate.Symbol] = new InferredBinding(
                     candidate.Symbol,
@@ -774,55 +773,6 @@ public sealed class OwnershipInferencePass
             OwnershipTier.Unrestricted => "shared",
             _ => "shared",
         };
-    }
-
-    /// <summary>
-    /// Creates a diagnostic with source location information resolved from the AST node.
-    /// </summary>
-    private static Diagnostic MakeDiagnostic(
-        DiagnosticId id,
-        string message,
-        SyntaxNode node,
-        ISemanticModel model)
-    {
-        Common.Source.LinePositionSpan? location = null;
-        string? compilationUnitPath = null;
-
-        var span = node.Span;
-        if(span.Length > 0)
-        {
-            var asts = model.Asts;
-            var units = model.Units;
-            var astIndex = -1;
-
-            for(var i = 0; i < asts.Length; i++)
-            {
-                var astSpan = asts[i].Span;
-                if(span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
-                {
-                    astIndex = i;
-                    break;
-                }
-            }
-
-            if(astIndex >= 0 && astIndex < units.Count)
-            {
-                var source = units[astIndex].Source;
-                compilationUnitPath = source.Path;
-
-                var sourceSpan = new Common.Source.SourceSpan(span.Start, span.Length);
-                location = source.ToLinePositionSpan(sourceSpan);
-            }
-        }
-
-        return new Diagnostic(
-            id,
-            DiagnosticSeverity.Error,
-            PipelineStage.Analysis,
-            message,
-            Location: location ?? default,
-            CompilationUnitPath: compilationUnitPath ?? "",
-            AnalyzerName: "Ownership");
     }
 
     // ── Internal state ────────────────────────────────────────────────────

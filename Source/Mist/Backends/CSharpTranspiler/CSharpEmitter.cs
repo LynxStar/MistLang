@@ -5368,15 +5368,14 @@ internal sealed class CSharpSourceWriter
                 if(implicitOverridePrefix.Length > 0)
                 {
                     // Emit informational diagnostic: "hey, we automatically made this link"
-                    diagnostics.Add(new Diagnostic(
-                        new DiagnosticId("MIST_BE_INFO_OVERRIDE"),
-                        DiagnosticSeverity.Info,
-                        PipelineStage.Backend,
-                        $"Method '{name}' implicitly overrides '{currentClassType.BaseType.DisplayName}.{name}' " +
-                        $"(emitted as '{clrAccess} override'). If this was not intentional, rename the method.",
-                        Location: default,
-                        CompilationUnitPath: sourceText.Path,
-                        AnalyzerName: "ImplicitOverride"));
+                    diagnostics.Report(
+                        BackendDiagnostics.ImplicitOverrideInfo,
+                        default,
+                        sourceText.Path,
+                        "ImplicitOverride",
+                        name,
+                        $"{currentClassType.BaseType.DisplayName}.{name}",
+                        clrAccess);
                 }
             }
         }
@@ -12980,14 +12979,11 @@ internal sealed class CSharpSourceWriter
 
             // Template not found — emit MIST_BE_0002 hard error (Requirements 5.9, 5.10).
             var memberSig = $"{declaringType}.operator{op}";
-            diagnostics.Add(new Diagnostic(
-                DiagnosticId.MissingIntrinsicEmissionTemplate,
-                DiagnosticSeverity.Error,
-                PipelineStage.Backend,
-                $"No emission template found for intrinsic '{memberSig}' in backend 'CSharp'.",
-                Location: default,
-                CompilationUnitPath: sourceText.Path,
-                AnalyzerName: null));
+            diagnostics.Report(
+                BackendDiagnostics.MissingIntrinsicEmissionTemplate,
+                default,
+                sourceText.Path,
+                (object?)memberSig);
             return "";
         }
 
@@ -13031,14 +13027,11 @@ internal sealed class CSharpSourceWriter
 
             // Template not found — emit MIST_BE_0002 hard error (Requirements 5.9, 5.10).
             var memberSig = $"{declaringType}.operator{op}";
-            diagnostics.Add(new Diagnostic(
-                DiagnosticId.MissingIntrinsicEmissionTemplate,
-                DiagnosticSeverity.Error,
-                PipelineStage.Backend,
-                $"No emission template found for intrinsic '{memberSig}' in backend 'CSharp'.",
-                Location: default,
-                CompilationUnitPath: sourceText.Path,
-                AnalyzerName: null));
+            diagnostics.Report(
+                BackendDiagnostics.MissingIntrinsicEmissionTemplate,
+                default,
+                sourceText.Path,
+                (object?)memberSig);
             return "";
         }
 

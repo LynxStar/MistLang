@@ -421,8 +421,8 @@ public class TypeCheckerOverloadDiagnosticTests
         var model = BuildModel(ast);
         var diagnostics = RunTypeChecker(model);
 
-        // Assert: MIST_TC_0011 (existing constructor mismatch) is emitted, NOT MIST_TC_0031
-        Assert.Contains(diagnostics, d => d.Id.Value == "MIST_TC_0011");
+        // Assert: MIST_TC_0013 (no matching constructor) is emitted, NOT MIST_TC_0031
+        Assert.Contains(diagnostics, d => d.Id.Value == "MIST_TC_0013");
         Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_TC_0031");
         Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_TC_0032");
     }

@@ -88,7 +88,7 @@ public static class PackageResolver
             if(!NuGetVersion.TryParse(pkg.Version, out _))
             {
                 diagnostics.Add(new Diagnostic(
-                    DiagnosticId.PackageNotFound,
+                    CommonDiagnostics.PackageNotFound.Id,
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
                     $"Package '{pkg.Name}' version '{pkg.Version}' could not be found on any configured NuGet feed (https://api.nuget.org/v3/index.json); the version string is not a valid NuGet version.",
@@ -133,7 +133,7 @@ public static class PackageResolver
             if(!File.Exists(assetsPath))
             {
                 diagnostics.Add(new Diagnostic(
-                    DiagnosticId.PackageNetworkError,
+                    CommonDiagnostics.PackageNetworkError.Id,
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
                     "Package restore completed but project.assets.json was not generated.",
@@ -152,7 +152,7 @@ public static class PackageResolver
         catch(Exception ex) when(ex is IOException or UnauthorizedAccessException)
         {
             diagnostics.Add(new Diagnostic(
-                DiagnosticId.PackageNetworkError,
+                CommonDiagnostics.PackageNetworkError.Id,
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
                 $"Failed to create temporary restore project: {ex.Message}",
@@ -314,7 +314,7 @@ public static class PackageResolver
                 || combinedOutput.Contains("signature", StringComparison.OrdinalIgnoreCase))
             {
                 diagnostics.Add(new Diagnostic(
-                    DiagnosticId.PackageNetworkError,
+                    CommonDiagnostics.PackageNetworkError.Id,
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
                     $"Connection or network failure while restoring packages: {stderr.Trim()}",
@@ -328,7 +328,7 @@ public static class PackageResolver
                 foreach(var pkg in validPackages)
                 {
                     diagnostics.Add(new Diagnostic(
-                        DiagnosticId.PackageNotFound,
+                        CommonDiagnostics.PackageNotFound.Id,
                         DiagnosticSeverity.Error,
                         PipelineStage.Driver,
                         $"Package '{pkg.Name}' version '{pkg.Version}' was not found on any configured NuGet feed. Searched: https://api.nuget.org/v3/index.json.",
@@ -353,7 +353,7 @@ public static class PackageResolver
             if(packageFailures.Contains(pkg.Name))
             {
                 diagnostics.Add(new Diagnostic(
-                    DiagnosticId.PackageNotFound,
+                    CommonDiagnostics.PackageNotFound.Id,
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
                     $"Package '{pkg.Name}' version '{pkg.Version}' was not found on any configured NuGet feed. Searched: https://api.nuget.org/v3/index.json.",
@@ -392,7 +392,7 @@ public static class PackageResolver
         catch(Exception ex) when(ex is JsonException or IOException)
         {
             diagnostics.Add(new Diagnostic(
-                DiagnosticId.PackageNetworkError,
+                CommonDiagnostics.PackageNetworkError.Id,
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
                 $"Failed to parse project.assets.json: {ex.Message}",
@@ -582,7 +582,7 @@ public static class PackageResolver
                 if(!resolvedDeclaredPackages.Contains(pkg.Name))
                 {
                     diagnostics.Add(new Diagnostic(
-                        DiagnosticId.PackageNotFound,
+                        CommonDiagnostics.PackageNotFound.Id,
                         DiagnosticSeverity.Error,
                         PipelineStage.Driver,
                         $"Package '{pkg.Name}' version '{pkg.Version}' was not found on any configured NuGet feed. Searched: https://api.nuget.org/v3/index.json.",

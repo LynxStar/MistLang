@@ -289,7 +289,7 @@ public class MissingTypeArgumentsPropertyTests
 
         // Should emit at least one MIST_MISSING_TYPE_ARGUMENTS diagnostic
         var missingArgsDiags = diagnostics
-            .Where(d => d.Id == DiagnosticId.MissingTypeArguments)
+            .Where(d => d.Id == GenericsDiagnostics.MissingTypeArguments.Id)
             .ToList();
 
         return missingArgsDiags.Count >= 1;
@@ -325,7 +325,7 @@ public class MissingTypeArgumentsPropertyTests
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var missingArgsDiags = diagnostics
-            .Where(d => d.Id == DiagnosticId.MissingTypeArguments)
+            .Where(d => d.Id == GenericsDiagnostics.MissingTypeArguments.Id)
             .ToList();
 
         _ = Assert.Single(missingArgsDiags);
@@ -360,7 +360,7 @@ public class MissingTypeArgumentsPropertyTests
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var missingArgsDiags = diagnostics
-            .Where(d => d.Id == DiagnosticId.MissingTypeArguments)
+            .Where(d => d.Id == GenericsDiagnostics.MissingTypeArguments.Id)
             .ToList();
 
         _ = Assert.Single(missingArgsDiags);
@@ -393,7 +393,7 @@ public class MissingTypeArgumentsPropertyTests
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var missingArgsDiags = diagnostics
-            .Where(d => d.Id == DiagnosticId.MissingTypeArguments)
+            .Where(d => d.Id == GenericsDiagnostics.MissingTypeArguments.Id)
             .ToList();
 
         _ = Assert.Single(missingArgsDiags);
@@ -428,7 +428,7 @@ public class MissingTypeArgumentsPropertyTests
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var missingArgsDiags = diagnostics
-            .Where(d => d.Id == DiagnosticId.MissingTypeArguments)
+            .Where(d => d.Id == GenericsDiagnostics.MissingTypeArguments.Id)
             .ToList();
 
         _ = Assert.Single(missingArgsDiags);
@@ -477,7 +477,7 @@ public class MissingTypeArgumentsPropertyTests
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var missingArgsDiags = diagnostics
-            .Where(d => d.Id == DiagnosticId.MissingTypeArguments)
+            .Where(d => d.Id == GenericsDiagnostics.MissingTypeArguments.Id)
             .ToList();
 
         _ = Assert.Single(missingArgsDiags);
@@ -525,7 +525,7 @@ public class MissingTypeArgumentsPropertyTests
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var missingArgsDiags = diagnostics
-            .Where(d => d.Id == DiagnosticId.MissingTypeArguments)
+            .Where(d => d.Id == GenericsDiagnostics.MissingTypeArguments.Id)
             .ToList();
 
         _ = Assert.Single(missingArgsDiags);

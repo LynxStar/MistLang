@@ -176,16 +176,13 @@ public sealed class CSharpTranspilerBackend : IBackend
         catch(Exception ex)
         {
             var fullMessage = ex.InnerException is not null
-                ? $"C# transpiler backend failed: {ex.Message} -> {ex.InnerException.Message}"
-                : $"C# transpiler backend failed: {ex.Message}";
-            bag.Add(new Diagnostic(
-                new DiagnosticId("MIST_BACKEND_ERROR"),
-                DiagnosticSeverity.Error,
-                PipelineStage.Backend,
-                fullMessage,
-                Location: default,
-                CompilationUnitPath: "<unknown>",
-                AnalyzerName: null));
+                ? $"{ex.Message} -> {ex.InnerException.Message}"
+                : ex.Message;
+            bag.Report(
+                BackendDiagnostics.BackendError,
+                default,
+                "<unknown>",
+                (object?)fullMessage);
 
             return new BackendResult(
                 Succeeded: false,

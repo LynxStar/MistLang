@@ -62,9 +62,9 @@ public sealed record SpanConstructorScenario(
 /// messages as the previous hardcoded branch:
 /// <list type="bullet">
 ///   <item>Accepted: <c>new Span&lt;T&gt;(arrayExpr)</c> where <c>arrayExpr</c> is an array of compatible element type</item>
-///   <item>Rejected: <c>new Span&lt;T&gt;(nonArrayExpr)</c> with MIST_TC_0011 (wrong argument type)</item>
-///   <item>Rejected: <c>new Span&lt;T&gt;()</c> (too few arguments) with MIST_TC_0011</item>
-///   <item>Rejected: <c>new Span&lt;T&gt;(a, b)</c> (too many arguments) with MIST_TC_0011</item>
+///   <item>Rejected: <c>new Span&lt;T&gt;(nonArrayExpr)</c> with MIST_TC_0013 (wrong argument type)</item>
+///   <item>Rejected: <c>new Span&lt;T&gt;()</c> (too few arguments) with MIST_TC_0013</item>
+///   <item>Rejected: <c>new Span&lt;T&gt;(a, b)</c> (too many arguments) with MIST_TC_0013</item>
 /// </list>
 ///
 /// Uses in-process compilation via a shared <see cref="CompilerDriver"/> instance.
@@ -127,7 +127,7 @@ public sealed class SpanConstructorResolutionPropertyTests : IDisposable
     /// <summary>
     /// Generates a valid scenario: <c>new Span&lt;T&gt;(arr)</c> where <c>arr</c> is
     /// an array of compatible element type.
-    /// Expected: no MIST_TC_0011 diagnostic.
+    /// Expected: no MIST_TC_0013 diagnostic.
     /// </summary>
     private static Gen<SpanConstructorScenario> GenValidArrayArgument()
     {
@@ -145,7 +145,7 @@ public sealed class SpanConstructorResolutionPropertyTests : IDisposable
 
     /// <summary>
     /// Generates a scenario with wrong argument type: <c>new Span&lt;int&gt;(nonArrayExpr)</c>.
-    /// Expected: MIST_TC_0011 (no matching constructor).
+    /// Expected: MIST_TC_0013 (no matching constructor).
     /// </summary>
     private static Gen<SpanConstructorScenario> GenWrongArgumentType()
     {
@@ -158,12 +158,12 @@ public sealed class SpanConstructorResolutionPropertyTests : IDisposable
                    SpanConstructorCategory.WrongArgumentType,
                    "int",
                    ExpectsError: true,
-                   $"new Span<int>({expr}) [{typeName} arg] → MIST_TC_0011");
+                   $"new Span<int>({expr}) [{typeName} arg] → MIST_TC_0013");
     }
 
     /// <summary>
     /// Generates a scenario with too few arguments: <c>new Span&lt;T&gt;()</c>.
-    /// Expected: MIST_TC_0011 (no matching constructor).
+    /// Expected: MIST_TC_0013 (no matching constructor).
     /// </summary>
     private static Gen<SpanConstructorScenario> GenTooFewArguments()
     {
@@ -175,12 +175,12 @@ public sealed class SpanConstructorResolutionPropertyTests : IDisposable
                    SpanConstructorCategory.TooFewArguments,
                    elementType,
                    ExpectsError: true,
-                   $"new Span<{elementType}>() [0 args] → MIST_TC_0011");
+                   $"new Span<{elementType}>() [0 args] → MIST_TC_0013");
     }
 
     /// <summary>
     /// Generates a scenario with too many arguments: <c>new Span&lt;T&gt;(arr, extra)</c>.
-    /// Expected: MIST_TC_0011 (no matching constructor).
+    /// Expected: MIST_TC_0013 (no matching constructor).
     /// </summary>
     private static Gen<SpanConstructorScenario> GenTooManyArguments()
     {
@@ -195,7 +195,7 @@ public sealed class SpanConstructorResolutionPropertyTests : IDisposable
                    SpanConstructorCategory.TooManyArguments,
                    elementType,
                    ExpectsError: true,
-                   $"new Span<{elementType}>(arr, arr) [2 args] → MIST_TC_0011");
+                   $"new Span<{elementType}>(arr, arr) [2 args] → MIST_TC_0013");
     }
 
     /// <summary>
@@ -300,17 +300,17 @@ public sealed class SpanConstructorResolutionPropertyTests : IDisposable
     // For all `new Span<T>(expr)` constructions, the constructor resolution
     // via member-scope lookup produces the same accept/reject behavior and
     // diagnostic messages as the previous hardcoded branch:
-    //   - Accepted: new Span<T>(arrayExpr) — no MIST_TC_0011
-    //   - Rejected: new Span<T>(nonArrayExpr) — MIST_TC_0011
-    //   - Rejected: new Span<T>() — MIST_TC_0011
-    //   - Rejected: new Span<T>(a, b) — MIST_TC_0011
+    //   - Accepted: new Span<T>(arrayExpr) — no MIST_TC_0013
+    //   - Rejected: new Span<T>(nonArrayExpr) — MIST_TC_0013
+    //   - Rejected: new Span<T>() — MIST_TC_0013
+    //   - Rejected: new Span<T>(a, b) — MIST_TC_0013
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
     /// Property 9: Span constructor resolution produces the correct accept/reject
-    /// behavior. Valid array arguments are accepted (no MIST_TC_0011), while invalid
+    /// behavior. Valid array arguments are accepted (no MIST_TC_0013), while invalid
     /// constructions (wrong type, too few args, too many args) are rejected with
-    /// MIST_TC_0011.
+    /// MIST_TC_0013.
     ///
     /// <b>Validates: Requirements 6.1, 6.2, 6.3, 6.4, 6.5</b>
     /// </summary>
@@ -322,21 +322,21 @@ public sealed class SpanConstructorResolutionPropertyTests : IDisposable
     {
         var (diagnostics, filePath) = CompileAndGetDiagnostics(scenario.Source);
 
-        // Filter to MIST_TC_0011 from the user file only.
+        // Filter to MIST_TC_0013 from the user file only.
         var constructorErrors = diagnostics
-            .Where(d => d.Id.Value == "MIST_TC_0011"
+            .Where(d => d.Id.Value == "MIST_TC_0013"
                         && d.CompilationUnitPath == filePath)
             .ToList();
 
         bool passed;
         if(scenario.ExpectsError)
         {
-            // Invalid constructions must produce at least one MIST_TC_0011.
+            // Invalid constructions must produce at least one MIST_TC_0013.
             passed = constructorErrors.Count >= 1;
         }
         else
         {
-            // Valid constructions must not produce MIST_TC_0011.
+            // Valid constructions must not produce MIST_TC_0013.
             // Also check no user-file errors.
             var userErrors = diagnostics
                 .Where(d => d.Severity == DiagnosticSeverity.Error
@@ -351,15 +351,15 @@ public sealed class SpanConstructorResolutionPropertyTests : IDisposable
                 $"Scenario: {scenario}\n" +
                 $"Category: {scenario.Category}\n" +
                 $"ExpectsError: {scenario.ExpectsError}\n" +
-                $"MIST_TC_0011 count: {constructorErrors.Count}\n" +
-                $"MIST_TC_0011 messages: [{string.Join("; ", constructorErrors.Select(d => d.Message))}]\n" +
+                $"MIST_TC_0013 count: {constructorErrors.Count}\n" +
+                $"MIST_TC_0013 messages: [{string.Join("; ", constructorErrors.Select(d => d.Message))}]\n" +
                 $"All user errors: [{string.Join("; ", diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error && d.CompilationUnitPath == filePath).Select(d => $"{d.Id.Value}: {d.Message}"))}]\n" +
                 $"Source:\n{scenario.Source}");
     }
 
     /// <summary>
     /// Property 9 (diagnostic content): When a Span constructor call is rejected,
-    /// the MIST_TC_0011 message references the Span type name and indicates
+    /// the MIST_TC_0013 message references the Span type name and indicates
     /// no matching constructor was found.
     ///
     /// <b>Validates: Requirements 6.3, 6.4</b>
@@ -379,7 +379,7 @@ public sealed class SpanConstructorResolutionPropertyTests : IDisposable
         var (diagnostics, filePath) = CompileAndGetDiagnostics(scenario.Source);
 
         var constructorErrors = diagnostics
-            .Where(d => d.Id.Value == "MIST_TC_0011"
+            .Where(d => d.Id.Value == "MIST_TC_0013"
                         && d.CompilationUnitPath == filePath)
             .ToList();
 
@@ -387,7 +387,7 @@ public sealed class SpanConstructorResolutionPropertyTests : IDisposable
         {
             return false.ToProperty()
                 .Label(
-                    $"Expected MIST_TC_0011 but none found.\n" +
+                    $"Expected MIST_TC_0013 but none found.\n" +
                     $"Scenario: {scenario}\n" +
                     $"All user errors: [{string.Join("; ", diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error && d.CompilationUnitPath == filePath).Select(d => $"{d.Id.Value}: {d.Message}"))}]\n" +
                     $"Source:\n{scenario.Source}");
@@ -399,7 +399,7 @@ public sealed class SpanConstructorResolutionPropertyTests : IDisposable
 
         return messageReferencesSpan.ToProperty()
             .Label(
-                $"MIST_TC_0011 message should reference 'Span'.\n" +
+                $"MIST_TC_0013 message should reference 'Span'.\n" +
                 $"Scenario: {scenario}\n" +
                 $"Messages: [{string.Join("; ", constructorErrors.Select(d => d.Message))}]\n" +
                 $"Source:\n{scenario.Source}");
@@ -409,7 +409,7 @@ public sealed class SpanConstructorResolutionPropertyTests : IDisposable
 
     /// <summary>
     /// Validates that <c>new Span&lt;int&gt;(arr)</c> with a valid int array is accepted
-    /// without any MIST_TC_0011 diagnostics.
+    /// without any MIST_TC_0013 diagnostics.
     /// </summary>
     [Fact]
     public void ValidSpanConstruction_IntArray_NoError()
@@ -418,7 +418,7 @@ public sealed class SpanConstructorResolutionPropertyTests : IDisposable
         var (diagnostics, filePath) = CompileAndGetDiagnostics(source);
 
         var constructorErrors = diagnostics
-            .Where(d => d.Id.Value == "MIST_TC_0011"
+            .Where(d => d.Id.Value == "MIST_TC_0013"
                         && d.CompilationUnitPath == filePath)
             .ToList();
 
@@ -432,7 +432,7 @@ public sealed class SpanConstructorResolutionPropertyTests : IDisposable
     }
 
     /// <summary>
-    /// Validates that <c>new Span&lt;int&gt;("hello")</c> is rejected with MIST_TC_0011.
+    /// Validates that <c>new Span&lt;int&gt;("hello")</c> is rejected with MIST_TC_0013.
     /// </summary>
     [Fact]
     public void InvalidSpanConstruction_StringArg_EmitsMistTc0011()
@@ -441,7 +441,7 @@ public sealed class SpanConstructorResolutionPropertyTests : IDisposable
         var (diagnostics, filePath) = CompileAndGetDiagnostics(source);
 
         var constructorErrors = diagnostics
-            .Where(d => d.Id.Value == "MIST_TC_0011"
+            .Where(d => d.Id.Value == "MIST_TC_0013"
                         && d.CompilationUnitPath == filePath)
             .ToList();
 
@@ -451,7 +451,7 @@ public sealed class SpanConstructorResolutionPropertyTests : IDisposable
     }
 
     /// <summary>
-    /// Validates that <c>new Span&lt;int&gt;()</c> (too few args) is rejected with MIST_TC_0011.
+    /// Validates that <c>new Span&lt;int&gt;()</c> (too few args) is rejected with MIST_TC_0013.
     /// </summary>
     [Fact]
     public void InvalidSpanConstruction_NoArgs_EmitsMistTc0011()
@@ -460,7 +460,7 @@ public sealed class SpanConstructorResolutionPropertyTests : IDisposable
         var (diagnostics, filePath) = CompileAndGetDiagnostics(source);
 
         var constructorErrors = diagnostics
-            .Where(d => d.Id.Value == "MIST_TC_0011"
+            .Where(d => d.Id.Value == "MIST_TC_0013"
                         && d.CompilationUnitPath == filePath)
             .ToList();
 
@@ -468,7 +468,7 @@ public sealed class SpanConstructorResolutionPropertyTests : IDisposable
     }
 
     /// <summary>
-    /// Validates that <c>new Span&lt;int&gt;(arr, arr)</c> (too many args) is rejected with MIST_TC_0011.
+    /// Validates that <c>new Span&lt;int&gt;(arr, arr)</c> (too many args) is rejected with MIST_TC_0013.
     /// </summary>
     [Fact]
     public void InvalidSpanConstruction_TooManyArgs_EmitsMistTc0011()
@@ -479,7 +479,7 @@ public sealed class SpanConstructorResolutionPropertyTests : IDisposable
         var (diagnostics, filePath) = CompileAndGetDiagnostics(source);
 
         var constructorErrors = diagnostics
-            .Where(d => d.Id.Value == "MIST_TC_0011"
+            .Where(d => d.Id.Value == "MIST_TC_0013"
                         && d.CompilationUnitPath == filePath)
             .ToList();
 

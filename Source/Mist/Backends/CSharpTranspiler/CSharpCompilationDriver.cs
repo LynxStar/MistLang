@@ -4,7 +4,6 @@ using Microsoft.CodeAnalysis.Emit;
 using Mist.Backends.Contracts;
 using Mist.Common.Diagnostics;
 using Mist.Driver.Contracts;
-using MistDiagnosticSeverity = Mist.Common.Diagnostics.DiagnosticSeverity;
 using RoslynApi = Microsoft.CodeAnalysis;
 
 namespace Mist.Backends.CSharpTranspiler;
@@ -247,14 +246,10 @@ public sealed class CSharpCompilationDriver
         var csFiles = Directory.GetFiles(projectDirectory, "*.cs", SearchOption.AllDirectories);
         if(csFiles.Length == 0)
         {
-            diagnostics.Add(new Diagnostic(
-                new DiagnosticId("MIST_BUILD_ERROR"),
-                MistDiagnosticSeverity.Error,
-                PipelineStage.Backend,
-                "No C# source files found to compile.",
-                Location: default,
-                CompilationUnitPath: "<unknown>",
-                AnalyzerName: null));
+            diagnostics.Report(
+                BackendDiagnostics.BuildError,
+                default,
+                "<unknown>");
             return new BackendResult(false, null, diagnostics.ToImmutableArray(), EmittedFileCount: emittedFileCount);
         }
 
@@ -307,14 +302,11 @@ public sealed class CSharpCompilationDriver
                     ? roslynDiag.Location.SourceTree?.FilePath
                     : null;
 
-                diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_CS_ERROR"),
-                    MistDiagnosticSeverity.Error,
-                    PipelineStage.Backend,
-                    roslynDiag.GetMessage(),
-                    Location: default,
-                    CompilationUnitPath: location ?? "<unknown>",
-                    AnalyzerName: null));
+                diagnostics.Report(
+                    BackendDiagnostics.CSharpError,
+                    default,
+                    location ?? "<unknown>",
+                    (object?)roslynDiag.GetMessage());
             }
         }
 

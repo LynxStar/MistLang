@@ -26,168 +26,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
     private MoveBoundaryResolver resolver = new();
 
-    // ── Diagnostic IDs ───────────────────────────────────────────────────
 
-    /// <summary>Access to a variable after it has been moved.</summary>
-    internal static readonly DiagnosticId UseAfterMove = new("MIST_OWN_USE_AFTER_MOVE");
 
-    /// <summary>A ref escapes its declaring scope.</summary>
-    internal static readonly DiagnosticId RefEscape = new("MIST_OWN_REF_ESCAPE");
 
-    /// <summary>Mutation attempted while frozen ref is outstanding.</summary>
-    internal static readonly DiagnosticId MutationBlocked = new("MIST_OWN_MUTATION_BLOCKED");
-
-    /// <summary>Ref assigned to a field or collection.</summary>
-    internal static readonly DiagnosticId NotStorable = new("MIST_OWN_NOT_STORABLE");
-
-    /// <summary>Multiple mutable borrows or access during ref loan.</summary>
-    internal static readonly DiagnosticId ExclusiveViolation = new("MIST_OWN_EXCLUSIVE_VIOLATION");
-
-    /// <summary>Lending from a tier that cannot provide the requested tier.</summary>
-    internal static readonly DiagnosticId IncompatibleLend = new("MIST_OWN_INCOMPATIBLE_LEND");
-
-    /// <summary>Owned type attempts to implement abstract type.</summary>
-    internal static readonly DiagnosticId AbstractForbidden = new("MIST_OWN_ABSTRACT_FORBIDDEN");
-
-    /// <summary>Ownership specifier mismatch in abstract type satisfaction.</summary>
-    internal static readonly DiagnosticId SignatureMismatch = new("MIST_OWN_SIGNATURE_MISMATCH");
-
-    /// <summary>Non-owned specifier used on return type.</summary>
-    internal static readonly DiagnosticId InvalidReturnSpec = new("MIST_OWN_INVALID_RETURN_SPEC");
-
-    /// <summary>Variable moved in one branch, accessed in another.</summary>
-    internal static readonly DiagnosticId ConditionalMove = new("MIST_OWN_CONDITIONAL_MOVE");
-
-    /// <summary>Variable moved in loop without re-assignment.</summary>
-    internal static readonly DiagnosticId LoopMove = new("MIST_OWN_LOOP_MOVE");
-
-    /// <summary>Unrestricted variable passed to ref/frozen ref parameter.</summary>
-    internal static readonly DiagnosticId UnrestrictedToRef = new("MIST_OWN_UNRESTRICTED_TO_REF");
-
-    /// <summary>Multiple ownership specifiers on same declaration.</summary>
-    internal static readonly DiagnosticId DuplicateSpecifier = new("MIST_OWN_DUPLICATE_SPECIFIER");
-
-    // ── Ownership v2 Diagnostic IDs ───────────────────────────────────────
-
-    /// <summary>Mutable method called on a non-owned type held in an owned binding (Req 2 AC 4, Req 13 AC 1).</summary>
-    internal static readonly DiagnosticId MutableHidden = new("MIST_OWN_MUTABLE_HIDDEN");
-
-    /// <summary>Owned destination assigned a non-owned, non-clonable source (Req 1 AC 5, Req 4 AC 2, Req 13 AC 2).</summary>
-    internal static readonly DiagnosticId RequiresOwned = new("MIST_OWN_REQUIRES_OWNED");
-
-    /// <summary>An implicit clone is needed but the source type does not implement <c>IClonable&lt;T&gt;</c> (Req 8 AC 4, Req 13 AC 7).</summary>
-    internal static readonly DiagnosticId NotClonable = new("MIST_OWN_NOT_CLONABLE");
-
-    /// <summary>An owned type's method/constructor assigns a field from a non-owned source (Req 5 AC 4, Req 13 AC 4–5).</summary>
-    internal static readonly DiagnosticId ContractViolation = new("MIST_OWN_CONTRACT_VIOLATION");
-
-    /// <summary>The <c>owned</c> binding specifier is applied to a substructural (<c>linear</c>/<c>affine</c>/<c>relevant</c>) type (Req 1 AC 4, Req 13 AC 8).</summary>
-    internal static readonly DiagnosticId SubstructuralBinding = new("MIST_OWN_SUBSTRUCTURAL_BINDING");
-
-    // ── Owned-fields Diagnostic IDs ───────────────────────────────────────
-
-    /// <summary>Explicit <c>with {tier}</c> annotation under-declares the body's requirements (Req 17 AC 11).</summary>
-    internal static readonly DiagnosticId ThisTierInsufficient = new("MIST_OWN_THIS_TIER_INSUFFICIENT");
-
-    /// <summary>Call-site receiver does not satisfy the method's inferred/declared this-tier (Req 17 AC 16).</summary>
-    internal static readonly DiagnosticId ThisTierMismatch = new("MIST_OWN_THIS_TIER_MISMATCH");
-
-    /// <summary>Ownership inference cannot find a consistent tier for a var binding (Req 18 AC 5).</summary>
-    internal static readonly DiagnosticId InferenceFailure = new("MIST_OWN_INFERENCE_FAILURE");
-
-    /// <summary>Move/borrow/freeze/readonly-ref of owned field through shared parent (Req 2 AC 5).</summary>
-    internal static readonly DiagnosticId SharedExtract = new("MIST_OWN_SHARED_EXTRACT");
-
-    /// <summary>Read of owned field through shared parent when type is not IClonable (Req 2 AC 6).</summary>
-    internal static readonly DiagnosticId SharedReadNotClonable = new("MIST_OWN_SHARED_READ_NOT_CLONABLE");
-
-    /// <summary>Static field marked <c>owned</c> (Req 1 AC 5, Req 11 AC 4).</summary>
-    internal static readonly DiagnosticId StaticFieldOwned = new("MIST_OWN_STATIC_FIELD_OWNED");
-
-    // ── Ownership v2 Diagnostic Messages ──────────────────────────────────
-    // Centralized message builders for the v2 diagnostics. Emission sites
-    // (MoveBoundaryResolver, RejectOwnedBindingOnSubstructuralTypes, flow-sensitive
-    // analysis) call these so the message content — names and remediation hints — stays
-    // consistent (Req 13).
-
-    /// <summary>
-    /// Message for <c>MIST_OWN_MUTABLE_HIDDEN</c>: a mutable method was called on a
-    /// non-owned type held in an owned binding (Req 13 AC 1).
-    /// </summary>
-    internal static string MutableHiddenMessage(string methodName, string typeName)
-    {
-        return $"Cannot call mutable method '{methodName}' on '{typeName}': non-owned types appear readonly when held in an " +
-        $"owned binding, so only readonly methods are visible. Declare '{typeName}' as 'owned', or assign the field " +
-        $"directly from an owned source.";
-    }
-
-    /// <summary>
-    /// Message for <c>MIST_OWN_REQUIRES_OWNED</c>: an owned destination was assigned a
-    /// non-owned, non-clonable source (Req 13 AC 2).
-    /// </summary>
-    internal static string RequiresOwnedMessage(string destinationName, string sourceExpression)
-    {
-        return $"Owned destination '{destinationName}' cannot be assigned from '{sourceExpression}': an owned destination " +
-        $"requires a uniquely-owned source — a constructor call, an owned-returning call, a move from an existing " +
-        $"owned binding, or a clonable source. Move an owned value, construct a fresh value, or make the source type " +
-        $"implement 'IClonable<T>'.";
-    }
-
-    /// <summary>
-    /// Message for <c>MIST_OWN_NOT_CLONABLE</c>: a clone was needed but the source type
-    /// does not implement <c>IClonable&lt;T&gt;</c> (Req 13 AC 7).
-    /// </summary>
-    internal static string NotClonableMessage(string typeName)
-    {
-        return $"Cannot implicitly clone source of type '{typeName}' into an owned destination because '{typeName}' does not " +
-        $"implement 'IClonable<{typeName}>'. Make '{typeName}' implement 'IClonable<T>' so it can be cloned, or supply " +
-        $"a uniquely-owned source instead.";
-    }
-
-    /// <summary>
-    /// Message for <c>MIST_OWN_CONTRACT_VIOLATION</c>: an owned type's method/constructor
-    /// assigned a field from a non-owned source (Req 13 AC 4–5).
-    /// </summary>
-    internal static string ContractViolationMessage(string methodName, string fieldName, string sourceExpression)
-    {
-        return $"Method '{methodName}' violates the owned-type cooperation contract: it assigns field '{fieldName}' from the " +
-        $"non-owned source '{sourceExpression}'. Owned types may only populate fields from owned sources — make the " +
-        $"parameter 'owned', clone the source, or construct a fresh value.";
-    }
-
-    /// <summary>
-    /// Message for <c>MIST_OWN_SUBSTRUCTURAL_BINDING</c>: the <c>owned</c> binding specifier
-    /// was applied to a substructural type (Req 13 AC 8).
-    /// </summary>
-    internal static string SubstructuralBindingMessage(string bindingName, string typeName)
-    {
-        return $"The 'owned' binding specifier cannot be applied to binding '{bindingName}' of substructural type " +
-        $"'{typeName}': substructural ('linear'/'affine'/'relevant') types manage their own usage discipline via drop " +
-        $"semantics and cannot be combined with 'owned' binding tracking. Remove the 'owned' specifier and rely on the " +
-        $"type's substructural discipline.";
-    }
-
-    // ── Owned-fields Diagnostic Messages ──────────────────────────────────
-
-    /// <summary>
-    /// Message for <c>MIST_OWN_INFERENCE_FAILURE</c>: ownership inference could not find
-    /// a consistent tier for a var binding (Req 18 AC 5).
-    /// </summary>
-    internal static string InferenceFailureMessage(string bindingName, string lastTier, string conflictingUse, string requiredTier)
-    {
-        return $"Cannot infer a consistent ownership tier for '{bindingName}': tier '{lastTier}' conflicts with " +
-        $"{conflictingUse} which requires '{requiredTier}'. Add an explicit ownership specifier to resolve the ambiguity.";
-    }
-
-    /// <summary>
-    /// Message for <c>MIST_OWN_THIS_TIER_MISMATCH</c>: a method call site's receiver
-    /// binding does not satisfy the method's inferred/declared this-tier (Req 17 AC 16).
-    /// </summary>
-    internal static string ThisTierMismatchMessage(string methodName, string requiredTier, string receiverName, string actualTier)
-    {
-        return $"Cannot call '{methodName}' which requires '{requiredTier}' access to 'this' — the receiver " +
-        $"'{receiverName}' only provides '{actualTier}' access.";
-    }
 
     // ── Truth Table ──────────────────────────────────────────────────────
 
@@ -262,50 +103,42 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         VariableOwnershipState state,
         AccessKind action,
         SyntaxNode node,
-
-        ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        var (diagnosticId, message) = state switch
+        switch(state)
         {
-            VariableOwnershipState.Moved =>
-                (UseAfterMove, $"Variable '{variable.Name}' has been moved and cannot be accessed here"),
+            case VariableOwnershipState.Moved:
+                diagnostics.ReportAtNode(OwnershipDiagnostics.UseAfterMove, node, "Ownership", variable.Name);
+                break;
 
-            VariableOwnershipState.LentRef =>
-                (ExclusiveViolation,
-                    $"Cannot access variable '{variable.Name}' while a borrowed ref is outstanding. " +
-                    $"The owner has no access (read or write) until the ref is returned."),
+            case VariableOwnershipState.LentRef:
+                diagnostics.ReportAtNode(OwnershipDiagnostics.ExclusiveViolation, node, "Ownership", variable.Name);
+                break;
 
-            VariableOwnershipState.LentFrozen when action == AccessKind.Write =>
-                (MutationBlocked,
-                    $"Cannot mutate '{variable.Name}' while a frozen ref is outstanding. " +
-                    $"Mutation is blocked until all frozen refs are returned."),
+            case VariableOwnershipState.LentFrozen when action == AccessKind.Write:
+                diagnostics.ReportAtNode(OwnershipDiagnostics.MutationBlocked, node, "Ownership", variable.Name);
+                break;
 
-            VariableOwnershipState.LentFrozen when action == AccessKind.Borrow =>
-                (ExclusiveViolation,
-                    $"Cannot lend variable '{variable.Name}' as 'borrowed' while a frozen ref is outstanding. " +
-                    $"The borrower assumes exclusive mutable access, which conflicts with the frozen guarantee."),
+            case VariableOwnershipState.LentFrozen when action == AccessKind.Borrow:
+                diagnostics.ReportAtNode(OwnershipDiagnostics.ExclusiveViolation, node, "Ownership", variable.Name);
+                break;
 
-            VariableOwnershipState.LentFrozen when action == AccessKind.Move =>
-                (MutationBlocked,
-                    $"Cannot move '{variable.Name}' while a frozen ref is outstanding. " +
-                    $"The new owner would start in Live state and could mutate, violating the frozen guarantee."),
+            case VariableOwnershipState.LentFrozen when action == AccessKind.Move:
+                diagnostics.ReportAtNode(OwnershipDiagnostics.MutationBlocked, node, "Ownership", variable.Name);
+                break;
 
-            VariableOwnershipState.LentReadonly when action == AccessKind.Borrow =>
-                (ExclusiveViolation,
-                    $"Cannot lend variable '{variable.Name}' as 'borrowed' while a readonly ref is outstanding. " +
-                    $"The borrower assumes exclusive access, which is false while a readonly ref exists."),
+            case VariableOwnershipState.LentReadonly when action == AccessKind.Borrow:
+                diagnostics.ReportAtNode(OwnershipDiagnostics.ExclusiveViolation, node, "Ownership", variable.Name);
+                break;
 
-            VariableOwnershipState.LentReadonly when action == AccessKind.Move =>
-                (ExclusiveViolation,
-                    $"Cannot move '{variable.Name}' while a readonly ref is outstanding. " +
-                    $"Moving would create a new owner with exclusive access, which is false while a readonly ref exists."),
+            case VariableOwnershipState.LentReadonly when action == AccessKind.Move:
+                diagnostics.ReportAtNode(OwnershipDiagnostics.ExclusiveViolation, node, "Ownership", variable.Name);
+                break;
 
-            _ => (ExclusiveViolation,
-                    $"Cannot perform '{action}' on variable '{variable.Name}' in state '{state}'"),
-        };
-
-        diagnostics.Add(MakeDiagnostic(diagnosticId, message, node, model));
+            default:
+                diagnostics.ReportAtNode(OwnershipDiagnostics.ExclusiveViolation, node, "Ownership", variable.Name);
+                break;
+        }
     }
 
     public void Analyze(ISemanticModel model, DiagnosticBag diagnostics)
@@ -406,11 +239,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             return;
         }
 
-        diagnostics.Add(MakeDiagnostic(
-            AbstractForbidden,
-            $"The 'owned' modifier cannot be applied to abstract type '{symbol.Name}'",
-            declaringNode,
-            model));
+        diagnostics.ReportAtNode(OwnershipDiagnostics.AbstractForbidden, declaringNode, "Ownership", symbol.Name);
     }
 
     // ── Pass B1: reject 'owned' on static fields (Req 1 AC 5) ────────────
@@ -453,12 +282,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 continue;
             }
 
-            diagnostics.Add(MakeDiagnostic(
-                StaticFieldOwned,
-                $"The 'owned' modifier cannot be applied to static field '{symbol.Name}' — " +
-                $"ownership semantics require an instance-level owner.",
-                declaringNode,
-                model));
+            diagnostics.ReportAtNode(OwnershipDiagnostics.StaticFieldOwned, declaringNode, "Ownership", symbol.Name);
         }
     }
 
@@ -510,11 +334,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             try { declaringNode = model.GetDeclaringNode(symbol); }
             catch { continue; }
 
-            diagnostics.Add(MakeDiagnostic(
-                SubstructuralBinding,
-                SubstructuralBindingMessage(symbol.Name, declaredType.DisplayName),
-                declaringNode,
-                model));
+            diagnostics.ReportAtNode(
+                OwnershipDiagnostics.SubstructuralBinding, declaringNode, "Ownership",
+                symbol.Name, declaredType.DisplayName);
         }
     }
 
@@ -801,13 +623,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                         // Moving out of an owned field through a shared parent is blocked.
                         if(IsOwnedFieldAccessOnSharedParent(typed.Initializer, state, model, out var sharedFieldSym, out var sharedRecvSym))
                         {
-                            diagnostics.Add(MakeDiagnostic(
-                                SharedExtract,
-                                $"Cannot move out of owned field '{sharedFieldSym!.Name}' through shared binding " +
-                                $"'{sharedRecvSym!.Name}' — extracting data from an owned field requires an owned " +
-                                $"binding to the parent.",
-                                typed,
-                                model));
+                            diagnostics.ReportAtNode(
+                                OwnershipDiagnostics.SharedExtract, typed, "Ownership",
+                                sharedFieldSym!.Name, sharedRecvSym!.Name);
                             break;
                         }
 
@@ -822,7 +640,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                             {
                                 // Field is not Live — report appropriate violation.
                                 ReportFieldStateViolation(ownedRecvSym!, ownedFieldSym!, fieldState.Value,
-                                    AccessKind.Move, typed, model, diagnostics);
+                                    typed, diagnostics);
                                 break;
                             }
 
@@ -869,14 +687,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                         // that only an owned parent can guarantee.
                         if(IsOwnedFieldAccessOnSharedParent(typed.Initializer, state, model, out var sharedFieldSym, out var sharedRecvSym))
                         {
-                            var tierName = FormatOwnershipTier(refSym.OwnershipTier);
-                            diagnostics.Add(MakeDiagnostic(
-                                SharedExtract,
-                                $"Cannot take '{tierName}' reference to owned field '{sharedFieldSym!.Name}' through " +
-                                $"shared binding '{sharedRecvSym!.Name}' — extracting data from an owned field requires " +
-                                $"an owned binding to the parent.",
-                                typed,
-                                model));
+                            diagnostics.ReportAtNode(
+                                OwnershipDiagnostics.SharedExtract, typed, "Ownership",
+                                sharedFieldSym!.Name, sharedRecvSym!.Name);
                             break;
                         }
 
@@ -896,7 +709,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                 if(fieldState is not null && !IsActionPermitted(fieldState.Value, AccessKind.LiveView))
                                 {
                                     ReportFieldStateViolation(ownedRecvRefSym!, ownedFieldRefSym!, fieldState.Value,
-                                        AccessKind.LiveView, typed, model, diagnostics);
+                                        typed, diagnostics);
                                 }
                                 else
                                 {
@@ -909,7 +722,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                 if(fieldState is not null && !IsActionPermitted(fieldState.Value, AccessKind.Freeze))
                                 {
                                     ReportFieldStateViolation(ownedRecvRefSym!, ownedFieldRefSym!, fieldState.Value,
-                                        AccessKind.Freeze, typed, model, diagnostics);
+                                        typed, diagnostics);
                                 }
                                 else
                                 {
@@ -922,7 +735,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                 if(fieldState is not null && !IsActionPermitted(fieldState.Value, AccessKind.Borrow))
                                 {
                                     ReportFieldStateViolation(ownedRecvRefSym!, ownedFieldRefSym!, fieldState.Value,
-                                        AccessKind.Borrow, typed, model, diagnostics);
+                                        typed, diagnostics);
                                 }
                                 else
                                 {
@@ -945,7 +758,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                 {
                                     if(!IsActionPermitted(currentState, AccessKind.LiveView))
                                     {
-                                        ReportTruthTableViolation(sourceSymbol, currentState, AccessKind.LiveView, typed, model, diagnostics);
+                                        ReportTruthTableViolation(sourceSymbol, currentState, AccessKind.LiveView, typed, diagnostics);
                                     }
                                     else
                                     {
@@ -974,7 +787,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                 {
                                     if(!IsActionPermitted(currentState, AccessKind.Freeze))
                                     {
-                                        ReportTruthTableViolation(sourceSymbol, currentState, AccessKind.Freeze, typed, model, diagnostics);
+                                        ReportTruthTableViolation(sourceSymbol, currentState, AccessKind.Freeze, typed, diagnostics);
                                     }
                                     else
                                     {
@@ -998,19 +811,16 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                 {
                                     if(!IsActionPermitted(currentState, AccessKind.Borrow))
                                     {
-                                        ReportTruthTableViolation(sourceSymbol, currentState, AccessKind.Borrow, typed, model, diagnostics);
+                                        ReportTruthTableViolation(sourceSymbol, currentState, AccessKind.Borrow, typed, diagnostics);
                                     }
                                     else
                                     {
                                         // Check for existing ref borrow (only one at a time).
                                         if(HasActiveRefBorrow(sourceSymbol, state))
                                         {
-                                            diagnostics.Add(MakeDiagnostic(
-                                                ExclusiveViolation,
-                                                $"Cannot lend variable '{sourceSymbol.Name}' as 'borrowed' — another borrow is already outstanding. " +
-                                                $"Only one mutable borrow is permitted at a time.",
-                                                typed,
-                                                model));
+                                            diagnostics.ReportAtNode(
+                                                OwnershipDiagnostics.ExclusiveViolation, typed, "Ownership",
+                                                sourceSymbol.Name);
                                         }
                                         else
                                         {
@@ -1025,12 +835,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                     // Not tracked — apply the transition.
                                     if(HasActiveRefBorrow(sourceSymbol, state))
                                     {
-                                        diagnostics.Add(MakeDiagnostic(
-                                            ExclusiveViolation,
-                                            $"Cannot lend variable '{sourceSymbol.Name}' as 'borrowed' — another borrow is already outstanding. " +
-                                            $"Only one mutable borrow is permitted at a time.",
-                                            typed,
-                                            model));
+                                        diagnostics.ReportAtNode(
+                                            OwnershipDiagnostics.ExclusiveViolation, typed, "Ownership",
+                                            sourceSymbol.Name);
                                     }
                                     else
                                     {
@@ -1049,12 +856,10 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                             // to an unrestricted binding. Readonly ref to the variable itself is permitted.
                             if(refSym.OwnershipTier is OwnershipTier.Borrowed or OwnershipTier.Frozen)
                             {
-                                diagnostics.Add(MakeDiagnostic(
-                                    UnrestrictedToRef,
-                                    $"Cannot lend unrestricted binding '{sourceSymbol.Name}' as '{FormatOwnershipTier(refSym.OwnershipTier)}' — " +
-                                    $"only owned bindings can guarantee exclusive access.",
-                                    typed,
-                                    model));
+                                diagnostics.ReportAtNode(
+                                    OwnershipDiagnostics.UnrestrictedToRef, typed, "Ownership",
+                                    sourceSymbol.Name, FormatOwnershipTier(refSym.OwnershipTier),
+                                    declaredSymbol.Name);
                             }
                             // Readonly ref to an unrestricted binding (direct/top-level) is permitted — no error.
                         }
@@ -1071,12 +876,10 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                 {
                                     // Cannot take borrowed or frozen reference to any field in the
                                     // object graph of an unrestricted binding.
-                                    diagnostics.Add(MakeDiagnostic(
-                                        UnrestrictedToRef,
-                                        $"Cannot take '{FormatOwnershipTier(refSym.OwnershipTier)}' reference to a field of " +
-                                        $"unrestricted binding '{receiverSymbol.Name}' — only owned bindings can borrow into the object graph.",
-                                        typed,
-                                        model));
+                                    diagnostics.ReportAtNode(
+                                        OwnershipDiagnostics.UnrestrictedToRef, typed, "Ownership",
+                                        receiverSymbol.Name, FormatOwnershipTier(refSym.OwnershipTier),
+                                        declaredSymbol.Name);
                                 }
                                 // Readonly ref to direct (top-level) fields of an unrestricted binding is permitted.
                             }
@@ -1092,7 +895,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                         var sourceSymbol = TryResolveIdentifierSymbol(typed.Initializer, model);
                         if(sourceSymbol is not null && IsOwnedVariable(sourceSymbol))
                         {
-                            PerformMove(sourceSymbol, typed.Initializer, state, model, diagnostics);
+                            PerformMove(sourceSymbol, typed.Initializer, state, diagnostics);
                         }
                     }
 
@@ -1114,13 +917,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                         // Moving out of an owned field through a shared parent is blocked.
                         if(IsOwnedFieldAccessOnSharedParent(inferred.Initializer, state, model, out var sharedFieldSym, out var sharedRecvSym))
                         {
-                            diagnostics.Add(MakeDiagnostic(
-                                SharedExtract,
-                                $"Cannot move out of owned field '{sharedFieldSym!.Name}' through shared binding " +
-                                $"'{sharedRecvSym!.Name}' — extracting data from an owned field requires an owned " +
-                                $"binding to the parent.",
-                                inferred,
-                                model));
+                            diagnostics.ReportAtNode(
+                                OwnershipDiagnostics.SharedExtract, inferred, "Ownership",
+                                sharedFieldSym!.Name, sharedRecvSym!.Name);
                             break;
                         }
 
@@ -1133,7 +932,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                             if(fieldState is not null and not VariableOwnershipState.Live)
                             {
                                 ReportFieldStateViolation(ownedRecvSym!, ownedFieldSym!, fieldState.Value,
-                                    AccessKind.Move, inferred, model, diagnostics);
+                                    inferred, diagnostics);
                                 break;
                             }
 
@@ -1176,14 +975,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                         // that only an owned parent can guarantee.
                         if(IsOwnedFieldAccessOnSharedParent(inferred.Initializer, state, model, out var sharedFieldSym3, out var sharedRecvSym3))
                         {
-                            var tierName = FormatOwnershipTier(refSym.OwnershipTier);
-                            diagnostics.Add(MakeDiagnostic(
-                                SharedExtract,
-                                $"Cannot take '{tierName}' reference to owned field '{sharedFieldSym3!.Name}' through " +
-                                $"shared binding '{sharedRecvSym3!.Name}' — extracting data from an owned field requires " +
-                                $"an owned binding to the parent.",
-                                inferred,
-                                model));
+                            diagnostics.ReportAtNode(
+                                OwnershipDiagnostics.SharedExtract, inferred, "Ownership",
+                                sharedFieldSym3!.Name, sharedRecvSym3!.Name);
                             break;
                         }
 
@@ -1199,7 +993,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                 {
                                     if(!IsActionPermitted(currentState, AccessKind.LiveView))
                                     {
-                                        ReportTruthTableViolation(sourceSymbolRef, currentState, AccessKind.LiveView, inferred, model, diagnostics);
+                                        ReportTruthTableViolation(sourceSymbolRef, currentState, AccessKind.LiveView, inferred, diagnostics);
                                     }
                                     else
                                     {
@@ -1224,7 +1018,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                 {
                                     if(!IsActionPermitted(currentState, AccessKind.Freeze))
                                     {
-                                        ReportTruthTableViolation(sourceSymbolRef, currentState, AccessKind.Freeze, inferred, model, diagnostics);
+                                        ReportTruthTableViolation(sourceSymbolRef, currentState, AccessKind.Freeze, inferred, diagnostics);
                                     }
                                     else
                                     {
@@ -1246,18 +1040,15 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                 {
                                     if(!IsActionPermitted(currentState, AccessKind.Borrow))
                                     {
-                                        ReportTruthTableViolation(sourceSymbolRef, currentState, AccessKind.Borrow, inferred, model, diagnostics);
+                                        ReportTruthTableViolation(sourceSymbolRef, currentState, AccessKind.Borrow, inferred, diagnostics);
                                     }
                                     else
                                     {
                                         if(HasActiveRefBorrow(sourceSymbolRef, state))
                                         {
-                                            diagnostics.Add(MakeDiagnostic(
-                                                ExclusiveViolation,
-                                                $"Cannot lend variable '{sourceSymbolRef.Name}' as 'borrowed' — another borrow is already outstanding. " +
-                                                $"Only one mutable borrow is permitted at a time.",
-                                                inferred,
-                                                model));
+                                            diagnostics.ReportAtNode(
+                                                OwnershipDiagnostics.ExclusiveViolation, inferred, "Ownership",
+                                                sourceSymbolRef.Name);
                                         }
                                         else
                                         {
@@ -1271,12 +1062,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                 {
                                     if(HasActiveRefBorrow(sourceSymbolRef, state))
                                     {
-                                        diagnostics.Add(MakeDiagnostic(
-                                            ExclusiveViolation,
-                                            $"Cannot lend variable '{sourceSymbolRef.Name}' as 'borrowed' — another borrow is already outstanding. " +
-                                            $"Only one mutable borrow is permitted at a time.",
-                                            inferred,
-                                            model));
+                                        diagnostics.ReportAtNode(
+                                            OwnershipDiagnostics.ExclusiveViolation, inferred, "Ownership",
+                                            sourceSymbolRef.Name);
                                     }
                                     else
                                     {
@@ -1293,12 +1081,10 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                         {
                             if(refSym.OwnershipTier is OwnershipTier.Borrowed or OwnershipTier.Frozen)
                             {
-                                diagnostics.Add(MakeDiagnostic(
-                                    UnrestrictedToRef,
-                                    $"Cannot lend unrestricted binding '{sourceSymbolRef.Name}' as '{FormatOwnershipTier(refSym.OwnershipTier)}' — " +
-                                    $"only owned bindings can guarantee exclusive access.",
-                                    inferred,
-                                    model));
+                                diagnostics.ReportAtNode(
+                                    OwnershipDiagnostics.UnrestrictedToRef, inferred, "Ownership",
+                                    sourceSymbolRef.Name, FormatOwnershipTier(refSym.OwnershipTier),
+                                    declaredSymbol.Name);
                             }
                         }
                         else
@@ -1311,12 +1097,10 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                             {
                                 if(refSym.OwnershipTier is OwnershipTier.Borrowed or OwnershipTier.Frozen)
                                 {
-                                    diagnostics.Add(MakeDiagnostic(
-                                        UnrestrictedToRef,
-                                        $"Cannot take '{FormatOwnershipTier(refSym.OwnershipTier)}' reference to a field of " +
-                                        $"unrestricted binding '{receiverSymbol.Name}' — only owned bindings can borrow into the object graph.",
-                                        inferred,
-                                        model));
+                                    diagnostics.ReportAtNode(
+                                        OwnershipDiagnostics.UnrestrictedToRef, inferred, "Ownership",
+                                        receiverSymbol.Name, FormatOwnershipTier(refSym.OwnershipTier),
+                                        declaredSymbol.Name);
                                 }
                             }
                         }
@@ -1335,14 +1119,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                             var fieldType = sharedFieldSym2!.DeclaredType;
                             if(fieldType is not null && !ImplementsIClonable(fieldType) && !IsValueType(fieldType))
                             {
-                                diagnostics.Add(MakeDiagnostic(
-                                    SharedReadNotClonable,
-                                    $"Cannot read owned field '{sharedFieldSym2.Name}' through shared binding " +
-                                    $"'{sharedRecvSym2!.Name}' — the field's type '{fieldType.DisplayName}' does not " +
-                                    $"implement 'IClonable<{fieldType.DisplayName}>' and cannot be moved out without " +
-                                    $"an owned binding to the parent.",
-                                    inferred,
-                                    model));
+                                diagnostics.ReportAtNode(
+                                    OwnershipDiagnostics.SharedReadNotClonable, inferred, "Ownership",
+                                    sharedFieldSym2.Name, sharedRecvSym2!.Name, fieldType.DisplayName);
                                 break;
                             }
                         }
@@ -1352,7 +1131,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                         var sourceSymbol = TryResolveIdentifierSymbol(inferred.Initializer, model);
                         if(sourceSymbol is not null && IsOwnedVariable(sourceSymbol))
                         {
-                            PerformMove(sourceSymbol, inferred.Initializer, state, model, diagnostics);
+                            PerformMove(sourceSymbol, inferred.Initializer, state, diagnostics);
                         }
                     }
 
@@ -1452,11 +1231,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 if(targetFieldSymbol is not null && targetFieldSymbol.Kind == SymbolKind.Field)
                 {
                     var tierName = FormatOwnershipTier(rhsSym.OwnershipTier);
-                    diagnostics.Add(MakeDiagnostic(
-                        NotStorable,
-                        $"Cannot assign '{tierName}' variable '{rhsSym.Name}' to field '{targetFieldSymbol.Name}' because ref-tier references are non-storable",
-                        assignment,
-                        model));
+                    diagnostics.ReportAtNode(
+                        OwnershipDiagnostics.NotStorable, assignment, "Ownership",
+                        tierName, rhsSym.Name, targetFieldSymbol.Name);
                 }
             }
 
@@ -1475,7 +1252,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             {
                 if(!IsActionPermitted(recvState, AccessKind.Write))
                 {
-                    ReportTruthTableViolation(receiverOfFieldAssign, recvState, AccessKind.Write, assignment, model, diagnostics);
+                    ReportTruthTableViolation(receiverOfFieldAssign, recvState, AccessKind.Write, assignment, diagnostics);
                 }
             }
 
@@ -1504,7 +1281,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                         if(currentFieldState is VariableOwnershipState.LentRef or VariableOwnershipState.LentFrozen)
                         {
                             ReportFieldStateViolation(receiverOfFieldAssign, targetField, currentFieldState.Value,
-                                AccessKind.Write, assignment, model, diagnostics);
+                                assignment, diagnostics);
                         }
                     }
 
@@ -1561,12 +1338,12 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             {
                 if(IsOwnedVariable(lhsSymbol))
                 {
-                    PerformMove(rhsSymbol, assignment, state, model, diagnostics);
+                    PerformMove(rhsSymbol, assignment, state, diagnostics);
                 }
                 else if(state.BindingKinds.TryGetValue(lhsSymbol, out var lhsKind) &&
                          lhsKind == BindingKind.Unrestricted)
                 {
-                    PerformMove(rhsSymbol, assignment, state, model, diagnostics);
+                    PerformMove(rhsSymbol, assignment, state, diagnostics);
                 }
             }
         }
@@ -1668,7 +1445,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
         // After walking the body, any variable that was Live before and is now Moved
         // was moved without re-assignment in the same iteration → report MIST_OWN_LOOP_MOVE.
-        ReportUnresolvedLoopMoves(liveBeforeLoop, state, whileStmt, model, diagnostics);
+        ReportUnresolvedLoopMoves(liveBeforeLoop, state, whileStmt, diagnostics);
     }
 
     /// <summary>
@@ -1716,7 +1493,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
         // After walking the body, any variable that was Live before and is now Moved
         // was moved without re-assignment in the same iteration → report MIST_OWN_LOOP_MOVE.
-        ReportUnresolvedLoopMoves(liveBeforeLoop, state, forStmt, model, diagnostics);
+        ReportUnresolvedLoopMoves(liveBeforeLoop, state, forStmt, diagnostics);
 
         // Check iterator for use-after-move.
         if(forStmt.Iterator is not null)
@@ -1755,7 +1532,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
         // After walking the body, any variable that was Live before and is now Moved
         // was moved without re-assignment in the same iteration → report MIST_OWN_LOOP_MOVE.
-        ReportUnresolvedLoopMoves(liveBeforeLoop, state, foreachStmt, model, diagnostics);
+        ReportUnresolvedLoopMoves(liveBeforeLoop, state, foreachStmt, diagnostics);
     }
 
     /// <summary>
@@ -1775,7 +1552,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             var sourceSymbol = TryResolveIdentifierSymbol(returnStmt.Value, model);
             if(sourceSymbol is not null && IsOwnedVariable(sourceSymbol))
             {
-                PerformMove(sourceSymbol, returnStmt.Value, state, model, diagnostics);
+                PerformMove(sourceSymbol, returnStmt.Value, state, diagnostics);
             }
         }
     }
@@ -1793,7 +1570,6 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         ISymbol sourceSymbol,
         SyntaxNode moveNode,
         MethodFlowState state,
-        ISemanticModel model,
         DiagnosticBag diagnostics)
     {
         // Check truth table: is Move permitted in the current state?
@@ -1801,7 +1577,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         {
             if(!IsActionPermitted(currentState, AccessKind.Move))
             {
-                ReportTruthTableViolation(sourceSymbol, currentState, AccessKind.Move, moveNode, model, diagnostics);
+                ReportTruthTableViolation(sourceSymbol, currentState, AccessKind.Move, moveNode, diagnostics);
                 return;
             }
         }
@@ -1819,7 +1595,6 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         Dictionary<ISymbol, VariableOwnershipState> liveBeforeLoop,
         MethodFlowState state,
         SyntaxNode loopNode,
-        ISemanticModel model,
         DiagnosticBag diagnostics)
     {
         foreach(var (symbol, _) in liveBeforeLoop)
@@ -1828,11 +1603,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 afterState == VariableOwnershipState.Moved)
             {
                 // The variable was moved inside the loop without re-assignment.
-                diagnostics.Add(MakeDiagnostic(
-                    LoopMove,
-                    $"Owned variable '{symbol.Name}' is moved inside a loop. The variable must be re-assigned before the next iteration or the move must be removed.",
-                    loopNode,
-                    model));
+                diagnostics.ReportAtNode(OwnershipDiagnostics.LoopMove, loopNode, "Ownership", symbol.Name);
             }
         }
     }
@@ -1895,7 +1666,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 if(state.VariableStates.TryGetValue(symbol, out var varState) &&
                     !IsActionPermitted(varState, AccessKind.Read))
                 {
-                    ReportTruthTableViolation(symbol, varState, AccessKind.Read, identifier, model, diagnostics);
+                    ReportTruthTableViolation(symbol, varState, AccessKind.Read, identifier, diagnostics);
                 }
             }
         }
@@ -1965,22 +1736,19 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
                                 if(!ThisTierExtensions.Satisfies(callerTier, requiredTier))
                                 {
-                                    diagnostics.Add(MakeDiagnostic(
-                                        ThisTierMismatch,
-                                        ThisTierMismatchMessage(
-                                            calledMethod.Name,
-                                            ThisTierInferencePass.FormatTier(requiredTier),
-                                            receiverSymbol.Name,
-                                            ThisTierInferencePass.FormatTier(callerTier)),
-                                        firstMethodCall,
-                                        model));
+                                    diagnostics.ReportAtNode(
+                                        OwnershipDiagnostics.ThisTierMismatch, firstMethodCall, "Ownership",
+                                        calledMethod.Name,
+                                        ThisTierInferencePass.FormatTier(requiredTier),
+                                        receiverSymbol.Name,
+                                        ThisTierInferencePass.FormatTier(callerTier));
                                 }
                                 else if(requiredTier == ThisTier.Owned)
                                 {
                                     // 'with owned' method consumes the receiver (Req 17 AC 13):
                                     // the caller's binding is moved into the method and becomes
                                     // dead after the call. Transition receiver to Moved state.
-                                    PerformMove(receiverSymbol, firstMethodCall, state, model, diagnostics);
+                                    PerformMove(receiverSymbol, firstMethodCall, state, diagnostics);
                                     consumedByWithOwned = true;
                                 }
                             }
@@ -1996,7 +1764,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                         // LentRef: all access is blocked (Read is false in truth table).
                         if(!IsActionPermitted(receiverState, AccessKind.Read))
                         {
-                            ReportTruthTableViolation(receiverSymbol, receiverState, AccessKind.Read, firstMethodCall, model, diagnostics);
+                            ReportTruthTableViolation(receiverSymbol, receiverState, AccessKind.Read, firstMethodCall, diagnostics);
                         }
                     }
                     else if(receiverState == VariableOwnershipState.LentFrozen)
@@ -2010,12 +1778,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                             {
                                 if(!IsActionPermitted(receiverState, AccessKind.Write))
                                 {
-                                    diagnostics.Add(MakeDiagnostic(
-                                        MutationBlocked,
-                                        $"Cannot call non-readonly method '{methodSym.Name}' on variable '{receiverSymbol.Name}' " +
-                                        $"while a frozen ref is outstanding. Mutation is blocked until all frozen refs are returned.",
-                                        firstMethodCall,
-                                        model));
+                                    diagnostics.ReportAtNode(
+                                        OwnershipDiagnostics.MutationBlocked, firstMethodCall, "Ownership",
+                                        receiverSymbol.Name);
                                 }
                             }
                         }
@@ -2025,7 +1790,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                         // Moved: all access is blocked.
                         if(!IsActionPermitted(receiverState, AccessKind.Read))
                         {
-                            ReportTruthTableViolation(receiverSymbol, receiverState, AccessKind.Read, firstMethodCall, model, diagnostics);
+                            ReportTruthTableViolation(receiverSymbol, receiverState, AccessKind.Read, firstMethodCall, diagnostics);
                         }
                     }
                 }
@@ -2064,8 +1829,8 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                 if(!IsActionPermitted(fieldState.Value, requiredAction))
                                 {
                                     ReportFieldStateViolation(
-                                        receiverSymbol, fieldSym, fieldState.Value, requiredAction,
-                                        firstMethodCall, model, diagnostics);
+                                        receiverSymbol, fieldSym, fieldState.Value,
+                                        firstMethodCall, diagnostics);
                                     break; // Report the first violation and stop.
                                 }
                             }
@@ -2416,12 +2181,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             state.BindingKinds.TryGetValue(argSymbol, out var argBindingKind) &&
             argBindingKind == BindingKind.Unrestricted)
         {
-            diagnostics.Add(MakeDiagnostic(
-                UnrestrictedToRef,
-                $"Cannot pass unrestricted variable '{argSym.Name}' to {FormatOwnershipTier(targetTier)} parameter '{paramSym.Name}'. " +
-                $"Unrestricted references cannot provide the guarantees required by {FormatOwnershipTier(targetTier)}.",
-                argExpr,
-                model));
+            diagnostics.ReportAtNode(
+                OwnershipDiagnostics.UnrestrictedToRef, argExpr, "Ownership",
+                argSym.Name, FormatOwnershipTier(targetTier), paramSym.Name);
             return;
         }
 
@@ -2435,21 +2197,16 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         if(sourceTier == OwnershipTier.Unrestricted &&
             targetTier is OwnershipTier.Borrowed or OwnershipTier.Frozen or OwnershipTier.Owned)
         {
-            diagnostics.Add(MakeDiagnostic(
-                UnrestrictedToRef,
-                $"Cannot pass unrestricted variable '{argSym.Name}' to {FormatOwnershipTier(targetTier)} parameter '{paramSym.Name}'. " +
-                $"Unrestricted references cannot provide the guarantees required by {FormatOwnershipTier(targetTier)}.",
-                argExpr,
-                model));
+            diagnostics.ReportAtNode(
+                OwnershipDiagnostics.UnrestrictedToRef, argExpr, "Ownership",
+                argSym.Name, FormatOwnershipTier(targetTier), paramSym.Name);
         }
         else
         {
-            diagnostics.Add(MakeDiagnostic(
-                IncompatibleLend,
-                $"Cannot lend {FormatOwnershipTier(sourceTier)} variable '{argSym.Name}' to {FormatOwnershipTier(targetTier)} parameter '{paramSym.Name}'. " +
-                $"The lending pair ({FormatOwnershipTier(sourceTier)}, {FormatOwnershipTier(targetTier)}) is not permitted.",
-                argExpr,
-                model));
+            diagnostics.ReportAtNode(
+                OwnershipDiagnostics.IncompatibleLend, argExpr, "Ownership",
+                FormatOwnershipTier(sourceTier), argSym.Name,
+                FormatOwnershipTier(targetTier), paramSym.Name);
         }
     }
 
@@ -2982,11 +2739,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 catch { continue; }
 
                 var tierName = FormatOwnershipTier(methodSymbol.OwnershipTier);
-                diagnostics.Add(MakeDiagnostic(
-                    InvalidReturnSpec,
-                    $"'{tierName}' is not valid on a return type. Only 'owned' is permitted as a return type ownership specifier.",
-                    declaringNode,
-                    model));
+                diagnostics.ReportAtNode(
+                    OwnershipDiagnostics.InvalidReturnSpec, declaringNode, "Ownership",
+                    tierName);
             }
         }
     }
@@ -3121,11 +2876,10 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             {
                 var expectedTier = FormatOwnershipTier(contractSym.OwnershipTier);
                 var actualTier = FormatOwnershipTier(implSym.OwnershipTier);
-                diagnostics.Add(MakeDiagnostic(
-                    SignatureMismatch,
-                    $"Return type ownership mismatch: '{typeSymbol.Name}.{implMethod.Name}' has '{actualTier}' but '{contractName}.{contractMethod.Name}' requires '{expectedTier}'.",
-                    implNode,
-                    model));
+                diagnostics.ReportAtNode(
+                    OwnershipDiagnostics.SignatureMismatch, implNode, "Ownership",
+                    $"{typeSymbol.Name}.{implMethod.Name}", actualTier,
+                    $"{contractName}.{contractMethod.Name}", expectedTier);
             }
         }
 
@@ -3150,11 +2904,10 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             {
                 var expectedTier = FormatOwnershipTier(contractParam.OwnershipTier);
                 var actualTier = FormatOwnershipTier(implParam.OwnershipTier);
-                diagnostics.Add(MakeDiagnostic(
-                    SignatureMismatch,
-                    $"Parameter ownership mismatch: parameter '{implParam.Name}' in '{typeSymbol.Name}.{implMethod.Name}' has '{actualTier}' but '{contractName}.{contractMethod.Name}' requires '{expectedTier}'.",
-                    implNode,
-                    model));
+                diagnostics.ReportAtNode(
+                    OwnershipDiagnostics.SignatureMismatch, implNode, "Ownership",
+                    $"{typeSymbol.Name}.{implMethod.Name}", actualTier,
+                    $"{contractName}.{contractMethod.Name}", expectedTier);
             }
         }
     }
@@ -3226,55 +2979,6 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         };
     }
 
-    /// <summary>
-    /// Creates a diagnostic with source location information resolved from the AST node.
-    /// </summary>
-    private static Diagnostic MakeDiagnostic(
-        DiagnosticId id,
-        string message,
-        SyntaxNode node,
-        ISemanticModel model)
-    {
-        Common.Source.LinePositionSpan? location = null;
-        string? compilationUnitPath = null;
-
-        var span = node.Span;
-        if(span.Length > 0)
-        {
-            var asts = model.Asts;
-            var units = model.Units;
-            var astIndex = -1;
-
-            for(var i = 0; i < asts.Length; i++)
-            {
-                var astSpan = asts[i].Span;
-                if(span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
-                {
-                    astIndex = i;
-                    break;
-                }
-            }
-
-            if(astIndex >= 0 && astIndex < units.Count)
-            {
-                var source = units[astIndex].Source;
-                compilationUnitPath = source.Path;
-
-                var sourceSpan = new Common.Source.SourceSpan(span.Start, span.Length);
-                location = source.ToLinePositionSpan(sourceSpan);
-            }
-        }
-
-        return new Diagnostic(
-            id,
-            DiagnosticSeverity.Error,
-            PipelineStage.Analysis,
-            message,
-            Location: location ?? default,
-            CompilationUnitPath: compilationUnitPath ?? "",
-            AnalyzerName: "Ownership");
-    }
-
     // ── Non-storability enforcement (Task 6.6) ───────────────────────────
 
     /// <summary>
@@ -3311,11 +3015,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 catch { continue; }
 
                 var tierName = FormatOwnershipTier(fieldSymbol.OwnershipTier);
-                diagnostics.Add(MakeDiagnostic(
-                    NotStorable,
-                    $"Field '{symbol.Name}' cannot be declared as '{tierName}' because ref-tier references are non-storable",
-                    declaringNode,
-                    model));
+                diagnostics.ReportAtNode(
+                    OwnershipDiagnostics.NotStorable, declaringNode, "Ownership",
+                    tierName, symbol.Name, symbol.Name);
             }
         }
     }
@@ -3346,12 +3048,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                     if(!refLentSymbols.Add(argSymbol))
                     {
                         // Same variable passed to multiple ref parameters — exclusivity violation.
-                        diagnostics.Add(MakeDiagnostic(
-                            ExclusiveViolation,
-                            $"Cannot lend variable '{argSymbol.Name}' as 'ref' to multiple parameters in the same call. " +
-                            $"Only one mutable borrow is permitted at a time.",
-                            argExprs[i],
-                            model));
+                        diagnostics.ReportAtNode(
+                            OwnershipDiagnostics.ExclusiveViolation, argExprs[i], "Ownership",
+                            argSymbol.Name);
                     }
                 }
             }
@@ -3458,56 +3157,26 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         ISymbol receiverSymbol,
         ISymbol fieldSymbol,
         VariableOwnershipState fieldState,
-        AccessKind action,
         SyntaxNode node,
-
-        ISemanticModel model,
         DiagnosticBag diagnostics)
     {
         var fieldName = $"{receiverSymbol.Name}.{fieldSymbol.Name}";
-        var actionName = action switch
-        {
-            AccessKind.Move => "move out of",
-            AccessKind.Borrow => "borrow",
-            AccessKind.Freeze => "freeze",
-            AccessKind.LiveView => "take a readonly ref of",
-            AccessKind.Write => "write to",
-            AccessKind.Read => "read",
-            _ => "access"
-        };
 
         if(fieldState == VariableOwnershipState.Moved)
         {
-            diagnostics.Add(MakeDiagnostic(
-                UseAfterMove,
-                $"Cannot {actionName} field '{fieldName}' — the field has been moved out. " +
-                $"Assign a new owned value to restore it before use.",
-                node,
-                model));
+            diagnostics.ReportAtNode(OwnershipDiagnostics.UseAfterMove, node, "Ownership", fieldName);
         }
         else if(fieldState == VariableOwnershipState.LentRef)
         {
-            diagnostics.Add(MakeDiagnostic(
-                ExclusiveViolation,
-                $"Cannot {actionName} field '{fieldName}' — the field is currently borrowed (lent as a mutable reference).",
-                node,
-                model));
+            diagnostics.ReportAtNode(OwnershipDiagnostics.ExclusiveViolation, node, "Ownership", fieldName);
         }
         else if(fieldState == VariableOwnershipState.LentFrozen)
         {
-            diagnostics.Add(MakeDiagnostic(
-                MutationBlocked,
-                $"Cannot {actionName} field '{fieldName}' — the field is currently frozen (a frozen reference is outstanding).",
-                node,
-                model));
+            diagnostics.ReportAtNode(OwnershipDiagnostics.MutationBlocked, node, "Ownership", fieldName);
         }
         else if(fieldState == VariableOwnershipState.LentReadonly)
         {
-            diagnostics.Add(MakeDiagnostic(
-                MutationBlocked,
-                $"Cannot {actionName} field '{fieldName}' — the field has an outstanding readonly reference that prevents this operation.",
-                node,
-                model));
+            diagnostics.ReportAtNode(OwnershipDiagnostics.MutationBlocked, node, "Ownership", fieldName);
         }
     }
 }

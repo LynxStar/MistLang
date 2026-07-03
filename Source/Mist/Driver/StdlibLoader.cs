@@ -27,7 +27,7 @@ public static class StdlibLoader
     /// <summary>
     /// Loads every stdlib <c>.mist</c> file colocated with the compiler binary
     /// and returns them as <see cref="CompilationUnit"/>s. I/O failures are
-    /// reported as <see cref="DiagnosticId.StdlibParse"/> errors on
+    /// reported as <see cref="CommonDiagnostics.StdlibParse"/> errors on
     /// <paramref name="diagnostics"/> and do not throw.
     /// Results are cached after the first successful load.
     /// </summary>
@@ -82,7 +82,7 @@ public static class StdlibLoader
         catch(Exception ex)
         {
             diagnostics.Add(new Diagnostic(
-                DiagnosticId.StdlibParse,
+                CommonDiagnostics.StdlibParse.Id,
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
                 $"Failed to load Standard Library source: {stdlibRoot}: {ex.Message}",
@@ -106,7 +106,7 @@ public static class StdlibLoader
             catch(Exception ex)
             {
                 diagnostics.Add(new Diagnostic(
-                    DiagnosticId.StdlibParse,
+                    CommonDiagnostics.StdlibParse.Id,
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
                     $"Failed to load Standard Library source: {path}: {ex.Message}",

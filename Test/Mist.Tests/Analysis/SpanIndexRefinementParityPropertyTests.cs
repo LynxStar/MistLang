@@ -251,7 +251,7 @@ public class SpanIndexRefinementParityPropertyTests
     private static List<Diagnostic> ExtractBoundsDiagnostics(ImmutableArray<Diagnostic> diagnostics)
     {
         return diagnostics
-            .Where(d => d.Id == TypeCheckerAnalyzer.ParameterRefinementViolation)
+            .Where(d => d.Id == TypeCheckDiagnostics.ParameterRefinementViolation.Id)
             .ToList();
     }
 

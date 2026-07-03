@@ -227,7 +227,7 @@ public class NonGenericTypeArgumentPropertyTests
 
         // Should emit at least one MIST_NOT_GENERIC diagnostic
         var notGenericDiags = diagnostics
-            .Where(d => d.Id == DiagnosticId.NotGeneric)
+            .Where(d => d.Id == GenericsDiagnostics.NotGeneric.Id)
             .ToList();
 
         return notGenericDiags.Count >= 1;
@@ -262,7 +262,7 @@ public class NonGenericTypeArgumentPropertyTests
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
-        var notGenericDiags = diagnostics.Where(d => d.Id == DiagnosticId.NotGeneric).ToList();
+        var notGenericDiags = diagnostics.Where(d => d.Id == GenericsDiagnostics.NotGeneric.Id).ToList();
         _ = Assert.Single(notGenericDiags);
         Assert.Contains("Simple", notGenericDiags[0].Message);
     }
@@ -294,7 +294,7 @@ public class NonGenericTypeArgumentPropertyTests
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
-        var notGenericDiags = diagnostics.Where(d => d.Id == DiagnosticId.NotGeneric).ToList();
+        var notGenericDiags = diagnostics.Where(d => d.Id == GenericsDiagnostics.NotGeneric.Id).ToList();
         _ = Assert.Single(notGenericDiags);
         Assert.Contains("Point", notGenericDiags[0].Message);
     }
@@ -326,7 +326,7 @@ public class NonGenericTypeArgumentPropertyTests
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
-        var notGenericDiags = diagnostics.Where(d => d.Id == DiagnosticId.NotGeneric).ToList();
+        var notGenericDiags = diagnostics.Where(d => d.Id == GenericsDiagnostics.NotGeneric.Id).ToList();
         _ = Assert.Single(notGenericDiags);
         Assert.Contains("ISimple", notGenericDiags[0].Message);
     }
@@ -358,7 +358,7 @@ public class NonGenericTypeArgumentPropertyTests
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
-        var notGenericDiags = diagnostics.Where(d => d.Id == DiagnosticId.NotGeneric).ToList();
+        var notGenericDiags = diagnostics.Where(d => d.Id == GenericsDiagnostics.NotGeneric.Id).ToList();
         _ = Assert.Single(notGenericDiags);
         Assert.Contains("Simple", notGenericDiags[0].Message);
     }

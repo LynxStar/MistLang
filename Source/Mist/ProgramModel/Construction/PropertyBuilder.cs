@@ -98,7 +98,7 @@ internal sealed class PropertyBuilder
 
     private PropertyAccessor BuildGetter(
         ModifierNode? modifier, string propertyName, Storm.Runtime.SyntaxNode locationNode,
-        bool isAbstract, bool isAuto, Storm.Runtime.SyntaxNode? body, Storm.Runtime.SyntaxNode? expression)
+        bool isAbstract, bool isAuto, BlockNode? body, ExpressionNode? expression)
     {
         if(modifier is not null)
         {
@@ -122,7 +122,7 @@ internal sealed class PropertyBuilder
 
     private PropertyAccessor? BuildSetter(
         ModifierNode? modifier, string propertyName, Storm.Runtime.SyntaxNode locationNode,
-        bool isAbstract, bool isAuto, bool isInit, Storm.Runtime.SyntaxNode? body, Storm.Runtime.SyntaxNode? expression)
+        bool isAbstract, bool isAuto, bool isInit, BlockNode? body, ExpressionNode? expression)
     {
         var isPrivate = false;
 
@@ -154,7 +154,7 @@ internal sealed class PropertyBuilder
 
     private PropertyAccessor? BuildInitAccessor(
         ModifierNode? modifier, string propertyName, Storm.Runtime.SyntaxNode locationNode,
-        bool isAbstract, bool isAuto, Storm.Runtime.SyntaxNode? body, Storm.Runtime.SyntaxNode? expression)
+        bool isAbstract, bool isAuto, BlockNode? body, ExpressionNode? expression)
     {
         if(isAbstract)
         {

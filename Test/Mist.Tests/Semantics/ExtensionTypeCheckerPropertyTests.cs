@@ -277,20 +277,22 @@ public class ExtensionTypeCheckerPropertyTests
         };
     }
 
-    private static ClassDeclarationNode MakeClass(string name, ImmutableArray<MemberDeclarationNode>? members = null)
+    private static TypeBodyDeclarationNode MakeClass(string name, ImmutableArray<MemberDeclarationNode>? members = null)
     {
         return new()
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok(name),
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
     }
 
-    private static ClassDeclarationNode MakeGenericClass(string name, TypeParameterListNode typeParams,
+    private static TypeBodyDeclarationNode MakeGenericClass(string name, TypeParameterListNode typeParams,
         ImmutableArray<MemberDeclarationNode>? members = null)
     {
         return new()
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok(name),
             TypeParams = typeParams,
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
@@ -333,9 +335,9 @@ public class ExtensionTypeCheckerPropertyTests
         return new ExtensionItemTopLevelItemNode { ExtensionDeclaration = extDecl };
     }
 
-    private static TopLevelItemNode MakeClassTopLevelItem(ClassDeclarationNode classDecl)
+    private static TopLevelItemNode MakeClassTopLevelItem(TypeBodyDeclarationNode classDecl)
     {
-        return new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }.AsTopLevelItem();
+        return new BodyTypeTypeDeclarationNode { TypeBody = classDecl }.AsTopLevelItem();
     }
 
     private static UsingDeclarationNode MakeUsingDeclaration(string namespaceName)

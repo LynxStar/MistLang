@@ -272,8 +272,9 @@ public class ConstructedTypeResolutionPropertyTests
     public bool ConcreteTypeArgs_ProduceConstructedType(ConcreteConstructedTypeScenario scenario)
     {
         // Build AST: generic class + holder class with a field of constructed type
-        var genericClassDecl = new ClassDeclarationNode
+        var genericClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(scenario.GenericTypeName),
             TypeParams = MakeTypeParamList(scenario.TypeParamNames.ToArray()),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -289,15 +290,16 @@ public class ConstructedTypeResolutionPropertyTests
         var fieldTypeRef = MakeNamedTypeRef(scenario.GenericTypeName, typeArgList);
         var fieldMember = MakeFieldMember(scenario.FieldName, fieldTypeRef);
 
-        var holderClassDecl = new ClassDeclarationNode
+        var holderClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(scenario.HolderTypeName),
             Members = ImmutableArray.Create(fieldMember),
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = genericClassDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = holderClassDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = genericClassDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = holderClassDecl });
 
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);
 
@@ -371,8 +373,9 @@ public class ConstructedTypeResolutionPropertyTests
     public bool TypeParamArgs_ResolveToTypeParameterType(TypeParamConstructedTypeScenario scenario)
     {
         // Build AST: generic base class + derived class inheriting with forwarded type params
-        var genericClassDecl = new ClassDeclarationNode
+        var genericClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(scenario.GenericTypeName),
             TypeParams = MakeTypeParamList(scenario.TypeParamNames.ToArray()),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -386,8 +389,9 @@ public class ConstructedTypeResolutionPropertyTests
 
         var baseList = MakeBaseList([MakeBaseTypeRef(scenario.GenericTypeName, typeArgList)]);
 
-        var derivedClassDecl = new ClassDeclarationNode
+        var derivedClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(scenario.DerivedTypeName),
             TypeParams = MakeTypeParamList(scenario.TypeParamNames.ToArray()),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -396,8 +400,8 @@ public class ConstructedTypeResolutionPropertyTests
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = genericClassDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedClassDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = genericClassDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = derivedClassDecl });
 
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);
 
@@ -471,15 +475,17 @@ public class ConstructedTypeResolutionPropertyTests
     public bool NestedGenerics_ResolveToNestedConstructedType(NestedConstructedTypeScenario scenario)
     {
         // Build AST: two generic classes + holder with nested constructed type field
-        var outerClassDecl = new ClassDeclarationNode
+        var outerClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(scenario.OuterTypeName),
             TypeParams = MakeTypeParamList(["T"]),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        var innerClassDecl = new ClassDeclarationNode
+        var innerClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(scenario.InnerTypeName),
             TypeParams = MakeTypeParamList(["T"]),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -493,16 +499,17 @@ public class ConstructedTypeResolutionPropertyTests
 
         var fieldMember = MakeFieldMember(scenario.FieldName, outerTypeRef);
 
-        var holderClassDecl = new ClassDeclarationNode
+        var holderClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(scenario.HolderTypeName),
             Members = ImmutableArray.Create(fieldMember),
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = outerClassDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = innerClassDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = holderClassDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = outerClassDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = innerClassDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = holderClassDecl });
 
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);
 
@@ -581,8 +588,9 @@ public class ConstructedTypeResolutionPropertyTests
     {
         // class Box<T> { }
         // class Holder { Box<int> field; }
-        var genericClassDecl = new ClassDeclarationNode
+        var genericClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Box"),
             TypeParams = MakeTypeParamList(["T"]),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -592,15 +600,16 @@ public class ConstructedTypeResolutionPropertyTests
         var fieldTypeRef = MakeNamedTypeRef("Box", typeArgList);
         var fieldMember = MakeFieldMember("field", fieldTypeRef);
 
-        var holderClassDecl = new ClassDeclarationNode
+        var holderClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Holder"),
             Members = ImmutableArray.Create(fieldMember),
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = genericClassDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = holderClassDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = genericClassDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = holderClassDecl });
 
         var (model, _) = BuildModelWithDiagnostics(ast);
 
@@ -617,8 +626,9 @@ public class ConstructedTypeResolutionPropertyTests
     {
         // class Box<T> { }
         // class Holder { Box<Box<int>> field; }
-        var genericClassDecl = new ClassDeclarationNode
+        var genericClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Box"),
             TypeParams = MakeTypeParamList(["T"]),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -630,15 +640,16 @@ public class ConstructedTypeResolutionPropertyTests
         var outerTypeRef = MakeNamedTypeRef("Box", outerTypeArgList);
         var fieldMember = MakeFieldMember("field", outerTypeRef);
 
-        var holderClassDecl = new ClassDeclarationNode
+        var holderClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Holder"),
             Members = ImmutableArray.Create(fieldMember),
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = genericClassDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = holderClassDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = genericClassDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = holderClassDecl });
 
         var (model, _) = BuildModelWithDiagnostics(ast);
 
@@ -659,8 +670,9 @@ public class ConstructedTypeResolutionPropertyTests
     {
         // class Box<T> { }
         // class Wrapper<T> : Box<T> { }
-        var genericClassDecl = new ClassDeclarationNode
+        var genericClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Box"),
             TypeParams = MakeTypeParamList(["T"]),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -669,8 +681,9 @@ public class ConstructedTypeResolutionPropertyTests
         var typeArgList = MakeTypeArgList([MakeNamedTypeRef("T")]);
         var baseList = MakeBaseList([MakeBaseTypeRef("Box", typeArgList)]);
 
-        var wrapperClassDecl = new ClassDeclarationNode
+        var wrapperClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Wrapper"),
             TypeParams = MakeTypeParamList(["T"]),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -679,8 +692,8 @@ public class ConstructedTypeResolutionPropertyTests
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = genericClassDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = wrapperClassDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = genericClassDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = wrapperClassDecl });
 
         var (model, _) = BuildModelWithDiagnostics(ast);
 
@@ -698,8 +711,9 @@ public class ConstructedTypeResolutionPropertyTests
     {
         // class Map<K, V> { }
         // class Holder { Map<int, string> field; }
-        var genericClassDecl = new ClassDeclarationNode
+        var genericClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Map"),
             TypeParams = MakeTypeParamList(["K", "V"]),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -709,15 +723,16 @@ public class ConstructedTypeResolutionPropertyTests
         var fieldTypeRef = MakeNamedTypeRef("Map", typeArgList);
         var fieldMember = MakeFieldMember("field", fieldTypeRef);
 
-        var holderClassDecl = new ClassDeclarationNode
+        var holderClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Holder"),
             Members = ImmutableArray.Create(fieldMember),
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = genericClassDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = holderClassDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = genericClassDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = holderClassDecl });
 
         var (model, _) = BuildModelWithDiagnostics(ast);
 

@@ -121,8 +121,9 @@ public class FieldInitializerTests
         string className,
         params MemberDeclarationNode[] members)
     {
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(className),
             Members = ImmutableArray.Create(members),
         };
@@ -130,7 +131,7 @@ public class FieldInitializerTests
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
     }
 
@@ -317,8 +318,9 @@ public class FieldInitializerTests
             new IntTypePrimitiveTypeNode(),
             new PrivateModifierModifierNode());
 
-        var counterClass = new ClassDeclarationNode
+        var counterClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Counter"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new FieldMemberMemberDeclarationNode { Field = field }),
@@ -333,7 +335,7 @@ public class FieldInitializerTests
                 {
                     Name = MakeQualifiedId("App"),
                     Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = counterClass }).AsNamespaceBodyItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = counterClass }).AsNamespaceBodyItems(),
                     Span = new Storm.Runtime.SourceSpan(0, source1.Length),
                 }
             }),
@@ -351,8 +353,9 @@ public class FieldInitializerTests
                 new StaticModifierModifierNode()),
         };
 
-        var programClass = new ClassDeclarationNode
+        var programClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -367,7 +370,7 @@ public class FieldInitializerTests
                 {
                     Name = MakeQualifiedId("App"),
                     Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsNamespaceBodyItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = programClass }).AsNamespaceBodyItems(),
                     Span = new Storm.Runtime.SourceSpan(0, source2.Length),
                 }
             }),

@@ -68,16 +68,17 @@ public class InvalidAbstractReferencePropertyTests
         return (model, diagnostics.ToImmutableArray());
     }
 
-    private static AbstractDeclarationNode MakeAbstractDecl(
+    private static TypeBodyDeclarationNode MakeAbstractDecl(
         string name,
-        ImmutableArray<AbstractMethodDeclarationNode> methods,
+        ImmutableArray<MethodDeclarationNode> methods,
         string? parentAbstractName = null)
     {
         var members = methods.Select(m =>
-            (AbstractMemberDeclarationNode)new AbstractMethodMemberAbstractMemberDeclarationNode { Method = m })
+            (MemberDeclarationNode)new MethodMemberMemberDeclarationNode { Method = m })
             .ToImmutableArray();
-        var decl = new AbstractDeclarationNode
+        var decl = new TypeBodyDeclarationNode
         {
+            Keyword = new AbstractKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members,
         };
@@ -94,24 +95,26 @@ public class InvalidAbstractReferencePropertyTests
         return decl;
     }
 
-    private static ClassDeclarationNode MakeClassDecl(
+    private static TypeBodyDeclarationNode MakeClassDecl(
         string name,
         ImmutableArray<MemberDeclarationNode>? members = null)
     {
-        return new ClassDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
     }
 
-    private static StructDeclarationNode MakeStructDecl(
+    private static TypeBodyDeclarationNode MakeStructDecl(
         string name,
         string? abstractName = null,
         ImmutableArray<MemberDeclarationNode>? members = null)
     {
-        var decl = new StructDeclarationNode
+        var decl = new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -137,19 +140,19 @@ public class InvalidAbstractReferencePropertyTests
         };
     }
 
-    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode decl)
+    private static TypeDeclarationNode WrapAbstract(TypeBodyDeclarationNode decl)
     {
-        return new AbstractTypeTypeDeclarationNode { AbstractDeclaration = decl };
+        return new BodyTypeTypeDeclarationNode { TypeBody = decl };
     }
 
-    private static TypeDeclarationNode WrapClass(ClassDeclarationNode decl)
+    private static TypeDeclarationNode WrapClass(TypeBodyDeclarationNode decl)
     {
-        return new ClassTypeTypeDeclarationNode { ClassDeclaration = decl };
+        return new BodyTypeTypeDeclarationNode { TypeBody = decl };
     }
 
-    private static TypeDeclarationNode WrapStruct(StructDeclarationNode decl)
+    private static TypeDeclarationNode WrapStruct(TypeBodyDeclarationNode decl)
     {
-        return new StructTypeTypeDeclarationNode { StructDeclaration = decl };
+        return new BodyTypeTypeDeclarationNode { TypeBody = decl };
     }
 
     // ─── Test data model ─────────────────────────────────────────────────
@@ -294,7 +297,7 @@ public class InvalidAbstractReferencePropertyTests
                 typeDecls.Add(WrapAbstract(
                     MakeAbstractDecl(
                         scenario.ReferencingTypeName,
-                        ImmutableArray<AbstractMethodDeclarationNode>.Empty,
+                        ImmutableArray<MethodDeclarationNode>.Empty,
                         scenario.ReferencedName)));
                 break;
         }
@@ -384,7 +387,7 @@ public class InvalidAbstractReferencePropertyTests
     public void AbstractReferencingUndefinedAbstract_EmitsUndefinedAbstractDiagnostic()
     {
         var abstractDecl = MakeAbstractDecl("IDerived",
-            ImmutableArray<AbstractMethodDeclarationNode>.Empty,
+            ImmutableArray<MethodDeclarationNode>.Empty,
             "IGhost");
         var ast = MakeCompilationUnit(WrapAbstract(abstractDecl));
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -421,7 +424,7 @@ public class InvalidAbstractReferencePropertyTests
     {
         var classDecl = MakeClassDecl("SomeClass");
         var abstractDecl = MakeAbstractDecl("IChild",
-            ImmutableArray<AbstractMethodDeclarationNode>.Empty,
+            ImmutableArray<MethodDeclarationNode>.Empty,
             "SomeClass");
 
         var ast = MakeCompilationUnit(WrapClass(classDecl), WrapAbstract(abstractDecl));
@@ -460,7 +463,7 @@ public class InvalidAbstractReferencePropertyTests
     {
         var structDecl = MakeStructDecl("SomeStruct");
         var abstractDecl = MakeAbstractDecl("IChild",
-            ImmutableArray<AbstractMethodDeclarationNode>.Empty,
+            ImmutableArray<MethodDeclarationNode>.Empty,
             "SomeStruct");
 
         var ast = MakeCompilationUnit(WrapStruct(structDecl), WrapAbstract(abstractDecl));

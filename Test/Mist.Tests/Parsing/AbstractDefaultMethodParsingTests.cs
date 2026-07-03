@@ -13,9 +13,9 @@ namespace Mist.Tests.Parsing;
 /// Validates that:
 /// <list type="bullet">
 ///   <item>A method WITHOUT a body (semicolon-terminated) is classified as a slot
-///   (<see cref="AbstractMethodMemberAbstractMemberDeclarationNode"/>).</item>
+///   (<see cref="MethodMemberMemberDeclarationNode"/> with <see cref="MethodNoBodyMethodBodyNode"/>).</item>
 ///   <item>A method WITH a braced body is classified as a default implementation
-///   (<see cref="AbstractDefaultMethodMemberAbstractMemberDeclarationNode"/>).</item>
+///   (<see cref="MethodMemberMemberDeclarationNode"/> with <see cref="MethodBlockBodyMethodBodyNode"/>).</item>
 ///   <item>Slots and defaults may be freely mixed in any order.</item>
 ///   <item>A property with a body inside an abstract type produces the
 ///   <c>MIST_ABSTRACT_PROPERTY_DEFAULT</c> diagnostic.</item>
@@ -37,7 +37,7 @@ public class AbstractDefaultMethodParsingTests
         return (result.Root as CompilationUnitNode, bag.ToImmutableArray());
     }
 
-    private static AbstractDeclarationNode ParseAbstract(string source)
+    private static TypeBodyDeclarationNode ParseAbstract(string source)
     {
         var (cu, diagnostics) = Parse(source);
         var errors = diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
@@ -46,8 +46,9 @@ public class AbstractDefaultMethodParsingTests
         Assert.NotNull(cu);
         var types = cu!.GetTypes();
         Assert.NotEmpty(types);
-        var abstractType = Assert.IsType<AbstractTypeTypeDeclarationNode>(types[0]);
-        return abstractType.AbstractDeclaration;
+        var bodyType = Assert.IsType<BodyTypeTypeDeclarationNode>(types[0]);
+        _ = Assert.IsType<AbstractKeywordTypeKeywordNode>(bodyType.TypeBody.Keyword);
+        return bodyType.TypeBody;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -57,20 +58,22 @@ public class AbstractDefaultMethodParsingTests
     [Fact]
     public void MethodWithoutBody_IsClassifiedAsSlot()
     {
-        var abstractDecl = ParseAbstract("abstract IGreeting { string Name(); }");
+        var typeBody = ParseAbstract("abstract IGreeting { string Name(); }");
 
-        var member = Assert.Single(abstractDecl.Members);
-        var slot = Assert.IsType<AbstractMethodMemberAbstractMemberDeclarationNode>(member);
-        Assert.Equal("Name", slot.Method.Name.Lexeme);
+        var member = Assert.Single(typeBody.Members);
+        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(member);
+        _ = Assert.IsType<MethodNoBodyMethodBodyNode>(methodMember.Method.Body);
+        Assert.Equal("Name", methodMember.Method.Name.Lexeme);
     }
 
     [Fact]
     public void SlotWithParameters_IsClassifiedAsSlot()
     {
-        var abstractDecl = ParseAbstract("abstract ICalc { int Add(int a, int b); }");
+        var typeBody = ParseAbstract("abstract ICalc { int Add(int a, int b); }");
 
-        var member = Assert.Single(abstractDecl.Members);
-        _ = Assert.IsType<AbstractMethodMemberAbstractMemberDeclarationNode>(member);
+        var member = Assert.Single(typeBody.Members);
+        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(member);
+        _ = Assert.IsType<MethodNoBodyMethodBodyNode>(methodMember.Method.Body);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -80,23 +83,24 @@ public class AbstractDefaultMethodParsingTests
     [Fact]
     public void MethodWithBody_IsClassifiedAsDefault()
     {
-        var abstractDecl = ParseAbstract(
+        var typeBody = ParseAbstract(
             "abstract IGreeting { string Greet() { return \"hi\"; } }");
 
-        var member = Assert.Single(abstractDecl.Members);
-        var def = Assert.IsType<AbstractDefaultMethodMemberAbstractMemberDeclarationNode>(member);
-        Assert.Equal("Greet", def.DefaultMethod.Name.Lexeme);
+        var member = Assert.Single(typeBody.Members);
+        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(member);
+        Assert.Equal("Greet", methodMember.Method.Name.Lexeme);
         // The captured method retains its block body.
-        _ = Assert.IsType<MethodBlockBodyMethodBodyNode>(def.DefaultMethod.Body);
+        _ = Assert.IsType<MethodBlockBodyMethodBodyNode>(methodMember.Method.Body);
     }
 
     [Fact]
     public void DefaultMethodWithEmptyBody_IsClassifiedAsDefault()
     {
-        var abstractDecl = ParseAbstract("abstract IFoo { void Noop() { } }");
+        var typeBody = ParseAbstract("abstract IFoo { void Noop() { } }");
 
-        var member = Assert.Single(abstractDecl.Members);
-        _ = Assert.IsType<AbstractDefaultMethodMemberAbstractMemberDeclarationNode>(member);
+        var member = Assert.Single(typeBody.Members);
+        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(member);
+        _ = Assert.IsType<MethodBlockBodyMethodBodyNode>(methodMember.Method.Body);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -116,13 +120,21 @@ public class AbstractDefaultMethodParsingTests
             }
             """;
 
-        var abstractDecl = ParseAbstract(source);
+        var typeBody = ParseAbstract(source);
 
-        Assert.Equal(4, abstractDecl.Members.Length);
-        _ = Assert.IsType<AbstractMethodMemberAbstractMemberDeclarationNode>(abstractDecl.Members[0]);
-        _ = Assert.IsType<AbstractDefaultMethodMemberAbstractMemberDeclarationNode>(abstractDecl.Members[1]);
-        _ = Assert.IsType<AbstractMethodMemberAbstractMemberDeclarationNode>(abstractDecl.Members[2]);
-        _ = Assert.IsType<AbstractDefaultMethodMemberAbstractMemberDeclarationNode>(abstractDecl.Members[3]);
+        Assert.Equal(4, typeBody.Members.Length);
+
+        var member0 = Assert.IsType<MethodMemberMemberDeclarationNode>(typeBody.Members[0]);
+        _ = Assert.IsType<MethodNoBodyMethodBodyNode>(member0.Method.Body);
+
+        var member1 = Assert.IsType<MethodMemberMemberDeclarationNode>(typeBody.Members[1]);
+        _ = Assert.IsType<MethodBlockBodyMethodBodyNode>(member1.Method.Body);
+
+        var member2 = Assert.IsType<MethodMemberMemberDeclarationNode>(typeBody.Members[2]);
+        _ = Assert.IsType<MethodNoBodyMethodBodyNode>(member2.Method.Body);
+
+        var member3 = Assert.IsType<MethodMemberMemberDeclarationNode>(typeBody.Members[3]);
+        _ = Assert.IsType<MethodBlockBodyMethodBodyNode>(member3.Method.Body);
     }
 
     [Fact]
@@ -136,11 +148,13 @@ public class AbstractDefaultMethodParsingTests
             }
             """;
 
-        var abstractDecl = ParseAbstract(source);
+        var typeBody = ParseAbstract(source);
 
-        Assert.Equal(2, abstractDecl.Members.Length);
-        _ = Assert.IsType<AbstractPropertyMemberAbstractMemberDeclarationNode>(abstractDecl.Members[0]);
-        _ = Assert.IsType<AbstractDefaultMethodMemberAbstractMemberDeclarationNode>(abstractDecl.Members[1]);
+        Assert.Equal(2, typeBody.Members.Length);
+        _ = Assert.IsType<PropertyMemberMemberDeclarationNode>(typeBody.Members[0]);
+
+        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeBody.Members[1]);
+        _ = Assert.IsType<MethodBlockBodyMethodBodyNode>(methodMember.Method.Body);
     }
 
     [Fact]

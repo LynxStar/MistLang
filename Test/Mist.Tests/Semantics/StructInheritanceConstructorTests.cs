@@ -71,13 +71,14 @@ public class StructInheritanceConstructorTests
         return (model, allDiags);
     }
 
-    private static StructDeclarationNode MakeStructDecl(
+    private static TypeBodyDeclarationNode MakeStructDecl(
         string name,
         string? baseStructName = null,
         ImmutableArray<MemberDeclarationNode>? members = null)
     {
-        var decl = new StructDeclarationNode
+        var decl = new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -92,9 +93,9 @@ public class StructInheritanceConstructorTests
         return decl;
     }
 
-    private static TypeDeclarationNode WrapStruct(StructDeclarationNode decl)
+    private static TypeDeclarationNode WrapStruct(TypeBodyDeclarationNode decl)
     {
-        return new StructTypeTypeDeclarationNode { StructDeclaration = decl };
+        return new BodyTypeTypeDeclarationNode { TypeBody = decl };
     }
 
     private static CompilationUnitNode MakeCompilationUnit(params TypeDeclarationNode[] typeDecls)

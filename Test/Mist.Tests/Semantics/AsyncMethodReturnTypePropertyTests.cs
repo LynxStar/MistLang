@@ -168,13 +168,14 @@ public class AsyncMethodReturnTypePropertyTests
         var method = MakeAsyncMethod(scenario.MethodName, returnTypeRef, additionalModifiers);
         var member = WrapMethod(method);
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(scenario.ClassName),
             Members = ImmutableArray.Create(member),
         };
 
-        return MakeCompilationUnit(new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+        return MakeCompilationUnit(new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
     }
 
     // ═══════════════════════════════════════════════════════════════════════

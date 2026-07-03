@@ -239,8 +239,9 @@ public class VoidEqualityMismatchPropertyTests
 
         var mainBody = ImmutableArray.Create<StatementNode>(exprStmt);
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = MakeMainMethod(mainBody) }),
@@ -249,7 +250,7 @@ public class VoidEqualityMismatchPropertyTests
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
     }
 

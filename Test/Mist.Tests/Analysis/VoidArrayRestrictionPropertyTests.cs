@@ -176,8 +176,9 @@ public class VoidArrayRestrictionPropertyTests
 
         var mainBody = ImmutableArray.Create<StatementNode>(varDecl);
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = MakeMainMethod(mainBody) }),
@@ -186,7 +187,7 @@ public class VoidArrayRestrictionPropertyTests
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
     }
 
@@ -210,8 +211,9 @@ public class VoidArrayRestrictionPropertyTests
 
         var mainBody = ImmutableArray.Create<StatementNode>(varDecl);
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = MakeMainMethod(mainBody) }),
@@ -220,7 +222,7 @@ public class VoidArrayRestrictionPropertyTests
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
     }
 

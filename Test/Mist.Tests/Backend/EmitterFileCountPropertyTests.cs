@@ -93,8 +93,9 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
             members.Add(new MethodMemberMemberDeclarationNode { Method = mainMethod });
         }
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(className),
             Members = members.ToImmutableArray(),
         };
@@ -102,7 +103,7 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
     }
 

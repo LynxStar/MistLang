@@ -157,8 +157,9 @@ public class AsyncIntrinsicDiagnosticPropertyTests
         // The class containing the method must be intrinsic for intrinsic methods
         var classModifiers = ImmutableArray.Create<ModifierNode>(new IntrinsicModifierModifierNode());
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok(scenario.ClassName),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = method }),
@@ -168,7 +169,7 @@ public class AsyncIntrinsicDiagnosticPropertyTests
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
     }
 

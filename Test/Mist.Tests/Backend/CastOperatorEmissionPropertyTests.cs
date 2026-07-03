@@ -314,10 +314,11 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
 
     private static TypeDeclarationNode ClassDecl(string name, params MemberDeclarationNode[] members)
     {
-        return new ClassTypeTypeDeclarationNode
+        return new BodyTypeTypeDeclarationNode
         {
-            ClassDeclaration = new ClassDeclarationNode
+            TypeBody = new TypeBodyDeclarationNode
             {
+                Keyword = new ClassKeywordTypeKeywordNode(),
                 Name = Tok(name),
                 Members = members.ToImmutableArray(),
             },

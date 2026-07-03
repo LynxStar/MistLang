@@ -62,13 +62,14 @@ public class BaseConstructorValidationTests
         return (model, diagnostics.ToImmutableArray());
     }
 
-    private static ClassDeclarationNode MakeClassDecl(
+    private static TypeBodyDeclarationNode MakeClassDecl(
         string name,
         string? baseClassName = null,
         ImmutableArray<MemberDeclarationNode>? members = null)
     {
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -85,10 +86,10 @@ public class BaseConstructorValidationTests
         return classDecl;
     }
 
-    private static CompilationUnitNode MakeCompilationUnit(params ClassDeclarationNode[] classDecls)
+    private static CompilationUnitNode MakeCompilationUnit(params TypeBodyDeclarationNode[] classDecls)
     {
         var types = classDecls.Select(c =>
-            (TypeDeclarationNode)new ClassTypeTypeDeclarationNode { ClassDeclaration = c })
+            (TypeDeclarationNode)new BodyTypeTypeDeclarationNode { TypeBody = c })
             .ToImmutableArray();
 
         return new CompilationUnitNode { Items = types.AsTopLevelItems() };

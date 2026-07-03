@@ -101,14 +101,15 @@ public class InheritanceRoundTripPropertyTests
         };
     }
 
-    private static ClassDeclarationNode MakeClassDecl(
+    private static TypeBodyDeclarationNode MakeClassDecl(
         string name,
         string? baseClassName,
         ImmutableArray<MemberDeclarationNode> members,
         ImmutableArray<ModifierNode>? modifiers = null)
     {
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok(name),
             Members = members,
             Modifiers = modifiers ?? ImmutableArray<ModifierNode>.Empty,
@@ -129,10 +130,10 @@ public class InheritanceRoundTripPropertyTests
         return classDecl;
     }
 
-    private static CompilationUnitNode MakeCompilationUnit(params ClassDeclarationNode[] classDecls)
+    private static CompilationUnitNode MakeCompilationUnit(params TypeBodyDeclarationNode[] classDecls)
     {
         var types = classDecls.Select(c =>
-            (TypeDeclarationNode)new ClassTypeTypeDeclarationNode { ClassDeclaration = c })
+            (TypeDeclarationNode)new BodyTypeTypeDeclarationNode { TypeBody = c })
             .ToImmutableArray();
 
         return new CompilationUnitNode { Items = types.AsTopLevelItems() };
@@ -197,7 +198,7 @@ public class InheritanceRoundTripPropertyTests
         int seed)
     {
         var rng = new Random(seed);
-        var classDecls = new List<ClassDeclarationNode>();
+        var classDecls = new List<TypeBodyDeclarationNode>();
         var declaredNames = new List<string>();
 
         for(var i = 0; i < classIndices.Length; i++)

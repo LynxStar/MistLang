@@ -369,12 +369,13 @@ public class SymbolKindPropertyTests
 
         if(needsClass || (!needsStruct && !hasNamespace))
         {
-            var classDecl = new ClassDeclarationNode
+            var classDecl = new TypeBodyDeclarationNode
             {
+                Keyword = new ClassKeywordTypeKeywordNode(),
                 Name = MakeToken("TestClass"),
                 Members = classMembers.ToImmutable(),
             };
-            typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+            typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
             expected.Add(("TestClass", SymbolKind.Class));
         }
 
@@ -395,12 +396,13 @@ public class SymbolKindPropertyTests
             };
             structMembers.Add(new FieldMemberMemberDeclarationNode { Field = structField });
 
-            var structDecl = new StructDeclarationNode
+            var structDecl = new TypeBodyDeclarationNode
             {
+                Keyword = new StructKeywordTypeKeywordNode(),
                 Name = MakeToken("TestStruct"),
                 Members = structMembers.ToImmutable(),
             };
-            typeDecls.Add(new StructTypeTypeDeclarationNode { StructDeclaration = structDecl });
+            typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = structDecl });
             expected.Add(("TestStruct", SymbolKind.Struct));
         }
 

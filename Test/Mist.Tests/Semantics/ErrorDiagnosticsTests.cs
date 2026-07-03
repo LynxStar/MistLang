@@ -293,8 +293,9 @@ public sealed class ErrorDiagnosticsTests
 
         var methodDecl = MakeMethodDecl("M", ImmutableArray.Create<StatementNode>(varDecl));
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = methodDecl }),
@@ -304,7 +305,7 @@ public sealed class ErrorDiagnosticsTests
         {
             Usings = ImmutableArray.Create(usingDecl),
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var source = "using TestNs; class C { void M() { var x = new AbstractWidget(); } }";
@@ -394,8 +395,9 @@ public sealed class ErrorDiagnosticsTests
             BaseTypeRefs = ImmutableArray<BaseTypeRefNode>.Empty,
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("MyClass"),
             BaseList = baseList,
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -405,7 +407,7 @@ public sealed class ErrorDiagnosticsTests
         {
             Usings = ImmutableArray.Create(usingDecl),
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var source = "using System; class MyClass : String { }";
@@ -486,8 +488,9 @@ public sealed class ErrorDiagnosticsTests
             },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new FieldMemberMemberDeclarationNode { Field = fieldDecl }),
@@ -497,7 +500,7 @@ public sealed class ErrorDiagnosticsTests
         {
             Usings = ImmutableArray.Create(usingDecl1, usingDecl2),
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var source = "using NsAlpha; using NsBeta; class C { Widget myField; }";
@@ -529,8 +532,9 @@ public sealed class ErrorDiagnosticsTests
             },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -539,7 +543,7 @@ public sealed class ErrorDiagnosticsTests
         {
             Usings = ImmutableArray.Create(usingDecl),
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var source = "using Nonexistent.Namespace; class C { }";
@@ -568,8 +572,9 @@ public sealed class ErrorDiagnosticsTests
             },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -578,7 +583,7 @@ public sealed class ErrorDiagnosticsTests
         {
             Usings = ImmutableArray.Create(usingDecl),
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var source = "using UnknownNs; class C { }";
@@ -606,8 +611,9 @@ public sealed class ErrorDiagnosticsTests
             },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -616,7 +622,7 @@ public sealed class ErrorDiagnosticsTests
         {
             Usings = ImmutableArray.Create(usingDecl),
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var source = "using ValidNs; class C { }";

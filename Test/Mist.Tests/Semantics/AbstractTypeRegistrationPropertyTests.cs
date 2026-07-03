@@ -61,33 +61,35 @@ public class AbstractTypeRegistrationPropertyTests
     // ─── AST construction helpers ────────────────────────────────────────
 
     /// <summary>
-    /// Creates an AbstractMethodDeclarationNode with the given name and return type.
+    /// Creates an MethodDeclarationNode with the given name and return type.
     /// </summary>
-    private static AbstractMethodDeclarationNode MakeAbstractMethod(
+    private static MethodDeclarationNode MakeAbstractMethod(
         string name,
         TypeReferenceNode? returnType = null,
         ParameterListNode? parameters = null)
     {
-        return new AbstractMethodDeclarationNode
+        return new MethodDeclarationNode
         {
             Name = MakeToken(name),
             ReturnType = returnType ?? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = parameters,
+            Body = new MethodNoBodyMethodBodyNode(),
         };
     }
 
     /// <summary>
-    /// Creates an AbstractDeclarationNode with the given name and methods.
+    /// Creates an TypeBodyDeclarationNode with the given name and methods.
     /// </summary>
-    private static AbstractDeclarationNode MakeAbstractDecl(
+    private static TypeBodyDeclarationNode MakeAbstractDecl(
         string name,
-        ImmutableArray<AbstractMethodDeclarationNode> methods)
+        ImmutableArray<MethodDeclarationNode> methods)
     {
         var members = methods.Select(m =>
-            (AbstractMemberDeclarationNode)new AbstractMethodMemberAbstractMemberDeclarationNode { Method = m })
+            (MemberDeclarationNode)new MethodMemberMemberDeclarationNode { Method = m })
             .ToImmutableArray();
-        return new AbstractDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new AbstractKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members,
         };
@@ -97,12 +99,12 @@ public class AbstractTypeRegistrationPropertyTests
     /// Wraps abstract declarations into a CompilationUnitNode.
     /// </summary>
     private static CompilationUnitNode MakeCompilationUnit(
-        params AbstractDeclarationNode[] abstractDecls)
+        params TypeBodyDeclarationNode[] abstractDecls)
     {
         var types = abstractDecls.Select(i =>
-            (TypeDeclarationNode)new AbstractTypeTypeDeclarationNode
+            (TypeDeclarationNode)new BodyTypeTypeDeclarationNode
             {
-                AbstractDeclaration = i,
+                TypeBody = i,
             }).ToImmutableArray();
 
         return new CompilationUnitNode { Items = types.AsTopLevelItems() };
@@ -274,7 +276,7 @@ public class AbstractTypeRegistrationPropertyTests
     [Fact]
     public void EmptyAbstract_RegistersAbstractTypeWithNoMethods()
     {
-        var abstractDecl = MakeAbstractDecl("IEmpty", ImmutableArray<AbstractMethodDeclarationNode>.Empty);
+        var abstractDecl = MakeAbstractDecl("IEmpty", ImmutableArray<MethodDeclarationNode>.Empty);
         var ast = MakeCompilationUnit(abstractDecl);
         var (model, _) = BuildModelWithDiagnostics(ast);
 
@@ -316,7 +318,7 @@ public class AbstractTypeRegistrationPropertyTests
     public void MultipleAbstracts_AllRegisteredCorrectly()
     {
         var abstract1 = MakeAbstractDecl("IFoo", ImmutableArray.Create(MakeAbstractMethod("Foo")));
-        var abstract2 = MakeAbstractDecl("IBar", ImmutableArray<AbstractMethodDeclarationNode>.Empty);
+        var abstract2 = MakeAbstractDecl("IBar", ImmutableArray<MethodDeclarationNode>.Empty);
         var abstract3 = MakeAbstractDecl("IBaz", ImmutableArray.Create(
             MakeAbstractMethod("Baz1"),
             MakeAbstractMethod("Baz2")));

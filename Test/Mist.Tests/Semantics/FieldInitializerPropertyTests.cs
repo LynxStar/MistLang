@@ -129,8 +129,9 @@ public class FieldInitializerPropertyTests
         string className,
         params MemberDeclarationNode[] members)
     {
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(className),
             Members = ImmutableArray.Create(members),
         };
@@ -138,7 +139,7 @@ public class FieldInitializerPropertyTests
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
     }
 

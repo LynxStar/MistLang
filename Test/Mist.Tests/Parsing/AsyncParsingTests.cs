@@ -80,8 +80,8 @@ public class AsyncParsingTests
         const string source = "class C { public async int Compute() { return 1; } }";
         var cu = ParseOrFail(source);
 
-        var typeDecl = Assert.IsType<ClassTypeTypeDeclarationNode>(cu.GetTypes()[0]);
-        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.ClassDeclaration.Members[0]);
+        var typeDecl = Assert.IsType<BodyTypeTypeDeclarationNode>(cu.GetTypes()[0]);
+        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.TypeBody.Members[0]);
         var modifiers = methodMember.Method.Modifiers;
 
         Assert.Contains(modifiers, m => m is AsyncModifierModifierNode);
@@ -129,8 +129,8 @@ public class AsyncParsingTests
         const string source = "class C { public void M() { var t = async foo(); } }";
         var cu = ParseOrFail(source);
 
-        var typeDecl = Assert.IsType<ClassTypeTypeDeclarationNode>(cu.GetTypes()[0]);
-        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.ClassDeclaration.Members[0]);
+        var typeDecl = Assert.IsType<BodyTypeTypeDeclarationNode>(cu.GetTypes()[0]);
+        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.TypeBody.Members[0]);
         var block = methodMember.Method.Body.GetBlock();
         Assert.NotNull(block);
 
@@ -189,8 +189,8 @@ public class AsyncParsingTests
         const string source = "class C { public void M() { var x = await task; } }";
         var cu = ParseOrFail(source);
 
-        var typeDecl = Assert.IsType<ClassTypeTypeDeclarationNode>(cu.GetTypes()[0]);
-        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.ClassDeclaration.Members[0]);
+        var typeDecl = Assert.IsType<BodyTypeTypeDeclarationNode>(cu.GetTypes()[0]);
+        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.TypeBody.Members[0]);
         var block = methodMember.Method.Body.GetBlock();
         Assert.NotNull(block);
 
@@ -254,8 +254,8 @@ public class AsyncParsingTests
         const string source = "class C { public void M() { var x = async foo() + 1; } }";
         var cu = ParseOrFail(source);
 
-        var typeDecl = Assert.IsType<ClassTypeTypeDeclarationNode>(cu.GetTypes()[0]);
-        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.ClassDeclaration.Members[0]);
+        var typeDecl = Assert.IsType<BodyTypeTypeDeclarationNode>(cu.GetTypes()[0]);
+        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.TypeBody.Members[0]);
         var block = methodMember.Method.Body.GetBlock();
         Assert.NotNull(block);
 
@@ -287,8 +287,8 @@ public class AsyncParsingTests
         const string source = "class C { public void M() { var z = await x + y; } }";
         var cu = ParseOrFail(source);
 
-        var typeDecl = Assert.IsType<ClassTypeTypeDeclarationNode>(cu.GetTypes()[0]);
-        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.ClassDeclaration.Members[0]);
+        var typeDecl = Assert.IsType<BodyTypeTypeDeclarationNode>(cu.GetTypes()[0]);
+        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.TypeBody.Members[0]);
         var block = methodMember.Method.Body.GetBlock();
         Assert.NotNull(block);
 

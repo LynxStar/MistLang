@@ -173,32 +173,35 @@ public class NonGenericTypeArgumentPropertyTests
         {
             case NonGenericDeclKind.Class:
                 {
-                    var classDecl = new ClassDeclarationNode
+                    var classDecl = new TypeBodyDeclarationNode
                     {
+                        Keyword = new ClassKeywordTypeKeywordNode(),
                         Name = MakeToken(scenario.NonGenericTypeName),
                         Members = ImmutableArray<MemberDeclarationNode>.Empty,
                     };
-                    nonGenericTypeDecl = new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl };
+                    nonGenericTypeDecl = new BodyTypeTypeDeclarationNode { TypeBody = classDecl };
                     break;
                 }
             case NonGenericDeclKind.Struct:
                 {
-                    var structDecl = new StructDeclarationNode
+                    var structDecl = new TypeBodyDeclarationNode
                     {
+                        Keyword = new StructKeywordTypeKeywordNode(),
                         Name = MakeToken(scenario.NonGenericTypeName),
                         Members = ImmutableArray<MemberDeclarationNode>.Empty,
                     };
-                    nonGenericTypeDecl = new StructTypeTypeDeclarationNode { StructDeclaration = structDecl };
+                    nonGenericTypeDecl = new BodyTypeTypeDeclarationNode { TypeBody = structDecl };
                     break;
                 }
             case NonGenericDeclKind.Abstract:
                 {
-                    var abstractDecl = new AbstractDeclarationNode
+                    var abstractDecl = new TypeBodyDeclarationNode
                     {
+                        Keyword = new AbstractKeywordTypeKeywordNode(),
                         Name = MakeToken(scenario.NonGenericTypeName),
-                        Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
+                        Members = ImmutableArray<MemberDeclarationNode>.Empty,
                     };
-                    nonGenericTypeDecl = new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl };
+                    nonGenericTypeDecl = new BodyTypeTypeDeclarationNode { TypeBody = abstractDecl };
                     break;
                 }
             default:
@@ -214,14 +217,15 @@ public class NonGenericTypeArgumentPropertyTests
         var fieldTypeRef = MakeNamedTypeRef(scenario.NonGenericTypeName, typeArgList);
         var fieldMember = MakeFieldMember(scenario.FieldName, fieldTypeRef);
 
-        var holderClassDecl = new ClassDeclarationNode
+        var holderClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(scenario.HolderTypeName),
             Members = ImmutableArray.Create(fieldMember),
         };
 
         var ast = MakeCompilationUnit(nonGenericTypeDecl,
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = holderClassDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = holderClassDecl });
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
@@ -240,8 +244,9 @@ public class NonGenericTypeArgumentPropertyTests
     {
         // class Simple { }
         // class Holder { Simple<int> field; }
-        var simpleClassDecl = new ClassDeclarationNode
+        var simpleClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Simple"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -250,15 +255,16 @@ public class NonGenericTypeArgumentPropertyTests
         var fieldTypeRef = MakeNamedTypeRef("Simple", typeArgList);
         var fieldMember = MakeFieldMember("field", fieldTypeRef);
 
-        var holderClassDecl = new ClassDeclarationNode
+        var holderClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Holder"),
             Members = ImmutableArray.Create(fieldMember),
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = simpleClassDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = holderClassDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = simpleClassDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = holderClassDecl });
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
@@ -272,8 +278,9 @@ public class NonGenericTypeArgumentPropertyTests
     {
         // struct Point { }
         // class Holder { Point<int> field; }
-        var structDecl = new StructDeclarationNode
+        var structDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Name = MakeToken("Point"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -282,15 +289,16 @@ public class NonGenericTypeArgumentPropertyTests
         var fieldTypeRef = MakeNamedTypeRef("Point", typeArgList);
         var fieldMember = MakeFieldMember("field", fieldTypeRef);
 
-        var holderClassDecl = new ClassDeclarationNode
+        var holderClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Holder"),
             Members = ImmutableArray.Create(fieldMember),
         };
 
         var ast = MakeCompilationUnit(
-            new StructTypeTypeDeclarationNode { StructDeclaration = structDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = holderClassDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = structDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = holderClassDecl });
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
@@ -304,25 +312,27 @@ public class NonGenericTypeArgumentPropertyTests
     {
         // abstract ISimple { }
         // class Holder { ISimple<int> field; }
-        var abstractDecl = new AbstractDeclarationNode
+        var abstractDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new AbstractKeywordTypeKeywordNode(),
             Name = MakeToken("ISimple"),
-            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
         var typeArgList = MakeTypeArgList([MakePrimitiveTypeRef("int")]);
         var fieldTypeRef = MakeNamedTypeRef("ISimple", typeArgList);
         var fieldMember = MakeFieldMember("field", fieldTypeRef);
 
-        var holderClassDecl = new ClassDeclarationNode
+        var holderClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Holder"),
             Members = ImmutableArray.Create(fieldMember),
         };
 
         var ast = MakeCompilationUnit(
-            new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = holderClassDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = abstractDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = holderClassDecl });
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
@@ -336,8 +346,9 @@ public class NonGenericTypeArgumentPropertyTests
     {
         // class Simple { }
         // class Holder { Simple<int, string> field; }
-        var simpleClassDecl = new ClassDeclarationNode
+        var simpleClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Simple"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -346,15 +357,16 @@ public class NonGenericTypeArgumentPropertyTests
         var fieldTypeRef = MakeNamedTypeRef("Simple", typeArgList);
         var fieldMember = MakeFieldMember("field", fieldTypeRef);
 
-        var holderClassDecl = new ClassDeclarationNode
+        var holderClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Holder"),
             Members = ImmutableArray.Create(fieldMember),
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = simpleClassDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = holderClassDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = simpleClassDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = holderClassDecl });
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 

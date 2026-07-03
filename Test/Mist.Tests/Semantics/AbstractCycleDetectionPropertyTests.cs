@@ -69,14 +69,15 @@ public class AbstractCycleDetectionPropertyTests
 
     // ─── AST construction helpers ────────────────────────────────────────
 
-    private static AbstractDeclarationNode MakeAbstractDecl(
+    private static TypeBodyDeclarationNode MakeAbstractDecl(
         string name,
         string? parentAbstractName = null)
     {
-        var decl = new AbstractDeclarationNode
+        var decl = new TypeBodyDeclarationNode
         {
+            Keyword = new AbstractKeywordTypeKeywordNode(),
             Name = MakeToken(name),
-            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
         if(parentAbstractName is not null)
@@ -92,10 +93,10 @@ public class AbstractCycleDetectionPropertyTests
     }
 
     private static CompilationUnitNode MakeCompilationUnit(
-        params AbstractDeclarationNode[] abstractDecls)
+        params TypeBodyDeclarationNode[] abstractDecls)
     {
         var types = abstractDecls.Select(i =>
-            (TypeDeclarationNode)new AbstractTypeTypeDeclarationNode { AbstractDeclaration = i })
+            (TypeDeclarationNode)new BodyTypeTypeDeclarationNode { TypeBody = i })
             .ToImmutableArray();
 
         return new CompilationUnitNode { Items = types.AsTopLevelItems() };

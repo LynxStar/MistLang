@@ -193,8 +193,9 @@ public class AwaitDesugarsToDropEquivalenceTests
         };
 
         // Build the class
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok(scenario.ClassName),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = targetMethod },
@@ -204,7 +205,7 @@ public class AwaitDesugarsToDropEquivalenceTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         return (ast, awaitExprNode);
@@ -309,15 +310,16 @@ public class AwaitDesugarsToDropEquivalenceTests
     public void ValueTask_HasDrop_WithTResultReturnType()
     {
         // Build a minimal AST (just need the stdlib loaded to inspect ValueTask)
-        var emptyClass = new ClassDeclarationNode
+        var emptyClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Placeholder"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = emptyClass }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = emptyClass }).AsTopLevelItems(),
         };
 
         var (model, _) = StdlibTestHelper.BuildModelWithStdlib(ast);
@@ -356,15 +358,16 @@ public class AwaitDesugarsToDropEquivalenceTests
     public void Task_HasDrop_WithTResultReturnType()
     {
         // Build a minimal AST (just need the stdlib loaded to inspect Task)
-        var emptyClass = new ClassDeclarationNode
+        var emptyClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Placeholder"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = emptyClass }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = emptyClass }).AsTopLevelItems(),
         };
 
         var (model, _) = StdlibTestHelper.BuildModelWithStdlib(ast);
@@ -403,15 +406,16 @@ public class AwaitDesugarsToDropEquivalenceTests
     [Fact]
     public void TaskAndValueTask_DropReturnType_MatchesTypeArgument()
     {
-        var emptyClass = new ClassDeclarationNode
+        var emptyClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Placeholder"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = emptyClass }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = emptyClass }).AsTopLevelItems(),
         };
 
         var (model, _) = StdlibTestHelper.BuildModelWithStdlib(ast);

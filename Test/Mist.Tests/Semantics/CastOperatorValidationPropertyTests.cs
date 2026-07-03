@@ -310,18 +310,20 @@ public class CastOperatorValidationPropertyTests
             });
 
         var typeDecl = isStruct
-            ? new StructTypeTypeDeclarationNode
+            ? new BodyTypeTypeDeclarationNode
             {
-                StructDeclaration = new StructDeclarationNode
+                TypeBody = new TypeBodyDeclarationNode
                 {
+                    Keyword = new StructKeywordTypeKeywordNode(),
                     Name = Tok(enclosingTypeName),
                     Members = members,
                 },
             }
-            : (TypeDeclarationNode)new ClassTypeTypeDeclarationNode
+            : (TypeDeclarationNode)new BodyTypeTypeDeclarationNode
             {
-                ClassDeclaration = new ClassDeclarationNode
+                TypeBody = new TypeBodyDeclarationNode
                 {
+                    Keyword = new ClassKeywordTypeKeywordNode(),
                     Name = Tok(enclosingTypeName),
                     Members = members,
                 },

@@ -255,8 +255,9 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
             Type = MakeNamedTypeRef("T"),
         };
 
-        var resultClass = new ClassDeclarationNode
+        var resultClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Result"),
             TypeParams = MakeTypeParamList(["T"]),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
@@ -278,8 +279,9 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
             },
         };
 
-        var programClass = new ClassDeclarationNode
+        var programClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 resultFieldMember,
@@ -287,8 +289,8 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = resultClass },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass });
+            new BodyTypeTypeDeclarationNode { TypeBody = resultClass },
+            new BodyTypeTypeDeclarationNode { TypeBody = programClass });
 
         var source = "class Result<T> { T value; } class Program { Result<void> result; public static void Main() { } }";
 
@@ -332,15 +334,16 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
         var varDecl = MakeInferredVarDeclStatement("x", MakeVoidDotVoidExpression());
         var mainMethod = MakeMainMethod(ImmutableArray.Create(varDecl));
 
-        var programClass = new ClassDeclarationNode
+        var programClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass });
+            new BodyTypeTypeDeclarationNode { TypeBody = programClass });
 
         var source = "class Program { public static void Main() { var x = Void.Void; } }";
 
@@ -429,8 +432,9 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
         var callStmt = MakeExpressionStatement(callExpr);
         var mainMethod = MakeMainMethod(ImmutableArray.Create(callStmt));
 
-        var programClass = new ClassDeclarationNode
+        var programClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = doWorkMethod },
@@ -438,7 +442,7 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass });
+            new BodyTypeTypeDeclarationNode { TypeBody = programClass });
 
         var source = "class Program { public void DoWork() { return; } public static void Main() { DoWork(); } }";
 
@@ -500,8 +504,9 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
         var varDecl = MakeInferredVarDeclStatement("result", callExpr);
         var mainMethod = MakeMainMethod(ImmutableArray.Create(varDecl));
 
-        var programClass = new ClassDeclarationNode
+        var programClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = doWorkMethod },
@@ -509,7 +514,7 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass });
+            new BodyTypeTypeDeclarationNode { TypeBody = programClass });
 
         var source = "class Program { public void DoWork() { return; } public static void Main() { var result = DoWork(); } }";
 

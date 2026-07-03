@@ -184,8 +184,9 @@ public sealed class ValueTaskEmissionPropertyTests : IDisposable
             members.Add(new MethodMemberMemberDeclarationNode { Method = callerMethod });
         }
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok(scenario.ClassName),
             Members = members.ToImmutable(),
         };
@@ -193,7 +194,7 @@ public sealed class ValueTaskEmissionPropertyTests : IDisposable
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
     }
 
@@ -524,15 +525,16 @@ public sealed class ValueTaskEmissionPropertyTests : IDisposable
     public void InboundClrValueTask_ProjectsToMistValueTaskType()
     {
         // Build a minimal AST (just need stdlib loaded to inspect ValueTask)
-        var emptyClass = new ClassDeclarationNode
+        var emptyClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Placeholder"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = emptyClass }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = emptyClass }).AsTopLevelItems(),
         };
 
         var (model, _) = StdlibTestHelper.BuildModelWithStdlib(ast);

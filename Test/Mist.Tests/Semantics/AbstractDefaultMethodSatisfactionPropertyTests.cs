@@ -107,13 +107,14 @@ public class AbstractDefaultMethodSatisfactionPropertyTests
     // ─── Declaration construction helpers ────────────────────────────────
 
     /// <summary>A slot: an abstract method with no body.</summary>
-    private static AbstractMethodDeclarationNode MakeSlot(string name, TypeReferenceNode? returnType = null)
+    private static MethodDeclarationNode MakeSlot(string name, TypeReferenceNode? returnType = null)
     {
         return new()
         {
             Name = MakeToken(name),
             ReturnType = returnType ?? VoidType(),
             Parameters = null,
+            Body = new MethodNoBodyMethodBodyNode(),
         };
     }
 
@@ -137,26 +138,27 @@ public class AbstractDefaultMethodSatisfactionPropertyTests
     /// Builds an abstract declaration with the given slot names (no body) and default
     /// method names (with body), optionally inheriting from a parent abstract.
     /// </summary>
-    private static AbstractDeclarationNode MakeAbstractDecl(
+    private static TypeBodyDeclarationNode MakeAbstractDecl(
         string name,
         IEnumerable<string> slotNames,
         IEnumerable<string> defaultNames,
         string? parentAbstractName = null)
     {
-        var members = ImmutableArray.CreateBuilder<AbstractMemberDeclarationNode>();
+        var members = ImmutableArray.CreateBuilder<MemberDeclarationNode>();
 
         foreach(var slot in slotNames)
         {
-            members.Add(new AbstractMethodMemberAbstractMemberDeclarationNode { Method = MakeSlot(slot) });
+            members.Add(new MethodMemberMemberDeclarationNode { Method = MakeSlot(slot) });
         }
 
         foreach(var def in defaultNames)
         {
-            members.Add(new AbstractDefaultMethodMemberAbstractMemberDeclarationNode { DefaultMethod = MakeMethod(def) });
+            members.Add(new MethodMemberMemberDeclarationNode { Method = MakeMethod(def) });
         }
 
-        var decl = new AbstractDeclarationNode
+        var decl = new TypeBodyDeclarationNode
         {
+            Keyword = new AbstractKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members.ToImmutable(),
         };
@@ -171,7 +173,7 @@ public class AbstractDefaultMethodSatisfactionPropertyTests
         return decl;
     }
 
-    private static ClassDeclarationNode MakeClassDecl(
+    private static TypeBodyDeclarationNode MakeClassDecl(
         string name,
         string abstractName,
         IEnumerable<MethodDeclarationNode> methods)
@@ -180,8 +182,9 @@ public class AbstractDefaultMethodSatisfactionPropertyTests
             .Select(m => (MemberDeclarationNode)new MethodMemberMemberDeclarationNode { Method = m })
             .ToImmutableArray();
 
-        var decl = new ClassDeclarationNode
+        var decl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members,
         };
@@ -192,14 +195,14 @@ public class AbstractDefaultMethodSatisfactionPropertyTests
         return decl;
     }
 
-    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode decl)
+    private static TypeDeclarationNode WrapAbstract(TypeBodyDeclarationNode decl)
     {
-        return new AbstractTypeTypeDeclarationNode { AbstractDeclaration = decl };
+        return new BodyTypeTypeDeclarationNode { TypeBody = decl };
     }
 
-    private static TypeDeclarationNode WrapClass(ClassDeclarationNode decl)
+    private static TypeDeclarationNode WrapClass(TypeBodyDeclarationNode decl)
     {
-        return new ClassTypeTypeDeclarationNode { ClassDeclaration = decl };
+        return new BodyTypeTypeDeclarationNode { TypeBody = decl };
     }
 
     private static CompilationUnitNode MakeCompilationUnit(params TypeDeclarationNode[] typeDecls)
@@ -357,11 +360,12 @@ public class AbstractDefaultMethodSatisfactionPropertyTests
     {
         // Slot: int Compute()
         var slot = MakeSlot("Compute", IntType());
-        var abstractDecl = new AbstractDeclarationNode
+        var abstractDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new AbstractKeywordTypeKeywordNode(),
             Name = MakeToken("IComputer"),
-            Members = ImmutableArray.Create<AbstractMemberDeclarationNode>(
-                new AbstractMethodMemberAbstractMemberDeclarationNode { Method = slot }),
+            Members = ImmutableArray.Create<MemberDeclarationNode>(
+                new MethodMemberMemberDeclarationNode { Method = slot }),
         };
 
         // Impl: int Compute() (match) OR void Compute() (mismatch)

@@ -75,10 +75,11 @@ public sealed class UndefinedNamespaceDiagnosticPropertyTests
             lexeme: lexeme);
     }
 
-    private static ClassDeclarationNode MakeClass(string name)
+    private static TypeBodyDeclarationNode MakeClass(string name)
     {
-        return new ClassDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -115,7 +116,7 @@ public sealed class UndefinedNamespaceDiagnosticPropertyTests
         {
             Usings = ImmutableArray.Create(usingDecl),
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var sourceText = new SourceText("/project/File.mist", $"using {fakeNs.Value}; class C {{ }}");

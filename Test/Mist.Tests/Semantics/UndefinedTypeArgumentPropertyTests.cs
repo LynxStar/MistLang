@@ -171,8 +171,9 @@ public class UndefinedTypeArgumentPropertyTests
     public bool UndefinedTypeArg_EmitsDiagnostic(UndefinedTypeArgScenario scenario)
     {
         // Build AST: generic class + holder class with a field using undefined type args
-        var genericClassDecl = new ClassDeclarationNode
+        var genericClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(scenario.GenericTypeName),
             TypeParams = MakeTypeParamList(scenario.TypeParamNames.ToArray()),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -187,15 +188,16 @@ public class UndefinedTypeArgumentPropertyTests
         var fieldTypeRef = MakeNamedTypeRef(scenario.GenericTypeName, typeArgList);
         var fieldMember = MakeFieldMember(scenario.FieldName, fieldTypeRef);
 
-        var holderClassDecl = new ClassDeclarationNode
+        var holderClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(scenario.HolderTypeName),
             Members = ImmutableArray.Create(fieldMember),
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = genericClassDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = holderClassDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = genericClassDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = holderClassDecl });
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
@@ -214,8 +216,9 @@ public class UndefinedTypeArgumentPropertyTests
     {
         // class Box<T> { }
         // class Holder { Box<Nonexistent> field; }
-        var genericClassDecl = new ClassDeclarationNode
+        var genericClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Box"),
             TypeParams = MakeTypeParamList(["T"]),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -225,15 +228,16 @@ public class UndefinedTypeArgumentPropertyTests
         var fieldTypeRef = MakeNamedTypeRef("Box", typeArgList);
         var fieldMember = MakeFieldMember("field", fieldTypeRef);
 
-        var holderClassDecl = new ClassDeclarationNode
+        var holderClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Holder"),
             Members = ImmutableArray.Create(fieldMember),
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = genericClassDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = holderClassDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = genericClassDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = holderClassDecl });
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
@@ -247,8 +251,9 @@ public class UndefinedTypeArgumentPropertyTests
     {
         // class Map<K, V> { }
         // class Holder { Map<Missing, Unknown> field; }
-        var genericClassDecl = new ClassDeclarationNode
+        var genericClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Map"),
             TypeParams = MakeTypeParamList(["K", "V"]),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -258,15 +263,16 @@ public class UndefinedTypeArgumentPropertyTests
         var fieldTypeRef = MakeNamedTypeRef("Map", typeArgList);
         var fieldMember = MakeFieldMember("field", fieldTypeRef);
 
-        var holderClassDecl = new ClassDeclarationNode
+        var holderClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Holder"),
             Members = ImmutableArray.Create(fieldMember),
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = genericClassDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = holderClassDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = genericClassDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = holderClassDecl });
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
@@ -280,15 +286,17 @@ public class UndefinedTypeArgumentPropertyTests
         // class Box<T> { }
         // class Map<K, V> { }
         // class Holder { Map<int, Nonexistent> field; }
-        var boxClassDecl = new ClassDeclarationNode
+        var boxClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Box"),
             TypeParams = MakeTypeParamList(["T"]),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        var mapClassDecl = new ClassDeclarationNode
+        var mapClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Map"),
             TypeParams = MakeTypeParamList(["K", "V"]),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -301,16 +309,17 @@ public class UndefinedTypeArgumentPropertyTests
         var fieldTypeRef = MakeNamedTypeRef("Map", typeArgList);
         var fieldMember = MakeFieldMember("field", fieldTypeRef);
 
-        var holderClassDecl = new ClassDeclarationNode
+        var holderClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Holder"),
             Members = ImmutableArray.Create(fieldMember),
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = boxClassDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = mapClassDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = holderClassDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = boxClassDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = mapClassDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = holderClassDecl });
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 

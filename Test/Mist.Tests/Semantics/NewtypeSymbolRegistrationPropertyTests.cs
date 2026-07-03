@@ -117,9 +117,12 @@ public class NewtypeSymbolRegistrationPropertyTests
             SourceType = MakeTypeRef(scenario.SourceTypeText),
         };
 
-        var newtypeItem = new NewtypeItemTopLevelItemNode
+        var newtypeItem = new TypeItemTopLevelItemNode
         {
-            NewtypeDeclaration = newtypeDecl,
+            TypeDeclaration = new NewtypeTypeTypeDeclarationNode
+            {
+                NewtypeDeclaration = newtypeDecl,
+            },
         };
 
         return new CompilationUnitNode

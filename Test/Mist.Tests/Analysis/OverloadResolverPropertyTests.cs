@@ -134,8 +134,9 @@ public class OverloadResolverPropertyTests
         var members = methods.Select(m =>
             (MemberDeclarationNode)new MethodMemberMemberDeclarationNode { Method = m }).ToImmutableArray();
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(className),
             Members = members,
         };
@@ -143,7 +144,7 @@ public class OverloadResolverPropertyTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         return BuildModel(ast);
@@ -158,8 +159,9 @@ public class OverloadResolverPropertyTests
         var members = methods.Select(m =>
             (MemberDeclarationNode)new MethodMemberMemberDeclarationNode { Method = m }).ToImmutableArray();
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(className),
             Members = members,
         };
@@ -167,7 +169,7 @@ public class OverloadResolverPropertyTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var (model, _) = StdlibTestHelper.BuildModelWithStdlib(ast);

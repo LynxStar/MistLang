@@ -329,12 +329,13 @@ public class ExtensionRegistrationPropertyTests
     private static CompilationUnitNode BuildAst(RegistrationScenario scenario)
     {
         // First, declare the receiver type as a class so it can be resolved
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok(scenario.ReceiverTypeName),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
-        var classTypeDecl = new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl };
+        var classTypeDecl = new BodyTypeTypeDeclarationNode { TypeBody = classDecl };
 
         // Build extension blocks
         var items = ImmutableArray.CreateBuilder<TopLevelItemNode>();

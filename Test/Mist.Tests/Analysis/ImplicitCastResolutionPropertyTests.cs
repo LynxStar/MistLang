@@ -302,10 +302,11 @@ public class ImplicitCastResolutionPropertyTests
     /// </summary>
     private static TypeDeclarationNode MakeEmptyClassDecl(string name)
     {
-        return new ClassTypeTypeDeclarationNode
+        return new BodyTypeTypeDeclarationNode
         {
-            ClassDeclaration = new ClassDeclarationNode
+            TypeBody = new TypeBodyDeclarationNode
             {
+                Keyword = new ClassKeywordTypeKeywordNode(),
                 Name = Tok(name),
                 Members = ImmutableArray<MemberDeclarationNode>.Empty,
             },
@@ -318,10 +319,11 @@ public class ImplicitCastResolutionPropertyTests
     private static TypeDeclarationNode MakeClassDeclWithMembers(
         string name, ImmutableArray<MemberDeclarationNode> members)
     {
-        return new ClassTypeTypeDeclarationNode
+        return new BodyTypeTypeDeclarationNode
         {
-            ClassDeclaration = new ClassDeclarationNode
+            TypeBody = new TypeBodyDeclarationNode
             {
+                Keyword = new ClassKeywordTypeKeywordNode(),
                 Name = Tok(name),
                 Members = members,
             },

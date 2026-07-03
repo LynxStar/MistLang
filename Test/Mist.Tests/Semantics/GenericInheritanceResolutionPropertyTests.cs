@@ -258,8 +258,9 @@ public class GenericInheritanceResolutionPropertyTests
     public bool GenericBaseClass_ResolvesToConstructedTypeWithTypeParams(GenericBaseClassScenario scenario)
     {
         // Build AST: generic base class + generic derived class inheriting from it with forwarded type params
-        var baseClassDecl = new ClassDeclarationNode
+        var baseClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(scenario.BaseName),
             TypeParams = MakeTypeParamList(scenario.TypeParamNames.ToArray()),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -273,8 +274,9 @@ public class GenericInheritanceResolutionPropertyTests
 
         var baseList = MakeBaseList([MakeBaseTypeRef(scenario.BaseName, typeArgList)]);
 
-        var derivedClassDecl = new ClassDeclarationNode
+        var derivedClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(scenario.DerivedName),
             TypeParams = MakeTypeParamList(scenario.TypeParamNames.ToArray()),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -283,8 +285,8 @@ public class GenericInheritanceResolutionPropertyTests
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = baseClassDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedClassDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = baseClassDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = derivedClassDecl });
 
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);
 
@@ -357,8 +359,9 @@ public class GenericInheritanceResolutionPropertyTests
     public bool ConcreteBaseClass_ResolvesToConstructedTypeWithConcreteArgs(ConcreteBaseClassScenario scenario)
     {
         // Build AST: generic base class + non-generic derived class with concrete type args
-        var baseClassDecl = new ClassDeclarationNode
+        var baseClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(scenario.BaseName),
             TypeParams = MakeTypeParamList(scenario.BaseTypeParamNames.ToArray()),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -372,8 +375,9 @@ public class GenericInheritanceResolutionPropertyTests
 
         var baseList = MakeBaseList([MakeBaseTypeRef(scenario.BaseName, typeArgList)]);
 
-        var derivedClassDecl = new ClassDeclarationNode
+        var derivedClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(scenario.DerivedName),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
             BaseClause = baseList,
@@ -381,8 +385,8 @@ public class GenericInheritanceResolutionPropertyTests
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = baseClassDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedClassDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = baseClassDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = derivedClassDecl });
 
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);
 
@@ -454,15 +458,16 @@ public class GenericInheritanceResolutionPropertyTests
     public bool GenericAbstract_ResolvesToConstructedTypeWithCorrectArgs(GenericAbstractScenario scenario)
     {
         // Build AST: generic abstract type + class implementing it
-        var abstractDecl = new AbstractDeclarationNode
+        var abstractDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new AbstractKeywordTypeKeywordNode(),
             Name = MakeToken(scenario.AbstractName),
             TypeParams = MakeTypeParamList(scenario.TypeParamNames.ToArray()),
-            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
         TypeArgumentListNode typeArgList;
-        ClassDeclarationNode classDecl;
+        TypeBodyDeclarationNode classDecl;
 
         if(scenario.TypeIsGeneric)
         {
@@ -474,8 +479,9 @@ public class GenericInheritanceResolutionPropertyTests
 
             var baseList = MakeBaseList([MakeBaseTypeRef(scenario.AbstractName, typeArgList)]);
 
-            classDecl = new ClassDeclarationNode
+            classDecl = new TypeBodyDeclarationNode
             {
+                Keyword = new ClassKeywordTypeKeywordNode(),
                 Name = MakeToken(scenario.TypeName),
                 TypeParams = MakeTypeParamList(scenario.TypeParamNames.ToArray()),
                 Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -493,8 +499,9 @@ public class GenericInheritanceResolutionPropertyTests
 
             var baseList = MakeBaseList([MakeBaseTypeRef(scenario.AbstractName, typeArgList)]);
 
-            classDecl = new ClassDeclarationNode
+            classDecl = new TypeBodyDeclarationNode
             {
+                Keyword = new ClassKeywordTypeKeywordNode(),
                 Name = MakeToken(scenario.TypeName),
                 Members = ImmutableArray<MemberDeclarationNode>.Empty,
                 BaseClause = baseList,
@@ -503,8 +510,8 @@ public class GenericInheritanceResolutionPropertyTests
         }
 
         var ast = MakeCompilationUnit(
-            new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = abstractDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
 
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);
 
@@ -592,8 +599,9 @@ public class GenericInheritanceResolutionPropertyTests
     {
         // class Base<T> { }
         // class Derived<T> : Base<T> { }
-        var baseClassDecl = new ClassDeclarationNode
+        var baseClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Base"),
             TypeParams = MakeTypeParamList(["T"]),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -602,8 +610,9 @@ public class GenericInheritanceResolutionPropertyTests
         var typeArgList = MakeTypeArgList([MakeNamedTypeRef("T")]);
         var baseList = MakeBaseList([MakeBaseTypeRef("Base", typeArgList)]);
 
-        var derivedClassDecl = new ClassDeclarationNode
+        var derivedClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Derived"),
             TypeParams = MakeTypeParamList(["T"]),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -612,8 +621,8 @@ public class GenericInheritanceResolutionPropertyTests
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = baseClassDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedClassDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = baseClassDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = derivedClassDecl });
 
         var (model, _) = BuildModelWithDiagnostics(ast);
 
@@ -632,8 +641,9 @@ public class GenericInheritanceResolutionPropertyTests
     {
         // class Base<T> { }
         // class IntChild : Base<int> { }
-        var baseClassDecl = new ClassDeclarationNode
+        var baseClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Base"),
             TypeParams = MakeTypeParamList(["T"]),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -642,8 +652,9 @@ public class GenericInheritanceResolutionPropertyTests
         var typeArgList = MakeTypeArgList([MakePrimitiveTypeRef("int")]);
         var baseList = MakeBaseList([MakeBaseTypeRef("Base", typeArgList)]);
 
-        var derivedClassDecl = new ClassDeclarationNode
+        var derivedClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("IntChild"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
             BaseClause = baseList,
@@ -651,8 +662,8 @@ public class GenericInheritanceResolutionPropertyTests
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = baseClassDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedClassDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = baseClassDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = derivedClassDecl });
 
         var (model, _) = BuildModelWithDiagnostics(ast);
 
@@ -670,18 +681,20 @@ public class GenericInheritanceResolutionPropertyTests
     {
         // abstract IContainer<T> { }
         // class Box<T> : IContainer<T> { }
-        var abstractDecl = new AbstractDeclarationNode
+        var abstractDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new AbstractKeywordTypeKeywordNode(),
             Name = MakeToken("IContainer"),
             TypeParams = MakeTypeParamList(["T"]),
-            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
         var typeArgList = MakeTypeArgList([MakeNamedTypeRef("T")]);
         var baseList = MakeBaseList([MakeBaseTypeRef("IContainer", typeArgList)]);
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Box"),
             TypeParams = MakeTypeParamList(["T"]),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -690,8 +703,8 @@ public class GenericInheritanceResolutionPropertyTests
         };
 
         var ast = MakeCompilationUnit(
-            new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = abstractDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
 
         var (model, _) = BuildModelWithDiagnostics(ast);
 
@@ -711,8 +724,9 @@ public class GenericInheritanceResolutionPropertyTests
     {
         // class Map<K, V> { }
         // class OrderedMap<K, V> : Map<K, V> { }
-        var baseClassDecl = new ClassDeclarationNode
+        var baseClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Map"),
             TypeParams = MakeTypeParamList(["K", "V"]),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -721,8 +735,9 @@ public class GenericInheritanceResolutionPropertyTests
         var typeArgList = MakeTypeArgList([MakeNamedTypeRef("K"), MakeNamedTypeRef("V")]);
         var baseList = MakeBaseList([MakeBaseTypeRef("Map", typeArgList)]);
 
-        var derivedClassDecl = new ClassDeclarationNode
+        var derivedClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("OrderedMap"),
             TypeParams = MakeTypeParamList(["K", "V"]),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -731,8 +746,8 @@ public class GenericInheritanceResolutionPropertyTests
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = baseClassDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedClassDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = baseClassDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = derivedClassDecl });
 
         var (model, _) = BuildModelWithDiagnostics(ast);
 

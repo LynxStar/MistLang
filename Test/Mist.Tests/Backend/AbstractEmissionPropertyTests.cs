@@ -75,28 +75,30 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
         };
     }
 
-    private static AbstractMethodDeclarationNode MakeAbstractMethod(
+    private static MethodDeclarationNode MakeAbstractMethod(
         string name,
         TypeReferenceNode? returnType = null)
     {
-        return new AbstractMethodDeclarationNode
+        return new MethodDeclarationNode
         {
             Name = MakeToken(name),
             ReturnType = returnType ?? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
+            Body = new MethodNoBodyMethodBodyNode(),
         };
     }
 
-    private static AbstractDeclarationNode MakeAbstractDecl(
+    private static TypeBodyDeclarationNode MakeAbstractDecl(
         string name,
-        ImmutableArray<AbstractMethodDeclarationNode> methods,
+        ImmutableArray<MethodDeclarationNode> methods,
         string? parentAbstractName = null)
     {
         var members = methods.Select(m =>
-            (AbstractMemberDeclarationNode)new AbstractMethodMemberAbstractMemberDeclarationNode { Method = m })
+            (MemberDeclarationNode)new MethodMemberMemberDeclarationNode { Method = m })
             .ToImmutableArray();
-        var decl = new AbstractDeclarationNode
+        var decl = new TypeBodyDeclarationNode
         {
+            Keyword = new AbstractKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members,
         };
@@ -113,13 +115,14 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
         return decl;
     }
 
-    private static ClassDeclarationNode MakeClassDecl(
+    private static TypeBodyDeclarationNode MakeClassDecl(
         string name,
         string? baseClassName = null,
         ImmutableArray<MemberDeclarationNode>? members = null)
     {
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -136,13 +139,14 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
         return classDecl;
     }
 
-    private static StructDeclarationNode MakeStructDecl(
+    private static TypeBodyDeclarationNode MakeStructDecl(
         string name,
         string? abstractName = null,
         ImmutableArray<MemberDeclarationNode>? members = null)
     {
-        var decl = new StructDeclarationNode
+        var decl = new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -159,19 +163,19 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
         return decl;
     }
 
-    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode decl)
+    private static TypeDeclarationNode WrapAbstract(TypeBodyDeclarationNode decl)
     {
-        return new AbstractTypeTypeDeclarationNode { AbstractDeclaration = decl };
+        return new BodyTypeTypeDeclarationNode { TypeBody = decl };
     }
 
-    private static TypeDeclarationNode WrapClass(ClassDeclarationNode decl)
+    private static TypeDeclarationNode WrapClass(TypeBodyDeclarationNode decl)
     {
-        return new ClassTypeTypeDeclarationNode { ClassDeclaration = decl };
+        return new BodyTypeTypeDeclarationNode { TypeBody = decl };
     }
 
-    private static TypeDeclarationNode WrapStruct(StructDeclarationNode decl)
+    private static TypeDeclarationNode WrapStruct(TypeBodyDeclarationNode decl)
     {
-        return new StructTypeTypeDeclarationNode { StructDeclaration = decl };
+        return new BodyTypeTypeDeclarationNode { TypeBody = decl };
     }
 
     private ISemanticModel BuildModel(CompilationUnitNode ast, string source)
@@ -213,7 +217,7 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
     /// Builds a Program class with a static void Main() entry point.
     /// Required for the emitter to produce valid C# output.
     /// </summary>
-    private static ClassDeclarationNode MakeProgramClass()
+    private static TypeBodyDeclarationNode MakeProgramClass()
     {
         var mainMethod = new MethodDeclarationNode
         {
@@ -226,8 +230,9 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        return new ClassDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -642,7 +647,7 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
         var baseAbstract = MakeAbstractDecl("IBase",
             ImmutableArray.Create(MakeAbstractMethod("BaseMethod")));
         var derivedAbstract = MakeAbstractDecl("IDerived",
-            ImmutableArray<AbstractMethodDeclarationNode>.Empty,
+            ImmutableArray<MethodDeclarationNode>.Empty,
             "IBase");
 
         var source = "abstract IBase {\n    void BaseMethod();\n}\nabstract IDerived : IBase {\n}\nclass Program { public static void Main() { } }";
@@ -722,7 +727,7 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
         CleanOutputDir();
 
         var abstractDecl = MakeAbstractDecl("IEmpty",
-            ImmutableArray<AbstractMethodDeclarationNode>.Empty);
+            ImmutableArray<MethodDeclarationNode>.Empty);
 
         var source = "abstract IEmpty {\n}\nclass Program { public static void Main() { } }";
 

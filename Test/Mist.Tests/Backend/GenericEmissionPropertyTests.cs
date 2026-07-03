@@ -248,7 +248,7 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
         }
     }
 
-    private static ClassDeclarationNode MakeProgramClass(ImmutableArray<StatementNode> mainStatements)
+    private static TypeBodyDeclarationNode MakeProgramClass(ImmutableArray<StatementNode> mainStatements)
     {
         var mainMethod = new MethodDeclarationNode
         {
@@ -261,8 +261,9 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        return new ClassDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -479,14 +480,15 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
             },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok(scenario.TypeName),
             TypeParams = MakeTypeParamList(scenario.TypeParams),
             Members = ImmutableArray.Create<MemberDeclarationNode>(fieldMember),
         };
-        typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
-        typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = MakeProgramClass(ImmutableArray<StatementNode>.Empty) });
+        typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
+        typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = MakeProgramClass(ImmutableArray<StatementNode>.Empty) });
 
         var tpList = string.Join(", ", scenario.TypeParams);
         var source = $"class {scenario.TypeName}<{tpList}> {{ public {scenario.TypeParams[0]} value; }}\nclass Program {{ public static void Main() {{ }} }}";
@@ -501,14 +503,15 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
     {
         var typeDecls = new List<TypeDeclarationNode>();
 
-        var structDecl = new StructDeclarationNode
+        var structDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Name = Tok(scenario.TypeName),
             TypeParams = MakeTypeParamList(scenario.TypeParams),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
-        typeDecls.Add(new StructTypeTypeDeclarationNode { StructDeclaration = structDecl });
-        typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = MakeProgramClass(ImmutableArray<StatementNode>.Empty) });
+        typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = structDecl });
+        typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = MakeProgramClass(ImmutableArray<StatementNode>.Empty) });
 
         var tpList = string.Join(", ", scenario.TypeParams);
         var source = $"struct {scenario.TypeName}<{tpList}> {{ }}\nclass Program {{ public static void Main() {{ }} }}";
@@ -523,14 +526,15 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
     {
         var typeDecls = new List<TypeDeclarationNode>();
 
-        var abstractDecl = new AbstractDeclarationNode
+        var abstractDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new AbstractKeywordTypeKeywordNode(),
             Name = Tok(scenario.TypeName),
             TypeParams = MakeTypeParamList(scenario.TypeParams),
-            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
-        typeDecls.Add(new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl });
-        typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = MakeProgramClass(ImmutableArray<StatementNode>.Empty) });
+        typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = abstractDecl });
+        typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = MakeProgramClass(ImmutableArray<StatementNode>.Empty) });
 
         var tpList = string.Join(", ", scenario.TypeParams);
         var source = $"abstract {scenario.TypeName}<{tpList}> {{ }}\nclass Program {{ public static void Main() {{ }} }}";
@@ -568,14 +572,15 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok(scenario.TypeName),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = methodDecl }),
         };
-        typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
-        typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = MakeProgramClass(ImmutableArray<StatementNode>.Empty) });
+        typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
+        typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = MakeProgramClass(ImmutableArray<StatementNode>.Empty) });
 
         var source = $"class {scenario.TypeName} {{ public T DoIt<T>(T input) {{ return input; }} }}\nclass Program {{ public static void Main() {{ }} }}";
         return (new CompilationUnitNode { Items = typeDecls.ToImmutableArray().AsTopLevelItems() }, source);
@@ -589,22 +594,23 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
     {
         var typeDecls = new List<TypeDeclarationNode>();
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok(scenario.TypeName),
             TypeParams = MakeTypeParamList("T"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
-        typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+        typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
 
         var typeArgList = MakeTypeArgList([MakePrimitiveTypeRef(scenario.ConcreteType)]);
         var constructedTypeRef = MakeNamedTypeRef(scenario.TypeName, typeArgList);
         var newExpr = MakeNewGenericObjectExpression(scenario.TypeName, typeArgList);
         var varDecl = MakeTypedVarDecl(constructedTypeRef, "x", newExpr);
 
-        typeDecls.Add(new ClassTypeTypeDeclarationNode
+        typeDecls.Add(new BodyTypeTypeDeclarationNode
         {
-            ClassDeclaration = MakeProgramClass(ImmutableArray.Create(varDecl)),
+            TypeBody = MakeProgramClass(ImmutableArray.Create(varDecl)),
         });
 
         var source = $"class {scenario.TypeName}<T> {{ }}\nclass Program {{ public static void Main() {{ {scenario.TypeName}<{scenario.ConcreteType}> x = new {scenario.TypeName}<{scenario.ConcreteType}>(); }} }}";
@@ -644,13 +650,14 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok(scenario.TypeName),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = methodDecl }),
         };
-        typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+        typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
 
         // Main: TypeName obj = new TypeName(); obj.DoIt<concrete>();
         var newObjExpr = WrapPrimaryAsExpression(new ObjectCreationExpressionPrimaryNode
@@ -667,9 +674,9 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
         var methodCallExpr = MakeGenericMethodCallExpression("obj", "DoIt", typeArgList);
         var callStmt = MakeExpressionStatement(methodCallExpr);
 
-        typeDecls.Add(new ClassTypeTypeDeclarationNode
+        typeDecls.Add(new BodyTypeTypeDeclarationNode
         {
-            ClassDeclaration = MakeProgramClass(ImmutableArray.Create(varDeclObj, callStmt)),
+            TypeBody = MakeProgramClass(ImmutableArray.Create(varDeclObj, callStmt)),
         });
 
         var source = $"class {scenario.TypeName} {{ public T DoIt<T>(T input) {{ return input; }} }}\nclass Program {{ public static void Main() {{ {scenario.TypeName} obj = new {scenario.TypeName}(); obj.DoIt<{scenario.ConcreteType}>(); }} }}";
@@ -686,27 +693,29 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
         var typeDecls = new List<TypeDeclarationNode>();
 
         // Base class
-        var baseClassDecl = new ClassDeclarationNode
+        var baseClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok(scenario.BaseTypeName!),
             TypeParams = MakeTypeParamList("T"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
-        typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = baseClassDecl });
+        typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = baseClassDecl });
 
         // Derived class: Derived<T> : Base<T>
         var baseTypeArgList = MakeTypeArgList([MakeNamedTypeRef("T")]);
         var baseList = MakeBaseList([MakeBaseTypeRef(scenario.BaseTypeName!, baseTypeArgList)]);
-        var derivedClassDecl = new ClassDeclarationNode
+        var derivedClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok(scenario.TypeName),
             TypeParams = MakeTypeParamList("T"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
             BaseClause = baseList,
             BaseList = baseList,
         };
-        typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedClassDecl });
-        typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = MakeProgramClass(ImmutableArray<StatementNode>.Empty) });
+        typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = derivedClassDecl });
+        typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = MakeProgramClass(ImmutableArray<StatementNode>.Empty) });
 
         var source = $"class {scenario.BaseTypeName}<T> {{ }}\nclass {scenario.TypeName}<T> : {scenario.BaseTypeName}<T> {{ }}\nclass Program {{ public static void Main() {{ }} }}";
         return (new CompilationUnitNode { Items = typeDecls.ToImmutableArray().AsTopLevelItems() }, source);
@@ -720,13 +729,14 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
     {
         var typeDecls = new List<TypeDeclarationNode>();
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok(scenario.TypeName),
             TypeParams = MakeTypeParamList("T"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
-        typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+        typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
 
         // Build nested type arg: TypeName<concrete>
         var innerTypeArgList = MakeTypeArgList([MakePrimitiveTypeRef(scenario.ConcreteType)]);
@@ -738,9 +748,9 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
         var newExpr = MakeNewGenericObjectExpression(scenario.TypeName, outerTypeArgList);
         var varDecl = MakeTypedVarDecl(outerTypeRef, "x", newExpr);
 
-        typeDecls.Add(new ClassTypeTypeDeclarationNode
+        typeDecls.Add(new BodyTypeTypeDeclarationNode
         {
-            ClassDeclaration = MakeProgramClass(ImmutableArray.Create(varDecl)),
+            TypeBody = MakeProgramClass(ImmutableArray.Create(varDecl)),
         });
 
         var source = $"class {scenario.TypeName}<T> {{ }}\nclass Program {{ public static void Main() {{ {scenario.TypeName}<{scenario.TypeName}<{scenario.ConcreteType}>> x = new {scenario.TypeName}<{scenario.TypeName}<{scenario.ConcreteType}>>(); }} }}";

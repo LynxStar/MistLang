@@ -71,29 +71,31 @@ public class AbstractRoundTripPropertyTests
 
     // ─── AST construction helpers ────────────────────────────────────────
 
-    private static AbstractMethodDeclarationNode MakeAbstractMethod(
+    private static MethodDeclarationNode MakeAbstractMethod(
         string name,
         TypeReferenceNode? returnType = null,
         ParameterListNode? parameters = null)
     {
-        return new AbstractMethodDeclarationNode
+        return new MethodDeclarationNode
         {
             Name = Tok(name),
             ReturnType = returnType ?? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = parameters,
+            Body = new MethodNoBodyMethodBodyNode(),
         };
     }
 
-    private static AbstractDeclarationNode MakeAbstractDecl(
+    private static TypeBodyDeclarationNode MakeAbstractDecl(
         string name,
-        ImmutableArray<AbstractMethodDeclarationNode> methods,
+        ImmutableArray<MethodDeclarationNode> methods,
         string? parentAbstractName = null)
     {
         var members = methods.Select(m =>
-            (AbstractMemberDeclarationNode)new AbstractMethodMemberAbstractMemberDeclarationNode { Method = m })
+            (MemberDeclarationNode)new MethodMemberMemberDeclarationNode { Method = m })
             .ToImmutableArray();
-        var decl = new AbstractDeclarationNode
+        var decl = new TypeBodyDeclarationNode
         {
+            Keyword = new AbstractKeywordTypeKeywordNode(),
             Name = Tok(name),
             Members = members,
         };
@@ -108,14 +110,15 @@ public class AbstractRoundTripPropertyTests
         return decl;
     }
 
-    private static ClassDeclarationNode MakeClassDecl(
+    private static TypeBodyDeclarationNode MakeClassDecl(
         string name,
         ImmutableArray<MemberDeclarationNode> members,
         string? baseOrAbstractName = null,
         ImmutableArray<ModifierNode>? modifiers = null)
     {
-        var decl = new ClassDeclarationNode
+        var decl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok(name),
             Members = members,
             Modifiers = modifiers ?? ImmutableArray<ModifierNode>.Empty,
@@ -131,14 +134,15 @@ public class AbstractRoundTripPropertyTests
         return decl;
     }
 
-    private static StructDeclarationNode MakeStructDecl(
+    private static TypeBodyDeclarationNode MakeStructDecl(
         string name,
         ImmutableArray<MemberDeclarationNode> members,
         string? abstractName = null,
         ImmutableArray<ModifierNode>? modifiers = null)
     {
-        var decl = new StructDeclarationNode
+        var decl = new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Name = Tok(name),
             Members = members,
             Modifiers = modifiers ?? ImmutableArray<ModifierNode>.Empty,
@@ -258,7 +262,7 @@ public class AbstractRoundTripPropertyTests
 
             // Decide method count (0-3)
             var methodCount = rng.Next(0, 4);
-            var methods = ImmutableArray.CreateBuilder<AbstractMethodDeclarationNode>();
+            var methods = ImmutableArray.CreateBuilder<MethodDeclarationNode>();
             var usedMethodNames = new HashSet<string>();
 
             for(var m = 0; m < methodCount; m++)
@@ -283,7 +287,7 @@ public class AbstractRoundTripPropertyTests
                     };
                 }
 
-                methods.Add(new AbstractMethodDeclarationNode
+                methods.Add(new MethodDeclarationNode
                 {
                     Name = Tok(methodName),
                     ReturnType = retType,
@@ -299,7 +303,7 @@ public class AbstractRoundTripPropertyTests
             }
 
             var abstractDecl = MakeAbstractDecl(abstractName, methods.ToImmutable(), parentName);
-            typeDecls.Add(new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl });
+            typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = abstractDecl });
 
             var parentPart = parentName is not null ? $" : {parentName}" : "";
             descParts.Add($"abstract {abstractName}{parentPart}({methods.Count} methods)");
@@ -346,7 +350,7 @@ public class AbstractRoundTripPropertyTests
             }
 
             var classDecl = MakeClassDecl(className, members.ToImmutable(), baseOrAbstractName, mods);
-            typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+            typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
 
             var basePart = baseOrAbstractName is not null ? $" : {baseOrAbstractName}" : "";
             descParts.Add($"class {className}{basePart}");
@@ -378,7 +382,7 @@ public class AbstractRoundTripPropertyTests
             }
 
             var structDecl = MakeStructDecl(structName, members.ToImmutable(), abstractName, mods);
-            typeDecls.Add(new StructTypeTypeDeclarationNode { StructDeclaration = structDecl });
+            typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = structDecl });
 
             var abstractPart = abstractName is not null ? $" : {abstractName}" : "";
             descParts.Add($"struct {structName}{abstractPart}");
@@ -475,10 +479,10 @@ public class AbstractRoundTripPropertyTests
     public void RoundTrip_EmptyAbstract()
     {
         var ast = MakeCompilationUnit(
-            new AbstractTypeTypeDeclarationNode
+            new BodyTypeTypeDeclarationNode
             {
-                AbstractDeclaration = MakeAbstractDecl("IEmpty",
-                    ImmutableArray<AbstractMethodDeclarationNode>.Empty),
+                TypeBody = MakeAbstractDecl("IEmpty",
+                    ImmutableArray<MethodDeclarationNode>.Empty),
             });
 
         AssertRoundTrip(ast);
@@ -501,9 +505,9 @@ public class AbstractRoundTripPropertyTests
                 }));
 
         var ast = MakeCompilationUnit(
-            new AbstractTypeTypeDeclarationNode
+            new BodyTypeTypeDeclarationNode
             {
-                AbstractDeclaration = MakeAbstractDecl("IWorker", methods),
+                TypeBody = MakeAbstractDecl("IWorker", methods),
             });
 
         AssertRoundTrip(ast);
@@ -519,8 +523,8 @@ public class AbstractRoundTripPropertyTests
             parentAbstractName: "IBase");
 
         var ast = MakeCompilationUnit(
-            new AbstractTypeTypeDeclarationNode { AbstractDeclaration = baseAbstract },
-            new AbstractTypeTypeDeclarationNode { AbstractDeclaration = derivedAbstract });
+            new BodyTypeTypeDeclarationNode { TypeBody = baseAbstract },
+            new BodyTypeTypeDeclarationNode { TypeBody = derivedAbstract });
 
         AssertRoundTrip(ast);
     }
@@ -540,8 +544,8 @@ public class AbstractRoundTripPropertyTests
             baseOrAbstractName: "IRunnable");
 
         var ast = MakeCompilationUnit(
-            new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = abstractDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
 
         AssertRoundTrip(ast);
     }
@@ -561,8 +565,8 @@ public class AbstractRoundTripPropertyTests
             abstractName: "IComparable");
 
         var ast = MakeCompilationUnit(
-            new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl },
-            new StructTypeTypeDeclarationNode { StructDeclaration = structDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = abstractDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = structDecl });
 
         AssertRoundTrip(ast);
     }
@@ -602,9 +606,9 @@ public class AbstractRoundTripPropertyTests
             abstractName: "IShape");
 
         var ast = MakeCompilationUnit(
-            new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl },
-            new StructTypeTypeDeclarationNode { StructDeclaration = structDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = abstractDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = classDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = structDecl });
 
         AssertRoundTrip(ast);
     }

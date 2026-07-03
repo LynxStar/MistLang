@@ -159,8 +159,9 @@ public class ParameterScopingTests
             members.Add(new MethodMemberMemberDeclarationNode { Method = method });
         }
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(className),
             Members = members.ToImmutable(),
         };
@@ -168,7 +169,7 @@ public class ParameterScopingTests
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
     }
 
@@ -322,8 +323,9 @@ public class ParameterScopingTests
             },
         };
 
-        var classC = new ClassDeclarationNode
+        var classC = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new FieldMemberMemberDeclarationNode { Field = fieldX },
@@ -349,8 +351,9 @@ public class ParameterScopingTests
             },
         };
 
-        var classD = new ClassDeclarationNode
+        var classD = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("D"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new FieldMemberMemberDeclarationNode { Field = fieldY },
@@ -360,8 +363,8 @@ public class ParameterScopingTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classC },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classD }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classC },
+                new BodyTypeTypeDeclarationNode { TypeBody = classD }).AsTopLevelItems(),
         };
 
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -389,8 +392,9 @@ public class ParameterScopingTests
         var body = ImmutableArray.Create(MakeIdentifierStatement("param"));
         var method = MakeMethodWithParam("M", param, body);
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = method }),
@@ -399,7 +403,7 @@ public class ParameterScopingTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -430,8 +434,9 @@ public class ParameterScopingTests
             },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new ConstructorMemberMemberDeclarationNode { Constructor = ctor }),
@@ -440,7 +445,7 @@ public class ParameterScopingTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);

@@ -65,7 +65,7 @@ public sealed class UsingDirectiveEmissionPropertyTests : IDisposable
         return new UsingDeclarationNode { Name = qualifiedId };
     }
 
-    private static ClassDeclarationNode MakeClassDecl(string name)
+    private static TypeBodyDeclarationNode MakeClassDecl(string name)
     {
         var mainMethod = new MethodDeclarationNode
         {
@@ -78,8 +78,9 @@ public sealed class UsingDirectiveEmissionPropertyTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        return new ClassDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -181,7 +182,7 @@ public sealed class UsingDirectiveEmissionPropertyTests : IDisposable
         {
             Usings = usingDecls,
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var usingLines = string.Join("\n", scenario.UsingNamespaces.Select(ns => $"using {ns};"));
@@ -221,7 +222,7 @@ public sealed class UsingDirectiveEmissionPropertyTests : IDisposable
         {
             Usings = usingDecls,
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var usingLines = string.Join("\n", scenario.UsingNamespaces.Select(ns => $"using {ns};"));

@@ -240,15 +240,16 @@ public class VoidTypeResolutionPropertyTests
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod },
                 new MethodMemberMemberDeclarationNode { Method = testMethod }),
         };
 
-        var ast = MakeCompilationUnit(new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+        var ast = MakeCompilationUnit(new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
         var (model, _) = BuildModel(ast);
 
         // Find the test method symbol and check its return type
@@ -299,14 +300,15 @@ public class VoidTypeResolutionPropertyTests
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
         };
 
-        var ast = MakeCompilationUnit(new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+        var ast = MakeCompilationUnit(new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
         var (model, _) = BuildModel(ast);
 
         // Find the variable symbol and check its declared type
@@ -358,15 +360,16 @@ public class VoidTypeResolutionPropertyTests
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod },
                 new MethodMemberMemberDeclarationNode { Method = testMethod }),
         };
 
-        var ast = MakeCompilationUnit(new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+        var ast = MakeCompilationUnit(new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
         var (model, _) = BuildModel(ast);
 
         // Find the parameter symbol and check its declared type
@@ -389,8 +392,9 @@ public class VoidTypeResolutionPropertyTests
         var voidTypeRef = MakeVoidTypeRef(scenario.RefKind);
 
         // Build: class Box<T> { } class Program { Box<void> field; public static void Main() { } }
-        var genericClassDecl = new ClassDeclarationNode
+        var genericClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(scenario.GenericTypeName),
             TypeParams = MakeTypeParamList(["T"]),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -411,8 +415,9 @@ public class VoidTypeResolutionPropertyTests
                 new StaticModifierModifierNode()),
         };
 
-        var programClassDecl = new ClassDeclarationNode
+        var programClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create(
                 fieldMember,
@@ -420,8 +425,8 @@ public class VoidTypeResolutionPropertyTests
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = genericClassDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = programClassDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = genericClassDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = programClassDecl });
 
         var (model, _) = BuildModel(ast);
 

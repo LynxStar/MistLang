@@ -38,16 +38,17 @@ public sealed class SemanticModelBuilderGlobalUsingsTests
             lexeme: lexeme);
     }
 
-    private static ClassDeclarationNode MakeClass(string name)
+    private static TypeBodyDeclarationNode MakeClass(string name)
     {
-        return new ClassDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
     }
 
-    private static ClassDeclarationNode MakeClassWithFieldOfType(string className, string fieldTypeName)
+    private static TypeBodyDeclarationNode MakeClassWithFieldOfType(string className, string fieldTypeName)
     {
         var typeSpanStart = 10000;
         var fieldDecl = new FieldDeclarationNode
@@ -66,8 +67,9 @@ public sealed class SemanticModelBuilderGlobalUsingsTests
             },
         };
 
-        return new ClassDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(className),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new FieldMemberMemberDeclarationNode { Field = fieldDecl }),
@@ -120,7 +122,7 @@ public sealed class SemanticModelBuilderGlobalUsingsTests
         var barClass = MakeClass("Bar");
         var nsNode1 = MakeFileScopedNs("Foo",
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = barClass }),
+                new BodyTypeTypeDeclarationNode { TypeBody = barClass }),
             sourceOffset: nsOffset);
 
         var source1 = "namespace Foo; public class Bar { }";
@@ -135,7 +137,7 @@ public sealed class SemanticModelBuilderGlobalUsingsTests
         var consumerClass = MakeClassWithFieldOfType("Consumer", "Bar");
         var nsNode2 = MakeFileScopedNs("Consumer",
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = consumerClass }),
+                new BodyTypeTypeDeclarationNode { TypeBody = consumerClass }),
             sourceOffset: nsOffset);
 
         var source2 = "namespace Consumer; class Consumer { Bar myField; }";
@@ -190,7 +192,7 @@ public sealed class SemanticModelBuilderGlobalUsingsTests
         var barClass = MakeClass("Bar");
         var nsNode1 = MakeFileScopedNs("Foo",
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = barClass }),
+                new BodyTypeTypeDeclarationNode { TypeBody = barClass }),
             sourceOffset: nsOffset);
 
         var source1 = "namespace Foo; public class Bar { }";
@@ -205,7 +207,7 @@ public sealed class SemanticModelBuilderGlobalUsingsTests
         var consumerClass = MakeClassWithFieldOfType("Consumer", "Bar");
         var nsNode2 = MakeFileScopedNs("Consumer",
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = consumerClass }),
+                new BodyTypeTypeDeclarationNode { TypeBody = consumerClass }),
             sourceOffset: nsOffset);
 
         var usingDecl = MakeUsingDecl("Foo");
@@ -271,7 +273,7 @@ public sealed class SemanticModelBuilderGlobalUsingsTests
         var programClass = MakeClass("Program");
         var nsNode1 = MakeFileScopedNs("MyApp",
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }),
+                new BodyTypeTypeDeclarationNode { TypeBody = programClass }),
             sourceOffset: nsOffset);
 
         var source1 = "namespace MyApp; class Program { }";
@@ -324,7 +326,7 @@ public sealed class SemanticModelBuilderGlobalUsingsTests
         var widgetA = MakeClass("Widget");
         var nsNodeA = MakeFileScopedNs("NsA",
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = widgetA }),
+                new BodyTypeTypeDeclarationNode { TypeBody = widgetA }),
             sourceOffset: nsOffset);
 
         var sourceA = "namespace NsA; class Widget { }";
@@ -338,7 +340,7 @@ public sealed class SemanticModelBuilderGlobalUsingsTests
         var widgetB = MakeClass("Widget");
         var nsNodeB = MakeFileScopedNs("NsB",
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = widgetB }),
+                new BodyTypeTypeDeclarationNode { TypeBody = widgetB }),
             sourceOffset: nsOffset);
 
         var sourceB = "namespace NsB; class Widget { }";
@@ -353,7 +355,7 @@ public sealed class SemanticModelBuilderGlobalUsingsTests
         var consumerClass = MakeClassWithFieldOfType("Consumer", "Widget");
         var nsNodeC = MakeFileScopedNs("Consumer",
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = consumerClass }),
+                new BodyTypeTypeDeclarationNode { TypeBody = consumerClass }),
             sourceOffset: nsOffset);
 
         var sourceC = "namespace Consumer; class Consumer { Widget myField; }";
@@ -412,7 +414,7 @@ public sealed class SemanticModelBuilderGlobalUsingsTests
         var widgetA = MakeClass("Widget");
         var nsNodeA = MakeFileScopedNs("NsA",
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = widgetA }),
+                new BodyTypeTypeDeclarationNode { TypeBody = widgetA }),
             sourceOffset: nsOffset);
 
         var sourceA = "namespace NsA; class Widget { }";
@@ -426,7 +428,7 @@ public sealed class SemanticModelBuilderGlobalUsingsTests
         var widgetB = MakeClass("Widget");
         var nsNodeB = MakeFileScopedNs("NsB",
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = widgetB }),
+                new BodyTypeTypeDeclarationNode { TypeBody = widgetB }),
             sourceOffset: nsOffset);
 
         var sourceB = "namespace NsB; class Widget { }";
@@ -441,7 +443,7 @@ public sealed class SemanticModelBuilderGlobalUsingsTests
         var consumerClass = MakeClassWithFieldOfType("Consumer", "Widget");
         var nsNodeC = MakeFileScopedNs("Consumer",
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = consumerClass }),
+                new BodyTypeTypeDeclarationNode { TypeBody = consumerClass }),
             sourceOffset: nsOffset);
 
         var usingDecl = MakeUsingDecl("NsB");

@@ -36,8 +36,8 @@ public class ArrayLiteralParserTests
     private static ExpressionNode GetInitializerExpression(string source)
     {
         var cu = ParseOrFail(source);
-        var typeDecl = Assert.IsType<ClassTypeTypeDeclarationNode>(cu.GetTypes()[0]);
-        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.ClassDeclaration.Members[0]);
+        var typeDecl = Assert.IsType<BodyTypeTypeDeclarationNode>(cu.GetTypes()[0]);
+        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.TypeBody.Members[0]);
         var block = methodMember.Method.Body.GetBlock();
         Assert.NotNull(block);
         var stmt = Assert.IsType<VariableDeclarationStatementStatementNode>(block!.Statements[0]);
@@ -185,8 +185,8 @@ public class ArrayLiteralParserTests
             """;
 
         var cu = ParseOrFail(source);
-        var typeDecl = Assert.IsType<ClassTypeTypeDeclarationNode>(cu.GetTypes()[0]);
-        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.ClassDeclaration.Members[1]);
+        var typeDecl = Assert.IsType<BodyTypeTypeDeclarationNode>(cu.GetTypes()[0]);
+        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.TypeBody.Members[1]);
         var block = methodMember.Method.Body.GetBlock();
         Assert.NotNull(block);
 
@@ -210,8 +210,8 @@ public class ArrayLiteralParserTests
             """;
 
         var cu = ParseOrFail(source);
-        var typeDecl = Assert.IsType<ClassTypeTypeDeclarationNode>(cu.GetTypes()[0]);
-        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.ClassDeclaration.Members[0]);
+        var typeDecl = Assert.IsType<BodyTypeTypeDeclarationNode>(cu.GetTypes()[0]);
+        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.TypeBody.Members[0]);
         var block = methodMember.Method.Body.GetBlock();
         Assert.NotNull(block);
 
@@ -238,8 +238,8 @@ public class ArrayLiteralParserTests
             """;
 
         var cu = ParseOrFail(source);
-        var typeDecl = Assert.IsType<ClassTypeTypeDeclarationNode>(cu.GetTypes()[0]);
-        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.ClassDeclaration.Members[0]);
+        var typeDecl = Assert.IsType<BodyTypeTypeDeclarationNode>(cu.GetTypes()[0]);
+        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.TypeBody.Members[0]);
         var block = methodMember.Method.Body.GetBlock();
         Assert.NotNull(block);
 
@@ -263,8 +263,8 @@ public class ArrayLiteralParserTests
             """;
 
         var cu = ParseOrFail(source);
-        var typeDecl = Assert.IsType<ClassTypeTypeDeclarationNode>(cu.GetTypes()[0]);
-        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.ClassDeclaration.Members[0]);
+        var typeDecl = Assert.IsType<BodyTypeTypeDeclarationNode>(cu.GetTypes()[0]);
+        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.TypeBody.Members[0]);
         var block = methodMember.Method.Body.GetBlock();
         Assert.NotNull(block);
 
@@ -293,8 +293,8 @@ public class ArrayLiteralParserTests
             """;
 
         var cu = ParseOrFail(source);
-        var typeDecl = Assert.IsType<ClassTypeTypeDeclarationNode>(cu.GetTypes()[0]);
-        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.ClassDeclaration.Members[0]);
+        var typeDecl = Assert.IsType<BodyTypeTypeDeclarationNode>(cu.GetTypes()[0]);
+        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.TypeBody.Members[0]);
         var block = methodMember.Method.Body.GetBlock();
         Assert.NotNull(block);
 
@@ -324,8 +324,8 @@ public class ArrayLiteralParserTests
             """;
 
         var cu = ParseOrFail(source);
-        var typeDecl = Assert.IsType<ClassTypeTypeDeclarationNode>(cu.GetTypes()[0]);
-        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.ClassDeclaration.Members[0]);
+        var typeDecl = Assert.IsType<BodyTypeTypeDeclarationNode>(cu.GetTypes()[0]);
+        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.TypeBody.Members[0]);
         var block = methodMember.Method.Body.GetBlock();
         Assert.NotNull(block);
 
@@ -357,8 +357,8 @@ public class ArrayLiteralParserTests
             """;
 
         var cu = ParseOrFail(source);
-        var typeDecl = Assert.IsType<ClassTypeTypeDeclarationNode>(cu.GetTypes()[0]);
-        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.ClassDeclaration.Members[0]);
+        var typeDecl = Assert.IsType<BodyTypeTypeDeclarationNode>(cu.GetTypes()[0]);
+        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.TypeBody.Members[0]);
         var block = methodMember.Method.Body.GetBlock();
         Assert.NotNull(block);
         var stmt = Assert.IsType<VariableDeclarationStatementStatementNode>(block!.Statements[0]);
@@ -379,8 +379,8 @@ public class ArrayLiteralParserTests
             """;
 
         var cu = ParseOrFail(source);
-        var typeDecl = Assert.IsType<ClassTypeTypeDeclarationNode>(cu.GetTypes()[0]);
-        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.ClassDeclaration.Members[0]);
+        var typeDecl = Assert.IsType<BodyTypeTypeDeclarationNode>(cu.GetTypes()[0]);
+        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.TypeBody.Members[0]);
         var block = methodMember.Method.Body.GetBlock();
         Assert.NotNull(block);
         var stmt = Assert.IsType<VariableDeclarationStatementStatementNode>(block!.Statements[0]);
@@ -401,8 +401,8 @@ public class ArrayLiteralParserTests
             """;
 
         var cu = ParseOrFail(source);
-        var typeDecl = Assert.IsType<ClassTypeTypeDeclarationNode>(cu.GetTypes()[0]);
-        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.ClassDeclaration.Members[0]);
+        var typeDecl = Assert.IsType<BodyTypeTypeDeclarationNode>(cu.GetTypes()[0]);
+        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.TypeBody.Members[0]);
         var block = methodMember.Method.Body.GetBlock();
         Assert.NotNull(block);
         var stmt = Assert.IsType<VariableDeclarationStatementStatementNode>(block!.Statements[0]);

@@ -153,8 +153,9 @@ public class ParameterSignatureTests
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = method }),
@@ -163,7 +164,7 @@ public class ParameterSignatureTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -188,8 +189,9 @@ public class ParameterSignatureTests
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = method }),
@@ -198,7 +200,7 @@ public class ParameterSignatureTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -221,8 +223,9 @@ public class ParameterSignatureTests
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new ConstructorMemberMemberDeclarationNode { Constructor = ctor }),
@@ -231,7 +234,7 @@ public class ParameterSignatureTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -254,8 +257,9 @@ public class ParameterSignatureTests
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new ConstructorMemberMemberDeclarationNode { Constructor = ctor }),
@@ -264,7 +268,7 @@ public class ParameterSignatureTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -284,24 +288,26 @@ public class ParameterSignatureTests
         // so that ParameterSignature.Extract can resolve parameter types for
         // overload duplicate-signature detection.
         var param = MakeParameter("int", "x");
-        var abstractMethod = new AbstractMethodDeclarationNode
+        var abstractMethod = new MethodDeclarationNode
         {
             Name = MakeToken("M"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = new ParameterListNode { Parameter = param },
+            Body = new MethodNoBodyMethodBodyNode(),
         };
 
-        var abstractDecl = new AbstractDeclarationNode
+        var abstractDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new AbstractKeywordTypeKeywordNode(),
             Name = MakeToken("I"),
-            Members = ImmutableArray.Create<AbstractMemberDeclarationNode>(
-                new AbstractMethodMemberAbstractMemberDeclarationNode { Method = abstractMethod }),
+            Members = ImmutableArray.Create<MemberDeclarationNode>(
+                new MethodMemberMemberDeclarationNode { Method = abstractMethod }),
         };
 
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = abstractDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -340,8 +346,9 @@ public class ParameterSignatureTests
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = method1 },
@@ -351,7 +358,7 @@ public class ParameterSignatureTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -404,8 +411,9 @@ public class ParameterSignatureTests
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = method1 },
@@ -415,7 +423,7 @@ public class ParameterSignatureTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);

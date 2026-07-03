@@ -33,7 +33,7 @@ public class OperatorAndIntrinsicGrammarTests
         return Parser.Parse(tokens, bag);
     }
 
-    private static StructDeclarationNode? GetStructDeclaration(CompilationUnitNode cu)
+    private static TypeBodyDeclarationNode? GetStructDeclaration(CompilationUnitNode cu)
     {
         var types = cu.GetTypes();
         if(types.Length == 0)
@@ -41,10 +41,10 @@ public class OperatorAndIntrinsicGrammarTests
             return null;
         }
 
-        return (types[0] as StructTypeTypeDeclarationNode)?.StructDeclaration;
+        return (types[0] as BodyTypeTypeDeclarationNode)?.TypeBody;
     }
 
-    private static ClassDeclarationNode? GetClassDeclaration(CompilationUnitNode cu)
+    private static TypeBodyDeclarationNode? GetClassDeclaration(CompilationUnitNode cu)
     {
         var types = cu.GetTypes();
         if(types.Length == 0)
@@ -52,7 +52,7 @@ public class OperatorAndIntrinsicGrammarTests
             return null;
         }
 
-        return (types[0] as ClassTypeTypeDeclarationNode)?.ClassDeclaration;
+        return (types[0] as BodyTypeTypeDeclarationNode)?.TypeBody;
     }
 
     // ─── Task 2.1 — intrinsic modifier at type level and member level ──────

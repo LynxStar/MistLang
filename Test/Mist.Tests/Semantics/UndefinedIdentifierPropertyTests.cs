@@ -191,8 +191,9 @@ public class UndefinedIdentifierPropertyTests
             },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(className),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = methodDecl }),
@@ -201,7 +202,7 @@ public class UndefinedIdentifierPropertyTests
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
     }
 
@@ -293,8 +294,9 @@ public class UndefinedIdentifierPropertyTests
             },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("TestClass"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode
@@ -319,7 +321,7 @@ public class UndefinedIdentifierPropertyTests
         {
             Usings = ImmutableArray.Create(usingDecl),
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -433,8 +435,9 @@ public class UndefinedIdentifierPropertyTests
             },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("TestClass"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -443,7 +446,7 @@ public class UndefinedIdentifierPropertyTests
         {
             Usings = ImmutableArray.Create(usingDecl),
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);

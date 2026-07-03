@@ -64,9 +64,10 @@ public class TypeAliasParserPropertyTests
 
         return item switch
         {
-            TypeAliasItemTopLevelItemNode aliasItem => aliasItem.TypeAliasDeclaration,
+            TypeItemTopLevelItemNode { TypeDeclaration: TypeAliasTypeTypeDeclarationNode aliasType }
+                => aliasType.TypeAliasDeclaration,
             _ => throw new InvalidOperationException(
-                $"Expected TypeAliasItemTopLevelItemNode but got {item.GetType().Name}")
+                $"Expected TypeItemTopLevelItemNode with TypeAliasTypeTypeDeclarationNode but got {item.GetType().Name}")
         };
     }
 

@@ -181,8 +181,9 @@ public class RefReturnLifetimeSafetyTests
             Modifiers = ImmutableArray<ModifierNode>.Empty,
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("MyClass"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new FieldMemberMemberDeclarationNode { Field = fieldDecl },
@@ -191,7 +192,7 @@ public class RefReturnLifetimeSafetyTests
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
     }
 

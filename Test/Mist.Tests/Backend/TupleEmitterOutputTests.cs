@@ -129,8 +129,9 @@ public sealed class TupleEmitterOutputTests : IDisposable
             Body = new MethodBlockBodyMethodBodyNode { Block = block },
             Modifiers = ImmutableArray<ModifierNode>.Empty,
         };
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(className),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = method }),
@@ -140,7 +141,7 @@ public sealed class TupleEmitterOutputTests : IDisposable
             Items = ImmutableArray.Create<TopLevelItemNode>(
                 new TypeItemTopLevelItemNode
                 {
-                    TypeDeclaration = new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }
+                    TypeDeclaration = new BodyTypeTypeDeclarationNode { TypeBody = classDecl }
                 }),
         };
     }

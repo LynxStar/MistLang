@@ -182,8 +182,9 @@ public class TypeCheckerPreservationPropertyTests
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(typeName),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new ConstructorMemberMemberDeclarationNode { Constructor = primaryCtor },
@@ -203,7 +204,7 @@ public class TypeCheckerPreservationPropertyTests
                     {
                         Name = MakeQualifiedId(namespaceName),
                         Body = ImmutableArray.Create<TypeDeclarationNode>(
-                        new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
+                        new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsNamespaceBodyItems(),
                         Span = new Storm.Runtime.SourceSpan(0, 100),
                     }
                 }),
@@ -213,7 +214,7 @@ public class TypeCheckerPreservationPropertyTests
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
     }
 
@@ -241,8 +242,9 @@ public class TypeCheckerPreservationPropertyTests
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -251,7 +253,7 @@ public class TypeCheckerPreservationPropertyTests
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
     }
 
@@ -294,8 +296,9 @@ public class TypeCheckerPreservationPropertyTests
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -304,7 +307,7 @@ public class TypeCheckerPreservationPropertyTests
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
     }
 
@@ -364,8 +367,9 @@ public class TypeCheckerPreservationPropertyTests
                 new StaticModifierModifierNode()),
         };
 
-        var fooClass = new ClassDeclarationNode
+        var fooClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Foo"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new ConstructorMemberMemberDeclarationNode { Constructor = fooCtor },
@@ -376,7 +380,7 @@ public class TypeCheckerPreservationPropertyTests
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = fooClass }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = fooClass }).AsTopLevelItems(),
         };
     }
 
@@ -455,8 +459,9 @@ public class TypeCheckerPreservationPropertyTests
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -465,7 +470,7 @@ public class TypeCheckerPreservationPropertyTests
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
     }
 

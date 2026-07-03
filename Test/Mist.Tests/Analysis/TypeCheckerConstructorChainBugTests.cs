@@ -206,8 +206,9 @@ public class TypeCheckerConstructorChainBugTests
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
-        var pointClass = new ClassDeclarationNode
+        var pointClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Point"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new FieldMemberMemberDeclarationNode { Field = fieldX },
@@ -226,7 +227,7 @@ public class TypeCheckerConstructorChainBugTests
                 {
                     Name = MakeQualifiedId("AllFeatures"),
                     Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = pointClass }).AsNamespaceBodyItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = pointClass }).AsNamespaceBodyItems(),
                     Span = new Storm.Runtime.SourceSpan(0, source.Length),
                 }
             }),
@@ -284,8 +285,9 @@ public class TypeCheckerConstructorChainBugTests
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
-        var colorStruct = new StructDeclarationNode
+        var colorStruct = new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Name = MakeToken("Color"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new FieldMemberMemberDeclarationNode { Field = fieldR },
@@ -304,7 +306,7 @@ public class TypeCheckerConstructorChainBugTests
                 {
                     Name = MakeQualifiedId("AllFeatures"),
                     Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new StructTypeTypeDeclarationNode { StructDeclaration = colorStruct }).AsNamespaceBodyItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = colorStruct }).AsNamespaceBodyItems(),
                     Span = new Storm.Runtime.SourceSpan(0, source.Length),
                 }
             }),
@@ -327,8 +329,9 @@ public class TypeCheckerConstructorChainBugTests
                 new StaticModifierModifierNode()),
         };
 
-        var programClass = new ClassDeclarationNode
+        var programClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -344,7 +347,7 @@ public class TypeCheckerConstructorChainBugTests
                 {
                     Name = MakeQualifiedId("AllFeatures"),
                     Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsNamespaceBodyItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = programClass }).AsNamespaceBodyItems(),
                     Span = new Storm.Runtime.SourceSpan(0, source.Length),
                 }
             }),

@@ -34,14 +34,6 @@ internal sealed class TypeBuilder
                     RegisterType(fileScope, typeItem.TypeDeclaration, declaringType: null);
                     break;
 
-                case NewtypeItemTopLevelItemNode newtypeItem:
-                    RegisterNewtype(fileScope, newtypeItem.NewtypeDeclaration);
-                    break;
-
-                case TypeAliasItemTopLevelItemNode aliasItem:
-                    RegisterTypeAlias(fileScope, aliasItem.TypeAliasDeclaration);
-                    break;
-
                 case NamespaceItemTopLevelItemNode nsItem
                     when nsItem.NamespaceDeclaration is BlockNamespaceNamespaceDeclarationNode blockNs:
                     ProcessBlockNamespace(fileScope, blockNs);
@@ -82,14 +74,6 @@ internal sealed class TypeBuilder
                     RegisterType(parentScope, typeItem.TypeDeclaration, declaringType: null);
                     break;
 
-                case NamespaceNewtypeItemNamespaceBodyItemNode newtypeItem:
-                    RegisterNewtype(parentScope, newtypeItem.NewtypeDeclaration);
-                    break;
-
-                case NamespaceTypeAliasItemNamespaceBodyItemNode aliasItem:
-                    RegisterTypeAlias(parentScope, aliasItem.TypeAliasDeclaration);
-                    break;
-
                 case NamespaceNamespaceItemNamespaceBodyItemNode nestedNsItem
                     when nestedNsItem.NamespaceDeclaration is BlockNamespaceNamespaceDeclarationNode nestedBlockNs:
                     ProcessBlockNamespace(parentScope, nestedBlockNs);
@@ -101,6 +85,8 @@ internal sealed class TypeBuilder
     /// <summary>
     /// Registers a single type declaration: creates the type shell, its scope,
     /// registers it in the namespace, and recurses into nested types.
+    /// Newtypes and type aliases have no member bodies, so nested type
+    /// registration is skipped for them.
     /// </summary>
     private void RegisterType(
         Scope parentScope,
@@ -126,6 +112,13 @@ internal sealed class TypeBuilder
         {
             declaringType.NestedTypes.Add(typeDef);
             declaringType.Scope.AddLocalType(typeDef.Name, typeDef);
+        }
+
+        // Newtypes and type aliases don't have member bodies — skip nested
+        // type registration for them.
+        if(typeDef is NewtypeDefinition or TypeAliasDefinition)
+        {
+            return;
         }
 
         // Recurse into nested types within the type body.
@@ -157,40 +150,6 @@ internal sealed class TypeBuilder
     }
 
     /// <summary>
-    /// Registers a newtype declaration in the program model.
-    /// </summary>
-    private void RegisterNewtype(Scope parentScope, NewtypeDeclarationNode newtypeDecl)
-    {
-        var namespaceName = parentScope.Namespace!;
-        var name = newtypeDecl.Name.Lexeme;
-
-        var typeScope = new Scope(parentScope);
-        typeScope.SetNamespace(namespaceName);
-
-        var typeDef = new NewtypeDefinition(name, namespaceName, typeScope, declaringType: null);
-
-        var ns = context.ProgramModel.GetOrAddNamespace(namespaceName);
-        ns.Types[name] = typeDef;
-    }
-
-    /// <summary>
-    /// Registers a type alias (including refinement types) in the program model.
-    /// </summary>
-    private void RegisterTypeAlias(Scope parentScope, TypeAliasDeclarationNode aliasDecl)
-    {
-        var namespaceName = parentScope.Namespace!;
-        var name = aliasDecl.Name.Lexeme;
-
-        var typeScope = new Scope(parentScope);
-        typeScope.SetNamespace(namespaceName);
-
-        var typeDef = new TypeAliasDefinition(name, namespaceName, typeScope, declaringType: null);
-
-        var ns = context.ProgramModel.GetOrAddNamespace(namespaceName);
-        ns.Types[name] = typeDef;
-    }
-
-    /// <summary>
     /// Creates the appropriate concrete TypeDefinition subclass for a type declaration node.
     /// Reports a diagnostic and returns null for unrecognized node types.
     /// </summary>
@@ -206,17 +165,24 @@ internal sealed class TypeBuilder
 
         switch(typeDecl)
         {
-            case ClassTypeTypeDeclarationNode ct:
-                return new ClassDefinition(ct.ClassDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType, typeDecl);
-
-            case StructTypeTypeDeclarationNode st:
-                return new StructDefinition(st.StructDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType, typeDecl);
-
-            case AbstractTypeTypeDeclarationNode at:
-                return new AbstractType(at.AbstractDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType, typeDecl);
+            case BodyTypeTypeDeclarationNode body:
+                var name = body.TypeBody.Name.Lexeme;
+                return body.TypeBody.Keyword switch
+                {
+                    ClassKeywordTypeKeywordNode => new ClassDefinition(name, namespaceName, typeScope, declaringType, typeDecl),
+                    StructKeywordTypeKeywordNode => new StructDefinition(name, namespaceName, typeScope, declaringType, typeDecl),
+                    AbstractKeywordTypeKeywordNode => new AbstractType(name, namespaceName, typeScope, declaringType, typeDecl),
+                    _ => throw new InvalidOperationException($"Unexpected type keyword: {body.TypeBody.Keyword.GetType().Name}")
+                };
 
             case EnumTypeTypeDeclarationNode et:
                 return new EnumDefinition(et.EnumDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType);
+
+            case NewtypeTypeTypeDeclarationNode nt:
+                return new NewtypeDefinition(nt.NewtypeDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType);
+
+            case TypeAliasTypeTypeDeclarationNode ta:
+                return new TypeAliasDefinition(ta.TypeAliasDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType);
 
             default:
                 context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownTypeDeclaration, typeDecl, null, typeDecl.GetType().Name);
@@ -226,14 +192,13 @@ internal sealed class TypeBuilder
 
     /// <summary>
     /// Gets the members array from a type declaration, or default if the
-    /// type kind does not support nested type declarations (e.g., enums, abstracts).
+    /// type kind does not support nested type declarations (e.g., enums, newtypes, type aliases).
     /// </summary>
     private static ImmutableArray<MemberDeclarationNode> GetMembers(TypeDeclarationNode typeDecl)
     {
         return typeDecl switch
         {
-            ClassTypeTypeDeclarationNode ct => ct.ClassDeclaration.Members,
-            StructTypeTypeDeclarationNode st => st.StructDeclaration.Members,
+            BodyTypeTypeDeclarationNode body => body.TypeBody.Members,
             _ => default
         };
     }

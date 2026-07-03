@@ -135,13 +135,14 @@ public class NonAssignabilityPropertyTests
 
     // ─── Class declaration builders ──────────────────────────────────────
 
-    private static ClassDeclarationNode MakeClassDecl(
+    private static TypeBodyDeclarationNode MakeClassDecl(
         string name,
         string? baseClassName = null,
         ImmutableArray<MemberDeclarationNode>? members = null)
     {
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -292,7 +293,7 @@ public class NonAssignabilityPropertyTests
         foreach(var (name, baseName) in scenario.Classes)
         {
             var classDecl = MakeClassDecl(name, baseName);
-            typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+            typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
         }
 
         // Create the Program class with Main that performs the incompatible assignment
@@ -314,7 +315,7 @@ public class NonAssignabilityPropertyTests
             new MethodMemberMemberDeclarationNode { Method = mainMethod });
 
         var programClass = MakeClassDecl("Program", members: programMembers);
-        typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass });
+        typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = programClass });
 
         return new CompilationUnitNode
         {

@@ -229,12 +229,13 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         try { declaringNode = model.GetDeclaringNode(symbol); }
         catch { return; }
 
-        if(declaringNode is not AbstractDeclarationNode abstractDecl)
+        if(declaringNode is not TypeBodyDeclarationNode typeBodyDecl
+            || typeBodyDecl.Keyword is not AbstractKeywordTypeKeywordNode)
         {
             return;
         }
 
-        if(!HasOwnedModifier(abstractDecl.Modifiers))
+        if(!HasOwnedModifier(typeBodyDecl.Modifiers))
         {
             return;
         }
@@ -2921,7 +2922,6 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         var paramList = methodNode switch
         {
             MethodDeclarationNode m => m.Parameters,
-            AbstractMethodDeclarationNode im => im.Parameters,
             ConstructorDeclarationNode c => c.Parameters,
             _ => null,
         };

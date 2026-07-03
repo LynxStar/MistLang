@@ -28,8 +28,8 @@ public class ReadonlyLocalParsingTests
     private static StatementNode GetFirstStatement(ParseResult result)
     {
         var cu = (CompilationUnitNode)result.Root!;
-        var typeDecl = (ClassTypeTypeDeclarationNode)cu.GetTypes()[0];
-        var method = ((MethodMemberMemberDeclarationNode)typeDecl.ClassDeclaration.Members[0]).Method;
+        var typeDecl = (BodyTypeTypeDeclarationNode)cu.GetTypes()[0];
+        var method = ((MethodMemberMemberDeclarationNode)typeDecl.TypeBody.Members[0]).Method;
         return method.Body.GetBlock()!.Statements[0];
     }
 

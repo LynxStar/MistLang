@@ -34,12 +34,12 @@ public class WithStatementParsingTests
             return null;
         }
 
-        if(cu.GetTypes()[0] is not ClassTypeTypeDeclarationNode typeDecl)
+        if(cu.GetTypes()[0] is not BodyTypeTypeDeclarationNode typeDecl)
         {
             return null;
         }
 
-        if(typeDecl.ClassDeclaration.Members[0] is not MethodMemberMemberDeclarationNode methodMember)
+        if(typeDecl.TypeBody.Members[0] is not MethodMemberMemberDeclarationNode methodMember)
         {
             return null;
         }
@@ -198,8 +198,8 @@ public class WithStatementParsingTests
         Assert.Empty(result.Diagnostics);
         if(result.Root is CompilationUnitNode cu)
         {
-            var typeDecl = Assert.IsType<ClassTypeTypeDeclarationNode>(cu.GetTypes()[0]);
-            var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.ClassDeclaration.Members[0]);
+            var typeDecl = Assert.IsType<BodyTypeTypeDeclarationNode>(cu.GetTypes()[0]);
+            var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.TypeBody.Members[0]);
             var method = methodMember.Method;
 
             _ = Assert.Single(method.WithClauses);
@@ -218,8 +218,8 @@ public class WithStatementParsingTests
         Assert.Empty(result.Diagnostics);
         if(result.Root is CompilationUnitNode cu)
         {
-            var typeDecl = Assert.IsType<ClassTypeTypeDeclarationNode>(cu.GetTypes()[0]);
-            var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.ClassDeclaration.Members[0]);
+            var typeDecl = Assert.IsType<BodyTypeTypeDeclarationNode>(cu.GetTypes()[0]);
+            var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.TypeBody.Members[0]);
             var method = methodMember.Method;
 
             Assert.Equal(2, method.WithClauses.Length);
@@ -237,9 +237,9 @@ public class WithStatementParsingTests
         Assert.Empty(result.Diagnostics);
         if(result.Root is CompilationUnitNode cu)
         {
-            var typeDecl = Assert.IsType<AbstractTypeTypeDeclarationNode>(cu.GetTypes()[0]);
-            var methodMember = Assert.IsType<AbstractMethodMemberAbstractMemberDeclarationNode>(
-                typeDecl.AbstractDeclaration.Members[0]);
+            var typeDecl = Assert.IsType<BodyTypeTypeDeclarationNode>(cu.GetTypes()[0]);
+            var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(
+                typeDecl.TypeBody.Members[0]);
             var method = methodMember.Method;
 
             _ = Assert.Single(method.WithClauses);
@@ -256,9 +256,9 @@ public class WithStatementParsingTests
         Assert.Empty(result.Diagnostics);
         if(result.Root is CompilationUnitNode cu)
         {
-            var typeDecl = Assert.IsType<ClassTypeTypeDeclarationNode>(cu.GetTypes()[0]);
+            var typeDecl = Assert.IsType<BodyTypeTypeDeclarationNode>(cu.GetTypes()[0]);
             var ctorMember = Assert.IsType<ConstructorMemberMemberDeclarationNode>(
-                typeDecl.ClassDeclaration.Members[0]);
+                typeDecl.TypeBody.Members[0]);
             var ctor = ctorMember.Constructor;
 
             _ = Assert.Single(ctor.WithClauses);

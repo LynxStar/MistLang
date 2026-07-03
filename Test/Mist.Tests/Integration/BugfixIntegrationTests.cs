@@ -230,8 +230,9 @@ public sealed class BugfixIntegrationTests : IDisposable
             Modifiers = ImmutableArray.Create<ModifierNode>(new PrivateModifierModifierNode()),
         };
 
-        var geometryClass = new ClassDeclarationNode
+        var geometryClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Geometry"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new FieldMemberMemberDeclarationNode { Field = fieldWithInit },
@@ -250,7 +251,7 @@ public sealed class BugfixIntegrationTests : IDisposable
                 {
                     Name = MakeQualifiedId("TestApp"),
                     Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = geometryClass }).AsNamespaceBodyItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = geometryClass }).AsNamespaceBodyItems(),
                     Span = new Storm.Runtime.SourceSpan(0, source1.Length),
                 }
             }),
@@ -311,8 +312,9 @@ public sealed class BugfixIntegrationTests : IDisposable
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
-        var stringHelperClass = new ClassDeclarationNode
+        var stringHelperClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("StringHelper"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = getLengthMethod }),
@@ -328,7 +330,7 @@ public sealed class BugfixIntegrationTests : IDisposable
                 {
                     Name = MakeQualifiedId("TestApp"),
                     Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = stringHelperClass }).AsNamespaceBodyItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = stringHelperClass }).AsNamespaceBodyItems(),
                     Span = new Storm.Runtime.SourceSpan(0, source2.Length),
                 }
             }),
@@ -348,8 +350,9 @@ public sealed class BugfixIntegrationTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var programClass = new ClassDeclarationNode
+        var programClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -365,7 +368,7 @@ public sealed class BugfixIntegrationTests : IDisposable
                 {
                     Name = MakeQualifiedId("TestApp"),
                     Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsNamespaceBodyItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = programClass }).AsNamespaceBodyItems(),
                     Span = new Storm.Runtime.SourceSpan(0, source3.Length),
                 }
             }),
@@ -469,8 +472,9 @@ public sealed class BugfixIntegrationTests : IDisposable
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
-        var widgetClass = new ClassDeclarationNode
+        var widgetClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Widget"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new FieldMemberMemberDeclarationNode { Field = fieldCount },
@@ -487,7 +491,7 @@ public sealed class BugfixIntegrationTests : IDisposable
                 {
                     Name = MakeQualifiedId("TestApp"),
                     Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = widgetClass }).AsNamespaceBodyItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = widgetClass }).AsNamespaceBodyItems(),
                     Span = new Storm.Runtime.SourceSpan(0, source1.Length),
                 }
             }),
@@ -547,8 +551,9 @@ public sealed class BugfixIntegrationTests : IDisposable
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
-        var textUtilClass = new ClassDeclarationNode
+        var textUtilClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("TextUtil"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = measureMethod }),
@@ -564,7 +569,7 @@ public sealed class BugfixIntegrationTests : IDisposable
                 {
                     Name = MakeQualifiedId("TestApp"),
                     Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = textUtilClass }).AsNamespaceBodyItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = textUtilClass }).AsNamespaceBodyItems(),
                     Span = new Storm.Runtime.SourceSpan(0, source2.Length),
                 }
             }),
@@ -584,8 +589,9 @@ public sealed class BugfixIntegrationTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var programClass = new ClassDeclarationNode
+        var programClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -601,7 +607,7 @@ public sealed class BugfixIntegrationTests : IDisposable
                 {
                     Name = MakeQualifiedId("TestApp"),
                     Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsNamespaceBodyItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = programClass }).AsNamespaceBodyItems(),
                     Span = new Storm.Runtime.SourceSpan(0, source3.Length),
                 }
             }),

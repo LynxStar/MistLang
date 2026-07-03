@@ -171,38 +171,41 @@ public class DuplicateTypeParameterPropertyTests
         {
             case DuplicateDeclKind.Class:
                 {
-                    var classDecl = new ClassDeclarationNode
+                    var classDecl = new TypeBodyDeclarationNode
                     {
+                        Keyword = new ClassKeywordTypeKeywordNode(),
                         Name = MakeToken(decl.DeclName),
                         TypeParams = MakeTypeParamList(decl.TypeParamNames.ToArray()),
                         Members = ImmutableArray<MemberDeclarationNode>.Empty,
                     };
                     ast = MakeCompilationUnit(
-                        new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+                        new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
                     break;
                 }
             case DuplicateDeclKind.Struct:
                 {
-                    var structDecl = new StructDeclarationNode
+                    var structDecl = new TypeBodyDeclarationNode
                     {
+                        Keyword = new StructKeywordTypeKeywordNode(),
                         Name = MakeToken(decl.DeclName),
                         TypeParams = MakeTypeParamList(decl.TypeParamNames.ToArray()),
                         Members = ImmutableArray<MemberDeclarationNode>.Empty,
                     };
                     ast = MakeCompilationUnit(
-                        new StructTypeTypeDeclarationNode { StructDeclaration = structDecl });
+                        new BodyTypeTypeDeclarationNode { TypeBody = structDecl });
                     break;
                 }
             case DuplicateDeclKind.Abstract:
                 {
-                    var abstractDecl = new AbstractDeclarationNode
+                    var abstractDecl = new TypeBodyDeclarationNode
                     {
+                        Keyword = new AbstractKeywordTypeKeywordNode(),
                         Name = MakeToken(decl.DeclName),
                         TypeParams = MakeTypeParamList(decl.TypeParamNames.ToArray()),
-                        Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
+                        Members = ImmutableArray<MemberDeclarationNode>.Empty,
                     };
                     ast = MakeCompilationUnit(
-                        new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl });
+                        new BodyTypeTypeDeclarationNode { TypeBody = abstractDecl });
                     break;
                 }
             case DuplicateDeclKind.Method:
@@ -215,14 +218,15 @@ public class DuplicateTypeParameterPropertyTests
                         Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
                         Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
                     };
-                    var classDecl = new ClassDeclarationNode
+                    var classDecl = new TypeBodyDeclarationNode
                     {
+                        Keyword = new ClassKeywordTypeKeywordNode(),
                         Name = MakeToken("Host"),
                         Members = ImmutableArray.Create<MemberDeclarationNode>(
                             new MethodMemberMemberDeclarationNode { Method = method }),
                     };
                     ast = MakeCompilationUnit(
-                        new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+                        new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
                     break;
                 }
             default:
@@ -245,14 +249,15 @@ public class DuplicateTypeParameterPropertyTests
     [Fact]
     public void ClassWithDuplicateTypeParam_EmitsDiagnostic()
     {
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Box"),
             TypeParams = MakeTypeParamList(["T", "T"]),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var duplicateDiags = diagnostics
@@ -274,14 +279,15 @@ public class DuplicateTypeParameterPropertyTests
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("MyClass"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = method }),
         };
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var duplicateDiags = diagnostics
@@ -294,14 +300,15 @@ public class DuplicateTypeParameterPropertyTests
     [Fact]
     public void UniqueTypeParams_NoDuplicateDiagnostic()
     {
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Map"),
             TypeParams = MakeTypeParamList(["K", "V"]),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var duplicateDiags = diagnostics
@@ -314,14 +321,15 @@ public class DuplicateTypeParameterPropertyTests
     [Fact]
     public void TripleDuplicate_EmitsTwoDiagnostics()
     {
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Triple"),
             TypeParams = MakeTypeParamList(["T", "T", "T"]),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var duplicateDiags = diagnostics

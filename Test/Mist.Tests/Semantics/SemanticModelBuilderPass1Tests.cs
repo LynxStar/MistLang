@@ -66,15 +66,16 @@ public class SemanticModelBuilderPass1Tests
     [Fact]
     public void ClassDeclaration_RegistersClassSymbolInGlobalScope()
     {
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("MyClass"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -99,15 +100,16 @@ public class SemanticModelBuilderPass1Tests
     [Fact]
     public void StructDeclaration_RegistersStructSymbolInGlobalScope()
     {
-        var structDecl = new StructDeclarationNode
+        var structDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Name = MakeToken("Point"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new StructTypeTypeDeclarationNode { StructDeclaration = structDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = structDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -186,8 +188,9 @@ public class SemanticModelBuilderPass1Tests
     public void ClassInsideNamespace_RegistersInNamespaceScope()
     {
         var source = "namespace MyApp; class Greeter { }";
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Greeter", start: 23),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -200,7 +203,7 @@ public class SemanticModelBuilderPass1Tests
         {
             Name = qualifiedId,
             Body = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsNamespaceBodyItems(),
             Span = new Storm.Runtime.SourceSpan(0, source.Length),
         };
         var ast = new CompilationUnitNode
@@ -242,8 +245,9 @@ public class SemanticModelBuilderPass1Tests
                 }
             },
         };
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("MyClass"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new FieldMemberMemberDeclarationNode { Field = fieldDecl }),
@@ -251,7 +255,7 @@ public class SemanticModelBuilderPass1Tests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -278,8 +282,9 @@ public class SemanticModelBuilderPass1Tests
             Name = MakeToken("MyClass"),
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("MyClass"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new ConstructorMemberMemberDeclarationNode { Constructor = ctorDecl }),
@@ -287,7 +292,7 @@ public class SemanticModelBuilderPass1Tests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -310,8 +315,9 @@ public class SemanticModelBuilderPass1Tests
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("MyClass"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = methodDecl }),
@@ -319,7 +325,7 @@ public class SemanticModelBuilderPass1Tests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -366,8 +372,9 @@ public class SemanticModelBuilderPass1Tests
             },
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Point"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new FieldMemberMemberDeclarationNode { Field = fieldDecl },
@@ -377,7 +384,7 @@ public class SemanticModelBuilderPass1Tests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -397,21 +404,23 @@ public class SemanticModelBuilderPass1Tests
     [Fact]
     public void MultipleTypeDeclarations_RegistersAllTypes()
     {
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Foo"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
-        var structDecl = new StructDeclarationNode
+        var structDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Name = MakeToken("Bar"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl },
-                new StructTypeTypeDeclarationNode { StructDeclaration = structDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl },
+                new BodyTypeTypeDeclarationNode { TypeBody = structDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -429,15 +438,16 @@ public class SemanticModelBuilderPass1Tests
     [Fact]
     public void SymbolTable_MapsAstNodeToSymbol()
     {
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("MyClass"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -457,8 +467,9 @@ public class SemanticModelBuilderPass1Tests
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("App"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = methodDecl }),
@@ -466,7 +477,7 @@ public class SemanticModelBuilderPass1Tests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -492,8 +503,9 @@ public class SemanticModelBuilderPass1Tests
                 }
             },
         };
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("MyClass"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new FieldMemberMemberDeclarationNode { Field = fieldDecl }),
@@ -501,7 +513,7 @@ public class SemanticModelBuilderPass1Tests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -524,8 +536,9 @@ public class SemanticModelBuilderPass1Tests
     public void ScopeHierarchy_TypeScopeParentIsNamespaceScope()
     {
         var source = "namespace MyApp; class Greeter { }";
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Greeter", start: 23),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -538,7 +551,7 @@ public class SemanticModelBuilderPass1Tests
         {
             Name = qualifiedId,
             Body = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsNamespaceBodyItems(),
             Span = new Storm.Runtime.SourceSpan(0, source.Length),
         };
         var ast = new CompilationUnitNode
@@ -569,8 +582,9 @@ public class SemanticModelBuilderPass1Tests
     public void BlockNamespace_RegistersTypesInNamespaceScope()
     {
         var source = "namespace MyApp { class Greeter { } }";
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Greeter", start: 24),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -583,7 +597,7 @@ public class SemanticModelBuilderPass1Tests
         {
             Name = qualifiedId,
             Body = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsNamespaceBodyItems(),
             Span = new Storm.Runtime.SourceSpan(0, source.Length),
         };
         var ast = new CompilationUnitNode
@@ -627,8 +641,9 @@ public class SemanticModelBuilderPass1Tests
             Name = MakeToken("Point"),
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
-        var structDecl = new StructDeclarationNode
+        var structDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Name = MakeToken("Point"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new FieldMemberMemberDeclarationNode { Field = fieldDecl },
@@ -637,7 +652,7 @@ public class SemanticModelBuilderPass1Tests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new StructTypeTypeDeclarationNode { StructDeclaration = structDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = structDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -662,15 +677,16 @@ public class SemanticModelBuilderPass1Tests
     [Fact]
     public void UserCodeSymbols_HaveNonNullDeclarationSpan()
     {
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("MyClass", start: 6),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);

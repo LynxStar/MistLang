@@ -690,35 +690,6 @@ internal sealed class CSharpSourceWriter
                 case ExtensionItemTopLevelItemNode extensionItem:
                     EmitExtensionBlock(extensionItem.ExtensionDeclaration);
                     break;
-                case TypeAliasItemTopLevelItemNode:
-                    // Type aliases are erased — no C# declaration is emitted.
-                    break;
-                case NewtypeItemTopLevelItemNode newtypeItem:
-                    {
-                        // Determine the newtype's namespace from the semantic model.
-                        // NewtypeType doesn't have a ContainingNamespace property, so we
-                        // find the namespace by looking at sibling symbols in the same scope.
-                        var newtypeSymbol = model.GetDeclaredSymbol(newtypeItem.NewtypeDeclaration);
-                        var newtypeNamespace = GetNewtypeContainingNamespace(newtypeSymbol);
-
-                        // If this newtype has a namespace and we haven't emitted it yet,
-                        // emit a file-scoped namespace declaration.
-                        if(newtypeNamespace is not null && newtypeNamespace != emittedInferredNamespace)
-                        {
-                            if(emittedInferredNamespace is not null)
-                            {
-                                AppendLine();
-                            }
-
-                            AppendLine($"namespace {newtypeNamespace};");
-                            AppendLine();
-                            emittedInferredNamespace = newtypeNamespace;
-                            currentNamespace = newtypeNamespace;
-                        }
-
-                        EmitNewtypeDeclaration(newtypeItem.NewtypeDeclaration);
-                        break;
-                    }
             }
         }
 
@@ -793,12 +764,6 @@ internal sealed class CSharpSourceWriter
                     case TypeItemTopLevelItemNode typeItem:
                         inferredNamespace = GetTypeContainingNamespace(typeItem.TypeDeclaration);
                         break;
-                    case NewtypeItemTopLevelItemNode newtypeItem:
-                        {
-                            var newtypeSymbol = model.GetDeclaredSymbol(newtypeItem.NewtypeDeclaration);
-                            inferredNamespace = GetNewtypeContainingNamespace(newtypeSymbol);
-                            break;
-                        }
                     case NamespaceItemTopLevelItemNode nsItem
                         when nsItem.NamespaceDeclaration is BlockNamespaceNamespaceDeclarationNode:
                         // Block namespaces carry their own name.
@@ -869,12 +834,6 @@ internal sealed class CSharpSourceWriter
                         case ExtensionItemTopLevelItemNode extensionItem:
                             EmitExtensionBlock(extensionItem.ExtensionDeclaration);
                             break;
-                        case TypeAliasItemTopLevelItemNode:
-                            // Type aliases are erased — no C# declaration is emitted.
-                            break;
-                        case NewtypeItemTopLevelItemNode newtypeItem:
-                            EmitNewtypeDeclaration(newtypeItem.NewtypeDeclaration);
-                            break;
                         case NamespaceItemTopLevelItemNode nsItem:
                             // Skip file-scoped namespace declarations — they are already
                             // handled by the wrapping block namespace above. Only emit
@@ -896,11 +855,6 @@ internal sealed class CSharpSourceWriter
                                             break;
                                         case NamespaceExtensionItemNamespaceBodyItemNode extensionBodyItem:
                                             EmitExtensionBlock(extensionBodyItem.ExtensionDeclaration);
-                                            break;
-                                        case NamespaceTypeAliasItemNamespaceBodyItemNode:
-                                            break;
-                                        case NamespaceNewtypeItemNamespaceBodyItemNode newtypeBodyItem:
-                                            EmitNewtypeDeclaration(newtypeBodyItem.NewtypeDeclaration);
                                             break;
                                     }
                                 }
@@ -926,11 +880,6 @@ internal sealed class CSharpSourceWriter
                             break;
                         case ExtensionItemTopLevelItemNode extensionItem:
                             EmitExtensionBlock(extensionItem.ExtensionDeclaration);
-                            break;
-                        case TypeAliasItemTopLevelItemNode:
-                            break;
-                        case NewtypeItemTopLevelItemNode newtypeItem:
-                            EmitNewtypeDeclaration(newtypeItem.NewtypeDeclaration);
                             break;
                         case NamespaceItemTopLevelItemNode nsItem:
                             EmitNamespaceDeclaration(nsItem.NamespaceDeclaration);
@@ -1021,12 +970,6 @@ internal sealed class CSharpSourceWriter
                     case TypeItemTopLevelItemNode typeItem:
                         inferredNamespace = GetTypeContainingNamespace(typeItem.TypeDeclaration);
                         break;
-                    case NewtypeItemTopLevelItemNode newtypeItem:
-                        {
-                            var newtypeSymbol = model.GetDeclaredSymbol(newtypeItem.NewtypeDeclaration);
-                            inferredNamespace = GetNewtypeContainingNamespace(newtypeSymbol);
-                            break;
-                        }
                 }
 
                 if(inferredNamespace is not null)
@@ -1054,11 +997,8 @@ internal sealed class CSharpSourceWriter
                 case ExtensionItemTopLevelItemNode extensionItem:
                     EmitExtensionBlock(extensionItem.ExtensionDeclaration);
                     break;
-                case TypeAliasItemTopLevelItemNode:
-                    break;
-                case NewtypeItemTopLevelItemNode newtypeItem:
-                    EmitNewtypeDeclaration(newtypeItem.NewtypeDeclaration);
-                    break;
+                // Type aliases and newtypes now come through TypeItemTopLevelItemNode
+                // → EmitTypeDeclaration → TypeAliasTypeTypeDeclarationNode / NewtypeTypeTypeDeclarationNode.
                 case NamespaceItemTopLevelItemNode nsItem:
                     if(nsItem.NamespaceDeclaration is BlockNamespaceNamespaceDeclarationNode)
                     {
@@ -1077,11 +1017,8 @@ internal sealed class CSharpSourceWriter
                                 case NamespaceExtensionItemNamespaceBodyItemNode extensionBodyItem:
                                     EmitExtensionBlock(extensionBodyItem.ExtensionDeclaration);
                                     break;
-                                case NamespaceTypeAliasItemNamespaceBodyItemNode:
-                                    break;
-                                case NamespaceNewtypeItemNamespaceBodyItemNode newtypeBodyItem:
-                                    EmitNewtypeDeclaration(newtypeBodyItem.NewtypeDeclaration);
-                                    break;
+                                    // Type aliases and newtypes now come through NamespaceTypeItemNamespaceBodyItemNode
+                                    // → EmitTypeDeclaration → TypeAliasTypeTypeDeclarationNode / NewtypeTypeTypeDeclarationNode.
                             }
                         }
                     }
@@ -1129,12 +1066,8 @@ internal sealed class CSharpSourceWriter
                 case NamespaceExtensionItemNamespaceBodyItemNode extensionBodyItem:
                     EmitExtensionBlock(extensionBodyItem.ExtensionDeclaration);
                     break;
-                case NamespaceTypeAliasItemNamespaceBodyItemNode:
-                    // Type aliases are erased — no C# declaration is emitted.
-                    break;
-                case NamespaceNewtypeItemNamespaceBodyItemNode newtypeBodyItem:
-                    EmitNewtypeDeclaration(newtypeBodyItem.NewtypeDeclaration);
-                    break;
+                // Type aliases and newtypes now come through NamespaceTypeItemNamespaceBodyItemNode
+                // → EmitTypeDeclaration → TypeAliasTypeTypeDeclarationNode / NewtypeTypeTypeDeclarationNode.
                 case NamespaceNamespaceItemNamespaceBodyItemNode:
                     // Handled below via merged emission.
                     break;
@@ -1211,8 +1144,7 @@ internal sealed class CSharpSourceWriter
     {
         var members = typeDecl switch
         {
-            ClassTypeTypeDeclarationNode classType => classType.ClassDeclaration.Members,
-            StructTypeTypeDeclarationNode structType => structType.StructDeclaration.Members,
+            BodyTypeTypeDeclarationNode body => body.TypeBody.Members,
             _ => ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
@@ -1268,8 +1200,7 @@ internal sealed class CSharpSourceWriter
         {
             var members = typeDecl switch
             {
-                ClassTypeTypeDeclarationNode classType => classType.ClassDeclaration.Members,
-                StructTypeTypeDeclarationNode structType => structType.StructDeclaration.Members,
+                BodyTypeTypeDeclarationNode body => body.TypeBody.Members,
                 _ => ImmutableArray<MemberDeclarationNode>.Empty,
             };
 
@@ -1656,10 +1587,9 @@ internal sealed class CSharpSourceWriter
     {
         Storm.Runtime.SyntaxNode? innerNode = typeDecl switch
         {
-            ClassTypeTypeDeclarationNode classType => classType.ClassDeclaration,
-            StructTypeTypeDeclarationNode structType => structType.StructDeclaration,
-            AbstractTypeTypeDeclarationNode abstractType => abstractType.AbstractDeclaration,
+            BodyTypeTypeDeclarationNode body => body.TypeBody,
             EnumTypeTypeDeclarationNode enumType => enumType.EnumDeclaration,
+            NewtypeTypeTypeDeclarationNode newtypeType => newtypeType.NewtypeDeclaration,
             _ => null,
         };
 
@@ -1777,12 +1707,6 @@ internal sealed class CSharpSourceWriter
                             case NamespaceExtensionItemNamespaceBodyItemNode extensionBodyItem:
                                 EmitExtensionBlock(extensionBodyItem.ExtensionDeclaration);
                                 break;
-                            case NamespaceTypeAliasItemNamespaceBodyItemNode:
-                                // Type aliases are erased — no C# declaration is emitted.
-                                break;
-                            case NamespaceNewtypeItemNamespaceBodyItemNode newtypeBodyItem:
-                                EmitNewtypeDeclaration(newtypeBodyItem.NewtypeDeclaration);
-                                break;
                             case NamespaceNamespaceItemNamespaceBodyItemNode:
                                 // Handled below via merged emission.
                                 break;
@@ -1816,12 +1740,6 @@ internal sealed class CSharpSourceWriter
                                 break;
                             case NamespaceExtensionItemNamespaceBodyItemNode extensionBodyItem:
                                 EmitExtensionBlock(extensionBodyItem.ExtensionDeclaration);
-                                break;
-                            case NamespaceTypeAliasItemNamespaceBodyItemNode:
-                                // Type aliases are erased — no C# declaration is emitted.
-                                break;
-                            case NamespaceNewtypeItemNamespaceBodyItemNode newtypeBodyItem:
-                                EmitNewtypeDeclaration(newtypeBodyItem.NewtypeDeclaration);
                                 break;
                             case NamespaceNamespaceItemNamespaceBodyItemNode:
                                 // Handled below via merged emission.
@@ -1914,12 +1832,6 @@ internal sealed class CSharpSourceWriter
                     case NamespaceExtensionItemNamespaceBodyItemNode extensionBodyItem:
                         EmitExtensionBlock(extensionBodyItem.ExtensionDeclaration);
                         break;
-                    case NamespaceTypeAliasItemNamespaceBodyItemNode:
-                        // Type aliases are erased — no C# declaration is emitted.
-                        break;
-                    case NamespaceNewtypeItemNamespaceBodyItemNode newtypeBodyItem:
-                        EmitNewtypeDeclaration(newtypeBodyItem.NewtypeDeclaration);
-                        break;
                     case NamespaceNamespaceItemNamespaceBodyItemNode:
                         // Handled below via recursive merged emission.
                         break;
@@ -2004,11 +1916,6 @@ internal sealed class CSharpSourceWriter
                     case NamespaceExtensionItemNamespaceBodyItemNode extensionBodyItem:
                         EmitExtensionBlock(extensionBodyItem.ExtensionDeclaration);
                         break;
-                    case NamespaceTypeAliasItemNamespaceBodyItemNode:
-                        break;
-                    case NamespaceNewtypeItemNamespaceBodyItemNode newtypeBodyItem:
-                        EmitNewtypeDeclaration(newtypeBodyItem.NewtypeDeclaration);
-                        break;
                     case NamespaceNamespaceItemNamespaceBodyItemNode:
                         break;
                 }
@@ -2033,7 +1940,6 @@ internal sealed class CSharpSourceWriter
             {
                 case NamespaceTypeItemNamespaceBodyItemNode:
                 case NamespaceExtensionItemNamespaceBodyItemNode:
-                case NamespaceNewtypeItemNamespaceBodyItemNode:
                     return true;
                 case NamespaceNamespaceItemNamespaceBodyItemNode nsItem:
                     if(nsItem.NamespaceDeclaration is BlockNamespaceNamespaceDeclarationNode nestedBlock
@@ -2060,7 +1966,6 @@ internal sealed class CSharpSourceWriter
             {
                 case NamespaceTypeItemNamespaceBodyItemNode:
                 case NamespaceExtensionItemNamespaceBodyItemNode:
-                case NamespaceNewtypeItemNamespaceBodyItemNode:
                     return true;
                 case NamespaceNamespaceItemNamespaceBodyItemNode nsItem:
                     if(nsItem.NamespaceDeclaration is BlockNamespaceNamespaceDeclarationNode nestedBlock
@@ -2080,18 +1985,29 @@ internal sealed class CSharpSourceWriter
     {
         switch(typeDecl)
         {
-            case ClassTypeTypeDeclarationNode classType:
-                EmitClassDeclaration(classType.ClassDeclaration);
-                break;
-            case StructTypeTypeDeclarationNode structType:
-                EmitStructDeclaration(structType.StructDeclaration);
-                break;
+            case BodyTypeTypeDeclarationNode body:
+                switch(body.TypeBody.Keyword)
+                {
+                    case ClassKeywordTypeKeywordNode:
+                        EmitClassDeclaration(body.TypeBody);
+                        break;
+                    case StructKeywordTypeKeywordNode:
+                        EmitStructDeclaration(body.TypeBody);
+                        break;
+                    case AbstractKeywordTypeKeywordNode:
+                        EmitAbstractDeclaration(body.TypeBody);
+                        break;
+                }
 
-            case AbstractTypeTypeDeclarationNode abstractType:
-                EmitAbstractDeclaration(abstractType.AbstractDeclaration);
                 break;
             case EnumTypeTypeDeclarationNode enumType:
                 EmitEnumDeclaration(enumType.EnumDeclaration);
+                break;
+            case NewtypeTypeTypeDeclarationNode newtypeType:
+                EmitNewtypeDeclaration(newtypeType.NewtypeDeclaration);
+                break;
+            case TypeAliasTypeTypeDeclarationNode:
+                // Type aliases are erased — no C# declaration is emitted.
                 break;
         }
     }
@@ -2217,16 +2133,16 @@ internal sealed class CSharpSourceWriter
         AppendLine("{");
         indentLevel++;
 
-        if(sourceNode is ClassDeclarationNode classDecl)
+        if(sourceNode is BodyTypeTypeDeclarationNode { TypeBody: var typeBody } && typeBody.Keyword is ClassKeywordTypeKeywordNode)
         {
-            for(var i = 0; i < classDecl.Members.Length; i++)
+            for(var i = 0; i < typeBody.Members.Length; i++)
             {
                 if(i > 0)
                 {
                     AppendLine();
                 }
 
-                EmitNewtypeMemberDeclaration(classDecl.Members[i], newtypeName);
+                EmitNewtypeMemberDeclaration(typeBody.Members[i], newtypeName);
             }
         }
 
@@ -2254,16 +2170,16 @@ internal sealed class CSharpSourceWriter
         var previousInsideStruct = insideStruct;
         insideStruct = true;
 
-        if(sourceNode is StructDeclarationNode structDecl)
+        if(sourceNode is BodyTypeTypeDeclarationNode { TypeBody: var typeBody } && typeBody.Keyword is StructKeywordTypeKeywordNode)
         {
-            for(var i = 0; i < structDecl.Members.Length; i++)
+            for(var i = 0; i < typeBody.Members.Length; i++)
             {
                 if(i > 0)
                 {
                     AppendLine();
                 }
 
-                EmitNewtypeMemberDeclaration(structDecl.Members[i], newtypeName);
+                EmitNewtypeMemberDeclaration(typeBody.Members[i], newtypeName);
             }
         }
 
@@ -2938,7 +2854,7 @@ internal sealed class CSharpSourceWriter
         return false;
     }
 
-    private void EmitClassDeclaration(ClassDeclarationNode classDecl)
+    private void EmitClassDeclaration(TypeBodyDeclarationNode classDecl)
     {
         // Check if this is a Backend symbol — skip if so.
         var symbol = model.GetDeclaredSymbol(classDecl);
@@ -3321,7 +3237,7 @@ internal sealed class CSharpSourceWriter
         AppendLine("}");
     }
 
-    private void EmitAbstractDeclaration(AbstractDeclarationNode abstractDecl)
+    private void EmitAbstractDeclaration(TypeBodyDeclarationNode abstractDecl)
     {
         // Skip abstract types that map to CLR counterparts (e.g., IEnumerable → System.Collections.Generic.IEnumerable).
         // These are not emitted — the C# runtime provides them.
@@ -3391,20 +3307,22 @@ internal sealed class CSharpSourceWriter
         {
             switch(member)
             {
-                case AbstractMethodMemberAbstractMemberDeclarationNode methodMember:
+                case MethodMemberMemberDeclarationNode methodMember
+                    when methodMember.Method.Body is MethodNoBodyMethodBodyNode:
                     EmitAbstractMethodDeclaration(methodMember.Method, slotSubstitutions);
                     break;
-                case AbstractPropertyMemberAbstractMemberDeclarationNode propertyMember:
+                case PropertyMemberMemberDeclarationNode propertyMember:
                     EmitAbstractPropertyDeclaration(propertyMember.Property, slotSubstitutions);
                     break;
                 // Default methods (methods with bodies) emit as C# default interface methods
                 // (DIM) — a method WITH a body on the interface. Implementers may omit them.
-                case AbstractDefaultMethodMemberAbstractMemberDeclarationNode defaultMethodMember:
-                    EmitMethodDeclaration(defaultMethodMember.DefaultMethod);
+                case MethodMemberMemberDeclarationNode defaultMethodMember
+                    when defaultMethodMember.Method.Body is MethodBlockBodyMethodBodyNode:
+                    EmitMethodDeclaration(defaultMethodMember.Method);
                     break;
                 // Skip associated type slot declarations — they are lifted to type parameters.
-                case AbstractAssociatedTypeMemberAbstractMemberDeclarationNode:
-                case AbstractUnconstrainedAssociatedTypeMemberAbstractMemberDeclarationNode:
+                case AssociatedTypeMemberMemberDeclarationNode:
+                case UnconstrainedAssociatedTypeMemberMemberDeclarationNode:
                     break;
             }
         }
@@ -3623,7 +3541,7 @@ internal sealed class CSharpSourceWriter
             {
                 var targetNode = model.GetDeclaringNode(mapping.TargetSlot);
 
-                if(targetNode is AbstractMethodDeclarationNode targetMethodDecl)
+                if(targetNode is MethodDeclarationNode targetMethodDecl)
                 {
                     var returnType = EmitTypeReference(targetMethodDecl.ReturnType);
                     var parameters = EmitParameterList(targetMethodDecl.Parameters);
@@ -3633,18 +3551,7 @@ internal sealed class CSharpSourceWriter
                     AppendLine();
                     AppendLine($"{returnType} {interfaceName}.{mapping.TargetName}{typeParamsStr}({parameters}) => this.{mapping.SourceName}({paramNames});");
                 }
-                else if(targetNode is MethodDeclarationNode targetDefaultMethodDecl)
-                {
-                    // Mapped default method — the mapping takes precedence over the default.
-                    var returnType = EmitTypeReference(targetDefaultMethodDecl.ReturnType);
-                    var parameters = EmitParameterList(targetDefaultMethodDecl.Parameters);
-                    var paramNames = EmitParameterNamesOnly(targetDefaultMethodDecl.Parameters);
-                    var typeParamsStr = EmitTypeParameterList(targetDefaultMethodDecl.TypeParams);
-
-                    AppendLine();
-                    AppendLine($"{returnType} {interfaceName}.{mapping.TargetName}{typeParamsStr}({parameters}) => this.{mapping.SourceName}({paramNames});");
-                }
-                else if(targetNode is AbstractPropertyDeclarationNode targetPropDecl)
+                else if(targetNode is BlockPropertyPropertyDeclarationNode targetPropDecl)
                 {
                     var propType = EmitTypeReference(targetPropDecl.Type);
 
@@ -3655,10 +3562,10 @@ internal sealed class CSharpSourceWriter
                     {
                         switch(accessor)
                         {
-                            case AbstractGetAccessorAbstractAccessorDeclarationNode:
+                            case AutoGetAccessorAccessorDeclarationNode:
                                 accessors.Add($"get => this.{mapping.SourceName};");
                                 break;
-                            case AbstractSetAccessorAbstractAccessorDeclarationNode:
+                            case AutoSetAccessorAccessorDeclarationNode:
                                 accessors.Add($"set => this.{mapping.SourceName} = value;");
                                 break;
                         }
@@ -3730,7 +3637,7 @@ internal sealed class CSharpSourceWriter
         }
     }
 
-    private void EmitAbstractMethodDeclaration(AbstractMethodDeclarationNode methodDecl, Dictionary<string, string>? slotSubstitutions = null)
+    private void EmitAbstractMethodDeclaration(MethodDeclarationNode methodDecl, Dictionary<string, string>? slotSubstitutions = null)
     {
         var returnType = slotSubstitutions is not null
             ? EmitTypeReferenceWithSubstitution(methodDecl.ReturnType, slotSubstitutions)
@@ -3782,22 +3689,28 @@ internal sealed class CSharpSourceWriter
         }
     }
 
-    private void EmitAbstractPropertyDeclaration(AbstractPropertyDeclarationNode propertyDecl, Dictionary<string, string>? slotSubstitutions = null)
+    private void EmitAbstractPropertyDeclaration(PropertyDeclarationNode propertyDecl, Dictionary<string, string>? slotSubstitutions = null)
     {
+        // Abstract properties always use the BlockProperty variant (they have auto accessors).
+        if(propertyDecl is not BlockPropertyPropertyDeclarationNode blockProp)
+        {
+            return;
+        }
+
         var type = slotSubstitutions is not null
-            ? EmitTypeReferenceWithSubstitution(propertyDecl.Type, slotSubstitutions)
-            : EmitTypeReference(propertyDecl.Type);
-        var name = propertyDecl.Name.Lexeme;
+            ? EmitTypeReferenceWithSubstitution(blockProp.Type, slotSubstitutions)
+            : EmitTypeReference(blockProp.Type);
+        var name = blockProp.Name.Lexeme;
 
         var accessors = new List<string>();
-        foreach(var accessor in propertyDecl.Accessors)
+        foreach(var accessor in blockProp.Accessors)
         {
             switch(accessor)
             {
-                case AbstractGetAccessorAbstractAccessorDeclarationNode:
+                case AutoGetAccessorAccessorDeclarationNode:
                     accessors.Add("get;");
                     break;
-                case AbstractSetAccessorAbstractAccessorDeclarationNode:
+                case AutoSetAccessorAccessorDeclarationNode:
                     accessors.Add("set;");
                     break;
             }
@@ -3869,7 +3782,7 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private void EmitExplicitInterfaceImplsForParameterizedSlots(
         ClassType classType,
-        ClassDeclarationNode classDecl,
+        TypeBodyDeclarationNode classDecl,
         Dictionary<string, string> abstractParamSubs)
     {
         // Collect parameterized slots from implemented abstract types.
@@ -4114,7 +4027,7 @@ internal sealed class CSharpSourceWriter
         return EmitSingleTypeArgument(arg);
     }
 
-    private void EmitStructDeclaration(StructDeclarationNode structDecl)
+    private void EmitStructDeclaration(TypeBodyDeclarationNode structDecl)
     {
         var symbol = model.GetDeclaredSymbol(structDecl);
         if(symbol is not null && symbol.Origin == SymbolOrigin.Backend)
@@ -4152,7 +4065,7 @@ internal sealed class CSharpSourceWriter
         var name = structDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(structDecl.TypeParams);
         var abstractList = "";
-        if(structDecl.BaseClause is not null)
+        if(structDecl.BaseList is not null)
         {
             // If the struct has a base struct, skip the first entry in the base list
             // (it was consumed as the base struct type, not an interface). The CLR does
@@ -4162,20 +4075,20 @@ internal sealed class CSharpSourceWriter
             var baseParts = hasBaseStruct
                 ? (implementorScope is not null
                     ? EmitBaseListSkippingFirstWithAssociatedTypeArgs(
-                        structDecl.BaseClause,
+                        structDecl.BaseList,
                         implementorScope,
                         null,
                         name,
                         typeParams)
-                    : EmitBaseListSkippingFirst(structDecl.BaseClause))
+                    : EmitBaseListSkippingFirst(structDecl.BaseList))
                 : (implementorScope is not null
                     ? EmitBaseListWithAssociatedTypeArgs(
-                        structDecl.BaseClause,
+                        structDecl.BaseList,
                         implementorScope,
                         null,
                         name,
                         typeParams)
-                    : EmitBaseListWithTypeArgs(structDecl.BaseClause));
+                    : EmitBaseListWithTypeArgs(structDecl.BaseList));
 
             // Append with-block conformance interfaces to the inheritance list.
             var withBlockInterfaces = CollectWithBlockInterfaceNames(symbol?.DeclaredType);
@@ -6542,8 +6455,7 @@ internal sealed class CSharpSourceWriter
     {
         var symbol = typeDecl switch
         {
-            ClassTypeTypeDeclarationNode classDecl => model.GetDeclaredSymbol(classDecl.ClassDeclaration),
-            StructTypeTypeDeclarationNode structDecl => model.GetDeclaredSymbol(structDecl.StructDeclaration),
+            BodyTypeTypeDeclarationNode body => model.GetDeclaredSymbol(body.TypeBody),
             _ => null,
         };
 

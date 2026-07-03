@@ -152,8 +152,8 @@ public sealed class TypeReferencePreservationPropertyTests
         var source = $"class T {{ public void M() {{ {typeAnnotation} x = default; }} }}";
         var cu = ParseOrFail(source);
 
-        var typeDecl = (ClassTypeTypeDeclarationNode)cu.GetTypes()[0];
-        var methodMember = (MethodMemberMemberDeclarationNode)typeDecl.ClassDeclaration.Members[0];
+        var typeDecl = (BodyTypeTypeDeclarationNode)cu.GetTypes()[0];
+        var methodMember = (MethodMemberMemberDeclarationNode)typeDecl.TypeBody.Members[0];
         var block = methodMember.Method.Body.GetBlock()
             ?? throw new InvalidOperationException("Method body block is null");
         var stmt = (VariableDeclarationStatementStatementNode)block.Statements[0];

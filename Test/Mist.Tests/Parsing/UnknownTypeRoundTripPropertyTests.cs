@@ -119,8 +119,8 @@ public class UnknownTypeRoundTripPropertyTests
 
     private static TypedVariableDeclarationVariableDeclarationStatementNode GetFirstLocalDecl(CompilationUnitNode cu)
     {
-        var typeDecl = Assert.IsType<ClassTypeTypeDeclarationNode>(cu.GetTypes()[0]);
-        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.ClassDeclaration.Members[0]);
+        var typeDecl = Assert.IsType<BodyTypeTypeDeclarationNode>(cu.GetTypes()[0]);
+        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.TypeBody.Members[0]);
         var block = methodMember.Method.Body.GetBlock();
         Assert.NotNull(block);
         var stmt = Assert.IsType<VariableDeclarationStatementStatementNode>(block!.Statements[0]);
@@ -129,8 +129,8 @@ public class UnknownTypeRoundTripPropertyTests
 
     private static MethodDeclarationNode GetFirstMethod(CompilationUnitNode cu)
     {
-        var typeDecl = Assert.IsType<ClassTypeTypeDeclarationNode>(cu.GetTypes()[0]);
-        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.ClassDeclaration.Members[0]);
+        var typeDecl = Assert.IsType<BodyTypeTypeDeclarationNode>(cu.GetTypes()[0]);
+        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.TypeBody.Members[0]);
         return methodMember.Method;
     }
 

@@ -50,8 +50,9 @@ public static class MistProgramGenerator
         };
         members.Add(new MethodMemberMemberDeclarationNode { Method = mainMethod });
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Program"),
             Members = members.ToImmutable(),
         };
@@ -59,7 +60,7 @@ public static class MistProgramGenerator
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
     }
 

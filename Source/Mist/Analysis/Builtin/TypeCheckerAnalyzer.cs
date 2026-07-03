@@ -1592,6 +1592,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 SyntaxNode ctorDeclNode;
                 try { ctorDeclNode = model.GetDeclaringNode(ctorSymbol); }
                 catch { continue; }
+
                 diagnostics.ReportAtNode(CommonDiagnostics.FieldNotDefinitelyAssigned, ctorDeclNode, "TypeChecker", fieldName, ctorName, typeName);
             }
         }
@@ -4084,7 +4085,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return;
         }
 
-        var memberKind = contractMember.Kind switch
+        _ = contractMember.Kind switch
         {
             SymbolKind.Method => "Method",
             SymbolKind.Property => "Property",
@@ -7137,6 +7138,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             return;
         }
+
         diagnostics.ReportAtNode(TypeCheckDiagnostics.ReadonlyLocalReassignment, assignment, "TypeChecker", sym.Name);
     }
 
@@ -9556,6 +9558,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             return;
         }
+
         diagnostics.ReportAtNode(TypeCheckDiagnostics.AsyncFunctorDoubleWrap, asyncExpr, "TypeChecker");
     }
 
@@ -9595,6 +9598,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             return;
         }
+
         diagnostics.ReportAtNode(TypeCheckDiagnostics.AwaitNonTaskOperand, awaitExpr, "TypeChecker", operandType.DisplayName);
     }
 
@@ -10680,7 +10684,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             // Extract the offset from the exception if available.
             // .NET's RegexParseException (derived from ArgumentException) provides an Offset property.
-            var offset = ex is RegexParseException parseEx ? parseEx.Offset : 0; diagnostics.ReportAtNode(TypeCheckDiagnostics.RegexPatternInvalid, node, "TypeChecker");
+            _ = ex is RegexParseException parseEx ? parseEx.Offset : 0; diagnostics.ReportAtNode(TypeCheckDiagnostics.RegexPatternInvalid, node, "TypeChecker");
         }
     }
 
@@ -10774,6 +10778,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 {
                     return;
                 }
+
                 diagnostics.ReportAtNode(CommonDiagnostics.DefaultOnTypeParameter, node, "TypeChecker");
                 return;
 
@@ -11907,6 +11912,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             return;
         }
+
         diagnostics.ReportAtNode(TypeCheckDiagnostics.RefArgNotStorageLocation, refArg, "TypeChecker", description);
     }
 
@@ -13154,7 +13160,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             // All other element types are not stampable — emit the diagnostic.
-            var reason = elemType switch
+            _ = elemType switch
             {
                 StructType => $"'{elemType.DisplayName}' is a struct with fields that are not stampable",
                 _ => $"'{elemType.DisplayName}' is a reference type",
@@ -15305,6 +15311,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     return false;
                 }
             }
+
             diagnostics.ReportAtNode(TypeCheckDiagnostics.RefinementNonConstantAssignment, expression, "TypeChecker", sourceType.DisplayName, targetRefinement.DisplayName);
             return true;
         }
@@ -15384,7 +15391,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             catch(ArgumentException ex)
             {
                 // Invalid regex pattern — emit diagnostic.
-                var offset = ex is RegexParseException parseEx ? parseEx.Offset : 0; diagnostics.ReportAtNode(TypeCheckDiagnostics.RegexPatternInvalid, expression, "TypeChecker");
+                _ = ex is RegexParseException parseEx ? parseEx.Offset : 0; diagnostics.ReportAtNode(TypeCheckDiagnostics.RegexPatternInvalid, expression, "TypeChecker");
                 return true;
             }
         }
@@ -15744,7 +15751,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // an abstract is permitted.
         if(IsRefStructType(source) && IsAbstractTargetType(target))
         {
-            var abstractName = target.DisplayName; diagnostics.ReportAtNode(TypeCheckDiagnostics.RefStructToAbstract, node, "TypeChecker");
+            _ = target.DisplayName; diagnostics.ReportAtNode(TypeCheckDiagnostics.RefStructToAbstract, node, "TypeChecker");
             return;
         }
 
@@ -15802,6 +15809,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 return;
             }
+
             diagnostics.ReportAtNode(TypeCheckDiagnostics.ImplicitConversionNotExists, node, "TypeChecker", source.DisplayName, target.DisplayName);
         }
         else
@@ -19185,7 +19193,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Source is BaseDelegateType and target is a specific DelegateType or func<...>.
         if(unwrappedSource is BaseDelegateType)
         {
-            if(unwrappedTarget is DelegateType narrowTarget)
+            if(unwrappedTarget is DelegateType)
             {
                 diagnostics.ReportAtNode(TypeCheckDiagnostics.DelegateCannotNarrowBaseDelegate, node, "TypeChecker");
                 return true;
@@ -19201,7 +19209,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // ── MIST_TC_0130: Nominal mismatch between two distinct named delegates ──
-        if(unwrappedTarget is DelegateType targetDelegate && unwrappedSource is DelegateType sourceDelegate)
+        if(unwrappedTarget is DelegateType && unwrappedSource is DelegateType)
         {
             // If we reach here, assignability already failed — they must be different.            diagnostics.ReportAtNode(TypeCheckDiagnostics.DelegateNominalMismatch, node, "TypeChecker");
             return true;
@@ -19213,7 +19221,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if(SemanticModelBuilder.IsFuncType(unwrappedSource))
             {
                 // Signature mismatch: provide details about the incompatibility.
-                var mismatchReason = DescribeSignatureMismatch(unwrappedSource, targetDelegateForSig.FuncSignature); diagnostics.ReportAtNode(TypeCheckDiagnostics.DelegateSignatureMismatch, node, "TypeChecker");
+                _ = DescribeSignatureMismatch(unwrappedSource, targetDelegateForSig.FuncSignature); diagnostics.ReportAtNode(TypeCheckDiagnostics.DelegateSignatureMismatch, node, "TypeChecker");
                 return true;
             }
 
@@ -19285,21 +19293,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Cross-newtype assignment (Req 2.5): two different newtypes.
-        if(unwrappedSource is NewtypeType sourceNewtype && unwrappedTarget is NewtypeType targetNewtype)
+        if(unwrappedSource is NewtypeType && unwrappedTarget is NewtypeType)
         {
             diagnostics.ReportAtNode(TypeCheckDiagnostics.ImplicitConversionNotExists, node, "TypeChecker", source.DisplayName, target.DisplayName);
             return true;
         }
 
         // Newtype → Source type (Req 2.4): newtype assigned where source type expected.
-        if(unwrappedSource is NewtypeType newtypeSource)
+        if(unwrappedSource is NewtypeType)
         {
             diagnostics.ReportAtNode(TypeCheckDiagnostics.ImplicitConversionNotExists, node, "TypeChecker", source.DisplayName, target.DisplayName);
             return true;
         }
 
         // Source type → Newtype (Req 2.3): source type assigned where newtype expected.
-        if(unwrappedTarget is NewtypeType newtypeTarget)
+        if(unwrappedTarget is NewtypeType)
         {
             diagnostics.ReportAtNode(TypeCheckDiagnostics.ImplicitConversionNotExists, node, "TypeChecker");
             return true;
@@ -19501,7 +19509,7 @@ node, model, diagnostics);
             var argDiscipline = GetArgumentDiscipline(typeArgument);
             if(!SatisfiesSubstructuralConstraint(argDiscipline, requiredDiscipline))
             {
-                var constraintKeyword = requiredDiscipline switch
+                _ = requiredDiscipline switch
                 {
                     SubstructuralDiscipline.Linear => "linear",
                     SubstructuralDiscipline.Affine => "affine",
@@ -19992,7 +20000,7 @@ node, model, diagnostics);
             // Check MIST_DT_0002: Is the argument a compile-time constant?
             if(!IsDependentArgCompileTimeConstant(argNode, model))
             {
-                var exprText = ExtractTypeArgumentText(argNode); diagnostics.ReportAtNode(TypeCheckDiagnostics.DependentArgNotConstant, argNode, "TypeChecker");
+                _ = ExtractTypeArgumentText(argNode); diagnostics.ReportAtNode(TypeCheckDiagnostics.DependentArgNotConstant, argNode, "TypeChecker");
                 continue; // Skip type match check if not a constant.
             }
 
@@ -20062,7 +20070,7 @@ node, model, diagnostics);
             // Concrete constant case: evaluate the predicate against the value.
             if(!targetConstraint.Evaluate(depArg.Value))
             {
-                var typeName = constructedType.GenericDefinition.DisplayName; diagnostics.ReportAtNode(TypeCheckDiagnostics.RefinementConstraintViolation, argNode, "TypeChecker");
+                _ = constructedType.GenericDefinition.DisplayName; diagnostics.ReportAtNode(TypeCheckDiagnostics.RefinementConstraintViolation, argNode, "TypeChecker");
             }
         }
     }
@@ -20106,7 +20114,7 @@ node, model, diagnostics);
             // Check MIST_DT_0002: Is the argument a compile-time constant?
             if(!IsDependentArgCompileTimeConstant(argNode, model))
             {
-                var exprText = ExtractTypeArgumentText(argNode); diagnostics.ReportAtNode(TypeCheckDiagnostics.DependentArgNotConstant, argNode, "TypeChecker");
+                _ = ExtractTypeArgumentText(argNode); diagnostics.ReportAtNode(TypeCheckDiagnostics.DependentArgNotConstant, argNode, "TypeChecker");
                 continue;
             }
 
@@ -20163,7 +20171,7 @@ node, model, diagnostics);
         var constantValue = TryExtractConstantFromTypeArgNode(argNode);
         if(constantValue is not null && !constraint.Evaluate(constantValue))
         {
-            var displayValue = ExtractTypeArgumentText(argNode); diagnostics.ReportAtNode(TypeCheckDiagnostics.RefinementConstraintViolation, argNode, "TypeChecker");
+            _ = ExtractTypeArgumentText(argNode); diagnostics.ReportAtNode(TypeCheckDiagnostics.RefinementConstraintViolation, argNode, "TypeChecker");
         }
     }
 
@@ -20462,8 +20470,8 @@ node, model, diagnostics);
                 // convertible (widenable) to the base parameter's value type.
                 if(!IsImplicitlyWidenable(derivedDepParam.ValueType, baseDepParam.ValueType))
                 {
-                    var derivedTypeName = derivedType.DisplayName;
-                    var baseTypeName = baseConstructed.GenericDefinition.DisplayName; diagnostics.ReportAtNode(TypeCheckDiagnostics.DependentNarrowingViolation, declaringNode, "TypeChecker");
+                    _ = derivedType.DisplayName;
+                    _ = baseConstructed.GenericDefinition.DisplayName; diagnostics.ReportAtNode(TypeCheckDiagnostics.DependentNarrowingViolation, declaringNode, "TypeChecker");
                 }
 
                 // Validate adhoc refinement constraint implication for forwarded parameters.
@@ -20493,7 +20501,7 @@ node, model, diagnostics);
                 {
                     if(!targetConstraint.Evaluate(depArg.Value))
                     {
-                        var typeName = baseConstructed.GenericDefinition.DisplayName; diagnostics.ReportAtNode(TypeCheckDiagnostics.RefinementConstraintViolation, declaringNode, "TypeChecker");
+                        _ = baseConstructed.GenericDefinition.DisplayName; diagnostics.ReportAtNode(TypeCheckDiagnostics.RefinementConstraintViolation, declaringNode, "TypeChecker");
                     }
                 }
             }
@@ -20717,7 +20725,6 @@ node, model, diagnostics);
             MethodDeclarationNode methodDecl => methodDecl.Parameters,
             ConstructorDeclarationNode ctorDecl => ctorDecl.Parameters,
             IndexerDeclarationNode indexerDecl => indexerDecl.Parameters,
-            AbstractMethodDeclarationNode abstractMethodDecl => abstractMethodDecl.Parameters,
             _ => null,
         };
 
@@ -20828,11 +20835,8 @@ node, model, diagnostics);
     {
         return declaringNode switch
         {
-            ClassDeclarationNode classDecl => classDecl.Constraints,
-            StructDeclarationNode structDecl => structDecl.Constraints,
-            AbstractDeclarationNode abstractDecl => abstractDecl.Constraints,
+            TypeBodyDeclarationNode typeBody => typeBody.Constraints,
             MethodDeclarationNode methodDecl => methodDecl.Constraints,
-            AbstractMethodDeclarationNode abstractMethodDecl => abstractMethodDecl.Constraints,
             TypeAliasDeclarationNode aliasDecl => aliasDecl.Constraints,
             ConstructorDeclarationNode ctorDecl => ctorDecl.Constraints,
             IndexerDeclarationNode indexerDecl => indexerDecl.Constraints,

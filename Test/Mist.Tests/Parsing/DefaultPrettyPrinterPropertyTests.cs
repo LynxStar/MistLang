@@ -238,10 +238,11 @@ public class DefaultPrettyPrinterPropertyTests
                    Items = ImmutableArray.Create<TopLevelItemNode>(
                        new TypeItemTopLevelItemNode
                        {
-                           TypeDeclaration = new ClassTypeTypeDeclarationNode
+                           TypeDeclaration = new BodyTypeTypeDeclarationNode
                            {
-                               ClassDeclaration = new ClassDeclarationNode
+                               TypeBody = new TypeBodyDeclarationNode
                                {
+                                   Keyword = new ClassKeywordTypeKeywordNode(),
                                    Name = Tok(className),
                                    Members = fields.Append(defaultBlock).ToImmutableArray(),
                                },
@@ -274,10 +275,11 @@ public class DefaultPrettyPrinterPropertyTests
                    Items = ImmutableArray.Create<TopLevelItemNode>(
                        new TypeItemTopLevelItemNode
                        {
-                           TypeDeclaration = new StructTypeTypeDeclarationNode
+                           TypeDeclaration = new BodyTypeTypeDeclarationNode
                            {
-                               StructDeclaration = new StructDeclarationNode
+                               TypeBody = new TypeBodyDeclarationNode
                                {
+                                   Keyword = new ClassKeywordTypeKeywordNode(),
                                    Name = Tok(structName),
                                    Members = fields.Append(defaultBlock).ToImmutableArray(),
                                },
@@ -301,10 +303,11 @@ public class DefaultPrettyPrinterPropertyTests
                    Items = ImmutableArray.Create<TopLevelItemNode>(
                        new TypeItemTopLevelItemNode
                        {
-                           TypeDeclaration = new ClassTypeTypeDeclarationNode
+                           TypeDeclaration = new BodyTypeTypeDeclarationNode
                            {
-                               ClassDeclaration = new ClassDeclarationNode
+                               TypeBody = new TypeBodyDeclarationNode
                                {
+                                   Keyword = new ClassKeywordTypeKeywordNode(),
                                    Name = Tok(className),
                                    Members = ImmutableArray.Create<MemberDeclarationNode>(
                                        new MethodMemberMemberDeclarationNode
@@ -358,10 +361,11 @@ public class DefaultPrettyPrinterPropertyTests
                    Items = ImmutableArray.Create<TopLevelItemNode>(
                        new TypeItemTopLevelItemNode
                        {
-                           TypeDeclaration = new ClassTypeTypeDeclarationNode
+                           TypeDeclaration = new BodyTypeTypeDeclarationNode
                            {
-                               ClassDeclaration = new ClassDeclarationNode
+                               TypeBody = new TypeBodyDeclarationNode
                                {
+                                   Keyword = new ClassKeywordTypeKeywordNode(),
                                    Name = Tok(className),
                                    Members = fields
                                        .Append(defaultBlock)
@@ -428,10 +432,11 @@ public class DefaultPrettyPrinterPropertyTests
                    Items = ImmutableArray.Create<TopLevelItemNode>(
                        new TypeItemTopLevelItemNode
                        {
-                           TypeDeclaration = new ClassTypeTypeDeclarationNode
+                           TypeDeclaration = new BodyTypeTypeDeclarationNode
                            {
-                               ClassDeclaration = new ClassDeclarationNode
+                               TypeBody = new TypeBodyDeclarationNode
                                {
+                                   Keyword = new ClassKeywordTypeKeywordNode(),
                                    Name = Tok(className),
                                    Members = ImmutableArray.Create<MemberDeclarationNode>(
                                        new MethodMemberMemberDeclarationNode

@@ -195,89 +195,97 @@ public class MissingTypeArgumentsPropertyTests
             case MissingArgsDeclKind.ClassFromClass:
                 {
                     // Generic base class
-                    var genericClassDecl = new ClassDeclarationNode
+                    var genericClassDecl = new TypeBodyDeclarationNode
                     {
+                        Keyword = new ClassKeywordTypeKeywordNode(),
                         Name = MakeToken(scenario.GenericTypeName),
                         TypeParams = MakeTypeParamList(scenario.TypeParamNames.ToArray()),
                         Members = ImmutableArray<MemberDeclarationNode>.Empty,
                     };
-                    genericTypeDecl = new ClassTypeTypeDeclarationNode { ClassDeclaration = genericClassDecl };
+                    genericTypeDecl = new BodyTypeTypeDeclarationNode { TypeBody = genericClassDecl };
 
                     // Non-generic derived class inheriting without type args
                     var baseList = MakeBaseList([MakeBaseTypeRef(scenario.GenericTypeName)]);
-                    var derivedClassDecl = new ClassDeclarationNode
+                    var derivedClassDecl = new TypeBodyDeclarationNode
                     {
+                        Keyword = new ClassKeywordTypeKeywordNode(),
                         Name = MakeToken(scenario.DerivedTypeName),
                         Members = ImmutableArray<MemberDeclarationNode>.Empty,
                         BaseClause = baseList,
                         BaseList = baseList,
                     };
-                    derivedTypeDecl = new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedClassDecl };
+                    derivedTypeDecl = new BodyTypeTypeDeclarationNode { TypeBody = derivedClassDecl };
                     break;
                 }
             case MissingArgsDeclKind.ClassFromAbstract:
                 {
                     // Generic abstract type
-                    var genericAbstractDecl = new AbstractDeclarationNode
+                    var genericAbstractDecl = new TypeBodyDeclarationNode
                     {
+                        Keyword = new AbstractKeywordTypeKeywordNode(),
                         Name = MakeToken(scenario.GenericTypeName),
                         TypeParams = MakeTypeParamList(scenario.TypeParamNames.ToArray()),
-                        Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
+                        Members = ImmutableArray<MemberDeclarationNode>.Empty,
                     };
-                    genericTypeDecl = new AbstractTypeTypeDeclarationNode { AbstractDeclaration = genericAbstractDecl };
+                    genericTypeDecl = new BodyTypeTypeDeclarationNode { TypeBody = genericAbstractDecl };
 
                     // Non-generic class implementing generic abstract type without type args
                     var baseList = MakeBaseList([MakeBaseTypeRef(scenario.GenericTypeName)]);
-                    var derivedClassDecl = new ClassDeclarationNode
+                    var derivedClassDecl = new TypeBodyDeclarationNode
                     {
+                        Keyword = new ClassKeywordTypeKeywordNode(),
                         Name = MakeToken(scenario.DerivedTypeName),
                         Members = ImmutableArray<MemberDeclarationNode>.Empty,
                         BaseClause = baseList,
                         BaseList = baseList,
                     };
-                    derivedTypeDecl = new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedClassDecl };
+                    derivedTypeDecl = new BodyTypeTypeDeclarationNode { TypeBody = derivedClassDecl };
                     break;
                 }
             case MissingArgsDeclKind.StructFromAbstract:
                 {
                     // Generic abstract type
-                    var genericAbstractDecl = new AbstractDeclarationNode
+                    var genericAbstractDecl = new TypeBodyDeclarationNode
                     {
+                        Keyword = new AbstractKeywordTypeKeywordNode(),
                         Name = MakeToken(scenario.GenericTypeName),
                         TypeParams = MakeTypeParamList(scenario.TypeParamNames.ToArray()),
-                        Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
+                        Members = ImmutableArray<MemberDeclarationNode>.Empty,
                     };
-                    genericTypeDecl = new AbstractTypeTypeDeclarationNode { AbstractDeclaration = genericAbstractDecl };
+                    genericTypeDecl = new BodyTypeTypeDeclarationNode { TypeBody = genericAbstractDecl };
 
                     // Non-generic struct implementing generic abstract type without type args
-                    var structDecl = new StructDeclarationNode
+                    var structDecl = new TypeBodyDeclarationNode
                     {
+                        Keyword = new StructKeywordTypeKeywordNode(),
                         Name = MakeToken(scenario.DerivedTypeName),
                         Members = ImmutableArray<MemberDeclarationNode>.Empty,
                         BaseList = MakeBaseList([MakeBaseTypeRef(scenario.GenericTypeName)]),
                     };
-                    derivedTypeDecl = new StructTypeTypeDeclarationNode { StructDeclaration = structDecl };
+                    derivedTypeDecl = new BodyTypeTypeDeclarationNode { TypeBody = structDecl };
                     break;
                 }
             case MissingArgsDeclKind.AbstractFromAbstract:
                 {
                     // Generic abstract type
-                    var genericAbstractDecl = new AbstractDeclarationNode
+                    var genericAbstractDecl = new TypeBodyDeclarationNode
                     {
+                        Keyword = new AbstractKeywordTypeKeywordNode(),
                         Name = MakeToken(scenario.GenericTypeName),
                         TypeParams = MakeTypeParamList(scenario.TypeParamNames.ToArray()),
-                        Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
+                        Members = ImmutableArray<MemberDeclarationNode>.Empty,
                     };
-                    genericTypeDecl = new AbstractTypeTypeDeclarationNode { AbstractDeclaration = genericAbstractDecl };
+                    genericTypeDecl = new BodyTypeTypeDeclarationNode { TypeBody = genericAbstractDecl };
 
                     // Non-generic abstract type extending generic abstract type without type args
-                    var derivedAbstractDecl = new AbstractDeclarationNode
+                    var derivedAbstractDecl = new TypeBodyDeclarationNode
                     {
+                        Keyword = new AbstractKeywordTypeKeywordNode(),
                         Name = MakeToken(scenario.DerivedTypeName),
-                        Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
+                        Members = ImmutableArray<MemberDeclarationNode>.Empty,
                         BaseList = MakeBaseList([MakeBaseTypeRef(scenario.GenericTypeName)]),
                     };
-                    derivedTypeDecl = new AbstractTypeTypeDeclarationNode { AbstractDeclaration = derivedAbstractDecl };
+                    derivedTypeDecl = new BodyTypeTypeDeclarationNode { TypeBody = derivedAbstractDecl };
                     break;
                 }
             default:
@@ -302,16 +310,18 @@ public class MissingTypeArgumentsPropertyTests
     {
         // class Base<T> { }
         // class Derived : Base { }  ← missing type arguments
-        var baseClassDecl = new ClassDeclarationNode
+        var baseClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Base"),
             TypeParams = MakeTypeParamList(["T"]),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
         var baseList = MakeBaseList([MakeBaseTypeRef("Base")]);
-        var derivedClassDecl = new ClassDeclarationNode
+        var derivedClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Derived"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
             BaseClause = baseList,
@@ -319,8 +329,8 @@ public class MissingTypeArgumentsPropertyTests
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = baseClassDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedClassDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = baseClassDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = derivedClassDecl });
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
@@ -337,16 +347,18 @@ public class MissingTypeArgumentsPropertyTests
     {
         // abstract IContainer<T> { }
         // class Box : IContainer { }  ← missing type arguments
-        var abstractDecl = new AbstractDeclarationNode
+        var abstractDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new AbstractKeywordTypeKeywordNode(),
             Name = MakeToken("IContainer"),
             TypeParams = MakeTypeParamList(["T"]),
-            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
         var baseList = MakeBaseList([MakeBaseTypeRef("IContainer")]);
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Box"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
             BaseClause = baseList,
@@ -354,8 +366,8 @@ public class MissingTypeArgumentsPropertyTests
         };
 
         var ast = MakeCompilationUnit(
-            new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = abstractDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
@@ -372,23 +384,25 @@ public class MissingTypeArgumentsPropertyTests
     {
         // abstract IContainer<T> { }
         // struct Box : IContainer { }  ← missing type arguments
-        var abstractDecl = new AbstractDeclarationNode
+        var abstractDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new AbstractKeywordTypeKeywordNode(),
             Name = MakeToken("IContainer"),
             TypeParams = MakeTypeParamList(["T"]),
-            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        var structDecl = new StructDeclarationNode
+        var structDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Name = MakeToken("Box"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
             BaseList = MakeBaseList([MakeBaseTypeRef("IContainer")]),
         };
 
         var ast = MakeCompilationUnit(
-            new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl },
-            new StructTypeTypeDeclarationNode { StructDeclaration = structDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = abstractDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = structDecl });
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
@@ -405,16 +419,18 @@ public class MissingTypeArgumentsPropertyTests
     {
         // class Map<K, V> { }
         // class MyMap : Map { }  ← missing type arguments
-        var baseClassDecl = new ClassDeclarationNode
+        var baseClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Map"),
             TypeParams = MakeTypeParamList(["K", "V"]),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
         var baseList = MakeBaseList([MakeBaseTypeRef("Map")]);
-        var derivedClassDecl = new ClassDeclarationNode
+        var derivedClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("MyMap"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
             BaseClause = baseList,
@@ -422,8 +438,8 @@ public class MissingTypeArgumentsPropertyTests
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = baseClassDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedClassDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = baseClassDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = derivedClassDecl });
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
@@ -454,16 +470,18 @@ public class MissingTypeArgumentsPropertyTests
             TypeParameters = ImmutableArray<TypeParameterNode>.Empty,
         };
 
-        var baseClassDecl = new ClassDeclarationNode
+        var baseClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("FixedBuffer"),
             TypeParams = typeParamList,
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
         var baseList = MakeBaseList([MakeBaseTypeRef("FixedBuffer")]);
-        var derivedClassDecl = new ClassDeclarationNode
+        var derivedClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
             BaseClause = baseList,
@@ -471,8 +489,8 @@ public class MissingTypeArgumentsPropertyTests
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = baseClassDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedClassDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = baseClassDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = derivedClassDecl });
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
@@ -502,16 +520,18 @@ public class MissingTypeArgumentsPropertyTests
             TypeParameters = ImmutableArray.Create<TypeParameterNode>(depParam),
         };
 
-        var baseClassDecl = new ClassDeclarationNode
+        var baseClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("TypedBuffer"),
             TypeParams = typeParamList,
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
         var baseList = MakeBaseList([MakeBaseTypeRef("TypedBuffer")]);
-        var derivedClassDecl = new ClassDeclarationNode
+        var derivedClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
             BaseClause = baseList,
@@ -519,8 +539,8 @@ public class MissingTypeArgumentsPropertyTests
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = baseClassDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedClassDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = baseClassDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = derivedClassDecl });
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 

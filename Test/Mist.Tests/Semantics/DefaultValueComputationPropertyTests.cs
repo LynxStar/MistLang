@@ -158,17 +158,18 @@ public class DefaultValueComputationPropertyTests
         };
     }
 
-    private static ClassDeclarationNode MakeClassDecl(
+    private static TypeBodyDeclarationNode MakeClassDecl(
         string name, ImmutableArray<MemberDeclarationNode> members)
     {
-        return new ClassDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members,
         };
     }
 
-    private static ClassDeclarationNode MakeClassDeclWithBase(
+    private static TypeBodyDeclarationNode MakeClassDeclWithBase(
         string name, string baseClassName, ImmutableArray<MemberDeclarationNode> members)
     {
         var baseTypeRef = new BaseTypeRefNode { Name = MakeToken(baseClassName) };
@@ -179,8 +180,9 @@ public class DefaultValueComputationPropertyTests
             BaseTypeRefs = ImmutableArray<BaseTypeRefNode>.Empty,
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members,
             BaseClause = baseList,
@@ -189,29 +191,30 @@ public class DefaultValueComputationPropertyTests
         return classDecl;
     }
 
-    private static StructDeclarationNode MakeStructDecl(
+    private static TypeBodyDeclarationNode MakeStructDecl(
         string name, ImmutableArray<MemberDeclarationNode> members)
     {
-        return new StructDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members,
         };
     }
 
-    private static TypeDeclarationNode WrapClass(ClassDeclarationNode classDecl)
+    private static TypeDeclarationNode WrapClass(TypeBodyDeclarationNode classDecl)
     {
-        return new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl };
+        return new BodyTypeTypeDeclarationNode { TypeBody = classDecl };
     }
 
-    private static TypeDeclarationNode WrapStruct(StructDeclarationNode structDecl)
+    private static TypeDeclarationNode WrapStruct(TypeBodyDeclarationNode structDecl)
     {
-        return new StructTypeTypeDeclarationNode { StructDeclaration = structDecl };
+        return new BodyTypeTypeDeclarationNode { TypeBody = structDecl };
     }
 
-    private static TypeDeclarationNode WrapAbstractType(AbstractDeclarationNode abstractDecl)
+    private static TypeDeclarationNode WrapAbstractType(TypeBodyDeclarationNode abstractDecl)
     {
-        return new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl };
+        return new BodyTypeTypeDeclarationNode { TypeBody = abstractDecl };
     }
 
     // ─── Expression helpers ──────────────────────────────────────────────
@@ -631,10 +634,11 @@ public class DefaultValueComputationPropertyTests
     private static CompilationUnitNode BuildTypeBindingAst(TypeBindingScenario scenario)
     {
         // 1. Declare the abstract type
-        var abstractDecl = new AbstractDeclarationNode
+        var abstractDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new AbstractKeywordTypeKeywordNode(),
             Name = MakeToken(scenario.AbstractName),
-            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
         // 2. Declare the concrete class with int fields

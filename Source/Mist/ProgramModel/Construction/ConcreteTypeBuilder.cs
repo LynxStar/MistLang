@@ -40,13 +40,8 @@ internal sealed class ConcreteTypeBuilder
     {
         baseTypeResolver.Resolve(typeDef.DeclarationNode, typeDef);
 
-        var modifiers = typeDef.DeclarationNode switch
-        {
-            ClassTypeTypeDeclarationNode ct => ct.ClassDeclaration.Modifiers,
-            StructTypeTypeDeclarationNode st => st.StructDeclaration.Modifiers,
-            _ => throw new InvalidOperationException(
-                $"Internal compiler error: ConcreteTypeBuilder received unexpected declaration node '{typeDef.DeclarationNode.GetType().Name}'.")
-        };
+        var body = (BodyTypeTypeDeclarationNode)typeDef.DeclarationNode;
+        var modifiers = body.TypeBody.Modifiers;
 
         typeDef.IsReadonly = modifiers.HasAny<ModifierNode, ReadonlyModifierModifierNode>();
         typeDef.IsIntrinsic = modifiers.HasAny<ModifierNode, IntrinsicModifierModifierNode>();
@@ -64,13 +59,8 @@ internal sealed class ConcreteTypeBuilder
     /// </summary>
     private void BuildMembers(ConcreteTypeDefinition typeDef)
     {
-        var members = typeDef.DeclarationNode switch
-        {
-            ClassTypeTypeDeclarationNode ct => ct.ClassDeclaration.Members,
-            StructTypeTypeDeclarationNode st => st.StructDeclaration.Members,
-            _ => throw new InvalidOperationException(
-                $"Internal compiler error: ConcreteTypeBuilder received unexpected declaration node '{typeDef.DeclarationNode.GetType().Name}'.")
-        };
+        var body = (BodyTypeTypeDeclarationNode)typeDef.DeclarationNode;
+        var members = body.TypeBody.Members;
 
         foreach(var member in members)
         {

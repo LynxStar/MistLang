@@ -108,7 +108,7 @@ public class AbstractDefaultMethodClassificationPropertyTests
         return GenScenario().ToArbitrary();
     }
 
-    private static (AbstractMemberDeclarationNode? Member, ImmutableArray<Diagnostic> Diagnostics) ParseMember(string source)
+    private static (MemberDeclarationNode? Member, ImmutableArray<Diagnostic> Diagnostics) ParseMember(string source)
     {
         var sourceText = new Mist.Common.Source.SourceText("test.mist", source);
         var bag = new DiagnosticBag();
@@ -127,12 +127,13 @@ public class AbstractDefaultMethodClassificationPropertyTests
             return (null, diagnostics);
         }
 
-        if(types[0] is not AbstractTypeTypeDeclarationNode abstractType)
+        if(types[0] is not BodyTypeTypeDeclarationNode bodyType
+            || bodyType.TypeBody.Keyword is not AbstractKeywordTypeKeywordNode)
         {
             return (null, diagnostics);
         }
 
-        var members = abstractType.AbstractDeclaration.Members;
+        var members = bodyType.TypeBody.Members;
         return (members.Length == 1 ? members[0] : null, diagnostics);
     }
 
@@ -153,15 +154,20 @@ public class AbstractDefaultMethodClassificationPropertyTests
             return false.ToProperty().Label($"Could not extract a single member from: {scenario.Source}");
         }
 
-        if(scenario.HasBody)
+        if(member is not MethodMemberMemberDeclarationNode methodMember)
         {
-            return (member is AbstractDefaultMethodMemberAbstractMemberDeclarationNode)
-                .ToProperty()
-                .Label($"Expected default (body present) but got {member.GetType().Name} for: {scenario.Source}");
+            return false.ToProperty().Label($"Expected MethodMemberMemberDeclarationNode but got {member.GetType().Name} for: {scenario.Source}");
         }
 
-        return (member is AbstractMethodMemberAbstractMemberDeclarationNode)
+        if(scenario.HasBody)
+        {
+            return (methodMember.Method.Body is MethodBlockBodyMethodBodyNode)
+                .ToProperty()
+                .Label($"Expected default (body present) but got {methodMember.Method.Body.GetType().Name} for: {scenario.Source}");
+        }
+
+        return (methodMember.Method.Body is MethodNoBodyMethodBodyNode)
             .ToProperty()
-            .Label($"Expected slot (no body) but got {member.GetType().Name} for: {scenario.Source}");
+            .Label($"Expected slot (no body) but got {methodMember.Method.Body.GetType().Name} for: {scenario.Source}");
     }
 }

@@ -470,14 +470,15 @@ public static class MistAstGenerator
     /// <summary>
     /// Generates a random class declaration with a few members.
     /// </summary>
-    public static Gen<ClassDeclarationNode> GenClassDeclaration()
+    public static Gen<TypeBodyDeclarationNode> GenClassDeclaration()
     {
         var classNames = new[] { "Foo", "Bar", "Baz", "Widget", "Helper" };
 
         return from name in Gen.Elements(classNames)
                from method in GenMethodDeclaration()
-               select new ClassDeclarationNode
+               select new TypeBodyDeclarationNode
                {
+                   Keyword = new ClassKeywordTypeKeywordNode(),
                    Name = Tok(name),
                    Members = ImmutableArray.Create<MemberDeclarationNode>(
                        new MethodMemberMemberDeclarationNode { Method = method }),

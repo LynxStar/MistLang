@@ -12,13 +12,11 @@ namespace Mist.ProgramModel.Construction;
 internal sealed class AbstractTypeBuilder
 {
     private readonly BuilderContext context;
-    private readonly TypeReferenceResolver typeResolver;
     private readonly BaseTypeResolver baseTypeResolver;
 
     public AbstractTypeBuilder(BuilderContext context, TypeReferenceResolver typeResolver)
     {
         this.context = context;
-        this.typeResolver = typeResolver;
         baseTypeResolver = new BaseTypeResolver(context, typeResolver);
     }
 
@@ -38,10 +36,10 @@ internal sealed class AbstractTypeBuilder
     {
         baseTypeResolver.Resolve(typeDef.DeclarationNode, typeDef);
 
-        if(typeDef.DeclarationNode is AbstractTypeTypeDeclarationNode at)
-        {
-            typeDef.IsReadonly = at.AbstractDeclaration.Modifiers.HasAny<ModifierNode, ReadonlyModifierModifierNode>();
-        }
+        var body = (BodyTypeTypeDeclarationNode)typeDef.DeclarationNode;
+        var modifiers = body.TypeBody.Modifiers;
+
+        typeDef.IsReadonly = modifiers.HasAny<ModifierNode, ReadonlyModifierModifierNode>();
     }
 
     /// <summary>
@@ -49,13 +47,9 @@ internal sealed class AbstractTypeBuilder
     /// </summary>
     private void BuildMembers(AbstractType typeDef)
     {
-        if(typeDef.DeclarationNode is not AbstractTypeTypeDeclarationNode at)
-        {
-            throw new InvalidOperationException(
-                $"Internal compiler error: AbstractTypeBuilder received unexpected declaration node '{typeDef.DeclarationNode.GetType().Name}'.");
-        }
+        var body = (BodyTypeTypeDeclarationNode)typeDef.DeclarationNode;
 
-        foreach(var member in at.AbstractDeclaration.Members)
+        foreach(var member in body.TypeBody.Members)
         {
             ResolveMember(member, typeDef);
         }
@@ -64,20 +58,28 @@ internal sealed class AbstractTypeBuilder
     /// <summary>
     /// Dispatches a single abstract member declaration.
     /// </summary>
-    private void ResolveMember(AbstractMemberDeclarationNode member, AbstractType typeDef)
+    private void ResolveMember(MemberDeclarationNode member, AbstractType typeDef)
     {
         _ = typeDef;
 
         switch(member)
         {
-            case AbstractMethodMemberAbstractMemberDeclarationNode:
-            case AbstractPropertyMemberAbstractMemberDeclarationNode:
-            case AbstractDefaultMethodMemberAbstractMemberDeclarationNode:
-                // Will be implemented in tasks 13, 16.
+            case MethodMemberMemberDeclarationNode methodMember
+                when methodMember.Method.Body is MethodNoBodyMethodBodyNode:
+                // Abstract method (no body) — will be implemented in tasks 13, 16.
                 break;
 
-            case AbstractAssociatedTypeMemberAbstractMemberDeclarationNode:
-            case AbstractUnconstrainedAssociatedTypeMemberAbstractMemberDeclarationNode:
+            case MethodMemberMemberDeclarationNode methodMember
+                when methodMember.Method.Body is MethodBlockBodyMethodBodyNode:
+                // Default method (has body) — will be implemented in tasks 13, 16.
+                break;
+
+            case PropertyMemberMemberDeclarationNode:
+                // Abstract property — will be implemented in tasks 13, 16.
+                break;
+
+            case AssociatedTypeMemberMemberDeclarationNode:
+            case UnconstrainedAssociatedTypeMemberMemberDeclarationNode:
                 // Associated type slots — out of scope for this plan.
                 break;
 

@@ -63,16 +63,17 @@ public sealed class UsingDeclarationResolutionPropertyTests
             lexeme: lexeme);
     }
 
-    private static ClassDeclarationNode MakeClass(string name)
+    private static TypeBodyDeclarationNode MakeClass(string name)
     {
-        return new ClassDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
     }
 
-    private static ClassDeclarationNode MakeClassWithFieldOfType(string className, string fieldTypeName)
+    private static TypeBodyDeclarationNode MakeClassWithFieldOfType(string className, string fieldTypeName)
     {
         // Use a large offset so the span doesn't accidentally overlap with source text.
         var typeSpanStart = 10000;
@@ -92,8 +93,9 @@ public sealed class UsingDeclarationResolutionPropertyTests
             },
         };
 
-        return new ClassDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(className),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new FieldMemberMemberDeclarationNode { Field = fieldDecl }),
@@ -152,7 +154,7 @@ public sealed class UsingDeclarationResolutionPropertyTests
         var targetClass = MakeClass("Target");
         var nsNode1 = MakeFileScopedNs(targetNs.Value,
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = targetClass }),
+                new BodyTypeTypeDeclarationNode { TypeBody = targetClass }),
             sourceOffset: nsOffset);
 
         var source1 = $"namespace {targetNs.Value}; class Target {{ }}";
@@ -166,7 +168,7 @@ public sealed class UsingDeclarationResolutionPropertyTests
         var consumerClass = MakeClassWithFieldOfType("Consumer", "Target");
         var nsNode2 = MakeFileScopedNs(consumerNs.Value,
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = consumerClass }),
+                new BodyTypeTypeDeclarationNode { TypeBody = consumerClass }),
             sourceOffset: nsOffset);
 
         var usingDecl = MakeUsingDecl(targetNs.Value);

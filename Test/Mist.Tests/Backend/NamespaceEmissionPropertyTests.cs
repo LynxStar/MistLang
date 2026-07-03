@@ -67,7 +67,7 @@ public sealed class NamespaceEmissionPropertyTests : IDisposable
         };
     }
 
-    private static ClassDeclarationNode MakeClassDecl(string name)
+    private static TypeBodyDeclarationNode MakeClassDecl(string name)
     {
         var mainMethod = new MethodDeclarationNode
         {
@@ -80,15 +80,16 @@ public sealed class NamespaceEmissionPropertyTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        return new ClassDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
         };
     }
 
-    private static StructDeclarationNode MakeStructDecl(string name)
+    private static TypeBodyDeclarationNode MakeStructDecl(string name)
     {
         var field = new FieldDeclarationNode
         {
@@ -102,8 +103,9 @@ public sealed class NamespaceEmissionPropertyTests : IDisposable
             },
         };
 
-        return new StructDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new FieldMemberMemberDeclarationNode { Field = field }),
@@ -249,7 +251,7 @@ public sealed class NamespaceEmissionPropertyTests : IDisposable
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var source = $"class {scenario.ClassName} {{ public static void Main() {{ }} }}";
@@ -288,7 +290,7 @@ public sealed class NamespaceEmissionPropertyTests : IDisposable
                     {
                         Name = nsName,
                         Body = ImmutableArray.Create<TypeDeclarationNode>(
-                            new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
+                            new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsNamespaceBodyItems(),
                     },
                 }),
         };
@@ -326,7 +328,7 @@ public sealed class NamespaceEmissionPropertyTests : IDisposable
                     {
                         Name = nsName,
                         Body = ImmutableArray.Create<TypeDeclarationNode>(
-                            new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
+                            new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsNamespaceBodyItems(),
                     },
                 }),
         };
@@ -366,7 +368,7 @@ public sealed class NamespaceEmissionPropertyTests : IDisposable
                 // Top-level type (inferred namespace)
                 new TypeItemTopLevelItemNode
                 {
-                    TypeDeclaration = new ClassTypeTypeDeclarationNode { ClassDeclaration = inferredClass },
+                    TypeDeclaration = new BodyTypeTypeDeclarationNode { TypeBody = inferredClass },
                 },
                 // File-scoped namespace
                 new NamespaceItemTopLevelItemNode
@@ -375,7 +377,7 @@ public sealed class NamespaceEmissionPropertyTests : IDisposable
                     {
                         Name = MakeQualifiedId(scenario.FileScopedNs),
                         Body = ImmutableArray.Create<TypeDeclarationNode>(
-                            new ClassTypeTypeDeclarationNode { ClassDeclaration = fileScopedClass }).AsNamespaceBodyItems(),
+                            new BodyTypeTypeDeclarationNode { TypeBody = fileScopedClass }).AsNamespaceBodyItems(),
                     },
                 },
                 // Block namespace
@@ -385,7 +387,7 @@ public sealed class NamespaceEmissionPropertyTests : IDisposable
                     {
                         Name = MakeQualifiedId(scenario.BlockNs),
                         Body = ImmutableArray.Create<TypeDeclarationNode>(
-                            new StructTypeTypeDeclarationNode { StructDeclaration = blockClass }).AsNamespaceBodyItems(),
+                            new BodyTypeTypeDeclarationNode { TypeBody = blockClass }).AsNamespaceBodyItems(),
                     },
                 }),
         };

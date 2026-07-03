@@ -34,31 +34,31 @@ public class ConstraintClauseParsingTests
         return cu!;
     }
 
-    private static ClassDeclarationNode GetClassDeclaration(CompilationUnitNode cu)
+    private static TypeBodyDeclarationNode GetClassDeclaration(CompilationUnitNode cu)
     {
         var types = cu.GetTypes();
         Assert.NotEmpty(types);
-        var classType = types[0] as ClassTypeTypeDeclarationNode;
-        Assert.NotNull(classType);
-        return classType!.ClassDeclaration;
+        var bodyType = Assert.IsType<BodyTypeTypeDeclarationNode>(types[0]);
+        _ = Assert.IsType<ClassKeywordTypeKeywordNode>(bodyType.TypeBody.Keyword);
+        return bodyType.TypeBody;
     }
 
-    private static StructDeclarationNode GetStructDeclaration(CompilationUnitNode cu)
+    private static TypeBodyDeclarationNode GetStructDeclaration(CompilationUnitNode cu)
     {
         var types = cu.GetTypes();
         Assert.NotEmpty(types);
-        var structType = types[0] as StructTypeTypeDeclarationNode;
-        Assert.NotNull(structType);
-        return structType!.StructDeclaration;
+        var bodyType = Assert.IsType<BodyTypeTypeDeclarationNode>(types[0]);
+        _ = Assert.IsType<StructKeywordTypeKeywordNode>(bodyType.TypeBody.Keyword);
+        return bodyType.TypeBody;
     }
 
-    private static AbstractDeclarationNode GetAbstractDeclaration(CompilationUnitNode cu)
+    private static TypeBodyDeclarationNode GetAbstractDeclaration(CompilationUnitNode cu)
     {
         var types = cu.GetTypes();
         Assert.NotEmpty(types);
-        var abstractType = types[0] as AbstractTypeTypeDeclarationNode;
-        Assert.NotNull(abstractType);
-        return abstractType!.AbstractDeclaration;
+        var bodyType = Assert.IsType<BodyTypeTypeDeclarationNode>(types[0]);
+        _ = Assert.IsType<AbstractKeywordTypeKeywordNode>(bodyType.TypeBody.Keyword);
+        return bodyType.TypeBody;
     }
 
     private static MethodDeclarationNode GetMethodDeclaration(CompilationUnitNode cu)
@@ -70,11 +70,11 @@ public class ConstraintClauseParsingTests
         return methodMember!.Method;
     }
 
-    private static AbstractMethodDeclarationNode GetAbstractMethodDeclaration(CompilationUnitNode cu)
+    private static MethodDeclarationNode GetAbstractMethodDeclaration(CompilationUnitNode cu)
     {
         var abstractDecl = GetAbstractDeclaration(cu);
         Assert.NotEmpty(abstractDecl.Members);
-        var methodMember = abstractDecl.Members[0] as AbstractMethodMemberAbstractMemberDeclarationNode;
+        var methodMember = abstractDecl.Members[0] as MethodMemberMemberDeclarationNode;
         Assert.NotNull(methodMember);
         return methodMember!.Method;
     }
@@ -83,9 +83,9 @@ public class ConstraintClauseParsingTests
     {
         var item = cu.Items.FirstOrDefault();
         Assert.NotNull(item);
-        var aliasItem = item as TypeAliasItemTopLevelItemNode;
-        Assert.NotNull(aliasItem);
-        return aliasItem!.TypeAliasDeclaration;
+        var typeItem = Assert.IsType<TypeItemTopLevelItemNode>(item);
+        var aliasType = Assert.IsType<TypeAliasTypeTypeDeclarationNode>(typeItem.TypeDeclaration);
+        return aliasType.TypeAliasDeclaration;
     }
 
     /// <summary>Gets all constraints from a GenericConstraintClauseWhereClauseNode as a flat list.</summary>

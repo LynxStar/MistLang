@@ -84,19 +84,21 @@ public sealed class FileScopedNamespaceAssociationPropertyTests
         };
     }
 
-    private static ClassDeclarationNode MakeClass(string name)
+    private static TypeBodyDeclarationNode MakeClass(string name)
     {
-        return new ClassDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
     }
 
-    private static StructDeclarationNode MakeStruct(string name)
+    private static TypeBodyDeclarationNode MakeStruct(string name)
     {
-        return new StructDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -156,8 +158,8 @@ public sealed class FileScopedNamespaceAssociationPropertyTests
 
         var nsNode = MakeFileScopedNs(nsName.Value,
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl },
-                new StructTypeTypeDeclarationNode { StructDeclaration = structDecl }),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl },
+                new BodyTypeTypeDeclarationNode { TypeBody = structDecl }),
             sourceOffset: nsOffset);
 
         var ast = new CompilationUnitNode
@@ -203,12 +205,12 @@ public sealed class FileScopedNamespaceAssociationPropertyTests
 
         var nsNode1 = MakeFileScopedNs(ns1.Value,
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classA }),
+                new BodyTypeTypeDeclarationNode { TypeBody = classA }),
             sourceOffset: ns1Offset);
 
         var nsNode2 = MakeFileScopedNs(ns2.Value,
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classB }),
+                new BodyTypeTypeDeclarationNode { TypeBody = classB }),
             sourceOffset: ns2Offset);
 
         var ast = new CompilationUnitNode
@@ -245,7 +247,7 @@ public sealed class FileScopedNamespaceAssociationPropertyTests
         var classInBody = MakeClass("InBody");
         var nsNode = MakeFileScopedNs(nsName.Value,
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classInBody }),
+                new BodyTypeTypeDeclarationNode { TypeBody = classInBody }),
             sourceOffset: nsOffset);
 
         var classAfter = MakeClass("AfterNs");
@@ -256,7 +258,7 @@ public sealed class FileScopedNamespaceAssociationPropertyTests
                 new NamespaceItemTopLevelItemNode { NamespaceDeclaration = nsNode },
                 new TypeItemTopLevelItemNode
                 {
-                    TypeDeclaration = new ClassTypeTypeDeclarationNode { ClassDeclaration = classAfter }
+                    TypeDeclaration = new BodyTypeTypeDeclarationNode { TypeBody = classAfter }
                 }),
         };
 

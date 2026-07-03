@@ -187,8 +187,9 @@ public class NameResolutionPropertyTests
             },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(className),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = methodDecl }),
@@ -197,7 +198,7 @@ public class NameResolutionPropertyTests
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
     }
 
@@ -366,8 +367,9 @@ public class NameResolutionPropertyTests
             },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("TestClass"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = methodDecl }),
@@ -377,7 +379,7 @@ public class NameResolutionPropertyTests
         {
             Name = qualifiedId,
             Body = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsNamespaceBodyItems(),
             Span = new Storm.Runtime.SourceSpan(0, source.Length),
         };
 
@@ -463,8 +465,9 @@ public class NameResolutionPropertyTests
             },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("TestClass"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new FieldMemberMemberDeclarationNode { Field = fieldDecl },
@@ -474,7 +477,7 @@ public class NameResolutionPropertyTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -600,8 +603,9 @@ public class NameResolutionPropertyTests
             },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("TestClass"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new FieldMemberMemberDeclarationNode { Field = fieldDecl },
@@ -611,7 +615,7 @@ public class NameResolutionPropertyTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -666,8 +670,9 @@ public class NameResolutionPropertyTests
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("TestClass"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new FieldMemberMemberDeclarationNode { Field = fieldDecl },
@@ -677,7 +682,7 @@ public class NameResolutionPropertyTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -726,8 +731,9 @@ public class NameResolutionPropertyTests
             Span = new Storm.Runtime.SourceSpan(24, 6),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("MyType"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -736,7 +742,7 @@ public class NameResolutionPropertyTests
         {
             Name = qualifiedId,
             Body = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsNamespaceBodyItems(),
             Span = new Storm.Runtime.SourceSpan(14, 16),
         };
 
@@ -775,8 +781,9 @@ public class NameResolutionPropertyTests
             Name = usingQualifiedId,
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("TestClass"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -785,7 +792,7 @@ public class NameResolutionPropertyTests
         {
             Usings = ImmutableArray.Create(usingDecl),
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         // Create a mock ambient type resolver that knows about "System".

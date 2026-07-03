@@ -73,11 +73,13 @@ public class NewtypeMissingSemicolonPropertyTests
     }
 
     /// <summary>
-    /// Checks whether the compilation unit contains a NewtypeItem top-level item.
+    /// Checks whether the compilation unit contains a newtype declaration
+    /// (now reached through TypeItemTopLevelItemNode → NewtypeTypeTypeDeclarationNode).
     /// </summary>
     private static bool ContainsNewtypeItem(CompilationUnitNode cu)
     {
-        return cu.Items.Any(item => item is NewtypeItemTopLevelItemNode);
+        return cu.Items.Any(item =>
+            item is TypeItemTopLevelItemNode { TypeDeclaration: NewtypeTypeTypeDeclarationNode });
     }
 
     // ═════════════════════════════════════════════════════════════════════════

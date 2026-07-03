@@ -199,8 +199,9 @@ public class SemanticModelBuilderUnitTests
 
         members.Add(new MethodMemberMemberDeclarationNode { Method = methodDecl });
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(className),
             Members = members.ToImmutable(),
         };
@@ -208,7 +209,7 @@ public class SemanticModelBuilderUnitTests
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
     }
 
@@ -241,8 +242,9 @@ public class SemanticModelBuilderUnitTests
             },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = methodDecl }),
@@ -252,7 +254,7 @@ public class SemanticModelBuilderUnitTests
         {
             Name = qualifiedId,
             Body = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsNamespaceBodyItems(),
             Span = new Storm.Runtime.SourceSpan(0, source.Length),
         };
 
@@ -308,8 +310,9 @@ public class SemanticModelBuilderUnitTests
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new FieldMemberMemberDeclarationNode { Field = fieldDecl },
@@ -318,7 +321,7 @@ public class SemanticModelBuilderUnitTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -385,8 +388,9 @@ public class SemanticModelBuilderUnitTests
             },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("MyType"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -399,7 +403,7 @@ public class SemanticModelBuilderUnitTests
                 Span = new Storm.Runtime.SourceSpan(24, 6),
             },
             Body = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsNamespaceBodyItems(),
             Span = new Storm.Runtime.SourceSpan(14, 16),
         };
 
@@ -430,8 +434,9 @@ public class SemanticModelBuilderUnitTests
             },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -440,7 +445,7 @@ public class SemanticModelBuilderUnitTests
         {
             Usings = ImmutableArray.Create(usingDecl),
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var resolver = new CSharpAmbientTypeResolver();
@@ -462,8 +467,9 @@ public class SemanticModelBuilderUnitTests
             },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -472,7 +478,7 @@ public class SemanticModelBuilderUnitTests
         {
             Usings = ImmutableArray.Create(usingDecl),
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -509,8 +515,9 @@ public class SemanticModelBuilderUnitTests
             },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = methodDecl }),
@@ -520,7 +527,7 @@ public class SemanticModelBuilderUnitTests
         {
             Usings = ImmutableArray.Create(usingDecl),
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var resolver = new CSharpAmbientTypeResolver();
@@ -574,8 +581,9 @@ public class SemanticModelBuilderUnitTests
             },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new ConstructorMemberMemberDeclarationNode { Constructor = ctorDecl }),
@@ -584,7 +592,7 @@ public class SemanticModelBuilderUnitTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -660,8 +668,9 @@ public class SemanticModelBuilderUnitTests
             },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new FieldMemberMemberDeclarationNode { Field = fieldDecl },
@@ -671,7 +680,7 @@ public class SemanticModelBuilderUnitTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -709,8 +718,9 @@ public class SemanticModelBuilderUnitTests
             },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = methodDecl }),
@@ -720,7 +730,7 @@ public class SemanticModelBuilderUnitTests
         {
             Usings = ImmutableArray.Create(usingDecl),
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var resolver = new CSharpAmbientTypeResolver();
@@ -767,8 +777,9 @@ public class SemanticModelBuilderUnitTests
             },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = methodDecl }),
@@ -777,7 +788,7 @@ public class SemanticModelBuilderUnitTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -845,8 +856,9 @@ public class SemanticModelBuilderUnitTests
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = methodDecl }),
@@ -855,7 +867,7 @@ public class SemanticModelBuilderUnitTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         // Note: The ParameterListNode grammar uses (COMMA Parameter)* for additional params.
@@ -935,15 +947,16 @@ public class SemanticModelBuilderUnitTests
     public void UserDefinedSymbols_HaveNonNullDeclarationSpan()
     {
         // class C { }
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C", start: 6),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -967,15 +980,16 @@ public class SemanticModelBuilderUnitTests
         Assert.Null(consoleType);
 
         // Verify user-defined symbols still have UserCode origin.
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C", start: 6),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -1022,8 +1036,9 @@ public class SemanticModelBuilderUnitTests
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new FieldMemberMemberDeclarationNode { Field = fieldDecl },
@@ -1034,7 +1049,7 @@ public class SemanticModelBuilderUnitTests
         {
             Usings = ImmutableArray.Create(usingDecl),
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var resolver = new CSharpAmbientTypeResolver();
@@ -1057,15 +1072,16 @@ public class SemanticModelBuilderUnitTests
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Helper to create a ClassDeclarationNode with an optional base class and members.
+    /// Helper to create a TypeBodyDeclarationNode with an optional base class and members.
     /// </summary>
-    private static ClassDeclarationNode MakeClassDeclWithMembers(
+    private static TypeBodyDeclarationNode MakeClassDeclWithMembers(
         string name,
         string? baseClassName,
         ImmutableArray<MemberDeclarationNode> members)
     {
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members,
         };
@@ -1126,8 +1142,8 @@ public class SemanticModelBuilderUnitTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = baseDecl },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = baseDecl },
+                new BodyTypeTypeDeclarationNode { TypeBody = derivedDecl }).AsTopLevelItems(),
         };
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -1152,8 +1168,8 @@ public class SemanticModelBuilderUnitTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = baseDecl },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = baseDecl },
+                new BodyTypeTypeDeclarationNode { TypeBody = derivedDecl }).AsTopLevelItems(),
         };
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -1181,9 +1197,9 @@ public class SemanticModelBuilderUnitTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = aDecl },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = bDecl },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = cDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = aDecl },
+                new BodyTypeTypeDeclarationNode { TypeBody = bDecl },
+                new BodyTypeTypeDeclarationNode { TypeBody = cDecl }).AsTopLevelItems(),
         };
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -1208,8 +1224,8 @@ public class SemanticModelBuilderUnitTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = baseDecl },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = baseDecl },
+                new BodyTypeTypeDeclarationNode { TypeBody = derivedDecl }).AsTopLevelItems(),
         };
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -1227,7 +1243,7 @@ public class SemanticModelBuilderUnitTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = decl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = decl }).AsTopLevelItems(),
         };
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -1245,8 +1261,9 @@ public class SemanticModelBuilderUnitTests
     {
         // class MyCtx { }
         // class C { void M() with MyCtx ctx { } }
-        var ctxClassDecl = new ClassDeclarationNode
+        var ctxClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("MyCtx"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -1274,8 +1291,9 @@ public class SemanticModelBuilderUnitTests
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = methodDecl }),
@@ -1284,8 +1302,8 @@ public class SemanticModelBuilderUnitTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = ctxClassDecl },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = ctxClassDecl },
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -1306,8 +1324,9 @@ public class SemanticModelBuilderUnitTests
     {
         // class MyCtx { }
         // class C { C() with MyCtx ctx { } }
-        var ctxClassDecl = new ClassDeclarationNode
+        var ctxClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("MyCtx"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -1333,8 +1352,9 @@ public class SemanticModelBuilderUnitTests
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new ConstructorMemberMemberDeclarationNode { Constructor = ctorDecl }),
@@ -1343,8 +1363,8 @@ public class SemanticModelBuilderUnitTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = ctxClassDecl },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = ctxClassDecl },
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -1365,17 +1385,19 @@ public class SemanticModelBuilderUnitTests
     {
         // class MyCtx { }
         // abstract I { void M() with MyCtx ctx; }
-        var ctxClassDecl = new ClassDeclarationNode
+        var ctxClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("MyCtx"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        var abstractMethodDecl = new AbstractMethodDeclarationNode
+        var abstractMethodDecl = new MethodDeclarationNode
         {
             Name = MakeToken("M"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
+            Body = new MethodNoBodyMethodBodyNode(),
             WithClauses = ImmutableArray.Create<WithClauseNode>(new ContextWithClauseWithClauseNode
             {
                 Type = new TypeReferenceNode
@@ -1393,18 +1415,19 @@ public class SemanticModelBuilderUnitTests
             }),
         };
 
-        var abstractDecl = new AbstractDeclarationNode
+        var abstractDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new AbstractKeywordTypeKeywordNode(),
             Name = MakeToken("I"),
-            Members = ImmutableArray.Create<AbstractMemberDeclarationNode>(
-                new AbstractMethodMemberAbstractMemberDeclarationNode { Method = abstractMethodDecl }),
+            Members = ImmutableArray.Create<MemberDeclarationNode>(
+                new MethodMemberMemberDeclarationNode { Method = abstractMethodDecl }),
         };
 
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = ctxClassDecl },
-                new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = ctxClassDecl },
+                new BodyTypeTypeDeclarationNode { TypeBody = abstractDecl }).AsTopLevelItems(),
         };
 
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -1426,13 +1449,15 @@ public class SemanticModelBuilderUnitTests
         // class CtxA { }
         // class CtxB { }
         // class C { void M() with CtxA a with CtxB b { } }
-        var ctxADecl = new ClassDeclarationNode
+        var ctxADecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("CtxA"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
-        var ctxBDecl = new ClassDeclarationNode
+        var ctxBDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("CtxB"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -1476,8 +1501,9 @@ public class SemanticModelBuilderUnitTests
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = methodDecl }),
@@ -1486,9 +1512,9 @@ public class SemanticModelBuilderUnitTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = ctxADecl },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = ctxBDecl },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = ctxADecl },
+                new BodyTypeTypeDeclarationNode { TypeBody = ctxBDecl },
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -1533,8 +1559,9 @@ public class SemanticModelBuilderUnitTests
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = methodDecl }),
@@ -1543,7 +1570,7 @@ public class SemanticModelBuilderUnitTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -1570,8 +1597,9 @@ public class SemanticModelBuilderUnitTests
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = methodDecl }),
@@ -1580,7 +1608,7 @@ public class SemanticModelBuilderUnitTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var (model, _) = BuildModelWithDiagnostics(ast);

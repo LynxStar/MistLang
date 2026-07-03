@@ -81,12 +81,6 @@ public sealed class MistPrettyPrinter
                 case TypeItemTopLevelItemNode typeItem:
                     EmitTypeDeclaration(typeItem.TypeDeclaration);
                     break;
-                case TypeAliasItemTopLevelItemNode typeAliasItem:
-                    EmitTypeAliasDeclaration(typeAliasItem.TypeAliasDeclaration);
-                    break;
-                case NewtypeItemTopLevelItemNode newtypeItem:
-                    EmitNewtypeDeclaration(newtypeItem.NewtypeDeclaration);
-                    break;
                 case ExtensionItemTopLevelItemNode extensionItem:
                     EmitExtensionBlockDeclaration(extensionItem.ExtensionDeclaration);
                     break;
@@ -151,12 +145,6 @@ public sealed class MistPrettyPrinter
         {
             case NamespaceTypeItemNamespaceBodyItemNode typeItem:
                 EmitTypeDeclaration(typeItem.TypeDeclaration);
-                break;
-            case NamespaceTypeAliasItemNamespaceBodyItemNode typeAliasItem:
-                EmitTypeAliasDeclaration(typeAliasItem.TypeAliasDeclaration);
-                break;
-            case NamespaceNewtypeItemNamespaceBodyItemNode newtypeItem:
-                EmitNewtypeDeclaration(newtypeItem.NewtypeDeclaration);
                 break;
             case NamespaceExtensionItemNamespaceBodyItemNode extensionItem:
                 EmitExtensionBlockDeclaration(extensionItem.ExtensionDeclaration);
@@ -235,96 +223,47 @@ public sealed class MistPrettyPrinter
     {
         switch(typeDecl)
         {
-            case ClassTypeTypeDeclarationNode classType:
-                EmitClassDeclaration(classType.ClassDeclaration);
-                break;
-            case StructTypeTypeDeclarationNode structType:
-                EmitStructDeclaration(structType.StructDeclaration);
-                break;
-            case AbstractTypeTypeDeclarationNode abstractType:
-                EmitAbstractDeclaration(abstractType.AbstractDeclaration);
+            case BodyTypeTypeDeclarationNode bodyType:
+                EmitTypeBodyDeclaration(bodyType.TypeBody);
                 break;
             case EnumTypeTypeDeclarationNode enumType:
                 EmitEnumDeclaration(enumType.EnumDeclaration);
                 break;
+            case NewtypeTypeTypeDeclarationNode newtypeType:
+                EmitNewtypeDeclaration(newtypeType.NewtypeDeclaration);
+                break;
+            case TypeAliasTypeTypeDeclarationNode typeAliasType:
+                EmitTypeAliasDeclaration(typeAliasType.TypeAliasDeclaration);
+                break;
         }
     }
 
-    private void EmitClassDeclaration(ClassDeclarationNode classDecl)
+    private void EmitTypeBodyDeclaration(TypeBodyDeclarationNode typeBody)
     {
-        var modifiers = EmitModifiers(classDecl.Modifiers);
-        var name = classDecl.Name.Lexeme;
-        var typeParams = EmitTypeParameterList(classDecl.TypeParams);
+        var modifiers = EmitModifiers(typeBody.Modifiers);
+        var keyword = typeBody.Keyword switch
+        {
+            ClassKeywordTypeKeywordNode => "class",
+            StructKeywordTypeKeywordNode => "struct",
+            AbstractKeywordTypeKeywordNode => "abstract",
+            _ => throw new InvalidOperationException($"Unknown type keyword: {typeBody.Keyword.GetType().Name}"),
+        };
+        var name = typeBody.Name.Lexeme;
+        var typeParams = EmitTypeParameterList(typeBody.TypeParams);
         var baseClause = "";
-        if(classDecl.BaseList is not null)
+        if(typeBody.BaseList is not null)
         {
-            baseClause = $" : {EmitBaseList(classDecl.BaseList)}";
+            baseClause = $" : {EmitBaseList(typeBody.BaseList)}";
         }
 
-        var constraints = EmitConstraintClauses(classDecl.Constraints);
-        AppendLine($"{modifiers}class {name}{typeParams}{baseClause}{constraints} {{");
+        var constraints = EmitConstraintClauses(typeBody.Constraints);
+        AppendLine($"{modifiers}{keyword} {name}{typeParams}{baseClause}{constraints} {{");
         indentLevel++;
 
-        EmitMembers(classDecl.Members);
+        EmitMembers(typeBody.Members);
 
         indentLevel--;
         AppendLine("}");
-    }
-
-    private void EmitStructDeclaration(StructDeclarationNode structDecl)
-    {
-        var modifiers = EmitModifiers(structDecl.Modifiers);
-        var name = structDecl.Name.Lexeme;
-        var typeParams = EmitTypeParameterList(structDecl.TypeParams);
-        var abstractClause = "";
-        if(structDecl.BaseList is not null)
-        {
-            abstractClause = $" : {EmitBaseList(structDecl.BaseList)}";
-        }
-
-        var constraints = EmitConstraintClauses(structDecl.Constraints);
-        AppendLine($"{modifiers}struct {name}{typeParams}{abstractClause}{constraints} {{");
-        indentLevel++;
-
-        EmitMembers(structDecl.Members);
-
-        indentLevel--;
-        AppendLine("}");
-    }
-
-    private void EmitAbstractDeclaration(AbstractDeclarationNode abstractDecl)
-    {
-        var name = abstractDecl.Name.Lexeme;
-        var typeParams = EmitTypeParameterList(abstractDecl.TypeParams);
-        var abstractClause = "";
-        if(abstractDecl.BaseList is not null)
-        {
-            abstractClause = $" : {EmitBaseList(abstractDecl.BaseList)}";
-        }
-
-        var constraints = EmitConstraintClauses(abstractDecl.Constraints);
-        AppendLine($"abstract {name}{typeParams}{abstractClause}{constraints} {{");
-        indentLevel++;
-
-        for(var i = 0; i < abstractDecl.Members.Length; i++)
-        {
-            EmitAbstractMemberDeclaration(abstractDecl.Members[i]);
-        }
-
-        indentLevel--;
-        AppendLine("}");
-    }
-
-    private void EmitAbstractMethodDeclaration(AbstractMethodDeclarationNode methodDecl)
-    {
-        var returnOwnership = EmitOwnershipSpecifier(methodDecl.ReturnOwnership);
-        var returnType = EmitTypeReference(methodDecl.ReturnType);
-        var name = methodDecl.Name.Lexeme;
-        var typeParams = EmitTypeParameterList(methodDecl.TypeParams);
-        var parameters = EmitParameterList(methodDecl.Parameters);
-        var withClauses = EmitWithClauses(methodDecl.WithClauses);
-        var constraints = EmitConstraintClauses(methodDecl.Constraints);
-        AppendLine($"{returnOwnership}{returnType} {name}{typeParams}({parameters}){withClauses}{constraints};");
     }
 
     private void EmitMembers(ImmutableArray<MemberDeclarationNode> members)
@@ -381,6 +320,9 @@ public sealed class MistPrettyPrinter
                 break;
             case MemberTypeAliasMemberMemberDeclarationNode memberTypeAlias:
                 EmitMemberTypeAliasDeclaration(memberTypeAlias.MemberTypeAlias);
+                break;
+            case ModifiedAssociatedTypeMemberMemberDeclarationNode modifiedMember:
+                EmitModifiedAssociatedTypeSlotDeclaration(modifiedMember.ModifiedAssociatedType);
                 break;
         }
     }
@@ -445,6 +387,12 @@ public sealed class MistPrettyPrinter
         var parameters = EmitParameterList(methodDecl.Parameters);
         var withClauses = EmitWithClauses(methodDecl.WithClauses);
         var constraints = EmitConstraintClauses(methodDecl.Constraints);
+
+        if(methodDecl.Body is MethodNoBodyMethodBodyNode)
+        {
+            AppendLine($"{modifiers}{returnOwnership}{returnType} {name}{typeParams}({parameters}){withClauses}{constraints};");
+            return;
+        }
 
         AppendLine($"{modifiers}{returnOwnership}{returnType} {name}{typeParams}({parameters}){withClauses}{constraints} {{");
         indentLevel++;
@@ -827,52 +775,6 @@ public sealed class MistPrettyPrinter
 
         indentLevel--;
         AppendLine("}");
-    }
-
-    // ─── Abstract Property Declarations ─────────────────────────────────
-
-    private void EmitAbstractMemberDeclaration(AbstractMemberDeclarationNode memberDecl)
-    {
-        switch(memberDecl)
-        {
-            case AbstractMethodMemberAbstractMemberDeclarationNode methodMember:
-                EmitAbstractMethodDeclaration(methodMember.Method);
-                break;
-            case AbstractPropertyMemberAbstractMemberDeclarationNode propertyMember:
-                EmitAbstractPropertyDeclaration(propertyMember.Property);
-                break;
-            case AbstractAssociatedTypeMemberAbstractMemberDeclarationNode associatedTypeMember:
-                EmitAssociatedTypeSlotDeclaration(associatedTypeMember.AssociatedType);
-                break;
-            case AbstractUnconstrainedAssociatedTypeMemberAbstractMemberDeclarationNode unconstrainedMember:
-                EmitUnconstrainedAssociatedTypeSlotDeclaration(unconstrainedMember.UnconstrainedAssociatedType);
-                break;
-            case AbstractModifiedAssociatedTypeMemberAbstractMemberDeclarationNode modifiedMember:
-                EmitModifiedAssociatedTypeSlotDeclaration(modifiedMember.ModifiedAssociatedType);
-                break;
-        }
-    }
-
-    private void EmitAbstractPropertyDeclaration(AbstractPropertyDeclarationNode propertyDecl)
-    {
-        var type = EmitTypeReference(propertyDecl.Type);
-        var name = propertyDecl.Name.Lexeme;
-
-        var accessors = new List<string>();
-        foreach(var accessor in propertyDecl.Accessors)
-        {
-            switch(accessor)
-            {
-                case AbstractGetAccessorAbstractAccessorDeclarationNode:
-                    accessors.Add("get;");
-                    break;
-                case AbstractSetAccessorAbstractAccessorDeclarationNode:
-                    accessors.Add("set;");
-                    break;
-            }
-        }
-
-        AppendLine($"{type} {name} {{ {string.Join(" ", accessors)} }}");
     }
 
     // ─── Associated Type Slot Declarations ──────────────────────────────

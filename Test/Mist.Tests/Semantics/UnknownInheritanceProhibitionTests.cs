@@ -150,7 +150,7 @@ public class UnknownInheritanceProhibitionTests
         Assert.Empty(cuInvalid!.GetTypes());
 
         // Sanity check: the analogous source with a legal identifier
-        // parses to a single ClassTypeTypeDeclarationNode.
+        // parses to a single BodyTypeTypeDeclarationNode.
         var (cuValid, _) = ParseSource("class Bar { } class Foo : Bar { }");
         Assert.NotNull(cuValid);
         Assert.Equal(2, cuValid!.GetTypes().Length);

@@ -69,14 +69,15 @@ public class BaseTypeResolutionPropertyTests
     }
 
     /// <summary>
-    /// Creates a ClassDeclarationNode with an optional base class.
+    /// Creates a TypeBodyDeclarationNode with an optional base class.
     /// When baseClassName is non-null, the BaseClass token (colon) is set
     /// and BaseClassName is set to the given identifier.
     /// </summary>
-    private static ClassDeclarationNode MakeClassDecl(string name, string? baseClassName = null)
+    private static TypeBodyDeclarationNode MakeClassDecl(string name, string? baseClassName = null)
     {
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -96,10 +97,10 @@ public class BaseTypeResolutionPropertyTests
     /// <summary>
     /// Wraps class declarations into a CompilationUnitNode.
     /// </summary>
-    private static CompilationUnitNode MakeCompilationUnit(params ClassDeclarationNode[] classDecls)
+    private static CompilationUnitNode MakeCompilationUnit(params TypeBodyDeclarationNode[] classDecls)
     {
         var types = classDecls.Select(c =>
-            (TypeDeclarationNode)new ClassTypeTypeDeclarationNode { ClassDeclaration = c })
+            (TypeDeclarationNode)new BodyTypeTypeDeclarationNode { TypeBody = c })
             .ToImmutableArray();
 
         return new CompilationUnitNode { Items = types.AsTopLevelItems() };

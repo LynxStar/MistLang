@@ -88,16 +88,17 @@ public sealed class AmbiguousTypeReferencePropertyTests
             lexeme: lexeme);
     }
 
-    private static ClassDeclarationNode MakeClass(string name)
+    private static TypeBodyDeclarationNode MakeClass(string name)
     {
-        return new ClassDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
     }
 
-    private static ClassDeclarationNode MakeClassWithFieldOfType(string className, string fieldTypeName)
+    private static TypeBodyDeclarationNode MakeClassWithFieldOfType(string className, string fieldTypeName)
     {
         // Use a large offset so the span doesn't accidentally overlap with source text.
         var typeSpanStart = 10000;
@@ -117,8 +118,9 @@ public sealed class AmbiguousTypeReferencePropertyTests
             },
         };
 
-        return new ClassDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(className),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new FieldMemberMemberDeclarationNode { Field = fieldDecl }),
@@ -172,7 +174,7 @@ public sealed class AmbiguousTypeReferencePropertyTests
         var class1 = MakeClass(sharedTypeName.Value);
         var nsNode1 = MakeFileScopedNs(nsPair.Ns1,
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = class1 }),
+                new BodyTypeTypeDeclarationNode { TypeBody = class1 }),
             sourceOffset: nsOffset);
 
         var source1 = $"namespace {nsPair.Ns1}; class {sharedTypeName.Value} {{ }}";
@@ -186,7 +188,7 @@ public sealed class AmbiguousTypeReferencePropertyTests
         var class2 = MakeClass(sharedTypeName.Value);
         var nsNode2 = MakeFileScopedNs(nsPair.Ns2,
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = class2 }),
+                new BodyTypeTypeDeclarationNode { TypeBody = class2 }),
             sourceOffset: nsOffset);
 
         var source2 = $"namespace {nsPair.Ns2}; class {sharedTypeName.Value} {{ }}";
@@ -202,7 +204,7 @@ public sealed class AmbiguousTypeReferencePropertyTests
         var consumerClass = MakeClassWithFieldOfType("Consumer", sharedTypeName.Value);
         var nsNode3 = MakeFileScopedNs(consumerNs,
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = consumerClass }),
+                new BodyTypeTypeDeclarationNode { TypeBody = consumerClass }),
             sourceOffset: nsOffset);
 
         var usingDecl1 = MakeUsingDecl(nsPair.Ns1, start: 6);

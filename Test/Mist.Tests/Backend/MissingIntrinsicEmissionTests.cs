@@ -146,8 +146,9 @@ public class Program {
                 new StaticModifierModifierNode()),
         };
 
-        var fakeStruct = new StructDeclarationNode
+        var fakeStruct = new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Name = MakeToken("FakeType"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new OperatorMemberMemberDeclarationNode { Operator = operatorDecl }),
@@ -164,7 +165,7 @@ public class Program {
                 Span = new Storm.Runtime.SourceSpan(0, 0),
             },
             Body = ImmutableArray.Create<TypeDeclarationNode>(
-                new StructTypeTypeDeclarationNode { StructDeclaration = fakeStruct }).AsNamespaceBodyItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = fakeStruct }).AsNamespaceBodyItems(),
         };
 
         var stdlibAst = new CompilationUnitNode
@@ -207,8 +208,9 @@ public class Program {
                 new StaticModifierModifierNode()),
         };
 
-        var programClass = new ClassDeclarationNode
+        var programClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -217,7 +219,7 @@ public class Program {
         var userAst = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = programClass }).AsTopLevelItems(),
         };
 
         // Build the semantic model with stdlib + user code.
@@ -352,8 +354,9 @@ public class Program {
                 new StaticModifierModifierNode()),
         };
 
-        var fakeStruct = new StructDeclarationNode
+        var fakeStruct = new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Name = MakeToken("FakeType"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new OperatorMemberMemberDeclarationNode { Operator = operatorDecl }),
@@ -370,7 +373,7 @@ public class Program {
                 Span = new Storm.Runtime.SourceSpan(0, 0),
             },
             Body = ImmutableArray.Create<TypeDeclarationNode>(
-                new StructTypeTypeDeclarationNode { StructDeclaration = fakeStruct }).AsNamespaceBodyItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = fakeStruct }).AsNamespaceBodyItems(),
         };
 
         var stdlibAst = new CompilationUnitNode
@@ -406,8 +409,9 @@ public class Program {
                 new StaticModifierModifierNode()),
         };
 
-        var programClass = new ClassDeclarationNode
+        var programClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -416,7 +420,7 @@ public class Program {
         var userAst = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = programClass }).AsTopLevelItems(),
         };
 
         // Build the semantic model
@@ -506,8 +510,9 @@ public class Program {
                 new StaticModifierModifierNode()),
         };
 
-        var programClass = new ClassDeclarationNode
+        var programClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -516,7 +521,7 @@ public class Program {
         var userAst = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = programClass }).AsTopLevelItems(),
         };
 
         var (model, diagnostics) = StdlibTestHelper.BuildModelWithStdlib(userAst, source: userSource);

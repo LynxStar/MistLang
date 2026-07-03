@@ -322,8 +322,9 @@ public class DependentTypeRoundTripPropertyTests
         TypeParameterListNode typeParams,
         ImmutableArray<MemberDeclarationNode> members)
     {
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok(className),
             TypeParams = typeParams,
             Members = members,
@@ -332,7 +333,7 @@ public class DependentTypeRoundTripPropertyTests
         var cu = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         return new DependentTypeRoundTripTestCase($"class {className}<...dependent...>", cu);
@@ -352,8 +353,9 @@ public class DependentTypeRoundTripPropertyTests
         string structName,
         TypeParameterListNode typeParams)
     {
-        var structDecl = new StructDeclarationNode
+        var structDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Name = Tok(structName),
             TypeParams = typeParams,
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -362,7 +364,7 @@ public class DependentTypeRoundTripPropertyTests
         var cu = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new StructTypeTypeDeclarationNode { StructDeclaration = structDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = structDecl }).AsTopLevelItems(),
         };
 
         return new DependentTypeRoundTripTestCase($"struct {structName}<...dependent...>", cu);
@@ -382,17 +384,18 @@ public class DependentTypeRoundTripPropertyTests
         string abstractName,
         TypeParameterListNode typeParams)
     {
-        var abstractDecl = new AbstractDeclarationNode
+        var abstractDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new AbstractKeywordTypeKeywordNode(),
             Name = Tok(abstractName),
             TypeParams = typeParams,
-            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
         var cu = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = abstractDecl }).AsTopLevelItems(),
         };
 
         return new DependentTypeRoundTripTestCase($"abstract {abstractName}<...dependent...>", cu);
@@ -442,8 +445,9 @@ public class DependentTypeRoundTripPropertyTests
             Modifiers = ImmutableArray<ModifierNode>.Empty,
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok(className),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new FieldMemberMemberDeclarationNode { Field = field }),
@@ -452,7 +456,7 @@ public class DependentTypeRoundTripPropertyTests
         var cu = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         return new DependentTypeRoundTripTestCase(
@@ -483,8 +487,9 @@ public class DependentTypeRoundTripPropertyTests
         string fieldName)
     {
         // Declaration: class FixedBuffer<Size:int> { }
-        var declClass = new ClassDeclarationNode
+        var declClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok(declClassName),
             TypeParams = typeParams,
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -511,8 +516,9 @@ public class DependentTypeRoundTripPropertyTests
             Modifiers = ImmutableArray<ModifierNode>.Empty,
         };
 
-        var usageClass = new ClassDeclarationNode
+        var usageClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok(usageClassName),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new FieldMemberMemberDeclarationNode { Field = field }),
@@ -521,8 +527,8 @@ public class DependentTypeRoundTripPropertyTests
         var cu = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = declClass },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = usageClass }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = declClass },
+                new BodyTypeTypeDeclarationNode { TypeBody = usageClass }).AsTopLevelItems(),
         };
 
         return new DependentTypeRoundTripTestCase(

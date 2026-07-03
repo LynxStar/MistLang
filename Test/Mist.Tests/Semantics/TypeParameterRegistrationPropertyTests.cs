@@ -72,33 +72,36 @@ public class TypeParameterRegistrationPropertyTests
         };
     }
 
-    private static ClassDeclarationNode MakeGenericClass(string name, string[] typeParamNames)
+    private static TypeBodyDeclarationNode MakeGenericClass(string name, string[] typeParamNames)
     {
-        return new ClassDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             TypeParams = MakeTypeParamList(typeParamNames),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
     }
 
-    private static StructDeclarationNode MakeGenericStruct(string name, string[] typeParamNames)
+    private static TypeBodyDeclarationNode MakeGenericStruct(string name, string[] typeParamNames)
     {
-        return new StructDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             TypeParams = MakeTypeParamList(typeParamNames),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
     }
 
-    private static AbstractDeclarationNode MakeGenericAbstract(string name, string[] typeParamNames)
+    private static TypeBodyDeclarationNode MakeGenericAbstract(string name, string[] typeParamNames)
     {
-        return new AbstractDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new AbstractKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             TypeParams = MakeTypeParamList(typeParamNames),
-            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
     }
 
@@ -198,17 +201,17 @@ public class TypeParameterRegistrationPropertyTests
         // Build AST
         TypeDeclarationNode typeDecl = decl.Kind switch
         {
-            GenericDeclKind.Class => new ClassTypeTypeDeclarationNode
+            GenericDeclKind.Class => new BodyTypeTypeDeclarationNode
             {
-                ClassDeclaration = MakeGenericClass(decl.Name, decl.TypeParamNames.ToArray()),
+                TypeBody = MakeGenericClass(decl.Name, decl.TypeParamNames.ToArray()),
             },
-            GenericDeclKind.Struct => new StructTypeTypeDeclarationNode
+            GenericDeclKind.Struct => new BodyTypeTypeDeclarationNode
             {
-                StructDeclaration = MakeGenericStruct(decl.Name, decl.TypeParamNames.ToArray()),
+                TypeBody = MakeGenericStruct(decl.Name, decl.TypeParamNames.ToArray()),
             },
-            GenericDeclKind.Abstract => new AbstractTypeTypeDeclarationNode
+            GenericDeclKind.Abstract => new BodyTypeTypeDeclarationNode
             {
-                AbstractDeclaration = MakeGenericAbstract(decl.Name, decl.TypeParamNames.ToArray()),
+                TypeBody = MakeGenericAbstract(decl.Name, decl.TypeParamNames.ToArray()),
             },
             _ => throw new InvalidOperationException(),
         };
@@ -323,14 +326,15 @@ public class TypeParameterRegistrationPropertyTests
     {
         // Build AST: a class containing a generic method
         var method = MakeGenericMethod(decl.MethodName, decl.TypeParamNames.ToArray());
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(decl.ClassName),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = method }),
         };
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
 
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);
 
@@ -398,7 +402,7 @@ public class TypeParameterRegistrationPropertyTests
     {
         var classDecl = MakeGenericClass("Box", ["T"]);
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
         var (model, _) = BuildModelWithDiagnostics(ast);
 
         var symbol = model.AllSymbols.First(s => s.Name == "Box" && s.Kind == SymbolKind.Class);
@@ -414,7 +418,7 @@ public class TypeParameterRegistrationPropertyTests
     {
         var classDecl = MakeGenericClass("Map", ["K", "V"]);
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
         var (model, _) = BuildModelWithDiagnostics(ast);
 
         var symbol = model.AllSymbols.First(s => s.Name == "Map" && s.Kind == SymbolKind.Class);
@@ -432,7 +436,7 @@ public class TypeParameterRegistrationPropertyTests
     {
         var structDecl = MakeGenericStruct("Pair", ["T", "U"]);
         var ast = MakeCompilationUnit(
-            new StructTypeTypeDeclarationNode { StructDeclaration = structDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = structDecl });
         var (model, _) = BuildModelWithDiagnostics(ast);
 
         var symbol = model.AllSymbols.First(s => s.Name == "Pair" && s.Kind == SymbolKind.Struct);
@@ -448,7 +452,7 @@ public class TypeParameterRegistrationPropertyTests
     {
         var abstractDecl = MakeGenericAbstract("IContainer", ["T"]);
         var ast = MakeCompilationUnit(
-            new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = abstractDecl });
         var (model, _) = BuildModelWithDiagnostics(ast);
 
         var symbol = model.AllSymbols.First(s => s.Name == "IContainer" && s.Kind == SymbolKind.Abstract);
@@ -463,14 +467,15 @@ public class TypeParameterRegistrationPropertyTests
     public void GenericMethod_TypeParametersStoredOnSymbol()
     {
         var method = MakeGenericMethod("Identity", ["T"]);
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("MyClass"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = method }),
         };
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
         var (model, _) = BuildModelWithDiagnostics(ast);
 
         var methodSymbol = (Symbol)model.AllSymbols.First(s => s.Name == "Identity" && s.Kind == SymbolKind.Method);

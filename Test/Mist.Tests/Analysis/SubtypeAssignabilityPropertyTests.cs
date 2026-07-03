@@ -155,13 +155,14 @@ public class SubtypeAssignabilityPropertyTests
 
     // ─── Class declaration builders ──────────────────────────────────────
 
-    private static ClassDeclarationNode MakeClassDecl(
+    private static TypeBodyDeclarationNode MakeClassDecl(
         string name,
         string? baseClassName = null,
         ImmutableArray<MemberDeclarationNode>? members = null)
     {
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -267,7 +268,7 @@ public class SubtypeAssignabilityPropertyTests
         foreach(var (name, baseName) in scenario.Classes)
         {
             var classDecl = MakeClassDecl(name, baseName);
-            typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+            typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
         }
 
         // Create the Program class with Main that performs the assignment
@@ -297,7 +298,7 @@ public class SubtypeAssignabilityPropertyTests
         }
 
         var programClass = MakeClassDecl("Program", members: programMembers.ToImmutableArray());
-        typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass });
+        typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = programClass });
 
         return new CompilationUnitNode
         {

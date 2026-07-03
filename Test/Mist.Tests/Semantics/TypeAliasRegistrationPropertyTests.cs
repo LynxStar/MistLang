@@ -177,9 +177,12 @@ public class TypeAliasRegistrationPropertyTests
             Type = MakeRefinableTypeExpr(scenario.TargetTypeName),
         };
 
-        var aliasItem = new TypeAliasItemTopLevelItemNode
+        var aliasItem = new TypeItemTopLevelItemNode
         {
-            TypeAliasDeclaration = aliasDecl,
+            TypeDeclaration = new TypeAliasTypeTypeDeclarationNode
+            {
+                TypeAliasDeclaration = aliasDecl,
+            },
         };
 
         return new CompilationUnitNode

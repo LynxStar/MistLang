@@ -149,14 +149,15 @@ public class VoidTypeIdentityTests
         };
 
         var mainMethod = MakeMainMethod(ImmutableArray.Create<StatementNode>(varDecl));
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
         };
 
-        var ast = MakeCompilationUnit(new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+        var ast = MakeCompilationUnit(new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
         var (model, _) = BuildModel(ast);
 
         var varSymbol = model.AllSymbols
@@ -187,14 +188,15 @@ public class VoidTypeIdentityTests
         };
 
         var mainMethod = MakeMainMethod(ImmutableArray.Create<StatementNode>(varDecl));
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
         };
 
-        var ast = MakeCompilationUnit(new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+        var ast = MakeCompilationUnit(new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
         var (model, diagnostics) = BuildModel(ast);
 
         // Variable should resolve to void type

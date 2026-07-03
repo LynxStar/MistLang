@@ -189,8 +189,9 @@ public class AccessModifierPropertyTests
         };
         classAMembers.Add(new ConstructorMemberMemberDeclarationNode { Constructor = ctorDecl });
 
-        var classA = new ClassDeclarationNode
+        var classA = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("ClassA"),
             Members = classAMembers.ToImmutable(),
         };
@@ -240,8 +241,9 @@ public class AccessModifierPropertyTests
                 new StaticModifierModifierNode()),
         };
 
-        var classB = new ClassDeclarationNode
+        var classB = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("ClassB"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -250,8 +252,8 @@ public class AccessModifierPropertyTests
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classA },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classB }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classA },
+                new BodyTypeTypeDeclarationNode { TypeBody = classB }).AsTopLevelItems(),
         };
     }
 

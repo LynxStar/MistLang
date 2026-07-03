@@ -181,8 +181,9 @@ public class TypeParameterRoundTripPropertyTests
         string className,
         TypeParameterListNode typeParams)
     {
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok(className),
             TypeParams = typeParams,
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -191,7 +192,7 @@ public class TypeParameterRoundTripPropertyTests
         var cu = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         return new TypeParameterRoundTripTestCase(
@@ -323,9 +324,7 @@ public class TypeParameterRoundTripPropertyTests
 
             var typeParams = typeItem.TypeDeclaration switch
             {
-                ClassTypeTypeDeclarationNode classType => classType.ClassDeclaration.TypeParams,
-                StructTypeTypeDeclarationNode structType => structType.StructDeclaration.TypeParams,
-                AbstractTypeTypeDeclarationNode abstractType => abstractType.AbstractDeclaration.TypeParams,
+                BodyTypeTypeDeclarationNode bodyType => bodyType.TypeBody.TypeParams,
                 _ => null,
             };
 

@@ -287,20 +287,18 @@ public static class MistCastOperatorGenerator
                from castOp in GenCastOperatorMember()
                select new CompilationUnitNode
                {
-                   Items = ImmutableArray.Create<TopLevelItemNode>(
-                       new TypeItemTopLevelItemNode
+                   Items = ImmutableArray.Create<TypeDeclarationNode>(
+                       new BodyTypeTypeDeclarationNode
                        {
-                           TypeDeclaration = new ClassTypeTypeDeclarationNode
+                           TypeBody = new TypeBodyDeclarationNode
                            {
-                               ClassDeclaration = new ClassDeclarationNode
-                               {
-                                   Name = Tok(className),
-                                   Modifiers = ImmutableArray.Create<ModifierNode>(
-                                       new PublicModifierModifierNode()),
-                                   Members = ImmutableArray.Create(castOp),
-                               },
+                               Keyword = new ClassKeywordTypeKeywordNode(),
+                               Name = Tok(className),
+                               Modifiers = ImmutableArray.Create<ModifierNode>(
+                                   new PublicModifierModifierNode()),
+                               Members = ImmutableArray.Create(castOp),
                            },
-                       }),
+                       }).AsTopLevelItems(),
                };
     }
 
@@ -314,20 +312,18 @@ public static class MistCastOperatorGenerator
                    .Where(list => list.Count is >= 2 and <= 4)
                select new CompilationUnitNode
                {
-                   Items = ImmutableArray.Create<TopLevelItemNode>(
-                       new TypeItemTopLevelItemNode
+                   Items = ImmutableArray.Create<TypeDeclarationNode>(
+                       new BodyTypeTypeDeclarationNode
                        {
-                           TypeDeclaration = new ClassTypeTypeDeclarationNode
+                           TypeBody = new TypeBodyDeclarationNode
                            {
-                               ClassDeclaration = new ClassDeclarationNode
-                               {
-                                   Name = Tok(className),
-                                   Modifiers = ImmutableArray.Create<ModifierNode>(
-                                       new PublicModifierModifierNode()),
-                                   Members = castOps.ToImmutableArray(),
-                               },
+                               Keyword = new ClassKeywordTypeKeywordNode(),
+                               Name = Tok(className),
+                               Modifiers = ImmutableArray.Create<ModifierNode>(
+                                   new PublicModifierModifierNode()),
+                               Members = castOps.ToImmutableArray(),
                            },
-                       }),
+                       }).AsTopLevelItems(),
                };
     }
 
@@ -341,38 +337,36 @@ public static class MistCastOperatorGenerator
                from castExprStmt in GenCastExpressionStatement()
                select new CompilationUnitNode
                {
-                   Items = ImmutableArray.Create<TopLevelItemNode>(
-                       new TypeItemTopLevelItemNode
+                   Items = ImmutableArray.Create<TypeDeclarationNode>(
+                       new BodyTypeTypeDeclarationNode
                        {
-                           TypeDeclaration = new ClassTypeTypeDeclarationNode
+                           TypeBody = new TypeBodyDeclarationNode
                            {
-                               ClassDeclaration = new ClassDeclarationNode
-                               {
-                                   Name = Tok(className),
-                                   Modifiers = ImmutableArray.Create<ModifierNode>(
-                                       new PublicModifierModifierNode()),
-                                   Members = ImmutableArray.Create(
-                                       castOp,
-                                       new MethodMemberMemberDeclarationNode
+                               Keyword = new ClassKeywordTypeKeywordNode(),
+                               Name = Tok(className),
+                               Modifiers = ImmutableArray.Create<ModifierNode>(
+                                   new PublicModifierModifierNode()),
+                               Members = ImmutableArray.Create(
+                                   castOp,
+                                   new MethodMemberMemberDeclarationNode
+                                   {
+                                       Method = new MethodDeclarationNode
                                        {
-                                           Method = new MethodDeclarationNode
+                                           Name = Tok("Test"),
+                                           ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
+                                           Modifiers = ImmutableArray.Create<ModifierNode>(
+                                               new PublicModifierModifierNode()),
+                                           Body = new MethodBlockBodyMethodBodyNode
                                            {
-                                               Name = Tok("Test"),
-                                               ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-                                               Modifiers = ImmutableArray.Create<ModifierNode>(
-                                                   new PublicModifierModifierNode()),
-                                               Body = new MethodBlockBodyMethodBodyNode
+                                               Block = new BlockNode
                                                {
-                                                   Block = new BlockNode
-                                                   {
-                                                       Statements = ImmutableArray.Create(castExprStmt),
-                                                   },
+                                                   Statements = ImmutableArray.Create(castExprStmt),
                                                },
                                            },
-                                       }),
-                               },
+                                       },
+                                   }),
                            },
-                       }),
+                       }).AsTopLevelItems(),
                };
     }
 
@@ -385,20 +379,18 @@ public static class MistCastOperatorGenerator
                from castOp in GenCastOperatorMember()
                select new CompilationUnitNode
                {
-                   Items = ImmutableArray.Create<TopLevelItemNode>(
-                       new TypeItemTopLevelItemNode
+                   Items = ImmutableArray.Create<TypeDeclarationNode>(
+                       new BodyTypeTypeDeclarationNode
                        {
-                           TypeDeclaration = new StructTypeTypeDeclarationNode
+                           TypeBody = new TypeBodyDeclarationNode
                            {
-                               StructDeclaration = new StructDeclarationNode
-                               {
-                                   Name = Tok(structName),
-                                   Modifiers = ImmutableArray.Create<ModifierNode>(
-                                       new PublicModifierModifierNode()),
-                                   Members = ImmutableArray.Create(castOp),
-                               },
+                               Keyword = new StructKeywordTypeKeywordNode(),
+                               Name = Tok(structName),
+                               Modifiers = ImmutableArray.Create<ModifierNode>(
+                                   new PublicModifierModifierNode()),
+                               Members = ImmutableArray.Create(castOp),
                            },
-                       }),
+                       }).AsTopLevelItems(),
                };
     }
 
@@ -412,37 +404,35 @@ public static class MistCastOperatorGenerator
                    .Where(list => list.Count is >= 1 and <= 3)
                select new CompilationUnitNode
                {
-                   Items = ImmutableArray.Create<TopLevelItemNode>(
-                       new TypeItemTopLevelItemNode
+                   Items = ImmutableArray.Create<TypeDeclarationNode>(
+                       new BodyTypeTypeDeclarationNode
                        {
-                           TypeDeclaration = new ClassTypeTypeDeclarationNode
+                           TypeBody = new TypeBodyDeclarationNode
                            {
-                               ClassDeclaration = new ClassDeclarationNode
-                               {
-                                   Name = Tok(className),
-                                   Modifiers = ImmutableArray.Create<ModifierNode>(
-                                       new PublicModifierModifierNode()),
-                                   Members = ImmutableArray.Create<MemberDeclarationNode>(
-                                       new MethodMemberMemberDeclarationNode
+                               Keyword = new ClassKeywordTypeKeywordNode(),
+                               Name = Tok(className),
+                               Modifiers = ImmutableArray.Create<ModifierNode>(
+                                   new PublicModifierModifierNode()),
+                               Members = ImmutableArray.Create<MemberDeclarationNode>(
+                                   new MethodMemberMemberDeclarationNode
+                                   {
+                                       Method = new MethodDeclarationNode
                                        {
-                                           Method = new MethodDeclarationNode
+                                           Name = Tok("Test"),
+                                           ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
+                                           Modifiers = ImmutableArray.Create<ModifierNode>(
+                                               new PublicModifierModifierNode()),
+                                           Body = new MethodBlockBodyMethodBodyNode
                                            {
-                                               Name = Tok("Test"),
-                                               ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-                                               Modifiers = ImmutableArray.Create<ModifierNode>(
-                                                   new PublicModifierModifierNode()),
-                                               Body = new MethodBlockBodyMethodBodyNode
+                                               Block = new BlockNode
                                                {
-                                                   Block = new BlockNode
-                                                   {
-                                                       Statements = castExprStmts.ToImmutableArray(),
-                                                   },
+                                                   Statements = castExprStmts.ToImmutableArray(),
                                                },
                                            },
-                                       }),
-                               },
+                                       },
+                                   }),
                            },
-                       }),
+                       }).AsTopLevelItems(),
                };
     }
 

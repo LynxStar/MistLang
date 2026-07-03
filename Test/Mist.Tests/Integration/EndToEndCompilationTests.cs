@@ -266,8 +266,9 @@ public sealed class EndToEndCompilationTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -283,7 +284,7 @@ public sealed class EndToEndCompilationTests : IDisposable
                 {
                     Name = MakeQualifiedId("MyApp"),
                     Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsNamespaceBodyItems(),
                     Span = new Storm.Runtime.SourceSpan(0, source.Length),
                 }
             }),
@@ -378,8 +379,9 @@ public sealed class EndToEndCompilationTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Greeter"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new FieldMemberMemberDeclarationNode { Field = fieldDecl },
@@ -397,7 +399,7 @@ public sealed class EndToEndCompilationTests : IDisposable
                 {
                     Name = MakeQualifiedId("TestNs"),
                     Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsNamespaceBodyItems(),
                     Span = new Storm.Runtime.SourceSpan(0, source.Length),
                 }
             }),
@@ -465,16 +467,18 @@ public sealed class EndToEndCompilationTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var programClass = new ClassDeclarationNode
+        var programClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
-        var structDecl = new StructDeclarationNode
+        var structDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Name = MakeToken("Point"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new FieldMemberMemberDeclarationNode { Field = fieldX },
@@ -491,8 +495,8 @@ public sealed class EndToEndCompilationTests : IDisposable
                 {
                     Name = MakeQualifiedId("TestNs"),
                     Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new StructTypeTypeDeclarationNode { StructDeclaration = structDecl },
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsNamespaceBodyItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = structDecl },
+                    new BodyTypeTypeDeclarationNode { TypeBody = programClass }).AsNamespaceBodyItems(),
                     Span = new Storm.Runtime.SourceSpan(0, source.Length),
                 }
             }),
@@ -536,8 +540,9 @@ public sealed class EndToEndCompilationTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -553,7 +558,7 @@ public sealed class EndToEndCompilationTests : IDisposable
                 {
                     Name = MakeQualifiedId("MyApp"),
                     Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsNamespaceBodyItems(),
                     Span = new Storm.Runtime.SourceSpan(0, source.Length),
                 }
             }),
@@ -599,8 +604,9 @@ public sealed class EndToEndCompilationTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -616,7 +622,7 @@ public sealed class EndToEndCompilationTests : IDisposable
                 {
                     Name = MakeQualifiedId("MyApp"),
                     Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsNamespaceBodyItems(),
                     Span = new Storm.Runtime.SourceSpan(0, source.Length),
                 }
             }),
@@ -684,8 +690,9 @@ public sealed class EndToEndCompilationTests : IDisposable
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
-        var helperClass = new ClassDeclarationNode
+        var helperClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Helper"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = getValueMethod }),
@@ -701,7 +708,7 @@ public sealed class EndToEndCompilationTests : IDisposable
                 {
                     Name = MakeQualifiedId("App"),
                     Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = helperClass }).AsNamespaceBodyItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = helperClass }).AsNamespaceBodyItems(),
                     Span = new Storm.Runtime.SourceSpan(0, source1.Length),
                 }
             }),
@@ -719,8 +726,9 @@ public sealed class EndToEndCompilationTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var programClass = new ClassDeclarationNode
+        var programClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -736,7 +744,7 @@ public sealed class EndToEndCompilationTests : IDisposable
                 {
                     Name = MakeQualifiedId("App"),
                     Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsNamespaceBodyItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = programClass }).AsNamespaceBodyItems(),
                     Span = new Storm.Runtime.SourceSpan(0, source2.Length),
                 }
             }),
@@ -781,8 +789,9 @@ public sealed class EndToEndCompilationTests : IDisposable
         var source1 = "namespace Shared;\npublic class Foo { }";
         var source2 = "namespace Shared;\npublic class Bar { public static void Main() { } }";
 
-        var fooClass = new ClassDeclarationNode
+        var fooClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Foo"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
@@ -799,8 +808,9 @@ public sealed class EndToEndCompilationTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var barClass = new ClassDeclarationNode
+        var barClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Bar"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -816,7 +826,7 @@ public sealed class EndToEndCompilationTests : IDisposable
                 {
                     Name = MakeQualifiedId("Shared"),
                     Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = fooClass }).AsNamespaceBodyItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = fooClass }).AsNamespaceBodyItems(),
                     Span = new Storm.Runtime.SourceSpan(0, source1.Length),
                 }
             }),
@@ -831,7 +841,7 @@ public sealed class EndToEndCompilationTests : IDisposable
                 {
                     Name = MakeQualifiedId("Shared"),
                     Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = barClass }).AsNamespaceBodyItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = barClass }).AsNamespaceBodyItems(),
                     Span = new Storm.Runtime.SourceSpan(0, source2.Length),
                 }
             }),
@@ -876,8 +886,9 @@ public sealed class EndToEndCompilationTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -893,7 +904,7 @@ public sealed class EndToEndCompilationTests : IDisposable
                 {
                     Name = MakeQualifiedId("MyApp"),
                     Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsNamespaceBodyItems(),
                     Span = new Storm.Runtime.SourceSpan(0, source.Length),
                 }
             }),
@@ -934,8 +945,9 @@ public sealed class EndToEndCompilationTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -951,7 +963,7 @@ public sealed class EndToEndCompilationTests : IDisposable
                 {
                     Name = MakeQualifiedId("MyApp"),
                     Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsNamespaceBodyItems(),
                     Span = new Storm.Runtime.SourceSpan(0, source.Length),
                 }
             }),

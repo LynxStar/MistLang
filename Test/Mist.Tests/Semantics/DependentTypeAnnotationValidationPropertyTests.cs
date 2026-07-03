@@ -142,8 +142,9 @@ public class DependentTypeAnnotationValidationPropertyTests
             TypeParameters = ImmutableArray<TypeParameterNode>.Empty,
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(scenario.ClassName),
             TypeParams = typeParamList,
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -152,7 +153,7 @@ public class DependentTypeAnnotationValidationPropertyTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);

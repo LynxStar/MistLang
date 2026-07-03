@@ -286,10 +286,11 @@ public class CastOperatorCoexistencePropertyTests
         };
 
         // The type that declares both operators
-        var typeDecl = new ClassTypeTypeDeclarationNode
+        var typeDecl = new BodyTypeTypeDeclarationNode
         {
-            ClassDeclaration = new ClassDeclarationNode
+            TypeBody = new TypeBodyDeclarationNode
             {
+                Keyword = new ClassKeywordTypeKeywordNode(),
                 Name = Tok(scenario.TypeName),
                 Members = ImmutableArray.Create<MemberDeclarationNode>(
                     castOpMember, arithOpMember),
@@ -297,10 +298,11 @@ public class CastOperatorCoexistencePropertyTests
         };
 
         // The cast target type (empty class)
-        var targetTypeDecl = new ClassTypeTypeDeclarationNode
+        var targetTypeDecl = new BodyTypeTypeDeclarationNode
         {
-            ClassDeclaration = new ClassDeclarationNode
+            TypeBody = new TypeBodyDeclarationNode
             {
+                Keyword = new ClassKeywordTypeKeywordNode(),
                 Name = Tok(scenario.CastTargetTypeName),
                 Members = ImmutableArray<MemberDeclarationNode>.Empty,
             },

@@ -276,8 +276,9 @@ public class TypeCheckerEdgeCaseTests
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -286,7 +287,7 @@ public class TypeCheckerEdgeCaseTests
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
     }
 
@@ -319,8 +320,9 @@ public class TypeCheckerEdgeCaseTests
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = method },
@@ -330,7 +332,7 @@ public class TypeCheckerEdgeCaseTests
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
     }
 
@@ -524,8 +526,9 @@ public class TypeCheckerEdgeCaseTests
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = method }),
@@ -533,7 +536,7 @@ public class TypeCheckerEdgeCaseTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -565,14 +568,16 @@ public class TypeCheckerEdgeCaseTests
                 new StaticModifierModifierNode()),
         };
 
-        var classA = new ClassDeclarationNode
+        var classA = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("A"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainA }),
         };
-        var classB = new ClassDeclarationNode
+        var classB = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("B"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainB }),
@@ -581,8 +586,8 @@ public class TypeCheckerEdgeCaseTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classA },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classB }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classA },
+                new BodyTypeTypeDeclarationNode { TypeBody = classB }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);

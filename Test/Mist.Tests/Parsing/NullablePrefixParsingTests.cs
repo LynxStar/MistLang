@@ -40,9 +40,9 @@ public class NullablePrefixParsingTests
         Assert.NotNull(ns);
         Assert.True(ns!.Body.Length > 0, "FileScopedNamespace.Body should contain the class declaration");
 
-        var typeDecl = (ns.Body[0] as NamespaceTypeItemNamespaceBodyItemNode)?.TypeDeclaration as ClassTypeTypeDeclarationNode;
+        var typeDecl = (ns.Body[0] as NamespaceTypeItemNamespaceBodyItemNode)?.TypeDeclaration as BodyTypeTypeDeclarationNode;
         Assert.NotNull(typeDecl);
-        Assert.Equal("Program", typeDecl!.ClassDeclaration.Name.Lexeme);
+        Assert.Equal("Program", typeDecl!.TypeBody.Name.Lexeme);
     }
 
     [Fact]
@@ -56,11 +56,11 @@ public class NullablePrefixParsingTests
         Assert.NotNull(cu);
         Assert.True(cu!.GetTypes().Length > 0);
 
-        var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
+        var typeDecl = cu.GetTypes()[0] as BodyTypeTypeDeclarationNode;
         Assert.NotNull(typeDecl);
-        Assert.Equal(2, typeDecl!.ClassDeclaration.Modifiers.Length);
-        _ = Assert.IsType<PublicModifierModifierNode>(typeDecl.ClassDeclaration.Modifiers[0]);
-        _ = Assert.IsType<StaticModifierModifierNode>(typeDecl.ClassDeclaration.Modifiers[1]);
+        Assert.Equal(2, typeDecl!.TypeBody.Modifiers.Length);
+        _ = Assert.IsType<PublicModifierModifierNode>(typeDecl.TypeBody.Modifiers[0]);
+        _ = Assert.IsType<StaticModifierModifierNode>(typeDecl.TypeBody.Modifiers[1]);
     }
 
     [Fact]
@@ -73,9 +73,9 @@ public class NullablePrefixParsingTests
         var cu = result.Root as CompilationUnitNode;
         Assert.NotNull(cu);
 
-        var typeDecl = cu!.GetTypes()[0] as ClassTypeTypeDeclarationNode;
+        var typeDecl = cu!.GetTypes()[0] as BodyTypeTypeDeclarationNode;
         Assert.NotNull(typeDecl);
-        Assert.Equal(2, typeDecl!.ClassDeclaration.Members.Length);
+        Assert.Equal(2, typeDecl!.TypeBody.Members.Length);
     }
 
     [Fact]
@@ -92,13 +92,13 @@ public class NullablePrefixParsingTests
         Assert.NotNull(ns);
         Assert.Equal(2, ns!.Body.Length);
 
-        var classDecl = (ns.Body[0] as NamespaceTypeItemNamespaceBodyItemNode)?.TypeDeclaration as ClassTypeTypeDeclarationNode;
+        var classDecl = (ns.Body[0] as NamespaceTypeItemNamespaceBodyItemNode)?.TypeDeclaration as BodyTypeTypeDeclarationNode;
         Assert.NotNull(classDecl);
-        Assert.Equal("Foo", classDecl!.ClassDeclaration.Name.Lexeme);
+        Assert.Equal("Foo", classDecl!.TypeBody.Name.Lexeme);
 
-        var structDecl = (ns.Body[1] as NamespaceTypeItemNamespaceBodyItemNode)?.TypeDeclaration as StructTypeTypeDeclarationNode;
+        var structDecl = (ns.Body[1] as NamespaceTypeItemNamespaceBodyItemNode)?.TypeDeclaration as BodyTypeTypeDeclarationNode;
         Assert.NotNull(structDecl);
-        Assert.Equal("Bar", structDecl!.StructDeclaration.Name.Lexeme);
+        Assert.Equal("Bar", structDecl!.TypeBody.Name.Lexeme);
     }
 
     [Fact]
@@ -126,10 +126,10 @@ public class Program
         Assert.NotNull(ns);
 
         Assert.True(ns!.Body.Length > 0, "Namespace body should contain the Program class");
-        var typeDecl = (ns.Body[0] as NamespaceTypeItemNamespaceBodyItemNode)?.TypeDeclaration as ClassTypeTypeDeclarationNode;
+        var typeDecl = (ns.Body[0] as NamespaceTypeItemNamespaceBodyItemNode)?.TypeDeclaration as BodyTypeTypeDeclarationNode;
         Assert.NotNull(typeDecl);
-        Assert.Equal("Program", typeDecl!.ClassDeclaration.Name.Lexeme);
-        Assert.True(typeDecl.ClassDeclaration.Members.Length > 0, "Class should have members");
+        Assert.Equal("Program", typeDecl!.TypeBody.Name.Lexeme);
+        Assert.True(typeDecl.TypeBody.Members.Length > 0, "Class should have members");
     }
 
     [Fact]
@@ -143,9 +143,9 @@ public class Program
         Assert.NotNull(cu);
         Assert.True(cu!.GetTypes().Length > 0);
 
-        var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
+        var typeDecl = cu.GetTypes()[0] as BodyTypeTypeDeclarationNode;
         Assert.NotNull(typeDecl);
-        var classDecl = typeDecl!.ClassDeclaration;
+        var classDecl = typeDecl!.TypeBody;
         Assert.Equal("C", classDecl.Name.Lexeme);
         Assert.Equal(2, classDecl.Members.Length);
 
@@ -170,9 +170,9 @@ public class Program
         var cu = result.Root as CompilationUnitNode;
         Assert.NotNull(cu);
 
-        var typeDecl = cu!.GetTypes()[0] as ClassTypeTypeDeclarationNode;
+        var typeDecl = cu!.GetTypes()[0] as BodyTypeTypeDeclarationNode;
         Assert.NotNull(typeDecl);
-        var classDecl = typeDecl!.ClassDeclaration;
+        var classDecl = typeDecl!.TypeBody;
         Assert.Equal(2, classDecl.Members.Length);
 
         var ctor = classDecl.Members[1] as ConstructorMemberMemberDeclarationNode;
@@ -190,9 +190,9 @@ public class Program
         var cu = result.Root as CompilationUnitNode;
         Assert.NotNull(cu);
 
-        var typeDecl = cu!.GetTypes()[0] as ClassTypeTypeDeclarationNode;
+        var typeDecl = cu!.GetTypes()[0] as BodyTypeTypeDeclarationNode;
         Assert.NotNull(typeDecl);
-        var classDecl = typeDecl!.ClassDeclaration;
+        var classDecl = typeDecl!.TypeBody;
         Assert.Equal(3, classDecl.Members.Length);
 
         _ = Assert.IsType<FieldMemberMemberDeclarationNode>(classDecl.Members[0]);
@@ -233,9 +233,9 @@ public class Point
         Assert.NotNull(ns);
         Assert.True(ns!.Body.Length > 0, "Namespace body should contain the Point class");
 
-        var typeDecl = (ns.Body[0] as NamespaceTypeItemNamespaceBodyItemNode)?.TypeDeclaration as ClassTypeTypeDeclarationNode;
+        var typeDecl = (ns.Body[0] as NamespaceTypeItemNamespaceBodyItemNode)?.TypeDeclaration as BodyTypeTypeDeclarationNode;
         Assert.NotNull(typeDecl);
-        var classDecl = typeDecl!.ClassDeclaration;
+        var classDecl = typeDecl!.TypeBody;
         Assert.Equal("Point", classDecl.Name.Lexeme);
 
         // 2 fields + 1 constructor + 2 methods = 5 members

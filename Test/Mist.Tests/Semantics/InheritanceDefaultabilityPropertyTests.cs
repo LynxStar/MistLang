@@ -157,11 +157,12 @@ public class InheritanceDefaultabilityPropertyTests
         };
     }
 
-    private static ClassDeclarationNode MakeClassDecl(
+    private static TypeBodyDeclarationNode MakeClassDecl(
         string name, ImmutableArray<MemberDeclarationNode> members, string? baseClassName = null)
     {
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members,
         };
@@ -176,9 +177,9 @@ public class InheritanceDefaultabilityPropertyTests
         return classDecl;
     }
 
-    private static TypeDeclarationNode WrapClass(ClassDeclarationNode classDecl)
+    private static TypeDeclarationNode WrapClass(TypeBodyDeclarationNode classDecl)
     {
-        return new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl };
+        return new BodyTypeTypeDeclarationNode { TypeBody = classDecl };
     }
 
     private static CompilationUnitNode MakeCompilationUnit(
@@ -311,7 +312,7 @@ public class InheritanceDefaultabilityPropertyTests
     /// <summary>
     /// Builds a non-defaultable base class: has a constructor and no default block.
     /// </summary>
-    private static ClassDeclarationNode BuildNonDefaultableBase(string baseTypeName)
+    private static TypeBodyDeclarationNode BuildNonDefaultableBase(string baseTypeName)
     {
         var members = ImmutableArray.Create(
             MakeFieldMember(MakePrimitiveField("baseField", "int")),

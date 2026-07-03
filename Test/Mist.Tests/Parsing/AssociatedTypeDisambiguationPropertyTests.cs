@@ -116,21 +116,21 @@ public class AssociatedTypeDisambiguationPropertyTests
     }
 
     /// <summary>
-    /// Extracts the first abstract member declaration from a parsed abstract.
+    /// Extracts the first member declaration from a parsed abstract body.
     /// </summary>
-    private static AbstractMemberDeclarationNode? ExtractAbstractMember(CompilationUnitNode cu)
+    private static MemberDeclarationNode? ExtractAbstractMember(CompilationUnitNode cu)
     {
         if(cu.Items.FirstOrDefault() is not TypeItemTopLevelItemNode typeItem)
         {
             return null;
         }
 
-        if(typeItem.TypeDeclaration is not AbstractTypeTypeDeclarationNode abstractDecl)
+        if(typeItem.TypeDeclaration is not BodyTypeTypeDeclarationNode { TypeBody: { Keyword: AbstractKeywordTypeKeywordNode } typeBody })
         {
             return null;
         }
 
-        return abstractDecl.AbstractDeclaration.Members.FirstOrDefault();
+        return typeBody.Members.FirstOrDefault();
     }
 
     /// <summary>
@@ -138,8 +138,12 @@ public class AssociatedTypeDisambiguationPropertyTests
     /// </summary>
     private static TypeAliasDeclarationNode? ExtractTypeAlias(CompilationUnitNode cu)
     {
-        var item = cu.Items.FirstOrDefault() as TypeAliasItemTopLevelItemNode;
-        return item?.TypeAliasDeclaration;
+        if(cu.Items.FirstOrDefault() is TypeItemTopLevelItemNode { TypeDeclaration: TypeAliasTypeTypeDeclarationNode aliasType })
+        {
+            return aliasType.TypeAliasDeclaration;
+        }
+
+        return null;
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -148,7 +152,7 @@ public class AssociatedTypeDisambiguationPropertyTests
     //
     // For any valid type name and constraint, parsing `type Name : Constraint;`
     // inside an abstract body SHALL produce an
-    // AbstractAssociatedTypeMemberAbstractMemberDeclarationNode containing
+    // AssociatedTypeMemberMemberDeclarationNode containing
     // an AssociatedTypeSlotDeclarationNode.
     // ═════════════════════════════════════════════════════════════════════════
 
@@ -171,18 +175,19 @@ public class AssociatedTypeDisambiguationPropertyTests
             return false.ToProperty().Label($"Could not extract abstract member from: {source}");
         }
 
-        var isAssociatedTypeSlot = member is AbstractAssociatedTypeMemberAbstractMemberDeclarationNode;
+        var isAssociatedTypeSlot = member is AssociatedTypeMemberMemberDeclarationNode;
 
         return isAssociatedTypeSlot
             .ToProperty()
-            .Label($"Expected AbstractAssociatedTypeMemberAbstractMemberDeclarationNode but got {member.GetType().Name} for: {source}");
+            .Label($"Expected AssociatedTypeMemberMemberDeclarationNode but got {member.GetType().Name} for: {source}");
     }
 
     // ═════════════════════════════════════════════════════════════════════════
     // Property 2b: type Name = TypeExpr; produces TypeAliasDeclarationNode
     //
     // For any valid type name and type expression, parsing `type Name = TypeExpr;`
-    // SHALL produce a TypeAliasDeclarationNode (via TypeAliasItemTopLevelItemNode).
+    // SHALL produce a TypeAliasDeclarationNode (via TypeItemTopLevelItemNode
+    // wrapping TypeAliasTypeTypeDeclarationNode).
     // ═════════════════════════════════════════════════════════════════════════
 
     [Property(
@@ -248,7 +253,7 @@ public class AssociatedTypeDisambiguationPropertyTests
         }
 
         // Extract the inner declaration node from the abstract member
-        if(member is not AbstractAssociatedTypeMemberAbstractMemberDeclarationNode slotMember)
+        if(member is not AssociatedTypeMemberMemberDeclarationNode slotMember)
         {
             return false.ToProperty().Label($"Abstract member is not an associated type slot: {member.GetType().Name}");
         }

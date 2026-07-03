@@ -207,8 +207,9 @@ public class DuplicateSignaturePropertyTests
             new MethodMemberMemberDeclarationNode { Method = method1 },
             new MethodMemberMemberDeclarationNode { Method = method2 });
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = members,
         };
@@ -216,7 +217,7 @@ public class DuplicateSignaturePropertyTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         // Act
@@ -248,8 +249,9 @@ public class DuplicateSignaturePropertyTests
             new ConstructorMemberMemberDeclarationNode { Constructor = ctor1 },
             new ConstructorMemberMemberDeclarationNode { Constructor = ctor2 });
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = members,
         };
@@ -257,7 +259,7 @@ public class DuplicateSignaturePropertyTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         // Act

@@ -202,15 +202,16 @@ public class StructInheritanceAssignabilityTests
 
     // ─── Declaration builders ────────────────────────────────────────────
 
-    private static StructDeclarationNode MakeStructDecl(
+    private static TypeBodyDeclarationNode MakeStructDecl(
         string name,
         string? baseStructName = null,
         TypeArgumentListNode? baseTypeArgs = null,
         TypeParameterListNode? typeParams = null,
         ImmutableArray<MemberDeclarationNode>? members = null)
     {
-        var decl = new StructDeclarationNode
+        var decl = new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -230,16 +231,17 @@ public class StructInheritanceAssignabilityTests
         return decl;
     }
 
-    private static AbstractDeclarationNode MakeAbstractDecl(string name)
+    private static TypeBodyDeclarationNode MakeAbstractDecl(string name)
     {
-        return new AbstractDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new AbstractKeywordTypeKeywordNode(),
             Name = MakeToken(name),
-            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
     }
 
-    private static ClassDeclarationNode MakeProgramClass(ImmutableArray<StatementNode> mainStatements)
+    private static TypeBodyDeclarationNode MakeProgramClass(ImmutableArray<StatementNode> mainStatements)
     {
         var mainMethod = new MethodDeclarationNode
         {
@@ -252,27 +254,28 @@ public class StructInheritanceAssignabilityTests
                 new StaticModifierModifierNode()),
         };
 
-        return new ClassDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
         };
     }
 
-    private static TypeDeclarationNode WrapStruct(StructDeclarationNode decl)
+    private static TypeDeclarationNode WrapStruct(TypeBodyDeclarationNode decl)
     {
-        return new StructTypeTypeDeclarationNode { StructDeclaration = decl };
+        return new BodyTypeTypeDeclarationNode { TypeBody = decl };
     }
 
-    private static TypeDeclarationNode WrapClass(ClassDeclarationNode decl)
+    private static TypeDeclarationNode WrapClass(TypeBodyDeclarationNode decl)
     {
-        return new ClassTypeTypeDeclarationNode { ClassDeclaration = decl };
+        return new BodyTypeTypeDeclarationNode { TypeBody = decl };
     }
 
-    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode decl)
+    private static TypeDeclarationNode WrapAbstract(TypeBodyDeclarationNode decl)
     {
-        return new AbstractTypeTypeDeclarationNode { AbstractDeclaration = decl };
+        return new BodyTypeTypeDeclarationNode { TypeBody = decl };
     }
 
     // ─── Tests ───────────────────────────────────────────────────────────
@@ -485,8 +488,9 @@ public class StructInheritanceAssignabilityTests
         var abstractDecl = MakeAbstractDecl("IFoo");
 
         // struct Base : IFoo { }
-        var baseStruct = new StructDeclarationNode
+        var baseStruct = new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Name = MakeToken("Base"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };

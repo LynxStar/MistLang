@@ -70,26 +70,28 @@ public class AbstractResolutionPropertyTests
 
     // ─── AST construction helpers ────────────────────────────────────────
 
-    private static AbstractMethodDeclarationNode MakeAbstractMethod(string name)
+    private static MethodDeclarationNode MakeAbstractMethod(string name)
     {
-        return new AbstractMethodDeclarationNode
+        return new MethodDeclarationNode
         {
             Name = MakeToken(name),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
+            Body = new MethodNoBodyMethodBodyNode(),
         };
     }
 
-    private static AbstractDeclarationNode MakeAbstractDecl(
+    private static TypeBodyDeclarationNode MakeAbstractDecl(
         string name,
-        ImmutableArray<AbstractMethodDeclarationNode> methods,
+        ImmutableArray<MethodDeclarationNode> methods,
         string? parentAbstractName = null)
     {
         var members = methods.Select(m =>
-            (AbstractMemberDeclarationNode)new AbstractMethodMemberAbstractMemberDeclarationNode { Method = m })
+            (MemberDeclarationNode)new MethodMemberMemberDeclarationNode { Method = m })
             .ToImmutableArray();
-        var decl = new AbstractDeclarationNode
+        var decl = new TypeBodyDeclarationNode
         {
+            Keyword = new AbstractKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members,
         };
@@ -106,13 +108,14 @@ public class AbstractResolutionPropertyTests
         return decl;
     }
 
-    private static ClassDeclarationNode MakeClassDecl(
+    private static TypeBodyDeclarationNode MakeClassDecl(
         string name,
         string? abstractName = null,
         ImmutableArray<MemberDeclarationNode>? members = null)
     {
-        var decl = new ClassDeclarationNode
+        var decl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -133,13 +136,14 @@ public class AbstractResolutionPropertyTests
         return decl;
     }
 
-    private static StructDeclarationNode MakeStructDecl(
+    private static TypeBodyDeclarationNode MakeStructDecl(
         string name,
         string? abstractName = null,
         ImmutableArray<MemberDeclarationNode>? members = null)
     {
-        var decl = new StructDeclarationNode
+        var decl = new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -165,19 +169,19 @@ public class AbstractResolutionPropertyTests
         };
     }
 
-    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode decl)
+    private static TypeDeclarationNode WrapAbstract(TypeBodyDeclarationNode decl)
     {
-        return new AbstractTypeTypeDeclarationNode { AbstractDeclaration = decl };
+        return new BodyTypeTypeDeclarationNode { TypeBody = decl };
     }
 
-    private static TypeDeclarationNode WrapClass(ClassDeclarationNode decl)
+    private static TypeDeclarationNode WrapClass(TypeBodyDeclarationNode decl)
     {
-        return new ClassTypeTypeDeclarationNode { ClassDeclaration = decl };
+        return new BodyTypeTypeDeclarationNode { TypeBody = decl };
     }
 
-    private static TypeDeclarationNode WrapStruct(StructDeclarationNode decl)
+    private static TypeDeclarationNode WrapStruct(TypeBodyDeclarationNode decl)
     {
-        return new StructTypeTypeDeclarationNode { StructDeclaration = decl };
+        return new BodyTypeTypeDeclarationNode { TypeBody = decl };
     }
 
     // ─── Test data model ─────────────────────────────────────────────────
@@ -300,7 +304,7 @@ public class AbstractResolutionPropertyTests
             case ImplementingTypeKind.Abstract:
                 implementingTypeDecl = WrapAbstract(
                     MakeAbstractDecl(scenario.ImplementingTypeName,
-                        ImmutableArray<AbstractMethodDeclarationNode>.Empty,
+                        ImmutableArray<MethodDeclarationNode>.Empty,
                         scenario.AbstractName));
                 break;
             default:
@@ -439,7 +443,7 @@ public class AbstractResolutionPropertyTests
         var baseAbstract = MakeAbstractDecl("IBase",
             ImmutableArray.Create(MakeAbstractMethod("BaseMethod")));
         var derivedAbstract = MakeAbstractDecl("IDerived",
-            ImmutableArray<AbstractMethodDeclarationNode>.Empty,
+            ImmutableArray<MethodDeclarationNode>.Empty,
             "IBase");
 
         var ast = MakeCompilationUnit(
@@ -482,8 +486,9 @@ public class AbstractResolutionPropertyTests
         // When a class has a base class (not an abstract), BaseType is set
         // and Abstracts remains empty.
         var baseClassDecl = MakeClassDecl("Animal");
-        var derivedClassDecl = new ClassDeclarationNode
+        var derivedClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Dog"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };

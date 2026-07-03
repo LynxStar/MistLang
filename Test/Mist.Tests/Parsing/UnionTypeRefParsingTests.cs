@@ -47,9 +47,9 @@ public class UnionTypeRefParsingTests
         var source = $"class T {{ public void M() {{ {typeAnnotation} x = default; }} }}";
         var cu = ParseOrFail(source);
 
-        var typeDecl = Assert.IsType<ClassTypeTypeDeclarationNode>(cu.GetTypes()[0]);
+        var typeDecl = Assert.IsType<BodyTypeTypeDeclarationNode>(cu.GetTypes()[0]);
         var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(
-            typeDecl.ClassDeclaration.Members[0]);
+            typeDecl.TypeBody.Members[0]);
         var block = methodMember.Method.Body.GetBlock();
         Assert.NotNull(block);
         var stmt = Assert.IsType<VariableDeclarationStatementStatementNode>(block!.Statements[0]);

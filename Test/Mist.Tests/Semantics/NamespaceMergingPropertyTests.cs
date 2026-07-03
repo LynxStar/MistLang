@@ -88,10 +88,11 @@ public sealed class NamespaceMergingPropertyTests
             lexeme: lexeme);
     }
 
-    private static ClassDeclarationNode MakeClass(string name)
+    private static TypeBodyDeclarationNode MakeClass(string name)
     {
-        return new ClassDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -167,12 +168,12 @@ public sealed class NamespaceMergingPropertyTests
 
         var nsNode1 = MakeFileScopedNs(nsName.Value,
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classA }),
+                new BodyTypeTypeDeclarationNode { TypeBody = classA }),
             sourceOffset: nsOffset);
 
         var nsNode2 = MakeFileScopedNs(nsName.Value,
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classB }),
+                new BodyTypeTypeDeclarationNode { TypeBody = classB }),
             sourceOffset: nsOffset);
 
         var ast1 = new CompilationUnitNode
@@ -231,13 +232,13 @@ public sealed class NamespaceMergingPropertyTests
         var ast1 = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classA }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classA }).AsTopLevelItems(),
         };
 
         var ast2 = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classB }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classB }).AsTopLevelItems(),
         };
 
         var sourceText1 = new SourceText(filePath1, "");
@@ -282,7 +283,7 @@ public sealed class NamespaceMergingPropertyTests
         var classA = MakeClass("ClassExplicit");
         var nsNode = MakeFileScopedNs(nsRoot.Value,
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classA }),
+                new BodyTypeTypeDeclarationNode { TypeBody = classA }),
             sourceOffset: nsOffset);
 
         var ast1 = new CompilationUnitNode
@@ -296,7 +297,7 @@ public sealed class NamespaceMergingPropertyTests
         var ast2 = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classB }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classB }).AsTopLevelItems(),
         };
 
         var sourceText1 = new SourceText(filePath1, source1);
@@ -340,12 +341,12 @@ public sealed class NamespaceMergingPropertyTests
 
         var blockNs1 = MakeBlockNs(nsName.Value,
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classA }),
+                new BodyTypeTypeDeclarationNode { TypeBody = classA }),
             sourceOffset: nsOffset);
 
         var blockNs2 = MakeBlockNs(nsName.Value,
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classB }),
+                new BodyTypeTypeDeclarationNode { TypeBody = classB }),
             sourceOffset: nsOffset);
 
         var ast1 = new CompilationUnitNode

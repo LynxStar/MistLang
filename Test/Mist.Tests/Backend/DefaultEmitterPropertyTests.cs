@@ -171,36 +171,38 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
         return new FieldMemberMemberDeclarationNode { Field = field };
     }
 
-    private static ClassDeclarationNode MakeClassDecl(
+    private static TypeBodyDeclarationNode MakeClassDecl(
         string name,
         ImmutableArray<MemberDeclarationNode> members)
     {
-        return new ClassDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members,
         };
     }
 
-    private static StructDeclarationNode MakeStructDecl(
+    private static TypeBodyDeclarationNode MakeStructDecl(
         string name,
         ImmutableArray<MemberDeclarationNode> members)
     {
-        return new StructDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members,
         };
     }
 
-    private static TypeDeclarationNode WrapClass(ClassDeclarationNode classDecl)
+    private static TypeDeclarationNode WrapClass(TypeBodyDeclarationNode classDecl)
     {
-        return new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl };
+        return new BodyTypeTypeDeclarationNode { TypeBody = classDecl };
     }
 
-    private static TypeDeclarationNode WrapStruct(StructDeclarationNode structDecl)
+    private static TypeDeclarationNode WrapStruct(TypeBodyDeclarationNode structDecl)
     {
-        return new StructTypeTypeDeclarationNode { StructDeclaration = structDecl };
+        return new BodyTypeTypeDeclarationNode { TypeBody = structDecl };
     }
 
     private static CompilationUnitNode MakeCompilationUnit(

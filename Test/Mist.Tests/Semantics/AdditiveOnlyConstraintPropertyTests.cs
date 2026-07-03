@@ -65,13 +65,14 @@ public class AdditiveOnlyConstraintPropertyTests
         return (model, diagnostics.ToImmutableArray());
     }
 
-    private static ClassDeclarationNode MakeClassDeclWithMembers(
+    private static TypeBodyDeclarationNode MakeClassDeclWithMembers(
         string name,
         string? baseClassName,
         ImmutableArray<MemberDeclarationNode> members)
     {
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members,
         };
@@ -119,10 +120,10 @@ public class AdditiveOnlyConstraintPropertyTests
         };
     }
 
-    private static CompilationUnitNode MakeCompilationUnit(params ClassDeclarationNode[] classDecls)
+    private static CompilationUnitNode MakeCompilationUnit(params TypeBodyDeclarationNode[] classDecls)
     {
         var types = classDecls.Select(c =>
-            (TypeDeclarationNode)new ClassTypeTypeDeclarationNode { ClassDeclaration = c })
+            (TypeDeclarationNode)new BodyTypeTypeDeclarationNode { TypeBody = c })
             .ToImmutableArray();
 
         return new CompilationUnitNode { Items = types.AsTopLevelItems() };
@@ -418,7 +419,7 @@ public class AdditiveOnlyConstraintPropertyTests
     /// </summary>
     private static CompilationUnitNode BuildAst(ImmutableArray<ClassInfo> classes)
     {
-        var classDecls = new List<ClassDeclarationNode>();
+        var classDecls = new List<TypeBodyDeclarationNode>();
 
         foreach(var cls in classes)
         {

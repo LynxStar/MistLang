@@ -61,12 +61,13 @@ public class NewtypeParserPropertyTests
         var item = cu.Items.FirstOrDefault()
             ?? throw new InvalidOperationException("No top-level items in compilation unit");
 
-        return item switch
+        if(item is TypeItemTopLevelItemNode { TypeDeclaration: NewtypeTypeTypeDeclarationNode newtypeType })
         {
-            NewtypeItemTopLevelItemNode newtypeItem => newtypeItem.NewtypeDeclaration,
-            _ => throw new InvalidOperationException(
-                $"Expected NewtypeItemTopLevelItemNode but got {item.GetType().Name}")
-        };
+            return newtypeType.NewtypeDeclaration;
+        }
+
+        throw new InvalidOperationException(
+            $"Expected TypeItemTopLevelItemNode with NewtypeTypeTypeDeclarationNode but got {item.GetType().Name}");
     }
 
     private static string ExtractTypeReferenceText(TypeReferenceNode typeRef, string source)

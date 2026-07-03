@@ -1258,18 +1258,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         RegisterTypeDeclaration(typeItem.TypeDeclaration, currentScope, symbolTable, currentNamespace, sourceText, diagnostics);
                         break;
                     }
-                case TypeAliasItemTopLevelItemNode typeAliasItem:
-                    {
-                        // Register type alias under the current namespace.
-                        RegisterTypeAliasDeclaration(typeAliasItem.TypeAliasDeclaration, currentScope, symbolTable, sourceText, diagnostics);
-                        break;
-                    }
-                case NewtypeItemTopLevelItemNode newtypeItem:
-                    {
-                        // Register newtype under the current namespace.
-                        RegisterNewtypeDeclaration(newtypeItem.NewtypeDeclaration, currentScope, symbolTable, sourceText, diagnostics);
-                        break;
-                    }
                 case ExtensionItemTopLevelItemNode extensionItem:
                     {
                         // Create a placeholder scope for the extension block and register
@@ -1315,14 +1303,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 case NamespaceTypeItemNamespaceBodyItemNode typeItem:
                     RegisterTypeDeclaration(typeItem.TypeDeclaration, namespaceScope, symbolTable, namespaceFqn, sourceText, diagnostics);
-                    break;
-
-                case NamespaceTypeAliasItemNamespaceBodyItemNode typeAliasItem:
-                    RegisterTypeAliasDeclaration(typeAliasItem.TypeAliasDeclaration, namespaceScope, symbolTable, sourceText, diagnostics);
-                    break;
-
-                case NamespaceNewtypeItemNamespaceBodyItemNode newtypeItem:
-                    RegisterNewtypeDeclaration(newtypeItem.NewtypeDeclaration, namespaceScope, symbolTable, sourceText, diagnostics);
                     break;
 
                 case NamespaceExtensionItemNamespaceBodyItemNode extensionItem:
@@ -1570,21 +1550,31 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         switch(typeDecl)
         {
-            case ClassTypeTypeDeclarationNode classTypeNode:
-                RegisterClassDeclaration(classTypeNode.ClassDeclaration, parentScope, symbolTable, namespaceName, sourceText, diagnostics);
-                break;
-            case StructTypeTypeDeclarationNode structTypeNode:
-                RegisterStructDeclaration(structTypeNode.StructDeclaration, parentScope, symbolTable, namespaceName, sourceText, diagnostics);
-                break;
-            case AbstractTypeTypeDeclarationNode abstractTypeNode:
-                RegisterAbstractDeclaration(
-                    abstractTypeNode.AbstractDeclaration,
-                    parentScope, symbolTable, namespaceName, sourceText, diagnostics);
+            case BodyTypeTypeDeclarationNode body:
+                switch(body.TypeBody.Keyword)
+                {
+                    case ClassKeywordTypeKeywordNode:
+                        RegisterClassDeclaration(body.TypeBody, parentScope, symbolTable, namespaceName, sourceText, diagnostics);
+                        break;
+                    case StructKeywordTypeKeywordNode:
+                        RegisterStructDeclaration(body.TypeBody, parentScope, symbolTable, namespaceName, sourceText, diagnostics);
+                        break;
+                    case AbstractKeywordTypeKeywordNode:
+                        RegisterAbstractDeclaration(body.TypeBody, parentScope, symbolTable, namespaceName, sourceText, diagnostics);
+                        break;
+                }
+
                 break;
             case EnumTypeTypeDeclarationNode enumTypeNode:
                 RegisterEnumDeclaration(
                     enumTypeNode.EnumDeclaration,
                     parentScope, symbolTable, namespaceName, sourceText, diagnostics);
+                break;
+            case NewtypeTypeTypeDeclarationNode newtypeTypeNode:
+                RegisterNewtypeDeclaration(newtypeTypeNode.NewtypeDeclaration, parentScope, symbolTable, sourceText, diagnostics);
+                break;
+            case TypeAliasTypeTypeDeclarationNode typeAliasTypeNode:
+                RegisterTypeAliasDeclaration(typeAliasTypeNode.TypeAliasDeclaration, parentScope, symbolTable, sourceText, diagnostics);
                 break;
         }
     }
@@ -1597,10 +1587,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         return typeDecl switch
         {
-            ClassTypeTypeDeclarationNode ct => (ct.ClassDeclaration.Name.Lexeme, ct.ClassDeclaration),
-            StructTypeTypeDeclarationNode st => (st.StructDeclaration.Name.Lexeme, st.StructDeclaration),
-            AbstractTypeTypeDeclarationNode it => (it.AbstractDeclaration.Name.Lexeme, it.AbstractDeclaration),
+            BodyTypeTypeDeclarationNode body => (body.TypeBody.Name.Lexeme, body.TypeBody),
             EnumTypeTypeDeclarationNode et => (et.EnumDeclaration.Name.Lexeme, et.EnumDeclaration),
+            NewtypeTypeTypeDeclarationNode nt => (nt.NewtypeDeclaration.Name.Lexeme, nt.NewtypeDeclaration),
+            TypeAliasTypeTypeDeclarationNode ta => (ta.TypeAliasDeclaration.Name.Lexeme, ta.TypeAliasDeclaration),
             _ => (null, null),
         };
     }
@@ -1637,7 +1627,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     private static void RegisterClassDeclaration(
-        ClassDeclarationNode classDecl,
+        TypeBodyDeclarationNode classDecl,
         Scope parentScope,
         SymbolTable symbolTable,
         string? namespaceName,
@@ -1699,7 +1689,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     private static void RegisterStructDeclaration(
-        StructDeclarationNode structDecl,
+        TypeBodyDeclarationNode structDecl,
         Scope parentScope,
         SymbolTable symbolTable,
         string? namespaceName,
@@ -1770,7 +1760,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     private static void RegisterAbstractDeclaration(
-        AbstractDeclarationNode abstractDecl,
+        TypeBodyDeclarationNode abstractDecl,
         Scope parentScope,
         SymbolTable symbolTable,
         string? namespaceName,
@@ -1808,29 +1798,31 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             switch(member)
             {
-                case AbstractMethodMemberAbstractMemberDeclarationNode methodMember:
+                case MethodMemberMemberDeclarationNode methodMember
+                    when methodMember.Method.Body is MethodNoBodyMethodBodyNode:
                     RegisterAbstractMethodDeclaration(methodMember.Method, typeScope, symbolTable, sourceText, diagnostics);
                     break;
-                case AbstractDefaultMethodMemberAbstractMemberDeclarationNode defaultMethodMember:
+                case MethodMemberMemberDeclarationNode defaultMethodMember
+                    when defaultMethodMember.Method.Body is MethodBlockBodyMethodBodyNode:
                     {
                         // A default method has a body. Register it as a normal method symbol so
                         // member resolution works, AND record it in DefaultMethods so the type
                         // checker can distinguish defaults (which implementers may omit) from slots.
                         var defaultSymbol = RegisterMethodDeclaration(
-                            defaultMethodMember.DefaultMethod, typeScope, symbolTable, sourceText, diagnostics);
-                        abstractType.DefaultMethods[defaultMethodMember.DefaultMethod.Name.Lexeme] = defaultSymbol;
+                            defaultMethodMember.Method, typeScope, symbolTable, sourceText, diagnostics);
+                        abstractType.DefaultMethods[defaultMethodMember.Method.Name.Lexeme] = defaultSymbol;
                         break;
                     }
-                case AbstractPropertyMemberAbstractMemberDeclarationNode propertyMember:
+                case PropertyMemberMemberDeclarationNode propertyMember:
                     RegisterAbstractPropertyDeclaration(propertyMember.Property, typeScope, symbolTable);
                     break;
-                case AbstractAssociatedTypeMemberAbstractMemberDeclarationNode associatedTypeMember:
+                case AssociatedTypeMemberMemberDeclarationNode associatedTypeMember:
                     RegisterAssociatedTypeSlotDeclaration(associatedTypeMember.AssociatedType, abstractType, typeScope, symbolTable, sourceText, diagnostics);
                     break;
-                case AbstractUnconstrainedAssociatedTypeMemberAbstractMemberDeclarationNode unconstrainedMember:
+                case UnconstrainedAssociatedTypeMemberMemberDeclarationNode unconstrainedMember:
                     RegisterUnconstrainedAssociatedTypeSlotDeclaration(unconstrainedMember.UnconstrainedAssociatedType, abstractType, typeScope, symbolTable, sourceText, diagnostics);
                     break;
-                case AbstractModifiedAssociatedTypeMemberAbstractMemberDeclarationNode modifiedMember:
+                case ModifiedAssociatedTypeMemberMemberDeclarationNode modifiedMember:
                     EmitModifiersOnAssociatedTypeSlotDiagnostic(modifiedMember.ModifiedAssociatedType, sourceText, diagnostics);
                     break;
             }
@@ -2923,7 +2915,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     private static void RegisterAbstractMethodDeclaration(
-        AbstractMethodDeclarationNode methodDecl,
+        MethodDeclarationNode methodDecl,
         Scope typeScope,
         SymbolTable symbolTable,
         SourceText? sourceText,
@@ -2944,30 +2936,37 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// on the abstract type type scope.
     /// </summary>
     private static void RegisterAbstractPropertyDeclaration(
-        AbstractPropertyDeclarationNode propertyDecl,
+        PropertyDeclarationNode propertyDecl,
         Scope typeScope,
         SymbolTable symbolTable)
     {
-        var propName = propertyDecl.Name.Lexeme;
-        var propSpan = ToMistSourceSpan(propertyDecl.Name.Span);
+        var (propName, propSpan) = propertyDecl switch
+        {
+            BlockPropertyPropertyDeclarationNode bp => (bp.Name.Lexeme, ToMistSourceSpan(bp.Name.Span)),
+            ExpressionBodiedPropertyPropertyDeclarationNode ep => (ep.Name.Lexeme, ToMistSourceSpan(ep.Name.Span)),
+            _ => ("?", (SourceSpan?)null),
+        };
 
         var hasGet = false;
         var hasSet = false;
         AccessorInfo? getAccessor = null;
         AccessorInfo? setAccessor = null;
 
-        foreach(var accessor in propertyDecl.Accessors)
+        if(propertyDecl is BlockPropertyPropertyDeclarationNode blockProp)
         {
-            switch(accessor)
+            foreach(var accessor in blockProp.Accessors)
             {
-                case AbstractGetAccessorAbstractAccessorDeclarationNode:
-                    hasGet = true;
-                    getAccessor = new AccessorInfo { Kind = AccessorKind.Get, BodyKind = AccessorBodyKind.Auto, Modifier = null };
-                    break;
-                case AbstractSetAccessorAbstractAccessorDeclarationNode:
-                    hasSet = true;
-                    setAccessor = new AccessorInfo { Kind = AccessorKind.Set, BodyKind = AccessorBodyKind.Auto, Modifier = null };
-                    break;
+                switch(accessor)
+                {
+                    case AutoGetAccessorAccessorDeclarationNode:
+                        hasGet = true;
+                        getAccessor = new AccessorInfo { Kind = AccessorKind.Get, BodyKind = AccessorBodyKind.Auto, Modifier = null };
+                        break;
+                    case AutoSetAccessorAccessorDeclarationNode:
+                        hasSet = true;
+                        setAccessor = new AccessorInfo { Kind = AccessorKind.Set, BodyKind = AccessorBodyKind.Auto, Modifier = null };
+                        break;
+                }
             }
         }
 
@@ -2998,7 +2997,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// Emits <c>MIST_AT_0001</c> pointing to the second (duplicate) declaration.
     /// </summary>
     private static void DetectDuplicateAssociatedTypeSlots(
-        ImmutableArray<AbstractMemberDeclarationNode> members,
+        ImmutableArray<MemberDeclarationNode> members,
         string typeName,
         SourceText? sourceText,
         DiagnosticBag diagnostics)
@@ -3012,11 +3011,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             switch(member)
             {
-                case AbstractAssociatedTypeMemberAbstractMemberDeclarationNode assoc:
+                case AssociatedTypeMemberMemberDeclarationNode assoc:
                     slotName = assoc.AssociatedType.Name.Lexeme;
                     declarationNode = assoc.AssociatedType;
                     break;
-                case AbstractUnconstrainedAssociatedTypeMemberAbstractMemberDeclarationNode unconstrained:
+                case UnconstrainedAssociatedTypeMemberMemberDeclarationNode unconstrained:
                     slotName = unconstrained.UnconstrainedAssociatedType.Name.Lexeme;
                     declarationNode = unconstrained.UnconstrainedAssociatedType;
                     break;
@@ -5395,7 +5394,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
 
             var declaringNode = symbolTable.GetDeclaringNode(symbol);
-            if(declaringNode is not ClassDeclarationNode classDecl)
+            if(declaringNode is not TypeBodyDeclarationNode classDecl)
             {
                 continue;
             }
@@ -5530,7 +5529,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
 
             var declaringNode = symbolTable.GetDeclaringNode(symbol);
-            if(declaringNode is not StructDeclarationNode structDecl)
+            if(declaringNode is not TypeBodyDeclarationNode structDecl)
             {
                 continue;
             }
@@ -6313,7 +6312,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// the ASTs to find which compilation unit contains the node.
     /// </summary>
     private static string? FindCompilationUnitPath(
-        ClassDeclarationNode classDecl,
+        TypeBodyDeclarationNode classDecl,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         MistCompilation compilation)
     {
@@ -6331,14 +6330,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// <summary>
     /// Checks whether a compilation unit contains the given class declaration.
     /// </summary>
-    private static bool ContainsClassDeclaration(CompilationUnitNode cu, ClassDeclarationNode classDecl)
+    private static bool ContainsClassDeclaration(CompilationUnitNode cu, TypeBodyDeclarationNode classDecl)
     {
         foreach(var item in cu.Items)
         {
             switch(item)
             {
                 case TypeItemTopLevelItemNode typeItem:
-                    if(typeItem.TypeDeclaration is ClassTypeTypeDeclarationNode ct && ReferenceEquals(ct.ClassDeclaration, classDecl))
+                    if(typeItem.TypeDeclaration is BodyTypeTypeDeclarationNode ct && ReferenceEquals(ct.TypeBody, classDecl))
                     {
                         return true;
                     }
@@ -6348,7 +6347,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var namespaceTypes = GetNamespaceBodyTypes(nsItem.NamespaceDeclaration);
                     foreach(var typeDecl in namespaceTypes)
                     {
-                        if(typeDecl is ClassTypeTypeDeclarationNode nsCt && ReferenceEquals(nsCt.ClassDeclaration, classDecl))
+                        if(typeDecl is BodyTypeTypeDeclarationNode nsCt && ReferenceEquals(nsCt.TypeBody, classDecl))
                         {
                             return true;
                         }
@@ -6431,7 +6430,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         IAmbientTypeResolver? ambientTypeResolver = null)
     {
         var declaringNode = symbolTable.GetDeclaringNode(classSymbol);
-        if(declaringNode is not ClassDeclarationNode classDecl)
+        if(declaringNode is not TypeBodyDeclarationNode classDecl)
         {
             return;
         }
@@ -6553,7 +6552,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         IAmbientTypeResolver? ambientTypeResolver = null)
     {
         var declaringNode = symbolTable.GetDeclaringNode(structSymbol);
-        if(declaringNode is not StructDeclarationNode structDecl)
+        if(declaringNode is not TypeBodyDeclarationNode structDecl)
         {
             return;
         }
@@ -6629,7 +6628,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         IAmbientTypeResolver? ambientTypeResolver = null)
     {
         var declaringNode = symbolTable.GetDeclaringNode(abstractSymbol);
-        if(declaringNode is not AbstractDeclarationNode abstractDecl)
+        if(declaringNode is not TypeBodyDeclarationNode abstractDecl)
         {
             return;
         }
@@ -7491,7 +7490,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             foreach(var (requiredAbstract, requiredMethod) in requiredMethods)
             {
                 var requiredNode = symbolTable.GetDeclaringNode(requiredMethod);
-                if(requiredNode is not AbstractMethodDeclarationNode requiredMethodDecl)
+                if(requiredNode is not MethodDeclarationNode requiredMethodDecl)
                 {
                     continue;
                 }
@@ -7540,7 +7539,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         var abstractParams = abstractNode switch
         {
-            AbstractMethodDeclarationNode ifaceMethodDecl => ifaceMethodDecl.Parameters,
             MethodDeclarationNode methodDecl => methodDecl.Parameters,
             _ => null,
         };
@@ -7635,11 +7633,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         return declaringNode switch
         {
-            ClassDeclarationNode classDecl when symbol.DeclaredType is ClassType classType => (classDecl.Constraints, classType.TypeParameters),
-            StructDeclarationNode structDecl when symbol.DeclaredType is StructType structType => (structDecl.Constraints, structType.TypeParameters),
-            AbstractDeclarationNode abstractDecl when symbol.DeclaredType is AbstractType abstractType => (abstractDecl.Constraints, abstractType.TypeParameters),
+            TypeBodyDeclarationNode typeBodyDecl when symbol.DeclaredType is ClassType classType => (typeBodyDecl.Constraints, classType.TypeParameters),
+            TypeBodyDeclarationNode typeBodyDecl when symbol.DeclaredType is StructType structType => (typeBodyDecl.Constraints, structType.TypeParameters),
+            TypeBodyDeclarationNode typeBodyDecl when symbol.DeclaredType is AbstractType abstractType => (typeBodyDecl.Constraints, abstractType.TypeParameters),
             MethodDeclarationNode methodDecl when symbol is Symbol methodSymbol => (methodDecl.Constraints, methodSymbol.TypeParameters),
-            AbstractMethodDeclarationNode abstractMethodDecl when symbol is Symbol ifaceMethodSymbol => (abstractMethodDecl.Constraints, ifaceMethodSymbol.TypeParameters),
             TypeAliasDeclarationNode aliasDecl when symbol is Symbol aliasSymbol => (aliasDecl.Constraints, aliasSymbol.TypeParameters),
             ConstructorDeclarationNode ctorDecl => ((ImmutableArray<WhereClauseNode> Clauses, IReadOnlyList<IType> TypeParams))(ctorDecl.Constraints, Array.Empty<IType>()),
             IndexerDeclarationNode indexerDecl2 => ((ImmutableArray<WhereClauseNode> Clauses, IReadOnlyList<IType> TypeParams))(indexerDecl2.Constraints, Array.Empty<IType>()),
@@ -7766,7 +7763,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             MethodDeclarationNode methodDecl => methodDecl.Parameters,
             ConstructorDeclarationNode ctorDecl => ctorDecl.Parameters,
             IndexerDeclarationNode indexerDecl3 => indexerDecl3.Parameters,
-            AbstractMethodDeclarationNode ifaceMethodDecl => ifaceMethodDecl.Parameters,
             _ => null,
         };
 
@@ -8424,13 +8420,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         switch(typeDecl)
         {
-            case ClassTypeTypeDeclarationNode ct:
-                if(ReferenceEquals(ct.ClassDeclaration, declaringNode))
+            case BodyTypeTypeDeclarationNode body:
+                if(ReferenceEquals(body.TypeBody, declaringNode))
                 {
                     return true;
                 }
-                // Check nested types inside this class.
-                foreach(var member in ct.ClassDeclaration.Members)
+
+                // Check nested types inside this type.
+                foreach(var member in body.TypeBody.Members)
                 {
                     if(member is NestedTypeMemberMemberDeclarationNode nestedType
                         && MatchesTypeDeclaration(nestedType.NestedType, declaringNode))
@@ -8440,24 +8437,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
 
                 return false;
-            case StructTypeTypeDeclarationNode st:
-                if(ReferenceEquals(st.StructDeclaration, declaringNode))
-                {
-                    return true;
-                }
-                // Check nested types inside this struct.
-                foreach(var member in st.StructDeclaration.Members)
-                {
-                    if(member is NestedTypeMemberMemberDeclarationNode nestedType
-                        && MatchesTypeDeclaration(nestedType.NestedType, declaringNode))
-                    {
-                        return true;
-                    }
-                }
-
-                return false;
-            case AbstractTypeTypeDeclarationNode it:
-                return ReferenceEquals(it.AbstractDeclaration, declaringNode);
             default:
                 return false;
         }
@@ -8605,7 +8584,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             MethodDeclarationNode methodDecl => methodDecl.WithClauses,
             ConstructorDeclarationNode ctorDecl => ctorDecl.WithClauses,
-            AbstractMethodDeclarationNode ifaceMethodDecl => ifaceMethodDecl.WithClauses,
             _ => null,
         };
     }
@@ -8966,7 +8944,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 var targetNode = symbolTable.GetDeclaringNode(targetSlot);
 
                 if(sourceNode is MethodDeclarationNode sourceMethodDecl &&
-                    targetNode is AbstractMethodDeclarationNode targetMethodDecl)
+                    targetNode is MethodDeclarationNode targetMethodDecl)
                 {
                     if(!SignaturesMatch(targetMethodDecl, sourceMethodDecl))
                     {
@@ -9358,7 +9336,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if(symbol.DeclaredType == classType)
             {
                 var declaringNode = symbolTable.GetDeclaringNode(symbol);
-                if(declaringNode is ClassDeclarationNode classDecl)
+                if(declaringNode is TypeBodyDeclarationNode classDecl)
                 {
                     return FindCompilationUnitPath(classDecl, asts, compilation);
                 }
@@ -9381,7 +9359,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if(symbol.DeclaredType == classType)
             {
                 var declaringNode = symbolTable.GetDeclaringNode(symbol);
-                if(declaringNode is ClassDeclarationNode classDecl)
+                if(declaringNode is TypeBodyDeclarationNode classDecl)
                 {
                     return GetSourceTextFromOrigin(classDecl);
                 }
@@ -9616,7 +9594,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var (requiredAbstract, requiredMethod) in requiredMethods)
         {
             var requiredNode = symbolTable.GetDeclaringNode(requiredMethod);
-            if(requiredNode is not AbstractMethodDeclarationNode requiredMethodDecl)
+            if(requiredNode is not MethodDeclarationNode requiredMethodDecl)
             {
                 continue;
             }
@@ -10650,7 +10628,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static MethodMatchResult FindMatchingMethod(
         string methodName,
-        AbstractMethodDeclarationNode requiredMethodDecl,
+        MethodDeclarationNode requiredMethodDecl,
         IScope memberScope,
         ClassType? classType,
         SymbolTable symbolTable,
@@ -10731,7 +10709,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static MethodMatchResult SearchScopeForMethod(
         string methodName,
-        AbstractMethodDeclarationNode requiredMethodDecl,
+        MethodDeclarationNode requiredMethodDecl,
         IScope scope,
         SymbolTable symbolTable,
         Dictionary<string, HashSet<string>>? associatedTypeSubstitutions = null)
@@ -10797,7 +10775,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// member names in the implementor's signature.
     /// </summary>
     private static bool SignaturesMatch(
-        AbstractMethodDeclarationNode required,
+        MethodDeclarationNode required,
         MethodDeclarationNode actual,
         Dictionary<string, HashSet<string>>? associatedTypeSubstitutions = null)
     {
@@ -10839,7 +10817,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// Returns true if types match but RefKind values differ.
     /// </summary>
     private static bool TypesMatchButRefKindsDiffer(
-        AbstractMethodDeclarationNode required,
+        MethodDeclarationNode required,
         MethodDeclarationNode actual,
         Dictionary<string, HashSet<string>>? associatedTypeSubstitutions = null)
     {
@@ -11119,7 +11097,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// Formats an abstract type method signature as a string for diagnostic messages.
     /// Format: "returnType(paramType1, paramType2, ...)"
     /// </summary>
-    private static string FormatInterfaceMethodSignature(AbstractMethodDeclarationNode methodDecl)
+    private static string FormatInterfaceMethodSignature(MethodDeclarationNode methodDecl)
     {
         var returnType = FormatTypeReference(methodDecl.ReturnType);
         var paramTypes = FormatParameterTypes(methodDecl.Parameters);
@@ -12209,15 +12187,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 case TypeItemTopLevelItemNode typeItem:
                     ResolveTypeDeclaration(typeItem.TypeDeclaration, fileScope, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                     break;
-                // Safety net: Phase 2 (Pass1a_ResolveTypeForwards) already resolved all
-                // type aliases and newtypes. These calls are guarded no-ops — both methods
-                // early-return when DeclaredType is already populated.
-                case TypeAliasItemTopLevelItemNode typeAliasItem:
-                    ResolveTypeAliasDeclaration(typeAliasItem.TypeAliasDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
-                    break;
-                case NewtypeItemTopLevelItemNode newtypeItem:
-                    ResolveNewtypeDeclaration(newtypeItem.NewtypeDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
-                    break;
                 case StatementItemTopLevelItemNode stmtItem when tlsScope is not null:
                     // Resolve the top-level statement within the synthetic TLS scope.
                     // The TLS scope acts like a method body scope: local variables
@@ -12246,29 +12215,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 Storm.Runtime.SyntaxNode declNode = typeItem.TypeDeclaration switch
                 {
-                    ClassTypeTypeDeclarationNode ct => ct.ClassDeclaration,
-                    StructTypeTypeDeclarationNode st => st.StructDeclaration,
-                    AbstractTypeTypeDeclarationNode it => it.AbstractDeclaration,
+                    BodyTypeTypeDeclarationNode body => body.TypeBody,
                     _ => typeItem.TypeDeclaration
                 };
 
                 var symbol = symbolTable.GetDeclaredSymbol(declNode);
-                if(symbol?.ContainingScope is Scope namespaceScope && namespaceScope.Parent == globalScope)
-                {
-                    return namespaceScope;
-                }
-            }
-            else if(item is TypeAliasItemTopLevelItemNode typeAliasItem)
-            {
-                var symbol = symbolTable.GetDeclaredSymbol(typeAliasItem.TypeAliasDeclaration);
-                if(symbol?.ContainingScope is Scope namespaceScope && namespaceScope.Parent == globalScope)
-                {
-                    return namespaceScope;
-                }
-            }
-            else if(item is NewtypeItemTopLevelItemNode newtypeItem)
-            {
-                var symbol = symbolTable.GetDeclaredSymbol(newtypeItem.NewtypeDeclaration);
                 if(symbol?.ContainingScope is Scope namespaceScope && namespaceScope.Parent == globalScope)
                 {
                     return namespaceScope;
@@ -12332,9 +12283,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var firstTypeDecl = bodyTypes[0];
             Storm.Runtime.SyntaxNode declNode = firstTypeDecl switch
             {
-                ClassTypeTypeDeclarationNode ct => ct.ClassDeclaration,
-                StructTypeTypeDeclarationNode st => st.StructDeclaration,
-                AbstractTypeTypeDeclarationNode it => it.AbstractDeclaration,
+                BodyTypeTypeDeclarationNode body => body.TypeBody,
                 _ => firstTypeDecl
             };
 
@@ -12411,17 +12360,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         switch(typeDecl)
         {
-            case ClassTypeTypeDeclarationNode classTypeNode:
-                ResolveClassDeclaration(classTypeNode.ClassDeclaration, fileScope, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
-                break;
-            case StructTypeTypeDeclarationNode structTypeNode:
-                ResolveStructDeclaration(structTypeNode.StructDeclaration, fileScope, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
-                break;
-            case AbstractTypeTypeDeclarationNode abstractTypeNode:
-                ResolveAbstractDeclaration(abstractTypeNode.AbstractDeclaration, symbolTable, sourceText, diagnostics);
+            case BodyTypeTypeDeclarationNode bodyTypeNode:
+                ResolveBodyTypeDeclaration(bodyTypeNode.TypeBody, fileScope, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 break;
             case EnumTypeTypeDeclarationNode enumTypeNode:
                 ResolveEnumDeclaration(enumTypeNode.EnumDeclaration, fileScope, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            case TypeAliasTypeTypeDeclarationNode typeAliasTypeNode:
+                ResolveTypeAliasDeclaration(typeAliasTypeNode.TypeAliasDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            case NewtypeTypeTypeDeclarationNode newtypeTypeNode:
+                ResolveNewtypeDeclaration(newtypeTypeNode.NewtypeDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                 break;
         }
     }
@@ -12867,14 +12816,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         switch(typeDecl)
         {
-            case ClassTypeTypeDeclarationNode classTypeNode:
-                ResolveExplicitMemberTypesForClass(classTypeNode.ClassDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
-                break;
-            case StructTypeTypeDeclarationNode structTypeNode:
-                ResolveExplicitMemberTypesForStruct(structTypeNode.StructDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
-                break;
-            case AbstractTypeTypeDeclarationNode abstractTypeNode:
-                ResolveExplicitMemberTypesForAbstract(abstractTypeNode.AbstractDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+            case BodyTypeTypeDeclarationNode bodyTypeNode:
+                ResolveExplicitMemberTypesForBodyType(bodyTypeNode.TypeBody, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                 break;
         }
     }
@@ -12883,175 +12826,142 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// Resolves explicit type annotations on all members of a class declaration.
     /// Only type annotations are resolved — initializers and bodies are deferred to Pass 2.
     /// </summary>
-    private static void ResolveExplicitMemberTypesForClass(
-        ClassDeclarationNode classDecl,
+    private static void ResolveExplicitMemberTypesForBodyType(
+        TypeBodyDeclarationNode typeBodyDecl,
         Scope fileScope,
         SymbolTable symbolTable,
         IAmbientTypeResolver? ambientTypeResolver,
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        var classSymbol = symbolTable.GetDeclaredSymbol(classDecl);
-        if(classSymbol?.DeclaredType is not ClassType classType)
+        var typeSymbol = symbolTable.GetDeclaredSymbol(typeBodyDecl);
+        if(typeSymbol is null)
         {
             return;
         }
 
-        var typeScope = (Scope)classType.MemberScope;
-
-        // Pre-resolve member type aliases BEFORE building the class file scope,
-        // so that resolved aliases are included by CreateTypeParameterScope.
-        // Use a preliminary scope that includes type parameters for alias resolution.
-        var preliminaryScope = CreateTypeParameterScope(typeScope, fileScope);
-        foreach(var memberDecl in classDecl.Members)
-        {
-            if(memberDecl is MemberTypeAliasMemberMemberDeclarationNode memberTypeAlias)
-            {
-                ResolveMemberTypeAliasDeclaration(memberTypeAlias.MemberTypeAlias, typeScope, preliminaryScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
-            }
-        }
-
-        // Build the class file scope AFTER member type aliases are resolved,
-        // so they are available in the resolution scope for member types.
-        var classFileScope = CreateTypeParameterScope(typeScope, fileScope);
-
-        foreach(var memberDecl in classDecl.Members)
-        {
-            ResolveExplicitMemberTypeAnnotation(memberDecl, typeScope, classFileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
-        }
-
-        // Recurse into nested types — pass the class's scope so outer type
-        // parameters (e.g., TValue in Array<TValue, Length>) are visible.
-        foreach(var memberDecl in classDecl.Members)
-        {
-            if(memberDecl is NestedTypeMemberMemberDeclarationNode nestedTypeMember)
-            {
-                ResolveExplicitMemberTypesForTypeDeclaration(nestedTypeMember.NestedType, classFileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Resolves explicit type annotations on all members of a struct declaration.
-    /// </summary>
-    private static void ResolveExplicitMemberTypesForStruct(
-        StructDeclarationNode structDecl,
-        Scope fileScope,
-        SymbolTable symbolTable,
-        IAmbientTypeResolver? ambientTypeResolver,
-        SourceText? sourceText,
-        DiagnosticBag diagnostics)
-    {
-        var structSymbol = symbolTable.GetDeclaredSymbol(structDecl);
-        if(structSymbol?.DeclaredType is not StructType structType)
+        if(typeSymbol.DeclaredType is null)
         {
             return;
         }
 
-        var typeScope = (Scope)structType.MemberScope;
-
-        // Pre-resolve member type aliases BEFORE building the struct file scope.
-        var preliminaryScope = CreateTypeParameterScope(typeScope, fileScope);
-        foreach(var memberDecl in structDecl.Members)
-        {
-            if(memberDecl is MemberTypeAliasMemberMemberDeclarationNode memberTypeAlias)
-            {
-                ResolveMemberTypeAliasDeclaration(memberTypeAlias.MemberTypeAlias, typeScope, preliminaryScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
-            }
-        }
-
-        // Build the struct file scope AFTER member type aliases are resolved.
-        var structFileScope = CreateTypeParameterScope(typeScope, fileScope);
-
-        foreach(var memberDecl in structDecl.Members)
-        {
-            ResolveExplicitMemberTypeAnnotation(memberDecl, typeScope, structFileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
-        }
-
-        // Recurse into nested types — pass the struct's scope so outer type
-        // parameters are visible.
-        foreach(var memberDecl in structDecl.Members)
-        {
-            if(memberDecl is NestedTypeMemberMemberDeclarationNode nestedTypeMember)
-            {
-                ResolveExplicitMemberTypesForTypeDeclaration(nestedTypeMember.NestedType, structFileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Resolves explicit type annotations on all members of an abstract type declaration.
-    /// </summary>
-    private static void ResolveExplicitMemberTypesForAbstract(
-        AbstractDeclarationNode abstractDecl,
-        Scope fileScope,
-        SymbolTable symbolTable,
-        IAmbientTypeResolver? ambientTypeResolver,
-        SourceText? sourceText,
-        DiagnosticBag diagnostics)
-    {
-        var abstractSymbol = symbolTable.GetDeclaredSymbol(abstractDecl);
-        if(abstractSymbol?.DeclaredType is not AbstractType abstractType)
+        var memberScope = GetMemberScope(typeSymbol.DeclaredType);
+        if(memberScope is not Scope typeScope)
         {
             return;
         }
 
-        var typeScope = (Scope)abstractType.MemberScope;
-        var interfaceFileScope = CreateTypeParameterScope(typeScope, fileScope);
-
-        foreach(var member in abstractDecl.Members)
+        switch(typeBodyDecl.Keyword)
         {
-            switch(member)
-            {
-                case AbstractMethodMemberAbstractMemberDeclarationNode methodMember:
+            case ClassKeywordTypeKeywordNode:
+            case StructKeywordTypeKeywordNode:
+                {
+                    // Pre-resolve member type aliases BEFORE building the type file scope,
+                    // so that resolved aliases are included by CreateTypeParameterScope.
+                    // Use a preliminary scope that includes type parameters for alias resolution.
+                    var preliminaryScope = CreateTypeParameterScope(typeScope, fileScope);
+                    foreach(var memberDecl in typeBodyDecl.Members)
                     {
-                        var methodDecl = methodMember.Method;
-                        if(symbolTable.GetDeclaredSymbol(methodDecl) is not Symbol methodSymbol || methodSymbol.DeclaredType is not null)
+                        if(memberDecl is MemberTypeAliasMemberMemberDeclarationNode memberTypeAlias)
                         {
-                            break;
+                            ResolveMemberTypeAliasDeclaration(memberTypeAlias.MemberTypeAlias, typeScope, preliminaryScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                         }
-
-                        var returnType = ResolveTypeReference(methodDecl.ReturnType, interfaceFileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-                        methodSymbol.DeclaredType = returnType;
-
-                        if(methodDecl.ReturnOwnership is RefSpecifierOwnershipSpecifierNode)
-                        {
-                            methodSymbol.ReturnRefKind = RefKind.Ref;
-                            methodSymbol.OwnershipTier = OwnershipTier.Unrestricted;
-                        }
-                        else if(methodDecl.ReturnOwnership is ReadonlyRefSpecifierOwnershipSpecifierNode)
-                        {
-                            methodSymbol.ReturnRefKind = RefKind.RefReadonly;
-                            methodSymbol.OwnershipTier = OwnershipTier.Unrestricted;
-                        }
-                        else
-                        {
-                            methodSymbol.OwnershipTier = MapOwnershipSpecifier(methodDecl.ReturnOwnership);
-                        }
-
-                        // Resolve parameter types — Phase 4 is the sole owner for
-                        // abstract type parameters since abstract types have no body resolution in Pass 2.
-                        if(methodDecl.Parameters is not null)
-                        {
-                            var methodScope = new Scope(parent: interfaceFileScope);
-                            RegisterParameters(methodDecl.Parameters, methodScope, interfaceFileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
-                        }
-
-                        break;
                     }
-                case AbstractPropertyMemberAbstractMemberDeclarationNode propertyMember:
+
+                    // Build the type file scope AFTER member type aliases are resolved,
+                    // so they are available in the resolution scope for member types.
+                    var typeFileScope = CreateTypeParameterScope(typeScope, fileScope);
+
+                    foreach(var memberDecl in typeBodyDecl.Members)
                     {
-                        var propDecl = propertyMember.Property;
-                        if(symbolTable.GetDeclaredSymbol(propDecl) is not Symbol propSymbol || propSymbol.DeclaredType is not null)
-                        {
-                            break;
-                        }
-
-                        var propType = ResolveTypeReference(propDecl.Type, interfaceFileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-                        propSymbol.DeclaredType = propType;
-                        break;
+                        ResolveExplicitMemberTypeAnnotation(memberDecl, typeScope, typeFileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                     }
-            }
+
+                    // Recurse into nested types — pass the type's scope so outer type
+                    // parameters (e.g., TValue in Array<TValue, Length>) are visible.
+                    foreach(var memberDecl in typeBodyDecl.Members)
+                    {
+                        if(memberDecl is NestedTypeMemberMemberDeclarationNode nestedTypeMember)
+                        {
+                            ResolveExplicitMemberTypesForTypeDeclaration(nestedTypeMember.NestedType, typeFileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                        }
+                    }
+
+                    break;
+                }
+            case AbstractKeywordTypeKeywordNode:
+                {
+                    var interfaceFileScope = CreateTypeParameterScope(typeScope, fileScope);
+
+                    foreach(var member in typeBodyDecl.Members)
+                    {
+                        switch(member)
+                        {
+                            case MethodMemberMemberDeclarationNode methodMember
+                                when methodMember.Method.Body is MethodNoBodyMethodBodyNode:
+                                {
+                                    var methodDecl = methodMember.Method;
+                                    if(symbolTable.GetDeclaredSymbol(methodDecl) is not Symbol methodSymbol || methodSymbol.DeclaredType is not null)
+                                    {
+                                        break;
+                                    }
+
+                                    var returnType = ResolveTypeReference(methodDecl.ReturnType, interfaceFileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                                    methodSymbol.DeclaredType = returnType;
+
+                                    if(methodDecl.ReturnOwnership is RefSpecifierOwnershipSpecifierNode)
+                                    {
+                                        methodSymbol.ReturnRefKind = RefKind.Ref;
+                                        methodSymbol.OwnershipTier = OwnershipTier.Unrestricted;
+                                    }
+                                    else if(methodDecl.ReturnOwnership is ReadonlyRefSpecifierOwnershipSpecifierNode)
+                                    {
+                                        methodSymbol.ReturnRefKind = RefKind.RefReadonly;
+                                        methodSymbol.OwnershipTier = OwnershipTier.Unrestricted;
+                                    }
+                                    else
+                                    {
+                                        methodSymbol.OwnershipTier = MapOwnershipSpecifier(methodDecl.ReturnOwnership);
+                                    }
+
+                                    // Resolve parameter types — Phase 4 is the sole owner for
+                                    // abstract type parameters since abstract types have no body resolution in Pass 2.
+                                    if(methodDecl.Parameters is not null)
+                                    {
+                                        var methodScope = new Scope(parent: interfaceFileScope);
+                                        RegisterParameters(methodDecl.Parameters, methodScope, interfaceFileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                                    }
+
+                                    break;
+                                }
+                            case PropertyMemberMemberDeclarationNode propertyMember:
+                                {
+                                    var propDecl = propertyMember.Property;
+                                    if(symbolTable.GetDeclaredSymbol(propDecl) is not Symbol propSymbol || propSymbol.DeclaredType is not null)
+                                    {
+                                        break;
+                                    }
+
+                                    var propType = propDecl switch
+                                    {
+                                        BlockPropertyPropertyDeclarationNode bp =>
+                                            ResolveTypeReference(bp.Type, interfaceFileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics),
+                                        ExpressionBodiedPropertyPropertyDeclarationNode ep =>
+                                            ResolveTypeReference(ep.Type, interfaceFileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics),
+                                        _ => ErrorType.Instance
+                                    };
+                                    propSymbol.DeclaredType = propType;
+                                    break;
+                                }
+                            case MethodMemberMemberDeclarationNode:
+                                // Default methods with bodies get their types resolved via ResolveExplicitMemberTypeAnnotation.
+                                ResolveExplicitMemberTypeAnnotation(member, typeScope, interfaceFileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                                break;
+                        }
+                    }
+
+                    break;
+                }
         }
     }
 
@@ -13224,32 +13134,40 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 switch(item)
                 {
-                    case TypeAliasItemTopLevelItemNode typeAliasItem:
+                    case TypeItemTopLevelItemNode typeItem:
                         {
-                            var aliasDecl = typeAliasItem.TypeAliasDeclaration;
-                            if(symbolTable.GetDeclaredSymbol(aliasDecl) is not Symbol symbol || symbol.DeclaredType is not null)
+                            switch(typeItem.TypeDeclaration)
                             {
-                                break;
+                                case TypeAliasTypeTypeDeclarationNode typeAliasTypeNode:
+                                    {
+                                        var aliasDecl = typeAliasTypeNode.TypeAliasDeclaration;
+                                        if(symbolTable.GetDeclaredSymbol(aliasDecl) is not Symbol symbol || symbol.DeclaredType is not null)
+                                        {
+                                            break;
+                                        }
+
+                                        var name = aliasDecl.Name.Lexeme;
+                                        var entry = new TypeForwardEntry(name, symbol, aliasDecl, null, fileScope, sourceText);
+                                        forwardEntries.Add(entry);
+                                        _ = nameToEntry.TryAdd(name, entry);
+                                        break;
+                                    }
+                                case NewtypeTypeTypeDeclarationNode newtypeTypeNode:
+                                    {
+                                        var newtypeDecl = newtypeTypeNode.NewtypeDeclaration;
+                                        if(symbolTable.GetDeclaredSymbol(newtypeDecl) is not Symbol symbol || symbol.DeclaredType is not null)
+                                        {
+                                            break;
+                                        }
+
+                                        var name = newtypeDecl.Name.Lexeme;
+                                        var entry = new TypeForwardEntry(name, symbol, null, newtypeDecl, fileScope, sourceText);
+                                        forwardEntries.Add(entry);
+                                        _ = nameToEntry.TryAdd(name, entry);
+                                        break;
+                                    }
                             }
 
-                            var name = aliasDecl.Name.Lexeme;
-                            var entry = new TypeForwardEntry(name, symbol, aliasDecl, null, fileScope, sourceText);
-                            forwardEntries.Add(entry);
-                            _ = nameToEntry.TryAdd(name, entry);
-                            break;
-                        }
-                    case NewtypeItemTopLevelItemNode newtypeItem:
-                        {
-                            var newtypeDecl = newtypeItem.NewtypeDeclaration;
-                            if(symbolTable.GetDeclaredSymbol(newtypeDecl) is not Symbol symbol || symbol.DeclaredType is not null)
-                            {
-                                break;
-                            }
-
-                            var name = newtypeDecl.Name.Lexeme;
-                            var entry = new TypeForwardEntry(name, symbol, null, newtypeDecl, fileScope, sourceText);
-                            forwardEntries.Add(entry);
-                            _ = nameToEntry.TryAdd(name, entry);
                             break;
                         }
                     case NamespaceItemTopLevelItemNode nsItem:
@@ -13891,8 +13809,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
     }
 
-    private static void ResolveClassDeclaration(
-        ClassDeclarationNode classDecl,
+    private static void ResolveBodyTypeDeclaration(
+        TypeBodyDeclarationNode typeBodyDecl,
         Scope fileScope,
         SymbolTable symbolTable,
         Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
@@ -13900,107 +13818,91 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        var classSymbol = symbolTable.GetDeclaredSymbol(classDecl);
-        if(classSymbol?.DeclaredType is not ClassType classType)
+        var typeSymbol = symbolTable.GetDeclaredSymbol(typeBodyDecl);
+        if(typeSymbol is null)
         {
             return;
         }
 
-        var typeScope = (Scope)classType.MemberScope;
-
-        // Generate implicit properties for dependent type parameters.
-        GenerateDependentTypeProperties(classType.TypeParameters, typeScope, classType, sourceText, diagnostics);
-
-        // Pre-resolve member type aliases before other members, so that types like
-        // ArrayBounds/SpanBounds are available when referenced in parameter types.
-        foreach(var memberDecl in classDecl.Members)
+        switch(typeSymbol.DeclaredType)
         {
-            if(memberDecl is MemberTypeAliasMemberMemberDeclarationNode memberTypeAlias)
-            {
-                ResolveMemberTypeAliasDeclaration(memberTypeAlias.MemberTypeAlias, typeScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
-            }
+            case ClassType classType:
+                {
+                    var typeScope = (Scope)classType.MemberScope;
+
+                    // Generate implicit properties for dependent type parameters.
+                    GenerateDependentTypeProperties(classType.TypeParameters, typeScope, classType, sourceText, diagnostics);
+
+                    // Pre-resolve member type aliases before other members, so that types like
+                    // ArrayBounds/SpanBounds are available when referenced in parameter types.
+                    foreach(var memberDecl in typeBodyDecl.Members)
+                    {
+                        if(memberDecl is MemberTypeAliasMemberMemberDeclarationNode memberTypeAlias)
+                        {
+                            ResolveMemberTypeAliasDeclaration(memberTypeAlias.MemberTypeAlias, typeScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                        }
+                    }
+
+                    // Create a per-class resolution scope that layers the class's type
+                    // parameters on top of the file scope. This ensures that type parameter
+                    // names (e.g., T in GenericBox<T>) resolve to the correct
+                    // TypeParameterType instance for THIS class, not a same-named parameter
+                    // from a different generic class in the same file.
+                    var classFileScope = CreateTypeParameterScope(typeScope, fileScope);
+
+                    // Phase 4 already resolved all method signatures globally via
+                    // PreResolveMethodSignature — no per-class pre-pass needed here.
+
+                    foreach(var memberDecl in typeBodyDecl.Members)
+                    {
+                        ResolveMemberDeclaration(memberDecl, typeScope, classFileScope, classType, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    }
+
+                    break;
+                }
+            case StructType structType:
+                {
+                    var typeScope = (Scope)structType.MemberScope;
+
+                    // Generate implicit properties for dependent type parameters.
+                    GenerateDependentTypeProperties(structType.TypeParameters, typeScope, structType, sourceText, diagnostics);
+
+                    // Pre-resolve member type aliases before other members, so that types like
+                    // SpanBounds are available when referenced in parameter types.
+                    foreach(var memberDecl in typeBodyDecl.Members)
+                    {
+                        if(memberDecl is MemberTypeAliasMemberMemberDeclarationNode memberTypeAlias)
+                        {
+                            ResolveMemberTypeAliasDeclaration(memberTypeAlias.MemberTypeAlias, typeScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                        }
+                    }
+
+                    // Create a per-struct resolution scope that layers the struct's type
+                    // parameters on top of the file scope.
+                    var structFileScope = CreateTypeParameterScope(typeScope, fileScope);
+
+                    foreach(var memberDecl in typeBodyDecl.Members)
+                    {
+                        ResolveMemberDeclaration(memberDecl, typeScope, structFileScope, structType, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    }
+
+                    break;
+                }
+            case AbstractType abstractType:
+                {
+                    // Create a per-abstract-type resolution scope that layers the abstract type's
+                    // type parameters on top of the file scope.
+                    var typeScope = (Scope)abstractType.MemberScope;
+
+                    // Generate implicit properties for dependent type parameters.
+                    GenerateDependentTypeProperties(abstractType.TypeParameters, typeScope, abstractType, sourceText, diagnostics);
+
+                    // Phase 4 already resolved all abstract type member types (return types,
+                    // property types, parameter types). Nothing else to do here — abstracts
+                    // have no bodies to resolve.
+                    break;
+                }
         }
-
-        // Create a per-class resolution scope that layers the class's type
-        // parameters on top of the file scope. This ensures that type parameter
-        // names (e.g., T in GenericBox<T>) resolve to the correct
-        // TypeParameterType instance for THIS class, not a same-named parameter
-        // from a different generic class in the same file.
-        var classFileScope = CreateTypeParameterScope(typeScope, fileScope);
-
-        // Phase 4 already resolved all method signatures globally via
-        // PreResolveMethodSignature — no per-class pre-pass needed here.
-
-        foreach(var memberDecl in classDecl.Members)
-        {
-            ResolveMemberDeclaration(memberDecl, typeScope, classFileScope, classType, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
-        }
-    }
-
-    private static void ResolveStructDeclaration(
-        StructDeclarationNode structDecl,
-        Scope fileScope,
-        SymbolTable symbolTable,
-        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
-        IAmbientTypeResolver? ambientTypeResolver,
-        SourceText? sourceText,
-        DiagnosticBag diagnostics)
-    {
-        var structSymbol = symbolTable.GetDeclaredSymbol(structDecl);
-        if(structSymbol?.DeclaredType is not StructType structType)
-        {
-            return;
-        }
-
-        var typeScope = (Scope)structType.MemberScope;
-
-        // Generate implicit properties for dependent type parameters.
-        GenerateDependentTypeProperties(structType.TypeParameters, typeScope, structType, sourceText, diagnostics);
-
-        // Pre-resolve member type aliases before other members, so that types like
-        // SpanBounds are available when referenced in parameter types.
-        foreach(var memberDecl in structDecl.Members)
-        {
-            if(memberDecl is MemberTypeAliasMemberMemberDeclarationNode memberTypeAlias)
-            {
-                ResolveMemberTypeAliasDeclaration(memberTypeAlias.MemberTypeAlias, typeScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
-            }
-        }
-
-        // Create a per-struct resolution scope that layers the struct's type
-        // parameters on top of the file scope.
-        var structFileScope = CreateTypeParameterScope(typeScope, fileScope);
-
-        foreach(var memberDecl in structDecl.Members)
-        {
-            ResolveMemberDeclaration(memberDecl, typeScope, structFileScope, structType, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
-        }
-    }
-
-    private static void ResolveAbstractDeclaration(
-        AbstractDeclarationNode abstractDecl,
-
-        SymbolTable symbolTable,
-
-        SourceText? sourceText,
-        DiagnosticBag diagnostics)
-    {
-        var abstractSymbol = symbolTable.GetDeclaredSymbol(abstractDecl);
-        if(abstractSymbol?.DeclaredType is not AbstractType abstractType)
-        {
-            return;
-        }
-
-        // Create a per-abstract-type resolution scope that layers the abstract type's
-        // type parameters on top of the file scope.
-        var typeScope = (Scope)abstractType.MemberScope;
-
-        // Generate implicit properties for dependent type parameters.
-        GenerateDependentTypeProperties(abstractType.TypeParameters, typeScope, abstractType, sourceText, diagnostics);
-
-        // Phase 4 already resolved all abstract type member types (return types,
-        // property types, parameter types). Nothing else to do here — abstracts
-        // have no bodies to resolve.
     }
 
 
@@ -26463,9 +26365,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var builder = ImmutableArray.CreateBuilder<TypeAliasDeclarationNode>();
         foreach(var item in bodyItems)
         {
-            if(item is NamespaceTypeAliasItemNamespaceBodyItemNode typeAliasItem)
+            if(item is NamespaceTypeItemNamespaceBodyItemNode { TypeDeclaration: TypeAliasTypeTypeDeclarationNode typeAliasType })
             {
-                builder.Add(typeAliasItem.TypeAliasDeclaration);
+                builder.Add(typeAliasType.TypeAliasDeclaration);
             }
         }
 
@@ -26485,9 +26387,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var builder = ImmutableArray.CreateBuilder<NewtypeDeclarationNode>();
         foreach(var item in bodyItems)
         {
-            if(item is NamespaceNewtypeItemNamespaceBodyItemNode newtypeItem)
+            if(item is NamespaceTypeItemNamespaceBodyItemNode { TypeDeclaration: NewtypeTypeTypeDeclarationNode newtypeType })
             {
-                builder.Add(newtypeItem.NewtypeDeclaration);
+                builder.Add(newtypeType.NewtypeDeclaration);
             }
         }
 

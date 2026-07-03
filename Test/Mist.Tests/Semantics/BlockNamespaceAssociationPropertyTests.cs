@@ -81,19 +81,21 @@ public sealed class BlockNamespaceAssociationPropertyTests
         };
     }
 
-    private static ClassDeclarationNode MakeClass(string name)
+    private static TypeBodyDeclarationNode MakeClass(string name)
     {
-        return new ClassDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
     }
 
-    private static StructDeclarationNode MakeStruct(string name)
+    private static TypeBodyDeclarationNode MakeStruct(string name)
     {
-        return new StructDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -153,8 +155,8 @@ public sealed class BlockNamespaceAssociationPropertyTests
 
         var blockNs = MakeBlockNs(nsName.Value,
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl },
-                new StructTypeTypeDeclarationNode { StructDeclaration = structDecl }),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl },
+                new BodyTypeTypeDeclarationNode { TypeBody = structDecl }),
             sourceOffset: nsOffset);
 
         var ast = new CompilationUnitNode
@@ -191,7 +193,7 @@ public sealed class BlockNamespaceAssociationPropertyTests
 
         var blockNs = MakeBlockNs(nsName.Value,
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classInside }),
+                new BodyTypeTypeDeclarationNode { TypeBody = classInside }),
             sourceOffset: nsOffset);
 
         var ast = new CompilationUnitNode
@@ -199,7 +201,7 @@ public sealed class BlockNamespaceAssociationPropertyTests
             Items = ImmutableArray.Create<TopLevelItemNode>(
                 new TypeItemTopLevelItemNode
                 {
-                    TypeDeclaration = new ClassTypeTypeDeclarationNode { ClassDeclaration = classOutside }
+                    TypeDeclaration = new BodyTypeTypeDeclarationNode { TypeBody = classOutside }
                 },
                 new NamespaceItemTopLevelItemNode { NamespaceDeclaration = blockNs }),
         };
@@ -234,7 +236,7 @@ public sealed class BlockNamespaceAssociationPropertyTests
 
         var blockNs = MakeBlockNs(nsName.Value,
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classInside }),
+                new BodyTypeTypeDeclarationNode { TypeBody = classInside }),
             sourceOffset: nsOffset);
 
         var ast = new CompilationUnitNode
@@ -242,12 +244,12 @@ public sealed class BlockNamespaceAssociationPropertyTests
             Items = ImmutableArray.Create<TopLevelItemNode>(
                 new TypeItemTopLevelItemNode
                 {
-                    TypeDeclaration = new ClassTypeTypeDeclarationNode { ClassDeclaration = classBefore }
+                    TypeDeclaration = new BodyTypeTypeDeclarationNode { TypeBody = classBefore }
                 },
                 new NamespaceItemTopLevelItemNode { NamespaceDeclaration = blockNs },
                 new TypeItemTopLevelItemNode
                 {
-                    TypeDeclaration = new ClassTypeTypeDeclarationNode { ClassDeclaration = classAfter }
+                    TypeDeclaration = new BodyTypeTypeDeclarationNode { TypeBody = classAfter }
                 }),
         };
 
@@ -292,12 +294,12 @@ public sealed class BlockNamespaceAssociationPropertyTests
 
         var blockNs1 = MakeBlockNs(ns1.Value,
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = class1 }),
+                new BodyTypeTypeDeclarationNode { TypeBody = class1 }),
             sourceOffset: ns1Offset);
 
         var blockNs2 = MakeBlockNs(ns2.Value,
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = class2 }),
+                new BodyTypeTypeDeclarationNode { TypeBody = class2 }),
             sourceOffset: ns2Offset);
 
         var ast = new CompilationUnitNode

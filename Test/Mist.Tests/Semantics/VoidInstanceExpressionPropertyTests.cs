@@ -197,14 +197,15 @@ public class VoidInstanceExpressionPropertyTests
         };
 
         var mainMethod = MakeMainMethod(ImmutableArray.Create<StatementNode>(varDecl));
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
         };
 
-        var ast = MakeCompilationUnit(new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+        var ast = MakeCompilationUnit(new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
         var (model, _) = BuildModel(ast);
 
         return VerifyVoidType(model, postfix, suffix);
@@ -228,14 +229,15 @@ public class VoidInstanceExpressionPropertyTests
         };
 
         var mainMethod = MakeMainMethod(ImmutableArray.Create<StatementNode>(varDecl));
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
         };
 
-        var ast = MakeCompilationUnit(new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+        var ast = MakeCompilationUnit(new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
         var (model, _) = BuildModel(ast);
 
         return VerifyVoidType(model, postfix, suffix);
@@ -264,15 +266,16 @@ public class VoidInstanceExpressionPropertyTests
         };
 
         var mainMethod = MakeMainMethod(ImmutableArray<StatementNode>.Empty);
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod },
                 new MethodMemberMemberDeclarationNode { Method = testMethod }),
         };
 
-        var ast = MakeCompilationUnit(new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+        var ast = MakeCompilationUnit(new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
         var (model, _) = BuildModel(ast);
 
         return VerifyVoidType(model, postfix, suffix);
@@ -339,15 +342,16 @@ public class VoidInstanceExpressionPropertyTests
         };
 
         var mainMethod = MakeMainMethod(ImmutableArray.Create<StatementNode>(callStmt));
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod },
                 new MethodMemberMemberDeclarationNode { Method = targetMethod }),
         };
 
-        var ast = MakeCompilationUnit(new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+        var ast = MakeCompilationUnit(new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
         var (model, _) = BuildModel(ast);
 
         return VerifyVoidType(model, postfix, suffix);
@@ -367,14 +371,15 @@ public class VoidInstanceExpressionPropertyTests
         };
 
         var mainMethod = MakeMainMethod(ImmutableArray.Create<StatementNode>(exprStmt));
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
         };
 
-        var ast = MakeCompilationUnit(new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+        var ast = MakeCompilationUnit(new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
         var (model, _) = BuildModel(ast);
 
         return VerifyVoidType(model, postfix, suffix);

@@ -105,8 +105,9 @@ public sealed class StaticMembersInGenericTypesTests : IDisposable
             Name = Tok("count"),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Box"),
             TypeParams = MakeTypeParamList("T"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
@@ -116,7 +117,7 @@ public sealed class StaticMembersInGenericTypesTests : IDisposable
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         // Act
@@ -147,8 +148,9 @@ public sealed class StaticMembersInGenericTypesTests : IDisposable
             },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Container"),
             TypeParams = MakeTypeParamList("T"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
@@ -158,7 +160,7 @@ public sealed class StaticMembersInGenericTypesTests : IDisposable
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         // Act
@@ -203,8 +205,9 @@ public sealed class StaticMembersInGenericTypesTests : IDisposable
             },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Map"),
             TypeParams = MakeTypeParamList("K", "V"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
@@ -215,7 +218,7 @@ public sealed class StaticMembersInGenericTypesTests : IDisposable
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         // Act

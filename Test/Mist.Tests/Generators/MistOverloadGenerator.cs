@@ -162,13 +162,14 @@ public static class MistOverloadGenerator
     /// <summary>
     /// Creates a class declaration with optional base class and the given members.
     /// </summary>
-    public static ClassDeclarationNode MakeClass(
+    public static TypeBodyDeclarationNode MakeClass(
         string name,
         ImmutableArray<MemberDeclarationNode> members,
         string? baseClassName = null)
     {
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok(name),
             Members = members,
         };
@@ -197,10 +198,10 @@ public static class MistOverloadGenerator
     /// <summary>
     /// Creates a <see cref="CompilationUnitNode"/> from one or more class declarations.
     /// </summary>
-    public static CompilationUnitNode MakeCompilationUnit(params ClassDeclarationNode[] classDecls)
+    public static CompilationUnitNode MakeCompilationUnit(params TypeBodyDeclarationNode[] classDecls)
     {
         var types = classDecls.Select(c =>
-                (TypeDeclarationNode)new ClassTypeTypeDeclarationNode { ClassDeclaration = c })
+                (TypeDeclarationNode)new BodyTypeTypeDeclarationNode { TypeBody = c })
             .ToImmutableArray();
 
         return new CompilationUnitNode { Items = types.AsTopLevelItems() };
@@ -497,8 +498,8 @@ public static class MistOverloadGenerator
     /// Scenario for a class hierarchy with overloaded methods across base and derived classes.
     /// </summary>
     public record ClassHierarchyOverloadScenario(
-        ClassDeclarationNode BaseClass,
-        ClassDeclarationNode DerivedClass,
+        TypeBodyDeclarationNode BaseClass,
+        TypeBodyDeclarationNode DerivedClass,
         IType BaseParamType,
         IType DerivedParamType)
     {

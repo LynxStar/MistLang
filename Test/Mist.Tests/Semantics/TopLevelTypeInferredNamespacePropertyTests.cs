@@ -113,10 +113,11 @@ public sealed class TopLevelTypeInferredNamespacePropertyTests
             lexeme: lexeme);
     }
 
-    private static ClassDeclarationNode MakeClass(string name)
+    private static TypeBodyDeclarationNode MakeClass(string name)
     {
-        return new ClassDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -220,7 +221,7 @@ public sealed class TopLevelTypeInferredNamespacePropertyTests
 
         var blockNs = MakeBlockNs(explicitNs.Value,
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classInBlock }),
+                new BodyTypeTypeDeclarationNode { TypeBody = classInBlock }),
             sourceOffset: nsOffset);
 
         var ast = new CompilationUnitNode
@@ -228,7 +229,7 @@ public sealed class TopLevelTypeInferredNamespacePropertyTests
             Items = ImmutableArray.Create<TopLevelItemNode>(
                 new TypeItemTopLevelItemNode
                 {
-                    TypeDeclaration = new ClassTypeTypeDeclarationNode { ClassDeclaration = classTopLevel }
+                    TypeDeclaration = new BodyTypeTypeDeclarationNode { TypeBody = classTopLevel }
                 },
                 new NamespaceItemTopLevelItemNode { NamespaceDeclaration = blockNs }),
         };
@@ -270,7 +271,7 @@ public sealed class TopLevelTypeInferredNamespacePropertyTests
 
         var fileScopedNs = MakeFileScopedNs(explicitNs.Value,
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classInNs }),
+                new BodyTypeTypeDeclarationNode { TypeBody = classInNs }),
             sourceOffset: nsOffset);
 
         var ast = new CompilationUnitNode
@@ -278,7 +279,7 @@ public sealed class TopLevelTypeInferredNamespacePropertyTests
             Items = ImmutableArray.Create<TopLevelItemNode>(
                 new TypeItemTopLevelItemNode
                 {
-                    TypeDeclaration = new ClassTypeTypeDeclarationNode { ClassDeclaration = classTopLevel }
+                    TypeDeclaration = new BodyTypeTypeDeclarationNode { TypeBody = classTopLevel }
                 },
                 new NamespaceItemTopLevelItemNode { NamespaceDeclaration = fileScopedNs }),
         };
@@ -319,7 +320,7 @@ public sealed class TopLevelTypeInferredNamespacePropertyTests
 
         var blockNs = MakeBlockNs(explicitNs.Value,
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classInBlock }),
+                new BodyTypeTypeDeclarationNode { TypeBody = classInBlock }),
             sourceOffset: nsOffset);
 
         var ast = new CompilationUnitNode
@@ -328,7 +329,7 @@ public sealed class TopLevelTypeInferredNamespacePropertyTests
                 new NamespaceItemTopLevelItemNode { NamespaceDeclaration = blockNs },
                 new TypeItemTopLevelItemNode
                 {
-                    TypeDeclaration = new ClassTypeTypeDeclarationNode { ClassDeclaration = classAfterBlock }
+                    TypeDeclaration = new BodyTypeTypeDeclarationNode { TypeBody = classAfterBlock }
                 }),
         };
 

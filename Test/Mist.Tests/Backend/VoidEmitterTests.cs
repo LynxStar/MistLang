@@ -192,7 +192,7 @@ public sealed class VoidEmitterTests : IDisposable
     /// <summary>
     /// Builds a standard Program class with the given members plus a static Main method.
     /// </summary>
-    private static ClassDeclarationNode MakeProgramClass(ImmutableArray<MemberDeclarationNode> members)
+    private static TypeBodyDeclarationNode MakeProgramClass(ImmutableArray<MemberDeclarationNode> members)
     {
         var mainMethod = new MethodDeclarationNode
         {
@@ -208,19 +208,20 @@ public sealed class VoidEmitterTests : IDisposable
         var allMembers = members.Add(
             new MethodMemberMemberDeclarationNode { Method = mainMethod });
 
-        return new ClassDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Program"),
             Members = allMembers,
         };
     }
 
-    private static CompilationUnitNode MakeCompilationUnit(ClassDeclarationNode classDecl)
+    private static CompilationUnitNode MakeCompilationUnit(TypeBodyDeclarationNode classDecl)
     {
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
     }
 
@@ -253,8 +254,9 @@ public sealed class VoidEmitterTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -299,8 +301,9 @@ public sealed class VoidEmitterTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -423,8 +426,9 @@ public sealed class VoidEmitterTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = doWorkMethod },
@@ -496,8 +500,9 @@ public sealed class VoidEmitterTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = doWorkMethod },
@@ -547,8 +552,9 @@ public sealed class VoidEmitterTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -619,8 +625,9 @@ public sealed class VoidEmitterTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = doWorkMethod },

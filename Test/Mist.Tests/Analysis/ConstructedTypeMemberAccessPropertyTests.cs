@@ -257,13 +257,14 @@ public class ConstructedTypeMemberAccessPropertyTests
             },
         };
 
-        var genericClassDecl = new ClassDeclarationNode
+        var genericClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(scenario.GenericClassName),
             TypeParams = MakeTypeParamList(["T"]),
             Members = ImmutableArray.Create<MemberDeclarationNode>(fieldMember),
         };
-        typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = genericClassDecl });
+        typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = genericClassDecl });
 
         // Build type argument list for the concrete type
         var typeArgList = MakeTypeArgList([MakePrimitiveTypeRef(scenario.ConcreteType)]);
@@ -292,13 +293,14 @@ public class ConstructedTypeMemberAccessPropertyTests
                 new StaticModifierModifierNode()),
         };
 
-        var programClass = new ClassDeclarationNode
+        var programClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
         };
-        typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass });
+        typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = programClass });
 
         return new CompilationUnitNode
         {

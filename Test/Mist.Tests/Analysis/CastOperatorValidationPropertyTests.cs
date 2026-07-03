@@ -250,10 +250,11 @@ public class CastOperatorValidationPropertyTests
     /// </summary>
     private static TypeDeclarationNode MakeEmptyClassDecl(string name)
     {
-        return new ClassTypeTypeDeclarationNode
+        return new BodyTypeTypeDeclarationNode
         {
-            ClassDeclaration = new ClassDeclarationNode
+            TypeBody = new TypeBodyDeclarationNode
             {
+                Keyword = new ClassKeywordTypeKeywordNode(),
                 Name = Tok(name),
                 Members = ImmutableArray<MemberDeclarationNode>.Empty,
             },
@@ -282,18 +283,20 @@ public class CastOperatorValidationPropertyTests
 
         // Build the enclosing type declaration
         var enclosingTypeDecl = isStruct
-            ? new StructTypeTypeDeclarationNode
+            ? new BodyTypeTypeDeclarationNode
             {
-                StructDeclaration = new StructDeclarationNode
+                TypeBody = new TypeBodyDeclarationNode
                 {
+                    Keyword = new ClassKeywordTypeKeywordNode(),
                     Name = Tok(enclosingTypeName),
                     Members = members,
                 },
             }
-            : (TypeDeclarationNode)new ClassTypeTypeDeclarationNode
+            : (TypeDeclarationNode)new BodyTypeTypeDeclarationNode
             {
-                ClassDeclaration = new ClassDeclarationNode
+                TypeBody = new TypeBodyDeclarationNode
                 {
+                    Keyword = new ClassKeywordTypeKeywordNode(),
                     Name = Tok(enclosingTypeName),
                     Members = members,
                 },

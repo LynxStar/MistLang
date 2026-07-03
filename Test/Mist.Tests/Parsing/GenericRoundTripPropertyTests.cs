@@ -30,14 +30,14 @@ public class GenericRoundTripPropertyTests
     private static readonly Mist.Lexing.MistLexer Lexer = new();
     private static readonly Mist.Parsing.MistParser Parser = new();
 
-    // ─── Token helper ────────────────────────────────────────────────────
+    // --- Token helper ----
 
     private static Storm.Runtime.Token Tok(string lexeme)
     {
         return MistTypeGenerator.MakeToken(lexeme);
     }
 
-    // ─── Test data model ─────────────────────────────────────────────────
+    // --- Test data model ---
 
 #pragma warning disable CA1034
     public record GenericRoundTripTestCase(
@@ -51,9 +51,9 @@ public class GenericRoundTripPropertyTests
     }
 #pragma warning restore CA1034
 
-    // ═══════════════════════════════════════════════════════════════════════
+    // ===================================================================
     // Generic AST node generators
-    // ═══════════════════════════════════════════════════════════════════════
+    // ===================================================================
 
     private static readonly string[] TypeParamNames = ["T", "U", "V", "W"];
     private static readonly string[] ClassNames = ["Box", "Pair", "Container", "Wrapper"];
@@ -62,9 +62,9 @@ public class GenericRoundTripPropertyTests
     private static readonly string[] MethodNames = ["Identity", "Transform", "Convert"];
     private static readonly string[] FieldNames = ["value", "item", "data"];
 
-    // ─── TypeParameterList generator ─────────────────────────────────────
+    // --- TypeParameterList generator ---
 
-    /// <summary>Generates a TypeParameterListNode with 1–4 type parameters.</summary>
+    /// <summary>Generates a TypeParameterListNode with 1-4 type parameters.</summary>
     public static Gen<TypeParameterListNode> GenTypeParameterList()
     {
         return Gen.Choose(1, 4).SelectMany(count =>
@@ -83,9 +83,9 @@ public class GenericRoundTripPropertyTests
         });
     }
 
-    // ─── TypeArgumentList generator (primitive types only) ───────────────
+    // --- TypeArgumentList generator (primitive types only) ---
 
-    /// <summary>Generates a TypeArgumentListNode with 1–4 primitive type arguments.</summary>
+    /// <summary>Generates a TypeArgumentListNode with 1-4 primitive type arguments.</summary>
     public static Gen<TypeArgumentListNode> GenTypeArgumentList()
     {
         return Gen.Choose(1, 3).SelectMany(count => Gen.ArrayOf(MistTypeGenerator.GenPrimitiveTypeRef(), count)
@@ -96,7 +96,7 @@ public class GenericRoundTripPropertyTests
                 }));
     }
 
-    // ─── BaseList with type arguments generator ──────────────────────────
+    // --- BaseList with type arguments generator ---
 
     private static Gen<BaseListNode> GenBaseList()
     {
@@ -140,9 +140,9 @@ public class GenericRoundTripPropertyTests
         };
     }
 
-    // ─── Generic class declaration generator ─────────────────────────────
+    // --- Generic class declaration generator ---
 
-    private static Gen<ClassDeclarationNode> GenGenericClassDecl()
+    private static Gen<TypeBodyDeclarationNode> GenGenericClassDecl()
     {
         return from name in Gen.Elements(ClassNames)
                from typeParams in GenTypeParameterList()
@@ -155,14 +155,15 @@ public class GenericRoundTripPropertyTests
                select MakeGenericClass(name, typeParams, baseList, members);
     }
 
-    private static ClassDeclarationNode MakeGenericClass(
+    private static TypeBodyDeclarationNode MakeGenericClass(
         string name,
         TypeParameterListNode typeParams,
         BaseListNode? baseList,
         ImmutableArray<MemberDeclarationNode> members)
     {
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok(name),
             TypeParams = typeParams,
             Members = members,
@@ -177,9 +178,9 @@ public class GenericRoundTripPropertyTests
         return classDecl;
     }
 
-    // ─── Generic struct declaration generator ────────────────────────────
+    // --- Generic struct declaration generator ---
 
-    private static Gen<StructDeclarationNode> GenGenericStructDecl()
+    private static Gen<TypeBodyDeclarationNode> GenGenericStructDecl()
     {
         return from name in Gen.Elements(StructNames)
                from typeParams in GenTypeParameterList()
@@ -192,14 +193,15 @@ public class GenericRoundTripPropertyTests
                select MakeGenericStruct(name, typeParams, abstracts, members);
     }
 
-    private static StructDeclarationNode MakeGenericStruct(
+    private static TypeBodyDeclarationNode MakeGenericStruct(
         string name,
         TypeParameterListNode typeParams,
         BaseListNode? abstracts,
         ImmutableArray<MemberDeclarationNode> members)
     {
-        var structDecl = new StructDeclarationNode
+        var structDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Name = Tok(name),
             TypeParams = typeParams,
             Members = members,
@@ -213,9 +215,9 @@ public class GenericRoundTripPropertyTests
         return structDecl;
     }
 
-    // ─── Generic abstract type declaration generator ─────────────────────────
+    // --- Generic abstract type declaration generator ---
 
-    private static Gen<AbstractDeclarationNode> GenGenericAbstractDecl()
+    private static Gen<TypeBodyDeclarationNode> GenGenericAbstractDecl()
     {
         return from name in Gen.Elements(AbstractNames)
                from typeParams in GenTypeParameterList()
@@ -228,14 +230,15 @@ public class GenericRoundTripPropertyTests
                select MakeGenericAbstract(name, typeParams, abstracts, methods);
     }
 
-    private static AbstractDeclarationNode MakeGenericAbstract(
+    private static TypeBodyDeclarationNode MakeGenericAbstract(
         string name,
         TypeParameterListNode typeParams,
         BaseListNode? abstracts,
-        ImmutableArray<AbstractMemberDeclarationNode> members)
+        ImmutableArray<MemberDeclarationNode> members)
     {
-        var abstractDecl = new AbstractDeclarationNode
+        var abstractDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new AbstractKeywordTypeKeywordNode(),
             Name = Tok(name),
             TypeParams = typeParams,
             Members = members,
@@ -249,7 +252,7 @@ public class GenericRoundTripPropertyTests
         return abstractDecl;
     }
 
-    // ─── Generic method declaration generator ────────────────────────────
+    // --- Generic method declaration generator ---
 
     private static Gen<MethodDeclarationNode> GenGenericMethodDecl()
     {
@@ -279,9 +282,9 @@ public class GenericRoundTripPropertyTests
                };
     }
 
-    // ─── Abstract type method declaration generator ──────────────────────────
+    // --- Abstract type method declaration generator ---
 
-    private static Gen<AbstractMethodDeclarationNode> GenGenericAbstractMethodDecl()
+    private static Gen<MethodDeclarationNode> GenGenericAbstractMethodDecl()
     {
         return from methodName in Gen.Elements(MethodNames)
                from hasMethodTypeParams in Gen.Elements(true, false)
@@ -289,16 +292,17 @@ public class GenericRoundTripPropertyTests
                    ? GenTypeParameterList().Select(tp => (TypeParameterListNode?)tp)
                    : Gen.Constant((TypeParameterListNode?)null)
                from returnType in MistTypeGenerator.GenReturnTypeRef()
-               select new AbstractMethodDeclarationNode
+               select new MethodDeclarationNode
                {
                    Name = Tok(methodName),
                    TypeParams = methodTypeParams,
                    ReturnType = returnType,
                    Parameters = null,
+                   Body = new MethodNoBodyMethodBodyNode(),
                };
     }
 
-    // ─── Member list generators ──────────────────────────────────────────
+    // --- Member list generators ---
 
     private static Gen<ImmutableArray<MemberDeclarationNode>> GenMemberList(int count)
     {
@@ -331,21 +335,21 @@ public class GenericRoundTripPropertyTests
                };
     }
 
-    private static Gen<ImmutableArray<AbstractMemberDeclarationNode>> GenAbstractMethodList(int count)
+    private static Gen<ImmutableArray<MemberDeclarationNode>> GenAbstractMethodList(int count)
     {
         if(count == 0)
         {
-            return Gen.Constant(ImmutableArray<AbstractMemberDeclarationNode>.Empty);
+            return Gen.Constant(ImmutableArray<MemberDeclarationNode>.Empty);
         }
 
         var methodGen = GenGenericAbstractMethodDecl().Select(m =>
-            (AbstractMemberDeclarationNode)new AbstractMethodMemberAbstractMemberDeclarationNode { Method = m });
+            (MemberDeclarationNode)new MethodMemberMemberDeclarationNode { Method = m });
 
         return Gen.ArrayOf(methodGen, count)
             .Select(members => members.ToImmutableArray());
     }
 
-    // ─── Expression generators with type arguments ───────────────────────
+    // --- Expression generators with type arguments ---
 
     /// <summary>Generates a method call with type arguments: target.Method&lt;int&gt;()</summary>
     private static Gen<ExpressionNode> GenGenericMethodCall()
@@ -382,9 +386,9 @@ public class GenericRoundTripPropertyTests
         return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
+    // ===================================================================
     // Test case generators
-    // ═══════════════════════════════════════════════════════════════════════
+    // ===================================================================
 
     private static Gen<GenericRoundTripTestCase> GenGenericClassTestCase()
     {
@@ -393,7 +397,7 @@ public class GenericRoundTripPropertyTests
             var cu = new CompilationUnitNode
             {
                 Items = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
             };
             var desc = $"class {classDecl.Name.Lexeme}<...>";
             return new GenericRoundTripTestCase(desc, cu);
@@ -407,7 +411,7 @@ public class GenericRoundTripPropertyTests
             var cu = new CompilationUnitNode
             {
                 Items = ImmutableArray.Create<TypeDeclarationNode>(
-                    new StructTypeTypeDeclarationNode { StructDeclaration = structDecl }).AsTopLevelItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = structDecl }).AsTopLevelItems(),
             };
             var desc = $"struct {structDecl.Name.Lexeme}<...>";
             return new GenericRoundTripTestCase(desc, cu);
@@ -421,7 +425,7 @@ public class GenericRoundTripPropertyTests
             var cu = new CompilationUnitNode
             {
                 Items = ImmutableArray.Create<TypeDeclarationNode>(
-                    new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl }).AsTopLevelItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = abstractDecl }).AsTopLevelItems(),
             };
             var desc = $"abstract {abstractDecl.Name.Lexeme}<...>";
             return new GenericRoundTripTestCase(desc, cu);
@@ -457,8 +461,9 @@ public class GenericRoundTripPropertyTests
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok(className),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = method }),
@@ -467,7 +472,7 @@ public class GenericRoundTripPropertyTests
         var cu = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         return new GenericRoundTripTestCase($"class {className} with generic method calls", cu);
@@ -482,14 +487,14 @@ public class GenericRoundTripPropertyTests
             GenGenericMethodCallTestCase());
     }
 
-    // ─── Arbitrary registration ──────────────────────────────────────────
+    // --- Arbitrary registration ---
 
     public static Arbitrary<GenericRoundTripTestCase> ArbitraryGenericRoundTripTestCase()
     {
         return GenTestCase().ToArbitrary();
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
+    // ===================================================================
     // Property 1: Generic syntax round-trip
     //
     // **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 2.1, 2.2,
@@ -497,8 +502,8 @@ public class GenericRoundTripPropertyTests
     // 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9, 5.10**
     //
     // For any valid Mist AST containing generic declarations and type arguments,
-    // pretty-printing → parsing → pretty-printing SHALL produce identical output.
-    // ═══════════════════════════════════════════════════════════════════════
+    // pretty-printing -> parsing -> pretty-printing SHALL produce identical output.
+    // ===================================================================
 
     [Property(
         MaxTest = 100,
@@ -536,7 +541,7 @@ public class GenericRoundTripPropertyTests
         // Step 3: Pretty-print the reparsed AST
         var printed2 = MistPrettyPrinter.Print(reparsed);
 
-        // Step 4: Compare the two printed outputs — they must be identical
+        // Step 4: Compare the two printed outputs --- they must be identical
         return (printed1 == printed2).ToProperty()
             .Label($"Mismatch.\nPrinted1:\n{printed1}\nPrinted2:\n{printed2}");
     }

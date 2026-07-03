@@ -377,15 +377,16 @@ public class EnumTypeReferencePropertyTests
                 }
         }
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Program"),
             Members = classMembers.ToImmutable(),
         };
 
-        var classTypeDecl = new ClassTypeTypeDeclarationNode
+        var classTypeDecl = new BodyTypeTypeDeclarationNode
         {
-            ClassDeclaration = classDecl,
+            TypeBody = classDecl,
         };
 
         return new CompilationUnitNode

@@ -174,11 +174,8 @@ public class DefaultBlockParsingPropertyTests
         ImmutableArray<MemberDeclarationNode> members;
         switch(typeDecl)
         {
-            case ClassTypeTypeDeclarationNode classType:
-                members = classType.ClassDeclaration.Members;
-                break;
-            case StructTypeTypeDeclarationNode structType:
-                members = structType.StructDeclaration.Members;
+            case BodyTypeTypeDeclarationNode bodyType:
+                members = bodyType.TypeBody.Members;
                 break;
             default:
                 return null;

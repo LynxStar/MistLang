@@ -184,12 +184,12 @@ public class ArrayLiteralDisambiguationPropertyTests
     /// </summary>
     private static ExpressionNode? ExtractSecondVarInitializer(CompilationUnitNode cu)
     {
-        if(cu.GetTypes()[0] is not ClassTypeTypeDeclarationNode typeDecl)
+        if(cu.GetTypes()[0] is not BodyTypeTypeDeclarationNode typeDecl)
         {
             return null;
         }
 
-        if(typeDecl.ClassDeclaration.Members[0] is not MethodMemberMemberDeclarationNode methodMember)
+        if(typeDecl.TypeBody.Members[0] is not MethodMemberMemberDeclarationNode methodMember)
         {
             return null;
         }
@@ -224,12 +224,12 @@ public class ArrayLiteralDisambiguationPropertyTests
     /// </summary>
     private static ArrayLiteralExpressionPrimaryNode? ExtractArrayLiteralFromFirstVar(CompilationUnitNode cu)
     {
-        if(cu.GetTypes()[0] is not ClassTypeTypeDeclarationNode typeDecl)
+        if(cu.GetTypes()[0] is not BodyTypeTypeDeclarationNode typeDecl)
         {
             return null;
         }
 
-        if(typeDecl.ClassDeclaration.Members[0] is not MethodMemberMemberDeclarationNode methodMember)
+        if(typeDecl.TypeBody.Members[0] is not MethodMemberMemberDeclarationNode methodMember)
         {
             return null;
         }

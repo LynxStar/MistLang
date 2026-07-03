@@ -107,12 +107,12 @@ public sealed class PipelineDebugTests : IDisposable
             $"Diagnostics:\n{diagDump}\nFirst 30 tokens:\n{tokenDump}");
 
         // Verify the class is there
-        var typeDecl = (ns.Body[0] as NamespaceTypeItemNamespaceBodyItemNode)?.TypeDeclaration as ClassTypeTypeDeclarationNode;
+        var typeDecl = (ns.Body[0] as NamespaceTypeItemNamespaceBodyItemNode)?.TypeDeclaration as BodyTypeTypeDeclarationNode;
         Assert.NotNull(typeDecl);
-        Assert.Equal("Program", typeDecl!.ClassDeclaration.Name.Lexeme);
+        Assert.Equal("Program", typeDecl!.TypeBody.Name.Lexeme);
 
         // Verify Main method exists
-        var mainMethod = typeDecl.ClassDeclaration.Members
+        var mainMethod = typeDecl.TypeBody.Members
             .OfType<MethodMemberMemberDeclarationNode>()
             .FirstOrDefault(m => m.Method.Name.Lexeme == "Main");
         Assert.NotNull(mainMethod);

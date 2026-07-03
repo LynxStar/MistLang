@@ -207,8 +207,9 @@ public class ParameterScopingPropertyTests
             members.Add(new MethodMemberMemberDeclarationNode { Method = method });
         }
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("TestClass"),
             Members = members.ToImmutable(),
         };
@@ -216,7 +217,7 @@ public class ParameterScopingPropertyTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -284,8 +285,9 @@ public class ParameterScopingPropertyTests
             member = new MethodMemberMemberDeclarationNode { Method = method };
         }
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("TestClass"),
             Members = ImmutableArray.Create(member),
         };
@@ -293,7 +295,7 @@ public class ParameterScopingPropertyTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);

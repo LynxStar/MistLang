@@ -442,24 +442,26 @@ public static class MistPropertyGenerator
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Generates a random abstract type property declaration.
+    /// Generates a random abstract type property declaration (using auto accessors).
+    /// In the unified grammar, abstract properties are regular PropertyDeclarations with
+    /// AutoGetAccessor/AutoSetAccessor variants.
     /// </summary>
-    public static Gen<AbstractPropertyDeclarationNode> GenAbstractPropertyDeclaration()
+    public static Gen<PropertyDeclarationNode> GenAbstractPropertyDeclaration()
     {
-        var getOnly = Gen.Constant(ImmutableArray.Create<AbstractAccessorDeclarationNode>(
-            new AbstractGetAccessorAbstractAccessorDeclarationNode()));
+        var getOnly = Gen.Constant(ImmutableArray.Create<AccessorDeclarationNode>(
+            new AutoGetAccessorAccessorDeclarationNode()));
 
-        var getSet = Gen.Constant(ImmutableArray.Create<AbstractAccessorDeclarationNode>(
-            new AbstractGetAccessorAbstractAccessorDeclarationNode(),
-            new AbstractSetAccessorAbstractAccessorDeclarationNode()));
+        var getSet = Gen.Constant(ImmutableArray.Create<AccessorDeclarationNode>(
+            new AutoGetAccessorAccessorDeclarationNode(),
+            new AutoSetAccessorAccessorDeclarationNode()));
 
-        var setOnly = Gen.Constant(ImmutableArray.Create<AbstractAccessorDeclarationNode>(
-            new AbstractSetAccessorAbstractAccessorDeclarationNode()));
+        var setOnly = Gen.Constant(ImmutableArray.Create<AccessorDeclarationNode>(
+            new AutoSetAccessorAccessorDeclarationNode()));
 
         return from type in MistTypeGenerator.GenPrimitiveTypeRef()
                from name in Gen.Elements(PropertyNames)
                from accessors in Gen.OneOf(getOnly, getSet, setOnly)
-               select new AbstractPropertyDeclarationNode
+               select (PropertyDeclarationNode)new BlockPropertyPropertyDeclarationNode
                {
                    Type = type,
                    Name = Tok(name),
@@ -523,8 +525,9 @@ public static class MistPropertyGenerator
         string className,
         ImmutableArray<MemberDeclarationNode> members)
     {
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok(className),
             Members = members,
         };
@@ -532,23 +535,24 @@ public static class MistPropertyGenerator
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
     }
 
     /// <summary>Creates a CompilationUnitNode with a single abstract type containing property declarations.</summary>
     public static CompilationUnitNode MakeAbstractUnit(
         string abstractName,
-        ImmutableArray<AbstractPropertyDeclarationNode> properties)
+        ImmutableArray<PropertyDeclarationNode> properties)
     {
         var members = properties.Select(p =>
-            (AbstractMemberDeclarationNode)new AbstractPropertyMemberAbstractMemberDeclarationNode
+            (MemberDeclarationNode)new PropertyMemberMemberDeclarationNode
             {
                 Property = p,
             }).ToImmutableArray();
 
-        var abstractDecl = new AbstractDeclarationNode
+        var abstractDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new AbstractKeywordTypeKeywordNode(),
             Name = Tok(abstractName),
             Members = members,
         };
@@ -556,7 +560,7 @@ public static class MistPropertyGenerator
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = abstractDecl }).AsTopLevelItems(),
         };
     }
 
@@ -589,8 +593,9 @@ public static class MistPropertyGenerator
         };
         members.Add(new MethodMemberMemberDeclarationNode { Method = mainMethod });
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Program"),
             Members = members.ToImmutable(),
         };
@@ -598,7 +603,7 @@ public static class MistPropertyGenerator
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
     }
 

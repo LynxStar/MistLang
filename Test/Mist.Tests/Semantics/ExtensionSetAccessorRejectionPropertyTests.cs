@@ -233,12 +233,13 @@ public class ExtensionSetAccessorRejectionPropertyTests
     private static CompilationUnitNode BuildAst(SetAccessorScenario scenario)
     {
         // Declare the receiver type as a class so it can be resolved
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok(scenario.ReceiverTypeName),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
-        var classTypeDecl = new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl };
+        var classTypeDecl = new BodyTypeTypeDeclarationNode { TypeBody = classDecl };
 
         // Build a block property with get + set/init accessor
         var accessors = ImmutableArray.Create(

@@ -267,8 +267,9 @@ public class ArityMismatchPropertyTests
     public bool TypeArityMismatch_EmitsDiagnostic(TypeArityMismatchScenario scenario)
     {
         // Build AST: generic class + holder class with a field using wrong arity
-        var genericClassDecl = new ClassDeclarationNode
+        var genericClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(scenario.GenericTypeName),
             TypeParams = MakeTypeParamList(scenario.TypeParamNames.ToArray()),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -283,15 +284,16 @@ public class ArityMismatchPropertyTests
         var fieldTypeRef = MakeNamedTypeRef(scenario.GenericTypeName, typeArgList);
         var fieldMember = MakeFieldMember("field", fieldTypeRef);
 
-        var holderClassDecl = new ClassDeclarationNode
+        var holderClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(scenario.HolderTypeName),
             Members = ImmutableArray.Create(fieldMember),
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = genericClassDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = holderClassDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = genericClassDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = holderClassDecl });
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
@@ -332,8 +334,9 @@ public class ArityMismatchPropertyTests
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(scenario.ClassName),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = genericMethod },
@@ -341,7 +344,7 @@ public class ArityMismatchPropertyTests
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
@@ -360,8 +363,9 @@ public class ArityMismatchPropertyTests
     {
         // class Map<K, V> { }
         // class Holder { Map<int> field; }  ← 1 arg, expects 2
-        var genericClassDecl = new ClassDeclarationNode
+        var genericClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Map"),
             TypeParams = MakeTypeParamList(["K", "V"]),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -371,15 +375,16 @@ public class ArityMismatchPropertyTests
         var fieldTypeRef = MakeNamedTypeRef("Map", typeArgList);
         var fieldMember = MakeFieldMember("field", fieldTypeRef);
 
-        var holderClassDecl = new ClassDeclarationNode
+        var holderClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Holder"),
             Members = ImmutableArray.Create(fieldMember),
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = genericClassDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = holderClassDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = genericClassDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = holderClassDecl });
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
@@ -393,8 +398,9 @@ public class ArityMismatchPropertyTests
     {
         // class Box<T> { }
         // class Holder { Box<int, string> field; }  ← 2 args, expects 1
-        var genericClassDecl = new ClassDeclarationNode
+        var genericClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Box"),
             TypeParams = MakeTypeParamList(["T"]),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -404,15 +410,16 @@ public class ArityMismatchPropertyTests
         var fieldTypeRef = MakeNamedTypeRef("Box", typeArgList);
         var fieldMember = MakeFieldMember("field", fieldTypeRef);
 
-        var holderClassDecl = new ClassDeclarationNode
+        var holderClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Holder"),
             Members = ImmutableArray.Create(fieldMember),
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = genericClassDecl },
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = holderClassDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = genericClassDecl },
+            new BodyTypeTypeDeclarationNode { TypeBody = holderClassDecl });
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
@@ -438,8 +445,9 @@ public class ArityMismatchPropertyTests
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("C"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = genericMethod },
@@ -447,7 +455,7 @@ public class ArityMismatchPropertyTests
         };
 
         var ast = MakeCompilationUnit(
-            new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+            new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 

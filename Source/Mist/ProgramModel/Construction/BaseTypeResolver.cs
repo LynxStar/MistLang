@@ -28,9 +28,7 @@ internal sealed class BaseTypeResolver
     {
         var baseList = typeDecl switch
         {
-            ClassTypeTypeDeclarationNode ct => ct.ClassDeclaration.BaseList,
-            StructTypeTypeDeclarationNode st => st.StructDeclaration.BaseList,
-            AbstractTypeTypeDeclarationNode at => at.AbstractDeclaration.BaseList,
+            BodyTypeTypeDeclarationNode body => body.TypeBody.BaseList,
             _ => null
         };
 

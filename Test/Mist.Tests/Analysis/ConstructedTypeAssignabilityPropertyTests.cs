@@ -295,13 +295,14 @@ public class ConstructedTypeAssignabilityPropertyTests
         var typeDecls = new List<TypeDeclarationNode>();
 
         // Generic class
-        var genericClassDecl = new ClassDeclarationNode
+        var genericClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(scenario.GenericTypeName),
             TypeParams = MakeTypeParamList(["T"]),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
-        typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = genericClassDecl });
+        typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = genericClassDecl });
 
         // Main body
         var typeArgList = MakeTypeArgList([MakePrimitiveTypeRef(scenario.ConcreteType)]);
@@ -317,7 +318,7 @@ public class ConstructedTypeAssignabilityPropertyTests
         var varDeclB = MakeTypedVarDecl(constructedTypeRef2, "b", MakeIdentifierExpression("a"));
 
         var mainStatements = ImmutableArray.Create(varDeclA, varDeclB);
-        typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = MakeProgramClass(mainStatements) });
+        typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = MakeProgramClass(mainStatements) });
 
         return new CompilationUnitNode { Items = typeDecls.ToImmutableArray().AsTopLevelItems() };
     }
@@ -332,26 +333,28 @@ public class ConstructedTypeAssignabilityPropertyTests
         var typeDecls = new List<TypeDeclarationNode>();
 
         // Base generic class
-        var baseClassDecl = new ClassDeclarationNode
+        var baseClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(scenario.GenericTypeName),
             TypeParams = MakeTypeParamList(["T"]),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
-        typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = baseClassDecl });
+        typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = baseClassDecl });
 
         // Derived generic class: Derived<T> : Base<T>
         var baseTypeArgList = MakeTypeArgList([MakeNamedTypeRef("T")]);
         var baseList = MakeBaseList([MakeBaseTypeRef(scenario.GenericTypeName, baseTypeArgList)]);
-        var derivedClassDecl = new ClassDeclarationNode
+        var derivedClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(scenario.DerivedTypeName!),
             TypeParams = MakeTypeParamList(["T"]),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
             BaseClause = baseList,
             BaseList = baseList,
         };
-        typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedClassDecl });
+        typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = derivedClassDecl });
 
         // Main body
         var derivedTypeArgList = MakeTypeArgList([MakePrimitiveTypeRef(scenario.ConcreteType)]);
@@ -367,7 +370,7 @@ public class ConstructedTypeAssignabilityPropertyTests
         var varDeclB = MakeTypedVarDecl(baseTypeRef, "b", MakeIdentifierExpression("d"));
 
         var mainStatements = ImmutableArray.Create(varDeclD, varDeclB);
-        typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = MakeProgramClass(mainStatements) });
+        typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = MakeProgramClass(mainStatements) });
 
         return new CompilationUnitNode { Items = typeDecls.ToImmutableArray().AsTopLevelItems() };
     }
@@ -382,26 +385,28 @@ public class ConstructedTypeAssignabilityPropertyTests
         var typeDecls = new List<TypeDeclarationNode>();
 
         // Generic abstract type
-        var abstractDecl = new AbstractDeclarationNode
+        var abstractDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new AbstractKeywordTypeKeywordNode(),
             Name = MakeToken(scenario.AbstractName!),
             TypeParams = MakeTypeParamList(["T"]),
-            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
-        typeDecls.Add(new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl });
+        typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = abstractDecl });
 
         // Generic class implementing the abstract type: GenericName<T> : IName<T>
         var abstractTypeArgList = MakeTypeArgList([MakeNamedTypeRef("T")]);
         var baseList = MakeBaseList([MakeBaseTypeRef(scenario.AbstractName!, abstractTypeArgList)]);
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(scenario.GenericTypeName),
             TypeParams = MakeTypeParamList(["T"]),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
             BaseClause = baseList,
             BaseList = baseList,
         };
-        typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+        typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
 
         // Main body
         var classTypeArgList = MakeTypeArgList([MakePrimitiveTypeRef(scenario.ConcreteType)]);
@@ -417,12 +422,12 @@ public class ConstructedTypeAssignabilityPropertyTests
         var varDeclI = MakeTypedVarDecl(abstractTypeRef, "i", MakeIdentifierExpression("b"));
 
         var mainStatements = ImmutableArray.Create(varDeclB, varDeclI);
-        typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = MakeProgramClass(mainStatements) });
+        typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = MakeProgramClass(mainStatements) });
 
         return new CompilationUnitNode { Items = typeDecls.ToImmutableArray().AsTopLevelItems() };
     }
 
-    private static ClassDeclarationNode MakeProgramClass(ImmutableArray<StatementNode> mainStatements)
+    private static TypeBodyDeclarationNode MakeProgramClass(ImmutableArray<StatementNode> mainStatements)
     {
         var mainMethod = new MethodDeclarationNode
         {
@@ -435,8 +440,9 @@ public class ConstructedTypeAssignabilityPropertyTests
                 new StaticModifierModifierNode()),
         };
 
-        return new ClassDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),

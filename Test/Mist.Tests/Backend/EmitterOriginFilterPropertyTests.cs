@@ -136,8 +136,9 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
         };
         fields.Add(new MethodMemberMemberDeclarationNode { Method = mainMethod });
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("TestClass"),
             Members = fields.ToImmutableArray(),
         };
@@ -146,7 +147,7 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
         {
             Usings = ImmutableArray.Create(MakeUsingDeclaration("Standard")),
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         // Build a source string that matches the AST structure for span extraction.
@@ -351,8 +352,9 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -361,7 +363,7 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var source = "class Program {\n    public static void Main() {\n        int x = 42;\n    }\n}";

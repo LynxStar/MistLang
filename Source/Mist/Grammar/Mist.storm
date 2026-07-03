@@ -96,8 +96,6 @@ rule CompilationUnit = usings:UsingDeclaration* items:TopLevelItem*;
 rule TopLevelItem
     = namespaceDeclaration:NamespaceDeclaration  as NamespaceItem
     | typeDeclaration:TypeDeclaration            as TypeItem
-    | newtypeDeclaration:NewtypeDeclaration      as NewtypeItem
-    | typeAliasDeclaration:TypeAliasDeclaration  as TypeAliasItem
     | extensionDeclaration:ExtensionBlockDeclaration as ExtensionItem
     | withDeclaration:WithDeclaration            as WithItem
     | usingDeclaration:UsingDeclaration          as UsingItem
@@ -110,8 +108,6 @@ rule QualifiedIdentifier = IDENTIFIER (DOT IDENTIFIER)*;
 
 rule NamespaceBodyItem
     = typeDeclaration:TypeDeclaration              as NamespaceTypeItem
-    | newtypeDeclaration:NewtypeDeclaration        as NamespaceNewtypeItem
-    | typeAliasDeclaration:TypeAliasDeclaration    as NamespaceTypeAliasItem
     | extensionDeclaration:ExtensionBlockDeclaration as NamespaceExtensionItem
     | namespaceDeclaration:NamespaceDeclaration    as NamespaceNamespaceItem
     ;
@@ -122,10 +118,10 @@ rule NamespaceDeclaration
     ;
 
 rule TypeDeclaration
-    = classDeclaration:ClassDeclaration           as ClassType
-    | structDeclaration:StructDeclaration         as StructType
-    | abstractDeclaration:AbstractDeclaration     as AbstractType
-    | enumDeclaration:EnumDeclaration             as EnumType
+    = typeBody:TypeBodyDeclaration as BodyType
+    | enumDeclaration:EnumDeclaration as EnumType
+    | newtypeDeclaration:NewtypeDeclaration as NewtypeType
+    | typeAliasDeclaration:TypeAliasDeclaration as TypeAliasType
     ;
 
 rule TypeAliasDeclaration = TYPE name:IDENTIFIER typeParams:TypeParameterList? EQUAL type:RefinableTypeExpression
@@ -219,54 +215,17 @@ rule AttributeExpression
 
 // ─── Parser Rules — Type Declarations ────────────────────────────────────────
 
+rule TypeKeyword = CLASS as ClassKeyword | STRUCT as StructKeyword | ABSTRACT as AbstractKeyword;
+
+rule TypeBodyDeclaration = attributes:AttributeList* modifiers:Modifier* keyword:TypeKeyword name:IDENTIFIER
+    typeParams:TypeParameterList?
+    baseClause:(COLON baseList:BaseList)?
+    constraints:WhereClause*
+    LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
+
 rule BaseTypeRef = name:IDENTIFIER typeArgs:TypeArgumentList?;
 
 rule BaseList = first:BaseTypeRef (COMMA rest:BaseTypeRef)*;
-
-rule ClassDeclaration = attributes:AttributeList* modifiers:Modifier* CLASS name:IDENTIFIER
-    typeParams:TypeParameterList?
-    baseClause:(COLON baseList:BaseList)?
-    constraints:WhereClause*
-    LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
-
-rule StructDeclaration = attributes:AttributeList* modifiers:Modifier* STRUCT name:IDENTIFIER
-    typeParams:TypeParameterList?
-    baseClause:(COLON baseList:BaseList)?
-    constraints:WhereClause*
-    LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
-
-rule AbstractDeclaration = attributes:AttributeList* modifiers:Modifier* ABSTRACT name:IDENTIFIER
-    typeParams:TypeParameterList?
-    baseClause:(COLON baseList:BaseList)?
-    constraints:WhereClause*
-    LEFT_BRACE members:AbstractMemberDeclaration* RIGHT_BRACE;
-
-rule AbstractMemberDeclaration
-    = method:AbstractMethodDeclaration            as AbstractMethodMember
-    | property:AbstractPropertyDeclaration        as AbstractPropertyMember
-    | defaultMethod:MethodDeclaration             as AbstractDefaultMethodMember
-    | associatedType:AssociatedTypeSlotDeclaration as AbstractAssociatedTypeMember
-    | unconstrainedAssociatedType:UnconstrainedAssociatedTypeSlotDeclaration as AbstractUnconstrainedAssociatedTypeMember
-    | modifiedAssociatedType:ModifiedAssociatedTypeSlotDeclaration as AbstractModifiedAssociatedTypeMember
-    | nestedType:TypeDeclaration                  as AbstractNestedTypeMember
-    ;
-
-rule AbstractMethodDeclaration = returnOwnership:OwnershipSpecifier? returnType:TypeReference name:IDENTIFIER
-    typeParams:TypeParameterList?
-    LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
-    withClauses:WithClause*
-    constraints:WhereClause*
-    SEMICOLON;
-
-rule AbstractPropertyDeclaration
-    = type:TypeReference name:IDENTIFIER
-      LEFT_BRACE accessors:AbstractAccessorDeclaration+ RIGHT_BRACE
-    ;
-
-rule AbstractAccessorDeclaration
-    = GET SEMICOLON   as AbstractGetAccessor
-    | SET SEMICOLON   as AbstractSetAccessor
-    ;
 
 // ─── Parser Rules — Associated Type Slot Declarations ────────────────────────
 
@@ -352,6 +311,7 @@ rule MemberDeclaration
     | memberTypeAlias:MemberTypeAliasDeclaration as MemberTypeAliasMember
     | associatedType:AssociatedTypeSlotDeclaration as AssociatedTypeMember
     | unconstrainedAssociatedType:UnconstrainedAssociatedTypeSlotDeclaration as UnconstrainedAssociatedTypeMember
+    | modifiedAssociatedType:ModifiedAssociatedTypeSlotDeclaration as ModifiedAssociatedTypeMember
     ;
 
 rule MemberTypeAliasDeclaration = modifiers:Modifier+ TYPE name:IDENTIFIER

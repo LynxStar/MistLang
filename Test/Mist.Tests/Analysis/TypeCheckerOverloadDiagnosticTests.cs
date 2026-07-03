@@ -221,8 +221,9 @@ public class TypeCheckerOverloadDiagnosticTests
         var ctorInt = MakeConstructor("Foo", "int", "x");
         var ctorBool = MakeConstructor("Foo", "bool", "b");
 
-        var fooClass = new ClassDeclarationNode
+        var fooClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Foo"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new ConstructorMemberMemberDeclarationNode { Constructor = ctorInt },
@@ -234,8 +235,9 @@ public class TypeCheckerOverloadDiagnosticTests
         var mainMethod = MakeStaticMain(
             ImmutableArray.Create(MakeExpressionStatement(newExpr)));
 
-        var programClass = new ClassDeclarationNode
+        var programClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -244,8 +246,8 @@ public class TypeCheckerOverloadDiagnosticTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = fooClass },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = fooClass },
+                new BodyTypeTypeDeclarationNode { TypeBody = programClass }).AsTopLevelItems(),
         };
 
         // Act
@@ -275,8 +277,9 @@ public class TypeCheckerOverloadDiagnosticTests
         var ctorFloat = MakeConstructor("Foo", "float", "f");
         var ctorDecimal = MakeConstructor("Foo", "decimal", "d");
 
-        var fooClass = new ClassDeclarationNode
+        var fooClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Foo"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new ConstructorMemberMemberDeclarationNode { Constructor = ctorFloat },
@@ -289,8 +292,9 @@ public class TypeCheckerOverloadDiagnosticTests
         var mainMethod = MakeStaticMain(
             ImmutableArray.Create(varDecl, MakeExpressionStatement(newExpr)));
 
-        var programClass = new ClassDeclarationNode
+        var programClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -299,8 +303,8 @@ public class TypeCheckerOverloadDiagnosticTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = fooClass },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = fooClass },
+                new BodyTypeTypeDeclarationNode { TypeBody = programClass }).AsTopLevelItems(),
         };
 
         // Act
@@ -333,8 +337,9 @@ public class TypeCheckerOverloadDiagnosticTests
         var ctorFloat = MakeConstructor("Bar", "float", "f");
         var ctorDecimal = MakeConstructor("Bar", "decimal", "d");
 
-        var barClass = new ClassDeclarationNode
+        var barClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Bar"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new ConstructorMemberMemberDeclarationNode { Constructor = ctorFloat },
@@ -347,8 +352,9 @@ public class TypeCheckerOverloadDiagnosticTests
         var mainMethod = MakeStaticMain(
             ImmutableArray.Create(varDecl, MakeExpressionStatement(newExpr)));
 
-        var programClass = new ClassDeclarationNode
+        var programClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -357,8 +363,8 @@ public class TypeCheckerOverloadDiagnosticTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = barClass },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = barClass },
+                new BodyTypeTypeDeclarationNode { TypeBody = programClass }).AsTopLevelItems(),
         };
 
         // Act
@@ -391,8 +397,9 @@ public class TypeCheckerOverloadDiagnosticTests
         // MIST_TC_0011 diagnostic, NOT the new MIST_TC_0031 overload diagnostic.
         var ctor = MakeConstructor("Foo", "int", "x");
 
-        var fooClass = new ClassDeclarationNode
+        var fooClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Foo"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new ConstructorMemberMemberDeclarationNode { Constructor = ctor }),
@@ -403,8 +410,9 @@ public class TypeCheckerOverloadDiagnosticTests
         var mainMethod = MakeStaticMain(
             ImmutableArray.Create(MakeExpressionStatement(newExpr)));
 
-        var programClass = new ClassDeclarationNode
+        var programClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -413,8 +421,8 @@ public class TypeCheckerOverloadDiagnosticTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = fooClass },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = fooClass },
+                new BodyTypeTypeDeclarationNode { TypeBody = programClass }).AsTopLevelItems(),
         };
 
         // Act

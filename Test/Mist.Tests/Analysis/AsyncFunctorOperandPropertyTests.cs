@@ -256,15 +256,17 @@ public class AsyncFunctorOperandPropertyTests
                 new StaticModifierModifierNode()),
         };
 
-        var programClass = new ClassDeclarationNode
+        var programClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok(scenario.ClassName),
             Members = members.ToImmutable(),
         };
@@ -273,8 +275,8 @@ public class AsyncFunctorOperandPropertyTests
         {
             Usings = ImmutableArray.Create(MakeUsingDeclaration("Standard")),
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl },
+                new BodyTypeTypeDeclarationNode { TypeBody = programClass }).AsTopLevelItems(),
         };
     }
 

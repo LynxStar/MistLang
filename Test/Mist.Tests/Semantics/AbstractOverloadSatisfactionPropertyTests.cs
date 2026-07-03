@@ -83,14 +83,15 @@ public class AbstractOverloadSatisfactionPropertyTests
     /// <summary>
     /// Creates an abstract method declaration with a single parameter of the given type.
     /// </summary>
-    private static AbstractMethodDeclarationNode MakeAbstractMethod(string name, IType paramType)
+    private static MethodDeclarationNode MakeAbstractMethod(string name, IType paramType)
     {
         var param = MakeParameter(paramType.DisplayName, "p0");
-        return new AbstractMethodDeclarationNode
+        return new MethodDeclarationNode
         {
             Name = MakeToken(name),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = new ParameterListNode { Parameter = param },
+            Body = new MethodNoBodyMethodBodyNode(),
         };
     }
 
@@ -111,33 +112,35 @@ public class AbstractOverloadSatisfactionPropertyTests
     }
 
     /// <summary>
-    /// Creates an AbstractDeclarationNode with the given methods.
+    /// Creates an TypeBodyDeclarationNode with the given methods.
     /// </summary>
-    private static AbstractDeclarationNode MakeAbstractDecl(
+    private static TypeBodyDeclarationNode MakeAbstractDecl(
         string name,
-        ImmutableArray<AbstractMethodDeclarationNode> methods)
+        ImmutableArray<MethodDeclarationNode> methods)
     {
         var members = methods.Select(m =>
-            (AbstractMemberDeclarationNode)new AbstractMethodMemberAbstractMemberDeclarationNode { Method = m })
+            (MemberDeclarationNode)new MethodMemberMemberDeclarationNode { Method = m })
             .ToImmutableArray();
-        return new AbstractDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new AbstractKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members,
         };
     }
 
     /// <summary>
-    /// Creates a ClassDeclarationNode that implements an abstract type.
+    /// Creates a TypeBodyDeclarationNode that implements an abstract type.
     /// </summary>
-    private static ClassDeclarationNode MakeClassDecl(
+    private static TypeBodyDeclarationNode MakeClassDecl(
         string name,
         string abstractName,
         ImmutableArray<MemberDeclarationNode> members)
     {
         var baseList = MakeBaseList(abstractName);
-        var decl = new ClassDeclarationNode
+        var decl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members,
             BaseClause = baseList,
@@ -162,14 +165,14 @@ public class AbstractOverloadSatisfactionPropertyTests
         return new MethodMemberMemberDeclarationNode { Method = method };
     }
 
-    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode decl)
+    private static TypeDeclarationNode WrapAbstract(TypeBodyDeclarationNode decl)
     {
-        return new AbstractTypeTypeDeclarationNode { AbstractDeclaration = decl };
+        return new BodyTypeTypeDeclarationNode { TypeBody = decl };
     }
 
-    private static TypeDeclarationNode WrapClass(ClassDeclarationNode decl)
+    private static TypeDeclarationNode WrapClass(TypeBodyDeclarationNode decl)
     {
-        return new ClassTypeTypeDeclarationNode { ClassDeclaration = decl };
+        return new BodyTypeTypeDeclarationNode { TypeBody = decl };
     }
 
     private static CompilationUnitNode MakeCompilationUnit(params TypeDeclarationNode[] typeDecls)

@@ -104,10 +104,11 @@ public class EntryPointPropertyTests
     /// <summary>
     /// Creates a class with the given name and members.
     /// </summary>
-    private static ClassDeclarationNode MakeClass(string name, params MemberDeclarationNode[] members)
+    private static TypeBodyDeclarationNode MakeClass(string name, params MemberDeclarationNode[] members)
     {
-        return new ClassDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = ImmutableArray.Create(members),
         };
@@ -142,7 +143,7 @@ public class EntryPointPropertyTests
             return new CompilationUnitNode
             {
                 Items = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
             };
         }, null),
 
@@ -154,7 +155,7 @@ public class EntryPointPropertyTests
             return new CompilationUnitNode
             {
                 Items = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
             };
         }, null),
 
@@ -175,7 +176,7 @@ public class EntryPointPropertyTests
             return new CompilationUnitNode
             {
                 Items = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
             };
         }, "MIST_TC_0017"),
 
@@ -189,8 +190,8 @@ public class EntryPointPropertyTests
             return new CompilationUnitNode
             {
                 Items = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classA },
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classB }).AsTopLevelItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = classA },
+                    new BodyTypeTypeDeclarationNode { TypeBody = classB }).AsTopLevelItems(),
             };
         }, "MIST_TC_0018"),
 
@@ -211,7 +212,7 @@ public class EntryPointPropertyTests
             return new CompilationUnitNode
             {
                 Items = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
             };
         }, "MIST_TC_0017"),
 
@@ -236,7 +237,7 @@ public class EntryPointPropertyTests
             return new CompilationUnitNode
             {
                 Items = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                    new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
             };
         }, "MIST_TC_0017"),
     ];
@@ -276,7 +277,7 @@ public class EntryPointPropertyTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -294,7 +295,7 @@ public class EntryPointPropertyTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -319,7 +320,7 @@ public class EntryPointPropertyTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -338,8 +339,8 @@ public class EntryPointPropertyTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classA },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classB }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classA },
+                new BodyTypeTypeDeclarationNode { TypeBody = classB }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -365,7 +366,7 @@ public class EntryPointPropertyTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -398,7 +399,7 @@ public class EntryPointPropertyTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);

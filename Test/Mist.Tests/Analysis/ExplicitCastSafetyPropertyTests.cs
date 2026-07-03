@@ -349,10 +349,11 @@ public class ExplicitCastSafetyPropertyTests
 
     private static TypeDeclarationNode MakeEmptyClassDecl(string name)
     {
-        return new ClassTypeTypeDeclarationNode
+        return new BodyTypeTypeDeclarationNode
         {
-            ClassDeclaration = new ClassDeclarationNode
+            TypeBody = new TypeBodyDeclarationNode
             {
+                Keyword = new ClassKeywordTypeKeywordNode(),
                 Name = Tok(name),
                 Members = ImmutableArray<MemberDeclarationNode>.Empty,
             },
@@ -362,10 +363,11 @@ public class ExplicitCastSafetyPropertyTests
     private static TypeDeclarationNode MakeClassDeclWithMembers(
         string name, ImmutableArray<MemberDeclarationNode> members)
     {
-        return new ClassTypeTypeDeclarationNode
+        return new BodyTypeTypeDeclarationNode
         {
-            ClassDeclaration = new ClassDeclarationNode
+            TypeBody = new TypeBodyDeclarationNode
             {
+                Keyword = new ClassKeywordTypeKeywordNode(),
                 Name = Tok(name),
                 Members = members,
             },
@@ -386,15 +388,16 @@ public class ExplicitCastSafetyPropertyTests
             BaseTypeRefs = ImmutableArray<BaseTypeRefNode>.Empty,
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok(name),
             Members = members,
             BaseClause = baseList,
             BaseList = baseList
         };
 
-        return new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl };
+        return new BodyTypeTypeDeclarationNode { TypeBody = classDecl };
     }
 
     /// <summary>

@@ -68,13 +68,14 @@ public class InheritedMemberResolutionPropertyTests
         return (model, diagnostics.ToImmutableArray());
     }
 
-    private static ClassDeclarationNode MakeClassDeclWithMembers(
+    private static TypeBodyDeclarationNode MakeClassDeclWithMembers(
         string name,
         string? baseClassName,
         ImmutableArray<MemberDeclarationNode> members)
     {
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members,
         };
@@ -413,7 +414,7 @@ public class InheritedMemberResolutionPropertyTests
             }
 
             var classDecl = MakeClassDeclWithMembers(cls.Name, cls.BaseName, members.ToImmutableArray());
-            typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+            typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
         }
 
         return new CompilationUnitNode

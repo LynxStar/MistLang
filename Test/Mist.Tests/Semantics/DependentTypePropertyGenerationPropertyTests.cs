@@ -162,8 +162,9 @@ public class DependentTypePropertyGenerationPropertyTests
             TypeParameters = additionalParams,
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(scenario.TypeName),
             TypeParams = typeParamList,
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -172,7 +173,7 @@ public class DependentTypePropertyGenerationPropertyTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);

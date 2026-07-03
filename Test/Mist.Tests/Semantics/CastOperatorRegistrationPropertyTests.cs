@@ -239,18 +239,20 @@ public class CastOperatorRegistrationPropertyTests
             .ToImmutableArray();
 
         var typeDecl = isStruct
-            ? new StructTypeTypeDeclarationNode
+            ? new BodyTypeTypeDeclarationNode
             {
-                StructDeclaration = new StructDeclarationNode
+                TypeBody = new TypeBodyDeclarationNode
                 {
+                    Keyword = new StructKeywordTypeKeywordNode(),
                     Name = Tok(enclosingName),
                     Members = members,
                 },
             }
-            : (TypeDeclarationNode)new ClassTypeTypeDeclarationNode
+            : (TypeDeclarationNode)new BodyTypeTypeDeclarationNode
             {
-                ClassDeclaration = new ClassDeclarationNode
+                TypeBody = new TypeBodyDeclarationNode
                 {
+                    Keyword = new ClassKeywordTypeKeywordNode(),
                     Name = Tok(enclosingName),
                     Members = members,
                 },

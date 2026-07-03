@@ -88,10 +88,11 @@ public sealed class SameNamespaceResolutionPropertyTests
             lexeme: lexeme);
     }
 
-    private static ClassDeclarationNode MakeClass(string name)
+    private static TypeBodyDeclarationNode MakeClass(string name)
     {
-        return new ClassDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -100,7 +101,7 @@ public sealed class SameNamespaceResolutionPropertyTests
     /// <summary>
     /// Creates a class with a field of the given type name, which forces type resolution.
     /// </summary>
-    private static ClassDeclarationNode MakeClassWithFieldOfType(string className, string fieldTypeName)
+    private static TypeBodyDeclarationNode MakeClassWithFieldOfType(string className, string fieldTypeName)
     {
         // Use a large offset so the span doesn't accidentally overlap with source text.
         var typeSpanStart = 10000;
@@ -120,8 +121,9 @@ public sealed class SameNamespaceResolutionPropertyTests
             },
         };
 
-        return new ClassDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(className),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new FieldMemberMemberDeclarationNode { Field = fieldDecl }),
@@ -175,7 +177,7 @@ public sealed class SameNamespaceResolutionPropertyTests
         var targetClass = MakeClass("Target");
         var nsNode1 = MakeFileScopedNs(nsName.Value,
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = targetClass }),
+                new BodyTypeTypeDeclarationNode { TypeBody = targetClass }),
             sourceOffset: nsOffset);
 
         var source1 = $"namespace {nsName.Value}; class Target {{ }}";
@@ -189,7 +191,7 @@ public sealed class SameNamespaceResolutionPropertyTests
         var consumerClass = MakeClassWithFieldOfType("Consumer", "Target");
         var nsNode2 = MakeFileScopedNs(nsName.Value,
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = consumerClass }),
+                new BodyTypeTypeDeclarationNode { TypeBody = consumerClass }),
             sourceOffset: nsOffset);
 
         var source2 = $"namespace {nsName.Value}; class Consumer {{ Target myField; }}";
@@ -237,7 +239,7 @@ public sealed class SameNamespaceResolutionPropertyTests
         var targetClass = MakeClass("Target");
         var nsNode1 = MakeFileScopedNs(ns1.Value,
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = targetClass }),
+                new BodyTypeTypeDeclarationNode { TypeBody = targetClass }),
             sourceOffset: nsOffset);
 
         var source1 = $"namespace {ns1.Value}; class Target {{ }}";
@@ -252,7 +254,7 @@ public sealed class SameNamespaceResolutionPropertyTests
         var consumerClass = MakeClassWithFieldOfType("Consumer", "Target");
         var nsNode2 = MakeFileScopedNs(ns2.Value,
             ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = consumerClass }),
+                new BodyTypeTypeDeclarationNode { TypeBody = consumerClass }),
             sourceOffset: nsOffset);
 
         var source2 = $"namespace {ns2.Value}; class Consumer {{ Target myField; }}";
@@ -300,7 +302,7 @@ public sealed class SameNamespaceResolutionPropertyTests
         var ast1 = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = targetClass }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = targetClass }).AsTopLevelItems(),
         };
 
         // File 2: class Consumer { Target myField; } (inferred namespace = TestProject)
@@ -308,7 +310,7 @@ public sealed class SameNamespaceResolutionPropertyTests
         var ast2 = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = consumerClass }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = consumerClass }).AsTopLevelItems(),
         };
 
         var sourceText1 = new SourceText(filePath1, "");

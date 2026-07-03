@@ -161,11 +161,15 @@ public sealed class EmitterOutputTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new BodyTypeTypeDeclarationNode
         {
-            Name = MakeToken("Program"),
-            Members = ImmutableArray.Create<MemberDeclarationNode>(
-                new MethodMemberMemberDeclarationNode { Method = mainMethod }),
+            TypeBody = new TypeBodyDeclarationNode
+            {
+                Keyword = new ClassKeywordTypeKeywordNode(),
+                Name = MakeToken("Program"),
+                Members = ImmutableArray.Create<MemberDeclarationNode>(
+                    new MethodMemberMemberDeclarationNode { Method = mainMethod }),
+            },
         };
 
         var nsName = new QualifiedIdentifierNode
@@ -181,8 +185,7 @@ public sealed class EmitterOutputTests : IDisposable
                 NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
                 {
                     Name = nsName,
-                    Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
+                    Body = ImmutableArray.Create<TypeDeclarationNode>(classDecl).AsNamespaceBodyItems(),
                 }
             }),
         };
@@ -212,11 +215,15 @@ public sealed class EmitterOutputTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new BodyTypeTypeDeclarationNode
         {
-            Name = MakeToken("Program"),
-            Members = ImmutableArray.Create<MemberDeclarationNode>(
-                new MethodMemberMemberDeclarationNode { Method = mainMethod }),
+            TypeBody = new TypeBodyDeclarationNode
+            {
+                Keyword = new ClassKeywordTypeKeywordNode(),
+                Name = MakeToken("Program"),
+                Members = ImmutableArray.Create<MemberDeclarationNode>(
+                    new MethodMemberMemberDeclarationNode { Method = mainMethod }),
+            },
         };
 
         var nsName = new QualifiedIdentifierNode
@@ -232,8 +239,7 @@ public sealed class EmitterOutputTests : IDisposable
                 NamespaceDeclaration = new BlockNamespaceNamespaceDeclarationNode
                 {
                     Name = nsName,
-                    Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
+                    Body = ImmutableArray.Create<TypeDeclarationNode>(classDecl).AsNamespaceBodyItems(),
                 }
             }),
         };
@@ -267,18 +273,21 @@ public sealed class EmitterOutputTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new BodyTypeTypeDeclarationNode
         {
-            Name = MakeToken("MyClass"),
-            Members = ImmutableArray.Create<MemberDeclarationNode>(
-                new MethodMemberMemberDeclarationNode { Method = mainMethod }),
-            Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
+            TypeBody = new TypeBodyDeclarationNode
+            {
+                Keyword = new ClassKeywordTypeKeywordNode(),
+                Name = MakeToken("MyClass"),
+                Members = ImmutableArray.Create<MemberDeclarationNode>(
+                    new MethodMemberMemberDeclarationNode { Method = mainMethod }),
+                Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
+            },
         };
 
         var ast = new CompilationUnitNode
         {
-            Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(classDecl).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast, source);
@@ -307,12 +316,16 @@ public sealed class EmitterOutputTests : IDisposable
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
-        var structDecl = new StructDeclarationNode
+        var structDecl = new BodyTypeTypeDeclarationNode
         {
-            Name = MakeToken("Point"),
-            Members = ImmutableArray.Create<MemberDeclarationNode>(
-                new FieldMemberMemberDeclarationNode { Field = field }),
-            Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
+            TypeBody = new TypeBodyDeclarationNode
+            {
+                Keyword = new StructKeywordTypeKeywordNode(),
+                Name = MakeToken("Point"),
+                Members = ImmutableArray.Create<MemberDeclarationNode>(
+                    new FieldMemberMemberDeclarationNode { Field = field }),
+                Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
+            },
         };
 
         var mainMethod = new MethodDeclarationNode
@@ -326,18 +339,22 @@ public sealed class EmitterOutputTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var programClass = new ClassDeclarationNode
+        var programClass = new BodyTypeTypeDeclarationNode
         {
-            Name = MakeToken("Program"),
-            Members = ImmutableArray.Create<MemberDeclarationNode>(
-                new MethodMemberMemberDeclarationNode { Method = mainMethod }),
+            TypeBody = new TypeBodyDeclarationNode
+            {
+                Keyword = new ClassKeywordTypeKeywordNode(),
+                Name = MakeToken("Program"),
+                Members = ImmutableArray.Create<MemberDeclarationNode>(
+                    new MethodMemberMemberDeclarationNode { Method = mainMethod }),
+            },
         };
 
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new StructTypeTypeDeclarationNode { StructDeclaration = structDecl },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsTopLevelItems(),
+                structDecl,
+                programClass).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast, source);
@@ -397,18 +414,21 @@ public sealed class EmitterOutputTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new BodyTypeTypeDeclarationNode
         {
-            Name = MakeToken("Program"),
-            Members = ImmutableArray.Create<MemberDeclarationNode>(
-                new MethodMemberMemberDeclarationNode { Method = getValueMethod },
-                new MethodMemberMemberDeclarationNode { Method = mainMethod }),
+            TypeBody = new TypeBodyDeclarationNode
+            {
+                Keyword = new ClassKeywordTypeKeywordNode(),
+                Name = MakeToken("Program"),
+                Members = ImmutableArray.Create<MemberDeclarationNode>(
+                    new MethodMemberMemberDeclarationNode { Method = getValueMethod },
+                    new MethodMemberMemberDeclarationNode { Method = mainMethod }),
+            },
         };
 
         var ast = new CompilationUnitNode
         {
-            Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(classDecl).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast, source);
@@ -476,18 +496,21 @@ public sealed class EmitterOutputTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new BodyTypeTypeDeclarationNode
         {
-            Name = MakeToken("Program"),
-            Members = ImmutableArray.Create<MemberDeclarationNode>(
-                new MethodMemberMemberDeclarationNode { Method = addMethod },
-                new MethodMemberMemberDeclarationNode { Method = mainMethod }),
+            TypeBody = new TypeBodyDeclarationNode
+            {
+                Keyword = new ClassKeywordTypeKeywordNode(),
+                Name = MakeToken("Program"),
+                Members = ImmutableArray.Create<MemberDeclarationNode>(
+                    new MethodMemberMemberDeclarationNode { Method = addMethod },
+                    new MethodMemberMemberDeclarationNode { Method = mainMethod }),
+            },
         };
 
         var ast = new CompilationUnitNode
         {
-            Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(classDecl).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast, source);
@@ -530,19 +553,22 @@ public sealed class EmitterOutputTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new BodyTypeTypeDeclarationNode
         {
-            Name = MakeToken("Program"),
-            Members = ImmutableArray.Create<MemberDeclarationNode>(
-                new FieldMemberMemberDeclarationNode { Field = field },
-                new MethodMemberMemberDeclarationNode { Method = mainMethod }),
+            TypeBody = new TypeBodyDeclarationNode
+            {
+                Keyword = new ClassKeywordTypeKeywordNode(),
+                Name = MakeToken("Program"),
+                Members = ImmutableArray.Create<MemberDeclarationNode>(
+                    new FieldMemberMemberDeclarationNode { Field = field },
+                    new MethodMemberMemberDeclarationNode { Method = mainMethod }),
+            },
         };
 
         var ast = new CompilationUnitNode
         {
             Usings = ImmutableArray.Create(MakeUsingDeclaration("Standard")),
-            Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(classDecl).AsTopLevelItems(),
         };
 
         var model = BuildModelWithStdlib(ast, source);
@@ -574,17 +600,20 @@ public sealed class EmitterOutputTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new BodyTypeTypeDeclarationNode
         {
-            Name = MakeToken("Program"),
-            Members = ImmutableArray.Create<MemberDeclarationNode>(
-                new MethodMemberMemberDeclarationNode { Method = mainMethod }),
+            TypeBody = new TypeBodyDeclarationNode
+            {
+                Keyword = new ClassKeywordTypeKeywordNode(),
+                Name = MakeToken("Program"),
+                Members = ImmutableArray.Create<MemberDeclarationNode>(
+                    new MethodMemberMemberDeclarationNode { Method = mainMethod }),
+            },
         };
 
         var ast = new CompilationUnitNode
         {
-            Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(classDecl).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast, source);
@@ -638,17 +667,20 @@ public sealed class EmitterOutputTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new BodyTypeTypeDeclarationNode
         {
-            Name = MakeToken("Program"),
-            Members = ImmutableArray.Create<MemberDeclarationNode>(
-                new MethodMemberMemberDeclarationNode { Method = mainMethod }),
+            TypeBody = new TypeBodyDeclarationNode
+            {
+                Keyword = new ClassKeywordTypeKeywordNode(),
+                Name = MakeToken("Program"),
+                Members = ImmutableArray.Create<MemberDeclarationNode>(
+                    new MethodMemberMemberDeclarationNode { Method = mainMethod }),
+            },
         };
 
         var ast = new CompilationUnitNode
         {
-            Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(classDecl).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast, source);
@@ -705,13 +737,17 @@ public sealed class EmitterOutputTests : IDisposable
             Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
         };
 
-        var pointClass = new ClassDeclarationNode
+        var pointClass = new BodyTypeTypeDeclarationNode
         {
-            Name = MakeToken("Point"),
-            Members = ImmutableArray.Create<MemberDeclarationNode>(
-                new FieldMemberMemberDeclarationNode { Field = fieldX },
-                new ConstructorMemberMemberDeclarationNode { Constructor = defaultCtor },
-                new ConstructorMemberMemberDeclarationNode { Constructor = paramCtor }),
+            TypeBody = new TypeBodyDeclarationNode
+            {
+                Keyword = new ClassKeywordTypeKeywordNode(),
+                Name = MakeToken("Point"),
+                Members = ImmutableArray.Create<MemberDeclarationNode>(
+                    new FieldMemberMemberDeclarationNode { Field = fieldX },
+                    new ConstructorMemberMemberDeclarationNode { Constructor = defaultCtor },
+                    new ConstructorMemberMemberDeclarationNode { Constructor = paramCtor }),
+            },
         };
 
         var mainMethod = new MethodDeclarationNode
@@ -725,18 +761,22 @@ public sealed class EmitterOutputTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var programClass = new ClassDeclarationNode
+        var programClass = new BodyTypeTypeDeclarationNode
         {
-            Name = MakeToken("Program"),
-            Members = ImmutableArray.Create<MemberDeclarationNode>(
-                new MethodMemberMemberDeclarationNode { Method = mainMethod }),
+            TypeBody = new TypeBodyDeclarationNode
+            {
+                Keyword = new ClassKeywordTypeKeywordNode(),
+                Name = MakeToken("Program"),
+                Members = ImmutableArray.Create<MemberDeclarationNode>(
+                    new MethodMemberMemberDeclarationNode { Method = mainMethod }),
+            },
         };
 
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = pointClass },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsTopLevelItems(),
+                pointClass,
+                programClass).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast, source);
@@ -799,17 +839,20 @@ public sealed class EmitterOutputTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new BodyTypeTypeDeclarationNode
         {
-            Name = MakeToken("Program"),
-            Members = ImmutableArray.Create<MemberDeclarationNode>(
-                new MethodMemberMemberDeclarationNode { Method = mainMethod }),
+            TypeBody = new TypeBodyDeclarationNode
+            {
+                Keyword = new ClassKeywordTypeKeywordNode(),
+                Name = MakeToken("Program"),
+                Members = ImmutableArray.Create<MemberDeclarationNode>(
+                    new MethodMemberMemberDeclarationNode { Method = mainMethod }),
+            },
         };
 
         var ast = new CompilationUnitNode
         {
-            Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(classDecl).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast, source);
@@ -876,17 +919,20 @@ public sealed class EmitterOutputTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new BodyTypeTypeDeclarationNode
         {
-            Name = MakeToken("Program"),
-            Members = ImmutableArray.Create<MemberDeclarationNode>(
-                new MethodMemberMemberDeclarationNode { Method = mainMethod }),
+            TypeBody = new TypeBodyDeclarationNode
+            {
+                Keyword = new ClassKeywordTypeKeywordNode(),
+                Name = MakeToken("Program"),
+                Members = ImmutableArray.Create<MemberDeclarationNode>(
+                    new MethodMemberMemberDeclarationNode { Method = mainMethod }),
+            },
         };
 
         var ast = new CompilationUnitNode
         {
-            Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(classDecl).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast, source);
@@ -917,17 +963,20 @@ public sealed class EmitterOutputTests : IDisposable
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new BodyTypeTypeDeclarationNode
         {
-            Name = MakeToken("Program"),
-            Members = ImmutableArray.Create<MemberDeclarationNode>(
-                new MethodMemberMemberDeclarationNode { Method = mainMethod }),
+            TypeBody = new TypeBodyDeclarationNode
+            {
+                Keyword = new ClassKeywordTypeKeywordNode(),
+                Name = MakeToken("Program"),
+                Members = ImmutableArray.Create<MemberDeclarationNode>(
+                    new MethodMemberMemberDeclarationNode { Method = mainMethod }),
+            },
         };
 
         var ast = new CompilationUnitNode
         {
-            Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(classDecl).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast, source);

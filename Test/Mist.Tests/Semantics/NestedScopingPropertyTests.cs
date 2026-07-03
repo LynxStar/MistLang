@@ -97,8 +97,7 @@ public sealed class NestedScopingPropertyTests
     {
         return typeDecl switch
         {
-            ClassTypeTypeDeclarationNode classType => classType.ClassDeclaration.Members,
-            StructTypeTypeDeclarationNode structType => structType.StructDeclaration.Members,
+            BodyTypeTypeDeclarationNode body => body.TypeBody.Members,
             _ => null,
         };
     }
@@ -142,9 +141,7 @@ public sealed class NestedScopingPropertyTests
     {
         return typeDecl switch
         {
-            ClassTypeTypeDeclarationNode ct => ct.ClassDeclaration.Modifiers,
-            StructTypeTypeDeclarationNode st => st.StructDeclaration.Modifiers,
-            AbstractTypeTypeDeclarationNode it => it.AbstractDeclaration.Modifiers,
+            BodyTypeTypeDeclarationNode body => body.TypeBody.Modifiers,
             EnumTypeTypeDeclarationNode et => et.EnumDeclaration.Modifiers,
             _ => ImmutableArray<ModifierNode>.Empty
         };

@@ -68,28 +68,30 @@ public class AbstractSignatureMismatchPropertyTests
 
     // ─── AST construction helpers ────────────────────────────────────────
 
-    private static AbstractMethodDeclarationNode MakeAbstractMethod(
+    private static MethodDeclarationNode MakeAbstractMethod(
         string name,
         TypeReferenceNode? returnType = null,
         ParameterListNode? parameters = null)
     {
-        return new AbstractMethodDeclarationNode
+        return new MethodDeclarationNode
         {
             Name = MakeToken(name),
             ReturnType = returnType ?? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = parameters,
+            Body = new MethodNoBodyMethodBodyNode(),
         };
     }
 
-    private static AbstractDeclarationNode MakeAbstractDecl(
+    private static TypeBodyDeclarationNode MakeAbstractDecl(
         string name,
-        ImmutableArray<AbstractMethodDeclarationNode> methods)
+        ImmutableArray<MethodDeclarationNode> methods)
     {
         var members = methods.Select(m =>
-            (AbstractMemberDeclarationNode)new AbstractMethodMemberAbstractMemberDeclarationNode { Method = m })
+            (MemberDeclarationNode)new MethodMemberMemberDeclarationNode { Method = m })
             .ToImmutableArray();
-        return new AbstractDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new AbstractKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members,
         };
@@ -113,13 +115,14 @@ public class AbstractSignatureMismatchPropertyTests
         };
     }
 
-    private static ClassDeclarationNode MakeClassDecl(
+    private static TypeBodyDeclarationNode MakeClassDecl(
         string name,
         string? abstractName = null,
         ImmutableArray<MemberDeclarationNode>? members = null)
     {
-        var decl = new ClassDeclarationNode
+        var decl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -136,13 +139,14 @@ public class AbstractSignatureMismatchPropertyTests
         return decl;
     }
 
-    private static StructDeclarationNode MakeStructDecl(
+    private static TypeBodyDeclarationNode MakeStructDecl(
         string name,
         string? abstractName = null,
         ImmutableArray<MemberDeclarationNode>? members = null)
     {
-        var decl = new StructDeclarationNode
+        var decl = new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -164,19 +168,19 @@ public class AbstractSignatureMismatchPropertyTests
         return new MethodMemberMemberDeclarationNode { Method = method };
     }
 
-    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode decl)
+    private static TypeDeclarationNode WrapAbstract(TypeBodyDeclarationNode decl)
     {
-        return new AbstractTypeTypeDeclarationNode { AbstractDeclaration = decl };
+        return new BodyTypeTypeDeclarationNode { TypeBody = decl };
     }
 
-    private static TypeDeclarationNode WrapClass(ClassDeclarationNode decl)
+    private static TypeDeclarationNode WrapClass(TypeBodyDeclarationNode decl)
     {
-        return new ClassTypeTypeDeclarationNode { ClassDeclaration = decl };
+        return new BodyTypeTypeDeclarationNode { TypeBody = decl };
     }
 
-    private static TypeDeclarationNode WrapStruct(StructDeclarationNode decl)
+    private static TypeDeclarationNode WrapStruct(TypeBodyDeclarationNode decl)
     {
-        return new StructTypeTypeDeclarationNode { StructDeclaration = decl };
+        return new BodyTypeTypeDeclarationNode { TypeBody = decl };
     }
 
     private static CompilationUnitNode MakeCompilationUnit(
@@ -576,7 +580,7 @@ public class AbstractSignatureMismatchPropertyTests
     [Property(Arbitrary = new[] { typeof(AbstractSignatureMismatchPropertyTests) }, MaxTest = 100)]
     public bool ParamCountMismatch_EmitsSignatureMismatchDiagnostic(ParamCountMismatchScenario scenario)
     {
-        AbstractMethodDeclarationNode abstractMethod;
+        MethodDeclarationNode abstractMethod;
         MethodDeclarationNode implMethod;
 
         if(scenario.AbstractHasParam)

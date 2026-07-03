@@ -221,8 +221,9 @@ public class VoidTypeCheckerTests
         var equalityExpr = MakeEqualityExpression(left, right, "==");
         var stmt = MakeExpressionStatement(equalityExpr);
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode
@@ -234,7 +235,7 @@ public class VoidTypeCheckerTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -256,8 +257,9 @@ public class VoidTypeCheckerTests
         var equalityExpr = MakeEqualityExpression(left, right, "!=");
         var stmt = MakeExpressionStatement(equalityExpr);
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode
@@ -269,7 +271,7 @@ public class VoidTypeCheckerTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -315,8 +317,9 @@ public class VoidTypeCheckerTests
 
         var mainMethod = MakeMainMethod(ImmutableArray.Create(callStmt));
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod },
@@ -326,7 +329,7 @@ public class VoidTypeCheckerTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -345,8 +348,9 @@ public class VoidTypeCheckerTests
     {
         // class Result<T> { }
         // class Program { Result<void> field; public static void Main() { } }
-        var genericClassDecl = new ClassDeclarationNode
+        var genericClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Result"),
             TypeParams = MakeTypeParamList(["T"]),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -358,8 +362,9 @@ public class VoidTypeCheckerTests
 
         var mainMethod = MakeMainMethod();
 
-        var programClassDecl = new ClassDeclarationNode
+        var programClassDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Program"),
             Members = ImmutableArray.Create(
                 fieldMember,
@@ -369,8 +374,8 @@ public class VoidTypeCheckerTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = genericClassDecl },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClassDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = genericClassDecl },
+                new BodyTypeTypeDeclarationNode { TypeBody = programClassDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -405,8 +410,9 @@ public class VoidTypeCheckerTests
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = MakeMainMethod() },
@@ -416,7 +422,7 @@ public class VoidTypeCheckerTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -435,15 +441,17 @@ public class VoidTypeCheckerTests
     {
         // class Container { void value; }
         // class Program { public static void Main() { } }
-        var containerClass = new ClassDeclarationNode
+        var containerClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Container"),
             Members = ImmutableArray.Create(
                 MakeFieldMember("value", new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() })),
         };
 
-        var programClass = new ClassDeclarationNode
+        var programClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = MakeMainMethod() }),
@@ -452,8 +460,8 @@ public class VoidTypeCheckerTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = containerClass },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = containerClass },
+                new BodyTypeTypeDeclarationNode { TypeBody = programClass }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -480,15 +488,17 @@ public class VoidTypeCheckerTests
             }
         };
 
-        var containerStruct = new StructDeclarationNode
+        var containerStruct = new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Name = Tok("Container"),
             Members = ImmutableArray.Create(
                 MakeFieldMember("value", voidIdentifierTypeRef)),
         };
 
-        var programClass = new ClassDeclarationNode
+        var programClass = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = MakeMainMethod() }),
@@ -497,8 +507,8 @@ public class VoidTypeCheckerTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new StructTypeTypeDeclarationNode { StructDeclaration = containerStruct },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = containerStruct },
+                new BodyTypeTypeDeclarationNode { TypeBody = programClass }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -536,8 +546,9 @@ public class VoidTypeCheckerTests
 
         var mainMethod = MakeMainMethod(ImmutableArray.Create<StatementNode>(voidVarDecl));
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
@@ -546,7 +557,7 @@ public class VoidTypeCheckerTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);

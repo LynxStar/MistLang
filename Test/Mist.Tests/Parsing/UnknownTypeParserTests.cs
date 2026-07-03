@@ -46,8 +46,8 @@ public class UnknownTypeParserTests
     /// </summary>
     private static TypedVariableDeclarationVariableDeclarationStatementNode GetFirstLocalDecl(CompilationUnitNode cu)
     {
-        var typeDecl = Assert.IsType<ClassTypeTypeDeclarationNode>(cu.GetTypes()[0]);
-        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.ClassDeclaration.Members[0]);
+        var typeDecl = Assert.IsType<BodyTypeTypeDeclarationNode>(cu.GetTypes()[0]);
+        var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.TypeBody.Members[0]);
         var block = methodMember.Method.Body.GetBlock();
         Assert.NotNull(block);
         var stmt = Assert.IsType<VariableDeclarationStatementStatementNode>(block!.Statements[0]);
@@ -165,7 +165,7 @@ public class UnknownTypeParserTests
     [Fact]
     public void Rejects_Class_Named_Unknown()
     {
-        // Valid analog: `class Foo { }` — produces a single ClassTypeTypeDeclarationNode
+        // Valid analog: `class Foo { }` — produces a single BodyTypeTypeDeclarationNode
         // named `Foo`. If `unknown` were a normal identifier, this would parse identically.
         // Because `unknown` is a keyword token, the ClassDeclaration rule's IDENTIFIER
         // requirement fails after CLASS, and no type declaration is produced.

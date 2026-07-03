@@ -157,10 +157,11 @@ public class UnknownTypeResolutionTests
         };
     }
 
-    private static ClassDeclarationNode MakeGenericClass(string name, params string[] typeParams)
+    private static TypeBodyDeclarationNode MakeGenericClass(string name, params string[] typeParams)
     {
-        return new ClassDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             TypeParams = MakeTypeParamList(typeParams),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
@@ -172,7 +173,7 @@ public class UnknownTypeResolutionTests
     /// declares one local variable of the supplied type. The local is named
     /// <c>"x"</c>.
     /// </summary>
-    private static ClassDeclarationNode MakeHolderWithLocal(TypeReferenceNode localType)
+    private static TypeBodyDeclarationNode MakeHolderWithLocal(TypeReferenceNode localType)
     {
         var methodDecl = new MethodDeclarationNode
         {
@@ -188,18 +189,19 @@ public class UnknownTypeResolutionTests
             },
         };
 
-        return new ClassDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Holder"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = methodDecl }),
         };
     }
 
-    private static CompilationUnitNode MakeCompilationUnit(params ClassDeclarationNode[] classes)
+    private static CompilationUnitNode MakeCompilationUnit(params TypeBodyDeclarationNode[] classes)
     {
         var typeDecls = classes
-            .Select(c => (TypeDeclarationNode)new ClassTypeTypeDeclarationNode { ClassDeclaration = c })
+            .Select(c => (TypeDeclarationNode)new BodyTypeTypeDeclarationNode { TypeBody = c })
             .ToImmutableArray();
         return new CompilationUnitNode { Items = typeDecls.AsTopLevelItems() };
     }

@@ -188,10 +188,11 @@ public class PrettyPrinterPropertyTests
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode
+                new BodyTypeTypeDeclarationNode
                 {
-                    ClassDeclaration = new ClassDeclarationNode
+                    TypeBody = new TypeBodyDeclarationNode
                     {
+                        Keyword = new ClassKeywordTypeKeywordNode(),
                         Name = MakeToken("Empty"),
                         Members = ImmutableArray<MemberDeclarationNode>.Empty,
                     },
@@ -292,8 +293,9 @@ public class PrettyPrinterPropertyTests
             },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
             Name = MakeToken("Point"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
@@ -305,7 +307,7 @@ public class PrettyPrinterPropertyTests
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
     }
 
@@ -336,8 +338,9 @@ public class PrettyPrinterPropertyTests
             Name = MakeToken("r"),
         };
 
-        var structDecl = new StructDeclarationNode
+        var structDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
             Name = MakeToken("Color"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
@@ -352,7 +355,7 @@ public class PrettyPrinterPropertyTests
                 Span = new Storm.Runtime.SourceSpan(0, 5),
             },
             Body = ImmutableArray.Create<TypeDeclarationNode>(
-                new StructTypeTypeDeclarationNode { StructDeclaration = structDecl }).AsNamespaceBodyItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = structDecl }).AsNamespaceBodyItems(),
         };
 
         return new CompilationUnitNode
@@ -464,8 +467,9 @@ public class PrettyPrinterPropertyTests
             },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = methodDecl }),
@@ -474,7 +478,7 @@ public class PrettyPrinterPropertyTests
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
     }
 
@@ -528,8 +532,9 @@ public class PrettyPrinterPropertyTests
             },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Expressions"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = methodDecl }),
@@ -538,7 +543,7 @@ public class PrettyPrinterPropertyTests
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
     }
 
@@ -582,8 +587,9 @@ public class PrettyPrinterPropertyTests
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
             Name = MakeToken("Foo"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
@@ -594,7 +600,7 @@ public class PrettyPrinterPropertyTests
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
     }
 
@@ -603,8 +609,9 @@ public class PrettyPrinterPropertyTests
     /// </summary>
     private static CompilationUnitNode BuildBlockNamespace()
     {
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Inner"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -617,7 +624,7 @@ public class PrettyPrinterPropertyTests
                 Span = new Storm.Runtime.SourceSpan(0, 4),
             },
             Body = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsNamespaceBodyItems(),
         };
 
         return new CompilationUnitNode

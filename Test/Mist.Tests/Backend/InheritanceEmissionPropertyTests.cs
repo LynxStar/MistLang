@@ -74,13 +74,14 @@ public sealed partial class InheritanceEmissionPropertyTests : IDisposable
         };
     }
 
-    private static ClassDeclarationNode MakeClassDecl(
+    private static TypeBodyDeclarationNode MakeClassDecl(
         string name,
         string? baseClassName = null,
         ImmutableArray<MemberDeclarationNode>? members = null)
     {
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
@@ -263,7 +264,7 @@ public sealed partial class InheritanceEmissionPropertyTests : IDisposable
         foreach(var (name, baseName) in scenario.Classes)
         {
             var classDecl = MakeClassDecl(name, baseName);
-            typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+            typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = classDecl });
         }
 
         // Add Program class with Main entry point
@@ -283,7 +284,7 @@ public sealed partial class InheritanceEmissionPropertyTests : IDisposable
             members: ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }));
 
-        typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass });
+        typeDecls.Add(new BodyTypeTypeDeclarationNode { TypeBody = programClass });
 
         return new CompilationUnitNode
         {

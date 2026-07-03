@@ -256,12 +256,13 @@ public class ExtensionDuplicateSignaturePropertyTests
     private static CompilationUnitNode BuildAst(DuplicateSignatureScenario scenario)
     {
         // Declare the receiver type as a class so it can be resolved
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok(scenario.ReceiverTypeName),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
-        var classTypeDecl = new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl };
+        var classTypeDecl = new BodyTypeTypeDeclarationNode { TypeBody = classDecl };
 
         // Build the duplicate member for each extension block
         var member1 = scenario.MemberKind == DuplicateMemberKind.Method

@@ -290,16 +290,17 @@ public class EnumNominalDistinctionPropertyTests
                 new StaticModifierModifierNode()),
         };
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = Tok("Program"),
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode { Method = mainMethod }),
         };
 
-        var classTypeDecl = new ClassTypeTypeDeclarationNode
+        var classTypeDecl = new BodyTypeTypeDeclarationNode
         {
-            ClassDeclaration = classDecl,
+            TypeBody = classDecl,
         };
 
         return new CompilationUnitNode

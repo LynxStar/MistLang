@@ -133,13 +133,14 @@ public class CrossHierarchyOverloadPropertyTests
     /// <summary>
     /// Creates a class declaration with a base class reference and the given members.
     /// </summary>
-    private static ClassDeclarationNode MakeClassWithBase(
+    private static TypeBodyDeclarationNode MakeClassWithBase(
         string name,
         string? baseClassName,
         ImmutableArray<MemberDeclarationNode> members)
     {
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members,
         };
@@ -168,10 +169,10 @@ public class CrossHierarchyOverloadPropertyTests
     /// <summary>
     /// Builds a CompilationUnitNode from a list of class declarations.
     /// </summary>
-    private static CompilationUnitNode MakeCompilationUnit(params ClassDeclarationNode[] classDecls)
+    private static CompilationUnitNode MakeCompilationUnit(params TypeBodyDeclarationNode[] classDecls)
     {
         var types = classDecls.Select(c =>
-            (TypeDeclarationNode)new ClassTypeTypeDeclarationNode { ClassDeclaration = c })
+            (TypeDeclarationNode)new BodyTypeTypeDeclarationNode { TypeBody = c })
             .ToImmutableArray();
 
         return new CompilationUnitNode { Items = types.AsTopLevelItems() };

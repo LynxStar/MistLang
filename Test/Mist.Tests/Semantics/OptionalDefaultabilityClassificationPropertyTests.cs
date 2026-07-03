@@ -146,39 +146,41 @@ public class OptionalDefaultabilityClassificationPropertyTests
         };
     }
 
-    private static ClassDeclarationNode MakeClassDecl(
+    private static TypeBodyDeclarationNode MakeClassDecl(
         string name, ImmutableArray<MemberDeclarationNode> members)
     {
-        return new ClassDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members,
         };
     }
 
-    private static StructDeclarationNode MakeStructDecl(
+    private static TypeBodyDeclarationNode MakeStructDecl(
         string name, ImmutableArray<MemberDeclarationNode> members)
     {
-        return new StructDeclarationNode
+        return new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Name = MakeToken(name),
             Members = members,
         };
     }
 
-    private static TypeDeclarationNode WrapClass(ClassDeclarationNode classDecl)
+    private static TypeDeclarationNode WrapClass(TypeBodyDeclarationNode classDecl)
     {
-        return new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl };
+        return new BodyTypeTypeDeclarationNode { TypeBody = classDecl };
     }
 
-    private static TypeDeclarationNode WrapStruct(StructDeclarationNode structDecl)
+    private static TypeDeclarationNode WrapStruct(TypeBodyDeclarationNode structDecl)
     {
-        return new StructTypeTypeDeclarationNode { StructDeclaration = structDecl };
+        return new BodyTypeTypeDeclarationNode { TypeBody = structDecl };
     }
 
-    private static TypeDeclarationNode WrapAbstractType(AbstractDeclarationNode abstractDecl)
+    private static TypeDeclarationNode WrapAbstractType(TypeBodyDeclarationNode abstractDecl)
     {
-        return new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl };
+        return new BodyTypeTypeDeclarationNode { TypeBody = abstractDecl };
     }
 
     // ─── Scenario records ────────────────────────────────────────────────
@@ -355,10 +357,11 @@ public class OptionalDefaultabilityClassificationPropertyTests
         // If there's a non-defaultable type reference, declare it
         if(scenario.NonDefaultableTypeName is not null)
         {
-            var nonDefaultableDecl = WrapAbstractType(new AbstractDeclarationNode
+            var nonDefaultableDecl = WrapAbstractType(new TypeBodyDeclarationNode
             {
+                Keyword = new AbstractKeywordTypeKeywordNode(),
                 Name = MakeToken(scenario.NonDefaultableTypeName),
-                Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
+                Members = ImmutableArray<MemberDeclarationNode>.Empty,
             });
 
             return MakeCompilationUnit(nonDefaultableDecl, typeDecl);
@@ -389,10 +392,11 @@ public class OptionalDefaultabilityClassificationPropertyTests
             : WrapClass(MakeClassDecl(scenario.TypeName, members));
 
         // Declare the non-defaultable type
-        var nonDefaultableDecl = WrapAbstractType(new AbstractDeclarationNode
+        var nonDefaultableDecl = WrapAbstractType(new TypeBodyDeclarationNode
         {
+            Keyword = new AbstractKeywordTypeKeywordNode(),
             Name = MakeToken(scenario.NonDefaultableTypeName),
-            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<MemberDeclarationNode>.Empty,
         });
 
         return MakeCompilationUnit(nonDefaultableDecl, typeDecl);

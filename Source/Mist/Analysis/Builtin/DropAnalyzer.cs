@@ -69,8 +69,7 @@ public sealed class DropAnalyzer : IAnalyzer
 
             var modifiers = declaringNode switch
             {
-                ClassDeclarationNode classDecl => classDecl.Modifiers,
-                StructDeclarationNode structDecl => structDecl.Modifiers,
+                TypeBodyDeclarationNode typeBody => typeBody.Modifiers,
                 _ => (ImmutableArray<ModifierNode>?)null,
             };
 

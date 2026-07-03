@@ -147,15 +147,16 @@ public sealed class InferredNamespaceRegistrationPropertyTests
         var expectedNs = SemanticModelBuilder.ComputeInferredNamespace(
             nsRoot.Value, projectFolder, filePath);
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken(className.Value),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModelForFile(ast, nsRoot.Value, projectFolder, filePath);
@@ -191,15 +192,16 @@ public sealed class InferredNamespaceRegistrationPropertyTests
         var expectedNs = SemanticModelBuilder.ComputeInferredNamespace(
             nsRoot.Value, projectFolder, filePath);
 
-        var structDecl = new StructDeclarationNode
+        var structDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Name = MakeToken(structName.Value),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new StructTypeTypeDeclarationNode { StructDeclaration = structDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = structDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModelForFile(ast, nsRoot.Value, projectFolder, filePath);
@@ -235,15 +237,16 @@ public sealed class InferredNamespaceRegistrationPropertyTests
         var expectedNs = SemanticModelBuilder.ComputeInferredNamespace(
             nsRoot.Value, projectFolder, filePath);
 
-        var abstractDecl = new AbstractDeclarationNode
+        var abstractDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new AbstractKeywordTypeKeywordNode(),
             Name = MakeToken(abstractName.Value),
-            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl }).AsTopLevelItems(),
+                new BodyTypeTypeDeclarationNode { TypeBody = abstractDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModelForFile(ast, nsRoot.Value, projectFolder, filePath);
@@ -279,20 +282,23 @@ public sealed class InferredNamespaceRegistrationPropertyTests
         var expectedNs = SemanticModelBuilder.ComputeInferredNamespace(
             nsRoot.Value, projectFolder, filePath);
 
-        var classDecl = new ClassDeclarationNode
+        var classDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new ClassKeywordTypeKeywordNode(),
             Name = MakeToken("Alpha"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
-        var structDecl = new StructDeclarationNode
+        var structDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new StructKeywordTypeKeywordNode(),
             Name = MakeToken("Beta"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
-        var abstractDecl = new AbstractDeclarationNode
+        var abstractDecl = new TypeBodyDeclarationNode
         {
+            Keyword = new AbstractKeywordTypeKeywordNode(),
             Name = MakeToken("IGamma"),
-            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
         var ast = new CompilationUnitNode
@@ -300,15 +306,15 @@ public sealed class InferredNamespaceRegistrationPropertyTests
             Items = ImmutableArray.Create<TopLevelItemNode>(
                 new TypeItemTopLevelItemNode
                 {
-                    TypeDeclaration = new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }
+                    TypeDeclaration = new BodyTypeTypeDeclarationNode { TypeBody = classDecl }
                 },
                 new TypeItemTopLevelItemNode
                 {
-                    TypeDeclaration = new StructTypeTypeDeclarationNode { StructDeclaration = structDecl }
+                    TypeDeclaration = new BodyTypeTypeDeclarationNode { TypeBody = structDecl }
                 },
                 new TypeItemTopLevelItemNode
                 {
-                    TypeDeclaration = new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl }
+                    TypeDeclaration = new BodyTypeTypeDeclarationNode { TypeBody = abstractDecl }
                 }),
         };
 

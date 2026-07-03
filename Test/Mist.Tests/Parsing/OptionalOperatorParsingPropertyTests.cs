@@ -55,8 +55,8 @@ public class OptionalOperatorParsingPropertyTests
         var source = $"class T {{ void M() {{ {expressionSource}; }} }}";
         var cu = ParseOrFail(source);
 
-        var typeDecl = (ClassTypeTypeDeclarationNode)cu.GetTypes()[0];
-        var methodMember = (MethodMemberMemberDeclarationNode)typeDecl.ClassDeclaration.Members[0];
+        var typeDecl = (BodyTypeTypeDeclarationNode)cu.GetTypes()[0];
+        var methodMember = (MethodMemberMemberDeclarationNode)typeDecl.TypeBody.Members[0];
         var block = methodMember.Method.Body.GetBlock()!;
         // Find the last expression statement (skip any variable declarations)
         var exprStmt = block.Statements.OfType<ExpressionStatementStatementNode>().Last();

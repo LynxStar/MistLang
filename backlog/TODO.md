@@ -197,3 +197,22 @@ Option 1 is the strongest guarantee (misalignment is structurally impossible). O
 3. Add `Attributes` storage to `ParameterSymbol`.
 4. Update the C# backend to emit parameter attributes.
 5. Add tests covering ASP.NET binding attributes, caller info attributes, and nullable annotations.
+
+---
+
+## 🟡 STORM0006 false positive: MemberDeclaration alternative 13 (ModifiedAssociatedTypeMember) flagged unreachable
+
+**Severity: medium (build warning, no runtime impact)** — The Storm source generator's reachability pass (`ReachabilityPass.cs`) flags alternative 13 in `MemberDeclaration` as unreachable. This is a false positive caused by bounded k=3 lookahead being insufficient to distinguish `MemberTypeAliasMember` (alt 10) from `ModifiedAssociatedTypeMember` (alt 13).
+
+**Why it's a false positive:** Both alternatives start with `Modifier+ TYPE IDENTIFIER`, making their FIRST-3 sequences identical. The disambiguating token (`=` for alias, `:` or `;` for slot) appears at position 4+ — or even further out when `TypeParams?` is present (e.g., `public type Foo<T> : Bar;`). Since the PEG parser uses unlimited backtracking, it correctly tries alt 10 first, fails (no `=`), backtracks, and eventually reaches alt 13. The warning is wrong — the alternative IS reachable at runtime.
+
+**Why bumping `MaxLookahead` doesn't fully fix it:** The optional `TypeParams?` between `IDENTIFIER` and the disambiguating `=`/`:` is variable-length (`<T>`, `<T, U>`, `<T, U, V>`, etc.). No finite lookahead depth can always see past it. Bumping to 4 would only silence the warning for the no-type-params case.
+
+**Verified correct at runtime:** The `AssociatedTypeDisambiguationPropertyTests` and `EmitModifiersOnAssociatedTypeSlotDiagnostic` semantic handler confirm that `ModifiedAssociatedTypeMemberMemberDeclarationNode` is produced by the parser and handled correctly by the semantic layer (emitting a diagnostic when used in wrong context).
+
+**Options:**
+1. Add a `@suppress(STORM0006)` annotation to the grammar rule (requires adding suppression support to the source generator).
+2. Restructure the grammar to factor out the common `Modifier+ TYPE IDENTIFIER TypeParams?` prefix into a shared rule, then disambiguate on the next token.
+3. Accept the warning with a comment in the grammar explaining why it's safe.
+
+**Context:** Introduced by the grammar-type-declaration-unification spec (task 1.8), which moved `ModifiedAssociatedTypeSlotDeclaration` from `AbstractMemberDeclaration` (now deleted) into the unified `MemberDeclaration` rule.

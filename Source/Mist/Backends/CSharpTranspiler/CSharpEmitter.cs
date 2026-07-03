@@ -2133,7 +2133,7 @@ internal sealed class CSharpSourceWriter
         AppendLine("{");
         indentLevel++;
 
-        if(sourceNode is BodyTypeTypeDeclarationNode { TypeBody: var typeBody } && typeBody.Keyword is ClassKeywordTypeKeywordNode)
+        if(sourceNode is TypeBodyDeclarationNode { Keyword: ClassKeywordTypeKeywordNode } typeBody)
         {
             for(var i = 0; i < typeBody.Members.Length; i++)
             {
@@ -2170,7 +2170,7 @@ internal sealed class CSharpSourceWriter
         var previousInsideStruct = insideStruct;
         insideStruct = true;
 
-        if(sourceNode is BodyTypeTypeDeclarationNode { TypeBody: var typeBody } && typeBody.Keyword is StructKeywordTypeKeywordNode)
+        if(sourceNode is TypeBodyDeclarationNode { Keyword: StructKeywordTypeKeywordNode } typeBody)
         {
             for(var i = 0; i < typeBody.Members.Length; i++)
             {

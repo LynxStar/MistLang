@@ -3238,6 +3238,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case UnconstrainedAssociatedTypeMemberMemberDeclarationNode unconstrainedMember:
                 EmitAssociatedTypeSlotInWrongContextDiagnostic(unconstrainedMember.UnconstrainedAssociatedType.TYPE, sourceText, diagnostics);
                 break;
+            case ModifiedAssociatedTypeMemberMemberDeclarationNode modifiedMember:
+                // A modified associated-type slot (e.g. "public type Bar : class;") is
+                // syntactically ambiguous with a member type alias at the grammar level
+                // (both start with modifiers+ TYPE IDENTIFIER), but semantically it is
+                // only valid inside abstract types. Reject it here the same way plain
+                // associated-type slots are rejected in concrete class/struct bodies.
+                EmitAssociatedTypeSlotInWrongContextDiagnostic(modifiedMember.ModifiedAssociatedType.TYPE, sourceText, diagnostics);
+                break;
             case MemberTypeAliasMemberMemberDeclarationNode memberTypeAlias:
                 RegisterMemberTypeAliasDeclaration(memberTypeAlias.MemberTypeAlias, typeScope, symbolTable, sourceText, diagnostics);
                 break;
@@ -12216,6 +12224,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 Storm.Runtime.SyntaxNode declNode = typeItem.TypeDeclaration switch
                 {
                     BodyTypeTypeDeclarationNode body => body.TypeBody,
+                    EnumTypeTypeDeclarationNode et => et.EnumDeclaration,
+                    NewtypeTypeTypeDeclarationNode nt => nt.NewtypeDeclaration,
+                    TypeAliasTypeTypeDeclarationNode ta => ta.TypeAliasDeclaration,
                     _ => typeItem.TypeDeclaration
                 };
 
@@ -12909,6 +12920,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                     var returnType = ResolveTypeReference(methodDecl.ReturnType, interfaceFileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
                                     methodSymbol.DeclaredType = returnType;
 
+                                    // When the parser sees "owned Foo Method(...)", it may parse "owned"
+                                    // as a modifier (OwnedModifier) rather than as the returnOwnership
+                                    // specifier, since Modifier* is matched greedily before
+                                    // OwnershipSpecifier?. In that case, ReturnOwnership is null but the
+                                    // method has an OwnedModifier. Treat this as OwnershipTier.Owned —
+                                    // mirrors the equivalent fallback in PreResolveMethodSignature.
                                     if(methodDecl.ReturnOwnership is RefSpecifierOwnershipSpecifierNode)
                                     {
                                         methodSymbol.ReturnRefKind = RefKind.Ref;
@@ -12918,6 +12935,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                     {
                                         methodSymbol.ReturnRefKind = RefKind.RefReadonly;
                                         methodSymbol.OwnershipTier = OwnershipTier.Unrestricted;
+                                    }
+                                    else if(methodDecl.ReturnOwnership is null && methodDecl.Modifiers.Any(m => m is OwnedModifierModifierNode))
+                                    {
+                                        methodSymbol.OwnershipTier = OwnershipTier.Owned;
                                     }
                                     else
                                     {

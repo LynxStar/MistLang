@@ -144,4 +144,11 @@ public static class ProgramModelDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
         "Accessors on abstract property '{0}' cannot have modifiers.");
+
+    /// <summary>An init accessor is not permitted on an abstract property.</summary>
+    public static readonly DiagnosticDescriptor AbstractPropertyInitAccessor = new(
+        new DiagnosticId("MIST_PM_ABSTRACT_INIT_ACCESSOR"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "Abstract types cannot declare init accessors on property '{0}' because abstract types cannot be instantiated.");
 }

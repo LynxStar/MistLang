@@ -136,9 +136,10 @@ internal sealed class AbstractTypeBuilder
                     ValidateAbstractAccessorModifier(autoSet.AccessorModifier, name, autoSet);
                     setter = new PropertyAccessor { IsAuto = true };
                     break;
+
                 case AutoInitAccessorAccessorDeclarationNode autoInit:
-                    ValidateAbstractAccessorModifier(autoInit.AccessorModifier, name, autoInit);
-                    setter = new PropertyAccessor { IsAuto = true, IsInit = true };
+                    context.Diagnostics.ReportAtNode(
+                        ProgramModelDiagnostics.AbstractPropertyInitAccessor, autoInit, null, name);
                     break;
 
                 default:

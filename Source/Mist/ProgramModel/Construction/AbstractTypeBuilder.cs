@@ -108,8 +108,7 @@ internal sealed class AbstractTypeBuilder
                 break;
 
             case ExpressionBodiedPropertyPropertyDeclarationNode exprProp:
-                context.Diagnostics.ReportAtNode(
-                    ProgramModelDiagnostics.AbstractExpressionBodiedProperty, exprProp, null, exprProp.Name.Lexeme);
+                ResolveExpressionBodiedProperty(exprProp, typeDef);
                 break;
         }
     }
@@ -122,7 +121,6 @@ internal sealed class AbstractTypeBuilder
 
         PropertyAccessor? getter = null;
         PropertyAccessor? setter = null;
-        var hasBodyViolation = false;
 
         foreach(var accessor in blockProp.Accessors)
         {
@@ -132,27 +130,41 @@ internal sealed class AbstractTypeBuilder
                     ValidateAbstractAccessorModifier(autoGet.AccessorModifier, name, autoGet);
                     getter = new PropertyAccessor { IsAuto = true };
                     break;
+                case BlockGetAccessorAccessorDeclarationNode blockGet:
+                    ValidateAbstractAccessorModifier(blockGet.AccessorModifier, name, blockGet);
+                    getter = new PropertyAccessor { Body = new Block(blockGet.Body) };
+                    break;
+                case ExpressionGetAccessorAccessorDeclarationNode exprGet:
+                    ValidateAbstractAccessorModifier(exprGet.AccessorModifier, name, exprGet);
+                    getter = new PropertyAccessor { ExpressionBody = new Expression(exprGet.Expression) };
+                    break;
+
                 case AutoSetAccessorAccessorDeclarationNode autoSet:
                     ValidateAbstractAccessorModifier(autoSet.AccessorModifier, name, autoSet);
                     setter = new PropertyAccessor { IsAuto = true };
+                    break;
+                case BlockSetAccessorAccessorDeclarationNode blockSet:
+                    ValidateAbstractAccessorModifier(blockSet.AccessorModifier, name, blockSet);
+                    setter = new PropertyAccessor { Body = new Block(blockSet.Body) };
+                    break;
+                case ExpressionSetAccessorAccessorDeclarationNode exprSet:
+                    ValidateAbstractAccessorModifier(exprSet.AccessorModifier, name, exprSet);
+                    setter = new PropertyAccessor { ExpressionBody = new Expression(exprSet.Expression) };
                     break;
 
                 case AutoInitAccessorAccessorDeclarationNode autoInit:
                     context.Diagnostics.ReportAtNode(
                         ProgramModelDiagnostics.AbstractPropertyInitAccessor, autoInit, null, name);
                     break;
-
-                default:
-                    // Any non-auto accessor (block or expression body) is invalid on an abstract.
-                    hasBodyViolation = true;
+                case BlockInitAccessorAccessorDeclarationNode blockInit:
+                    context.Diagnostics.ReportAtNode(
+                        ProgramModelDiagnostics.AbstractPropertyInitAccessor, blockInit, null, name);
+                    break;
+                case ExpressionInitAccessorAccessorDeclarationNode exprInit:
+                    context.Diagnostics.ReportAtNode(
+                        ProgramModelDiagnostics.AbstractPropertyInitAccessor, exprInit, null, name);
                     break;
             }
-        }
-
-        if(hasBodyViolation)
-        {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.AbstractPropertyAccessorHasBody, blockProp, null, name);
         }
 
         var property = new Property(name, type, isStatic) { Getter = getter, Setter = setter };
@@ -166,5 +178,16 @@ internal sealed class AbstractTypeBuilder
             context.Diagnostics.ReportAtNode(
                 ProgramModelDiagnostics.AbstractAccessorCannotHaveModifier, locationNode, null, propertyName);
         }
+    }
+
+    private void ResolveExpressionBodiedProperty(ExpressionBodiedPropertyPropertyDeclarationNode exprProp, AbstractType typeDef)
+    {
+        var name = exprProp.Name.Lexeme;
+        var type = typeResolver.Resolve(exprProp.Type, typeDef.Scope);
+        var isStatic = exprProp.Modifiers.HasAny<ModifierNode, StaticModifierModifierNode>();
+
+        var getter = new PropertyAccessor { ExpressionBody = new Expression(exprProp.Body) };
+        var property = new Property(name, type, isStatic) { Getter = getter };
+        typeDef.PropertiesList.Add(property);
     }
 }

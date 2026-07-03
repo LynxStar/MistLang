@@ -110,20 +110,6 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "Internal compiler error: unrecognized member declaration node '{0}'.");
 
-    /// <summary>An expression-bodied property is not permitted on an abstract type.</summary>
-    public static readonly DiagnosticDescriptor AbstractExpressionBodiedProperty = new(
-        new DiagnosticId("MIST_PM_ABSTRACT_EXPR_PROPERTY"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Abstract types cannot declare expression-bodied properties ('{0}').");
-
-    /// <summary>An abstract property accessor must be auto (no body).</summary>
-    public static readonly DiagnosticDescriptor AbstractPropertyAccessorHasBody = new(
-        new DiagnosticId("MIST_PM_ABSTRACT_ACCESSOR_BODY"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Accessors on abstract property '{0}' must be auto (no body).");
-
     /// <summary>A modifier on a getter accessor is not permitted.</summary>
     public static readonly DiagnosticDescriptor GetterCannotHaveModifier = new(
         new DiagnosticId("MIST_PM_GETTER_MODIFIER"),

@@ -26,8 +26,12 @@ internal sealed class Field(
     public bool IsStatic { get; } = isStatic;
 
     /// <summary>
-    /// The AST node for this field. Used by later phases to process
-    /// the initializer expression.
+    /// The field initializer expression, or null if none.
+    /// </summary>
+    public Expression? Initializer { get; init; }
+
+    /// <summary>
+    /// The AST node for this field. Used by later phases for additional processing.
     /// </summary>
     internal FieldDeclarationNode DeclarationNode { get; } = declarationNode;
 }

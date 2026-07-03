@@ -60,7 +60,7 @@ internal sealed class PropertyBuilder
         PropertyAccessor? setter = null;
 
 
-        //Todo this really should be split out at the grammar level but it's fine for now.
+        //Todo this really should be structured better at the grammar level.
         foreach(var accessor in blockProp.Accessors)
         {
             getter = accessor switch

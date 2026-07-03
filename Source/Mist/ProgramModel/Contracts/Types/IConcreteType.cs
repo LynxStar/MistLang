@@ -1,4 +1,4 @@
-namespace Mist.ProgramModel.Contracts;
+namespace Mist.ProgramModel.Contracts.Types;
 
 /// <summary>
 /// A concrete type definition that can have the full set of member kinds:

@@ -1,8 +1,8 @@
 using System.Collections.Frozen;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
-using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.TypeReferences;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.TypeReferences;
 

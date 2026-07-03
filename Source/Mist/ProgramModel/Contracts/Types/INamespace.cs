@@ -1,4 +1,4 @@
-namespace Mist.ProgramModel.Contracts;
+namespace Mist.ProgramModel.Contracts.Types;
 
 /// <summary>
 /// A namespace in the program model. Contains type definitions and nested namespaces.

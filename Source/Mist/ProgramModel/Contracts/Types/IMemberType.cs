@@ -1,4 +1,4 @@
-namespace Mist.ProgramModel.Contracts;
+namespace Mist.ProgramModel.Contracts.Types;
 
 /// <summary>
 /// A type definition that can have member declarations and base types.

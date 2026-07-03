@@ -1,4 +1,4 @@
-namespace Mist.ProgramModel.Contracts;
+namespace Mist.ProgramModel.Contracts.Types;
 
 /// <summary>
 /// A type alias definition (includes refinement types).

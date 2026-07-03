@@ -1,7 +1,7 @@
 using Mist.Generated;
-using Mist.ProgramModel.Contracts;
+using Mist.ProgramModel.Contracts.Types;
 
-namespace Mist.ProgramModel.Model;
+namespace Mist.ProgramModel.Model.Types;
 
 /// <summary>
 /// An abstract (interface-like) type definition in the program model.

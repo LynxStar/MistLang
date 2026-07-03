@@ -1,7 +1,8 @@
 using Mist.Generated;
 using Mist.ProgramModel.Contracts;
+using Mist.ProgramModel.Contracts.Types;
 
-namespace Mist.ProgramModel.Model;
+namespace Mist.ProgramModel.Model.Types;
 
 /// <summary>
 /// Base for concrete types (classes and structs) that can have the full set

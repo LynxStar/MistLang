@@ -3,6 +3,7 @@ using Mist.Common.Collections;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction;
 

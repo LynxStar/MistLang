@@ -1,4 +1,4 @@
-namespace Mist.ProgramModel.Contracts;
+namespace Mist.ProgramModel.Contracts.Types;
 
 /// <summary>
 /// An abstract (interface-like) type definition.

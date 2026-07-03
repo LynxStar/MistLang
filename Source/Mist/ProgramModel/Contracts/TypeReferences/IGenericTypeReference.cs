@@ -1,3 +1,5 @@
+using Mist.ProgramModel.Contracts.Types;
+
 namespace Mist.ProgramModel.Contracts.TypeReferences;
 
 /// <summary>

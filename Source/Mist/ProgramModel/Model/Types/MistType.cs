@@ -1,6 +1,6 @@
-using Mist.ProgramModel.Contracts;
+using Mist.ProgramModel.Contracts.Types;
 
-namespace Mist.ProgramModel.Model;
+namespace Mist.ProgramModel.Model.Types;
 
 /// <summary>
 /// Base class for all type definitions in the program model.

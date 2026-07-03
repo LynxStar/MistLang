@@ -72,6 +72,10 @@ internal sealed class AbstractTypeBuilder : MemberTypeBuilder
                 PropertyBuilder.Resolve(propertyMember.Property, typeDef, isAbstract: true);
                 break;
 
+            case IndexerMemberMemberDeclarationNode indexerMember:
+                IndexerBuilder.Resolve(indexerMember.Indexer, typeDef, isAbstract: true);
+                break;
+
             case AssociatedTypeMemberMemberDeclarationNode:
             case UnconstrainedAssociatedTypeMemberMemberDeclarationNode:
                 // Associated type slots — out of scope for now.

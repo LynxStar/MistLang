@@ -20,11 +20,6 @@ public interface IConcreteType : IMemberType
     IReadOnlyList<IField> Fields { get; }
 
     /// <summary>
-    /// Indexers declared on this type.
-    /// </summary>
-    IReadOnlyList<IIndexer> Indexers { get; }
-
-    /// <summary>
     /// Constructors declared on this type.
     /// </summary>
     IReadOnlyList<IConstructor> Constructors { get; }

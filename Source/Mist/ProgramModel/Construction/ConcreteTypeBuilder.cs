@@ -77,7 +77,10 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
                 PropertyBuilder.Resolve(propertyMember.Property, typeDef, isAbstract: false);
                 break;
 
-            case IndexerMemberMemberDeclarationNode:
+            case IndexerMemberMemberDeclarationNode indexerMember:
+                IndexerBuilder.Resolve(indexerMember.Indexer, typeDef, isAbstract: false);
+                break;
+
             case ConstructorMemberMemberDeclarationNode:
             case MethodMemberMemberDeclarationNode:
             case OperatorMemberMemberDeclarationNode:

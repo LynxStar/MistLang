@@ -18,12 +18,19 @@ internal abstract class MemberTypeBuilder
 
     protected PropertyBuilder PropertyBuilder { get; }
 
+    protected IndexerBuilder IndexerBuilder { get; }
+
+    protected ParameterBuilder ParameterBuilder { get; }
+
     protected MemberTypeBuilder(BuilderContext context, TypeReferenceResolver typeResolver)
     {
         Context = context;
         TypeResolver = typeResolver;
         BaseTypeResolver = new BaseTypeResolver(context, typeResolver);
-        PropertyBuilder = new PropertyBuilder(context, typeResolver);
+        var accessorBuilder = new AccessorBuilder(context);
+        ParameterBuilder = new ParameterBuilder(typeResolver);
+        PropertyBuilder = new PropertyBuilder(context, typeResolver, accessorBuilder);
+        IndexerBuilder = new IndexerBuilder(context, typeResolver, accessorBuilder, ParameterBuilder);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

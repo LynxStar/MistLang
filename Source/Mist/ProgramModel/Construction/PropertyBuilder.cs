@@ -8,18 +8,19 @@ namespace Mist.ProgramModel.Construction;
 
 /// <summary>
 /// Resolves property declarations into <see cref="Property"/> instances.
-/// A single code path handles both concrete and abstract contexts,
-/// branching on <paramref name="isAbstract"/> for validation differences.
+/// A single code path handles both concrete and abstract contexts.
 /// </summary>
 internal sealed class PropertyBuilder
 {
     private readonly BuilderContext context;
     private readonly TypeReferenceResolver typeResolver;
+    private readonly AccessorBuilder accessorBuilder;
 
-    public PropertyBuilder(BuilderContext context, TypeReferenceResolver typeResolver)
+    public PropertyBuilder(BuilderContext context, TypeReferenceResolver typeResolver, AccessorBuilder accessorBuilder)
     {
         this.context = context;
         this.typeResolver = typeResolver;
+        this.accessorBuilder = accessorBuilder;
     }
 
     /// <summary>
@@ -59,26 +60,24 @@ internal sealed class PropertyBuilder
         PropertyAccessor? getter = null;
         PropertyAccessor? setter = null;
 
-
-        //Todo this really should be structured better at the grammar level.
         foreach(var accessor in blockProp.Accessors)
         {
             getter = accessor switch
             {
-                AutoGetAccessorAccessorDeclarationNode autoGet => BuildGetter(autoGet.AccessorModifier, name, autoGet, isAbstract, isAuto: true, body: null, expression: null),
-                BlockGetAccessorAccessorDeclarationNode blockGet => BuildGetter(blockGet.AccessorModifier, name, blockGet, isAbstract, isAuto: false, body: blockGet.Body, expression: null),
-                ExpressionGetAccessorAccessorDeclarationNode exprGet => BuildGetter(exprGet.AccessorModifier, name, exprGet, isAbstract, isAuto: false, body: null, expression: exprGet.Expression),
+                AutoGetAccessorAccessorDeclarationNode autoGet => accessorBuilder.BuildGetter(autoGet.AccessorModifier, name, autoGet, isAbstract, isAuto: true, body: null, expression: null),
+                BlockGetAccessorAccessorDeclarationNode blockGet => accessorBuilder.BuildGetter(blockGet.AccessorModifier, name, blockGet, isAbstract, isAuto: false, body: blockGet.Body, expression: null),
+                ExpressionGetAccessorAccessorDeclarationNode exprGet => accessorBuilder.BuildGetter(exprGet.AccessorModifier, name, exprGet, isAbstract, isAuto: false, body: null, expression: exprGet.Expression),
                 _ => getter,
             };
 
             setter = accessor switch
             {
-                AutoSetAccessorAccessorDeclarationNode autoSet => BuildSetter(autoSet.AccessorModifier, name, autoSet, isAbstract, isAuto: true, isInit: false, body: null, expression: null),
-                BlockSetAccessorAccessorDeclarationNode blockSet => BuildSetter(blockSet.AccessorModifier, name, blockSet, isAbstract, isAuto: false, isInit: false, body: blockSet.Body, expression: null),
-                ExpressionSetAccessorAccessorDeclarationNode exprSet => BuildSetter(exprSet.AccessorModifier, name, exprSet, isAbstract, isAuto: false, isInit: false, body: null, expression: exprSet.Expression),
-                AutoInitAccessorAccessorDeclarationNode autoInit => BuildInitAccessor(autoInit.AccessorModifier, name, autoInit, isAbstract, isAuto: true, body: null, expression: null),
-                BlockInitAccessorAccessorDeclarationNode blockInit => BuildInitAccessor(blockInit.AccessorModifier, name, blockInit, isAbstract, isAuto: false, body: blockInit.Body, expression: null),
-                ExpressionInitAccessorAccessorDeclarationNode exprInit => BuildInitAccessor(exprInit.AccessorModifier, name, exprInit, isAbstract, isAuto: false, body: null, expression: exprInit.Expression),
+                AutoSetAccessorAccessorDeclarationNode autoSet => accessorBuilder.BuildSetter(autoSet.AccessorModifier, name, autoSet, isAbstract, isAuto: true, isInit: false, body: null, expression: null),
+                BlockSetAccessorAccessorDeclarationNode blockSet => accessorBuilder.BuildSetter(blockSet.AccessorModifier, name, blockSet, isAbstract, isAuto: false, isInit: false, body: blockSet.Body, expression: null),
+                ExpressionSetAccessorAccessorDeclarationNode exprSet => accessorBuilder.BuildSetter(exprSet.AccessorModifier, name, exprSet, isAbstract, isAuto: false, isInit: false, body: null, expression: exprSet.Expression),
+                AutoInitAccessorAccessorDeclarationNode autoInit => accessorBuilder.BuildInitAccessor(autoInit.AccessorModifier, name, autoInit, isAbstract, isAuto: true, body: null, expression: null),
+                BlockInitAccessorAccessorDeclarationNode blockInit => accessorBuilder.BuildInitAccessor(blockInit.AccessorModifier, name, blockInit, isAbstract, isAuto: false, body: blockInit.Body, expression: null),
+                ExpressionInitAccessorAccessorDeclarationNode exprInit => accessorBuilder.BuildInitAccessor(exprInit.AccessorModifier, name, exprInit, isAbstract, isAuto: false, body: null, expression: exprInit.Expression),
                 _ => setter,
             };
         }
@@ -89,79 +88,12 @@ internal sealed class PropertyBuilder
             Setter = setter,
             Initializer = !isAbstract && blockProp.Initializer is { } initExpr ? new Expression(initExpr) : null,
         };
+
+        if(getter is null && setter is null)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.EmptyAccessorList, blockProp, null, name);
+        }
+
         typeDef.PropertiesList.Add(property);
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Validation
-    // ═══════════════════════════════════════════════════════════════════════
-
-    private PropertyAccessor BuildGetter(
-        ModifierNode? modifier, string propertyName, Storm.Runtime.SyntaxNode locationNode,
-        bool isAbstract, bool isAuto, BlockNode? body, ExpressionNode? expression)
-    {
-        if(modifier is not null)
-        {
-            if(isAbstract)
-            {
-                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AbstractAccessorCannotHaveModifier, locationNode, null, propertyName);
-            }
-            else
-            {
-                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.GetterCannotHaveModifier, locationNode, null, propertyName);
-            }
-        }
-
-        return new PropertyAccessor
-        {
-            IsAuto = isAuto,
-            Body = body is not null ? new Block(body) : null,
-            ExpressionBody = expression is not null ? new Expression(expression) : null,
-        };
-    }
-
-    private PropertyAccessor? BuildSetter(
-        ModifierNode? modifier, string propertyName, Storm.Runtime.SyntaxNode locationNode,
-        bool isAbstract, bool isAuto, bool isInit, BlockNode? body, ExpressionNode? expression)
-    {
-        var isPrivate = false;
-
-        if(modifier is not null)
-        {
-            if(isAbstract)
-            {
-                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AbstractAccessorCannotHaveModifier, locationNode, null, propertyName);
-            }
-            else if(modifier is PrivateModifierModifierNode)
-            {
-                isPrivate = true;
-            }
-            else
-            {
-                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.SetterModifierMustBePrivate, locationNode, null, propertyName);
-            }
-        }
-
-        return new PropertyAccessor
-        {
-            IsAuto = isAuto,
-            IsInit = isInit,
-            IsPrivate = isPrivate,
-            Body = body is not null ? new Block(body) : null,
-            ExpressionBody = expression is not null ? new Expression(expression) : null,
-        };
-    }
-
-    private PropertyAccessor? BuildInitAccessor(
-        ModifierNode? modifier, string propertyName, Storm.Runtime.SyntaxNode locationNode,
-        bool isAbstract, bool isAuto, BlockNode? body, ExpressionNode? expression)
-    {
-        if(isAbstract)
-        {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AbstractPropertyInitAccessor, locationNode, null, propertyName);
-            return null;
-        }
-
-        return BuildSetter(modifier, propertyName, locationNode, isAbstract: false, isAuto, isInit: true, body, expression);
     }
 }

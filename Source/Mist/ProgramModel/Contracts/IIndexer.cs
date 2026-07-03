@@ -13,9 +13,6 @@ public interface IIndexer
     /// <summary>The indexer parameters.</summary>
     IReadOnlyList<IParameter> Parameters { get; }
 
-    /// <summary>Whether the indexer has a getter.</summary>
-    bool HasGetter { get; }
-
-    /// <summary>Whether the indexer has a setter.</summary>
-    bool HasSetter { get; }
+    /// <summary>Whether the indexer is static.</summary>
+    bool IsStatic { get; }
 }

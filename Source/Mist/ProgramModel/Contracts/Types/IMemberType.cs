@@ -21,4 +21,9 @@ public interface IMemberType : IMistType
     /// Properties declared on this type.
     /// </summary>
     IReadOnlyList<IProperty> Properties { get; }
+
+    /// <summary>
+    /// Indexers declared on this type.
+    /// </summary>
+    IReadOnlyList<IIndexer> Indexers { get; }
 }

@@ -124,6 +124,20 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "Only 'private' is permitted as a modifier on the setter of property '{0}'.");
 
+    /// <summary>A property or indexer must declare at least one accessor.</summary>
+    public static readonly DiagnosticDescriptor EmptyAccessorList = new(
+        new DiagnosticId("MIST_PM_EMPTY_ACCESSORS"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}' must declare at least a getter or a setter.");
+
+    /// <summary>An init accessor is not permitted on an indexer.</summary>
+    public static readonly DiagnosticDescriptor IndexerCannotHaveInit = new(
+        new DiagnosticId("MIST_PM_INDEXER_INIT"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "Indexers cannot declare init accessors.");
+
     /// <summary>An abstract property accessor cannot have a modifier.</summary>
     public static readonly DiagnosticDescriptor AbstractAccessorCannotHaveModifier = new(
         new DiagnosticId("MIST_PM_ABSTRACT_ACCESSOR_MODIFIER"),

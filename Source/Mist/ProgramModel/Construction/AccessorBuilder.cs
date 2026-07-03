@@ -1,0 +1,88 @@
+using Mist.Common.Diagnostics;
+using Mist.Generated;
+using Mist.ProgramModel.Model;
+
+namespace Mist.ProgramModel.Construction;
+
+/// <summary>
+/// Shared accessor construction and validation logic used by both
+/// <see cref="PropertyBuilder"/> and <see cref="IndexerBuilder"/>.
+/// </summary>
+internal sealed class AccessorBuilder
+{
+    private readonly BuilderContext context;
+
+    public AccessorBuilder(BuilderContext context)
+    {
+        this.context = context;
+    }
+
+    public PropertyAccessor BuildGetter(
+        ModifierNode? modifier, string memberName, Storm.Runtime.SyntaxNode locationNode,
+        bool isAbstract, bool isAuto, BlockNode? body, ExpressionNode? expression)
+    {
+        if(modifier is not null)
+        {
+            if(isAbstract)
+            {
+                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AbstractAccessorCannotHaveModifier, locationNode, null, memberName);
+            }
+            else
+            {
+                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.GetterCannotHaveModifier, locationNode, null, memberName);
+            }
+        }
+
+        return new PropertyAccessor
+        {
+            IsAuto = isAuto,
+            Body = body is not null ? new Block(body) : null,
+            ExpressionBody = expression is not null ? new Expression(expression) : null,
+        };
+    }
+
+    public PropertyAccessor BuildSetter(
+        ModifierNode? modifier, string memberName, Storm.Runtime.SyntaxNode locationNode,
+        bool isAbstract, bool isAuto, bool isInit, BlockNode? body, ExpressionNode? expression)
+    {
+        var isPrivate = false;
+
+        if(modifier is not null)
+        {
+            if(isAbstract)
+            {
+                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AbstractAccessorCannotHaveModifier, locationNode, null, memberName);
+            }
+            else if(modifier is PrivateModifierModifierNode)
+            {
+                isPrivate = true;
+            }
+            else
+            {
+                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.SetterModifierMustBePrivate, locationNode, null, memberName);
+            }
+        }
+
+        return new PropertyAccessor
+        {
+            IsAuto = isAuto,
+            IsInit = isInit,
+            IsPrivate = isPrivate,
+            Body = body is not null ? new Block(body) : null,
+            ExpressionBody = expression is not null ? new Expression(expression) : null,
+        };
+    }
+
+    public PropertyAccessor? BuildInitAccessor(
+        ModifierNode? modifier, string memberName, Storm.Runtime.SyntaxNode locationNode,
+        bool isAbstract, bool isAuto, BlockNode? body, ExpressionNode? expression)
+    {
+        if(isAbstract)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AbstractPropertyInitAccessor, locationNode, null, memberName);
+            return null;
+        }
+
+        return BuildSetter(modifier, memberName, locationNode, isAbstract: false, isAuto, isInit: true, body, expression);
+    }
+}

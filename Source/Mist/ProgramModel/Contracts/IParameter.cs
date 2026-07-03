@@ -1,5 +1,4 @@
 using Mist.ProgramModel.Contracts.Types;
-using Mist.ProgramModel.Model;
 
 namespace Mist.ProgramModel.Contracts;
 
@@ -13,10 +12,4 @@ public interface IParameter
 
     /// <summary>The resolved type of the parameter.</summary>
     IMistType Type { get; }
-
-    /// <summary>How the parameter is passed (by value, by ref, etc.).</summary>
-    ParameterPassingKind PassingKind { get; }
-
-    /// <summary>Whether the parameter has a default value.</summary>
-    bool HasDefaultValue { get; }
 }

@@ -43,8 +43,6 @@ internal abstract class ConcreteType : MemberType, IConcreteType
 
     public List<Field> FieldsList { get; } = [];
 
-    public List<Indexer> IndexersList { get; } = [];
-
     public List<Constructor> ConstructorsList { get; } = [];
 
     public List<Operator> OperatorsList { get; } = [];
@@ -54,8 +52,6 @@ internal abstract class ConcreteType : MemberType, IConcreteType
     IMistType? IConcreteType.BaseType => BaseType;
 
     IReadOnlyList<IField> IConcreteType.Fields => FieldsList;
-
-    IReadOnlyList<IIndexer> IConcreteType.Indexers => IndexersList;
 
     IReadOnlyList<IConstructor> IConcreteType.Constructors => ConstructorsList;
 

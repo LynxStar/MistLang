@@ -1,43 +1,17 @@
-using System.Collections.Frozen;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
-using Mist.ProgramModel.Contracts.TypeReferences;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
-using Mist.ProgramModel.Model.TypeReferences;
+using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction;
 
 /// <summary>
-/// Resolves AST type reference nodes into <see cref="ITypeReference"/> instances
-/// by performing scope-based name lookup against the program model.
+/// Resolves AST type reference nodes into <see cref="IMistType"/> by performing
+/// scope-based name lookup against the program model.
 /// </summary>
 internal sealed class TypeReferenceResolver
 {
-    /// <summary>
-    /// Hardcoded keyword → fully-qualified Standard Library type name mapping.
-    /// These are always in scope and cannot be shadowed.
-    /// </summary>
-    private static readonly FrozenDictionary<string, string> PrimitiveAliases =
-        new Dictionary<string, string>
-        {
-            ["int"] = "Standard.Int32",
-            ["uint"] = "Standard.UInt32",
-            ["long"] = "Standard.Int64",
-            ["ulong"] = "Standard.UInt64",
-            ["short"] = "Standard.Int16",
-            ["ushort"] = "Standard.UInt16",
-            ["byte"] = "Standard.Byte",
-            ["sbyte"] = "Standard.SByte",
-            ["float"] = "Standard.Single",
-            ["double"] = "Standard.Double",
-            ["decimal"] = "Standard.Decimal",
-            ["bool"] = "Standard.Boolean",
-            ["char"] = "Standard.Char",
-            ["string"] = "Standard.String",
-            ["regex"] = "Standard.Regex",
-        }.ToFrozenDictionary();
-
     private readonly BuilderContext context;
 
     public TypeReferenceResolver(BuilderContext context)
@@ -46,24 +20,14 @@ internal sealed class TypeReferenceResolver
     }
 
     /// <summary>
-    /// Resolves a <see cref="TypeReferenceNode"/> to an <see cref="ITypeReference"/>.
-    /// Handles union types (multiple pipe-separated constituents).
+    /// Resolves a <see cref="TypeReferenceNode"/> to an <see cref="IMistType"/>.
     /// </summary>
-    public ITypeReference Resolve(TypeReferenceNode typeRef, Scope scope)
+    public IMistType Resolve(TypeReferenceNode typeRef, Scope scope)
     {
         if(typeRef.SingleTypeRefs.Length > 0)
         {
-            var constituents = new List<ITypeReference>(typeRef.SingleTypeRefs.Length + 1)
-            {
-                ResolveSingle(typeRef.First, scope)
-            };
-
-            foreach(var constituent in typeRef.SingleTypeRefs)
-            {
-                constituents.Add(ResolveSingle(constituent, scope));
-            }
-
-            return new UnionTypeReference(constituents);
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownTypeRefNode, typeRef, null, "UnionType");
+            return ErrorType.Instance;
         }
 
         return ResolveSingle(typeRef.First, scope);
@@ -72,54 +36,74 @@ internal sealed class TypeReferenceResolver
     /// <summary>
     /// Resolves a single (non-union) type reference node.
     /// </summary>
-    private ITypeReference ResolveSingle(SingleTypeRefNode singleRef, Scope scope)
+    private IMistType ResolveSingle(SingleTypeRefNode singleRef, Scope scope)
     {
         var inner = singleRef switch
         {
-            VoidSingleTypeRefSingleTypeRefNode => VoidTypeReference.Instance,
-            UnknownSingleTypeRefSingleTypeRefNode => UnknownTypeReference.Instance,
-            PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef => ResolvePrimitive(primitiveRef),
+            VoidSingleTypeRefSingleTypeRefNode => ResolveReservedAlias("Void"),
+            UnknownSingleTypeRefSingleTypeRefNode => UnknownType.Instance,
+            PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef => ResolveReservedAlias(primitiveRef),
             NamedSingleTypeRefSingleTypeRefNode namedRef => ResolveNamed(namedRef, scope),
-            TupleSingleTypeRefSingleTypeRefNode tupleRef => ResolveTuple(tupleRef, scope),
-            FuncSingleTypeRefSingleTypeRefNode funcRef => ResolveFunc(funcRef, scope),
             ParenthesizedTypeRefSingleTypeRefNode parenRef => Resolve(parenRef.Inner, scope),
-            _ => ReportUnknownTypeRefNode(singleRef),
+            _ => ReportUnsupported(singleRef),
         };
 
-        // Wrap in array if there's an array rank suffix.
+        // Array types are not yet supported in the simplified model.
         if(HasArrayRank(singleRef))
         {
-            return new ArrayTypeReference(inner);
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownTypeRefNode, singleRef, null, "ArrayType");
+            return ErrorType.Instance;
         }
 
         return inner;
     }
 
     /// <summary>
-    /// Resolves a primitive type keyword to a <see cref="NamedTypeReference"/>
-    /// pointing at the stdlib type definition.
+    /// Resolves a reserved keyword to its corresponding type in the Standard namespace.
+    /// All reserved type aliases (primitives, void) funnel through here.
     /// </summary>
-    private ITypeReference ResolvePrimitive(PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef)
+    private IMistType ResolveReservedAlias(PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef)
     {
-        var keyword = GetPrimitiveKeyword(primitiveRef.PrimitiveType);
-
-        if(keyword is not null && PrimitiveAliases.TryGetValue(keyword, out var qualifiedName))
+        var typeName = primitiveRef.PrimitiveType switch
         {
-            var typeDef = LookupQualifiedName(qualifiedName);
-            if(typeDef is not null)
-            {
-                return new NamedTypeReference(typeDef);
-            }
+            IntTypePrimitiveTypeNode => "Int32",
+            UintTypePrimitiveTypeNode => "UInt32",
+            LongTypePrimitiveTypeNode => "Int64",
+            UlongTypePrimitiveTypeNode => "UInt64",
+            ShortTypePrimitiveTypeNode => "Int16",
+            UshortTypePrimitiveTypeNode => "UInt16",
+            ByteTypePrimitiveTypeNode => "Byte",
+            SbyteTypePrimitiveTypeNode => "SByte",
+            FloatTypePrimitiveTypeNode => "Single",
+            DoubleTypePrimitiveTypeNode => "Double",
+            DecimalTypePrimitiveTypeNode => "Decimal",
+            BoolTypePrimitiveTypeNode => "Boolean",
+            CharTypePrimitiveTypeNode => "Char",
+            StringTypePrimitiveTypeNode => "String",
+            RegexTypePrimitiveTypeNode => "Regex",
+            _ => null,
+        };
+
+        return ResolveReservedAlias(typeName);
+    }
+
+    /// <summary>
+    /// Looks up a reserved alias by simple name in the Standard namespace.
+    /// </summary>
+    private IMistType ResolveReservedAlias(string? typeName)
+    {
+        if(typeName is null)
+        {
+            return ErrorType.Instance;
         }
 
-        // Stdlib type not loaded — produce error.
-        return ErrorTypeReference.Instance;
+        return LookupInNamespace("Standard", typeName) ?? ErrorType.Instance;
     }
 
     /// <summary>
     /// Resolves a named type reference by looking up the name in the scope.
     /// </summary>
-    private ITypeReference ResolveNamed(NamedSingleTypeRefSingleTypeRefNode namedRef, Scope scope)
+    private IMistType ResolveNamed(NamedSingleTypeRefSingleTypeRefNode namedRef, Scope scope)
     {
         var name = namedRef.Name.IDENTIFIER.Lexeme;
 
@@ -132,75 +116,28 @@ internal sealed class TypeReferenceResolver
             var typeDef = LookupQualifiedName(qualifiedName);
             if(typeDef is not null)
             {
-                return new NamedTypeReference(typeDef);
+                return typeDef;
             }
 
             // Second, try as a nested type key in any reachable namespace.
             var nestedType = LookupNestedQualifiedName(qualifiedName, scope);
             if(nestedType is not null)
             {
-                return new NamedTypeReference(nestedType);
+                return nestedType;
             }
 
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnresolvedType, namedRef, null, qualifiedName);
-            return ErrorTypeReference.Instance;
+            return ErrorType.Instance;
         }
 
         // Simple name lookup through scope chain.
         var resolved = ResolveNamedType(name, scope, namedRef);
         if(resolved is not null)
         {
-            return new NamedTypeReference(resolved);
+            return resolved;
         }
 
-        return ErrorTypeReference.Instance;
-    }
-
-    /// <summary>
-    /// Resolves a tuple type reference.
-    /// </summary>
-    private ITypeReference ResolveTuple(TupleSingleTypeRefSingleTypeRefNode tupleRef, Scope scope)
-    {
-        var elements = new List<ITypeReference>
-        {
-            Resolve(tupleRef.First.Type, scope),
-            Resolve(tupleRef.Rest.Type, scope)
-        };
-
-        foreach(var additional in tupleRef.TupleTypeElements)
-        {
-            elements.Add(Resolve(additional.Type, scope));
-        }
-
-        return new TupleTypeReference(elements);
-    }
-
-    /// <summary>
-    /// Resolves a func type reference (e.g., func&lt;int, string&gt;).
-    /// The last type argument is the return type; all preceding are parameters.
-    /// </summary>
-    private ITypeReference ResolveFunc(FuncSingleTypeRefSingleTypeRefNode funcRef, Scope scope)
-    {
-        if(funcRef.TypeArgs is null)
-        {
-            return new DelegateTypeReference([], VoidTypeReference.Instance);
-        }
-
-        var typeArgs = new List<ITypeReference> { Resolve(funcRef.TypeArgs.GetTypeReference(), scope) };
-        foreach(var arg in funcRef.TypeArgs.GetTypeReferences())
-        {
-            typeArgs.Add(Resolve(arg, scope));
-        }
-
-        if(typeArgs.Count == 0)
-        {
-            return new DelegateTypeReference([], VoidTypeReference.Instance);
-        }
-
-        // Last type argument is the return type.
-        var returnType = typeArgs[^1];
-        var paramTypes = typeArgs.GetRange(0, typeArgs.Count - 1);
-        return new DelegateTypeReference(paramTypes, returnType);
+        return ErrorType.Instance;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -320,29 +257,6 @@ internal sealed class TypeReferenceResolver
     // Helpers
     // ═══════════════════════════════════════════════════════════════════════
 
-    private static string? GetPrimitiveKeyword(PrimitiveTypeNode primitiveType)
-    {
-        return primitiveType switch
-        {
-            IntTypePrimitiveTypeNode => "int",
-            UintTypePrimitiveTypeNode => "uint",
-            LongTypePrimitiveTypeNode => "long",
-            UlongTypePrimitiveTypeNode => "ulong",
-            ShortTypePrimitiveTypeNode => "short",
-            UshortTypePrimitiveTypeNode => "ushort",
-            ByteTypePrimitiveTypeNode => "byte",
-            SbyteTypePrimitiveTypeNode => "sbyte",
-            FloatTypePrimitiveTypeNode => "float",
-            DoubleTypePrimitiveTypeNode => "double",
-            DecimalTypePrimitiveTypeNode => "decimal",
-            BoolTypePrimitiveTypeNode => "bool",
-            CharTypePrimitiveTypeNode => "char",
-            StringTypePrimitiveTypeNode => "string",
-            RegexTypePrimitiveTypeNode => "regex",
-            _ => null,
-        };
-    }
-
     private static string BuildQualifiedName(QualifiedIdentifierNode qualifiedId)
     {
         if(qualifiedId.IDENTIFIERs.IsDefaultOrEmpty)
@@ -374,9 +288,9 @@ internal sealed class TypeReferenceResolver
         };
     }
 
-    private ITypeReference ReportUnknownTypeRefNode(SingleTypeRefNode node)
+    private IMistType ReportUnsupported(SingleTypeRefNode node)
     {
         context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownTypeRefNode, node, null, node.GetType().Name);
-        return ErrorTypeReference.Instance;
+        return ErrorType.Instance;
     }
 }

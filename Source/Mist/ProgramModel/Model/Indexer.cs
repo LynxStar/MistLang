@@ -1,5 +1,5 @@
 using Mist.ProgramModel.Contracts;
-using Mist.ProgramModel.Contracts.TypeReferences;
+using Mist.ProgramModel.Contracts.Types;
 
 namespace Mist.ProgramModel.Model;
 
@@ -7,12 +7,12 @@ namespace Mist.ProgramModel.Model;
 /// An indexer declared on a type.
 /// </summary>
 internal sealed class Indexer(
-    ITypeReference type,
+    IMistType type,
     IReadOnlyList<IParameter> parameters,
     bool hasGetter,
     bool hasSetter) : IIndexer
 {
-    public ITypeReference Type { get; } = type;
+    public IMistType Type { get; } = type;
 
     public IReadOnlyList<IParameter> Parameters { get; } = parameters;
 

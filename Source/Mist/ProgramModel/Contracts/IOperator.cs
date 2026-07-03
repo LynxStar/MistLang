@@ -1,4 +1,4 @@
-using Mist.ProgramModel.Contracts.TypeReferences;
+using Mist.ProgramModel.Contracts.Types;
 
 namespace Mist.ProgramModel.Contracts;
 
@@ -11,7 +11,7 @@ public interface IOperator
     string OperatorToken { get; }
 
     /// <summary>The resolved return type.</summary>
-    ITypeReference ReturnType { get; }
+    IMistType ReturnType { get; }
 
     /// <summary>The operator parameters.</summary>
     IReadOnlyList<IParameter> Parameters { get; }

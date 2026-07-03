@@ -1,4 +1,4 @@
-using Mist.ProgramModel.Contracts.TypeReferences;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 
 namespace Mist.ProgramModel.Contracts;
@@ -12,7 +12,7 @@ public interface IParameter
     string Name { get; }
 
     /// <summary>The resolved type of the parameter.</summary>
-    ITypeReference Type { get; }
+    IMistType Type { get; }
 
     /// <summary>How the parameter is passed (by value, by ref, etc.).</summary>
     ParameterPassingKind PassingKind { get; }

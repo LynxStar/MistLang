@@ -1,4 +1,4 @@
-using Mist.ProgramModel.Contracts.TypeReferences;
+using Mist.ProgramModel.Contracts.Types;
 
 namespace Mist.ProgramModel.Contracts;
 
@@ -8,7 +8,7 @@ namespace Mist.ProgramModel.Contracts;
 public interface IIndexer
 {
     /// <summary>The resolved return type of the indexer.</summary>
-    ITypeReference Type { get; }
+    IMistType Type { get; }
 
     /// <summary>The indexer parameters.</summary>
     IReadOnlyList<IParameter> Parameters { get; }

@@ -1,5 +1,5 @@
 using Mist.ProgramModel.Contracts;
-using Mist.ProgramModel.Contracts.TypeReferences;
+using Mist.ProgramModel.Contracts.Types;
 
 namespace Mist.ProgramModel.Model;
 
@@ -8,14 +8,14 @@ namespace Mist.ProgramModel.Model;
 /// </summary>
 internal sealed class Property(
     string name,
-    ITypeReference type,
+    IMistType type,
     bool hasGetter,
     bool hasSetter,
     bool isStatic) : IProperty
 {
     public string Name { get; } = name;
 
-    public ITypeReference Type { get; } = type;
+    public IMistType Type { get; } = type;
 
     public bool HasGetter { get; } = hasGetter;
 

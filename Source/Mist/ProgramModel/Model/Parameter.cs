@@ -1,5 +1,5 @@
 using Mist.ProgramModel.Contracts;
-using Mist.ProgramModel.Contracts.TypeReferences;
+using Mist.ProgramModel.Contracts.Types;
 
 namespace Mist.ProgramModel.Model;
 
@@ -8,13 +8,13 @@ namespace Mist.ProgramModel.Model;
 /// </summary>
 internal sealed class Parameter(
     string name,
-    ITypeReference type,
+    IMistType type,
     ParameterPassingKind passingKind,
     bool hasDefaultValue) : IParameter
 {
     public string Name { get; } = name;
 
-    public ITypeReference Type { get; } = type;
+    public IMistType Type { get; } = type;
 
     public ParameterPassingKind PassingKind { get; } = passingKind;
 

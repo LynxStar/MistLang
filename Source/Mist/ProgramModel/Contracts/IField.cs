@@ -1,4 +1,4 @@
-using Mist.ProgramModel.Contracts.TypeReferences;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 
 namespace Mist.ProgramModel.Contracts;
@@ -12,7 +12,7 @@ public interface IField
     string Name { get; }
 
     /// <summary>The resolved type of the field.</summary>
-    ITypeReference Type { get; }
+    IMistType Type { get; }
 
     /// <summary>The ownership classification of this field.</summary>
     OwnershipKind Ownership { get; }

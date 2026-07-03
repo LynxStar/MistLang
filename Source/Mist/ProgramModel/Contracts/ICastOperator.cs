@@ -1,4 +1,4 @@
-using Mist.ProgramModel.Contracts.TypeReferences;
+using Mist.ProgramModel.Contracts.Types;
 
 namespace Mist.ProgramModel.Contracts;
 
@@ -8,7 +8,7 @@ namespace Mist.ProgramModel.Contracts;
 public interface ICastOperator
 {
     /// <summary>The target type of the cast.</summary>
-    ITypeReference TargetType { get; }
+    IMistType TargetType { get; }
 
     /// <summary>The source parameter being converted.</summary>
     IParameter SourceParameter { get; }

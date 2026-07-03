@@ -1,4 +1,4 @@
-using Mist.ProgramModel.Contracts.TypeReferences;
+using Mist.ProgramModel.Contracts.Types;
 
 namespace Mist.ProgramModel.Contracts;
 
@@ -11,7 +11,7 @@ public interface IMethod
     string Name { get; }
 
     /// <summary>The resolved return type.</summary>
-    ITypeReference ReturnType { get; }
+    IMistType ReturnType { get; }
 
     /// <summary>The method parameters.</summary>
     IReadOnlyList<IParameter> Parameters { get; }

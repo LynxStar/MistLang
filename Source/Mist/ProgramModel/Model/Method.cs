@@ -1,5 +1,5 @@
 using Mist.ProgramModel.Contracts;
-using Mist.ProgramModel.Contracts.TypeReferences;
+using Mist.ProgramModel.Contracts.Types;
 
 namespace Mist.ProgramModel.Model;
 
@@ -8,14 +8,14 @@ namespace Mist.ProgramModel.Model;
 /// </summary>
 internal sealed class Method(
     string name,
-    ITypeReference returnType,
+    IMistType returnType,
     IReadOnlyList<IParameter> parameters,
     bool isStatic,
     bool isAsync) : IMethod
 {
     public string Name { get; } = name;
 
-    public ITypeReference ReturnType { get; } = returnType;
+    public IMistType ReturnType { get; } = returnType;
 
     public IReadOnlyList<IParameter> Parameters { get; } = parameters;
 

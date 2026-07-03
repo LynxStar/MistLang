@@ -1,5 +1,5 @@
 using Mist.ProgramModel.Contracts;
-using Mist.ProgramModel.Contracts.TypeReferences;
+using Mist.ProgramModel.Contracts.Types;
 
 namespace Mist.ProgramModel.Model;
 
@@ -7,11 +7,11 @@ namespace Mist.ProgramModel.Model;
 /// A cast operator (implicit or explicit conversion) declared on a type.
 /// </summary>
 internal sealed class CastOperator(
-    ITypeReference targetType,
+    IMistType targetType,
     IParameter sourceParameter,
     bool isImplicit) : ICastOperator
 {
-    public ITypeReference TargetType { get; } = targetType;
+    public IMistType TargetType { get; } = targetType;
 
     public IParameter SourceParameter { get; } = sourceParameter;
 

@@ -1,4 +1,4 @@
-using Mist.ProgramModel.Contracts.TypeReferences;
+using Mist.ProgramModel.Contracts.Types;
 
 namespace Mist.ProgramModel.Contracts;
 
@@ -11,7 +11,7 @@ public interface IProperty
     string Name { get; }
 
     /// <summary>The resolved type of the property.</summary>
-    ITypeReference Type { get; }
+    IMistType Type { get; }
 
     /// <summary>Whether the property has a getter.</summary>
     bool HasGetter { get; }

@@ -87,7 +87,121 @@ public static class ReachabilityPass
             {
                 _ = unionSoFar.Add(seq);
             }
+
+            // Perform intra-block analysis for inline blocks in top-level alternatives
+            var altExpr = alternatives[i];
+            if(altExpr is StormNamedAlternative namedAlt)
+            {
+                altExpr = namedAlt.Expression;
+            }
+
+            if(altExpr is StormInlineBlockExpr inlineBlock)
+            {
+                CheckInlineBlock(inlineBlock, rule, grammar, diagnostics);
+            }
         }
+    }
+
+    /// <summary>
+    /// Performs intra-block reachability analysis for an inline block.
+    /// For each arm, computes FIRST-k of the tail (arm's rule body minus the first
+    /// element — the prefix rule reference). If a later arm's tail FIRST-k set is a
+    /// subset of the union of all earlier arms' tail FIRST-k sets, emits STORM0006.
+    /// Handles nested inline blocks recursively.
+    /// </summary>
+    private static void CheckInlineBlock(
+        StormInlineBlockExpr inlineBlock,
+        StormRuleDecl rule,
+        StormGrammar grammar,
+        List<StormDiagnostic> diagnostics)
+    {
+        var tailSequenceSets = new List<HashSet<string>>();
+
+        foreach(var arm in inlineBlock.Arms)
+        {
+            // If the arm is a nested inline block, recursively check it
+            if(arm.Expression is StormInlineBlockExpr nestedBlock)
+            {
+                CheckInlineBlock(nestedBlock, rule, grammar, diagnostics);
+                // For nested blocks, compute the FIRST-k of the nested block's prefix
+                // as the tail contribution (opaque treatment)
+                var nestedPrefixSet = ComputeFirstKSequences(nestedBlock.Prefix, grammar, MaxLookahead);
+                tailSequenceSets.Add(nestedPrefixSet);
+                continue;
+            }
+
+            // The arm's Expression should be a StormReferenceExpr naming the target rule
+            if(arm.Expression is not StormReferenceExpr armRef)
+            {
+                tailSequenceSets.Add(new HashSet<string>());
+                continue;
+            }
+
+            // Resolve the arm's target rule
+            var armDecl = grammar.LookupByName(armRef.Name);
+            if(armDecl is not StormRuleDecl armRuleDecl)
+            {
+                tailSequenceSets.Add(new HashSet<string>());
+                continue;
+            }
+
+            // Get the tail: the arm's rule body minus its first element (the prefix reference)
+            var tailExpr = GetTailExpression(armRuleDecl.Body);
+            var tailSet = ComputeFirstKSequences(tailExpr, grammar, MaxLookahead);
+            tailSequenceSets.Add(tailSet);
+        }
+
+        // Check each arm's tail against the union of earlier arms' tails
+        var tailUnionSoFar = new HashSet<string>();
+        for(var i = 0; i < inlineBlock.Arms.Count; i++)
+        {
+            if(i > 0 && tailSequenceSets[i].Count > 0 && tailSequenceSets[i].IsSubsetOf(tailUnionSoFar))
+            {
+                var arm = inlineBlock.Arms[i];
+                diagnostics.Add(new StormDiagnostic(
+                    StormDiagnosticIds.STORM_UNREACHABLE_ALTERNATIVE,
+                    StormDiagnosticSeverity.Warning,
+                    $"Arm '{arm.AlternativeName}' in inline block of rule '{rule.Name}' is unreachable; its tail lookahead sequences are covered by earlier arms",
+                    null,
+                    inlineBlock.Line,
+                    inlineBlock.Column));
+            }
+
+            foreach(var seq in tailSequenceSets[i])
+            {
+                _ = tailUnionSoFar.Add(seq);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the tail expression of a rule body — the body with the first element removed.
+    /// The first element is the prefix rule reference (possibly wrapped in a label).
+    /// If the body is a sequence, returns a new sequence without the first element.
+    /// If the body is a single expression, returns an empty sequence (tail is empty).
+    /// </summary>
+    private static StormExpression GetTailExpression(StormExpression body)
+    {
+        if(body is StormSequenceExpr seq)
+        {
+            if(seq.Elements.Count <= 1)
+            {
+                // Only the prefix reference, no tail
+                return new StormSequenceExpr(new List<StormExpression>());
+            }
+
+            // Return everything after the first element
+            var tailElements = seq.Elements.Skip(1).ToList();
+            if(tailElements.Count == 1)
+            {
+                return tailElements[0];
+            }
+
+            return new StormSequenceExpr(tailElements);
+        }
+
+        // The body is a single expression (just the prefix reference) — empty tail
+        return new StormSequenceExpr(new List<StormExpression>());
     }
 
     /// <summary>
@@ -240,6 +354,10 @@ public static class ReachabilityPass
 
             case StormNamedAlternative namedAlt:
                 return ComputePrefixes(namedAlt.Expression, grammar, k, visited);
+
+            case StormInlineBlockExpr inlineBlock:
+                // Opaque treatment: use the FIRST-k set of the prefix rule
+                return ComputePrefixes(inlineBlock.Prefix, grammar, k, visited);
 
             default:
                 return new List<List<string>> { new() };
@@ -404,6 +522,11 @@ public static class ReachabilityPass
 
             case StormNamedAlternative namedAlt:
                 ComputeFirst(namedAlt.Expression, grammar, result, visited);
+                break;
+
+            case StormInlineBlockExpr inlineBlock:
+                // Opaque treatment: use the FIRST set of the prefix rule
+                ComputeFirst(inlineBlock.Prefix, grammar, result, visited);
                 break;
         }
     }

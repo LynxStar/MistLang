@@ -235,7 +235,8 @@ public static class AstEmitter
     /// </summary>
     private static void EmitRuleNodeTypes(CodeWriter writer, RuleIR rule)
     {
-        var hasNamedAlternatives = rule.Alternatives.Any(a => a.AlternativeName != null);
+        var hasNamedAlternatives = rule.Alternatives.Any(a => a.AlternativeName != null)
+            || rule.Alternatives.Any(a => a.Expression is InlineBlockIR);
 
         if(hasNamedAlternatives)
         {
@@ -316,57 +317,103 @@ public static class AstEmitter
         // Sealed subtypes for each named alternative
         foreach(var alt in rule.Alternatives)
         {
-            writer.WriteEmptyLine();
-
-            var altName = alt.AlternativeName ?? "Default";
-            var subtypeName = altName + rule.Name + "Node";
-            var properties = CollectProperties(alt);
-
-            writer.WriteBlock($"public sealed class {subtypeName} : {baseNodeTypeName}", () =>
+            if(alt.Expression is InlineBlockIR inlineBlock)
             {
-                // Properties
-                foreach(var prop in properties)
-                {
-                    writer.WriteLine($"public {prop.TypeName} {prop.Name} {{ get; set; }}{prop.DefaultValue}");
-                }
-
-                if(properties.Count > 0)
+                // Expand inline block arms into individual sealed node classes.
+                // Do NOT emit a wrapper node for the inline block itself.
+                foreach(var arm in inlineBlock.Arms)
                 {
                     writer.WriteEmptyLine();
+                    EmitInlineArmNode(writer, rule, arm);
+                }
+            }
+            else
+            {
+                writer.WriteEmptyLine();
+
+                var altName = alt.AlternativeName ?? "Default";
+                var subtypeName = altName + rule.Name + "Node";
+                var properties = CollectProperties(alt);
+
+                EmitSealedSubtype(writer, subtypeName, baseNodeTypeName, properties);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Emits a sealed node class for a single arm of an inline block.
+    /// The inline keyword is purely a parse-time optimization — the AST shape
+    /// is identical to what a standalone <c>label:TargetRule as AltName</c>
+    /// alternative would produce: a single property named from the arm's label,
+    /// of type <c>{TargetRule}Node</c>.
+    /// </summary>
+    private static void EmitInlineArmNode(CodeWriter writer, RuleIR rule, InlineArmIR arm)
+    {
+        var baseNodeTypeName = rule.Name + "Node";
+        var subtypeName = arm.AlternativeName + rule.Name + "Node";
+
+        // Treat this arm as if it were `label:TargetRule as AltName` —
+        // produce a single property pointing to the target rule's node.
+        var propName = PascalCase(arm.Label ?? arm.TargetRule.Name);
+        var targetNodeType = arm.TargetRule.Name + "Node";
+        var properties = new List<PropertyInfo>
+        {
+            new(propName, targetNodeType, false, true, false, " = default!;")
+        };
+
+        EmitSealedSubtype(writer, subtypeName, baseNodeTypeName, properties);
+    }
+
+
+    /// <summary>
+    /// Emits a sealed subtype class with the given properties and Children() override.
+    /// </summary>
+    private static void EmitSealedSubtype(CodeWriter writer, string subtypeName, string baseNodeTypeName, List<PropertyInfo> properties)
+    {
+        writer.WriteBlock($"public sealed class {subtypeName} : {baseNodeTypeName}", () =>
+        {
+            // Properties
+            foreach(var prop in properties)
+            {
+                writer.WriteLine($"public {prop.TypeName} {prop.Name} {{ get; set; }}{prop.DefaultValue}");
+            }
+
+            if(properties.Count > 0)
+            {
+                writer.WriteEmptyLine();
+            }
+
+            // Children() override
+            writer.WriteBlock("public override IEnumerable<SyntaxNode> Children()", () =>
+            {
+                var hasChildren = false;
+                foreach(var prop in properties)
+                {
+                    if(prop.IsNodeType && !prop.IsList)
+                    {
+                        hasChildren = true;
+                        if(prop.IsNullable)
+                        {
+                            writer.WriteBlock($"if ({prop.Name} != null)", () => writer.WriteLine($"yield return {prop.Name};"));
+                        }
+                        else
+                        {
+                            writer.WriteLine($"yield return {prop.Name};");
+                        }
+                    }
+                    else if(prop.IsNodeType && prop.IsList)
+                    {
+                        hasChildren = true;
+                        writer.WriteBlock($"foreach (var child in {prop.Name})", () => writer.WriteLine("yield return child;"));
+                    }
                 }
 
-                // Children() override
-                writer.WriteBlock("public override IEnumerable<SyntaxNode> Children()", () =>
+                if(!hasChildren)
                 {
-                    var hasChildren = false;
-                    foreach(var prop in properties)
-                    {
-                        if(prop.IsNodeType && !prop.IsList)
-                        {
-                            hasChildren = true;
-                            if(prop.IsNullable)
-                            {
-                                writer.WriteBlock($"if ({prop.Name} != null)", () => writer.WriteLine($"yield return {prop.Name};"));
-                            }
-                            else
-                            {
-                                writer.WriteLine($"yield return {prop.Name};");
-                            }
-                        }
-                        else if(prop.IsNodeType && prop.IsList)
-                        {
-                            hasChildren = true;
-                            writer.WriteBlock($"foreach (var child in {prop.Name})", () => writer.WriteLine("yield return child;"));
-                        }
-                    }
-
-                    if(!hasChildren)
-                    {
-                        writer.WriteLine("yield break;");
-                    }
-                });
+                    writer.WriteLine("yield break;");
+                }
             });
-        }
+        });
     }
 
     /// <summary>

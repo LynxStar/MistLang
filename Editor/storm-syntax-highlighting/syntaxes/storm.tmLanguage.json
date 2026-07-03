@@ -118,7 +118,7 @@
     },
     "storage-types": {
       "name": "storage.type.storm",
-      "match": "\\b(token|hidden|fragment|rule|mode)\\b"
+      "match": "\\b(token|hidden|fragment|rule|mode|inline)\\b"
     },
     "as-keyword": {
       "name": "keyword.operator.storm",

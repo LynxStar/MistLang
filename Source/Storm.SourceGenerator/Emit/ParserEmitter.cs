@@ -368,13 +368,25 @@ public static class ParserEmitter
             writer.WriteLine("_pos = saved;");
             writer.WriteLine("_hasError = false;");
             writer.WriteLine("_diagnostics?.TruncateTo(savedDiagCount);");
-            writer.WriteLine("{");
-            writer.Indent();
-            writer.WriteLine("var sp = _pos;");
-            writer.WriteLine("var ok = true;");
-            EmitAltBodyWithCheck(writer, context, alt, typeName, "sp", "ok");
-            writer.Dedent();
-            writer.WriteLine("}");
+
+            if(alt.Expression is InlineBlockIR inlineBlock)
+            {
+                writer.WriteLine("{");
+                writer.Indent();
+                EmitInlineBlock(writer, context, inlineBlock, rule.Name, "saved", hasNamedAlts);
+                writer.Dedent();
+                writer.WriteLine("}");
+            }
+            else
+            {
+                writer.WriteLine("{");
+                writer.Indent();
+                writer.WriteLine("var sp = _pos;");
+                writer.WriteLine("var ok = true;");
+                EmitAltBodyWithCheck(writer, context, alt, typeName, "sp", "ok");
+                writer.Dedent();
+                writer.WriteLine("}");
+            }
         }
 
         writer.WriteEmptyLine();
@@ -386,6 +398,16 @@ public static class ParserEmitter
 
     private static void EmitAltBodyWithCheck(CodeWriter writer, EmissionContext context, RuleAlternativeIR alt, string typeName, string spVar, string okVar)
     {
+        // If this alternative's expression is an inline block, delegate to the
+        // inline block emitter which handles its own prediction and node construction.
+        if(alt.Expression is InlineBlockIR inlineBlock)
+        {
+            // Derive the rule name from the typeName by stripping the trailing "Node"
+            var ruleName = typeName.EndsWith("Node") ? typeName.Substring(0, typeName.Length - 4) : typeName;
+            EmitInlineBlock(writer, context, inlineBlock, ruleName, spVar, true);
+            return;
+        }
+
         var labels = alt.FieldLabels;
         var labelMap = new Dictionary<ExpressionIR, string>();
         foreach(var label in labels)
@@ -404,6 +426,260 @@ public static class ParserEmitter
                 writer.WriteLine($"node.{propName} = {localVar};");
             }
 
+            writer.WriteLine($"node.Span = Span({spVar});");
+            writer.WriteLine($"node = AttachHidden(node, {spVar}, _pos);");
+            writer.WriteLine("return node;");
+        });
+    }
+
+    // ── Inline block emission ───────────────────────────────────────
+
+    /// <summary>
+    /// Emits code for an <see cref="InlineBlockIR"/>: parse the prefix once,
+    /// peek at the next token(s) to predict which arm to take, then parse
+    /// the arm's tail and construct a flat node with prefix + tail fields.
+    /// </summary>
+    /// <param name="writer">Code writer.</param>
+    /// <param name="context">Emission context.</param>
+    /// <param name="inlineBlock">The inline block IR.</param>
+    /// <param name="ruleName">The parent rule name (for node type naming).</param>
+    /// <param name="spVar">The outer save-point variable name.</param>
+    /// <param name="hasNamedAlts">Whether the parent rule has named alternatives.</param>
+    private static void EmitInlineBlock(CodeWriter writer, EmissionContext context, InlineBlockIR inlineBlock, string ruleName, string spVar, bool hasNamedAlts)
+    {
+        // Build label map for prefix elements
+        var prefixLabelMap = new Dictionary<ExpressionIR, string>();
+        foreach(var label in inlineBlock.PrefixLabels)
+        {
+            prefixLabelMap[label.Expression] = label.Label;
+        }
+
+        // Parse prefix elements into local variables
+        writer.WriteLine("var _inlineOk = true;");
+        var prefixAssignedProps = new List<(string PropName, string LocalVar)>();
+        foreach(var prefixElem in inlineBlock.PrefixElements)
+        {
+            EmitFullExprParse(writer, context, prefixElem, prefixLabelMap, prefixAssignedProps, true, "_inlineOk");
+        }
+
+        // After successful prefix parse: predict arm based on next token(s)
+        writer.WriteBlock("if (_inlineOk && !_hasError)", () =>
+        {
+            // Group arms by their FIRST token for dispatch
+            var armsByFirstToken = new Dictionary<string, List<int>>();
+            var armsWithoutFirstToken = new List<int>();
+
+            for(var i = 0; i < inlineBlock.Arms.Count; i++)
+            {
+                var arm = inlineBlock.Arms[i];
+                var firstTokens = GetFirstTokensFromTail(arm.TailExpression, context);
+                if(firstTokens.Count > 0)
+                {
+                    foreach(var token in firstTokens)
+                    {
+                        if(!armsByFirstToken.ContainsKey(token))
+                        {
+                            armsByFirstToken[token] = new List<int>();
+                        }
+
+                        armsByFirstToken[token].Add(i);
+                    }
+                }
+                else
+                {
+                    armsWithoutFirstToken.Add(i);
+                }
+            }
+
+            // Emit prediction dispatch
+            if(armsByFirstToken.Count > 0 || armsWithoutFirstToken.Count > 0)
+            {
+                writer.WriteLine("var _peek = Peek();");
+                var isFirst = true;
+
+                foreach(var kvp in armsByFirstToken)
+                {
+                    var tokenName = kvp.Key;
+                    var armIndices = kvp.Value;
+                    var kind = TokenKindRef(tokenName);
+                    var keyword = isFirst ? "if" : "else if";
+                    writer.WriteLine($"{keyword} (_peek == (int){kind})");
+                    writer.WriteLine("{");
+                    writer.Indent();
+
+                    EmitArmGroup(writer, context, inlineBlock, armIndices, prefixAssignedProps, ruleName, spVar, hasNamedAlts);
+
+                    writer.Dedent();
+                    writer.WriteLine("}");
+                    isFirst = false;
+                }
+
+                // Arms without a determinable FIRST token: try in order with backtracking
+                if(armsWithoutFirstToken.Count > 0)
+                {
+                    if(!isFirst)
+                    {
+                        writer.WriteLine("else");
+                        writer.WriteLine("{");
+                        writer.Indent();
+                    }
+
+                    EmitArmGroup(writer, context, inlineBlock, armsWithoutFirstToken, prefixAssignedProps, ruleName, spVar, hasNamedAlts);
+
+                    if(!isFirst)
+                    {
+                        writer.Dedent();
+                        writer.WriteLine("}");
+                    }
+                }
+            }
+        });
+    }
+
+    /// <summary>
+    /// Computes the FIRST token(s) from an arm's tail expression.
+    /// Returns multiple tokens for alternations at the start of the tail.
+    /// </summary>
+    private static List<string> GetFirstTokensFromTail(ExpressionIR tailExpr, EmissionContext context)
+    {
+        var result = new List<string>();
+
+        switch(tailExpr)
+        {
+            case TokenRefIR tokenRef:
+                result.Add(tokenRef.Token.Name);
+                break;
+            case StringLiteralIR lit:
+                var token = FindTokenForLiteral(context, lit.Value);
+                if(token != null)
+                {
+                    result.Add(token.Name);
+                }
+
+                break;
+            case SequenceIR seq:
+                if(seq.Elements.Count > 0)
+                {
+                    // Recurse into the first element of the sequence
+                    return GetFirstTokensFromTail(seq.Elements[0], context);
+                }
+
+                break;
+            case InlineBlockIR nested:
+                // For nested inline blocks, the FIRST set is the FIRST set of the nested prefix
+                if(nested.PrefixElements.Count > 0)
+                {
+                    return GetFirstTokensFromTail(nested.PrefixElements[0], context);
+                }
+
+                break;
+            default:
+                break;
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Emits a group of arms that share the same FIRST token (or have no determinable FIRST).
+    /// When multiple arms share the token, they are tried in declaration order with backtracking.
+    /// </summary>
+    private static void EmitArmGroup(
+        CodeWriter writer, EmissionContext context, InlineBlockIR inlineBlock,
+        List<int> armIndices, List<(string PropName, string LocalVar)> prefixAssignedProps,
+        string ruleName, string spVar, bool hasNamedAlts)
+    {
+        if(armIndices.Count == 1)
+        {
+            // Single arm for this FIRST token — emit directly
+            EmitArmTailParse(writer, context, inlineBlock.Arms[armIndices[0]], prefixAssignedProps, ruleName, spVar, hasNamedAlts);
+        }
+        else
+        {
+            // Multiple arms share this FIRST token — try in declaration order with backtracking
+            writer.WriteLine("var _armSaved = _pos;");
+            writer.WriteLine("var _armSavedError = _hasError;");
+            writer.WriteLine("var _armSavedDiagCount = _diagnostics?.Count ?? 0;");
+
+            for(var i = 0; i < armIndices.Count; i++)
+            {
+                var arm = inlineBlock.Arms[armIndices[i]];
+                if(i > 0)
+                {
+                    writer.WriteEmptyLine();
+                    writer.WriteLine($"// Try next arm: {arm.AlternativeName}");
+                    writer.WriteLine("_pos = _armSaved;");
+                    writer.WriteLine("_hasError = _armSavedError;");
+                    writer.WriteLine("_diagnostics?.TruncateTo(_armSavedDiagCount);");
+                }
+
+                writer.WriteLine("{");
+                writer.Indent();
+                EmitArmTailParse(writer, context, arm, prefixAssignedProps, ruleName, spVar, hasNamedAlts);
+                writer.Dedent();
+                writer.WriteLine("}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Emits the tail parse for a single arm. Constructs the INNER rule's
+    /// node (target rule) with all fields (prefix + tail), then wraps it
+    /// in the arm's node with a single labeled property. This produces an
+    /// AST shape identical to a standalone <c>label:TargetRule as AltName</c>.
+    /// </summary>
+    private static void EmitArmTailParse(
+        CodeWriter writer, EmissionContext context, InlineArmIR arm,
+        List<(string PropName, string LocalVar)> prefixAssignedProps,
+        string ruleName, string spVar, bool hasNamedAlts)
+    {
+        // Handle nested inline blocks recursively
+        if(arm.TailExpression is InlineBlockIR nestedBlock)
+        {
+            EmitInlineBlock(writer, context, nestedBlock, ruleName, spVar, hasNamedAlts);
+            return;
+        }
+
+        var armTypeName = arm.AlternativeName + ruleName + "Node";
+        var innerTypeName = arm.TargetRule.Name + "Node";
+        var armPropName = PascalCase(arm.Label ?? arm.TargetRule.Name);
+
+        // Build label map for tail elements
+        var tailLabelMap = new Dictionary<ExpressionIR, string>();
+        foreach(var label in arm.TailLabels)
+        {
+            tailLabelMap[label.Expression] = label.Label;
+        }
+
+        // Parse tail elements
+        writer.WriteLine("var _tailOk = true;");
+        var tailAssignedProps = new List<(string PropName, string LocalVar)>();
+        EmitFullExprParse(writer, context, arm.TailExpression, tailLabelMap, tailAssignedProps, true, "_tailOk");
+
+        // On successful tail parse: construct inner rule node, then wrap in arm node
+        writer.WriteBlock("if (_tailOk && !_hasError)", () =>
+        {
+            // Build the inner rule's node with all fields (prefix + tail combined)
+            writer.WriteLine($"var _inner = new {innerTypeName}();");
+
+            // Assign prefix fields to inner node (these are direct properties
+            // because the target rule has its own inline field definitions)
+            foreach(var (propName, localVar) in prefixAssignedProps)
+            {
+                writer.WriteLine($"_inner.{propName} = {localVar};");
+            }
+
+            // Assign tail fields to inner node
+            foreach(var (propName, localVar) in tailAssignedProps)
+            {
+                writer.WriteLine($"_inner.{propName} = {localVar};");
+            }
+
+            writer.WriteLine($"_inner.Span = Span({spVar});");
+
+            // Build the arm's wrapper node with a single property
+            writer.WriteLine($"var node = new {armTypeName}();");
+            writer.WriteLine($"node.{armPropName} = _inner;");
             writer.WriteLine($"node.Span = Span({spVar});");
             writer.WriteLine($"node = AttachHidden(node, {spVar}, _pos);");
             writer.WriteLine("return node;");

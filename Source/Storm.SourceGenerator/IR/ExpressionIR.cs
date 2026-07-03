@@ -161,3 +161,54 @@ public sealed class RegexLiteralIR : ExpressionIR
         Pattern = pattern;
     }
 }
+
+/// <summary>
+/// An inline block in the lowered IR. Contains the prefix expression
+/// sequence and the list of arms with their tails.
+/// </summary>
+public sealed class InlineBlockIR : ExpressionIR
+{
+    public RuleIR PrefixRule { get; }
+    public IReadOnlyList<ExpressionIR> PrefixElements { get; }
+    public IReadOnlyList<FieldLabelIR> PrefixLabels { get; }
+    public IReadOnlyList<InlineArmIR> Arms { get; }
+
+    public InlineBlockIR(
+        RuleIR prefixRule,
+        IReadOnlyList<ExpressionIR> prefixElements,
+        IReadOnlyList<FieldLabelIR> prefixLabels,
+        IReadOnlyList<InlineArmIR> arms)
+    {
+        PrefixRule = prefixRule;
+        PrefixElements = prefixElements;
+        PrefixLabels = prefixLabels;
+        Arms = arms;
+    }
+}
+
+/// <summary>
+/// A single arm within an <see cref="InlineBlockIR"/>, containing the tail expression
+/// (the arm's rule body with the prefix stripped).
+/// </summary>
+public sealed class InlineArmIR
+{
+    public string AlternativeName { get; }
+    public string? Label { get; }
+    public RuleIR TargetRule { get; }
+    public ExpressionIR TailExpression { get; }
+    public IReadOnlyList<FieldLabelIR> TailLabels { get; }
+
+    public InlineArmIR(
+        string alternativeName,
+        string? label,
+        RuleIR targetRule,
+        ExpressionIR tailExpression,
+        IReadOnlyList<FieldLabelIR> tailLabels)
+    {
+        AlternativeName = alternativeName;
+        Label = label;
+        TargetRule = targetRule;
+        TailExpression = tailExpression;
+        TailLabels = tailLabels;
+    }
+}

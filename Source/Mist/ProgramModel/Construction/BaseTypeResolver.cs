@@ -1,3 +1,4 @@
+using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Model;
 
@@ -99,10 +100,7 @@ internal sealed class BaseTypeResolver
         {
             var ownerKind = typeDef is ClassDefinition ? "class" : "struct";
             var baseKind = resolvedConcrete is ClassDefinition ? "class" : "struct";
-            context.ReportError(
-                "MIST_PM_BASE_TYPE_KIND_MISMATCH",
-                $"A {ownerKind} cannot inherit from a {baseKind} ('{name}').",
-                baseTypeRef);
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.BaseTypeKindMismatch, baseTypeRef, null, ownerKind, baseKind, name);
             return true;
         }
 
@@ -127,19 +125,13 @@ internal sealed class BaseTypeResolver
 
         if(resolved is ConcreteTypeDefinition)
         {
-            context.ReportError(
-                "MIST_PM_CONCRETE_IN_ABSTRACT_LIST",
-                $"A concrete type ('{name}') cannot appear in the abstract implementations list. Only the first entry may be a concrete base type.",
-                baseTypeRef);
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.ConcreteInAbstractList, baseTypeRef, null, name);
             return;
         }
 
         if(resolved is not AbstractType abstractDef)
         {
-            context.ReportError(
-                "MIST_PM_INVALID_BASE_TYPE",
-                $"'{name}' is not an abstract and cannot be used as a base type.",
-                baseTypeRef);
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.InvalidBaseType, baseTypeRef, null, name);
             return;
         }
 

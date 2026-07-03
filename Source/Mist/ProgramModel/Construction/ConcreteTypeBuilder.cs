@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Mist.Common.Collections;
+using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Model;
 
@@ -106,10 +107,7 @@ internal sealed class ConcreteTypeBuilder
                 break;
 
             default:
-                context.ReportError(
-                    "MIST_PM_UNKNOWN_MEMBER",
-                    $"Internal compiler error: unrecognized member declaration node '{member.GetType().Name}'.",
-                    member);
+                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownMember, member, null, member.GetType().Name);
                 break;
         }
     }

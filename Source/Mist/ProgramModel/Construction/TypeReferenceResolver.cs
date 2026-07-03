@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.TypeReferences;
@@ -141,10 +142,7 @@ internal sealed class TypeReferenceResolver
                 return new NamedTypeReference(nestedType);
             }
 
-            context.ReportError(
-                "MIST_PM_UNRESOLVED_TYPE",
-                $"The type '{qualifiedName}' could not be found.",
-                namedRef);
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnresolvedType, namedRef, null, qualifiedName);
             return ErrorTypeReference.Instance;
         }
 
@@ -248,10 +246,7 @@ internal sealed class TypeReferenceResolver
             current = current.Parent;
         }
 
-        context.ReportError(
-            "MIST_PM_UNRESOLVED_TYPE",
-            $"The type '{name}' could not be found.",
-            locationNode);
+        context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnresolvedType, locationNode, null, name);
 
         return null;
     }
@@ -381,10 +376,7 @@ internal sealed class TypeReferenceResolver
 
     private ITypeReference ReportUnknownTypeRefNode(SingleTypeRefNode node)
     {
-        context.ReportError(
-            "MIST_PM_UNKNOWN_TYPE_REF_NODE",
-            $"Internal compiler error: unrecognized type reference node '{node.GetType().Name}'.",
-            node);
+        context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownTypeRefNode, node, null, node.GetType().Name);
         return ErrorTypeReference.Instance;
     }
 }

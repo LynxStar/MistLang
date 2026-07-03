@@ -30,11 +30,10 @@ public sealed class ProgramModelBuilder
         if(asts.Length != compilation.Units.Length)
         {
             diagnostics.Add(new Diagnostic(
-                new DiagnosticId("MIST_INTERNAL_AST_UNIT_MISMATCH"),
-                DiagnosticSeverity.Error,
-                PipelineStage.SemanticModelConstruction,
-                $"Internal compiler error: AST count ({asts.Length}) does not match compilation unit count ({compilation.Units.Length}). " +
-                "This indicates a driver bug where a failed lex/parse dropped an AST without dropping its corresponding compilation unit.",
+                ProgramModelDiagnostics.AstUnitMismatch.Id,
+                ProgramModelDiagnostics.AstUnitMismatch.DefaultSeverity,
+                ProgramModelDiagnostics.AstUnitMismatch.Stage,
+                string.Format(ProgramModelDiagnostics.AstUnitMismatch.MessageTemplate, asts.Length, compilation.Units.Length),
                 Location: default,
                 CompilationUnitPath: "<internal>",
                 AnalyzerName: null));

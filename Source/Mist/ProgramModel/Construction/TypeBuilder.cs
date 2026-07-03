@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Mist.Common.Diagnostics;
 using Mist.Common.Source;
 using Mist.Generated;
 using Mist.ProgramModel.Model;
@@ -218,10 +219,7 @@ internal sealed class TypeBuilder
                 return new EnumDefinition(et.EnumDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType);
 
             default:
-                context.ReportError(
-                    "MIST_INTERNAL_UNKNOWN_TYPE_DECL",
-                    $"Internal compiler error: unrecognized type declaration node '{typeDecl.GetType().Name}'.",
-                    typeDecl);
+                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownTypeDeclaration, typeDecl, null, typeDecl.GetType().Name);
                 return null;
         }
     }

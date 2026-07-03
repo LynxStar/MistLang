@@ -1,4 +1,5 @@
 using Mist.Common.Collections;
+using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Model;
 
@@ -81,10 +82,7 @@ internal sealed class AbstractTypeBuilder
                 break;
 
             default:
-                context.ReportError(
-                    "MIST_PM_UNKNOWN_ABSTRACT_MEMBER",
-                    $"Internal compiler error: unrecognized abstract member declaration node '{member.GetType().Name}'.",
-                    member);
+                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownAbstractMember, member, null, member.GetType().Name);
                 break;
         }
     }

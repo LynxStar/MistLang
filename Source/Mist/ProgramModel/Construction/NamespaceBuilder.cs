@@ -1,3 +1,4 @@
+using Mist.Common.Diagnostics;
 using Mist.Common.Source;
 using Mist.Generated;
 using Mist.ProgramModel.Model;
@@ -84,18 +85,12 @@ internal sealed class NamespaceBuilder
 
                 if(fileScopedCount > 1)
                 {
-                    context.ReportError(
-                        "MIST0301",
-                        "Only one file-scoped namespace is permitted per file.",
-                        nsDecl);
+                    context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.DuplicateFileScopedNamespace, nsDecl, null);
                     hasErrors = true;
                 }
                 else if(hasBlockNamespace)
                 {
-                    context.ReportError(
-                        "MIST0302",
-                        "File-scoped and block namespaces cannot be mixed in the same file.",
-                        nsDecl);
+                    context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.MixedNamespaceStyles, nsDecl, null);
                     hasErrors = true;
                 }
 
@@ -106,10 +101,7 @@ internal sealed class NamespaceBuilder
             {
                 if(hasFileScopedNamespace)
                 {
-                    context.ReportError(
-                        "MIST0302",
-                        "File-scoped and block namespaces cannot be mixed in the same file.",
-                        nsDecl);
+                    context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.MixedNamespaceStyles, nsDecl, null);
                     hasErrors = true;
                 }
 
@@ -140,10 +132,7 @@ internal sealed class NamespaceBuilder
 
             if(nestedNsDecl is FileScopedNamespaceNamespaceDeclarationNode)
             {
-                context.ReportError(
-                    "MIST0305",
-                    "File-scoped namespace declarations cannot appear inside a block namespace.",
-                    nestedNsDecl);
+                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.FileScopedInsideBlock, nestedNsDecl, null);
             }
             else if(nestedNsDecl is BlockNamespaceNamespaceDeclarationNode)
             {
@@ -272,10 +261,7 @@ internal sealed class NamespaceBuilder
                 qualifiedId = blockNs.Name;
                 break;
             default:
-                context.ReportError(
-                    "MIST_INTERNAL_UNEXPECTED_NS_NODE",
-                    $"Internal compiler error: unexpected namespace declaration node type '{namespaceNode.GetType().Name}'.",
-                    namespaceNode);
+                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnexpectedNamespaceNode, namespaceNode, null, namespaceNode.GetType().Name);
                 return "<error>";
         }
 

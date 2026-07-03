@@ -1,4 +1,3 @@
-using Mist.Common.Collections;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Model;
@@ -44,10 +43,15 @@ internal sealed class PropertyBuilder
     {
         var name = exprProp.Name.Lexeme;
         var type = typeResolver.Resolve(exprProp.Type, typeDef.Scope);
-        var isStatic = exprProp.Modifiers.HasAny<ModifierNode, StaticModifierModifierNode>();
+        var modifiers = ModifierBuilder.Build(exprProp.Modifiers, context.Diagnostics, exprProp);
+
+        if(modifiers.IsAsync)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AsyncOnlyOnMethods, exprProp, null);
+        }
 
         var getter = new PropertyAccessor { ExpressionBody = new Expression(exprProp.Body) };
-        var property = new Property(name, type, isStatic) { Getter = getter };
+        var property = new Property(name, type, modifiers) { Getter = getter };
         typeDef.PropertiesList.Add(property);
     }
 
@@ -55,7 +59,12 @@ internal sealed class PropertyBuilder
     {
         var name = blockProp.Name.Lexeme;
         var type = typeResolver.Resolve(blockProp.Type, typeDef.Scope);
-        var isStatic = blockProp.Modifiers.HasAny<ModifierNode, StaticModifierModifierNode>();
+        var modifiers = ModifierBuilder.Build(blockProp.Modifiers, context.Diagnostics, blockProp);
+
+        if(modifiers.IsAsync)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AsyncOnlyOnMethods, blockProp, null);
+        }
 
         PropertyAccessor? getter = null;
         PropertyAccessor? setter = null;
@@ -82,7 +91,7 @@ internal sealed class PropertyBuilder
             };
         }
 
-        var property = new Property(name, type, isStatic)
+        var property = new Property(name, type, modifiers)
         {
             Getter = getter,
             Setter = setter,

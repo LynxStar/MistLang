@@ -9,13 +9,13 @@ namespace Mist.ProgramModel.Model;
 internal sealed class Property(
     string name,
     IMistType type,
-    bool isStatic) : IProperty
+    MemberModifiers modifiers) : IProperty
 {
     public string Name { get; } = name;
 
     public IMistType Type { get; } = type;
 
-    public bool IsStatic { get; } = isStatic;
+    public MemberModifiers Modifiers { get; } = modifiers;
 
     /// <summary>
     /// The getter accessor, or null if the property has no getter.

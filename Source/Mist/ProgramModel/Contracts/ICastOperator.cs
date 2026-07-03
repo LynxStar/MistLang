@@ -15,4 +15,7 @@ public interface ICastOperator
 
     /// <summary>Whether this is an implicit conversion (true) or explicit (false).</summary>
     bool IsImplicit { get; }
+
+    /// <summary>The modifiers declared on this cast operator.</summary>
+    MemberModifiers Modifiers { get; }
 }

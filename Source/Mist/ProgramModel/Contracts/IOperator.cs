@@ -15,4 +15,7 @@ public interface IOperator
 
     /// <summary>The operator parameters.</summary>
     IReadOnlyList<IParameter> Parameters { get; }
+
+    /// <summary>The modifiers declared on this operator.</summary>
+    MemberModifiers Modifiers { get; }
 }

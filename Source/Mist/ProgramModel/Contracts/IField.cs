@@ -17,9 +17,6 @@ public interface IField
     /// <summary>The ownership classification of this field.</summary>
     OwnershipKind Ownership { get; }
 
-    /// <summary>Whether the field is readonly.</summary>
-    bool IsReadonly { get; }
-
-    /// <summary>Whether the field is static.</summary>
-    bool IsStatic { get; }
+    /// <summary>The modifiers declared on this field.</summary>
+    MemberModifiers Modifiers { get; }
 }

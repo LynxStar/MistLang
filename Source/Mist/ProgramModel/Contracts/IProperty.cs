@@ -13,6 +13,6 @@ public interface IProperty
     /// <summary>The resolved type of the property.</summary>
     IMistType Type { get; }
 
-    /// <summary>Whether the property is static.</summary>
-    bool IsStatic { get; }
+    /// <summary>The modifiers declared on this property.</summary>
+    MemberModifiers Modifiers { get; }
 }

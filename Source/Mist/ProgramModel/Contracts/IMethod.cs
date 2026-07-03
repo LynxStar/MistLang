@@ -16,9 +16,6 @@ public interface IMethod
     /// <summary>The method parameters.</summary>
     IReadOnlyList<IParameter> Parameters { get; }
 
-    /// <summary>Whether the method is static.</summary>
-    bool IsStatic { get; }
-
-    /// <summary>Whether the method is async.</summary>
-    bool IsAsync { get; }
+    /// <summary>The modifiers declared on this method.</summary>
+    MemberModifiers Modifiers { get; }
 }

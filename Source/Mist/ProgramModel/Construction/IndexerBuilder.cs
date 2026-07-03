@@ -1,4 +1,3 @@
-using Mist.Common.Collections;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Model;
@@ -31,8 +30,13 @@ internal sealed class IndexerBuilder
     public void Resolve(IndexerDeclarationNode indexerDecl, MemberType typeDef, bool isAbstract)
     {
         var type = typeResolver.Resolve(indexerDecl.Type, typeDef.Scope);
-        var isStatic = indexerDecl.Modifiers.HasAny<ModifierNode, StaticModifierModifierNode>();
+        var modifiers = ModifierBuilder.Build(indexerDecl.Modifiers, context.Diagnostics, indexerDecl);
         var parameters = parameterBuilder.Resolve(indexerDecl.Parameters, typeDef.Scope);
+
+        if(modifiers.IsAsync)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AsyncOnlyOnMethods, indexerDecl, null);
+        }
 
         PropertyAccessor? getter = null;
         PropertyAccessor? setter = null;
@@ -68,7 +72,7 @@ internal sealed class IndexerBuilder
             }
         }
 
-        var indexer = new Indexer(type, parameters, isStatic) { Getter = getter, Setter = setter };
+        var indexer = new Indexer(type, parameters, modifiers) { Getter = getter, Setter = setter };
 
         if(getter is null && setter is null)
         {

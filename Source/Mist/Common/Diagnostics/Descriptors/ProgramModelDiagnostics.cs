@@ -151,4 +151,20 @@ public static class ProgramModelDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
         "Abstract types cannot declare init accessors on property '{0}' because abstract types cannot be instantiated.");
+
+    // ── Modifier validation ──────────────────────────────────────────────
+
+    /// <summary>A member cannot be both public and private.</summary>
+    public static readonly DiagnosticDescriptor ConflictingAccessModifiers = new(
+        new DiagnosticId("MIST_PM_CONFLICTING_ACCESS"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "A member cannot be both 'public' and 'private'.");
+
+    /// <summary>The 'async' modifier is only valid on methods.</summary>
+    public static readonly DiagnosticDescriptor AsyncOnlyOnMethods = new(
+        new DiagnosticId("MIST_PM_ASYNC_NOT_ALLOWED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "The 'async' modifier is only valid on methods.");
 }

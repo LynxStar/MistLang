@@ -9,11 +9,14 @@ namespace Mist.ProgramModel.Model;
 internal sealed class CastOperator(
     IMistType targetType,
     IParameter sourceParameter,
-    bool isImplicit) : ICastOperator
+    bool isImplicit,
+    MemberModifiers modifiers) : ICastOperator
 {
     public IMistType TargetType { get; } = targetType;
 
     public IParameter SourceParameter { get; } = sourceParameter;
 
     public bool IsImplicit { get; } = isImplicit;
+
+    public MemberModifiers Modifiers { get; } = modifiers;
 }

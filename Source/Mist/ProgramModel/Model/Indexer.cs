@@ -9,13 +9,13 @@ namespace Mist.ProgramModel.Model;
 internal sealed class Indexer(
     IMistType type,
     IReadOnlyList<IParameter> parameters,
-    bool isStatic) : IIndexer
+    MemberModifiers modifiers) : IIndexer
 {
     public IMistType Type { get; } = type;
 
     public IReadOnlyList<IParameter> Parameters { get; } = parameters;
 
-    public bool IsStatic { get; } = isStatic;
+    public MemberModifiers Modifiers { get; } = modifiers;
 
     /// <summary>
     /// The getter accessor, or null if the indexer has no getter.

@@ -11,8 +11,7 @@ internal sealed class Field(
     string name,
     IMistType type,
     OwnershipKind ownership,
-    bool isReadonly,
-    bool isStatic,
+    MemberModifiers modifiers,
     FieldDeclarationNode declarationNode) : IField
 {
     public string Name { get; } = name;
@@ -21,9 +20,7 @@ internal sealed class Field(
 
     public OwnershipKind Ownership { get; } = ownership;
 
-    public bool IsReadonly { get; } = isReadonly;
-
-    public bool IsStatic { get; } = isStatic;
+    public MemberModifiers Modifiers { get; } = modifiers;
 
     /// <summary>
     /// The field initializer expression, or null if none.

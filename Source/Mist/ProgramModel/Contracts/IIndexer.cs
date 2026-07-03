@@ -13,6 +13,6 @@ public interface IIndexer
     /// <summary>The indexer parameters.</summary>
     IReadOnlyList<IParameter> Parameters { get; }
 
-    /// <summary>Whether the indexer is static.</summary>
-    bool IsStatic { get; }
+    /// <summary>The modifiers declared on this indexer.</summary>
+    MemberModifiers Modifiers { get; }
 }

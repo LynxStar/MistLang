@@ -111,11 +111,15 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
         var name = fieldDecl.Name.Lexeme;
         var type = TypeResolver.Resolve(fieldDecl.Type, typeDef.Scope);
         var ownership = ResolveOwnership(fieldDecl.OwnershipSpecifier);
-        var isReadonly = fieldDecl.Modifiers.HasAny<ModifierNode, ReadonlyModifierModifierNode>();
-        var isStatic = fieldDecl.Modifiers.HasAny<ModifierNode, StaticModifierModifierNode>();
+        var modifiers = ModifierBuilder.Build(fieldDecl.Modifiers, Context.Diagnostics, fieldDecl);
         var initializer = fieldDecl.Initializer is { } initExpr ? new Expression(initExpr) : null;
 
-        var field = new Field(name, type, ownership, isReadonly, isStatic, fieldDecl) { Initializer = initializer };
+        if(modifiers.IsAsync)
+        {
+            Context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AsyncOnlyOnMethods, fieldDecl, null);
+        }
+
+        var field = new Field(name, type, ownership, modifiers, fieldDecl) { Initializer = initializer };
         typeDef.FieldsList.Add(field);
     }
 

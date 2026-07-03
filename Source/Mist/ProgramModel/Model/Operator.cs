@@ -9,11 +9,14 @@ namespace Mist.ProgramModel.Model;
 internal sealed class Operator(
     string operatorToken,
     IMistType returnType,
-    IReadOnlyList<IParameter> parameters) : IOperator
+    IReadOnlyList<IParameter> parameters,
+    MemberModifiers modifiers) : IOperator
 {
     public string OperatorToken { get; } = operatorToken;
 
     public IMistType ReturnType { get; } = returnType;
 
     public IReadOnlyList<IParameter> Parameters { get; } = parameters;
+
+    public MemberModifiers Modifiers { get; } = modifiers;
 }

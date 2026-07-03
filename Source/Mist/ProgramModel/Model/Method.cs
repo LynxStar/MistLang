@@ -10,8 +10,7 @@ internal sealed class Method(
     string name,
     IMistType returnType,
     IReadOnlyList<IParameter> parameters,
-    bool isStatic,
-    bool isAsync) : IMethod
+    MemberModifiers modifiers) : IMethod
 {
     public string Name { get; } = name;
 
@@ -19,7 +18,5 @@ internal sealed class Method(
 
     public IReadOnlyList<IParameter> Parameters { get; } = parameters;
 
-    public bool IsStatic { get; } = isStatic;
-
-    public bool IsAsync { get; } = isAsync;
+    public MemberModifiers Modifiers { get; } = modifiers;
 }

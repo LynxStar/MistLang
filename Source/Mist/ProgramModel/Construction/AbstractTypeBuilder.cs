@@ -11,9 +11,12 @@ namespace Mist.ProgramModel.Construction;
 /// </summary>
 internal sealed class AbstractTypeBuilder : MemberTypeBuilder
 {
+    private readonly TypeSlotBuilder typeSlotBuilder;
+
     public AbstractTypeBuilder(BuilderContext context, TypeReferenceResolver typeResolver)
         : base(context, typeResolver)
     {
+        typeSlotBuilder = new TypeSlotBuilder(context);
     }
 
     /// <summary>
@@ -74,14 +77,32 @@ internal sealed class AbstractTypeBuilder : MemberTypeBuilder
                 OperatorBuilder.Resolve(opMember.Operator, typeDef);
                 break;
 
-            case AssociatedTypeMemberMemberDeclarationNode:
-            case UnconstrainedAssociatedTypeMemberMemberDeclarationNode:
-                // Associated type slots — out of scope for now.
+            case AssociatedTypeMemberMemberDeclarationNode assocType:
+                typeSlotBuilder.Resolve(assocType.AssociatedType, typeDef);
+                break;
+
+            case UnconstrainedAssociatedTypeMemberMemberDeclarationNode unconstrainedAssocType:
+                TypeSlotBuilder.ResolveUnconstrained(unconstrainedAssocType.UnconstrainedAssociatedType, typeDef);
+                break;
+
+            case ModifiedAssociatedTypeMemberMemberDeclarationNode modifiedAssocType:
+                typeSlotBuilder.ResolveModified(modifiedAssocType.ModifiedAssociatedType, typeDef);
+                break;
+
+            case NestedTypeMemberMemberDeclarationNode:
+                // Nested types are already registered.
+                break;
+
+            case FieldMemberMemberDeclarationNode:
+            case ConstructorMemberMemberDeclarationNode:
+            case CastOperatorMemberMemberDeclarationNode:
+            case DefaultBlockMemberMemberDeclarationNode:
+            case MemberTypeAliasMemberMemberDeclarationNode:
+                Context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.MemberNotAllowedOnAbstract, member, null);
                 break;
 
             default:
-                Context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownAbstractMember, member, null, member.GetType().Name);
-                break;
+                throw new InvalidOperationException($"Unrecognized member declaration node: {member.GetType().Name}");
         }
     }
 }

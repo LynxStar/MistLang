@@ -1,4 +1,5 @@
 using Mist.Generated;
+using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
 
 namespace Mist.ProgramModel.Model.Types;
@@ -9,4 +10,9 @@ namespace Mist.ProgramModel.Model.Types;
 internal sealed class AbstractType(
     string name, string namespaceName, Scope scope, MistType? declaringType, TypeDeclarationNode declarationNode)
     : MemberType(name, namespaceName, scope, declaringType, declarationNode),
-    IAbstractType;
+    IAbstractType
+{
+    public List<TypeSlot> TypeSlotsList { get; } = [];
+
+    IReadOnlyList<ITypeSlot> IAbstractType.TypeSlots => TypeSlotsList;
+}

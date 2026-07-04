@@ -104,15 +104,18 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
 
             case NestedTypeMemberMemberDeclarationNode:
             case DefaultBlockMemberMemberDeclarationNode:
-            case AssociatedTypeMemberMemberDeclarationNode:
-            case UnconstrainedAssociatedTypeMemberMemberDeclarationNode:
             case MemberTypeAliasMemberMemberDeclarationNode:
                 // Nested types are already registered; others are out of scope.
                 break;
 
-            default:
-                Context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownMember, member, null, member.GetType().Name);
+            case AssociatedTypeMemberMemberDeclarationNode:
+            case UnconstrainedAssociatedTypeMemberMemberDeclarationNode:
+            case ModifiedAssociatedTypeMemberMemberDeclarationNode:
+                Context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.TypeSlotNotAllowedOnConcrete, member, null);
                 break;
+
+            default:
+                throw new InvalidOperationException($"Unrecognized member declaration node: {member.GetType().Name}");
         }
     }
 

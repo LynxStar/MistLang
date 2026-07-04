@@ -239,4 +239,18 @@ public static class ProgramModelDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
         "Operators must have a body unless declared on an abstract type.");
+
+    /// <summary>A member kind is not permitted on an abstract type.</summary>
+    public static readonly DiagnosticDescriptor MemberNotAllowedOnAbstract = new(
+        new DiagnosticId("MIST_PM_MEMBER_NOT_ALLOWED_ON_ABSTRACT"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "This member is not permitted on abstract types.");
+
+    /// <summary>A type slot is not permitted on a concrete type.</summary>
+    public static readonly DiagnosticDescriptor TypeSlotNotAllowedOnConcrete = new(
+        new DiagnosticId("MIST_PM_TYPE_SLOT_NOT_ALLOWED_ON_CONCRETE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "Type slots are only permitted on abstract types.");
 }

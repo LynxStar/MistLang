@@ -9,6 +9,7 @@
     { "include": "#character-classes" },
     { "include": "#mode-blocks" },
     { "include": "#action-clauses" },
+    { "include": "#trait-bindings" },
     { "include": "#definition-names" },
     { "include": "#alternative-labels" },
     { "include": "#labeled-fields" },
@@ -75,8 +76,17 @@
         }
       ]
     },
+    "trait-bindings": {
+      "match": "\\b(rule)\\s+(\\w+)\\s*(:)\\s*(\\w+(?:\\s*,\\s*\\w+)*)",
+      "captures": {
+        "1": { "name": "storage.type.storm" },
+        "2": { "name": "entity.name.function.storm" },
+        "3": { "name": "punctuation.separator.storm" },
+        "4": { "name": "entity.other.inherited-class.storm" }
+      }
+    },
     "definition-names": {
-      "match": "\\b(token|rule|fragment)\\s+(\\w+)",
+      "match": "\\b(token|rule|fragment|trait)\\s+(\\w+)",
       "captures": {
         "1": { "name": "storage.type.storm" },
         "2": { "name": "entity.name.function.storm" }
@@ -118,7 +128,7 @@
     },
     "storage-types": {
       "name": "storage.type.storm",
-      "match": "\\b(token|hidden|fragment|rule|mode|inline)\\b"
+      "match": "\\b(token|hidden|fragment|rule|mode|inline|trait)\\b"
     },
     "as-keyword": {
       "name": "keyword.operator.storm",

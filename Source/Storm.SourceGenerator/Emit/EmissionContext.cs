@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using Storm.SourceGenerator.Analyze;
 using Storm.SourceGenerator.IR;
 
@@ -34,11 +36,32 @@ public sealed class EmissionContext
     /// </summary>
     public MemoizationPlan Memoization { get; }
 
-    public EmissionContext(string consumerNamespace, string grammarName, GrammarIR grammar, MemoizationPlan? memoization = null)
+    /// <summary>
+    /// All trait declarations in the grammar, lowered to IR.
+    /// Empty when no traits are declared.
+    /// </summary>
+    public IReadOnlyList<TraitIR> Traits { get; }
+
+    /// <summary>
+    /// Maps rule names to their bound traits (resolved, including propagated inline block traits).
+    /// Empty when no rules bind traits.
+    /// </summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<TraitIR>> RuleTraitBindings { get; }
+
+    public EmissionContext(
+        string consumerNamespace,
+        string grammarName,
+        GrammarIR grammar,
+        MemoizationPlan? memoization = null,
+        IReadOnlyList<TraitIR>? traits = null,
+        IReadOnlyDictionary<string, IReadOnlyList<TraitIR>>? ruleTraitBindings = null)
     {
         ConsumerNamespace = consumerNamespace;
         GrammarName = grammarName;
         Grammar = grammar;
         Memoization = memoization ?? MemoizationPlan.Empty;
+        Traits = traits ?? Array.Empty<TraitIR>();
+        RuleTraitBindings = ruleTraitBindings
+            ?? new Dictionary<string, IReadOnlyList<TraitIR>>();
     }
 }

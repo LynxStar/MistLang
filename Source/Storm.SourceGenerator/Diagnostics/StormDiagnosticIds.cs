@@ -54,4 +54,25 @@ public static class StormDiagnosticIds
 
     /// <summary>An inline block arm's target rule does not begin with a reference to the declared prefix rule.</summary>
     public static string STORM_INLINE_PREFIX_MISMATCH { get; } = "STORM0017";
+
+    /// <summary>Trait field type '{typeName}' in trait '{traitName}' cannot be resolved to a token or rule.</summary>
+    public static string STORM_TRAIT_FIELD_UNRESOLVED { get; } = "STORM0018";
+
+    /// <summary>Trait binding '{traitName}' on rule '{ruleName}' cannot be resolved to a declared trait.</summary>
+    public static string STORM_TRAIT_BINDING_UNRESOLVED { get; } = "STORM0019";
+
+    /// <summary>Rule '{ruleName}' binds trait '{traitName}' but is missing field '{fieldName}'.</summary>
+    public static string STORM_TRAIT_FIELD_MISSING { get; } = "STORM0020";
+
+    /// <summary>Rule '{ruleName}' field '{fieldName}' has type '{actual}' but trait '{traitName}' requires '{expected}'.</summary>
+    public static string STORM_TRAIT_FIELD_MISMATCH { get; } = "STORM0021";
+
+    /// <summary>Rule '{ruleName}' has named alternatives and cannot bind traits.</summary>
+    public static string STORM_TRAIT_MULTI_ALT { get; } = "STORM0022";
+
+    /// <summary>Trait '{traitName}' composes '{composedName}' which is not a declared trait.</summary>
+    public static string STORM_TRAIT_COMPOSED_UNRESOLVED { get; } = "STORM0023";
+
+    /// <summary>Inline arm target rule '{targetName}' does not satisfy trait '{traitName}' bound on rule '{ruleName}'.</summary>
+    public static string STORM_TRAIT_INLINE_ARM_UNSATISFIED { get; } = "STORM0024";
 }

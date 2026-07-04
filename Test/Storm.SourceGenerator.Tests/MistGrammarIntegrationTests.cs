@@ -1,6 +1,10 @@
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Storm.SourceGenerator.Diagnostics;
 using Storm.SourceGenerator.Emit;
 using Storm.SourceGenerator.IR;
 using Storm.SourceGenerator.Resolve;
+using Storm.SourceGenerator.Validate;
 
 namespace Storm.SourceGenerator.Tests;
 
@@ -73,7 +77,7 @@ public class MistGrammarIntegrationTests
 
     /// <summary>
     /// Processes the full Mist grammar through the source generator pipeline
-    /// and returns the EmissionContext.
+    /// and returns the EmissionContext (including trait IR, mirroring the real pipeline).
     /// </summary>
     private static EmissionContext BuildMistEmissionContext()
     {
@@ -90,6 +94,11 @@ public class MistGrammarIntegrationTests
             string.Join(", ", resolution.Diagnostics.Select(d => d.Message)));
 
         var stormGrammar = StormGrammar.Build(resolution);
+
+        var traitValidationDiags = TraitValidationPass.Run(stormGrammar);
+        Assert.DoesNotContain(traitValidationDiags,
+            d => d.Severity == StormDiagnosticSeverity.Error);
+
         var loweringResult = GrammarIRLowering.Lower(stormGrammar);
 
         Assert.True(loweringResult.Succeeded,
@@ -97,7 +106,12 @@ public class MistGrammarIntegrationTests
             string.Join(", ", loweringResult.Diagnostics.Select(d => d.Message)));
         Assert.NotNull(loweringResult.Grammar);
 
-        return new EmissionContext("Mist.Generated", "Mist", loweringResult.Grammar!);
+        var traitBuildResult = TraitIRBuilder.Build(stormGrammar);
+
+        return new EmissionContext(
+            "Mist.Generated", "Mist", loweringResult.Grammar!,
+            traits: traitBuildResult.Traits,
+            ruleTraitBindings: traitBuildResult.RuleTraitBindings);
     }
 
     // Cache the Context and AST output across tests in this class
@@ -239,5 +253,210 @@ public class MistGrammarIntegrationTests
         // Children() should yield the Initializer when non-null
         Assert.Contains("if (Initializer != null)", fieldNodeSection);
         Assert.Contains("yield return Initializer", fieldNodeSection);
+    }
+
+    // ---------------------------------------------------------------
+    //  11.2 — ICallableDeclarationNode interface emission
+    // ---------------------------------------------------------------
+
+    [Fact]
+    public void MistGrammar_ICallableDeclarationNode_InterfaceIsEmitted()
+    {
+        var output = AstOutput.Value;
+
+        Assert.Contains("public interface ICallableDeclarationNode", output);
+    }
+
+    [Fact]
+    public void MistGrammar_ICallableDeclarationNode_HasAttributesProperty()
+    {
+        var output = AstOutput.Value;
+
+        var interfaceSection = ExtractInterfaceSection(output, "ICallableDeclarationNode");
+        Assert.Contains("ImmutableArray<AttributeListNode> Attributes { get; }", interfaceSection);
+    }
+
+    [Fact]
+    public void MistGrammar_ICallableDeclarationNode_HasModifiersProperty()
+    {
+        var output = AstOutput.Value;
+
+        var interfaceSection = ExtractInterfaceSection(output, "ICallableDeclarationNode");
+        Assert.Contains("ImmutableArray<ModifierNode> Modifiers { get; }", interfaceSection);
+    }
+
+    [Fact]
+    public void MistGrammar_ICallableDeclarationNode_HasParametersProperty()
+    {
+        var output = AstOutput.Value;
+
+        var interfaceSection = ExtractInterfaceSection(output, "ICallableDeclarationNode");
+        Assert.Contains("ParameterListNode? Parameters { get; }", interfaceSection);
+    }
+
+    [Fact]
+    public void MistGrammar_ICallableDeclarationNode_HasWithClausesProperty()
+    {
+        var output = AstOutput.Value;
+
+        var interfaceSection = ExtractInterfaceSection(output, "ICallableDeclarationNode");
+        Assert.Contains("ImmutableArray<WithClauseNode> WithClauses { get; }", interfaceSection);
+    }
+
+    [Fact]
+    public void MistGrammar_ICallableDeclarationNode_HasConstraintsProperty()
+    {
+        var output = AstOutput.Value;
+
+        var interfaceSection = ExtractInterfaceSection(output, "ICallableDeclarationNode");
+        Assert.Contains("ImmutableArray<WhereClauseNode> Constraints { get; }", interfaceSection);
+    }
+
+    [Fact]
+    public void MistGrammar_ICallableDeclarationNode_HasBodyProperty()
+    {
+        var output = AstOutput.Value;
+
+        var interfaceSection = ExtractInterfaceSection(output, "ICallableDeclarationNode");
+        Assert.Contains("MethodBodyNode Body { get; }", interfaceSection);
+    }
+
+    [Fact]
+    public void MistGrammar_ConstructorDeclarationNode_ImplementsICallableDeclarationNode()
+    {
+        var output = AstOutput.Value;
+
+        var classDecl = ExtractClassDeclarationLine(output, "ConstructorDeclarationNode");
+        Assert.Contains("ICallableDeclarationNode", classDecl);
+    }
+
+    [Fact]
+    public void MistGrammar_MethodDeclarationNode_ImplementsICallableDeclarationNode()
+    {
+        var output = AstOutput.Value;
+
+        var classDecl = ExtractClassDeclarationLine(output, "MethodDeclarationNode");
+        Assert.Contains("ICallableDeclarationNode", classDecl);
+    }
+
+    // ---------------------------------------------------------------
+    //  12.2 — Property 9: Zero downstream impact
+    //
+    //  **Validates: Requirement 14**
+    //
+    //  The Mist grammar, when processed through the Storm source
+    //  generator pipeline with traits enabled, SHALL continue to
+    //  produce a valid GrammarIR with zero trait validation errors
+    //  and emit parseable C# source code.
+    // ---------------------------------------------------------------
+
+    [Fact]
+    public void MistGrammar_ZeroDownstreamImpact_NoTraitValidationErrors()
+    {
+        // BuildMistEmissionContext() asserts zero trait validation errors internally.
+        // If it throws, the pipeline has trait validation errors.
+        var context = Context.Value;
+        Assert.NotNull(context);
+    }
+
+    [Fact]
+    public void MistGrammar_ZeroDownstreamImpact_LoweringSucceeds()
+    {
+        // BuildMistEmissionContext() asserts lowering succeeded internally.
+        // Verify the lowered grammar is present and has rules.
+        var context = Context.Value;
+        Assert.NotNull(context.Grammar);
+        Assert.True(context.Grammar.Rules.Count > 0,
+            "Expected lowered GrammarIR to contain at least one rule.");
+    }
+
+    [Fact]
+    public void MistGrammar_ZeroDownstreamImpact_EmittedAstIsNonEmpty()
+    {
+        var output = AstOutput.Value;
+        Assert.False(string.IsNullOrWhiteSpace(output),
+            "Expected emitted AST source to be non-empty.");
+    }
+
+    [Fact]
+    public void MistGrammar_ZeroDownstreamImpact_EmittedAstContainsKnownNodeTypes()
+    {
+        var output = AstOutput.Value;
+
+        // Verify known node types that must always be present in the Mist grammar output
+        Assert.Contains("ICallableDeclarationNode", output);
+        Assert.Contains("MethodDeclarationNode", output);
+        Assert.Contains("ConstructorDeclarationNode", output);
+        Assert.Contains("ExpressionNode", output);
+        Assert.Contains("StatementNode", output);
+    }
+
+    [Fact]
+    public void MistGrammar_ZeroDownstreamImpact_EmittedAstIsParseableCSharp()
+    {
+        var output = AstOutput.Value;
+
+        var syntaxTree = CSharpSyntaxTree.ParseText(output);
+        var diagnostics = syntaxTree.GetDiagnostics()
+            .Where(d => d.Severity == DiagnosticSeverity.Error)
+            .ToList();
+
+        Assert.True(diagnostics.Count == 0,
+            "Emitted AST source has C# parse errors:\n" +
+            string.Join("\n", diagnostics.Select(d => d.ToString())));
+    }
+
+    // ---------------------------------------------------------------
+    //  Helpers for trait integration tests
+    // ---------------------------------------------------------------
+
+    /// <summary>
+    /// Extracts the body section of an interface from the emitted output.
+    /// Tracks brace nesting to handle <c>{ get; }</c> inside properties.
+    /// </summary>
+    private static string ExtractInterfaceSection(string output, string interfaceName)
+    {
+        var marker = $"public interface {interfaceName}";
+        var start = output.IndexOf(marker);
+        Assert.True(start >= 0, $"Expected {interfaceName} in AST output");
+
+        var braceStart = output.IndexOf('{', start);
+        Assert.True(braceStart >= 0, $"Expected opening brace for {interfaceName}");
+
+        var depth = 1;
+        var i = braceStart + 1;
+        while(i < output.Length && depth > 0)
+        {
+            if(output[i] == '{')
+            {
+                depth++;
+            }
+            else if(output[i] == '}')
+            {
+                depth--;
+            }
+
+            i++;
+        }
+
+        return output[braceStart..i];
+    }
+
+    /// <summary>
+    /// Extracts the class declaration line (up to the opening brace) for a given class name.
+    /// </summary>
+    private static string ExtractClassDeclarationLine(string output, string className)
+    {
+        var marker = $"public sealed class {className}";
+        var start = output.IndexOf(marker);
+        Assert.True(start >= 0, $"Expected {className} in AST output");
+
+        var lineEnd = output.IndexOf('\n', start);
+        if(lineEnd < 0)
+        {
+            lineEnd = output.Length;
+        }
+
+        return output[start..lineEnd];
     }
 }

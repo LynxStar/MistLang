@@ -39,6 +39,7 @@ public class StormLexerTests
     [InlineData("import", StormTokenKind.ImportKeyword)]
     [InlineData("grammar", StormTokenKind.GrammarKeyword)]
     [InlineData("as", StormTokenKind.AsKeyword)]
+    [InlineData("trait", StormTokenKind.TraitKeyword)]
     public void Tokenize_Keywords(string keyword, StormTokenKind expectedKind)
     {
         var tokens = ContentTokens(keyword);
@@ -72,6 +73,26 @@ public class StormLexerTests
         _ = Assert.Single(tokens);
         Assert.Equal(StormTokenKind.Identifier, tokens[0].Kind);
         Assert.Equal("rules", tokens[0].Lexeme);
+    }
+
+    [Fact]
+    public void Tokenize_TraitKeyword_WithSuffix_IsIdentifier()
+    {
+        // "traits" starts with "trait" but has additional characters
+        var tokens = ContentTokens("traits");
+        _ = Assert.Single(tokens);
+        Assert.Equal(StormTokenKind.Identifier, tokens[0].Kind);
+        Assert.Equal("traits", tokens[0].Lexeme);
+    }
+
+    [Fact]
+    public void Tokenize_TraitKeyword_CaseMismatch_IsIdentifier()
+    {
+        // "Trait" differs from "trait" only by casing
+        var tokens = ContentTokens("Trait");
+        _ = Assert.Single(tokens);
+        Assert.Equal(StormTokenKind.Identifier, tokens[0].Kind);
+        Assert.Equal("Trait", tokens[0].Lexeme);
     }
 
     // ---------------------------------------------------------------

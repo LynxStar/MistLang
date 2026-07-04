@@ -141,6 +141,7 @@ public static class StormParser
                     case StormTokenKind.TokenKeyword:
                     case StormTokenKind.FragmentKeyword:
                     case StormTokenKind.HiddenKeyword:
+                    case StormTokenKind.TraitKeyword:
                     case StormTokenKind.ImportKeyword:
                     case StormTokenKind.GrammarKeyword:
                     case StormTokenKind.ModeKeyword:
@@ -263,6 +264,8 @@ public static class StormParser
                     return ParseFragmentDecl();
                 case StormTokenKind.HiddenKeyword:
                     return ParseHiddenTokenDecl();
+                case StormTokenKind.TraitKeyword:
+                    return ParseTraitDecl();
                 case StormTokenKind.ModeKeyword:
                     return ParseModeDecl();
                 default:
@@ -303,24 +306,32 @@ public static class StormParser
                 return null;
             }
 
-            // Parse the rule declaration with memo flag
-            var kw = Advance(); // consume 'rule'
-            var nameTok = Expect(StormTokenKind.Identifier, "rule name");
-            _ = Expect(StormTokenKind.Equals, "'='");
-            var body = ParseExpression();
-            _ = Expect(StormTokenKind.Semicolon, "';'");
-            return new StormRuleDecl(nameTok.Lexeme, body, kw.Offset, kw.Line, kw.Column, IsMemo: true);
+            return ParseRuleDecl(isMemo: true);
         }
 
-        /// <summary>rule Name = expression ;</summary>
-        private StormRuleDecl ParseRuleDecl()
+        /// <summary>rule Name (: Trait1, Trait2)? = expression ;</summary>
+        private StormRuleDecl ParseRuleDecl(bool isMemo = false)
         {
             var kw = Advance(); // consume 'rule'
             var nameTok = Expect(StormTokenKind.Identifier, "rule name");
+
+            // Optional trait bindings: : Trait1, Trait2
+            List<string>? traitBindings = null;
+            if(Match(StormTokenKind.Colon))
+            {
+                traitBindings = new List<string>();
+                traitBindings.Add(Expect(StormTokenKind.Identifier, "trait name").Lexeme);
+                while(Match(StormTokenKind.Comma))
+                {
+                    traitBindings.Add(Expect(StormTokenKind.Identifier, "trait name").Lexeme);
+                }
+            }
+
             _ = Expect(StormTokenKind.Equals, "'='");
             var body = ParseExpression();
             _ = Expect(StormTokenKind.Semicolon, "';'");
-            return new StormRuleDecl(nameTok.Lexeme, body, kw.Offset, kw.Line, kw.Column);
+            return new StormRuleDecl(nameTok.Lexeme, body, kw.Offset, kw.Line, kw.Column,
+                                     IsMemo: isMemo, TraitBindings: traitBindings);
         }
 
         /// <summary>token Name = expression ( => push Identifier | => pop )? ;</summary>
@@ -409,6 +420,75 @@ public static class StormParser
             }
 
             return new StormModeDecl(modeName, declarations, kw.Offset, kw.Line, kw.Column);
+        }
+
+        // ----------------------------------------------------------
+        //  Trait declarations
+        // ----------------------------------------------------------
+
+        /// <summary>
+        /// trait Name = field1:Type1 field2:Type2?;
+        /// trait Name : ComposedTrait1, ComposedTrait2 = field1:Type1;
+        /// </summary>
+        private StormTraitDecl ParseTraitDecl()
+        {
+            var kw = Advance(); // consume 'trait'
+            var nameTok = Expect(StormTokenKind.Identifier, "trait name");
+
+            // Optional trait composition: : Trait1, Trait2
+            var composedTraits = new List<string>();
+            if(Match(StormTokenKind.Colon))
+            {
+                composedTraits.Add(Expect(StormTokenKind.Identifier, "trait name").Lexeme);
+                while(Match(StormTokenKind.Comma))
+                {
+                    composedTraits.Add(Expect(StormTokenKind.Identifier, "trait name").Lexeme);
+                }
+            }
+
+            _ = Expect(StormTokenKind.Equals, "'='");
+
+            // Parse space-separated fields until semicolon
+            var fields = new List<StormTraitField>();
+            while(Current.Kind == StormTokenKind.Identifier && Peek(1).Kind == StormTokenKind.Colon)
+            {
+                fields.Add(ParseTraitField());
+            }
+
+            if(fields.Count == 0)
+            {
+                Error("Trait must declare at least one field");
+            }
+
+            _ = Expect(StormTokenKind.Semicolon, "';'");
+            return new StormTraitDecl(nameTok.Lexeme, fields, composedTraits,
+                kw.Offset, kw.Line, kw.Column);
+        }
+
+        /// <summary>
+        /// fieldName:TypeName(?|*|+)?
+        /// </summary>
+        private StormTraitField ParseTraitField()
+        {
+            var fieldNameTok = Advance(); // consume field name identifier
+            _ = Advance(); // consume ':'
+            var typeTok = Expect(StormTokenKind.Identifier, "type name");
+
+            var cardinality = StormFieldCardinality.One;
+            if(Match(StormTokenKind.Question))
+            {
+                cardinality = StormFieldCardinality.Optional;
+            }
+            else if(Match(StormTokenKind.Star))
+            {
+                cardinality = StormFieldCardinality.ZeroOrMore;
+            }
+            else if(Match(StormTokenKind.Plus))
+            {
+                cardinality = StormFieldCardinality.OneOrMore;
+            }
+
+            return new StormTraitField(fieldNameTok.Lexeme, typeTok.Lexeme, cardinality);
         }
 
         // ----------------------------------------------------------

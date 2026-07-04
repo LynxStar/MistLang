@@ -58,12 +58,69 @@ public static class StormPrettyPrinter
         return decl switch
         {
             StormModeDecl mode => PrintModeDecl(mode, indent),
-            StormRuleDecl rule => $"{indent}rule {rule.Name} = {PrintExpression(rule.Body)};\n",
+            StormTraitDecl trait => PrintTraitDecl(trait, indent),
+            StormRuleDecl rule => PrintRuleDecl(rule, indent),
             StormTokenDecl token => $"{indent}token {token.Name} = {PrintExpression(token.Body)}{PrintActionClause(token.Action)};\n",
             StormFragmentDecl fragment => $"{indent}fragment {fragment.Name} = {PrintExpression(fragment.Body)};\n",
             StormHiddenTokenDecl hidden => $"{indent}hidden token {hidden.Name} = {PrintExpression(hidden.Body)}{PrintActionClause(hidden.Action)};\n",
             _ => ""
         };
+    }
+
+    private static string PrintTraitDecl(StormTraitDecl trait, string indent)
+    {
+        var sb = new StringBuilder();
+        _ = sb.Append($"{indent}trait {trait.Name}");
+
+        if(trait.ComposedTraits.Count > 0)
+        {
+            _ = sb.Append(" : ");
+            _ = sb.Append(string.Join(", ", trait.ComposedTraits));
+        }
+
+        _ = sb.Append(" = ");
+
+        for(var i = 0; i < trait.Fields.Count; i++)
+        {
+            if(i > 0)
+            {
+                _ = sb.Append(' ');
+            }
+
+            var field = trait.Fields[i];
+            _ = sb.Append($"{field.FieldName}:{field.TypeName}");
+            _ = sb.Append(field.Cardinality switch
+            {
+                StormFieldCardinality.Optional => "?",
+                StormFieldCardinality.ZeroOrMore => "*",
+                StormFieldCardinality.OneOrMore => "+",
+                _ => ""
+            });
+        }
+
+        _ = sb.AppendLine(";");
+        return sb.ToString();
+    }
+
+    private static string PrintRuleDecl(StormRuleDecl rule, string indent)
+    {
+        var sb = new StringBuilder();
+
+        if(rule.IsMemo)
+        {
+            _ = sb.AppendLine($"{indent}@memo");
+        }
+
+        _ = sb.Append($"{indent}rule {rule.Name}");
+
+        if(rule.TraitBindings is { Count: > 0 })
+        {
+            _ = sb.Append(" : ");
+            _ = sb.Append(string.Join(", ", rule.TraitBindings));
+        }
+
+        _ = sb.Append($" = {PrintExpression(rule.Body)};\n");
+        return sb.ToString();
     }
 
     private static string PrintModeDecl(StormModeDecl mode, string indent)

@@ -548,6 +548,106 @@ rule F = A | C;
     //  Regex literals in expressions
     // ---------------------------------------------------------------
 
+    // ---------------------------------------------------------------
+    //  Trait declarations
+    // ---------------------------------------------------------------
+
+    [Fact]
+    public void Parse_TraitDecl_OneField()
+    {
+        var file = Parse("trait Foo = name:Bar;", out var diags);
+        Assert.Empty(diags);
+        _ = Assert.Single(file.Declarations);
+        var decl = Assert.IsType<StormTraitDecl>(file.Declarations[0]);
+        Assert.Equal("Foo", decl.Name);
+        _ = Assert.Single(decl.Fields);
+        Assert.Equal("name", decl.Fields[0].FieldName);
+        Assert.Equal("Bar", decl.Fields[0].TypeName);
+        Assert.Equal(StormFieldCardinality.One, decl.Fields[0].Cardinality);
+        Assert.Empty(decl.ComposedTraits);
+    }
+
+    [Fact]
+    public void Parse_TraitDecl_MultipleFields_AllCardinalities()
+    {
+        var file = Parse("trait Foo = a:X b:Y? c:Z* d:W+;", out var diags);
+        Assert.Empty(diags);
+        _ = Assert.Single(file.Declarations);
+        var decl = Assert.IsType<StormTraitDecl>(file.Declarations[0]);
+        Assert.Equal("Foo", decl.Name);
+        Assert.Equal(4, decl.Fields.Count);
+
+        Assert.Equal("a", decl.Fields[0].FieldName);
+        Assert.Equal("X", decl.Fields[0].TypeName);
+        Assert.Equal(StormFieldCardinality.One, decl.Fields[0].Cardinality);
+
+        Assert.Equal("b", decl.Fields[1].FieldName);
+        Assert.Equal("Y", decl.Fields[1].TypeName);
+        Assert.Equal(StormFieldCardinality.Optional, decl.Fields[1].Cardinality);
+
+        Assert.Equal("c", decl.Fields[2].FieldName);
+        Assert.Equal("Z", decl.Fields[2].TypeName);
+        Assert.Equal(StormFieldCardinality.ZeroOrMore, decl.Fields[2].Cardinality);
+
+        Assert.Equal("d", decl.Fields[3].FieldName);
+        Assert.Equal("W", decl.Fields[3].TypeName);
+        Assert.Equal(StormFieldCardinality.OneOrMore, decl.Fields[3].Cardinality);
+    }
+
+    [Fact]
+    public void Parse_TraitDecl_FieldOrderPreserved()
+    {
+        var file = Parse("trait T = alpha:A beta:B gamma:C;", out var diags);
+        Assert.Empty(diags);
+        var decl = Assert.IsType<StormTraitDecl>(file.Declarations[0]);
+        Assert.Equal(3, decl.Fields.Count);
+        Assert.Equal("alpha", decl.Fields[0].FieldName);
+        Assert.Equal("beta", decl.Fields[1].FieldName);
+        Assert.Equal("gamma", decl.Fields[2].FieldName);
+    }
+
+    [Fact]
+    public void Parse_TraitDecl_Composition_Single()
+    {
+        var file = Parse("trait B : A = extra:Foo;", out var diags);
+        Assert.Empty(diags);
+        _ = Assert.Single(file.Declarations);
+        var decl = Assert.IsType<StormTraitDecl>(file.Declarations[0]);
+        Assert.Equal("B", decl.Name);
+        _ = Assert.Single(decl.ComposedTraits);
+        Assert.Equal("A", decl.ComposedTraits[0]);
+        _ = Assert.Single(decl.Fields);
+        Assert.Equal("extra", decl.Fields[0].FieldName);
+        Assert.Equal("Foo", decl.Fields[0].TypeName);
+    }
+
+    [Fact]
+    public void Parse_TraitDecl_Composition_Multiple()
+    {
+        var file = Parse("trait C : A, B = extra:Foo;", out var diags);
+        Assert.Empty(diags);
+        _ = Assert.Single(file.Declarations);
+        var decl = Assert.IsType<StormTraitDecl>(file.Declarations[0]);
+        Assert.Equal("C", decl.Name);
+        Assert.Equal(2, decl.ComposedTraits.Count);
+        Assert.Equal("A", decl.ComposedTraits[0]);
+        Assert.Equal("B", decl.ComposedTraits[1]);
+    }
+
+    [Fact]
+    public void Parse_TraitDecl_MissingSemicolon_ReportsError()
+    {
+        _ = Parse("trait Foo = name:Bar", out var diags);
+        Assert.Contains(diags, d => d.Id == StormDiagnosticIds.STORM_SYNTAX_ERROR);
+    }
+
+    [Fact]
+    public void Parse_TraitDecl_ZeroFields_ReportsError()
+    {
+        _ = Parse("trait Foo = ;", out var diags);
+        Assert.Contains(diags, d => d.Id == StormDiagnosticIds.STORM_SYNTAX_ERROR);
+    }
+
     [Fact]
     public void Parse_RegexLiteral_InTokenBody()
     {
@@ -583,5 +683,76 @@ rule F = A | C;
         Assert.Equal("[a-zA-Z_]", first.Pattern);
         var second = Assert.IsType<StormRegexLiteralExpr>(seq.Elements[1]);
         Assert.Equal("[a-zA-Z0-9_]*", second.Pattern);
+    }
+
+    // ---------------------------------------------------------------
+    //  Rule trait binding parsing
+    // ---------------------------------------------------------------
+
+    [Fact]
+    public void Parse_RuleTraitBinding_SingleTrait()
+    {
+        var file = Parse("rule Foo : Bar = name:Name;", out var diags);
+        Assert.Empty(diags);
+        _ = Assert.Single(file.Declarations);
+        var decl = Assert.IsType<StormRuleDecl>(file.Declarations[0]);
+        Assert.Equal("Foo", decl.Name);
+        Assert.NotNull(decl.TraitBindings);
+        Assert.Equal(["Bar"], decl.TraitBindings);
+    }
+
+    [Fact]
+    public void Parse_RuleTraitBinding_TwoTraits()
+    {
+        var file = Parse("rule Foo : Bar, Baz = name:Name;", out var diags);
+        Assert.Empty(diags);
+        _ = Assert.Single(file.Declarations);
+        var decl = Assert.IsType<StormRuleDecl>(file.Declarations[0]);
+        Assert.Equal("Foo", decl.Name);
+        Assert.NotNull(decl.TraitBindings);
+        Assert.Equal(["Bar", "Baz"], decl.TraitBindings);
+    }
+
+    [Fact]
+    public void Parse_RuleTraitBinding_ThreeTraits()
+    {
+        var file = Parse("rule Foo : A, B, C = name:Name;", out var diags);
+        Assert.Empty(diags);
+        _ = Assert.Single(file.Declarations);
+        var decl = Assert.IsType<StormRuleDecl>(file.Declarations[0]);
+        Assert.Equal("Foo", decl.Name);
+        Assert.NotNull(decl.TraitBindings);
+        Assert.Equal(["A", "B", "C"], decl.TraitBindings);
+    }
+
+    [Fact]
+    public void Parse_RuleTraitBinding_WithMemoAnnotation()
+    {
+        var file = Parse("@memo rule Foo : Bar = name:Name;", out var diags);
+        Assert.Empty(diags);
+        _ = Assert.Single(file.Declarations);
+        var decl = Assert.IsType<StormRuleDecl>(file.Declarations[0]);
+        Assert.Equal("Foo", decl.Name);
+        Assert.True(decl.IsMemo);
+        Assert.NotNull(decl.TraitBindings);
+        Assert.Equal(["Bar"], decl.TraitBindings);
+    }
+
+    [Fact]
+    public void Parse_RuleTraitBinding_NoBindingBackwardCompat()
+    {
+        var file = Parse("rule Foo = name:Name;", out var diags);
+        Assert.Empty(diags);
+        _ = Assert.Single(file.Declarations);
+        var decl = Assert.IsType<StormRuleDecl>(file.Declarations[0]);
+        Assert.Equal("Foo", decl.Name);
+        Assert.Null(decl.TraitBindings);
+    }
+
+    [Fact]
+    public void Parse_RuleTraitBinding_ColonButNoIdentifier_ReportsError()
+    {
+        _ = Parse("rule Foo : = name:Name;", out var diags);
+        Assert.Contains(diags, d => d.Id == StormDiagnosticIds.STORM_SYNTAX_ERROR);
     }
 }

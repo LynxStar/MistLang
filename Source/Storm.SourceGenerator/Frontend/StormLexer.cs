@@ -34,6 +34,8 @@ public enum StormTokenKind
     PopKeyword,
     /// <summary>The <c>inline</c> keyword.</summary>
     InlineKeyword,
+    /// <summary>The <c>trait</c> keyword.</summary>
+    TraitKeyword,
 
     // --- Literals and identifiers ---
     /// <summary>An identifier: [a-zA-Z_][a-zA-Z0-9_]*</summary>
@@ -411,6 +413,7 @@ public static class StormLexer
             "push" => StormTokenKind.PushKeyword,
             "pop" => StormTokenKind.PopKeyword,
             "inline" => StormTokenKind.InlineKeyword,
+            "trait" => StormTokenKind.TraitKeyword,
             _ => StormTokenKind.Identifier,
         };
     }

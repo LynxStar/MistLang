@@ -375,7 +375,9 @@ rule IndexerBody
     = LEFT_BRACE accessors:AccessorDeclaration+ RIGHT_BRACE       as BlockIndexerBody
     ;
 
-rule ConstructorDeclaration = attributes:AttributeList* modifiers:Modifier* name:IDENTIFIER LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
+trait CallableDeclaration = attributes:AttributeList* modifiers:Modifier* parameters:ParameterList? withClauses:WithClause* constraints:WhereClause* body:MethodBody;
+
+rule ConstructorDeclaration : CallableDeclaration = attributes:AttributeList* modifiers:Modifier* name:IDENTIFIER LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
                               withClauses:WithClause*
                               constraints:WhereClause*
                               chain:ConstructorChain? body:MethodBody;
@@ -385,7 +387,7 @@ rule ConstructorChain
     | COLON BASE LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS  as BaseChain
     ;
 
-rule MethodDeclaration = attributes:AttributeList* modifiers:Modifier* returnOwnership:OwnershipSpecifier? returnType:TypeReference name:IDENTIFIER
+rule MethodDeclaration : CallableDeclaration = attributes:AttributeList* modifiers:Modifier* returnOwnership:OwnershipSpecifier? returnType:TypeReference name:IDENTIFIER
                          typeParams:TypeParameterList?
                          LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
                          withClauses:WithClause*

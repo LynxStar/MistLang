@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using Storm.SourceGenerator.Frontend;
 using Storm.SourceGenerator.IR;
 
 namespace Storm.SourceGenerator.Emit;
@@ -223,7 +224,14 @@ public static class AstEmitter
 
                 first = false;
 
-                EmitRuleNodeTypes(writer, rule);
+                EmitRuleNodeTypes(writer, rule, context);
+            }
+
+            // Emit trait interfaces after all node classes
+            foreach(var trait in context.Traits)
+            {
+                writer.WriteEmptyLine();
+                EmitTraitInterface(writer, trait);
             }
         });
 
@@ -233,7 +241,7 @@ public static class AstEmitter
     /// <summary>
     /// Emits the AST node type(s) for a single rule.
     /// </summary>
-    private static void EmitRuleNodeTypes(CodeWriter writer, RuleIR rule)
+    private static void EmitRuleNodeTypes(CodeWriter writer, RuleIR rule, EmissionContext context)
     {
         var hasNamedAlternatives = rule.Alternatives.Any(a => a.AlternativeName != null)
             || rule.Alternatives.Any(a => a.Expression is InlineBlockIR);
@@ -244,19 +252,38 @@ public static class AstEmitter
         }
         else
         {
-            EmitSealedNode(writer, rule);
+            EmitSealedNode(writer, rule, context);
         }
     }
 
     /// <summary>
     /// Emits a sealed record for a single-alternative rule (or a rule with no named alternatives).
     /// </summary>
-    private static void EmitSealedNode(CodeWriter writer, RuleIR rule)
+    private static void EmitSealedNode(CodeWriter writer, RuleIR rule, EmissionContext context)
     {
         var nodeTypeName = rule.Name + "Node";
+        var baseType = "SyntaxNode";
         var properties = CollectProperties(rule.Alternatives[0]);
 
-        writer.WriteBlock($"public sealed class {nodeTypeName} : SyntaxNode", () =>
+        // Check for trait interfaces
+        var interfaces = new List<string>();
+        if(context.RuleTraitBindings.TryGetValue(rule.Name, out var traits))
+        {
+            foreach(var trait in traits)
+            {
+                var interfaceName = $"I{trait.Name}Node";
+                if(!interfaces.Contains(interfaceName))
+                {
+                    interfaces.Add(interfaceName);
+                }
+            }
+        }
+
+        var implementsList = interfaces.Count > 0
+            ? $"{baseType}, {string.Join(", ", interfaces)}"
+            : baseType;
+
+        writer.WriteBlock($"public sealed class {nodeTypeName} : {implementsList}", () =>
         {
             // Properties
             foreach(var prop in properties)
@@ -792,6 +819,64 @@ public static class AstEmitter
         }
 
         return candidate;
+    }
+
+    /// <summary>
+    /// Emits a C# interface for a single trait declaration.
+    /// The interface is named <c>I{TraitName}Node</c> and contains get-only properties
+    /// for each field declared on the trait. When the trait composes other traits,
+    /// the emitted interface extends the composed trait interfaces.
+    /// </summary>
+    private static void EmitTraitInterface(CodeWriter writer, TraitIR trait)
+    {
+        var interfaceName = $"I{trait.Name}Node";
+
+        // Build base interface list from composed traits
+        var baseInterfaces = trait.ComposedTraits
+            .Select(ct => $"I{ct.Name}Node")
+            .ToList();
+
+        var declaration = baseInterfaces.Count > 0
+            ? $"public interface {interfaceName} : {string.Join(", ", baseInterfaces)}"
+            : $"public interface {interfaceName}";
+
+        writer.WriteBlock(declaration, () =>
+        {
+            // Only emit properties for this trait's own fields (not composed)
+            foreach(var field in trait.Fields)
+            {
+                var propType = GetTraitPropertyType(field);
+                var propName = PascalCase(field.FieldName);
+                writer.WriteLine($"{propType} {propName} {{ get; }}");
+            }
+        });
+    }
+
+    /// <summary>
+    /// Returns the C# property type for a trait field, based on whether it is a token
+    /// or a rule reference and its cardinality.
+    /// </summary>
+    private static string GetTraitPropertyType(TraitFieldIR field)
+    {
+        if(field.IsToken)
+        {
+            return field.Cardinality switch
+            {
+                StormFieldCardinality.Optional => "Token?",
+                StormFieldCardinality.ZeroOrMore => "ImmutableArray<Token>",
+                StormFieldCardinality.OneOrMore => "ImmutableArray<Token>",
+                _ => "Token"
+            };
+        }
+
+        var nodeType = field.TypeName + "Node";
+        return field.Cardinality switch
+        {
+            StormFieldCardinality.Optional => $"{nodeType}?",
+            StormFieldCardinality.ZeroOrMore => $"ImmutableArray<{nodeType}>",
+            StormFieldCardinality.OneOrMore => $"ImmutableArray<{nodeType}>",
+            _ => nodeType
+        };
     }
 
     /// <summary>

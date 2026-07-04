@@ -6,7 +6,7 @@ namespace Mist.ProgramModel.Model;
 /// <summary>
 /// A method declared on a type.
 /// </summary>
-internal sealed class Method(
+internal class Method(
     string name,
     IMistType returnType,
     IReadOnlyList<IParameter> parameters,

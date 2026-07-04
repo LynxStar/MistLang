@@ -74,15 +74,18 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
                 break;
 
             case PropertyMemberMemberDeclarationNode propertyMember:
-                PropertyBuilder.Resolve(propertyMember.Property, typeDef, isAbstract: false);
+                PropertyBuilder.Resolve(propertyMember.Property, typeDef);
                 break;
 
             case IndexerMemberMemberDeclarationNode indexerMember:
-                IndexerBuilder.Resolve(indexerMember.Indexer, typeDef, isAbstract: false);
+                IndexerBuilder.Resolve(indexerMember.Indexer, typeDef);
+                break;
+
+            case MethodMemberMemberDeclarationNode methodMember:
+                MethodBuilder.Resolve(methodMember.Method, typeDef);
                 break;
 
             case ConstructorMemberMemberDeclarationNode:
-            case MethodMemberMemberDeclarationNode:
             case OperatorMemberMemberDeclarationNode:
             case CastOperatorMemberMemberDeclarationNode:
                 // These will be implemented in subsequent tasks.
@@ -117,6 +120,11 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
         if(modifiers.IsAsync)
         {
             Context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AsyncOnlyOnMethods, fieldDecl, null);
+        }
+
+        if(modifiers.IsIntrinsic)
+        {
+            Context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicNotValidOnMember, fieldDecl, null, "fields");
         }
 
         var field = new Field(name, type, ownership, modifiers, fieldDecl) { Initializer = initializer };

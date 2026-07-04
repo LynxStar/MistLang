@@ -58,22 +58,16 @@ internal sealed class AbstractTypeBuilder : MemberTypeBuilder
     {
         switch(member)
         {
-            case MethodMemberMemberDeclarationNode methodMember
-                when methodMember.Method.Body is MethodNoBodyMethodBodyNode:
-                // Abstract method (no body) — will be implemented in a future task.
-                break;
-
-            case MethodMemberMemberDeclarationNode methodMember
-                when methodMember.Method.Body is MethodBlockBodyMethodBodyNode:
-                // Default method (has body) — will be implemented in a future task.
+            case MethodMemberMemberDeclarationNode methodMember:
+                MethodBuilder.Resolve(methodMember.Method, typeDef);
                 break;
 
             case PropertyMemberMemberDeclarationNode propertyMember:
-                PropertyBuilder.Resolve(propertyMember.Property, typeDef, isAbstract: true);
+                PropertyBuilder.Resolve(propertyMember.Property, typeDef);
                 break;
 
             case IndexerMemberMemberDeclarationNode indexerMember:
-                IndexerBuilder.Resolve(indexerMember.Indexer, typeDef, isAbstract: true);
+                IndexerBuilder.Resolve(indexerMember.Indexer, typeDef);
                 break;
 
             case AssociatedTypeMemberMemberDeclarationNode:

@@ -25,24 +25,24 @@ internal sealed class PropertyBuilder
     /// <summary>
     /// Resolves a property declaration on any member-bearing type.
     /// </summary>
-    public void Resolve(PropertyDeclarationNode propertyDecl, MemberType typeDef, bool isAbstract)
+    public void Resolve(PropertyDeclarationNode propertyDecl, MemberType memberType)
     {
         switch(propertyDecl)
         {
             case BlockPropertyPropertyDeclarationNode blockProp:
-                ResolveBlockProperty(blockProp, typeDef, isAbstract);
+                ResolveBlockProperty(blockProp, memberType);
                 break;
 
             case ExpressionBodiedPropertyPropertyDeclarationNode exprProp:
-                ResolveExpressionBodiedProperty(exprProp, typeDef);
+                ResolveExpressionBodiedProperty(exprProp, memberType);
                 break;
         }
     }
 
-    private void ResolveExpressionBodiedProperty(ExpressionBodiedPropertyPropertyDeclarationNode exprProp, MemberType typeDef)
+    private void ResolveExpressionBodiedProperty(ExpressionBodiedPropertyPropertyDeclarationNode exprProp, MemberType memberType)
     {
         var name = exprProp.Name.Lexeme;
-        var type = typeResolver.Resolve(exprProp.Type, typeDef.Scope);
+        var type = typeResolver.Resolve(exprProp.Type, memberType.Scope);
         var modifiers = ModifierBuilder.Build(exprProp.Modifiers, context.Diagnostics, exprProp);
 
         if(modifiers.IsAsync)
@@ -50,20 +50,31 @@ internal sealed class PropertyBuilder
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AsyncOnlyOnMethods, exprProp, null);
         }
 
+        if(modifiers.IsIntrinsic)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicNotValidOnMember, exprProp, null, "properties");
+        }
+
         var getter = new PropertyAccessor { ExpressionBody = new Expression(exprProp.Body) };
         var property = new Property(name, type, modifiers) { Getter = getter };
-        typeDef.PropertiesList.Add(property);
+        memberType.PropertiesList.Add(property);
     }
 
-    private void ResolveBlockProperty(BlockPropertyPropertyDeclarationNode blockProp, MemberType typeDef, bool isAbstract)
+    private void ResolveBlockProperty(BlockPropertyPropertyDeclarationNode blockProp, MemberType memberType)
     {
         var name = blockProp.Name.Lexeme;
-        var type = typeResolver.Resolve(blockProp.Type, typeDef.Scope);
+        var type = typeResolver.Resolve(blockProp.Type, memberType.Scope);
         var modifiers = ModifierBuilder.Build(blockProp.Modifiers, context.Diagnostics, blockProp);
+        var isAbstract = memberType is AbstractType;
 
         if(modifiers.IsAsync)
         {
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AsyncOnlyOnMethods, blockProp, null);
+        }
+
+        if(modifiers.IsIntrinsic)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicNotValidOnMember, blockProp, null, "properties");
         }
 
         PropertyAccessor? getter = null;
@@ -103,6 +114,6 @@ internal sealed class PropertyBuilder
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.EmptyAccessorList, blockProp, null, name);
         }
 
-        typeDef.PropertiesList.Add(property);
+        memberType.PropertiesList.Add(property);
     }
 }

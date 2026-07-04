@@ -167,4 +167,39 @@ public static class ProgramModelDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
         "The 'async' modifier is only valid on methods.");
+
+    /// <summary>The 'intrinsic' modifier is not valid on fields or properties.</summary>
+    public static readonly DiagnosticDescriptor IntrinsicNotValidOnMember = new(
+        new DiagnosticId("MIST_PM_INTRINSIC_NOT_VALID"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "The 'intrinsic' modifier is not valid on {0}.");
+
+    /// <summary>A non-intrinsic method on a concrete type must have a body.</summary>
+    public static readonly DiagnosticDescriptor MethodMustHaveBody = new(
+        new DiagnosticId("MIST_PM_METHOD_MUST_HAVE_BODY"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "Method '{0}' must have a body unless it is declared 'intrinsic' or is on an abstract type.");
+
+    /// <summary>An intrinsic member must not have a body.</summary>
+    public static readonly DiagnosticDescriptor IntrinsicMemberCannotHaveBody = new(
+        new DiagnosticId("MIST_PM_INTRINSIC_HAS_BODY"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "Intrinsic member '{0}' must not have a body; use ';' to mark it as backend-provided.");
+
+    /// <summary>An intrinsic member must be inside a type that is itself intrinsic.</summary>
+    public static readonly DiagnosticDescriptor IntrinsicRequiresIntrinsicType = new(
+        new DiagnosticId("MIST_PM_INTRINSIC_NOT_IN_INTRINSIC_TYPE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "Member-level 'intrinsic' is only permitted inside a type that is itself declared 'intrinsic'. Type '{0}' is not intrinsic.");
+
+    /// <summary>An indexer cannot use auto-accessors (get; / set;) on a concrete type.</summary>
+    public static readonly DiagnosticDescriptor IndexerCannotHaveAutoAccessor = new(
+        new DiagnosticId("MIST_PM_INDEXER_AUTO_ACCESSOR"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "Indexers cannot use auto-accessors; provide a body or expression for each accessor.");
 }

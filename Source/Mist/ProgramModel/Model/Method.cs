@@ -19,4 +19,14 @@ internal sealed class Method(
     public IReadOnlyList<IParameter> Parameters { get; } = parameters;
 
     public MemberModifiers Modifiers { get; } = modifiers;
+
+    /// <summary>
+    /// The method body, or null if the method has no body (abstract or intrinsic).
+    /// </summary>
+    public Block? Body { get; init; }
+
+    /// <summary>
+    /// The ownership specifier on the return type, if any.
+    /// </summary>
+    public OwnershipKind ReturnOwnership { get; init; }
 }

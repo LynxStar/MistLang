@@ -27,16 +27,26 @@ internal sealed class IndexerBuilder
     /// <summary>
     /// Resolves an indexer declaration on any member-bearing type.
     /// </summary>
-    public void Resolve(IndexerDeclarationNode indexerDecl, MemberType typeDef, bool isAbstract)
+    public void Resolve(IndexerDeclarationNode indexerDecl, MemberType memberType)
     {
-        var type = typeResolver.Resolve(indexerDecl.Type, typeDef.Scope);
+        var type = typeResolver.Resolve(indexerDecl.Type, memberType.Scope);
         var modifiers = ModifierBuilder.Build(indexerDecl.Modifiers, context.Diagnostics, indexerDecl);
-        var parameters = parameterBuilder.Resolve(indexerDecl.Parameters, typeDef.Scope);
+        var parameters = parameterBuilder.Resolve(indexerDecl.Parameters, memberType.Scope);
+        var isAbstract = memberType is AbstractType;
 
         if(modifiers.IsAsync)
         {
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AsyncOnlyOnMethods, indexerDecl, null);
         }
+
+        if(modifiers.IsIntrinsic)
+        {
+            ValidateIntrinsic(indexerDecl, memberType);
+        }
+
+        // Auto-accessors (get; / set;) are valid on indexers only in abstract
+        // types or intrinsic indexers — not on regular concrete types.
+        var allowAutoAccessors = isAbstract || modifiers.IsIntrinsic;
 
         PropertyAccessor? getter = null;
         PropertyAccessor? setter = null;
@@ -53,17 +63,17 @@ internal sealed class IndexerBuilder
             {
                 getter = accessor switch
                 {
-                    AutoGetAccessorAccessorDeclarationNode autoGet => accessorBuilder.BuildGetter(autoGet.AccessorModifier, "indexer", autoGet, isAbstract, isAuto: true, body: null, expression: null),
-                    BlockGetAccessorAccessorDeclarationNode blockGet => accessorBuilder.BuildGetter(blockGet.AccessorModifier, "indexer", blockGet, isAbstract, isAuto: false, body: blockGet.Body, expression: null),
-                    ExpressionGetAccessorAccessorDeclarationNode exprGet => accessorBuilder.BuildGetter(exprGet.AccessorModifier, "indexer", exprGet, isAbstract, isAuto: false, body: null, expression: exprGet.Expression),
+                    AutoGetAccessorAccessorDeclarationNode autoGet => BuildAutoGet(autoGet, isAbstract, allowAutoAccessors),
+                    BlockGetAccessorAccessorDeclarationNode blockGet => BuildBlockGet(blockGet, isAbstract, modifiers.IsIntrinsic),
+                    ExpressionGetAccessorAccessorDeclarationNode exprGet => BuildExpressionGet(exprGet, isAbstract, modifiers.IsIntrinsic),
                     _ => getter,
                 };
 
                 setter = accessor switch
                 {
-                    AutoSetAccessorAccessorDeclarationNode autoSet => accessorBuilder.BuildSetter(autoSet.AccessorModifier, "indexer", autoSet, isAbstract, isAuto: true, isInit: false, body: null, expression: null),
-                    BlockSetAccessorAccessorDeclarationNode blockSet => accessorBuilder.BuildSetter(blockSet.AccessorModifier, "indexer", blockSet, isAbstract, isAuto: false, isInit: false, body: blockSet.Body, expression: null),
-                    ExpressionSetAccessorAccessorDeclarationNode exprSet => accessorBuilder.BuildSetter(exprSet.AccessorModifier, "indexer", exprSet, isAbstract, isAuto: false, isInit: false, body: null, expression: exprSet.Expression),
+                    AutoSetAccessorAccessorDeclarationNode autoSet => BuildAutoSet(autoSet, isAbstract, allowAutoAccessors),
+                    BlockSetAccessorAccessorDeclarationNode blockSet => BuildBlockSet(blockSet, isAbstract, modifiers.IsIntrinsic),
+                    ExpressionSetAccessorAccessorDeclarationNode exprSet => BuildExpressionSet(exprSet, isAbstract, modifiers.IsIntrinsic),
                     AutoInitAccessorAccessorDeclarationNode => RejectInitAccessor(indexerDecl),
                     BlockInitAccessorAccessorDeclarationNode => RejectInitAccessor(indexerDecl),
                     ExpressionInitAccessorAccessorDeclarationNode => RejectInitAccessor(indexerDecl),
@@ -79,7 +89,77 @@ internal sealed class IndexerBuilder
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.EmptyAccessorList, indexerDecl, null, "indexer");
         }
 
-        typeDef.IndexersList.Add(indexer);
+        memberType.IndexersList.Add(indexer);
+    }
+
+    private PropertyAccessor BuildAutoGet(AutoGetAccessorAccessorDeclarationNode autoGet, bool isAbstract, bool allowAutoAccessors)
+    {
+        if(!allowAutoAccessors)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IndexerCannotHaveAutoAccessor, autoGet, null);
+        }
+
+        return accessorBuilder.BuildGetter(autoGet.AccessorModifier, "indexer", autoGet, isAbstract, isAuto: true, body: null, expression: null);
+    }
+
+    private PropertyAccessor BuildAutoSet(AutoSetAccessorAccessorDeclarationNode autoSet, bool isAbstract, bool allowAutoAccessors)
+    {
+        if(!allowAutoAccessors)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IndexerCannotHaveAutoAccessor, autoSet, null);
+        }
+
+        return accessorBuilder.BuildSetter(autoSet.AccessorModifier, "indexer", autoSet, isAbstract, isAuto: true, isInit: false, body: null, expression: null);
+    }
+
+    private PropertyAccessor BuildBlockGet(BlockGetAccessorAccessorDeclarationNode blockGet, bool isAbstract, bool isIntrinsic)
+    {
+        if(isIntrinsic)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicMemberCannotHaveBody, blockGet, null, "indexer");
+        }
+
+        return accessorBuilder.BuildGetter(blockGet.AccessorModifier, "indexer", blockGet, isAbstract, isAuto: false, body: blockGet.Body, expression: null);
+    }
+
+    private PropertyAccessor BuildExpressionGet(ExpressionGetAccessorAccessorDeclarationNode exprGet, bool isAbstract, bool isIntrinsic)
+    {
+        if(isIntrinsic)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicMemberCannotHaveBody, exprGet, null, "indexer");
+        }
+
+        return accessorBuilder.BuildGetter(exprGet.AccessorModifier, "indexer", exprGet, isAbstract, isAuto: false, body: null, expression: exprGet.Expression);
+    }
+
+    private PropertyAccessor BuildBlockSet(BlockSetAccessorAccessorDeclarationNode blockSet, bool isAbstract, bool isIntrinsic)
+    {
+        if(isIntrinsic)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicMemberCannotHaveBody, blockSet, null, "indexer");
+        }
+
+        return accessorBuilder.BuildSetter(blockSet.AccessorModifier, "indexer", blockSet, isAbstract, isAuto: false, isInit: false, body: blockSet.Body, expression: null);
+    }
+
+    private PropertyAccessor BuildExpressionSet(ExpressionSetAccessorAccessorDeclarationNode exprSet, bool isAbstract, bool isIntrinsic)
+    {
+        if(isIntrinsic)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicMemberCannotHaveBody, exprSet, null, "indexer");
+        }
+
+        return accessorBuilder.BuildSetter(exprSet.AccessorModifier, "indexer", exprSet, isAbstract, isAuto: false, isInit: false, body: null, expression: exprSet.Expression);
+    }
+
+    private void ValidateIntrinsic(IndexerDeclarationNode indexerDecl, MemberType memberType)
+    {
+        var typeIsIntrinsic = memberType is ConcreteType concrete && concrete.IsIntrinsic;
+
+        if(!typeIsIntrinsic)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicRequiresIntrinsicType, indexerDecl, null, memberType.Name);
+        }
     }
 
     private PropertyAccessor? RejectInitAccessor(Storm.Runtime.SyntaxNode locationNode)

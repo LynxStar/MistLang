@@ -20,6 +20,8 @@ internal abstract class MemberTypeBuilder
 
     protected IndexerBuilder IndexerBuilder { get; }
 
+    protected MethodBuilder MethodBuilder { get; }
+
     protected ParameterBuilder ParameterBuilder { get; }
 
     protected MemberTypeBuilder(BuilderContext context, TypeReferenceResolver typeResolver)
@@ -31,6 +33,7 @@ internal abstract class MemberTypeBuilder
         ParameterBuilder = new ParameterBuilder(typeResolver);
         PropertyBuilder = new PropertyBuilder(context, typeResolver, accessorBuilder);
         IndexerBuilder = new IndexerBuilder(context, typeResolver, accessorBuilder, ParameterBuilder);
+        MethodBuilder = new MethodBuilder(context, typeResolver, ParameterBuilder);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -40,7 +43,7 @@ internal abstract class MemberTypeBuilder
     /// <summary>
     /// Maps an optional <see cref="OwnershipSpecifierNode"/> to an <see cref="OwnershipKind"/>.
     /// </summary>
-    protected static OwnershipKind ResolveOwnership(OwnershipSpecifierNode? specifier)
+    internal static OwnershipKind ResolveOwnership(OwnershipSpecifierNode? specifier)
     {
         return specifier switch
         {

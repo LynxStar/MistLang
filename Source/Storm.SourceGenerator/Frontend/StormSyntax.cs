@@ -65,7 +65,8 @@ public sealed record StormRuleDecl(
     int Offset,
     int Line,
     int Column,
-    bool IsMemo = false)
+    bool IsMemo = false,
+    IReadOnlyList<string>? TraitBindings = null)
     : StormDeclaration(Name, Body, Offset, Line, Column);
 
 /// <summary>A <c>token Name = ...;</c> declaration.</summary>
@@ -124,6 +125,53 @@ public sealed record StormPopAction() : StormModeAction;
 public sealed record StormModeDecl(
     string Name,
     IReadOnlyList<StormDeclaration> Declarations,
+    int Offset,
+    int Line,
+    int Column)
+    : StormDeclaration(Name, new StormReferenceExpr(Name), Offset, Line, Column);
+
+// -----------------------------------------------------------------------
+//  Trait declarations
+// -----------------------------------------------------------------------
+
+/// <summary>
+/// The cardinality of a trait field.
+/// </summary>
+public enum StormFieldCardinality
+{
+    /// <summary>Exactly one (no suffix).</summary>
+    One,
+
+    /// <summary>Optional (<c>?</c>).</summary>
+    Optional,
+
+    /// <summary>Zero or more (<c>*</c>).</summary>
+    ZeroOrMore,
+
+    /// <summary>One or more (<c>+</c>).</summary>
+    OneOrMore,
+}
+
+/// <summary>
+/// A single field within a trait declaration: <c>fieldName:TypeName</c> with optional
+/// cardinality suffix (<c>?</c>, <c>*</c>, <c>+</c>).
+/// </summary>
+public sealed record StormTraitField(
+    string FieldName,
+    string TypeName,
+    StormFieldCardinality Cardinality);
+
+/// <summary>
+/// A <c>trait Name = field1:Type1 field2:Type2*;</c> declaration.
+/// Traits may optionally compose other traits via colon syntax:
+/// <c>trait B : A = extraField:Foo;</c>
+/// The <see cref="StormDeclaration.Body"/> is set to a placeholder
+/// <see cref="StormReferenceExpr"/> since trait declarations don't have a body expression.
+/// </summary>
+public sealed record StormTraitDecl(
+    string Name,
+    IReadOnlyList<StormTraitField> Fields,
+    IReadOnlyList<string> ComposedTraits,
     int Offset,
     int Line,
     int Column)

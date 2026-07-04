@@ -19,6 +19,11 @@ public static class NameResolutionPass
 
         foreach(var decl in grammar.Declarations)
         {
+            if(decl is StormTraitDecl)
+            {
+                continue; // Traits have no body expressions to resolve
+            }
+
             var isRuleContext = decl is StormRuleDecl;
             WalkExpression(decl.Body, grammar, isRuleContext, decl, diagnostics);
         }

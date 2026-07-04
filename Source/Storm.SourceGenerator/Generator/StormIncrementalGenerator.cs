@@ -171,6 +171,22 @@ public sealed class StormIncrementalGenerator : IIncrementalGenerator
             return;
         }
 
+        // Step 3b: Trait validation
+        var traitValidationDiags = TraitValidationPass.Run(grammar);
+        foreach(var diag in traitValidationDiags)
+        {
+            context.ReportDiagnostic(diag.ToRoslynDiagnostic());
+            if(diag.Severity == StormDiagnosticSeverity.Error)
+            {
+                hasValidationErrors = true;
+            }
+        }
+
+        if(hasValidationErrors)
+        {
+            return;
+        }
+
         // Step 4: Lower to IR
         var loweringResult = GrammarIRLowering.Lower(grammar);
 
@@ -184,6 +200,9 @@ public sealed class StormIncrementalGenerator : IIncrementalGenerator
             return;
         }
 
+        // Step 4b: Build trait IR
+        var traitBuildResult = TraitIRBuilder.Build(grammar);
+
         // Step 5: Analyze for selective packrat memoization (pure, deterministic).
         // Runs after lowering succeeds and before emission, operating on the same
         // lowered GrammarIR the emitters consume. Cannot fail on validated IR, so
@@ -191,7 +210,9 @@ public sealed class StormIncrementalGenerator : IIncrementalGenerator
         var memoizationPlan = MemoizationAnalysisPass.Run(loweringResult.Grammar);
 
         // Step 6: Emit
-        var emissionContext = new EmissionContext(consumerNamespace, grammarName, loweringResult.Grammar, memoizationPlan);
+        var emissionContext = new EmissionContext(
+            consumerNamespace, grammarName, loweringResult.Grammar, memoizationPlan,
+            traitBuildResult.Traits, traitBuildResult.RuleTraitBindings);
 
         // Emit runtime types
         var runtimeSource = AstEmitter.EmitRuntimeTypes();

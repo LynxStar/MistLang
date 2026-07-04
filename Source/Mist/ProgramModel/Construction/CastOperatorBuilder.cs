@@ -32,6 +32,11 @@ internal sealed class CastOperatorBuilder
         var modifiers = ModifierBuilder.Build(castOpDecl.Modifiers, context.Diagnostics, castOpDecl);
         var parameters = parameterBuilder.Resolve(castOpDecl.Parameters, typeDef.Scope);
 
+        if(!modifiers.IsStatic)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.OperatorMustBeStatic, castOpDecl, null);
+        }
+
         if(parameters.Count == 0)
         {
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.CastOperatorMissingParameter, castOpDecl, null);

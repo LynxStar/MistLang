@@ -43,6 +43,8 @@ internal abstract class MemberType : MistType, IMemberType
 
     public List<Indexer> IndexersList { get; } = [];
 
+    public List<Operator> OperatorsList { get; } = [];
+
     IReadOnlyList<IMistType> IMemberType.BaseAbstractTypes => BaseAbstractTypes;
 
     IReadOnlyList<IMethod> IMemberType.Methods => MethodsList;
@@ -50,4 +52,6 @@ internal abstract class MemberType : MistType, IMemberType
     IReadOnlyList<IProperty> IMemberType.Properties => PropertiesList;
 
     IReadOnlyList<IIndexer> IMemberType.Indexers => IndexersList;
+
+    IReadOnlyList<IOperator> IMemberType.Operators => OperatorsList;
 }

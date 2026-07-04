@@ -26,4 +26,9 @@ public interface IMemberType : IMistType
     /// Indexers declared on this type.
     /// </summary>
     IReadOnlyList<IIndexer> Indexers { get; }
+
+    /// <summary>
+    /// Operators declared on this type.
+    /// </summary>
+    IReadOnlyList<IOperator> Operators { get; }
 }

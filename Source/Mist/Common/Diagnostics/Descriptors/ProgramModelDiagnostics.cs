@@ -218,4 +218,25 @@ public static class ProgramModelDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
         "A cast operator must declare exactly one parameter; additional parameters are not permitted.");
+
+    /// <summary>An operator or cast operator must be declared static.</summary>
+    public static readonly DiagnosticDescriptor OperatorMustBeStatic = new(
+        new DiagnosticId("MIST_PM_OPERATOR_MUST_BE_STATIC"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "Operators must be declared 'static'.");
+
+    /// <summary>An operator has the wrong number of parameters for its kind.</summary>
+    public static readonly DiagnosticDescriptor OperatorWrongParameterCount = new(
+        new DiagnosticId("MIST_PM_OPERATOR_WRONG_PARAM_COUNT"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "Operator expects {0} parameter(s) but has {1}.");
+
+    /// <summary>A non-abstract operator must have a body.</summary>
+    public static readonly DiagnosticDescriptor OperatorMustHaveBody = new(
+        new DiagnosticId("MIST_PM_OPERATOR_MUST_HAVE_BODY"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "Operators must have a body unless declared on an abstract type.");
 }

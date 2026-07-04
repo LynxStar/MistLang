@@ -45,8 +45,6 @@ internal abstract class ConcreteType : MemberType, IConcreteType
 
     public List<Constructor> ConstructorsList { get; } = [];
 
-    public List<Operator> OperatorsList { get; } = [];
-
     public List<CastOperator> CastOperatorsList { get; } = [];
 
     IMistType? IConcreteType.BaseType => BaseType;
@@ -54,8 +52,6 @@ internal abstract class ConcreteType : MemberType, IConcreteType
     IReadOnlyList<IField> IConcreteType.Fields => FieldsList;
 
     IReadOnlyList<IConstructor> IConcreteType.Constructors => ConstructorsList;
-
-    IReadOnlyList<IOperator> IConcreteType.Operators => OperatorsList;
 
     IReadOnlyList<ICastOperator> IConcreteType.CastOperators => CastOperatorsList;
 }

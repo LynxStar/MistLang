@@ -25,11 +25,6 @@ public interface IConcreteType : IMemberType
     IReadOnlyList<IConstructor> Constructors { get; }
 
     /// <summary>
-    /// Operators declared on this type.
-    /// </summary>
-    IReadOnlyList<IOperator> Operators { get; }
-
-    /// <summary>
     /// Cast operators declared on this type.
     /// </summary>
     IReadOnlyList<ICastOperator> CastOperators { get; }

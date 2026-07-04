@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 
 namespace Mist.ProgramModel.Contracts;
 
@@ -7,8 +8,8 @@ namespace Mist.ProgramModel.Contracts;
 /// </summary>
 public interface IOperator
 {
-    /// <summary>The operator token (e.g., "+", "-", "==").</summary>
-    string OperatorToken { get; }
+    /// <summary>The kind of operator.</summary>
+    OperatorKind Kind { get; }
 
     /// <summary>The resolved return type.</summary>
     IMistType ReturnType { get; }
@@ -18,4 +19,7 @@ public interface IOperator
 
     /// <summary>The modifiers declared on this operator.</summary>
     MemberModifiers Modifiers { get; }
+
+    /// <summary>Whether this is a unary operator (one parameter) vs binary (two parameters).</summary>
+    bool IsUnary { get; }
 }

@@ -7,16 +7,20 @@ namespace Mist.ProgramModel.Model;
 /// An operator declared on a type.
 /// </summary>
 internal sealed class Operator(
-    string operatorToken,
+    OperatorKind kind,
     IMistType returnType,
     IReadOnlyList<IParameter> parameters,
     MemberModifiers modifiers) : IOperator
 {
-    public string OperatorToken { get; } = operatorToken;
+    public OperatorKind Kind { get; } = kind;
 
     public IMistType ReturnType { get; } = returnType;
 
     public IReadOnlyList<IParameter> Parameters { get; } = parameters;
 
     public MemberModifiers Modifiers { get; } = modifiers;
+
+    public bool IsUnary => Parameters.Count == 1;
+
+    public Block? Body { get; init; }
 }

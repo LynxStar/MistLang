@@ -70,6 +70,10 @@ internal sealed class AbstractTypeBuilder : MemberTypeBuilder
                 IndexerBuilder.Resolve(indexerMember.Indexer, typeDef);
                 break;
 
+            case OperatorMemberMemberDeclarationNode opMember:
+                OperatorBuilder.Resolve(opMember.Operator, typeDef);
+                break;
+
             case AssociatedTypeMemberMemberDeclarationNode:
             case UnconstrainedAssociatedTypeMemberMemberDeclarationNode:
                 // Associated type slots — out of scope for now.

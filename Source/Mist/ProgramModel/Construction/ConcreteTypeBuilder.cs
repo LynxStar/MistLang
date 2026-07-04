@@ -94,8 +94,8 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
                 constructorBuilder.Resolve(ctorMember.Constructor, typeDef);
                 break;
 
-            case OperatorMemberMemberDeclarationNode:
-                // These will be implemented in subsequent tasks.
+            case OperatorMemberMemberDeclarationNode opMember:
+                OperatorBuilder.Resolve(opMember.Operator, typeDef);
                 break;
 
             case CastOperatorMemberMemberDeclarationNode castOpMember:

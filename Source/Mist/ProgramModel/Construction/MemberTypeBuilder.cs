@@ -22,6 +22,8 @@ internal abstract class MemberTypeBuilder
 
     protected MethodBuilder MethodBuilder { get; }
 
+    protected OperatorBuilder OperatorBuilder { get; }
+
     protected ParameterBuilder ParameterBuilder { get; }
 
     protected MemberTypeBuilder(BuilderContext context, TypeReferenceResolver typeResolver)
@@ -34,6 +36,7 @@ internal abstract class MemberTypeBuilder
         PropertyBuilder = new PropertyBuilder(context, typeResolver, accessorBuilder);
         IndexerBuilder = new IndexerBuilder(context, typeResolver, accessorBuilder, ParameterBuilder);
         MethodBuilder = new MethodBuilder(context, typeResolver, ParameterBuilder);
+        OperatorBuilder = new OperatorBuilder(context, typeResolver, ParameterBuilder);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

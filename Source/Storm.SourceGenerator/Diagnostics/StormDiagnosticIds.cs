@@ -75,4 +75,7 @@ public static class StormDiagnosticIds
 
     /// <summary>Inline arm target rule '{targetName}' does not satisfy trait '{traitName}' bound on rule '{ruleName}'.</summary>
     public static string STORM_TRAIT_INLINE_ARM_UNSATISFIED { get; } = "STORM0024";
+
+    /// <summary>Trait '{traitName}' has conflicting definitions for field '{fieldName}' from composed traits.</summary>
+    public static string STORM_TRAIT_FIELD_CONFLICT { get; } = "STORM0025";
 }

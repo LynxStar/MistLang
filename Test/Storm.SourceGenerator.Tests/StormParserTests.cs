@@ -642,10 +642,15 @@ rule F = A | C;
     }
 
     [Fact]
-    public void Parse_TraitDecl_ZeroFields_ReportsError()
+    public void Parse_TraitDecl_ZeroFields_IsValidMarkerTrait()
     {
-        _ = Parse("trait Foo = ;", out var diags);
-        Assert.Contains(diags, d => d.Id == StormDiagnosticIds.STORM_SYNTAX_ERROR);
+        var file = Parse("trait Foo;", out var diags);
+        Assert.Empty(diags);
+        _ = Assert.Single(file.Declarations);
+        var decl = Assert.IsType<StormTraitDecl>(file.Declarations[0]);
+        Assert.Equal("Foo", decl.Name);
+        Assert.Empty(decl.Fields);
+        Assert.Empty(decl.ComposedTraits);
     }
 
     [Fact]

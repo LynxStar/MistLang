@@ -446,18 +446,15 @@ public static class StormParser
                 }
             }
 
-            _ = Expect(StormTokenKind.Equals, "'='");
-
-            // Parse space-separated fields until semicolon
+            // Fields are optional: trait Foo; or trait Foo : A, B;
+            // When '=' is present, parse fields until semicolon
             var fields = new List<StormTraitField>();
-            while(Current.Kind == StormTokenKind.Identifier && Peek(1).Kind == StormTokenKind.Colon)
+            if(Match(StormTokenKind.Equals))
             {
-                fields.Add(ParseTraitField());
-            }
-
-            if(fields.Count == 0)
-            {
-                Error("Trait must declare at least one field");
+                while(Current.Kind == StormTokenKind.Identifier && Peek(1).Kind == StormTokenKind.Colon)
+                {
+                    fields.Add(ParseTraitField());
+                }
             }
 
             _ = Expect(StormTokenKind.Semicolon, "';'");

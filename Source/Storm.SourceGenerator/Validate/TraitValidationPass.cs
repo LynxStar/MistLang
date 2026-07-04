@@ -94,6 +94,66 @@ public static class TraitValidationPass
                     trait.Column));
             }
         }
+
+        // Check for conflicting field definitions across composed traits and own fields
+        ValidateFieldConflicts(trait, traitsByName, diagnostics);
+    }
+
+    private static void ValidateFieldConflicts(
+        StormTraitDecl trait,
+        Dictionary<string, StormTraitDecl> traitsByName,
+        List<StormDiagnostic> diagnostics)
+    {
+        var seen = new Dictionary<string, StormTraitField>();
+
+        // Collect all fields from composed traits (recursively)
+        foreach(var composedName in trait.ComposedTraits)
+        {
+            if(!traitsByName.TryGetValue(composedName, out var composedTrait))
+            {
+                continue;
+            }
+
+            var composedFields = CollectAllFields(composedTrait, traitsByName);
+            foreach(var field in composedFields)
+            {
+                if(seen.TryGetValue(field.FieldName, out var existing))
+                {
+                    if(existing.TypeName != field.TypeName || existing.Cardinality != field.Cardinality)
+                    {
+                        diagnostics.Add(new StormDiagnostic(
+                            StormDiagnosticIds.STORM_TRAIT_FIELD_CONFLICT,
+                            StormDiagnosticSeverity.Error,
+                            $"Trait '{trait.Name}' has conflicting definitions for field '{field.FieldName}' from composed traits",
+                            null,
+                            trait.Line,
+                            trait.Column));
+                    }
+                }
+                else
+                {
+                    seen[field.FieldName] = field;
+                }
+            }
+        }
+
+        // Own fields override composed fields of the same name, but must match if present in composed
+        foreach(var field in trait.Fields)
+        {
+            if(seen.TryGetValue(field.FieldName, out var existing))
+            {
+                if(existing.TypeName != field.TypeName || existing.Cardinality != field.Cardinality)
+                {
+                    diagnostics.Add(new StormDiagnostic(
+                        StormDiagnosticIds.STORM_TRAIT_FIELD_CONFLICT,
+                        StormDiagnosticSeverity.Error,
+                        $"Trait '{trait.Name}' has conflicting definitions for field '{field.FieldName}' from composed traits",
+                        null,
+                        trait.Line,
+                        trait.Column));
+                }
+            }
+        }
     }
 
     private static void ValidateRuleTraitBindings(
@@ -342,20 +402,30 @@ public static class TraitValidationPass
         StormTraitDecl trait,
         Dictionary<string, StormTraitDecl> traitsByName)
     {
-        var fields = new List<StormTraitField>();
+        var seen = new Dictionary<string, StormTraitField>();
 
         // Composed trait fields come first (recursively)
         foreach(var composedName in trait.ComposedTraits)
         {
             if(traitsByName.TryGetValue(composedName, out var composedTrait))
             {
-                fields.AddRange(CollectAllFields(composedTrait, traitsByName));
+                foreach(var field in CollectAllFields(composedTrait, traitsByName))
+                {
+                    if(!seen.ContainsKey(field.FieldName))
+                    {
+                        seen[field.FieldName] = field;
+                    }
+                }
             }
         }
 
-        // Then own fields
-        fields.AddRange(trait.Fields);
-        return fields;
+        // Then own fields (override composed fields of the same name)
+        foreach(var field in trait.Fields)
+        {
+            seen[field.FieldName] = field;
+        }
+
+        return new List<StormTraitField>(seen.Values);
     }
 
     private static Dictionary<string, (string TypeName, StormFieldCardinality Cardinality)> ExtractLabeledFields(

@@ -33,23 +33,28 @@ public sealed class TraitIR
     }
 
     /// <summary>
-    /// Returns all fields including those inherited from composed traits.
-    /// Composed trait fields are yielded first (depth-first), followed by
-    /// this trait's own fields.
+    /// Returns all fields including those inherited from composed traits,
+    /// deduplicated by field name. Own fields take precedence over composed fields.
     /// </summary>
     public IEnumerable<TraitFieldIR> AllFields()
     {
+        var seen = new Dictionary<string, TraitFieldIR>();
+
+        CollectAllFieldsRecursive(seen);
+
+        return seen.Values;
+    }
+
+    private void CollectAllFieldsRecursive(Dictionary<string, TraitFieldIR> seen)
+    {
         foreach(var composed in ComposedTraits)
         {
-            foreach(var field in composed.AllFields())
-            {
-                yield return field;
-            }
+            composed.CollectAllFieldsRecursive(seen);
         }
 
         foreach(var field in Fields)
         {
-            yield return field;
+            seen[field.FieldName] = field;
         }
     }
 }

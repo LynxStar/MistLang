@@ -206,4 +206,134 @@ public class TraitValidationPassTests
 
         Assert.Empty(diagnostics);
     }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  Zero-field (marker) traits
+    // ═══════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public void MarkerTrait_NoDiagnostics()
+    {
+        var grammar = ValidationTestHelpers.BuildGrammar(
+            "token Ident = [a-z]+;\n" +
+            "trait Marker;");
+
+        var diagnostics = TraitValidationPass.Run(grammar);
+
+        Assert.Empty(diagnostics);
+    }
+
+    [Fact]
+    public void PureCompositionTrait_NoDiagnostics()
+    {
+        var grammar = ValidationTestHelpers.BuildGrammar(
+            "token Ident = [a-z]+;\n" +
+            "token Number = [0-9]+;\n" +
+            "trait HasName = name:Ident;\n" +
+            "trait HasValue = value:Number;\n" +
+            "trait Combined : HasName, HasValue;");
+
+        var diagnostics = TraitValidationPass.Run(grammar);
+
+        Assert.Empty(diagnostics);
+    }
+
+    [Fact]
+    public void PureCompositionTrait_RuleBindsSatisfiesAllFields()
+    {
+        var grammar = ValidationTestHelpers.BuildGrammar(
+            "token Ident = [a-z]+;\n" +
+            "token Number = [0-9]+;\n" +
+            "trait HasName = name:Ident;\n" +
+            "trait HasValue = value:Number;\n" +
+            "trait Combined : HasName, HasValue;\n" +
+            "rule Decl : Combined = name:Ident value:Number;");
+
+        var diagnostics = TraitValidationPass.Run(grammar);
+
+        Assert.Empty(diagnostics);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  STORM0025: Conflicting field definitions
+    // ═══════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public void ConflictingFieldTypes_EmitsSTORM0025()
+    {
+        var grammar = ValidationTestHelpers.BuildGrammar(
+            "token Ident = [a-z]+;\n" +
+            "token Number = [0-9]+;\n" +
+            "trait A = name:Ident;\n" +
+            "trait B = name:Number;\n" +
+            "trait C : A, B;");
+
+        var diagnostics = TraitValidationPass.Run(grammar);
+
+        Assert.Contains(diagnostics, d =>
+            d.Id == StormDiagnosticIds.STORM_TRAIT_FIELD_CONFLICT &&
+            d.Message.Contains("name") &&
+            d.Message.Contains("C"));
+    }
+
+    [Fact]
+    public void ConflictingFieldCardinality_EmitsSTORM0025()
+    {
+        var grammar = ValidationTestHelpers.BuildGrammar(
+            "token Ident = [a-z]+;\n" +
+            "trait A = name:Ident;\n" +
+            "trait B = name:Ident*;\n" +
+            "trait C : A, B;");
+
+        var diagnostics = TraitValidationPass.Run(grammar);
+
+        Assert.Contains(diagnostics, d =>
+            d.Id == StormDiagnosticIds.STORM_TRAIT_FIELD_CONFLICT &&
+            d.Message.Contains("name") &&
+            d.Message.Contains("C"));
+    }
+
+    [Fact]
+    public void DuplicateFieldSameSignature_NoDiagnostics()
+    {
+        var grammar = ValidationTestHelpers.BuildGrammar(
+            "token Ident = [a-z]+;\n" +
+            "trait A = name:Ident;\n" +
+            "trait B = name:Ident;\n" +
+            "trait C : A, B;");
+
+        var diagnostics = TraitValidationPass.Run(grammar);
+
+        Assert.Empty(diagnostics);
+    }
+
+    [Fact]
+    public void OwnFieldMatchesComposedField_NoDiagnostics()
+    {
+        var grammar = ValidationTestHelpers.BuildGrammar(
+            "token Ident = [a-z]+;\n" +
+            "trait A = name:Ident;\n" +
+            "trait B : A = name:Ident;");
+
+        var diagnostics = TraitValidationPass.Run(grammar);
+
+        Assert.Empty(diagnostics);
+    }
+
+    [Fact]
+    public void OwnFieldConflictsWithComposed_EmitsSTORM0025()
+    {
+        var grammar = ValidationTestHelpers.BuildGrammar(
+            "token Ident = [a-z]+;\n" +
+            "token Number = [0-9]+;\n" +
+            "trait A = name:Ident;\n" +
+            "trait B : A = name:Number;");
+
+        var diagnostics = TraitValidationPass.Run(grammar);
+
+        Assert.Contains(diagnostics, d =>
+            d.Id == StormDiagnosticIds.STORM_TRAIT_FIELD_CONFLICT &&
+            d.Message.Contains("name") &&
+            d.Message.Contains("B"));
+    }
 }

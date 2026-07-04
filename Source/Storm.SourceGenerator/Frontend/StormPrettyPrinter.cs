@@ -78,24 +78,27 @@ public static class StormPrettyPrinter
             _ = sb.Append(string.Join(", ", trait.ComposedTraits));
         }
 
-        _ = sb.Append(" = ");
-
-        for(var i = 0; i < trait.Fields.Count; i++)
+        if(trait.Fields.Count > 0)
         {
-            if(i > 0)
-            {
-                _ = sb.Append(' ');
-            }
+            _ = sb.Append(" = ");
 
-            var field = trait.Fields[i];
-            _ = sb.Append($"{field.FieldName}:{field.TypeName}");
-            _ = sb.Append(field.Cardinality switch
+            for(var i = 0; i < trait.Fields.Count; i++)
             {
-                StormFieldCardinality.Optional => "?",
-                StormFieldCardinality.ZeroOrMore => "*",
-                StormFieldCardinality.OneOrMore => "+",
-                _ => ""
-            });
+                if(i > 0)
+                {
+                    _ = sb.Append(' ');
+                }
+
+                var field = trait.Fields[i];
+                _ = sb.Append($"{field.FieldName}:{field.TypeName}");
+                _ = sb.Append(field.Cardinality switch
+                {
+                    StormFieldCardinality.Optional => "?",
+                    StormFieldCardinality.ZeroOrMore => "*",
+                    StormFieldCardinality.OneOrMore => "+",
+                    _ => ""
+                });
+            }
         }
 
         _ = sb.AppendLine(";");

@@ -38,7 +38,7 @@ internal abstract class MemberTypeBuilder
         DelegateResolver = new DelegateResolver(context, ParameterBuilder);
         PropertyBuilder = new PropertyBuilder(context, typeResolver, accessorBuilder);
         IndexerBuilder = new IndexerBuilder(context, typeResolver, accessorBuilder, ParameterBuilder);
-        MethodBuilder = new MethodBuilder(context, typeResolver, DelegateResolver);
+        MethodBuilder = new MethodBuilder(typeResolver, DelegateResolver);
         OperatorBuilder = new OperatorBuilder(context, typeResolver, DelegateResolver);
     }
 

@@ -103,9 +103,12 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
                 break;
 
             case NestedTypeMemberMemberDeclarationNode:
-            case DefaultBlockMemberMemberDeclarationNode:
             case MemberTypeAliasMemberMemberDeclarationNode:
-                // Nested types are already registered; others are out of scope.
+                // Nested types are already registered; member type aliases are out of scope.
+                break;
+
+            case DefaultBlockMemberMemberDeclarationNode defaultBlockMember:
+                ResolveDefaultBlock(defaultBlockMember.DefaultBlock, typeDef);
                 break;
 
             case AssociatedTypeMemberMemberDeclarationNode:
@@ -143,6 +146,56 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
 
         var field = new Field(name, type, ownership, modifiers, fieldDecl) { Initializer = initializer };
         typeDef.FieldsList.Add(field);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Default Block
+    // ═══════════════════════════════════════════════════════════════════════
+
+    private void ResolveDefaultBlock(DefaultBlockDeclarationNode blockDecl, ConcreteType typeDef)
+    {
+        if(typeDef.DefaultBlock is not null)
+        {
+            Context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.DuplicateDefaultBlock, blockDecl, null, typeDef.Name);
+            return;
+        }
+
+        var entries = new List<DefaultEntry>();
+
+        foreach(var entry in blockDecl.Entries)
+        {
+            switch(entry)
+            {
+                case DefaultFieldOverrideDefaultFieldInitializerNode fieldOverride:
+                    var name = fieldOverride.FieldName.Lexeme;
+                    var value = new Expression(fieldOverride.Value);
+                    entries.Add(new DefaultValueEntry(name, value));
+                    break;
+
+                case DefaultTypeBindingDefaultFieldInitializerNode typeBinding:
+                    var bindingName = typeBinding.FieldName.Lexeme;
+                    var nestedEntries = ResolveNestedOverrides(typeBinding);
+                    var boundType = TypeResolver.Resolve(typeBinding.TypeName, typeDef.Scope);
+                    entries.Add(new DefaultBindingEntry(bindingName, boundType, nestedEntries, typeBinding));
+                    break;
+            }
+        }
+
+        typeDef.DefaultBlock = new DefaultBlock(entries, blockDecl);
+    }
+
+    private static List<DefaultEntry> ResolveNestedOverrides(DefaultTypeBindingDefaultFieldInitializerNode typeBinding)
+    {
+        var nested = new List<DefaultEntry>();
+
+        foreach(var nestedOverride in typeBinding.NestedEntries)
+        {
+            var nestedName = nestedOverride.FieldName.Lexeme;
+            var nestedValue = new Expression(nestedOverride.Value);
+            nested.Add(new DefaultValueEntry(nestedName, nestedValue));
+        }
+
+        return nested;
     }
 
     // ═══════════════════════════════════════════════════════════════════════

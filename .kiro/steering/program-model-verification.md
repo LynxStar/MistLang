@@ -37,10 +37,12 @@ These do NOT need individual build+test cycles.
 
 ## Full Test Suite
 
-Run the full test suite (`dotnet test Mist.slnx`) only at natural checkpoints:
+There are no unit tests specifically for ProgramModel — that is intentional. The ProgramModel is exercised indirectly through integration tests that compile and run Mist programs end-to-end.
 
-- End of a complete feature or refactoring phase
-- Before presenting final results to the user
-- When the user asks
+This means:
 
-Do NOT run 4600+ tests to verify a one-line rename compiled correctly.
+- If your changes are **contained exclusively to `Source/Mist/ProgramModel/`**, a successful `dotnet build` is sufficient verification. You do not need to run the full test suite.
+- Run the full test suite (`dotnet test Mist.slnx`) only when:
+  - Changes touch files outside ProgramModel (grammar, emitter, CLI, etc.)
+  - You are at a natural checkpoint before presenting results to the user
+  - The user explicitly asks

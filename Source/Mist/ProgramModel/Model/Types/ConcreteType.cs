@@ -47,6 +47,11 @@ internal abstract class ConcreteType : MemberType, IConcreteType
 
     public List<CastOperator> CastOperatorsList { get; } = [];
 
+    /// <summary>
+    /// The explicit default block declared on this type, or null if none was declared.
+    /// </summary>
+    public DefaultBlock? DefaultBlock { get; internal set; }
+
     IMistType? IConcreteType.BaseType => BaseType;
 
     IReadOnlyList<IField> IConcreteType.Fields => FieldsList;

@@ -13,7 +13,7 @@ internal sealed class MethodBuilder
     private readonly TypeReferenceResolver typeResolver;
     private readonly DelegateResolver delegateResolver;
 
-    public MethodBuilder(BuilderContext context, TypeReferenceResolver typeResolver, DelegateResolver delegateResolver)
+    public MethodBuilder(TypeReferenceResolver typeResolver, DelegateResolver delegateResolver)
     {
         this.typeResolver = typeResolver;
         this.delegateResolver = delegateResolver;

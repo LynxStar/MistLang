@@ -253,4 +253,13 @@ public static class ProgramModelDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
         "Type slots are only permitted on abstract types.");
+
+    // ── Default block validation ─────────────────────────────────────────
+
+    /// <summary>A type declares more than one default block.</summary>
+    public static readonly DiagnosticDescriptor DuplicateDefaultBlock = new(
+        new DiagnosticId("MIST_PM_DUPLICATE_DEFAULT_BLOCK"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "Type '{0}' declares more than one default block; only one is permitted per type.");
 }

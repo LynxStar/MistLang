@@ -6,7 +6,7 @@ intrinsic public ref struct Span<T, Length:ZeroOrPositiveInt> : IEnumerable<T>
 
     intrinsic public Int32 Length { get; }
 
-    intrinsic public T this[SpanBounds index];
+    intrinsic public T this[SpanBounds index] { get; set; }
 
     intrinsic public Span<T, unknown> Slice(SpanBounds start, Int32 length);
 
@@ -26,7 +26,7 @@ intrinsic public ref struct ReadOnlySpan<T, Length:ZeroOrPositiveInt> : IEnumera
 
     intrinsic public Int32 Length { get; }
 
-    intrinsic public T this[SpanBounds index];
+    intrinsic public T this[SpanBounds index] { get; }
 
     intrinsic public ReadOnlySpan<T, unknown> Slice(SpanBounds start, Int32 length);
 

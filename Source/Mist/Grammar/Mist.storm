@@ -373,7 +373,6 @@ rule IndexerDeclaration = modifiers:Modifier* type:TypeReference THIS
 
 rule IndexerBody
     = LEFT_BRACE accessors:AccessorDeclaration+ RIGHT_BRACE       as BlockIndexerBody
-    | SEMICOLON                                                    as IntrinsicIndexerBody
     ;
 
 rule ConstructorDeclaration = attributes:AttributeList* modifiers:Modifier* name:IDENTIFIER LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS

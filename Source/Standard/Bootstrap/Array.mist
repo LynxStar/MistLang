@@ -8,7 +8,7 @@ intrinsic public class Array<TValue, Length:ZeroOrPositiveInt> : IEnumerable<TVa
 
     intrinsic public Int32 Length { get; }
 
-    intrinsic public TValue this[ArrayBounds index];
+    intrinsic public TValue this[ArrayBounds index] { get; set; }
 
     intrinsic public Array(Func<int, TValue> initializer);
 

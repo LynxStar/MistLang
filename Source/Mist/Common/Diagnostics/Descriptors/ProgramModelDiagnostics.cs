@@ -202,4 +202,20 @@ public static class ProgramModelDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
         "Indexers cannot use auto-accessors; provide a body or expression for each accessor.");
+
+    // ── Cast operator validation ─────────────────────────────────────────
+
+    /// <summary>A cast operator must declare exactly one source parameter.</summary>
+    public static readonly DiagnosticDescriptor CastOperatorMissingParameter = new(
+        new DiagnosticId("MIST_PM_CAST_OP_MISSING_PARAM"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "A cast operator must declare exactly one parameter (the source value).");
+
+    /// <summary>A cast operator has more than one parameter.</summary>
+    public static readonly DiagnosticDescriptor CastOperatorTooManyParameters = new(
+        new DiagnosticId("MIST_PM_CAST_OP_TOO_MANY_PARAMS"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "A cast operator must declare exactly one parameter; additional parameters are not permitted.");
 }

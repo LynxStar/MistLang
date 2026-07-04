@@ -15,11 +15,13 @@ namespace Mist.ProgramModel.Construction;
 internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
 {
     private readonly ConstructorBuilder constructorBuilder;
+    private readonly CastOperatorBuilder castOperatorBuilder;
 
     public ConcreteTypeBuilder(BuilderContext context, TypeReferenceResolver typeResolver)
         : base(context, typeResolver)
     {
         constructorBuilder = new ConstructorBuilder(context, ParameterBuilder);
+        castOperatorBuilder = new CastOperatorBuilder(context, typeResolver, ParameterBuilder);
     }
 
     /// <summary>
@@ -93,8 +95,11 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
                 break;
 
             case OperatorMemberMemberDeclarationNode:
-            case CastOperatorMemberMemberDeclarationNode:
                 // These will be implemented in subsequent tasks.
+                break;
+
+            case CastOperatorMemberMemberDeclarationNode castOpMember:
+                castOperatorBuilder.Resolve(castOpMember.CastOperator, typeDef);
                 break;
 
             case NestedTypeMemberMemberDeclarationNode:

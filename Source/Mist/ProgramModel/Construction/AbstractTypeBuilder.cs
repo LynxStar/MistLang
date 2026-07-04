@@ -35,9 +35,7 @@ internal sealed class AbstractTypeBuilder : MemberTypeBuilder
         BaseTypeResolver.Resolve(typeDef.DeclarationNode, typeDef);
 
         var body = (BodyTypeTypeDeclarationNode)typeDef.DeclarationNode;
-        var modifiers = ModifierBuilder.Build(body.TypeBody, Context.Diagnostics);
-
-        typeDef.IsReadonly = modifiers.IsReadonly;
+        typeDef.Modifiers = ModifierBuilder.Build(body.TypeBody, Context.Diagnostics);
     }
 
     /// <summary>

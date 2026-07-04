@@ -1,3 +1,5 @@
+using Mist.ProgramModel.Model;
+
 namespace Mist.ProgramModel.Contracts.Types;
 
 /// <summary>
@@ -7,6 +9,11 @@ namespace Mist.ProgramModel.Contracts.Types;
 /// </summary>
 public interface IMemberType : IMistType
 {
+    /// <summary>
+    /// The modifiers declared on this type.
+    /// </summary>
+    MemberModifiers Modifiers { get; }
+
     /// <summary>
     /// Abstracts that this type implements or refines.
     /// </summary>

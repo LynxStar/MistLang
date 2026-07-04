@@ -14,5 +14,5 @@ internal sealed class StructType(
     /// <summary>
     /// Whether this struct is a ref struct (stack-only, no heap allocation).
     /// </summary>
-    public bool IsRef { get; internal set; }
+    public bool IsRef => Modifiers.IsRef;
 }

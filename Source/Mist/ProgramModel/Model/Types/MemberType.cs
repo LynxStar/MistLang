@@ -28,9 +28,14 @@ internal abstract class MemberType : MistType, IMemberType
     internal TypeDeclarationNode DeclarationNode { get; }
 
     /// <summary>
+    /// The modifiers declared on this type.
+    /// </summary>
+    public MemberModifiers Modifiers { get; internal set; }
+
+    /// <summary>
     /// Whether this type is declared as readonly.
     /// </summary>
-    public bool IsReadonly { get; internal set; }
+    public bool IsReadonly => Modifiers.IsReadonly;
 
     /// <summary>
     /// Abstracts that this type implements or refines.

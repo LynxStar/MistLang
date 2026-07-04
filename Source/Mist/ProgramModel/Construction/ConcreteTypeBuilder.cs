@@ -39,17 +39,7 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
         BaseTypeResolver.Resolve(typeDef.DeclarationNode, typeDef);
 
         var body = (BodyTypeTypeDeclarationNode)typeDef.DeclarationNode;
-        var modifiers = ModifierBuilder.Build(body.TypeBody, Context.Diagnostics);
-
-        typeDef.IsReadonly = modifiers.IsReadonly;
-        typeDef.IsIntrinsic = modifiers.IsIntrinsic;
-        typeDef.IsOwned = modifiers.IsOwned;
-        typeDef.Discipline = modifiers.Discipline;
-
-        if(typeDef is StructType structDef)
-        {
-            structDef.IsRef = modifiers.IsRef;
-        }
+        typeDef.Modifiers = ModifierBuilder.Build(body.TypeBody, Context.Diagnostics);
     }
 
     /// <summary>

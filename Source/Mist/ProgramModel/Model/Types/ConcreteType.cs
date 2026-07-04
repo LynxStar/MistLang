@@ -29,17 +29,17 @@ internal abstract class ConcreteType : MemberType, IConcreteType
     /// <summary>
     /// Whether this type is backend-backed (intrinsic keyword).
     /// </summary>
-    public bool IsIntrinsic { get; internal set; }
+    public bool IsIntrinsic => Modifiers.IsIntrinsic;
 
     /// <summary>
     /// Whether this type has owned semantics (owned keyword).
     /// </summary>
-    public bool IsOwned { get; internal set; }
+    public bool IsOwned => Modifiers.IsOwned;
 
     /// <summary>
     /// The substructural discipline (affine, linear, relevant, or none).
     /// </summary>
-    public SubstructuralDiscipline Discipline { get; internal set; }
+    public SubstructuralDiscipline Discipline => Modifiers.Discipline;
 
     public List<Field> FieldsList { get; } = [];
 

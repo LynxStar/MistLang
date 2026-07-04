@@ -109,6 +109,27 @@ public static class TraitIRBuilder
             }
         }
 
+        // Step 4: Build per-alternative trait bindings (as Name : Trait)
+        foreach(var decl in grammar.Declarations)
+        {
+            if(decl is StormRuleDecl ruleDecl && ruleDecl.Body is StormAlternationExpr altExpr)
+            {
+                foreach(var alt in altExpr.Alternatives)
+                {
+                    if(alt is StormNamedAlternative { TraitBindings.Count: > 0 } namedAlt)
+                    {
+                        var resolvedTraits = ResolveBindings(namedAlt.TraitBindings!, traitIRsByName);
+                        if(resolvedTraits.Count > 0)
+                        {
+                            // Key format: "RuleName.AlternativeName" to distinguish from rule-level bindings
+                            var key = $"{ruleDecl.Name}.{namedAlt.AlternativeName}";
+                            AddTraitsToRule(ruleTraitBindings, key, resolvedTraits);
+                        }
+                    }
+                }
+            }
+        }
+
         // Convert to IReadOnlyList values
         var finalBindings = new Dictionary<string, IReadOnlyList<TraitIR>>();
         foreach(var kvp in ruleTraitBindings)

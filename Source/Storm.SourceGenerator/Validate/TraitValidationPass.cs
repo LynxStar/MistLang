@@ -42,6 +42,15 @@ public static class TraitValidationPass
             }
         }
 
+        // Validate per-alternative trait bindings
+        foreach(var decl in grammar.Declarations)
+        {
+            if(decl is StormRuleDecl ruleDecl)
+            {
+                ValidateAlternativeTraitBindings(ruleDecl, traitsByName, diagnostics);
+            }
+        }
+
         return diagnostics;
     }
 
@@ -212,6 +221,93 @@ public static class TraitValidationPass
         foreach(var trait in resolvedTraits)
         {
             ValidateStructuralSatisfaction(ruleDecl, trait, traitsByName, ruleFields, diagnostics);
+        }
+    }
+
+    private static void ValidateAlternativeTraitBindings(
+        StormRuleDecl ruleDecl,
+        Dictionary<string, StormTraitDecl> traitsByName,
+        List<StormDiagnostic> diagnostics)
+    {
+        if(ruleDecl.Body is not StormAlternationExpr altExpr)
+        {
+            return;
+        }
+
+        foreach(var alt in altExpr.Alternatives)
+        {
+            if(alt is not StormNamedAlternative { TraitBindings.Count: > 0 } namedAlt)
+            {
+                continue;
+            }
+
+            // Resolve trait binding names
+            var resolvedTraits = new List<StormTraitDecl>();
+            foreach(var bindingName in namedAlt.TraitBindings!)
+            {
+                if(!traitsByName.TryGetValue(bindingName, out var traitDecl))
+                {
+                    diagnostics.Add(new StormDiagnostic(
+                        StormDiagnosticIds.STORM_TRAIT_BINDING_UNRESOLVED,
+                        StormDiagnosticSeverity.Error,
+                        $"Trait binding '{bindingName}' on alternative '{namedAlt.AlternativeName}' of rule '{ruleDecl.Name}' cannot be resolved to a declared trait",
+                        null,
+                        ruleDecl.Line,
+                        ruleDecl.Column));
+                }
+                else
+                {
+                    resolvedTraits.Add(traitDecl);
+                }
+            }
+
+            if(resolvedTraits.Count == 0)
+            {
+                continue;
+            }
+
+            // Validate structural satisfaction of the alternative's labeled fields
+            var altFields = ExtractLabeledFields(namedAlt.Expression);
+            foreach(var trait in resolvedTraits)
+            {
+                ValidateAlternativeSatisfaction(ruleDecl, namedAlt, trait, traitsByName, altFields, diagnostics);
+            }
+        }
+    }
+
+    private static void ValidateAlternativeSatisfaction(
+        StormRuleDecl ruleDecl,
+        StormNamedAlternative namedAlt,
+        StormTraitDecl trait,
+        Dictionary<string, StormTraitDecl> traitsByName,
+        Dictionary<string, (string TypeName, StormFieldCardinality Cardinality)> altFields,
+        List<StormDiagnostic> diagnostics)
+    {
+        var allTraitFields = CollectAllFields(trait, traitsByName);
+        foreach(var traitField in allTraitFields)
+        {
+            if(!altFields.TryGetValue(traitField.FieldName, out var altField))
+            {
+                diagnostics.Add(new StormDiagnostic(
+                    StormDiagnosticIds.STORM_TRAIT_FIELD_MISSING,
+                    StormDiagnosticSeverity.Error,
+                    $"Alternative '{namedAlt.AlternativeName}' of rule '{ruleDecl.Name}' binds trait '{trait.Name}' but is missing field '{traitField.FieldName}'",
+                    null,
+                    ruleDecl.Line,
+                    ruleDecl.Column));
+            }
+            else if(altField.TypeName != traitField.TypeName || altField.Cardinality != traitField.Cardinality)
+            {
+                var expected = FormatFieldSignature(traitField.TypeName, traitField.Cardinality);
+                var actual = FormatFieldSignature(altField.TypeName, altField.Cardinality);
+                diagnostics.Add(new StormDiagnostic(
+                    StormDiagnosticIds.STORM_TRAIT_FIELD_MISMATCH,
+                    StormDiagnosticSeverity.Error,
+                    $"Alternative '{namedAlt.AlternativeName}' of rule '{ruleDecl.Name}' field '{traitField.FieldName}' has type '{actual}' but trait '{trait.Name}' requires '{expected}'",
+                    null,
+                    ruleDecl.Line,
+                    ruleDecl.Column));
+            }
         }
     }
 

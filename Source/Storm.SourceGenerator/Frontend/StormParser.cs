@@ -580,7 +580,7 @@ public static class StormParser
         }
 
         /// <summary>
-        /// Named alternative: sequence ( 'as' Name )?
+        /// Named alternative: sequence ( 'as' Name ( ':' Trait1, Trait2 )? )?
         /// </summary>
         private StormExpression ParseNamedAlternative()
         {
@@ -590,7 +590,20 @@ public static class StormParser
             {
                 _ = Advance(); // consume 'as'
                 var nameTok = Expect(StormTokenKind.Identifier, "alternative name");
-                return new StormNamedAlternative(expr, nameTok.Lexeme);
+
+                // Optional trait bindings: : Trait1, Trait2
+                List<string>? traitBindings = null;
+                if(Match(StormTokenKind.Colon))
+                {
+                    traitBindings = new List<string>();
+                    traitBindings.Add(Expect(StormTokenKind.Identifier, "trait name").Lexeme);
+                    while(Match(StormTokenKind.Comma))
+                    {
+                        traitBindings.Add(Expect(StormTokenKind.Identifier, "trait name").Lexeme);
+                    }
+                }
+
+                return new StormNamedAlternative(expr, nameTok.Lexeme, traitBindings);
             }
 
             return expr;

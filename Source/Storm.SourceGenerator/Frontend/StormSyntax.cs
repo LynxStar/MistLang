@@ -278,10 +278,12 @@ public sealed record StormLabeledExpr(
 /// <summary>
 /// A named alternative: an expression followed by <c>as Name</c>.
 /// Used within rule alternations to name AST subtypes.
+/// Optionally binds traits: <c>as Name : Trait1, Trait2</c>.
 /// </summary>
 public sealed record StormNamedAlternative(
     StormExpression Expression,
-    string AlternativeName)
+    string AlternativeName,
+    IReadOnlyList<string>? TraitBindings = null)
     : StormExpression;
 
 /// <summary>

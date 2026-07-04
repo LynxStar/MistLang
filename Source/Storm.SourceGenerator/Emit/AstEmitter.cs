@@ -248,7 +248,7 @@ public static class AstEmitter
 
         if(hasNamedAlternatives)
         {
-            EmitAbstractNodeWithSubtypes(writer, rule);
+            EmitAbstractNodeWithSubtypes(writer, rule, context);
         }
         else
         {
@@ -332,7 +332,7 @@ public static class AstEmitter
     /// <summary>
     /// Emits an abstract record + sealed subtypes for rules with named alternatives.
     /// </summary>
-    private static void EmitAbstractNodeWithSubtypes(CodeWriter writer, RuleIR rule)
+    private static void EmitAbstractNodeWithSubtypes(CodeWriter writer, RuleIR rule, EmissionContext context)
     {
         var baseNodeTypeName = rule.Name + "Node";
 
@@ -362,7 +362,26 @@ public static class AstEmitter
                 var subtypeName = altName + rule.Name + "Node";
                 var properties = CollectProperties(alt);
 
-                EmitSealedSubtype(writer, subtypeName, baseNodeTypeName, properties);
+                // Check for per-alternative trait interfaces
+                var interfaces = new List<string>();
+                var altKey = $"{rule.Name}.{altName}";
+                if(context.RuleTraitBindings.TryGetValue(altKey, out var traits))
+                {
+                    foreach(var trait in traits)
+                    {
+                        var interfaceName = $"I{trait.Name}Node";
+                        if(!interfaces.Contains(interfaceName))
+                        {
+                            interfaces.Add(interfaceName);
+                        }
+                    }
+                }
+
+                var implementsList = interfaces.Count > 0
+                    ? $"{baseNodeTypeName}, {string.Join(", ", interfaces)}"
+                    : baseNodeTypeName;
+
+                EmitSealedSubtype(writer, subtypeName, implementsList, properties);
             }
         }
     }
@@ -395,9 +414,9 @@ public static class AstEmitter
     /// <summary>
     /// Emits a sealed subtype class with the given properties and Children() override.
     /// </summary>
-    private static void EmitSealedSubtype(CodeWriter writer, string subtypeName, string baseNodeTypeName, List<PropertyInfo> properties)
+    private static void EmitSealedSubtype(CodeWriter writer, string subtypeName, string implementsList, List<PropertyInfo> properties)
     {
-        writer.WriteBlock($"public sealed class {subtypeName} : {baseNodeTypeName}", () =>
+        writer.WriteBlock($"public sealed class {subtypeName} : {implementsList}", () =>
         {
             // Properties
             foreach(var prop in properties)

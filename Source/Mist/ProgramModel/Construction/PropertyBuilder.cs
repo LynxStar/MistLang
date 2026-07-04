@@ -43,7 +43,7 @@ internal sealed class PropertyBuilder
     {
         var name = exprProp.Name.Lexeme;
         var type = typeResolver.Resolve(exprProp.Type, memberType.Scope);
-        var modifiers = ModifierBuilder.Build(exprProp.Modifiers, context.Diagnostics, exprProp);
+        var modifiers = ModifierBuilder.Build(exprProp, context.Diagnostics);
 
         if(modifiers.IsAsync)
         {
@@ -64,7 +64,7 @@ internal sealed class PropertyBuilder
     {
         var name = blockProp.Name.Lexeme;
         var type = typeResolver.Resolve(blockProp.Type, memberType.Scope);
-        var modifiers = ModifierBuilder.Build(blockProp.Modifiers, context.Diagnostics, blockProp);
+        var modifiers = ModifierBuilder.Build(blockProp, context.Diagnostics);
         var isAbstract = memberType is AbstractType;
 
         if(modifiers.IsAsync)

@@ -31,6 +31,7 @@ internal sealed class OperatorBuilder
         var returnType = typeResolver.Resolve(opDecl.ReturnType, memberType.Scope);
         var modifiers = ModifierBuilder.Build(opDecl.Modifiers, context.Diagnostics, opDecl);
         var parameters = parameterBuilder.Resolve(opDecl.Parameters, memberType.Scope);
+        var body = CallableValidation.ResolveBody(opDecl.Body);
 
         if(!modifiers.IsStatic)
         {
@@ -38,46 +39,10 @@ internal sealed class OperatorBuilder
         }
 
         ValidateParameterCount(kind, parameters.Count, opDecl);
-
-        Block? body = null;
-
-        if(opDecl.Body is CallableBlockBodyCallableBodyNode blockBody)
-        {
-            body = new Block(blockBody.Block);
-        }
-
-        if(modifiers.IsIntrinsic)
-        {
-            ValidateIntrinsic(opDecl, memberType, body);
-        }
-        else if(body is null && memberType is not AbstractType)
-        {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.OperatorMustHaveBody, opDecl, null);
-        }
+        CallableValidation.ValidateIntrinsicOrBody(opDecl, memberType, "operator", modifiers, body, context.Diagnostics);
 
         var op = new Operator(kind, returnType, parameters, modifiers) { Body = body };
         memberType.OperatorsList.Add(op);
-    }
-
-    private void ValidateIntrinsic(OperatorDeclarationNode opDecl, MemberType memberType, Block? body)
-    {
-        if(memberType is AbstractType)
-        {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicNotValidOnMember, opDecl, null, "abstract operators");
-            return;
-        }
-
-        if(body is not null)
-        {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicMemberCannotHaveBody, opDecl, null, "operator");
-        }
-
-        var typeIsIntrinsic = memberType is ConcreteType concrete && concrete.IsIntrinsic;
-
-        if(!typeIsIntrinsic)
-        {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicRequiresIntrinsicType, opDecl, null, memberType.Name);
-        }
     }
 
     private void ValidateParameterCount(OperatorKind kind, int count, OperatorDeclarationNode opDecl)
@@ -100,7 +65,7 @@ internal sealed class OperatorBuilder
         }
     }
 
-    private static OperatorKind MapOperatorSymbol(OperatorSymbolNode symbol)
+    internal static OperatorKind MapOperatorSymbol(OperatorSymbolNode symbol)
     {
         return symbol switch
         {

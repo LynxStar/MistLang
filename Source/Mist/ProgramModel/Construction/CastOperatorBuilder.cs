@@ -31,6 +31,7 @@ internal sealed class CastOperatorBuilder
         var targetType = typeResolver.Resolve(castOpDecl.TargetType, typeDef.Scope);
         var modifiers = ModifierBuilder.Build(castOpDecl.Modifiers, context.Diagnostics, castOpDecl);
         var parameters = parameterBuilder.Resolve(castOpDecl.Parameters, typeDef.Scope);
+        var body = CallableValidation.ResolveBody(castOpDecl.Body);
 
         if(!modifiers.IsStatic)
         {
@@ -50,7 +51,9 @@ internal sealed class CastOperatorBuilder
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.CastOperatorTooManyParameters, castOpDecl, null);
         }
 
-        var castOperator = new CastOperator(targetType, sourceParameter, isImplicit, modifiers);
+        CallableValidation.ValidateIntrinsicOrBody(castOpDecl, typeDef, "cast operator", modifiers, body, context.Diagnostics);
+
+        var castOperator = new CastOperator(targetType, sourceParameter, isImplicit, modifiers) { Body = body };
         typeDef.CastOperatorsList.Add(castOperator);
     }
 }

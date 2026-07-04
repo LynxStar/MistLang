@@ -27,35 +27,14 @@ internal sealed class ConstructorBuilder
     {
         var modifiers = ModifierBuilder.Build(ctorDecl.Modifiers, context.Diagnostics, ctorDecl);
         var parameters = parameterBuilder.Resolve(ctorDecl.Parameters, concreteType.Scope);
+        var body = CallableValidation.ResolveBody(ctorDecl.Body);
 
         if(modifiers.IsAsync)
         {
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AsyncOnlyOnMethods, ctorDecl, null);
         }
 
-        Block? body = null;
-
-        if(ctorDecl.Body is CallableBlockBodyCallableBodyNode blockBody)
-        {
-            body = new Block(blockBody.Block);
-        }
-
-        if(modifiers.IsIntrinsic)
-        {
-            if(body is not null)
-            {
-                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicMemberCannotHaveBody, ctorDecl, null, concreteType.Name);
-            }
-
-            if(!concreteType.IsIntrinsic)
-            {
-                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicRequiresIntrinsicType, ctorDecl, null, concreteType.Name);
-            }
-        }
-        else if(body is null)
-        {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.MethodMustHaveBody, ctorDecl, null, concreteType.Name);
-        }
+        CallableValidation.ValidateIntrinsicOrBody(ctorDecl, concreteType, concreteType.Name, modifiers, body, context.Diagnostics);
 
         var constructor = new Constructor(concreteType.Name, concreteType, parameters, modifiers)
         {

@@ -1,4 +1,3 @@
-using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
@@ -32,22 +31,9 @@ internal sealed class MethodBuilder
         var modifiers = ModifierBuilder.Build(methodDecl.Modifiers, context.Diagnostics, methodDecl);
         var parameters = parameterBuilder.Resolve(methodDecl.Parameters, memberType.Scope);
         var returnOwnership = MemberTypeBuilder.ResolveOwnership(methodDecl.ReturnOwnership);
+        var body = CallableValidation.ResolveBody(methodDecl.Body);
 
-        Block? body = null;
-
-        if(methodDecl.Body is CallableBlockBodyCallableBodyNode blockBody)
-        {
-            body = new Block(blockBody.Block);
-        }
-
-        if(modifiers.IsIntrinsic)
-        {
-            ValidateIntrinsic(methodDecl, memberType, name, body);
-        }
-        else if(body is null && memberType is not AbstractType)
-        {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.MethodMustHaveBody, methodDecl, null, name);
-        }
+        CallableValidation.ValidateIntrinsicOrBody(methodDecl, memberType, name, modifiers, body, context.Diagnostics);
 
         var method = new Method(name, returnType, parameters, modifiers)
         {
@@ -56,20 +42,5 @@ internal sealed class MethodBuilder
         };
 
         memberType.MethodsList.Add(method);
-    }
-
-    private void ValidateIntrinsic(MethodDeclarationNode methodDecl, MemberType memberType, string name, Block? body)
-    {
-        if(body is not null)
-        {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicMemberCannotHaveBody, methodDecl, null, name);
-        }
-
-        var typeIsIntrinsic = memberType is ConcreteType concrete && concrete.IsIntrinsic;
-
-        if(!typeIsIntrinsic)
-        {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicRequiresIntrinsicType, methodDecl, null, memberType.Name);
-        }
     }
 }

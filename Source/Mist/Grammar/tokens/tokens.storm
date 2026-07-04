@@ -1,0 +1,11 @@
+// tokens.storm — All lexer tokens for the Mist grammar.
+// Import order determines token priority (first-match-wins).
+
+import "keywords.storm";
+import "operators.storm";
+import "literals.storm";
+
+// ─── Identifier ──────────────────────────────────────────────────────────────
+// Declared after all keywords so keywords take priority (R1.11).
+
+token IDENTIFIER = `[a-zA-Z_][a-zA-Z0-9_]*`;

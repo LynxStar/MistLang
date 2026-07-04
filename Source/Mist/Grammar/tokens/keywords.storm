@@ -110,5 +110,3 @@ token AWAIT = "await";
 
 // Stack allocation keyword
 token STACKALLOC = "stackalloc";
-
-

@@ -1,0 +1,40 @@
+// literals.storm — Numeric, string, char, and regex literal tokens.
+
+// ─── Fragments ───────────────────────────────────────────────────────────────
+
+fragment HEX_DIGIT        = `[0-9a-fA-F]`;
+fragment INT_SUFFIX        = `[lLuU]` | "UL" | "ul" | "Ul" | "uL" | "Lu" | "lU" | "LU" | "lu";
+fragment FLOAT_SUFFIX      = `[fFdDmM]`;
+fragment ESCAPE_SEQUENCE   = "\\\\" | "\\\"" | "\\n" | "\\r" | "\\t" | "\\0" | "\\'";
+fragment BINARY_DIGIT      = `[01]`;
+
+// ─── Literal Tokens ─────────────────────────────────────────────────────────
+// HEX_LITERAL is declared before INTEGER_LITERAL so that 0xFF matches as hex
+// rather than as 0 followed by xFF.
+// BINARY_LITERAL is declared before INTEGER_LITERAL so that 0b1010 matches as
+// binary rather than as 0 followed by b1010.
+
+token HEX_LITERAL      = "0" `[xX]` HEX_DIGIT+ ("_" HEX_DIGIT+)* INT_SUFFIX?;
+token BINARY_LITERAL   = "0" `[bB]` BINARY_DIGIT+ ("_" BINARY_DIGIT+)* INT_SUFFIX?;
+token INTEGER_LITERAL  = `[0-9]+` ("_" `[0-9]+`)* INT_SUFFIX?;
+token FLOAT_LITERAL    = `[0-9]+` ("_" `[0-9]+`)* "." `[0-9]+` ("_" `[0-9]+`)* FLOAT_SUFFIX?
+                       | `[0-9]+` ("_" `[0-9]+`)* FLOAT_SUFFIX;
+
+token CHAR_LITERAL     = "'" (ESCAPE_SEQUENCE | `[^'\\]`) "'";
+token STRING_LITERAL   = "\"" (ESCAPE_SEQUENCE | `[^"\\]`)* "\"";
+
+token REGEX_LITERAL    = "`" (`\\\\` | "\\`" | `[^\`]`)* "`";
+
+token INTERPOLATED_STRING_START = "$\"" => push Interpolation;
+
+// ─── Interpolation Mode ─────────────────────────────────────────────────────
+// Tokens active only inside interpolated strings ($"...{expr}...").
+// INTERPOLATION_OPEN pushes back to default mode for the embedded expression;
+// the regular RIGHT_BRACE (=> pop) in default mode returns here.
+
+mode Interpolation {
+    token INTERPOLATED_STRING_TEXT = (`[^"\\{]` | INTERP_ESCAPE_SEQUENCE)+;
+    token INTERPOLATION_OPEN      = "{" => push default;
+    token INTERPOLATED_STRING_END = "\"" => pop;
+    fragment INTERP_ESCAPE_SEQUENCE = "\\\\" | "\\\"" | "\\n" | "\\r" | "\\t" | "\\0" | "\\'";
+}

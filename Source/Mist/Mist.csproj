@@ -29,7 +29,10 @@
 
   <ItemGroup>
     <AdditionalFiles Include="Grammar\Mist.storm" />
-    <AdditionalFiles Include="Grammar\keywords.storm" />
+    <AdditionalFiles Include="Grammar\tokens\tokens.storm" />
+    <AdditionalFiles Include="Grammar\tokens\keywords.storm" />
+    <AdditionalFiles Include="Grammar\tokens\operators.storm" />
+    <AdditionalFiles Include="Grammar\tokens\literals.storm" />
   </ItemGroup>
 
 </Project>

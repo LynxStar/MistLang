@@ -1,0 +1,44 @@
+// operators.storm — Operators, punctuation, and hidden tokens.
+
+// ─── Hidden Tokens ───────────────────────────────────────────────────────────
+
+hidden token WHITESPACE   = `\s+`;
+hidden token LINE_COMMENT = "//" `[^\n]*`;
+
+// ─── Operators and Punctuation ───────────────────────────────────────────────
+// Multi-character operators are declared before their single-character
+// counterparts so that maximal-munch combined with declaration-order priority
+// selects the longer token.
+
+token LOGICAL_AND           = "&&";
+token PIPE                  = "|";
+token LOGICAL_OR            = "||";
+token EQUAL_EQUAL           = "==";
+token NOT_EQUAL             = "!=";
+token LESS_THAN_OR_EQUAL    = "<=";
+token GREATER_THAN_OR_EQUAL = ">=";
+token SUCH_THAT             = "=>";
+token QUESTION_QUESTION_EQUAL = "??=";
+token QUESTION_QUESTION     = "??";
+token QUESTION_DOT          = "?.";
+token QUESTION              = "?";
+token PLUS                  = "+";
+token MINUS                 = "-";
+token STAR                  = "*";
+token SLASH                 = "/";
+token MODULO                = "%";
+token EQUAL                 = "=";
+token LESS_THAN             = "<";
+token GREATER_THAN          = ">";
+token EXCLAMATION           = "!";
+token DOTDOT                = "..";
+token DOT                   = ".";
+token COMMA                 = ",";
+token SEMICOLON             = ";";
+token COLON                 = ":";
+token LEFT_PARENTHESIS      = "(";
+token RIGHT_PARENTHESIS     = ")";
+token LEFT_BRACE            = "{" => push default;
+token RIGHT_BRACE           = "}" => pop;
+token LEFT_BRACKET          = "[";
+token RIGHT_BRACKET         = "]";

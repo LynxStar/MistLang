@@ -261,7 +261,7 @@ public class PrettyPrinterPropertyTests
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
             Name = MakeToken("Point"),
             Parameters = new ParameterListNode { Parameter = ctorParam },
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -283,7 +283,7 @@ public class PrettyPrinterPropertyTests
             },
             Name = MakeToken("GetX"),
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -454,7 +454,7 @@ public class PrettyPrinterPropertyTests
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Name = MakeToken("Run"),
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -519,7 +519,7 @@ public class PrettyPrinterPropertyTests
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Name = MakeToken("Test"),
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -569,7 +569,7 @@ public class PrettyPrinterPropertyTests
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
             Name = MakeToken("Foo"),
             Parameters = new ParameterListNode { Parameter = paramX },
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
         };
 
         var ctor2 = new ConstructorDeclarationNode
@@ -584,7 +584,7 @@ public class PrettyPrinterPropertyTests
                     Argument = new ValueArgumentArgumentNode { Expression = MakeIntLiteralExpression("0") },
                 },
             },
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
         };
 
         var classDecl = new TypeBodyDeclarationNode

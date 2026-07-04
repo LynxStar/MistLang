@@ -211,7 +211,7 @@ public class AsyncFunctorOperandPropertyTests
             Name = Tok(scenario.MethodName),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode { Statements = statements.ToImmutable() },
             },
@@ -247,7 +247,7 @@ public class AsyncFunctorOperandPropertyTests
             Name = Tok("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
             },

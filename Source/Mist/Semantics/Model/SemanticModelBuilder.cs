@@ -1799,11 +1799,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             switch(member)
             {
                 case MethodMemberMemberDeclarationNode methodMember
-                    when methodMember.Method.Body is MethodNoBodyMethodBodyNode:
+                    when methodMember.Method.Body is CallableNoBodyCallableBodyNode:
                     RegisterAbstractMethodDeclaration(methodMember.Method, typeScope, symbolTable, sourceText, diagnostics);
                     break;
                 case MethodMemberMemberDeclarationNode defaultMethodMember
-                    when defaultMethodMember.Method.Body is MethodBlockBodyMethodBodyNode:
+                    when defaultMethodMember.Method.Body is CallableBlockBodyCallableBodyNode:
                     {
                         // A default method has a body. Register it as a normal method symbol so
                         // member resolution works, AND record it in DefaultMethods so the type
@@ -2158,7 +2158,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             var methodDecl = methodMember.Method;
                             var methodName = methodDecl.Name.Lexeme;
                             var methodSpan = ToMistSourceSpan(methodDecl.Name.Span);
-                            var hasBody = methodDecl.Body is not MethodNoBodyMethodBodyNode;
+                            var hasBody = methodDecl.Body is not CallableNoBodyCallableBodyNode;
                             var methodSymbol = new Symbol(
                                 methodName, SymbolKind.Method, SymbolOrigin.UserCode,
                                 memberScope, declaredType: null, methodSpan, hasBody: hasBody);
@@ -3375,7 +3375,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var ctorName = ctorDecl.Name.Lexeme;
         var ctorSpan = ToMistSourceSpan(ctorDecl.Name.Span);
         var isIntrinsic = HasIntrinsicModifier(ctorDecl.Modifiers);
-        var hasBody = ctorDecl.Body is not MethodNoBodyMethodBodyNode;
+        var hasBody = ctorDecl.Body is not CallableNoBodyCallableBodyNode;
         var ctorSymbol = new Symbol(
             ctorName, SymbolKind.Constructor, SymbolOrigin.UserCode, typeScope,
             declaredType: null, ctorSpan,
@@ -3395,7 +3395,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var methodName = methodDecl.Name.Lexeme;
         var methodSpan = ToMistSourceSpan(methodDecl.Name.Span);
         var isIntrinsic = HasIntrinsicModifier(methodDecl.Modifiers);
-        var hasBody = methodDecl.Body is not MethodNoBodyMethodBodyNode;
+        var hasBody = methodDecl.Body is not CallableNoBodyCallableBodyNode;
         var methodSymbol = new Symbol(
             methodName, SymbolKind.Method, SymbolOrigin.UserCode, typeScope,
             declaredType: null, methodSpan,
@@ -3436,7 +3436,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var opName = "operator" + opLexeme;
         var opSpan = ToMistSourceSpan(opDecl.Symbol.Span);
         var isIntrinsic = HasIntrinsicModifier(opDecl.Modifiers);
-        var hasBody = opDecl.Body is not OperatorNoBodyOperatorBodyNode;
+        var hasBody = opDecl.Body is not CallableNoBodyCallableBodyNode;
         var opSymbol = new Symbol(
             opName, SymbolKind.Method, SymbolOrigin.UserCode, typeScope,
             declaredType: null, opSpan,
@@ -3475,7 +3475,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         var opSpan = ToMistSourceSpan(castOpDecl.CastKind.Span);
         var isIntrinsic = HasIntrinsicModifier(castOpDecl.Modifiers);
-        var hasBody = castOpDecl.Body is not OperatorNoBodyOperatorBodyNode;
+        var hasBody = castOpDecl.Body is not CallableNoBodyCallableBodyNode;
 
         var opSymbol = new Symbol(
             opName, SymbolKind.Method, SymbolOrigin.UserCode, typeScope,
@@ -12909,7 +12909,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         switch(member)
                         {
                             case MethodMemberMemberDeclarationNode methodMember
-                                when methodMember.Method.Body is MethodNoBodyMethodBodyNode:
+                                when methodMember.Method.Body is CallableNoBodyCallableBodyNode:
                                 {
                                     var methodDecl = methodMember.Method;
                                     if(symbolTable.GetDeclaredSymbol(methodDecl) is not Symbol methodSymbol || methodSymbol.DeclaredType is not null)
@@ -12936,13 +12936,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                         methodSymbol.ReturnRefKind = RefKind.RefReadonly;
                                         methodSymbol.OwnershipTier = OwnershipTier.Unrestricted;
                                     }
-                                    else if(methodDecl.ReturnOwnership is null && methodDecl.Modifiers.Any(m => m is OwnedModifierModifierNode))
-                                    {
-                                        methodSymbol.OwnershipTier = OwnershipTier.Owned;
-                                    }
                                     else
                                     {
-                                        methodSymbol.OwnershipTier = MapOwnershipSpecifier(methodDecl.ReturnOwnership);
+                                        methodSymbol.OwnershipTier = methodDecl.ReturnOwnership is null && methodDecl.Modifiers.Any(m => m is OwnedModifierModifierNode)
+                                            ? OwnershipTier.Owned
+                                            : MapOwnershipSpecifier(methodDecl.ReturnOwnership);
                                     }
 
                                     // Resolve parameter types — Phase 4 is the sole owner for

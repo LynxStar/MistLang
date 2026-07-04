@@ -227,7 +227,7 @@ public class CastOperatorValidationPropertyTests
             {
                 Parameter = MakeParameter(sourceTypeName, "value"),
             },
-            Body = new OperatorBlockBodyOperatorBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {

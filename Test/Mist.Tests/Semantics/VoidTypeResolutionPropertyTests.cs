@@ -225,7 +225,7 @@ public class VoidTypeResolutionPropertyTests
             Name = MakeToken("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -236,7 +236,7 @@ public class VoidTypeResolutionPropertyTests
             Name = MakeToken(scenario.MethodName),
             ReturnType = voidTypeRef,
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -294,7 +294,7 @@ public class VoidTypeResolutionPropertyTests
             Name = MakeToken("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray.Create<StatementNode>(voidVarDecl) } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = ImmutableArray.Create<StatementNode>(voidVarDecl) } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -336,7 +336,7 @@ public class VoidTypeResolutionPropertyTests
             Name = MakeToken("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -356,7 +356,7 @@ public class VoidTypeResolutionPropertyTests
             Name = MakeToken(scenario.MethodName),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = paramList,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -409,7 +409,7 @@ public class VoidTypeResolutionPropertyTests
             Name = MakeToken("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),

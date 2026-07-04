@@ -77,7 +77,7 @@ public class AbstractResolutionPropertyTests
             Name = MakeToken(name),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodNoBodyMethodBodyNode(),
+            Body = new CallableNoBodyCallableBodyNode(),
         };
     }
 

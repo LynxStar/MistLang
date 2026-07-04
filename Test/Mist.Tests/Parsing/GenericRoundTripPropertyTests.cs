@@ -277,7 +277,7 @@ public class GenericRoundTripPropertyTests
                    TypeParams = methodTypeParams,
                    ReturnType = returnType,
                    Parameters = parameters,
-                   Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
+                   Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
                    Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
                };
     }
@@ -298,7 +298,7 @@ public class GenericRoundTripPropertyTests
                    TypeParams = methodTypeParams,
                    ReturnType = returnType,
                    Parameters = null,
-                   Body = new MethodNoBodyMethodBodyNode(),
+                   Body = new CallableNoBodyCallableBodyNode(),
                };
     }
 
@@ -457,7 +457,7 @@ public class GenericRoundTripPropertyTests
             Name = Tok("Run"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = statements } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = statements } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 

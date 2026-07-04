@@ -124,7 +124,7 @@ public class ArityMismatchPropertyTests
             Name = MakeToken(name),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             TypeParams = MakeTypeParamList(typeParamNames),
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
     }
@@ -330,7 +330,7 @@ public class ArityMismatchPropertyTests
         {
             Name = MakeToken("Caller"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray.Create(callStatement) } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = ImmutableArray.Create(callStatement) } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -441,7 +441,7 @@ public class ArityMismatchPropertyTests
         {
             Name = MakeToken("Caller"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray.Create(callStatement) } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = ImmutableArray.Create(callStatement) } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 

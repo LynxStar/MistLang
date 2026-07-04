@@ -82,7 +82,7 @@ public class AsyncMethodReturnTypePropertyTests
             Name = MakeToken(name),
             ReturnType = returnType,
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
             },

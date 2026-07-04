@@ -199,7 +199,7 @@ public sealed class VoidEmitterTests : IDisposable
             Name = Tok("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -242,7 +242,7 @@ public sealed class VoidEmitterTests : IDisposable
             Name = Tok("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -289,7 +289,7 @@ public sealed class VoidEmitterTests : IDisposable
             Name = Tok("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -345,7 +345,7 @@ public sealed class VoidEmitterTests : IDisposable
             Name = Tok("Accept"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = paramList,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -392,7 +392,7 @@ public sealed class VoidEmitterTests : IDisposable
             Name = Tok("DoWork"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -414,7 +414,7 @@ public sealed class VoidEmitterTests : IDisposable
             Name = Tok("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -465,7 +465,7 @@ public sealed class VoidEmitterTests : IDisposable
             Name = Tok("DoWork"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -488,7 +488,7 @@ public sealed class VoidEmitterTests : IDisposable
             Name = Tok("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -540,7 +540,7 @@ public sealed class VoidEmitterTests : IDisposable
             Name = Tok("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -591,7 +591,7 @@ public sealed class VoidEmitterTests : IDisposable
             Name = Tok("DoWork"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -613,7 +613,7 @@ public sealed class VoidEmitterTests : IDisposable
             Name = Tok("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {

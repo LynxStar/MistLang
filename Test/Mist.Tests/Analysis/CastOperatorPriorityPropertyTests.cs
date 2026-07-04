@@ -220,7 +220,7 @@ public class CastOperatorPriorityPropertyTests
             {
                 Parameter = MakeParameter(sourceTypeName, "value"),
             },
-            Body = new OperatorBlockBodyOperatorBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -373,7 +373,7 @@ public class CastOperatorPriorityPropertyTests
             Name = Tok("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode { Statements = mainStatements },
             },
@@ -429,7 +429,7 @@ public class CastOperatorPriorityPropertyTests
             Name = Tok("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode { Statements = mainStatements },
             },

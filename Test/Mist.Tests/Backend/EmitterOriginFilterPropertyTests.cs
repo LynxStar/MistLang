@@ -129,7 +129,7 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -325,7 +325,7 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {

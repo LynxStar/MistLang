@@ -229,7 +229,7 @@ public class CastOperatorValidationPropertyTests
             {
                 Parameter = MakeParameter(scenario.ParamTypeName, scenario.ParamName),
             },
-            Body = new OperatorBlockBodyOperatorBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -281,7 +281,7 @@ public class CastOperatorValidationPropertyTests
             CastKind = MakeCastKindNode(scenario.CastKind),
             TargetType = MakeNamedTypeRef(scenario.TargetTypeName),
             Parameters = parameterList,
-            Body = new OperatorBlockBodyOperatorBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {

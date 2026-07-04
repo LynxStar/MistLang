@@ -73,7 +73,7 @@ public class AbstractTypeRegistrationPropertyTests
             Name = MakeToken(name),
             ReturnType = returnType ?? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = parameters,
-            Body = new MethodNoBodyMethodBodyNode(),
+            Body = new CallableNoBodyCallableBodyNode(),
         };
     }
 

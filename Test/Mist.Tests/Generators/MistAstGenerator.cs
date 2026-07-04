@@ -432,7 +432,7 @@ public static class MistAstGenerator
             Name = Tok(name),
             ReturnType = returnType,
             Parameters = parameters,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = body } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = body } },
             Modifiers = modifiers ?? ImmutableArray<ModifierNode>.Empty,
         };
     }

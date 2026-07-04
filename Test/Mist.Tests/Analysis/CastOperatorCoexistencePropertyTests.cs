@@ -209,7 +209,7 @@ public class CastOperatorCoexistencePropertyTests
             {
                 Parameter = MakeParameter(sourceTypeName, "value"),
             },
-            Body = new OperatorBlockBodyOperatorBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -246,7 +246,7 @@ public class CastOperatorCoexistencePropertyTests
                 Parameter = MakeParameter(typeName, "a"),
                 Parameters = ImmutableArray.Create(MakeParameter(typeName, "b")),
             },
-            Body = new OperatorBlockBodyOperatorBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {

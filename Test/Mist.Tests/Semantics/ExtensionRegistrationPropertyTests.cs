@@ -295,7 +295,7 @@ public class ExtensionRegistrationPropertyTests
             Name = Tok(info.Name),
             ReturnType = MakeReturnTypeRef(info.ReturnType),
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = body },
+            Body = new CallableBlockBodyCallableBodyNode { Block = body },
             Modifiers = ImmutableArray<ModifierNode>.Empty,
         };
 

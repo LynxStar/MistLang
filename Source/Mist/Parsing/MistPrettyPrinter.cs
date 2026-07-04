@@ -388,7 +388,7 @@ public sealed class MistPrettyPrinter
         var withClauses = EmitWithClauses(methodDecl.WithClauses);
         var constraints = EmitConstraintClauses(methodDecl.Constraints);
 
-        if(methodDecl.Body is MethodNoBodyMethodBodyNode)
+        if(methodDecl.Body is CallableNoBodyCallableBodyNode)
         {
             AppendLine($"{modifiers}{returnOwnership}{returnType} {name}{typeParams}({parameters}){withClauses}{constraints};");
             return;
@@ -676,7 +676,7 @@ public sealed class MistPrettyPrinter
         };
         var parameters = EmitParameterList(opDecl.Parameters);
 
-        if(opDecl.Body is OperatorBlockBodyOperatorBodyNode blockBody)
+        if(opDecl.Body is CallableBlockBodyCallableBodyNode blockBody)
         {
             AppendLine($"{modifiers}{returnType} operator {symbol}({parameters}) {{");
             indentLevel++;
@@ -703,7 +703,7 @@ public sealed class MistPrettyPrinter
         var targetType = EmitTypeReference(castOpDecl.TargetType);
         var parameters = EmitParameterList(castOpDecl.Parameters);
 
-        if(castOpDecl.Body is OperatorBlockBodyOperatorBodyNode blockBody)
+        if(castOpDecl.Body is CallableBlockBodyCallableBodyNode blockBody)
         {
             AppendLine($"{modifiers}{castKind} operator {targetType}({parameters}) {{");
             indentLevel++;

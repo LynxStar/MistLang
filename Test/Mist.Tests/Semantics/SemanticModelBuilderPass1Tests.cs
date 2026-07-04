@@ -280,7 +280,7 @@ public class SemanticModelBuilderPass1Tests
         var ctorDecl = new ConstructorDeclarationNode
         {
             Name = MakeToken("MyClass"),
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
         };
         var classDecl = new TypeBodyDeclarationNode
         {
@@ -313,7 +313,7 @@ public class SemanticModelBuilderPass1Tests
         {
             Name = MakeToken("DoWork"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
         };
         var classDecl = new TypeBodyDeclarationNode
         {
@@ -358,7 +358,7 @@ public class SemanticModelBuilderPass1Tests
         var ctorDecl = new ConstructorDeclarationNode
         {
             Name = MakeToken("Point"),
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
         };
         var methodDecl = new MethodDeclarationNode
         {
@@ -370,7 +370,7 @@ public class SemanticModelBuilderPass1Tests
                     PrimitiveType = new IntTypePrimitiveTypeNode(),
                 }
             },
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
         };
         var classDecl = new TypeBodyDeclarationNode
         {
@@ -465,7 +465,7 @@ public class SemanticModelBuilderPass1Tests
         {
             Name = MakeToken("Run"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
         };
         var classDecl = new TypeBodyDeclarationNode
         {
@@ -639,7 +639,7 @@ public class SemanticModelBuilderPass1Tests
         var ctorDecl = new ConstructorDeclarationNode
         {
             Name = MakeToken("Point"),
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
         };
         var structDecl = new TypeBodyDeclarationNode
         {

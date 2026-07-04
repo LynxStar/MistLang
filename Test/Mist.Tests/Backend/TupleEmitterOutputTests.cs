@@ -126,7 +126,7 @@ public sealed class TupleEmitterOutputTests : IDisposable
             Name = MakeToken("Run"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = block },
+            Body = new CallableBlockBodyCallableBodyNode { Block = block },
             Modifiers = ImmutableArray<ModifierNode>.Empty,
         };
         var classDecl = new TypeBodyDeclarationNode

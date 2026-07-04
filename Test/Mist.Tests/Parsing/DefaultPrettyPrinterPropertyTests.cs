@@ -318,7 +318,7 @@ public class DefaultPrettyPrinterPropertyTests
                                                ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                                                Modifiers = ImmutableArray.Create<ModifierNode>(
                                                    new PublicModifierModifierNode()),
-                                               Body = new MethodBlockBodyMethodBodyNode
+                                               Body = new CallableBlockBodyCallableBodyNode
                                                {
                                                    Block = new BlockNode
                                                    {
@@ -377,7 +377,7 @@ public class DefaultPrettyPrinterPropertyTests
                                                ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                                                Modifiers = ImmutableArray.Create<ModifierNode>(
                                                    new PublicModifierModifierNode()),
-                                               Body = new MethodBlockBodyMethodBodyNode
+                                               Body = new CallableBlockBodyCallableBodyNode
                                                {
                                                    Block = new BlockNode
                                                    {
@@ -447,7 +447,7 @@ public class DefaultPrettyPrinterPropertyTests
                                                ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                                                Modifiers = ImmutableArray.Create<ModifierNode>(
                                                    new PublicModifierModifierNode()),
-                                               Body = new MethodBlockBodyMethodBodyNode
+                                               Body = new CallableBlockBodyCallableBodyNode
                                                {
                                                    Block = new BlockNode
                                                    {

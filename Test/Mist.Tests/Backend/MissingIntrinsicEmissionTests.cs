@@ -139,7 +139,7 @@ public class Program {
             ReturnType = fakeTypeRef,
             Symbol = new PlusOpOperatorSymbolNode(),
             Parameters = new ParameterListNode { Parameter = paramA, Parameters = ImmutableArray.Create(paramB) },
-            Body = new OperatorNoBodyOperatorBodyNode(),
+            Body = new CallableNoBodyCallableBodyNode(),
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new IntrinsicModifierModifierNode(),
                 new PublicModifierModifierNode(),
@@ -196,7 +196,7 @@ public class Program {
             Name = MakeToken("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -347,7 +347,7 @@ public class Program {
             },
             Symbol = new PlusOpOperatorSymbolNode(),
             Parameters = new ParameterListNode { Parameter = paramA, Parameters = ImmutableArray.Create(paramB) },
-            Body = new OperatorNoBodyOperatorBodyNode(),
+            Body = new CallableNoBodyCallableBodyNode(),
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new IntrinsicModifierModifierNode(),
                 new PublicModifierModifierNode(),
@@ -397,7 +397,7 @@ public class Program {
             Name = MakeToken("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -498,7 +498,7 @@ public class Program {
             Name = MakeToken("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {

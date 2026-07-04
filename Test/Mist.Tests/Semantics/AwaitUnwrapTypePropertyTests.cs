@@ -131,7 +131,7 @@ public class AwaitUnwrapTypePropertyTests
             Name = Tok(scenario.TargetMethodName),
             ReturnType = returnTypeRef,
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
             },
@@ -181,7 +181,7 @@ public class AwaitUnwrapTypePropertyTests
             Name = Tok("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode { Statements = ImmutableArray.Create<StatementNode>(varDecl) },
             },

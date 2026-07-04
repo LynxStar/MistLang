@@ -35,7 +35,7 @@ internal sealed class ConstructorBuilder
 
         Block? body = null;
 
-        if(ctorDecl.Body is MethodBlockBodyMethodBodyNode blockBody)
+        if(ctorDecl.Body is CallableBlockBodyCallableBodyNode blockBody)
         {
             body = new Block(blockBody.Block);
         }

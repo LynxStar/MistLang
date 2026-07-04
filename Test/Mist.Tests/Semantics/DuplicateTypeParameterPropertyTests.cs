@@ -215,7 +215,7 @@ public class DuplicateTypeParameterPropertyTests
                         Name = MakeToken(decl.DeclName),
                         ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                         TypeParams = MakeTypeParamList(decl.TypeParamNames.ToArray()),
-                        Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
+                        Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
                         Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
                     };
                     var classDecl = new TypeBodyDeclarationNode
@@ -276,7 +276,7 @@ public class DuplicateTypeParameterPropertyTests
             Name = MakeToken("Transform"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             TypeParams = MakeTypeParamList(["T", "U", "T"]),
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
         var classDecl = new TypeBodyDeclarationNode

@@ -55,10 +55,10 @@ public static class MistCastOperatorGenerator
     /// <summary>
     /// Generates a block body with a return statement for a cast operator.
     /// </summary>
-    public static Gen<OperatorBodyNode> GenBlockBody()
+    public static Gen<CallableBodyNode> GenBlockBody()
     {
         return from paramName in Gen.Elements(ParamNames)
-               select (OperatorBodyNode)new OperatorBlockBodyOperatorBodyNode
+               select (CallableBodyNode)new CallableBlockBodyCallableBodyNode
                {
                    Block = new BlockNode
                    {
@@ -72,15 +72,15 @@ public static class MistCastOperatorGenerator
     /// <summary>
     /// Generates a no-body (semicolon-terminated) operator body for intrinsic cast operators.
     /// </summary>
-    public static Gen<OperatorBodyNode> GenNoBody()
+    public static Gen<CallableBodyNode> GenNoBody()
     {
-        return Gen.Constant((OperatorBodyNode)new OperatorNoBodyOperatorBodyNode());
+        return Gen.Constant((CallableBodyNode)new CallableNoBodyCallableBodyNode());
     }
 
     /// <summary>
     /// Generates a random operator body (block or no-body).
     /// </summary>
-    public static Gen<OperatorBodyNode> GenOperatorBody()
+    public static Gen<CallableBodyNode> GenOperatorBody()
     {
         return Gen.OneOf(GenBlockBody(), GenNoBody());
     }
@@ -193,7 +193,7 @@ public static class MistCastOperatorGenerator
                            Name = Tok(paramName),
                        },
                    },
-                   Body = new OperatorNoBodyOperatorBodyNode(),
+                   Body = new CallableNoBodyCallableBodyNode(),
                };
     }
 
@@ -356,7 +356,7 @@ public static class MistCastOperatorGenerator
                                            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                                            Modifiers = ImmutableArray.Create<ModifierNode>(
                                                new PublicModifierModifierNode()),
-                                           Body = new MethodBlockBodyMethodBodyNode
+                                           Body = new CallableBlockBodyCallableBodyNode
                                            {
                                                Block = new BlockNode
                                                {
@@ -422,7 +422,7 @@ public static class MistCastOperatorGenerator
                                            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                                            Modifiers = ImmutableArray.Create<ModifierNode>(
                                                new PublicModifierModifierNode()),
-                                           Body = new MethodBlockBodyMethodBodyNode
+                                           Body = new CallableBlockBodyCallableBodyNode
                                            {
                                                Block = new BlockNode
                                                {

@@ -224,7 +224,7 @@ public class ExtensionTypeCheckerPropertyTests
             Name = Tok(name),
             ReturnType = MakeReturnTypeRef(returnType),
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = body },
+            Body = new CallableBlockBodyCallableBodyNode { Block = body },
             Modifiers = modifiers,
         };
 
@@ -324,7 +324,7 @@ public class ExtensionTypeCheckerPropertyTests
             {
                 Name = Tok(name),
                 ReturnType = MakeReturnTypeRef(returnType),
-                Body = new MethodBlockBodyMethodBodyNode { Block = body },
+                Body = new CallableBlockBodyCallableBodyNode { Block = body },
                 Modifiers = modifiers.ToImmutableArray(),
             },
         };
@@ -556,7 +556,7 @@ public class ExtensionTypeCheckerPropertyTests
         {
             Name = Tok("_probe_"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-            Body = new MethodBlockBodyMethodBodyNode { Block = probeBody },
+            Body = new CallableBlockBodyCallableBodyNode { Block = probeBody },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
         var classDecl = MakeClass(scenario.ClassName,
@@ -606,7 +606,7 @@ public class ExtensionTypeCheckerPropertyTests
         {
             Name = Tok("_probe_"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-            Body = new MethodBlockBodyMethodBodyNode { Block = probeBody },
+            Body = new CallableBlockBodyCallableBodyNode { Block = probeBody },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
         var classDecl = MakeClass(scenario.ClassName,
@@ -662,7 +662,7 @@ public class ExtensionTypeCheckerPropertyTests
         {
             Name = Tok("_probe_"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-            Body = new MethodBlockBodyMethodBodyNode { Block = probeBody },
+            Body = new CallableBlockBodyCallableBodyNode { Block = probeBody },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
         var classDecl = MakeClass(scenario.ClassName,
@@ -808,7 +808,7 @@ public class ExtensionTypeCheckerPropertyTests
         {
             Name = Tok("_probe_"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-            Body = new MethodBlockBodyMethodBodyNode { Block = probeBody },
+            Body = new CallableBlockBodyCallableBodyNode { Block = probeBody },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
         var classDecl = MakeClass(scenario.TargetTypeName,
@@ -935,7 +935,7 @@ public class ExtensionTypeCheckerPropertyTests
         {
             Name = Tok("_probe_"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-            Body = new MethodBlockBodyMethodBodyNode { Block = probeBody },
+            Body = new CallableBlockBodyCallableBodyNode { Block = probeBody },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
         var callerClass = MakeClass(scenario.ClassName,
@@ -987,7 +987,7 @@ public class ExtensionTypeCheckerPropertyTests
         {
             Name = Tok("_probe_"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-            Body = new MethodBlockBodyMethodBodyNode { Block = probeBody },
+            Body = new CallableBlockBodyCallableBodyNode { Block = probeBody },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
         var callerClass = MakeClass(scenario.ClassName,
@@ -1027,7 +1027,7 @@ public class ExtensionTypeCheckerPropertyTests
         {
             Name = Tok("_probe_"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-            Body = new MethodBlockBodyMethodBodyNode { Block = probeBody },
+            Body = new CallableBlockBodyCallableBodyNode { Block = probeBody },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
         var classDecl = MakeClass(scenario.ClassName,
@@ -1169,7 +1169,7 @@ public class ExtensionTypeCheckerPropertyTests
             Name = Tok("_probe_"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = new ParameterListNode { Parameter = param },
-            Body = new MethodBlockBodyMethodBodyNode { Block = callerBody },
+            Body = new CallableBlockBodyCallableBodyNode { Block = callerBody },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
         var callerClass = MakeClass("Caller",

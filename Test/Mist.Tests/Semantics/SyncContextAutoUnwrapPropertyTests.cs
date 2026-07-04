@@ -128,7 +128,7 @@ public class SyncContextAutoUnwrapPropertyTests
             Name = Tok(scenario.AsyncMethodName),
             ReturnType = returnTypeRef,
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
             },
@@ -173,7 +173,7 @@ public class SyncContextAutoUnwrapPropertyTests
             Name = Tok("Caller"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode { Statements = ImmutableArray.Create<StatementNode>(varDecl) },
             },

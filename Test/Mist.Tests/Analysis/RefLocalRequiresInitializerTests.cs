@@ -99,7 +99,7 @@ public class RefLocalRequiresInitializerTests
             Name = Tok("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = body } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = body } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),

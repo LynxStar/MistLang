@@ -167,7 +167,7 @@ public sealed class ValueTaskEmissionPropertyTests : IDisposable
             Name = Tok(scenario.MethodName),
             ReturnType = returnTypeRef,
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
             },
@@ -238,7 +238,7 @@ public sealed class ValueTaskEmissionPropertyTests : IDisposable
             Name = Tok("CallAsync"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {

@@ -81,7 +81,7 @@ public class AbstractRoundTripPropertyTests
             Name = Tok(name),
             ReturnType = returnType ?? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = parameters,
-            Body = new MethodNoBodyMethodBodyNode(),
+            Body = new CallableNoBodyCallableBodyNode(),
         };
     }
 
@@ -170,7 +170,7 @@ public class AbstractRoundTripPropertyTests
             Name = Tok(name),
             ReturnType = returnType,
             Parameters = parameters,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = body } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = body } },
             Modifiers = modifiers ?? ImmutableArray<ModifierNode>.Empty,
         };
     }

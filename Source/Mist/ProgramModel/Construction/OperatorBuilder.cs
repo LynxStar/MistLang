@@ -41,7 +41,7 @@ internal sealed class OperatorBuilder
 
         Block? body = null;
 
-        if(opDecl.Body is OperatorBlockBodyOperatorBodyNode blockBody)
+        if(opDecl.Body is CallableBlockBodyCallableBodyNode blockBody)
         {
             body = new Block(blockBody.Block);
         }

@@ -43,7 +43,7 @@ public static class MistProgramGenerator
             Name = Tok("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = mainStatements } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = mainStatements } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -87,7 +87,7 @@ public static class MistProgramGenerator
             Name = Tok(methodName),
             ReturnType = returnType,
             Parameters = parameters,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = methodStatements } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = methodStatements } },
             Modifiers = methodModifiers.ToImmutable(),
         };
 

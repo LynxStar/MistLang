@@ -287,7 +287,7 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
             CastKind = castKindNode,
             TargetType = NamedTypeRef(targetType),
             Parameters = new ParameterListNode { Parameter = MakeParam(sourceType, "value") },
-            Body = new OperatorBlockBodyOperatorBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -334,7 +334,7 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
                 Name = Tok("Main"),
                 ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                 Parameters = null,
-                Body = new MethodBlockBodyMethodBodyNode
+                Body = new CallableBlockBodyCallableBodyNode
                 {
                     Block = new BlockNode { Statements = stmts.ToImmutableArray() },
                 },
@@ -383,7 +383,7 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
                 Name = Tok("Accept"),
                 ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                 Parameters = new ParameterListNode { Parameter = MakeParam(paramType, "param") },
-                Body = new MethodBlockBodyMethodBodyNode
+                Body = new CallableBlockBodyCallableBodyNode
                 {
                     Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
                 },
@@ -403,7 +403,7 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
                 Name = Tok("Convert"),
                 ReturnType = NamedTypeRef(returnType),
                 Parameters = null,
-                Body = new MethodBlockBodyMethodBodyNode
+                Body = new CallableBlockBodyCallableBodyNode
                 {
                     Block = new BlockNode
                     {

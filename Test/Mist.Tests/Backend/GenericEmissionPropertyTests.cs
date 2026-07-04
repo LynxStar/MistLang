@@ -255,7 +255,7 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
             Name = Tok("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = mainStatements } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = mainStatements } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -568,7 +568,7 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
             TypeParams = MakeTypeParamList("T"),
             ReturnType = MakeNamedTypeRef("T"),
             Parameters = paramList,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray.Create<StatementNode>(returnStmt) } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = ImmutableArray.Create<StatementNode>(returnStmt) } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -646,7 +646,7 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
             TypeParams = MakeTypeParamList("T"),
             ReturnType = MakeNamedTypeRef("T"),
             Parameters = paramList,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray.Create<StatementNode>(returnStmt) } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = ImmutableArray.Create<StatementNode>(returnStmt) } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 

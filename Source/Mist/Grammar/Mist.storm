@@ -375,12 +375,19 @@ rule IndexerBody
     = LEFT_BRACE accessors:AccessorDeclaration+ RIGHT_BRACE       as BlockIndexerBody
     ;
 
-trait CallableDeclaration = attributes:AttributeList* modifiers:Modifier* parameters:ParameterList? withClauses:WithClause* constraints:WhereClause* body:MethodBody;
+trait CallableDeclaration = 
+    attributes:AttributeList* 
+    modifiers:Modifier* 
+    parameters:ParameterList? 
+    withClauses:WithClause* 
+    constraints:WhereClause* 
+    body:CallableBody
+    ;
 
 rule ConstructorDeclaration : CallableDeclaration = attributes:AttributeList* modifiers:Modifier* name:IDENTIFIER LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
                               withClauses:WithClause*
                               constraints:WhereClause*
-                              chain:ConstructorChain? body:MethodBody;
+                              chain:ConstructorChain? body:CallableBody;
 
 rule ConstructorChain
     = COLON THIS LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS  as ThisChain
@@ -392,11 +399,11 @@ rule MethodDeclaration : CallableDeclaration = attributes:AttributeList* modifie
                          LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
                          withClauses:WithClause*
                          constraints:WhereClause*
-                         body:MethodBody;
+                         body:CallableBody;
 
-rule MethodBody
-    = block:Block as MethodBlockBody
-    | SEMICOLON   as MethodNoBody
+rule CallableBody
+    = block:Block as CallableBlockBody
+    | SEMICOLON   as CallableNoBody
     ;
 
 rule OperatorDeclaration = modifiers:Modifier*
@@ -404,19 +411,14 @@ rule OperatorDeclaration = modifiers:Modifier*
                            OPERATOR
                            symbol:OperatorSymbol
                            LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
-                           body:OperatorBody;
-
-rule OperatorBody
-    = block:Block as OperatorBlockBody
-    | SEMICOLON   as OperatorNoBody
-    ;
+                           body:CallableBody;
 
 rule CastOperatorDeclaration = modifiers:Modifier*
                                castKind:CastOperatorKind
                                OPERATOR
                                targetType:TypeReference
                                LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
-                               body:OperatorBody;
+                               body:CallableBody;
 
 rule CastOperatorKind
     = IMPLICIT as ImplicitCast

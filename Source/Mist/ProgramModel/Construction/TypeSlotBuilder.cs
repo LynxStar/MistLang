@@ -1,4 +1,3 @@
-using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
@@ -21,7 +20,7 @@ internal sealed class TypeSlotBuilder
     /// <summary>
     /// Resolves a constrained associated type slot declaration.
     /// </summary>
-    public void Resolve(AssociatedTypeSlotDeclarationNode slotDecl, AbstractType typeDef)
+    public static void Resolve(AssociatedTypeSlotDeclarationNode slotDecl, AbstractType typeDef)
     {
         var name = slotDecl.Name.Lexeme;
 

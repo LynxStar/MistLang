@@ -170,7 +170,7 @@ public static class CompilationUnitNodeExtensions
 }
 
 /// <summary>
-/// Extension methods for <see cref="MethodBodyNode"/> and <see cref="OperatorBodyNode"/>.
+/// Extension methods for <see cref="CallableBodyNode"/> and <see cref="CallableBodyNode"/>.
 ///
 /// The grammar was changed to let method, constructor, and operator declarations
 /// omit their body with a trailing <c>;</c> (see Requirements 4.1, 5.2 of the
@@ -184,64 +184,47 @@ public static class CompilationUnitNodeExtensions
 /// Whether a no-body form is legal on a particular declaration (e.g., requires
 /// <c>intrinsic</c>) is enforced in the semantic model, not the grammar.
 /// </summary>
-public static class MethodBodyNodeExtensions
+public static class CallableBodyNodeExtensions
 {
     /// <summary>
-    /// Returns the <see cref="BlockNode"/> for a block-bodied method/constructor
+    /// Returns the <see cref="BlockNode"/> for a block-bodied callable
     /// body, or <c>null</c> for a no-body (<c>;</c>-terminated) form.
     /// </summary>
-    public static BlockNode? GetBlock(this MethodBodyNode body)
+    public static BlockNode? GetBlock(this CallableBodyNode body)
     {
         return body switch
         {
-            MethodBlockBodyMethodBodyNode blockBody => blockBody.Block,
-            _ => null,
-        };
-    }
-
-    /// <summary>
-    /// Returns the <see cref="BlockNode"/> for a block-bodied operator body,
-    /// or <c>null</c> for a no-body (<c>;</c>-terminated) form.
-    /// </summary>
-    public static BlockNode? GetBlock(this OperatorBodyNode body)
-    {
-        return body switch
-        {
-            OperatorBlockBodyOperatorBodyNode blockBody => blockBody.Block,
+            CallableBlockBodyCallableBodyNode blockBody => blockBody.Block,
             _ => null,
         };
     }
 }
 
 /// <summary>
-/// Factory helpers for constructing <see cref="MethodBodyNode"/> and
-/// <see cref="OperatorBodyNode"/> instances from a <see cref="BlockNode"/>.
+/// Factory helpers for constructing <see cref="CallableBodyNode"/> instances
+/// from a <see cref="BlockNode"/>.
 ///
-/// These exist so test helpers and AST-construction utilities that used to
-/// assign <c>Body = new BlockNode { ... }</c> directly can continue to
-/// express a block body concisely without having to wrap it in the
-/// generated discriminated variant each time.
+/// These exist so test helpers and AST-construction utilities can express a
+/// block body concisely without wrapping it in the generated discriminated
+/// variant each time.
 /// </summary>
 public static class MethodBodyFactory
 {
     /// <summary>
     /// Wraps the given <see cref="BlockNode"/> in a
-    /// <see cref="MethodBlockBodyMethodBodyNode"/>, suitable for assignment to
-    /// <see cref="MethodDeclarationNode.Body"/> or
-    /// <see cref="ConstructorDeclarationNode.Body"/>.
+    /// <see cref="CallableBlockBodyCallableBodyNode"/>, suitable for assignment to
+    /// any callable declaration's <c>Body</c> property.
     /// </summary>
-    public static MethodBodyNode AsMethodBody(this BlockNode block)
+    public static CallableBodyNode AsCallableBody(this BlockNode block)
     {
-        return new MethodBlockBodyMethodBodyNode { Block = block };
+        return new CallableBlockBodyCallableBodyNode { Block = block };
     }
 
     /// <summary>
-    /// Wraps the given <see cref="BlockNode"/> in an
-    /// <see cref="OperatorBlockBodyOperatorBodyNode"/>, suitable for assignment
-    /// to <see cref="OperatorDeclarationNode.Body"/>.
+    /// Backwards-compatible alias for <see cref="AsCallableBody"/>.
     /// </summary>
-    public static OperatorBodyNode AsOperatorBody(this BlockNode block)
+    public static CallableBodyNode AsMethodBody(this BlockNode block)
     {
-        return new OperatorBlockBodyOperatorBodyNode { Block = block };
+        return new CallableBlockBodyCallableBodyNode { Block = block };
     }
 }

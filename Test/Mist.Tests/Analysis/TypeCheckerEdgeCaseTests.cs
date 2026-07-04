@@ -270,7 +270,7 @@ public class TypeCheckerEdgeCaseTests
             Name = MakeToken("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = mainStatements } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = mainStatements } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -305,7 +305,7 @@ public class TypeCheckerEdgeCaseTests
             Name = MakeToken(methodName),
             ReturnType = returnType,
             Parameters = parameters,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = methodStatements } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = methodStatements } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -314,7 +314,7 @@ public class TypeCheckerEdgeCaseTests
             Name = MakeToken("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -524,7 +524,7 @@ public class TypeCheckerEdgeCaseTests
             Name = MakeToken("Run"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
         };
         var classDecl = new TypeBodyDeclarationNode
         {
@@ -554,7 +554,7 @@ public class TypeCheckerEdgeCaseTests
             Name = MakeToken("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new StaticModifierModifierNode()),
         };
@@ -563,7 +563,7 @@ public class TypeCheckerEdgeCaseTests
             Name = MakeToken("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new StaticModifierModifierNode()),
         };

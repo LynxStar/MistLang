@@ -590,7 +590,7 @@ public class TypeLiteralSemanticPropertyTests
             Name = MakeToken("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = statements } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = statements } },
         };
 
         var classDecl = new TypeBodyDeclarationNode

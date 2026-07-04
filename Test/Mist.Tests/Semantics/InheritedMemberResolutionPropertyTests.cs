@@ -118,7 +118,7 @@ public class InheritedMemberResolutionPropertyTests
             {
                 Name = MakeToken(name),
                 ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-                Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
+                Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             },
         };
     }
@@ -402,7 +402,7 @@ public class InheritedMemberResolutionPropertyTests
                 {
                     Name = MakeToken("_probe_"),
                     ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-                    Body = new MethodBlockBodyMethodBodyNode
+                    Body = new CallableBlockBodyCallableBodyNode
                     {
                         Block = new BlockNode
                         {

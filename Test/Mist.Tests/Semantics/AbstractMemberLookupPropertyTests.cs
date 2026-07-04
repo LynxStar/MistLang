@@ -78,7 +78,7 @@ public class AbstractMemberLookupPropertyTests
             Name = MakeToken(name),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodNoBodyMethodBodyNode(),
+            Body = new CallableNoBodyCallableBodyNode(),
         };
     }
 
@@ -124,7 +124,7 @@ public class AbstractMemberLookupPropertyTests
         {
             Name = MakeToken(name),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {

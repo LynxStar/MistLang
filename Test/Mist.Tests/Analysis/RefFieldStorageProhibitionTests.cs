@@ -207,7 +207,7 @@ public class RefFieldStorageProhibitionTests
             Name = Tok(name),
             ReturnType = MakeIntTypeRef(),
             Parameters = parameters,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = body } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = body } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
     }

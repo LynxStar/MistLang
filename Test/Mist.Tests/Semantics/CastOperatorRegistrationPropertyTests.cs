@@ -193,8 +193,8 @@ public class CastOperatorRegistrationPropertyTests
                 new StaticModifierModifierNode());
 
         var body = scenario.IsIntrinsic
-            ? (OperatorBodyNode)new OperatorNoBodyOperatorBodyNode()
-            : new OperatorBlockBodyOperatorBodyNode
+            ? (CallableBodyNode)new CallableNoBodyCallableBodyNode()
+            : new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {

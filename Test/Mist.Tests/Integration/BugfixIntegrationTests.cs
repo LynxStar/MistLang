@@ -196,7 +196,7 @@ public sealed class BugfixIntegrationTests : IDisposable
         {
             Name = MakeToken("Geometry"),
             Parameters = new ParameterListNode { Parameter = ctorParam },
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -300,7 +300,7 @@ public sealed class BugfixIntegrationTests : IDisposable
                 }
             },
             Parameters = new ParameterListNode { Parameter = stringParam },
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -344,7 +344,7 @@ public sealed class BugfixIntegrationTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -462,7 +462,7 @@ public sealed class BugfixIntegrationTests : IDisposable
         {
             Name = MakeToken("Widget"),
             Parameters = new ParameterListNode { Parameter = ctorParam },
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -539,7 +539,7 @@ public sealed class BugfixIntegrationTests : IDisposable
                 }
             },
             Parameters = new ParameterListNode { Parameter = textParam },
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -583,7 +583,7 @@ public sealed class BugfixIntegrationTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),

@@ -157,7 +157,7 @@ public class AccessModifierPropertyTests
                 Name = MakeToken("DoWork"),
                 ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                 Parameters = null,
-                Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+                Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
                 Modifiers = memberModifiers,
             };
             classAMembers.Add(new MethodMemberMemberDeclarationNode { Method = targetMethod });
@@ -184,7 +184,7 @@ public class AccessModifierPropertyTests
         {
             Name = MakeToken("ClassA"),
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
         classAMembers.Add(new ConstructorMemberMemberDeclarationNode { Constructor = ctorDecl });
@@ -235,7 +235,7 @@ public class AccessModifierPropertyTests
             Name = MakeToken("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = mainStatements.ToImmutable() } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = mainStatements.ToImmutable() } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),

@@ -161,12 +161,12 @@ public class AbstractDefaultMethodClassificationPropertyTests
 
         if(scenario.HasBody)
         {
-            return (methodMember.Method.Body is MethodBlockBodyMethodBodyNode)
+            return (methodMember.Method.Body is CallableBlockBodyCallableBodyNode)
                 .ToProperty()
                 .Label($"Expected default (body present) but got {methodMember.Method.Body.GetType().Name} for: {scenario.Source}");
         }
 
-        return (methodMember.Method.Body is MethodNoBodyMethodBodyNode)
+        return (methodMember.Method.Body is CallableNoBodyCallableBodyNode)
             .ToProperty()
             .Label($"Expected slot (no body) but got {methodMember.Method.Body.GetType().Name} for: {scenario.Source}");
     }

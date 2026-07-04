@@ -107,7 +107,7 @@ public class InheritanceDefaultabilityPropertyTests
             {
                 Name = MakeToken(className),
                 Parameters = null,
-                Body = new MethodBlockBodyMethodBodyNode
+                Body = new CallableBlockBodyCallableBodyNode
                 {
                     Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
                 },

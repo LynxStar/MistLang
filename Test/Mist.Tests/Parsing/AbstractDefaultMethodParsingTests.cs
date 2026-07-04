@@ -13,9 +13,9 @@ namespace Mist.Tests.Parsing;
 /// Validates that:
 /// <list type="bullet">
 ///   <item>A method WITHOUT a body (semicolon-terminated) is classified as a slot
-///   (<see cref="MethodMemberMemberDeclarationNode"/> with <see cref="MethodNoBodyMethodBodyNode"/>).</item>
+///   (<see cref="MethodMemberMemberDeclarationNode"/> with <see cref="CallableNoBodyCallableBodyNode"/>).</item>
 ///   <item>A method WITH a braced body is classified as a default implementation
-///   (<see cref="MethodMemberMemberDeclarationNode"/> with <see cref="MethodBlockBodyMethodBodyNode"/>).</item>
+///   (<see cref="MethodMemberMemberDeclarationNode"/> with <see cref="CallableBlockBodyCallableBodyNode"/>).</item>
 ///   <item>Slots and defaults may be freely mixed in any order.</item>
 ///   <item>A property with a body inside an abstract type produces the
 ///   <c>MIST_ABSTRACT_PROPERTY_DEFAULT</c> diagnostic.</item>
@@ -62,7 +62,7 @@ public class AbstractDefaultMethodParsingTests
 
         var member = Assert.Single(typeBody.Members);
         var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(member);
-        _ = Assert.IsType<MethodNoBodyMethodBodyNode>(methodMember.Method.Body);
+        _ = Assert.IsType<CallableNoBodyCallableBodyNode>(methodMember.Method.Body);
         Assert.Equal("Name", methodMember.Method.Name.Lexeme);
     }
 
@@ -73,7 +73,7 @@ public class AbstractDefaultMethodParsingTests
 
         var member = Assert.Single(typeBody.Members);
         var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(member);
-        _ = Assert.IsType<MethodNoBodyMethodBodyNode>(methodMember.Method.Body);
+        _ = Assert.IsType<CallableNoBodyCallableBodyNode>(methodMember.Method.Body);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -90,7 +90,7 @@ public class AbstractDefaultMethodParsingTests
         var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(member);
         Assert.Equal("Greet", methodMember.Method.Name.Lexeme);
         // The captured method retains its block body.
-        _ = Assert.IsType<MethodBlockBodyMethodBodyNode>(methodMember.Method.Body);
+        _ = Assert.IsType<CallableBlockBodyCallableBodyNode>(methodMember.Method.Body);
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public class AbstractDefaultMethodParsingTests
 
         var member = Assert.Single(typeBody.Members);
         var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(member);
-        _ = Assert.IsType<MethodBlockBodyMethodBodyNode>(methodMember.Method.Body);
+        _ = Assert.IsType<CallableBlockBodyCallableBodyNode>(methodMember.Method.Body);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -125,16 +125,16 @@ public class AbstractDefaultMethodParsingTests
         Assert.Equal(4, typeBody.Members.Length);
 
         var member0 = Assert.IsType<MethodMemberMemberDeclarationNode>(typeBody.Members[0]);
-        _ = Assert.IsType<MethodNoBodyMethodBodyNode>(member0.Method.Body);
+        _ = Assert.IsType<CallableNoBodyCallableBodyNode>(member0.Method.Body);
 
         var member1 = Assert.IsType<MethodMemberMemberDeclarationNode>(typeBody.Members[1]);
-        _ = Assert.IsType<MethodBlockBodyMethodBodyNode>(member1.Method.Body);
+        _ = Assert.IsType<CallableBlockBodyCallableBodyNode>(member1.Method.Body);
 
         var member2 = Assert.IsType<MethodMemberMemberDeclarationNode>(typeBody.Members[2]);
-        _ = Assert.IsType<MethodNoBodyMethodBodyNode>(member2.Method.Body);
+        _ = Assert.IsType<CallableNoBodyCallableBodyNode>(member2.Method.Body);
 
         var member3 = Assert.IsType<MethodMemberMemberDeclarationNode>(typeBody.Members[3]);
-        _ = Assert.IsType<MethodBlockBodyMethodBodyNode>(member3.Method.Body);
+        _ = Assert.IsType<CallableBlockBodyCallableBodyNode>(member3.Method.Body);
     }
 
     [Fact]
@@ -154,7 +154,7 @@ public class AbstractDefaultMethodParsingTests
         _ = Assert.IsType<PropertyMemberMemberDeclarationNode>(typeBody.Members[0]);
 
         var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeBody.Members[1]);
-        _ = Assert.IsType<MethodBlockBodyMethodBodyNode>(methodMember.Method.Body);
+        _ = Assert.IsType<CallableBlockBodyCallableBodyNode>(methodMember.Method.Body);
     }
 
     [Fact]

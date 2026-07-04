@@ -187,7 +187,7 @@ public class SemanticModelBuilderUnitTests
             Name = MakeToken(methodName),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = statements } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = statements } },
             Modifiers = modifiers,
         };
 
@@ -233,7 +233,7 @@ public class SemanticModelBuilderUnitTests
             Name = MakeToken("M"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -308,7 +308,7 @@ public class SemanticModelBuilderUnitTests
         {
             Name = MakeToken("M"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
         };
         var classDecl = new TypeBodyDeclarationNode
         {
@@ -506,7 +506,7 @@ public class SemanticModelBuilderUnitTests
         {
             Name = MakeToken("M"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -572,7 +572,7 @@ public class SemanticModelBuilderUnitTests
         var ctorDecl = new ConstructorDeclarationNode
         {
             Name = MakeToken("C"),
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -659,7 +659,7 @@ public class SemanticModelBuilderUnitTests
         {
             Name = MakeToken("M"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -709,7 +709,7 @@ public class SemanticModelBuilderUnitTests
         {
             Name = MakeToken("M"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -768,7 +768,7 @@ public class SemanticModelBuilderUnitTests
         {
             Name = MakeToken("M"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -853,7 +853,7 @@ public class SemanticModelBuilderUnitTests
             Name = MakeToken("M"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = paramList,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
         };
 
         var classDecl = new TypeBodyDeclarationNode
@@ -1033,7 +1033,7 @@ public class SemanticModelBuilderUnitTests
         {
             Name = MakeToken("M"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
         };
 
         var classDecl = new TypeBodyDeclarationNode
@@ -1124,7 +1124,7 @@ public class SemanticModelBuilderUnitTests
             {
                 Name = MakeToken(name),
                 ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-                Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
+                Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             },
         };
     }
@@ -1288,7 +1288,7 @@ public class SemanticModelBuilderUnitTests
                 },
                 Name = MakeToken("ctx"),
             }),
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
         };
 
         var classDecl = new TypeBodyDeclarationNode
@@ -1349,7 +1349,7 @@ public class SemanticModelBuilderUnitTests
                 },
                 Name = MakeToken("ctx"),
             }),
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
         };
 
         var classDecl = new TypeBodyDeclarationNode
@@ -1397,7 +1397,7 @@ public class SemanticModelBuilderUnitTests
             Name = MakeToken("M"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodNoBodyMethodBodyNode(),
+            Body = new CallableNoBodyCallableBodyNode(),
             WithClauses = ImmutableArray.Create<WithClauseNode>(new ContextWithClauseWithClauseNode
             {
                 Type = new TypeReferenceNode
@@ -1498,7 +1498,7 @@ public class SemanticModelBuilderUnitTests
                     },
                     Name = MakeToken("b"),
                 }),
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
         };
 
         var classDecl = new TypeBodyDeclarationNode
@@ -1556,7 +1556,7 @@ public class SemanticModelBuilderUnitTests
                 },
                 Name = MakeToken("ctx"),
             }),
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
         };
 
         var classDecl = new TypeBodyDeclarationNode
@@ -1594,7 +1594,7 @@ public class SemanticModelBuilderUnitTests
             Name = MakeToken("M"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
         };
 
         var classDecl = new TypeBodyDeclarationNode

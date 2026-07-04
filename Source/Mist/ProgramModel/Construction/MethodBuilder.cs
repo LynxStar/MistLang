@@ -35,7 +35,7 @@ internal sealed class MethodBuilder
 
         Block? body = null;
 
-        if(methodDecl.Body is MethodBlockBodyMethodBodyNode blockBody)
+        if(methodDecl.Body is CallableBlockBodyCallableBodyNode blockBody)
         {
             body = new Block(blockBody.Block);
         }

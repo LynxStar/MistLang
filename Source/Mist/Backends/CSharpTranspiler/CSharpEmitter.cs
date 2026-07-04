@@ -3308,7 +3308,7 @@ internal sealed class CSharpSourceWriter
             switch(member)
             {
                 case MethodMemberMemberDeclarationNode methodMember
-                    when methodMember.Method.Body is MethodNoBodyMethodBodyNode:
+                    when methodMember.Method.Body is CallableNoBodyCallableBodyNode:
                     EmitAbstractMethodDeclaration(methodMember.Method, slotSubstitutions);
                     break;
                 case PropertyMemberMemberDeclarationNode propertyMember:
@@ -3317,7 +3317,7 @@ internal sealed class CSharpSourceWriter
                 // Default methods (methods with bodies) emit as C# default interface methods
                 // (DIM) — a method WITH a body on the interface. Implementers may omit them.
                 case MethodMemberMemberDeclarationNode defaultMethodMember
-                    when defaultMethodMember.Method.Body is MethodBlockBodyMethodBodyNode:
+                    when defaultMethodMember.Method.Body is CallableBlockBodyCallableBodyNode:
                     EmitMethodDeclaration(defaultMethodMember.Method);
                     break;
                 // Skip associated type slot declarations — they are lifted to type parameters.
@@ -3470,7 +3470,7 @@ internal sealed class CSharpSourceWriter
                 AppendLine($"{modifiers}{returnType} {methodName}{methodTypeParams}({parameters})");
 
                 // Emit the body.
-                if(node.Body is MethodBlockBodyMethodBodyNode blockBody)
+                if(node.Body is CallableBlockBodyCallableBodyNode blockBody)
                 {
                     EmitMethodBlock(blockBody.Block, appendImplicitReturn: false);
                 }
@@ -3628,7 +3628,7 @@ internal sealed class CSharpSourceWriter
 
                     AppendLine($"{modifiers}{returnType} {methodName}{methodTypeParams}({parameters})");
 
-                    if(node.Body is MethodBlockBodyMethodBodyNode blockBody)
+                    if(node.Body is CallableBlockBodyCallableBodyNode blockBody)
                     {
                         EmitMethodBlock(blockBody.Block, appendImplicitReturn: false);
                     }
@@ -4853,7 +4853,7 @@ internal sealed class CSharpSourceWriter
 
         AppendLine($"{modifiers}{castKind} operator {targetType}({parameters})");
 
-        if(castOpDecl.Body is OperatorBlockBodyOperatorBodyNode blockBody)
+        if(castOpDecl.Body is CallableBlockBodyCallableBodyNode blockBody)
         {
             EmitBlock(blockBody.Block);
         }

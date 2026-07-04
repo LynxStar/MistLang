@@ -119,7 +119,7 @@ public class StructInheritanceConstructorTests
             Name = MakeToken(structName),
             Parameters = parameters,
             Chain = chain,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
         };
 
         return new ConstructorMemberMemberDeclarationNode { Constructor = ctorDecl };

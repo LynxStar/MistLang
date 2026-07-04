@@ -94,7 +94,7 @@ public class EntryPointPropertyTests
             Name = MakeToken("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = parameters,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -167,7 +167,7 @@ public class EntryPointPropertyTests
                 Name = MakeToken("Run"),
                 ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                 Parameters = null,
-                Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+                Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
                 Modifiers = ImmutableArray.Create<ModifierNode>(
                     new PublicModifierModifierNode()),
             };
@@ -203,7 +203,7 @@ public class EntryPointPropertyTests
                 Name = MakeToken("Main"),
                 ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                 Parameters = null,
-                Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+                Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
                 Modifiers = ImmutableArray.Create<ModifierNode>(
                     new PublicModifierModifierNode()),
             };
@@ -227,7 +227,7 @@ public class EntryPointPropertyTests
                     PrimitiveType = new IntTypePrimitiveTypeNode(),
                 } },
                 Parameters = null,
-                Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+                Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
                 Modifiers = ImmutableArray.Create<ModifierNode>(
                     new PublicModifierModifierNode(),
                     new StaticModifierModifierNode()),
@@ -313,7 +313,7 @@ public class EntryPointPropertyTests
             Name = MakeToken("Run"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
         };
         var classDecl = MakeClass("Program",
             new MethodMemberMemberDeclarationNode { Method = method });
@@ -357,7 +357,7 @@ public class EntryPointPropertyTests
             Name = MakeToken("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode()),
         };
@@ -389,7 +389,7 @@ public class EntryPointPropertyTests
                 }
             },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),

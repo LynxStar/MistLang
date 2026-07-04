@@ -257,7 +257,7 @@ public class EnumTypeReferencePropertyTests
                         Name = Tok("Main"),
                         ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                         Parameters = null,
-                        Body = new MethodBlockBodyMethodBodyNode
+                        Body = new CallableBlockBodyCallableBodyNode
                         {
                             Block = new BlockNode
                             {
@@ -287,7 +287,7 @@ public class EnumTypeReferencePropertyTests
                         Name = Tok("UseEnum"),
                         ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                         Parameters = paramList,
-                        Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+                        Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
                         Modifiers = ImmutableArray.Create<ModifierNode>(
                             new PublicModifierModifierNode(),
                             new StaticModifierModifierNode()),
@@ -300,7 +300,7 @@ public class EnumTypeReferencePropertyTests
                         Name = Tok("Main"),
                         ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                         Parameters = null,
-                        Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+                        Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
                         Modifiers = ImmutableArray.Create<ModifierNode>(
                             new PublicModifierModifierNode(),
                             new StaticModifierModifierNode()),
@@ -322,7 +322,7 @@ public class EnumTypeReferencePropertyTests
                         Name = Tok("GetValue"),
                         ReturnType = MakeEnumTypeRef(scenario.EnumName),
                         Parameters = null,
-                        Body = new MethodBlockBodyMethodBodyNode
+                        Body = new CallableBlockBodyCallableBodyNode
                         {
                             Block = new BlockNode
                             {
@@ -341,7 +341,7 @@ public class EnumTypeReferencePropertyTests
                         Name = Tok("Main"),
                         ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                         Parameters = null,
-                        Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+                        Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
                         Modifiers = ImmutableArray.Create<ModifierNode>(
                             new PublicModifierModifierNode(),
                             new StaticModifierModifierNode()),
@@ -367,7 +367,7 @@ public class EnumTypeReferencePropertyTests
                         Name = Tok("Main"),
                         ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                         Parameters = null,
-                        Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+                        Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode() },
                         Modifiers = ImmutableArray.Create<ModifierNode>(
                             new PublicModifierModifierNode(),
                             new StaticModifierModifierNode()),

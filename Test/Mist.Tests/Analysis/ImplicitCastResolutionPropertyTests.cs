@@ -271,7 +271,7 @@ public class ImplicitCastResolutionPropertyTests
             {
                 Parameter = MakeParameter(sourceTypeName, "value"),
             },
-            Body = new OperatorBlockBodyOperatorBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -409,7 +409,7 @@ public class ImplicitCastResolutionPropertyTests
                 {
                     Parameter = MakeParameter(paramTypeName, "param"),
                 },
-                Body = new MethodBlockBodyMethodBodyNode
+                Body = new CallableBlockBodyCallableBodyNode
                 {
                     Block = new BlockNode
                     {
@@ -448,7 +448,7 @@ public class ImplicitCastResolutionPropertyTests
                 Name = Tok("GetTarget"),
                 ReturnType = MakeNamedTypeRef(returnTypeName),
                 Parameters = null,
-                Body = new MethodBlockBodyMethodBodyNode
+                Body = new CallableBlockBodyCallableBodyNode
                 {
                     Block = new BlockNode { Statements = statements },
                 },
@@ -523,7 +523,7 @@ public class ImplicitCastResolutionPropertyTests
             Name = Tok("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -564,7 +564,7 @@ public class ImplicitCastResolutionPropertyTests
             Name = Tok("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode { Statements = mainStatements },
             },
@@ -611,7 +611,7 @@ public class ImplicitCastResolutionPropertyTests
             Name = Tok("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode { Statements = mainStatements },
             },

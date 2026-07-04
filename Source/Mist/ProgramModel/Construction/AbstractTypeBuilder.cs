@@ -78,7 +78,7 @@ internal sealed class AbstractTypeBuilder : MemberTypeBuilder
                 break;
 
             case AssociatedTypeMemberMemberDeclarationNode assocType:
-                typeSlotBuilder.Resolve(assocType.AssociatedType, typeDef);
+                TypeSlotBuilder.Resolve(assocType.AssociatedType, typeDef);
                 break;
 
             case UnconstrainedAssociatedTypeMemberMemberDeclarationNode unconstrainedAssocType:

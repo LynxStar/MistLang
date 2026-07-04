@@ -140,7 +140,7 @@ public class OperatorAndIntrinsicGrammarTests
         _ = Assert.IsType<PlusOpOperatorSymbolNode>(opDecl.Symbol);
 
         // Body is a block body.
-        _ = Assert.IsType<OperatorBlockBodyOperatorBodyNode>(opDecl.Body);
+        _ = Assert.IsType<CallableBlockBodyCallableBodyNode>(opDecl.Body);
 
         // Parameter list has two parameters.
         Assert.NotNull(opDecl.Parameters);
@@ -175,7 +175,7 @@ public class OperatorAndIntrinsicGrammarTests
         var opDecl = opMember!.Operator;
 
         _ = Assert.IsType<MinusOpOperatorSymbolNode>(opDecl.Symbol);
-        _ = Assert.IsType<OperatorBlockBodyOperatorBodyNode>(opDecl.Body);
+        _ = Assert.IsType<CallableBlockBodyCallableBodyNode>(opDecl.Body);
 
         Assert.NotNull(opDecl.Parameters);
         var paramCount = 1 + opDecl.Parameters!.Parameters.Length;
@@ -245,7 +245,7 @@ public class OperatorAndIntrinsicGrammarTests
         Assert.NotNull(structDecl);
         var opMember = structDecl!.Members[0] as OperatorMemberMemberDeclarationNode;
         Assert.NotNull(opMember);
-        _ = Assert.IsType<OperatorNoBodyOperatorBodyNode>(opMember!.Operator.Body);
+        _ = Assert.IsType<CallableNoBodyCallableBodyNode>(opMember!.Operator.Body);
     }
 
     // ─── Task 4.1 — Method and Constructor bodies accept `;` ────────────────
@@ -275,7 +275,7 @@ public class OperatorAndIntrinsicGrammarTests
         var opMember = structDecl!.Members[0] as OperatorMemberMemberDeclarationNode;
         Assert.NotNull(opMember);
 
-        _ = Assert.IsType<OperatorNoBodyOperatorBodyNode>(opMember!.Operator.Body);
+        _ = Assert.IsType<CallableNoBodyCallableBodyNode>(opMember!.Operator.Body);
         Assert.Contains(opMember.Operator.Modifiers, m => m is IntrinsicModifierModifierNode);
     }
 
@@ -303,7 +303,7 @@ public class OperatorAndIntrinsicGrammarTests
         var ctorMember = structDecl!.Members[0] as ConstructorMemberMemberDeclarationNode;
         Assert.NotNull(ctorMember);
 
-        _ = Assert.IsType<MethodNoBodyMethodBodyNode>(ctorMember!.Constructor.Body);
+        _ = Assert.IsType<CallableNoBodyCallableBodyNode>(ctorMember!.Constructor.Body);
         Assert.Contains(ctorMember.Constructor.Modifiers, m => m is IntrinsicModifierModifierNode);
     }
 
@@ -327,6 +327,6 @@ public class OperatorAndIntrinsicGrammarTests
         Assert.NotNull(classDecl);
         var methodMember = classDecl!.Members[0] as MethodMemberMemberDeclarationNode;
         Assert.NotNull(methodMember);
-        _ = Assert.IsType<MethodBlockBodyMethodBodyNode>(methodMember!.Method.Body);
+        _ = Assert.IsType<CallableBlockBodyCallableBodyNode>(methodMember!.Method.Body);
     }
 }

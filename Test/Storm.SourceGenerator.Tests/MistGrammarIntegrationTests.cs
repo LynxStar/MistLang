@@ -318,7 +318,7 @@ public class MistGrammarIntegrationTests
         var output = AstOutput.Value;
 
         var interfaceSection = ExtractInterfaceSection(output, "ICallableDeclarationNode");
-        Assert.Contains("MethodBodyNode Body { get; }", interfaceSection);
+        Assert.Contains("CallableBodyNode Body { get; }", interfaceSection);
     }
 
     [Fact]

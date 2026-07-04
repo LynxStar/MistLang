@@ -139,7 +139,7 @@ public sealed class StaticMembersInGenericTypesTests : IDisposable
             Modifiers = ImmutableArray.Create<ModifierNode>(staticModifier),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Name = Tok("Reset"),
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -196,7 +196,7 @@ public sealed class StaticMembersInGenericTypesTests : IDisposable
             Modifiers = ImmutableArray.Create<ModifierNode>(staticMod),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Name = Tok("Clear"),
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {

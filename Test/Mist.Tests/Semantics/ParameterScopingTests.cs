@@ -135,7 +135,7 @@ public class ParameterScopingTests
             Name = MakeToken(methodName),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = new ParameterListNode { Parameter = param },
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = bodyStatements } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = bodyStatements } },
             Modifiers = modifiers,
         };
     }
@@ -314,7 +314,7 @@ public class ParameterScopingTests
         {
             Name = MakeToken("C"),
             Parameters = new ParameterListNode { Parameter = MakeParameter("int", "a") },
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -342,7 +342,7 @@ public class ParameterScopingTests
         {
             Name = MakeToken("D"),
             Parameters = new ParameterListNode { Parameter = MakeParameter("int", "b") },
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -425,7 +425,7 @@ public class ParameterScopingTests
         {
             Name = MakeToken("C"),
             Parameters = new ParameterListNode { Parameter = MakeParameter("int", "val") },
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {

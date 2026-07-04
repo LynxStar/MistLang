@@ -226,7 +226,7 @@ public class ExtensionDuplicateSignaturePropertyTests
             Name = Tok(name),
             ReturnType = MakeReturnTypeRef(returnType),
             Parameters = MakeParameterList(parameterCount),
-            Body = new MethodBlockBodyMethodBodyNode { Block = body },
+            Body = new CallableBlockBodyCallableBodyNode { Block = body },
             Modifiers = ImmutableArray<ModifierNode>.Empty,
         };
 

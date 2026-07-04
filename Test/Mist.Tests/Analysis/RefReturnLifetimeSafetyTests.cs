@@ -165,7 +165,7 @@ public class RefReturnLifetimeSafetyTests
             ReturnType = MakeIntTypeRef(),
             ReturnOwnership = returnOwnership ?? new RefSpecifierOwnershipSpecifierNode(),
             Parameters = parameters,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = body } },
+            Body = new CallableBlockBodyCallableBodyNode { Block = new BlockNode { Statements = body } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
     }
@@ -453,7 +453,7 @@ public class RefReturnLifetimeSafetyTests
             Name = Tok("GetValue"),
             ReturnType = MakeIntTypeRef(),
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {

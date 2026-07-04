@@ -182,7 +182,7 @@ public class UndefinedIdentifierPropertyTests
             Name = MakeToken(methodName),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode
                 {
@@ -306,7 +306,7 @@ public class UndefinedIdentifierPropertyTests
                         Name = MakeToken("TestMethod"),
                         ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                         Parameters = null,
-                        Body = new MethodBlockBodyMethodBodyNode
+                        Body = new CallableBlockBodyCallableBodyNode
                         {
                             Block = new BlockNode
                             {

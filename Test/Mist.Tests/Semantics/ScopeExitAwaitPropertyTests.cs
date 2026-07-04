@@ -157,7 +157,7 @@ public class ScopeExitAwaitPropertyTests
             Name = Tok(scenario.AsyncMethodName),
             ReturnType = returnTypeRef,
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode
+            Body = new CallableBlockBodyCallableBodyNode
             {
                 Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
             },
@@ -182,7 +182,7 @@ public class ScopeExitAwaitPropertyTests
             Name = Tok(scenario.CallerMethodName),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = callerBlock },
+            Body = new CallableBlockBodyCallableBodyNode { Block = callerBlock },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new AsyncModifierModifierNode()),

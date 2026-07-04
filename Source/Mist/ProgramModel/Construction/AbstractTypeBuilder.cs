@@ -1,4 +1,3 @@
-using Mist.Common.Collections;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Model.Types;
@@ -36,9 +35,9 @@ internal sealed class AbstractTypeBuilder : MemberTypeBuilder
         BaseTypeResolver.Resolve(typeDef.DeclarationNode, typeDef);
 
         var body = (BodyTypeTypeDeclarationNode)typeDef.DeclarationNode;
-        var modifiers = body.TypeBody.Modifiers;
+        var modifiers = ModifierBuilder.Build(body.TypeBody, Context.Diagnostics);
 
-        typeDef.IsReadonly = modifiers.HasAny<ModifierNode, ReadonlyModifierModifierNode>();
+        typeDef.IsReadonly = modifiers.IsReadonly;
     }
 
     /// <summary>

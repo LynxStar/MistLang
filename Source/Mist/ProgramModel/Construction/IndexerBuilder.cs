@@ -30,7 +30,7 @@ internal sealed class IndexerBuilder
     public void Resolve(IndexerDeclarationNode indexerDecl, MemberType memberType)
     {
         var type = typeResolver.Resolve(indexerDecl.Type, memberType.Scope);
-        var modifiers = ModifierBuilder.Build(indexerDecl.Modifiers, context.Diagnostics, indexerDecl);
+        var modifiers = ModifierBuilder.Build(indexerDecl, context.Diagnostics);
         var parameters = parameterBuilder.Resolve(indexerDecl.Parameters, memberType.Scope);
         var isAbstract = memberType is AbstractType;
 

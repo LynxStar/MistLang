@@ -1,6 +1,5 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
-using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 using SyntaxNode = Storm.Runtime.SyntaxNode;
@@ -31,7 +30,7 @@ internal sealed class DelegateResolver
     public ResolvedDelegate ResolveDelegate<TNode>(TNode node, Scope scope, MemberType memberType, string memberName)
         where TNode : SyntaxNode, IDelegateNode
     {
-        var modifiers = ModifierBuilder.Build(node.Modifiers, context.Diagnostics, node);
+        var modifiers = ModifierBuilder.Build(node, context.Diagnostics);
         var parameters = parameterBuilder.Resolve(node.Parameters, scope);
         var body = ResolveBody(node.Body);
 

@@ -161,6 +161,13 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "A member cannot be both 'public' and 'private'.");
 
+    /// <summary>Multiple substructural discipline modifiers (affine, linear, relevant) on the same declaration.</summary>
+    public static readonly DiagnosticDescriptor ConflictingDisciplineModifiers = new(
+        new DiagnosticId("MIST_PM_CONFLICTING_DISCIPLINE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "A declaration cannot have more than one substructural discipline modifier. Specify at most one of 'affine', 'linear', or 'relevant'.");
+
     /// <summary>The 'async' modifier is only valid on methods.</summary>
     public static readonly DiagnosticDescriptor AsyncOnlyOnMethods = new(
         new DiagnosticId("MIST_PM_ASYNC_NOT_ALLOWED"),

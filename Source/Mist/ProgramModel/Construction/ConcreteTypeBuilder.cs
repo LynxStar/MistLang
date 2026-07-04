@@ -1,5 +1,3 @@
-using System.Collections.Immutable;
-using Mist.Common.Collections;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Model;
@@ -41,16 +39,16 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
         BaseTypeResolver.Resolve(typeDef.DeclarationNode, typeDef);
 
         var body = (BodyTypeTypeDeclarationNode)typeDef.DeclarationNode;
-        var modifiers = body.TypeBody.Modifiers;
+        var modifiers = ModifierBuilder.Build(body.TypeBody, Context.Diagnostics);
 
-        typeDef.IsReadonly = modifiers.HasAny<ModifierNode, ReadonlyModifierModifierNode>();
-        typeDef.IsIntrinsic = modifiers.HasAny<ModifierNode, IntrinsicModifierModifierNode>();
-        typeDef.IsOwned = modifiers.HasAny<ModifierNode, OwnedModifierModifierNode>();
-        typeDef.Discipline = ResolveDiscipline(modifiers);
+        typeDef.IsReadonly = modifiers.IsReadonly;
+        typeDef.IsIntrinsic = modifiers.IsIntrinsic;
+        typeDef.IsOwned = modifiers.IsOwned;
+        typeDef.Discipline = modifiers.Discipline;
 
         if(typeDef is StructType structDef)
         {
-            structDef.IsRef = modifiers.HasAny<ModifierNode, RefModifierModifierNode>();
+            structDef.IsRef = modifiers.IsRef;
         }
     }
 
@@ -131,7 +129,7 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
         var name = fieldDecl.Name.Lexeme;
         var type = TypeResolver.Resolve(fieldDecl.Type, typeDef.Scope);
         var ownership = ResolveOwnership(fieldDecl.OwnershipSpecifier);
-        var modifiers = ModifierBuilder.Build(fieldDecl.Modifiers, Context.Diagnostics, fieldDecl);
+        var modifiers = ModifierBuilder.Build(fieldDecl, Context.Diagnostics);
         var initializer = fieldDecl.Initializer is { } initExpr ? new Expression(initExpr) : null;
 
         if(modifiers.IsAsync)
@@ -198,58 +196,4 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
         return nested;
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Helpers
-    // ═══════════════════════════════════════════════════════════════════════
-
-    private static SubstructuralDiscipline ResolveDiscipline(ImmutableArray<ModifierNode> modifiers)
-    {
-        if(modifiers.IsDefault)
-        {
-            return SubstructuralDiscipline.None;
-        }
-
-        var hasAffine = false;
-        var hasLinear = false;
-        var hasRelevant = false;
-
-        foreach(var mod in modifiers)
-        {
-            switch(mod)
-            {
-                case AffineModifierModifierNode:
-                    hasAffine = true;
-                    break;
-                case LinearModifierModifierNode:
-                    hasLinear = true;
-                    break;
-                case RelevantModifierModifierNode:
-                    hasRelevant = true;
-                    break;
-            }
-        }
-
-        var count = (hasAffine ? 1 : 0) + (hasLinear ? 1 : 0) + (hasRelevant ? 1 : 0);
-        if(count > 1)
-        {
-            return SubstructuralDiscipline.None;
-        }
-
-        if(hasAffine)
-        {
-            return SubstructuralDiscipline.Affine;
-        }
-
-        if(hasLinear)
-        {
-            return SubstructuralDiscipline.Linear;
-        }
-
-        if(hasRelevant)
-        {
-            return SubstructuralDiscipline.Relevant;
-        }
-
-        return SubstructuralDiscipline.None;
-    }
 }

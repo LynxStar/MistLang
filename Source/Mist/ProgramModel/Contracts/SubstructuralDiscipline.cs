@@ -1,4 +1,4 @@
-namespace Mist.ProgramModel.Model;
+namespace Mist.ProgramModel.Contracts;
 
 /// <summary>
 /// The substructural discipline of a type declaration.

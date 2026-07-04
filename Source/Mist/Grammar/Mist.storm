@@ -130,7 +130,7 @@ rule AttributeExpression
 
 rule TypeKeyword = CLASS as ClassKeyword | STRUCT as StructKeyword | ABSTRACT as AbstractKeyword;
 
-rule TypeBodyDeclaration = attributes:AttributeList* modifiers:Modifier* keyword:TypeKeyword name:IDENTIFIER
+rule TypeBodyDeclaration : HasModifiers = attributes:AttributeList* modifiers:Modifier* keyword:TypeKeyword name:IDENTIFIER
     typeParams:TypeParameterList?
     baseClause:(COLON baseList:BaseList)?
     constraints:WhereClause*
@@ -161,7 +161,7 @@ rule ModifiedAssociatedTypeSlotDeclaration = modifiers:Modifier+ TYPE name:IDENT
 
 // ─── Parser Rules — Enum Declarations ────────────────────────────────────────
 
-rule EnumDeclaration = attributes:AttributeList* modifiers:Modifier* ENUM name:IDENTIFIER
+rule EnumDeclaration : HasModifiers = attributes:AttributeList* modifiers:Modifier* ENUM name:IDENTIFIER
     typeAnnotation:(COLON type:TypeReference)?
     LEFT_BRACE members:EnumMemberList? RIGHT_BRACE;
 
@@ -251,7 +251,7 @@ rule DefaultBlockDeclaration = DEFAULT LEFT_BRACE entries:DefaultFieldInitialize
 
 // ─── Parser Rules — Members ─────────────────────────────────────────────────
 
-rule FieldDeclaration = attributes:AttributeList* 
+rule FieldDeclaration : HasModifiers = attributes:AttributeList* 
     modifiers:Modifier* 
     ownershipSpecifier:OwnershipSpecifier? 
     type:TypeReference 
@@ -279,7 +279,7 @@ rule AccessorDeclaration
     | accessorModifier:Modifier? INIT SUCH_THAT expression:Expression SEMICOLON   as ExpressionInitAccessor
     ;
 
-rule IndexerDeclaration = modifiers:Modifier* type:TypeReference THIS
+rule IndexerDeclaration : HasModifiers = modifiers:Modifier* type:TypeReference THIS
       LEFT_BRACKET parameters:ParameterList RIGHT_BRACKET
       constraints:WhereClause*
       body:IndexerBody;

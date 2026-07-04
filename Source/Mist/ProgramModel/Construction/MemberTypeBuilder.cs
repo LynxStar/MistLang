@@ -26,6 +26,8 @@ internal abstract class MemberTypeBuilder
 
     protected ParameterBuilder ParameterBuilder { get; }
 
+    protected DelegateResolver DelegateResolver { get; }
+
     protected MemberTypeBuilder(BuilderContext context, TypeReferenceResolver typeResolver)
     {
         Context = context;
@@ -33,10 +35,11 @@ internal abstract class MemberTypeBuilder
         BaseTypeResolver = new BaseTypeResolver(context, typeResolver);
         var accessorBuilder = new AccessorBuilder(context);
         ParameterBuilder = new ParameterBuilder(typeResolver);
+        DelegateResolver = new DelegateResolver(context, ParameterBuilder);
         PropertyBuilder = new PropertyBuilder(context, typeResolver, accessorBuilder);
         IndexerBuilder = new IndexerBuilder(context, typeResolver, accessorBuilder, ParameterBuilder);
-        MethodBuilder = new MethodBuilder(context, typeResolver, ParameterBuilder);
-        OperatorBuilder = new OperatorBuilder(context, typeResolver, ParameterBuilder);
+        MethodBuilder = new MethodBuilder(context, typeResolver, DelegateResolver);
+        OperatorBuilder = new OperatorBuilder(context, typeResolver, DelegateResolver);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

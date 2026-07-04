@@ -13,13 +13,13 @@ internal sealed class OperatorBuilder
 {
     private readonly BuilderContext context;
     private readonly TypeReferenceResolver typeResolver;
-    private readonly ParameterBuilder parameterBuilder;
+    private readonly DelegateResolver delegateResolver;
 
-    public OperatorBuilder(BuilderContext context, TypeReferenceResolver typeResolver, ParameterBuilder parameterBuilder)
+    public OperatorBuilder(BuilderContext context, TypeReferenceResolver typeResolver, DelegateResolver delegateResolver)
     {
         this.context = context;
         this.typeResolver = typeResolver;
-        this.parameterBuilder = parameterBuilder;
+        this.delegateResolver = delegateResolver;
     }
 
     /// <summary>
@@ -27,21 +27,18 @@ internal sealed class OperatorBuilder
     /// </summary>
     public void Resolve(OperatorDeclarationNode opDecl, MemberType memberType)
     {
+        var common = delegateResolver.ResolveDelegate(opDecl, memberType.Scope, memberType, "operator");
         var kind = MapOperatorSymbol(opDecl.Symbol);
         var returnType = typeResolver.Resolve(opDecl.ReturnType, memberType.Scope);
-        var modifiers = ModifierBuilder.Build(opDecl.Modifiers, context.Diagnostics, opDecl);
-        var parameters = parameterBuilder.Resolve(opDecl.Parameters, memberType.Scope);
-        var body = CallableValidation.ResolveBody(opDecl.Body);
 
-        if(!modifiers.IsStatic)
+        if(!common.Modifiers.IsStatic)
         {
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.OperatorMustBeStatic, opDecl, null);
         }
 
-        ValidateParameterCount(kind, parameters.Count, opDecl);
-        CallableValidation.ValidateIntrinsicOrBody(opDecl, memberType, "operator", modifiers, body, context.Diagnostics);
+        ValidateParameterCount(kind, common.Parameters.Count, opDecl);
 
-        var op = new Operator(kind, returnType, parameters, modifiers) { Body = body };
+        var op = new Operator(kind, returnType, common.Parameters, common.Modifiers) { Body = common.Body };
         memberType.OperatorsList.Add(op);
     }
 

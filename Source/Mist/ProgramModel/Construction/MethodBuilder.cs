@@ -10,15 +10,13 @@ namespace Mist.ProgramModel.Construction;
 /// </summary>
 internal sealed class MethodBuilder
 {
-    private readonly BuilderContext context;
     private readonly TypeReferenceResolver typeResolver;
-    private readonly ParameterBuilder parameterBuilder;
+    private readonly DelegateResolver delegateResolver;
 
-    public MethodBuilder(BuilderContext context, TypeReferenceResolver typeResolver, ParameterBuilder parameterBuilder)
+    public MethodBuilder(BuilderContext context, TypeReferenceResolver typeResolver, DelegateResolver delegateResolver)
     {
-        this.context = context;
         this.typeResolver = typeResolver;
-        this.parameterBuilder = parameterBuilder;
+        this.delegateResolver = delegateResolver;
     }
 
     /// <summary>
@@ -27,17 +25,13 @@ internal sealed class MethodBuilder
     public void Resolve(MethodDeclarationNode methodDecl, MemberType memberType)
     {
         var name = methodDecl.Name.Lexeme;
+        var common = delegateResolver.ResolveFullDelegate(methodDecl, memberType.Scope, memberType, name);
         var returnType = typeResolver.Resolve(methodDecl.ReturnType, memberType.Scope);
-        var modifiers = ModifierBuilder.Build(methodDecl.Modifiers, context.Diagnostics, methodDecl);
-        var parameters = parameterBuilder.Resolve(methodDecl.Parameters, memberType.Scope);
         var returnOwnership = MemberTypeBuilder.ResolveOwnership(methodDecl.ReturnOwnership);
-        var body = CallableValidation.ResolveBody(methodDecl.Body);
 
-        CallableValidation.ValidateIntrinsicOrBody(methodDecl, memberType, name, modifiers, body, context.Diagnostics);
-
-        var method = new Method(name, returnType, parameters, modifiers)
+        var method = new Method(name, returnType, common.Parameters, common.Modifiers)
         {
-            Body = body,
+            Body = common.Body,
             ReturnOwnership = returnOwnership,
         };
 

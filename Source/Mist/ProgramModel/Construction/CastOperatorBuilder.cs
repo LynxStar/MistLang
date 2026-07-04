@@ -13,13 +13,13 @@ internal sealed class CastOperatorBuilder
 {
     private readonly BuilderContext context;
     private readonly TypeReferenceResolver typeResolver;
-    private readonly ParameterBuilder parameterBuilder;
+    private readonly DelegateResolver delegateResolver;
 
-    public CastOperatorBuilder(BuilderContext context, TypeReferenceResolver typeResolver, ParameterBuilder parameterBuilder)
+    public CastOperatorBuilder(BuilderContext context, TypeReferenceResolver typeResolver, DelegateResolver delegateResolver)
     {
         this.context = context;
         this.typeResolver = typeResolver;
-        this.parameterBuilder = parameterBuilder;
+        this.delegateResolver = delegateResolver;
     }
 
     /// <summary>
@@ -27,33 +27,29 @@ internal sealed class CastOperatorBuilder
     /// </summary>
     public void Resolve(CastOperatorDeclarationNode castOpDecl, ConcreteType typeDef)
     {
+        var common = delegateResolver.ResolveDelegate(castOpDecl, typeDef.Scope, typeDef, "cast operator");
         var isImplicit = castOpDecl.CastKind is ImplicitCastCastOperatorKindNode;
         var targetType = typeResolver.Resolve(castOpDecl.TargetType, typeDef.Scope);
-        var modifiers = ModifierBuilder.Build(castOpDecl.Modifiers, context.Diagnostics, castOpDecl);
-        var parameters = parameterBuilder.Resolve(castOpDecl.Parameters, typeDef.Scope);
-        var body = CallableValidation.ResolveBody(castOpDecl.Body);
 
-        if(!modifiers.IsStatic)
+        if(!common.Modifiers.IsStatic)
         {
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.OperatorMustBeStatic, castOpDecl, null);
         }
 
-        if(parameters.Count == 0)
+        if(common.Parameters.Count == 0)
         {
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.CastOperatorMissingParameter, castOpDecl, null);
             return;
         }
 
-        var sourceParameter = parameters[0];
+        var sourceParameter = common.Parameters[0];
 
-        if(parameters.Count > 1)
+        if(common.Parameters.Count > 1)
         {
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.CastOperatorTooManyParameters, castOpDecl, null);
         }
 
-        CallableValidation.ValidateIntrinsicOrBody(castOpDecl, typeDef, "cast operator", modifiers, body, context.Diagnostics);
-
-        var castOperator = new CastOperator(targetType, sourceParameter, isImplicit, modifiers) { Body = body };
+        var castOperator = new CastOperator(targetType, sourceParameter, isImplicit, common.Modifiers) { Body = common.Body };
         typeDef.CastOperatorsList.Add(castOperator);
     }
 }

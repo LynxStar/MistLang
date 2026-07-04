@@ -12,12 +12,12 @@ namespace Mist.ProgramModel.Construction;
 internal sealed class ConstructorBuilder
 {
     private readonly BuilderContext context;
-    private readonly ParameterBuilder parameterBuilder;
+    private readonly DelegateResolver delegateResolver;
 
-    public ConstructorBuilder(BuilderContext context, ParameterBuilder parameterBuilder)
+    public ConstructorBuilder(BuilderContext context, DelegateResolver delegateResolver)
     {
         this.context = context;
-        this.parameterBuilder = parameterBuilder;
+        this.delegateResolver = delegateResolver;
     }
 
     /// <summary>
@@ -25,20 +25,16 @@ internal sealed class ConstructorBuilder
     /// </summary>
     public void Resolve(ConstructorDeclarationNode ctorDecl, ConcreteType concreteType)
     {
-        var modifiers = ModifierBuilder.Build(ctorDecl.Modifiers, context.Diagnostics, ctorDecl);
-        var parameters = parameterBuilder.Resolve(ctorDecl.Parameters, concreteType.Scope);
-        var body = CallableValidation.ResolveBody(ctorDecl.Body);
+        var common = delegateResolver.ResolveFullDelegate(ctorDecl, concreteType.Scope, concreteType, concreteType.Name);
 
-        if(modifiers.IsAsync)
+        if(common.Modifiers.IsAsync)
         {
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AsyncOnlyOnMethods, ctorDecl, null);
         }
 
-        CallableValidation.ValidateIntrinsicOrBody(ctorDecl, concreteType, concreteType.Name, modifiers, body, context.Diagnostics);
-
-        var constructor = new Constructor(concreteType.Name, concreteType, parameters, modifiers)
+        var constructor = new Constructor(concreteType.Name, concreteType, common.Parameters, common.Modifiers)
         {
-            Body = body,
+            Body = common.Body,
         };
 
         concreteType.ConstructorsList.Add(constructor);

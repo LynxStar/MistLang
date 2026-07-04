@@ -256,87 +256,176 @@ public class MistGrammarIntegrationTests
     }
 
     // ---------------------------------------------------------------
-    //  11.2 — ICallableDeclarationNode interface emission
+    //  11.2 — Delegate/FullDelegate trait interface emission
     // ---------------------------------------------------------------
 
     [Fact]
-    public void MistGrammar_ICallableDeclarationNode_InterfaceIsEmitted()
+    public void MistGrammar_IHasAttributesNode_InterfaceIsEmitted()
     {
         var output = AstOutput.Value;
 
-        Assert.Contains("public interface ICallableDeclarationNode", output);
+        Assert.Contains("public interface IHasAttributesNode", output);
     }
 
     [Fact]
-    public void MistGrammar_ICallableDeclarationNode_HasAttributesProperty()
+    public void MistGrammar_IHasAttributesNode_HasAttributesProperty()
     {
         var output = AstOutput.Value;
 
-        var interfaceSection = ExtractInterfaceSection(output, "ICallableDeclarationNode");
+        var interfaceSection = ExtractInterfaceSection(output, "IHasAttributesNode");
         Assert.Contains("ImmutableArray<AttributeListNode> Attributes { get; }", interfaceSection);
     }
 
     [Fact]
-    public void MistGrammar_ICallableDeclarationNode_HasModifiersProperty()
+    public void MistGrammar_IHasModifiersNode_InterfaceIsEmitted()
     {
         var output = AstOutput.Value;
 
-        var interfaceSection = ExtractInterfaceSection(output, "ICallableDeclarationNode");
+        Assert.Contains("public interface IHasModifiersNode", output);
+    }
+
+    [Fact]
+    public void MistGrammar_IHasModifiersNode_HasModifiersProperty()
+    {
+        var output = AstOutput.Value;
+
+        var interfaceSection = ExtractInterfaceSection(output, "IHasModifiersNode");
         Assert.Contains("ImmutableArray<ModifierNode> Modifiers { get; }", interfaceSection);
     }
 
     [Fact]
-    public void MistGrammar_ICallableDeclarationNode_HasParametersProperty()
+    public void MistGrammar_IHasParametersNode_InterfaceIsEmitted()
     {
         var output = AstOutput.Value;
 
-        var interfaceSection = ExtractInterfaceSection(output, "ICallableDeclarationNode");
+        Assert.Contains("public interface IHasParametersNode", output);
+    }
+
+    [Fact]
+    public void MistGrammar_IHasParametersNode_HasParametersProperty()
+    {
+        var output = AstOutput.Value;
+
+        var interfaceSection = ExtractInterfaceSection(output, "IHasParametersNode");
         Assert.Contains("ParameterListNode? Parameters { get; }", interfaceSection);
     }
 
     [Fact]
-    public void MistGrammar_ICallableDeclarationNode_HasWithClausesProperty()
+    public void MistGrammar_IHasBodyNode_InterfaceIsEmitted()
     {
         var output = AstOutput.Value;
 
-        var interfaceSection = ExtractInterfaceSection(output, "ICallableDeclarationNode");
-        Assert.Contains("ImmutableArray<WithClauseNode> WithClauses { get; }", interfaceSection);
+        Assert.Contains("public interface IHasBodyNode", output);
     }
 
     [Fact]
-    public void MistGrammar_ICallableDeclarationNode_HasConstraintsProperty()
+    public void MistGrammar_IHasBodyNode_HasBodyProperty()
     {
         var output = AstOutput.Value;
 
-        var interfaceSection = ExtractInterfaceSection(output, "ICallableDeclarationNode");
-        Assert.Contains("ImmutableArray<WhereClauseNode> Constraints { get; }", interfaceSection);
-    }
-
-    [Fact]
-    public void MistGrammar_ICallableDeclarationNode_HasBodyProperty()
-    {
-        var output = AstOutput.Value;
-
-        var interfaceSection = ExtractInterfaceSection(output, "ICallableDeclarationNode");
+        var interfaceSection = ExtractInterfaceSection(output, "IHasBodyNode");
         Assert.Contains("CallableBodyNode Body { get; }", interfaceSection);
     }
 
     [Fact]
-    public void MistGrammar_ConstructorDeclarationNode_ImplementsICallableDeclarationNode()
+    public void MistGrammar_IDelegateNode_InterfaceIsEmitted()
+    {
+        var output = AstOutput.Value;
+
+        Assert.Contains("public interface IDelegateNode", output);
+    }
+
+    [Fact]
+    public void MistGrammar_IDelegateNode_ExtendsAllFourTraits()
+    {
+        var output = AstOutput.Value;
+
+        var marker = "public interface IDelegateNode";
+        var start = output.IndexOf(marker);
+        Assert.True(start >= 0, "Expected IDelegateNode in AST output");
+        var lineEnd = output.IndexOf('\n', start);
+        var line = output[start..lineEnd];
+
+        Assert.Contains("IHasAttributesNode", line);
+        Assert.Contains("IHasModifiersNode", line);
+        Assert.Contains("IHasParametersNode", line);
+        Assert.Contains("IHasBodyNode", line);
+    }
+
+    [Fact]
+    public void MistGrammar_IFullDelegateNode_InterfaceIsEmitted()
+    {
+        var output = AstOutput.Value;
+
+        Assert.Contains("public interface IFullDelegateNode", output);
+    }
+
+    [Fact]
+    public void MistGrammar_IFullDelegateNode_ExtendsDelegateNode()
+    {
+        var output = AstOutput.Value;
+
+        var marker = "public interface IFullDelegateNode";
+        var start = output.IndexOf(marker);
+        Assert.True(start >= 0, "Expected IFullDelegateNode in AST output");
+        var lineEnd = output.IndexOf('\n', start);
+        var line = output[start..lineEnd];
+
+        Assert.Contains("IDelegateNode", line);
+    }
+
+    [Fact]
+    public void MistGrammar_IFullDelegateNode_HasWithClausesProperty()
+    {
+        var output = AstOutput.Value;
+
+        var interfaceSection = ExtractInterfaceSection(output, "IFullDelegateNode");
+        Assert.Contains("ImmutableArray<WithClauseNode> WithClauses { get; }", interfaceSection);
+    }
+
+    [Fact]
+    public void MistGrammar_IFullDelegateNode_HasConstraintsProperty()
+    {
+        var output = AstOutput.Value;
+
+        var interfaceSection = ExtractInterfaceSection(output, "IFullDelegateNode");
+        Assert.Contains("ImmutableArray<WhereClauseNode> Constraints { get; }", interfaceSection);
+    }
+
+    [Fact]
+    public void MistGrammar_ConstructorDeclarationNode_ImplementsIFullDelegateNode()
     {
         var output = AstOutput.Value;
 
         var classDecl = ExtractClassDeclarationLine(output, "ConstructorDeclarationNode");
-        Assert.Contains("ICallableDeclarationNode", classDecl);
+        Assert.Contains("IFullDelegateNode", classDecl);
     }
 
     [Fact]
-    public void MistGrammar_MethodDeclarationNode_ImplementsICallableDeclarationNode()
+    public void MistGrammar_MethodDeclarationNode_ImplementsIFullDelegateNode()
     {
         var output = AstOutput.Value;
 
         var classDecl = ExtractClassDeclarationLine(output, "MethodDeclarationNode");
-        Assert.Contains("ICallableDeclarationNode", classDecl);
+        Assert.Contains("IFullDelegateNode", classDecl);
+    }
+
+    [Fact]
+    public void MistGrammar_OperatorDeclarationNode_ImplementsIDelegateNode()
+    {
+        var output = AstOutput.Value;
+
+        var classDecl = ExtractClassDeclarationLine(output, "OperatorDeclarationNode");
+        Assert.Contains("IDelegateNode", classDecl);
+    }
+
+    [Fact]
+    public void MistGrammar_CastOperatorDeclarationNode_ImplementsIDelegateNode()
+    {
+        var output = AstOutput.Value;
+
+        var classDecl = ExtractClassDeclarationLine(output, "CastOperatorDeclarationNode");
+        Assert.Contains("IDelegateNode", classDecl);
     }
 
     // ---------------------------------------------------------------
@@ -384,7 +473,8 @@ public class MistGrammarIntegrationTests
         var output = AstOutput.Value;
 
         // Verify known node types that must always be present in the Mist grammar output
-        Assert.Contains("ICallableDeclarationNode", output);
+        Assert.Contains("IDelegateNode", output);
+        Assert.Contains("IFullDelegateNode", output);
         Assert.Contains("MethodDeclarationNode", output);
         Assert.Contains("ConstructorDeclarationNode", output);
         Assert.Contains("ExpressionNode", output);

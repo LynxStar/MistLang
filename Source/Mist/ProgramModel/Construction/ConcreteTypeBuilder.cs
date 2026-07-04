@@ -20,8 +20,8 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
     public ConcreteTypeBuilder(BuilderContext context, TypeReferenceResolver typeResolver)
         : base(context, typeResolver)
     {
-        constructorBuilder = new ConstructorBuilder(context, ParameterBuilder);
-        castOperatorBuilder = new CastOperatorBuilder(context, typeResolver, ParameterBuilder);
+        constructorBuilder = new ConstructorBuilder(context, DelegateResolver);
+        castOperatorBuilder = new CastOperatorBuilder(context, typeResolver, DelegateResolver);
     }
 
     /// <summary>

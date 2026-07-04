@@ -288,16 +288,19 @@ rule IndexerBody
     = LEFT_BRACE accessors:AccessorDeclaration+ RIGHT_BRACE       as BlockIndexerBody
     ;
 
-trait CallableDeclaration = 
-    attributes:AttributeList* 
-    modifiers:Modifier* 
-    parameters:ParameterList? 
-    withClauses:WithClause* 
-    constraints:WhereClause* 
-    body:CallableBody
+trait HasAttributes = attributes:AttributeList*;
+trait HasModifiers = modifiers:Modifier*;
+trait HasParameters = parameters:ParameterList?;
+trait HasBody = body:CallableBody;
+
+trait Delegate : HasAttributes, HasModifiers, HasParameters, HasBody;
+
+trait FullDelegate : Delegate =
+    withClauses:WithClause*
+    constraints:WhereClause*
     ;
 
-rule ConstructorDeclaration : CallableDeclaration = attributes:AttributeList* modifiers:Modifier* name:IDENTIFIER LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
+rule ConstructorDeclaration : FullDelegate = attributes:AttributeList* modifiers:Modifier* name:IDENTIFIER LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
                               withClauses:WithClause*
                               constraints:WhereClause*
                               chain:ConstructorChain? body:CallableBody;
@@ -307,7 +310,7 @@ rule ConstructorChain
     | COLON BASE LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS  as BaseChain
     ;
 
-rule MethodDeclaration : CallableDeclaration = attributes:AttributeList* modifiers:Modifier* returnOwnership:OwnershipSpecifier? returnType:TypeReference name:IDENTIFIER
+rule MethodDeclaration : FullDelegate = attributes:AttributeList* modifiers:Modifier* returnOwnership:OwnershipSpecifier? returnType:TypeReference name:IDENTIFIER
                          typeParams:TypeParameterList?
                          LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
                          withClauses:WithClause*
@@ -319,14 +322,16 @@ rule CallableBody
     | SEMICOLON   as CallableNoBody
     ;
 
-rule OperatorDeclaration = modifiers:Modifier*
+rule OperatorDeclaration : Delegate = attributes:AttributeList*
+                           modifiers:Modifier*
                            returnType:TypeReference
                            OPERATOR
                            symbol:OperatorSymbol
                            LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
                            body:CallableBody;
 
-rule CastOperatorDeclaration = modifiers:Modifier*
+rule CastOperatorDeclaration : Delegate = attributes:AttributeList*
+                               modifiers:Modifier*
                                castKind:CastOperatorKind
                                OPERATOR
                                targetType:TypeReference

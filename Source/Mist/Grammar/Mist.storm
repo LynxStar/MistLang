@@ -1,5 +1,5 @@
 grammar Mist;
-import "tokens/tokens.storm";
+import "tokens/tokens";
 
 // ─── Parser Rules — Top Level ────────────────────────────────────────────────
 

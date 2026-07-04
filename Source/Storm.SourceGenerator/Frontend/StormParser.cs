@@ -229,6 +229,13 @@ public static class StormParser
             var pathTok = Advance();
             var path = UnquoteString(pathTok.Lexeme);
 
+
+            //.storm is optional for paths, append it if missing.
+            if(!path.EndsWith(".storm"))
+            {
+                path = $"{path}.storm";
+            }
+
             string? alias = null;
             if(Match(StormTokenKind.AsKeyword))
             {

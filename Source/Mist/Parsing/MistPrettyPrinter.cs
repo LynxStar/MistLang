@@ -315,14 +315,8 @@ public sealed class MistPrettyPrinter
             case AssociatedTypeMemberMemberDeclarationNode associatedTypeMember:
                 EmitAssociatedTypeSlotDeclaration(associatedTypeMember.AssociatedType);
                 break;
-            case UnconstrainedAssociatedTypeMemberMemberDeclarationNode unconstrainedMember:
-                EmitUnconstrainedAssociatedTypeSlotDeclaration(unconstrainedMember.UnconstrainedAssociatedType);
-                break;
             case MemberTypeAliasMemberMemberDeclarationNode memberTypeAlias:
                 EmitMemberTypeAliasDeclaration(memberTypeAlias.MemberTypeAlias);
-                break;
-            case ModifiedAssociatedTypeMemberMemberDeclarationNode modifiedMember:
-                EmitModifiedAssociatedTypeSlotDeclaration(modifiedMember.ModifiedAssociatedType);
                 break;
         }
     }
@@ -781,25 +775,10 @@ public sealed class MistPrettyPrinter
 
     private void EmitAssociatedTypeSlotDeclaration(AssociatedTypeSlotDeclarationNode slotDecl)
     {
-        var name = slotDecl.Name.Lexeme;
-        var typeParams = EmitTypeParameterList(slotDecl.TypeParams);
-        var constraints = EmitConstraintList(slotDecl.Constraints);
-        var whereClauses = EmitConstraintClauses(slotDecl.SlotWhereConstraints);
-        AppendLine($"type {name}{typeParams} : {constraints}{whereClauses};");
-    }
-
-    private void EmitUnconstrainedAssociatedTypeSlotDeclaration(UnconstrainedAssociatedTypeSlotDeclarationNode slotDecl)
-    {
-        var name = slotDecl.Name.Lexeme;
-        var typeParams = EmitTypeParameterList(slotDecl.TypeParams);
-        AppendLine($"type {name}{typeParams};");
-    }
-
-    private void EmitModifiedAssociatedTypeSlotDeclaration(ModifiedAssociatedTypeSlotDeclarationNode slotDecl)
-    {
         var modifiers = EmitModifiers(slotDecl.Modifiers);
         var name = slotDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(slotDecl.TypeParams);
+
         if(slotDecl.Constraints is not null)
         {
             var constraints = EmitConstraintList(slotDecl.Constraints);

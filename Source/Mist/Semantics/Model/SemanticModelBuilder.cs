@@ -1819,12 +1819,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 case AssociatedTypeMemberMemberDeclarationNode associatedTypeMember:
                     RegisterAssociatedTypeSlotDeclaration(associatedTypeMember.AssociatedType, abstractType, typeScope, symbolTable, sourceText, diagnostics);
                     break;
-                case UnconstrainedAssociatedTypeMemberMemberDeclarationNode unconstrainedMember:
-                    RegisterUnconstrainedAssociatedTypeSlotDeclaration(unconstrainedMember.UnconstrainedAssociatedType, abstractType, typeScope, symbolTable, sourceText, diagnostics);
-                    break;
-                case ModifiedAssociatedTypeMemberMemberDeclarationNode modifiedMember:
-                    EmitModifiersOnAssociatedTypeSlotDiagnostic(modifiedMember.ModifiedAssociatedType, sourceText, diagnostics);
-                    break;
             }
         }
 
@@ -3015,10 +3009,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     slotName = assoc.AssociatedType.Name.Lexeme;
                     declarationNode = assoc.AssociatedType;
                     break;
-                case UnconstrainedAssociatedTypeMemberMemberDeclarationNode unconstrained:
-                    slotName = unconstrained.UnconstrainedAssociatedType.Name.Lexeme;
-                    declarationNode = unconstrained.UnconstrainedAssociatedType;
-                    break;
                 default:
                     continue;
             }
@@ -3041,17 +3031,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// The diagnostic points to the first modifier token.
     /// </summary>
     private static void EmitModifiersOnAssociatedTypeSlotDiagnostic(
-        ModifiedAssociatedTypeSlotDeclarationNode modifiedDecl,
+        AssociatedTypeSlotDeclarationNode slotDecl,
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        if(modifiedDecl.Modifiers.Length == 0)
+        if(slotDecl.Modifiers.IsDefaultOrEmpty)
         {
             return;
         }
 
-        // Point to the first modifier node.
-        var firstModifier = modifiedDecl.Modifiers[0];
+        var firstModifier = slotDecl.Modifiers[0];
         diagnostics.Add(MakeDiagnosticWithLocation(
             CommonDiagnostics.ModifiersOnAssociatedTypeSlot.Id.Value,
             DiagnosticSeverity.Error,
@@ -3078,8 +3067,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Registers a constrained associated type slot declaration as a symbol in the
-    /// declaring abstract type's member scope. Creates an <see cref="AssociatedTypeSlotType"/>
+    /// Registers an associated type slot declaration (constrained or unconstrained) as a symbol
+    /// in the declaring abstract type's member scope. Creates an <see cref="AssociatedTypeSlotType"/>
     /// with empty constraints (resolved later in <see cref="Pass1_ResolveConstraints"/>)
     /// and registers any type parameters declared on the slot.
     /// </summary>
@@ -3091,6 +3080,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
+        // Emit diagnostic if modifiers are present (not yet supported in old system).
+        if(!slotDecl.Modifiers.IsDefaultOrEmpty)
+        {
+            EmitModifiersOnAssociatedTypeSlotDiagnostic(slotDecl, sourceText, diagnostics);
+        }
+
         var slotName = slotDecl.Name.Lexeme;
         var slotSpan = ToMistSourceSpan(slotDecl.Name.Span);
 
@@ -3114,61 +3109,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Create the AssociatedTypeSlotType with empty constraints initially.
         // Constraints will be resolved during Pass1_ResolveConstraints.
-        var slotType = new AssociatedTypeSlotType(
-            displayName: slotName,
-            memberScope: slotScope,
-            containingNamespace: declaringType switch
-            {
-                AbstractType it => it.ContainingNamespace,
-                _ => null
-            },
-            declaringType: declaringType,
-            constraints: new TypeParameterConstraints(),
-            typeParameters: typeParams);
-
-        // Register the slot as a symbol in the declaring type's member scope.
-        var slotSymbol = new Symbol(slotName, SymbolKind.TypeAlias, SymbolOrigin.UserCode, typeScope, slotType, slotSpan)
-        {
-            TypeParameters = typeParams
-        };
-        typeScope.AddMember(slotSymbol);
-        symbolTable.Register(slotSymbol, slotDecl);
-    }
-
-    /// <summary>
-    /// Registers an unconstrained associated type slot declaration (e.g., <c>type Name;</c>)
-    /// as a symbol in the declaring abstract type's member scope.
-    /// </summary>
-    private static void RegisterUnconstrainedAssociatedTypeSlotDeclaration(
-        UnconstrainedAssociatedTypeSlotDeclarationNode slotDecl,
-        IType declaringType,
-        Scope typeScope,
-        SymbolTable symbolTable,
-        SourceText? sourceText,
-        DiagnosticBag diagnostics)
-    {
-        var slotName = slotDecl.Name.Lexeme;
-        var slotSpan = ToMistSourceSpan(slotDecl.Name.Span);
-
-        // Extract type parameters on the slot itself.
-        var typeParams = ExtractTypeParameters(slotDecl.TypeParams, slotName, sourceText, diagnostics);
-
-        // Create the slot's own member scope for its type parameters.
-        var slotScope = new Scope(parent: typeScope);
-
-        // Register each type parameter as a symbol in the slot's scope.
-        if(typeParams.Count > 0 && slotDecl.TypeParams is not null)
-        {
-            foreach(var tp in typeParams)
-            {
-                var (tpName, tpOrdinal) = GetTypeParameterNameAndOrdinal(tp);
-                var tpSpan = GetTypeParameterSpan(slotDecl.TypeParams, tpOrdinal);
-                var tpSymbol = new Symbol(tpName, SymbolKind.Class, SymbolOrigin.UserCode, slotScope, tp, tpSpan);
-                slotScope.AddMember(tpSymbol);
-            }
-        }
-
-        // Create the AssociatedTypeSlotType with empty constraints (unconstrained slot).
         var slotType = new AssociatedTypeSlotType(
             displayName: slotName,
             memberScope: slotScope,
@@ -3234,17 +3174,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 break;
             case AssociatedTypeMemberMemberDeclarationNode associatedTypeMember:
                 EmitAssociatedTypeSlotInWrongContextDiagnostic(associatedTypeMember.AssociatedType.TYPE, sourceText, diagnostics);
-                break;
-            case UnconstrainedAssociatedTypeMemberMemberDeclarationNode unconstrainedMember:
-                EmitAssociatedTypeSlotInWrongContextDiagnostic(unconstrainedMember.UnconstrainedAssociatedType.TYPE, sourceText, diagnostics);
-                break;
-            case ModifiedAssociatedTypeMemberMemberDeclarationNode modifiedMember:
-                // A modified associated-type slot (e.g. "public type Bar : class;") is
-                // syntactically ambiguous with a member type alias at the grammar level
-                // (both start with modifiers+ TYPE IDENTIFIER), but semantically it is
-                // only valid inside abstract types. Reject it here the same way plain
-                // associated-type slots are rejected in concrete class/struct bodies.
-                EmitAssociatedTypeSlotInWrongContextDiagnostic(modifiedMember.ModifiedAssociatedType.TYPE, sourceText, diagnostics);
                 break;
             case MemberTypeAliasMemberMemberDeclarationNode memberTypeAlias:
                 RegisterMemberTypeAliasDeclaration(memberTypeAlias.MemberTypeAlias, typeScope, symbolTable, sourceText, diagnostics);
@@ -6941,6 +6870,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 continue;
             }
 
+            // Only resolve constraints if the constraint clause is present.
+            if(slotDecl.Constraints is null)
+            {
+                continue;
+            }
+
             var sourceText = GetSourceTextForSymbol(symbol, symbolTable)
                 ?? GetSourceTextFromOrigin(declaringNode);
 
@@ -7648,7 +7583,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             TypeAliasDeclarationNode aliasDecl when symbol is Symbol aliasSymbol => (aliasDecl.Constraints, aliasSymbol.TypeParameters),
             ConstructorDeclarationNode ctorDecl => ((ImmutableArray<WhereClauseNode> Clauses, IReadOnlyList<IType> TypeParams))(ctorDecl.Constraints, Array.Empty<IType>()),
             IndexerDeclarationNode indexerDecl2 => ((ImmutableArray<WhereClauseNode> Clauses, IReadOnlyList<IType> TypeParams))(indexerDecl2.Constraints, Array.Empty<IType>()),
-            AssociatedTypeSlotDeclarationNode slotDecl when symbol is Symbol slotSymbol => (slotDecl.SlotWhereConstraints, slotSymbol.TypeParameters),
+            AssociatedTypeSlotDeclarationNode slotDecl when symbol is Symbol slotSymbol && slotDecl.Constraints is not null => (slotDecl.SlotWhereConstraints, slotSymbol.TypeParameters),
+            AssociatedTypeSlotDeclarationNode when symbol is Symbol slotSymbol2 => (ImmutableArray<WhereClauseNode>.Empty, slotSymbol2.TypeParameters),
             _ => ((ImmutableArray<WhereClauseNode> Clauses, IReadOnlyList<IType> TypeParams))(ImmutableArray<WhereClauseNode>.Empty, Array.Empty<IType>()),
         };
     }

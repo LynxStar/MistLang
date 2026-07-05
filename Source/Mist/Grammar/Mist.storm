@@ -142,22 +142,12 @@ rule BaseList = first:BaseTypeRef (COMMA rest:BaseTypeRef)*;
 
 // ─── Parser Rules — Associated Type Slot Declarations ────────────────────────
 
-rule AssociatedTypeSlotDeclaration = TYPE name:IDENTIFIER
-    typeParams:TypeParameterList?
-    COLON constraints:ConstraintList
-    slotWhereConstraints:WhereClause*
-    SEMICOLON;
-
-rule UnconstrainedAssociatedTypeSlotDeclaration = TYPE name:IDENTIFIER
-    typeParams:TypeParameterList?
-    SEMICOLON;
-
-rule ModifiedTypeHead = modifiers:Modifier+ TYPE name:IDENTIFIER typeParams:TypeParameterList?;
-
-rule ModifiedAssociatedTypeSlotDeclaration = modifiers:Modifier+ TYPE name:IDENTIFIER
+rule AssociatedTypeSlotDeclaration : HasModifiers = modifiers:Modifier* TYPE name:IDENTIFIER
     typeParams:TypeParameterList?
     constraintClause:(COLON constraints:ConstraintList slotWhereConstraints:WhereClause*)?
     SEMICOLON;
+
+rule AssociatedTypeSlotHead = modifiers:Modifier* TYPE name:IDENTIFIER typeParams:TypeParameterList?;
 
 // ─── Parser Rules — Enum Declarations ────────────────────────────────────────
 
@@ -223,15 +213,13 @@ rule MemberDeclaration
     | defaultBlock:DefaultBlockDeclaration as DefaultBlockMember
     | field:FieldDeclaration             as FieldMember
     | nestedType:TypeDeclaration         as NestedTypeMember
-    | inline ModifiedTypeHead: {
+    | inline AssociatedTypeSlotHead: {
           memberTypeAlias:MemberTypeAliasDeclaration as MemberTypeAliasMember,
-          modifiedAssociatedType:ModifiedAssociatedTypeSlotDeclaration as ModifiedAssociatedTypeMember,
+          associatedType:AssociatedTypeSlotDeclaration as AssociatedTypeMember,
       }
-    | associatedType:AssociatedTypeSlotDeclaration as AssociatedTypeMember
-    | unconstrainedAssociatedType:UnconstrainedAssociatedTypeSlotDeclaration as UnconstrainedAssociatedTypeMember
     ;
 
-rule MemberTypeAliasDeclaration = modifiers:Modifier+ TYPE name:IDENTIFIER
+rule MemberTypeAliasDeclaration = modifiers:Modifier* TYPE name:IDENTIFIER
     typeParams:TypeParameterList?
     EQUAL type:RefinableTypeExpression
     constraints:WhereClause*

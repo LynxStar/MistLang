@@ -183,10 +183,17 @@ public static class StormParser
             // Parse declarations until EOF.
             while(Current.Kind != StormTokenKind.EndOfFile)
             {
+                var savedPos = pos;
                 var decl = ParseDeclaration();
                 if(decl != null)
                 {
                     declarations.Add(decl);
+                }
+
+                // Guard against infinite loops: if no progress was made, consume one token.
+                if(pos == savedPos)
+                {
+                    _ = Advance();
                 }
             }
 

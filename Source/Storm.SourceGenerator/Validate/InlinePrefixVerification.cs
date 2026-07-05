@@ -91,9 +91,17 @@ public static class InlinePrefixVerification
         StormGrammar grammar,
         List<StormDiagnostic> diagnostics)
     {
-        // The Prefix is always a StormReferenceExpr naming the prefix rule
+        // The Prefix is always a StormReferenceExpr naming the prefix rule.
+        // If it is not, a parse error occurred but recovery continued — reject it.
         if(inlineBlock.Prefix is not StormReferenceExpr prefixRef)
         {
+            diagnostics.Add(new StormDiagnostic(
+                StormDiagnosticIds.STORM_INLINE_PREFIX_MISMATCH,
+                StormDiagnosticSeverity.Error,
+                "Inline block prefix must be a rule reference (e.g., 'inline MyPrefixRule: { ... }'). Anonymous inline prefixes are not supported.",
+                null,
+                inlineBlock.Line,
+                inlineBlock.Column));
             return;
         }
 

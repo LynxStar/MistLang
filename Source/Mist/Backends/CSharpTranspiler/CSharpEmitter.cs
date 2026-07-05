@@ -3322,7 +3322,6 @@ internal sealed class CSharpSourceWriter
                     break;
                 // Skip associated type slot declarations — they are lifted to type parameters.
                 case AssociatedTypeMemberMemberDeclarationNode:
-                case UnconstrainedAssociatedTypeMemberMemberDeclarationNode:
                     break;
             }
         }

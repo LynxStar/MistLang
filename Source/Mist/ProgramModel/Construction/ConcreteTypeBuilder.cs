@@ -100,8 +100,6 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
                 break;
 
             case AssociatedTypeMemberMemberDeclarationNode:
-            case UnconstrainedAssociatedTypeMemberMemberDeclarationNode:
-            case ModifiedAssociatedTypeMemberMemberDeclarationNode:
                 Context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.TypeSlotNotAllowedOnConcrete, member, null);
                 break;
 

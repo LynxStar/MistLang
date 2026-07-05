@@ -219,6 +219,55 @@ public class AssociatedTypeDisambiguationPropertyTests
     // TypeAliasDeclarationNode).
     // ═════════════════════════════════════════════════════════════════════════
 
+    /// <summary>
+    /// Builds source for an unconstrained associated type slot declaration inside an abstract body.
+    /// </summary>
+    private static string BuildUnconstrainedAssociatedTypeSlotSource(string name)
+    {
+        return $"abstract ITest {{ type {name}; }}";
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // Property 2d: type Name; in abstract produces
+    //              AssociatedTypeMemberMemberDeclarationNode with null constraints
+    //
+    // For any valid type name, parsing `type Name;` (unconstrained slot)
+    // inside an abstract body SHALL produce an
+    // AssociatedTypeMemberMemberDeclarationNode containing
+    // an AssociatedTypeSlotDeclarationNode with null Constraints.
+    // ═════════════════════════════════════════════════════════════════════════
+
+    [Property(
+        MaxTest = 100,
+        Arbitrary = new[] { typeof(AssociatedTypeDisambiguationPropertyTests) })]
+    public Property UnconstrainedSlot_ProducesUnifiedNodeWithNullConstraintClause(DisambiguationTypeScenario scenario)
+    {
+        var source = BuildUnconstrainedAssociatedTypeSlotSource(scenario.TypeName);
+        var root = ParseSource(source);
+
+        if(root is null)
+        {
+            return false.ToProperty().Label($"Failed to parse: {source}");
+        }
+
+        var member = ExtractAbstractMember(root);
+        if(member is null)
+        {
+            return false.ToProperty().Label($"Could not extract abstract member from: {source}");
+        }
+
+        if(member is not AssociatedTypeMemberMemberDeclarationNode slotMember)
+        {
+            return false.ToProperty().Label($"Expected AssociatedTypeMemberMemberDeclarationNode but got {member.GetType().Name} for: {source}");
+        }
+
+        var hasNullConstraints = slotMember.AssociatedType.Constraints is null;
+
+        return hasNullConstraints
+            .ToProperty()
+            .Label($"Expected null Constraints on unconstrained slot but it was non-null for: {source}");
+    }
+
     [Property(
         MaxTest = 100,
         Arbitrary = new[] { typeof(AssociatedTypeDisambiguationPropertyTests) })]

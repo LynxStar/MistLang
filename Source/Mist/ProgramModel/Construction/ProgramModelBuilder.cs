@@ -64,6 +64,7 @@ public sealed class ProgramModelBuilder
         var typeResolver = new TypeReferenceResolver(context);
         var concreteTypeBuilder = new ConcreteTypeBuilder(context, typeResolver);
         var abstractTypeBuilder = new AbstractTypeBuilder(context, typeResolver);
+        var enumTypeBuilder = new EnumTypeBuilder(typeResolver);
 
         foreach(var ns in programModel.Namespaces.Values)
         {
@@ -76,6 +77,9 @@ public sealed class ProgramModelBuilder
                         break;
                     case AbstractType abstractDef:
                         abstractTypeBuilder.Build(abstractDef);
+                        break;
+                    case EnumType enumDef:
+                        enumTypeBuilder.Build(enumDef);
                         break;
                 }
             }

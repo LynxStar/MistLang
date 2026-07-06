@@ -5,4 +5,14 @@ namespace Mist.ProgramModel.Contracts.Types;
 /// </summary>
 public interface IEnumType : IMistType
 {
+    /// <summary>
+    /// The resolved underlying type (from explicit type annotation), or null
+    /// if no annotation was provided (type will be inferred later).
+    /// </summary>
+    IMistType? UnderlyingType { get; }
+
+    /// <summary>
+    /// The declared enum members (variants).
+    /// </summary>
+    IReadOnlyList<IEnumMember> Members { get; }
 }

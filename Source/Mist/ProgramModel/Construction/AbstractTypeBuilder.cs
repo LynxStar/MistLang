@@ -79,6 +79,7 @@ internal sealed class AbstractTypeBuilder : MemberTypeBuilder
                 break;
 
             case NestedTypeMemberMemberDeclarationNode:
+            case MemberTypeAliasMemberMemberDeclarationNode:
                 // Nested types are already registered.
                 break;
 
@@ -86,7 +87,6 @@ internal sealed class AbstractTypeBuilder : MemberTypeBuilder
             case ConstructorMemberMemberDeclarationNode:
             case CastOperatorMemberMemberDeclarationNode:
             case DefaultBlockMemberMemberDeclarationNode:
-            case MemberTypeAliasMemberMemberDeclarationNode:
                 Context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.MemberNotAllowedOnAbstract, member, null);
                 break;
 

@@ -25,7 +25,7 @@ internal sealed class TypeSlotBuilder
         var name = slotDecl.Name.Lexeme;
         var modifiers = ModifierBuilder.Build(slotDecl, context.Diagnostics);
 
-        var slot = new TypeSlot(name, [], modifiers);
+        var slot = new TypeSlot(name, modifiers);
         typeDef.TypeSlotsList.Add(slot);
     }
 }

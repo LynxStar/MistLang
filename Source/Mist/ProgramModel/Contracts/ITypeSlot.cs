@@ -1,4 +1,3 @@
-using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 
 namespace Mist.ProgramModel.Contracts;
@@ -11,9 +10,6 @@ public interface ITypeSlot
 {
     /// <summary>The name of the type slot.</summary>
     string Name { get; }
-
-    /// <summary>The type constraints that the supplied type must satisfy.</summary>
-    IReadOnlyList<IMistType> TypeConstraints { get; }
 
     /// <summary>The modifiers declared on this type slot.</summary>
     MemberModifiers Modifiers { get; }

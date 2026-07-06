@@ -177,7 +177,7 @@ internal sealed class TypeBuilder
                 };
 
             case EnumTypeTypeDeclarationNode et:
-                return new EnumType(et.EnumDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType);
+                return new EnumType(et.EnumDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType, et.EnumDeclaration);
 
             case NewtypeTypeTypeDeclarationNode nt:
                 return new Newtype(nt.NewtypeDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType);

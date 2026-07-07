@@ -16,6 +16,11 @@ internal sealed class Newtype(
     internal NewtypeDeclarationNode DeclarationNode { get; } = declarationNode;
 
     /// <summary>
+    /// The modifiers declared on this newtype.
+    /// </summary>
+    public MemberModifiers Modifiers { get; internal set; }
+
+    /// <summary>
     /// The resolved source type this newtype wraps.
     /// </summary>
     public IMistType? SourceType { get; internal set; }

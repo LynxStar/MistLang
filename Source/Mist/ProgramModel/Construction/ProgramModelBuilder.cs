@@ -65,7 +65,7 @@ public sealed class ProgramModelBuilder
         var concreteTypeBuilder = new ConcreteTypeBuilder(context, typeResolver);
         var abstractTypeBuilder = new AbstractTypeBuilder(context, typeResolver);
         var enumTypeBuilder = new EnumTypeBuilder(context, typeResolver);
-        var newtypeBuilder = new NewtypeBuilder(typeResolver);
+        var newtypeBuilder = new NewtypeBuilder(context, typeResolver);
         var typeAliasBuilder = new TypeAliasBuilder(context, typeResolver);
 
         foreach(var ns in programModel.Namespaces.Values)

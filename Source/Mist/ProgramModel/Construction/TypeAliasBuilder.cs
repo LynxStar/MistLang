@@ -20,11 +20,14 @@ internal sealed class TypeAliasBuilder
     }
 
     /// <summary>
-    /// Resolves the type alias's target type reference.
+    /// Resolves the type alias's modifiers and target type reference.
     /// </summary>
     public void Build(TypeAlias typeDef)
     {
-        var refinableExpr = typeDef.DeclarationNode.Type;
+        var decl = typeDef.DeclarationNode;
+        typeDef.Modifiers = ModifierBuilder.Build(decl, context.Diagnostics);
+
+        var refinableExpr = decl.Type;
 
         if(refinableExpr.RefinableSingleTypeExprs.Length > 0)
         {

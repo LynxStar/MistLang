@@ -16,6 +16,11 @@ internal sealed class TypeAlias(
     internal TypeAliasDeclarationNode DeclarationNode { get; } = declarationNode;
 
     /// <summary>
+    /// The modifiers declared on this type alias.
+    /// </summary>
+    public MemberModifiers Modifiers { get; internal set; }
+
+    /// <summary>
     /// The resolved type this alias refers to.
     /// </summary>
     public IMistType? AliasedType { get; internal set; }

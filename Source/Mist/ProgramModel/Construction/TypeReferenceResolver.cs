@@ -30,13 +30,13 @@ internal sealed class TypeReferenceResolver
             return ErrorType.Instance;
         }
 
-        return ResolveSingle(typeRef.First, scope);
+        return Resolve(typeRef.First, scope);
     }
 
     /// <summary>
     /// Resolves a single (non-union) type reference node.
     /// </summary>
-    private IMistType ResolveSingle(SingleTypeRefNode singleRef, Scope scope)
+    public IMistType Resolve(SingleTypeRefNode singleRef, Scope scope)
     {
         var inner = singleRef switch
         {

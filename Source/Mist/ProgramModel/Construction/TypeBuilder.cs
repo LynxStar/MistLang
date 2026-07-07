@@ -180,10 +180,10 @@ internal sealed class TypeBuilder
                 return new EnumType(et.EnumDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType, et.EnumDeclaration);
 
             case NewtypeTypeTypeDeclarationNode nt:
-                return new Newtype(nt.NewtypeDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType);
+                return new Newtype(nt.NewtypeDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType, nt.NewtypeDeclaration);
 
             case TypeAliasTypeTypeDeclarationNode ta:
-                return new TypeAlias(ta.TypeAliasDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType);
+                return new TypeAlias(ta.TypeAliasDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType, ta.TypeAliasDeclaration);
 
             default:
                 context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownTypeDeclaration, typeDecl, null, typeDecl.GetType().Name);

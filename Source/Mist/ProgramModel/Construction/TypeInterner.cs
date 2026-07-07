@@ -12,6 +12,7 @@ internal sealed class TypeInterner
 {
     private readonly Dictionary<ConstructedTypeKey, ConstructedType> constructedTypes = [];
     private readonly Dictionary<UnionTypeKey, UnionType> unionTypes = [];
+    private readonly Dictionary<TupleTypeKey, TupleType> tupleTypes = [];
 
     /// <summary>
     /// Returns the canonical <see cref="ConstructedType"/> for the given definition and type arguments.
@@ -46,6 +47,24 @@ internal sealed class TypeInterner
         var union = new UnionType(constituents);
         unionTypes[key] = union;
         return union;
+    }
+
+    /// <summary>
+    /// Returns the canonical <see cref="TupleType"/> for the given element types and names.
+    /// Identity is based on element types only — names are cosmetic.
+    /// </summary>
+    public TupleType GetOrCreateTupleType(IReadOnlyList<IMistType> elementTypes, IReadOnlyList<string?> elementNames)
+    {
+        var key = new TupleTypeKey(elementTypes);
+
+        if(tupleTypes.TryGetValue(key, out var existing))
+        {
+            return existing;
+        }
+
+        var tuple = new TupleType(elementTypes, elementNames);
+        tupleTypes[key] = tuple;
+        return tuple;
     }
 
     /// <summary>
@@ -153,6 +172,57 @@ internal sealed class TypeInterner
         public override bool Equals(object? obj)
         {
             return obj is UnionTypeKey other && Equals(other);
+        }
+
+        public override int GetHashCode()
+        {
+            return hashCode;
+        }
+    }
+
+    /// <summary>
+    /// Key for tuple types: ordered element type identities (names are ignored for identity).
+    /// </summary>
+    private readonly struct TupleTypeKey : IEquatable<TupleTypeKey>
+    {
+        private readonly IMistType[] elementTypes;
+        private readonly int hashCode;
+
+        public TupleTypeKey(IReadOnlyList<IMistType> elementTypes)
+        {
+            this.elementTypes = elementTypes.ToArray();
+
+            var hash = new HashCode();
+
+            foreach(var t in this.elementTypes)
+            {
+                hash.Add(RuntimeHelpers.GetHashCode(t));
+            }
+
+            hashCode = hash.ToHashCode();
+        }
+
+        public bool Equals(TupleTypeKey other)
+        {
+            if(elementTypes.Length != other.elementTypes.Length)
+            {
+                return false;
+            }
+
+            for(var i = 0; i < elementTypes.Length; i++)
+            {
+                if(!ReferenceEquals(elementTypes[i], other.elementTypes[i]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        public override bool Equals(object? obj)
+        {
+            return obj is TupleTypeKey other && Equals(other);
         }
 
         public override int GetHashCode()

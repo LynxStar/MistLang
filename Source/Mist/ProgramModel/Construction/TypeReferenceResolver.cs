@@ -52,6 +52,32 @@ internal sealed class TypeReferenceResolver
     }
 
     /// <summary>
+    /// Resolves a tuple type reference into an interned <see cref="TupleType"/>.
+    /// Element names are preserved but do not affect type identity.
+    /// </summary>
+    private IMistType ResolveTuple(TupleSingleTypeRefSingleTypeRefNode tupleRef, Scope scope)
+    {
+        var elementTypes = new List<IMistType>();
+        var elementNames = new List<string?>();
+
+        ResolveTupleElement(tupleRef.First, scope, elementTypes, elementNames);
+        ResolveTupleElement(tupleRef.Rest, scope, elementTypes, elementNames);
+
+        foreach(var additional in tupleRef.TupleTypeElements)
+        {
+            ResolveTupleElement(additional, scope, elementTypes, elementNames);
+        }
+
+        return context.ProgramModel.TypeInterner.GetOrCreateTupleType(elementTypes, elementNames);
+    }
+
+    private void ResolveTupleElement(TupleTypeElementNode element, Scope scope, List<IMistType> types, List<string?> names)
+    {
+        types.Add(Resolve(element.Type, scope));
+        names.Add(element.Name?.Lexeme);
+    }
+
+    /// <summary>
     /// Resolves a single (non-union) type reference node.
     /// </summary>
     public IMistType Resolve(SingleTypeRefNode singleRef, Scope scope)
@@ -63,6 +89,7 @@ internal sealed class TypeReferenceResolver
             PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef => ResolveReservedAlias(primitiveRef),
             NamedSingleTypeRefSingleTypeRefNode namedRef => ResolveNamed(namedRef, scope),
             ParenthesizedTypeRefSingleTypeRefNode parenRef => Resolve(parenRef.Inner, scope),
+            TupleSingleTypeRefSingleTypeRefNode tupleRef => ResolveTuple(tupleRef, scope),
             _ => ReportUnsupported(singleRef),
         };
 

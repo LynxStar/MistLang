@@ -11,20 +11,23 @@ namespace Mist.ProgramModel.Construction;
 /// </summary>
 internal sealed class EnumTypeBuilder
 {
+    private readonly BuilderContext context;
     private readonly TypeReferenceResolver typeResolver;
 
-    public EnumTypeBuilder(TypeReferenceResolver typeResolver)
+    public EnumTypeBuilder(BuilderContext context, TypeReferenceResolver typeResolver)
     {
+        this.context = context;
         this.typeResolver = typeResolver;
     }
 
     /// <summary>
-    /// Entry point: resolves the enum declaration's type annotation and members.
+    /// Entry point: resolves modifiers, the enum declaration's type annotation, and members.
     /// </summary>
     public void Build(EnumType typeDef)
     {
         var enumDecl = typeDef.DeclarationNode;
 
+        typeDef.Modifiers = ModifierBuilder.Build(enumDecl, context.Diagnostics);
         ResolveUnderlyingType(enumDecl, typeDef);
         ResolveMembers(enumDecl, typeDef);
     }

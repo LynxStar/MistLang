@@ -21,6 +21,11 @@ internal sealed class EnumType(
     internal EnumDeclarationNode DeclarationNode { get; } = declarationNode;
 
     /// <summary>
+    /// The modifiers declared on this enum type.
+    /// </summary>
+    public MemberModifiers Modifiers { get; internal set; }
+
+    /// <summary>
     /// The resolved underlying type (from explicit annotation, or null if not yet resolved).
     /// </summary>
     public IMistType? UnderlyingType { get; internal set; }

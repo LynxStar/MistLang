@@ -64,7 +64,7 @@ public sealed class ProgramModelBuilder
         var typeResolver = new TypeReferenceResolver(context);
         var concreteTypeBuilder = new ConcreteTypeBuilder(context, typeResolver);
         var abstractTypeBuilder = new AbstractTypeBuilder(context, typeResolver);
-        var enumTypeBuilder = new EnumTypeBuilder(typeResolver);
+        var enumTypeBuilder = new EnumTypeBuilder(context, typeResolver);
         var newtypeBuilder = new NewtypeBuilder(typeResolver);
         var typeAliasBuilder = new TypeAliasBuilder(context, typeResolver);
 

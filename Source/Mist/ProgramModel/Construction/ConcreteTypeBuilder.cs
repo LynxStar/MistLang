@@ -90,9 +90,11 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
                 castOperatorBuilder.Resolve(castOpMember.CastOperator, typeDef);
                 break;
 
-            case NestedTypeMemberMemberDeclarationNode:
-            case MemberTypeAliasMemberMemberDeclarationNode:
-                // Nested types are already registered; member type aliases are out of scope.
+            case NestedBodyTypeMemberMemberDeclarationNode:
+            case NestedEnumMemberMemberDeclarationNode:
+            case NestedNewtypeMemberMemberDeclarationNode:
+            case NestedTypeAliasMemberMemberDeclarationNode:
+                // Nested types are already registered.
                 break;
 
             case DefaultBlockMemberMemberDeclarationNode defaultBlockMember:

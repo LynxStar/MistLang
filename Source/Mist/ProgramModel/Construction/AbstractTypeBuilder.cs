@@ -78,8 +78,10 @@ internal sealed class AbstractTypeBuilder : MemberTypeBuilder
                 typeSlotBuilder.Resolve(assocType.AssociatedType, typeDef);
                 break;
 
-            case NestedTypeMemberMemberDeclarationNode:
-            case MemberTypeAliasMemberMemberDeclarationNode:
+            case NestedBodyTypeMemberMemberDeclarationNode:
+            case NestedEnumMemberMemberDeclarationNode:
+            case NestedNewtypeMemberMemberDeclarationNode:
+            case NestedTypeAliasMemberMemberDeclarationNode:
                 // Nested types are already registered.
                 break;
 

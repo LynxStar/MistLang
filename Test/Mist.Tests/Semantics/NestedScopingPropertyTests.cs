@@ -103,7 +103,7 @@ public sealed class NestedScopingPropertyTests
     }
 
     /// <summary>
-    /// Checks if a parsed compilation unit contains a NestedTypeMemberMemberDeclarationNode
+    /// Checks if a parsed compilation unit contains a nested type member declaration
     /// as a member of the first type declaration.
     /// </summary>
     private static bool HasNestedTypeMember(CompilationUnitNode cu)
@@ -131,7 +131,10 @@ public sealed class NestedScopingPropertyTests
             return false;
         }
 
-        return members.Value.Any(m => m is NestedTypeMemberMemberDeclarationNode);
+        return members.Value.Any(m => m is NestedBodyTypeMemberMemberDeclarationNode
+            or NestedEnumMemberMemberDeclarationNode
+            or NestedNewtypeMemberMemberDeclarationNode
+            or NestedTypeAliasMemberMemberDeclarationNode);
     }
 
     /// <summary>
@@ -186,7 +189,7 @@ public sealed class NestedScopingPropertyTests
             return false;
         }
 
-        // The AST should contain a NestedTypeMemberMemberDeclarationNode
+        // The AST should contain a nested type member declaration node
         return HasNestedTypeMember(cu);
     }
 
@@ -235,7 +238,7 @@ public sealed class NestedScopingPropertyTests
 
                 if(!HasNestedTypeMember(cu))
                 {
-                    failures.Add($"{containerKind} containing {nestedKind}: no NestedTypeMemberMemberDeclarationNode found");
+                    failures.Add($"{containerKind} containing {nestedKind}: no nested type member node found");
                 }
             }
         }
@@ -322,9 +325,10 @@ public sealed class NestedScopingPropertyTests
 
         foreach(var member in members.Value)
         {
-            if(member is NestedTypeMemberMemberDeclarationNode nestedType)
+            if(member is NestedBodyTypeMemberMemberDeclarationNode nestedBody)
             {
-                var childDepth = MeasureTypeDepth(nestedType.NestedType, currentDepth + 1);
+                var childDecl = new BodyTypeTypeDeclarationNode { TypeBody = nestedBody.NestedBody };
+                var childDepth = MeasureTypeDepth(childDecl, currentDepth + 1);
                 if(childDepth > maxChildDepth)
                 {
                     maxChildDepth = childDepth;
@@ -411,15 +415,42 @@ public sealed class NestedScopingPropertyTests
             return false;
         }
 
-        // Find the nested type member
-        var nestedMember = members.Value.OfType<NestedTypeMemberMemberDeclarationNode>().FirstOrDefault();
-        if(nestedMember is null)
+        // Find the nested type member and get its modifiers
+        ImmutableArray<ModifierNode> actualModifiers = default;
+        var found = false;
+
+        foreach(var member in members.Value)
+        {
+            switch(member)
+            {
+                case NestedBodyTypeMemberMemberDeclarationNode nestedBody:
+                    actualModifiers = nestedBody.NestedBody.Modifiers;
+                    found = true;
+                    break;
+                case NestedEnumMemberMemberDeclarationNode nestedEnum:
+                    actualModifiers = nestedEnum.NestedEnum.Modifiers;
+                    found = true;
+                    break;
+                case NestedNewtypeMemberMemberDeclarationNode nestedNewtype:
+                    actualModifiers = nestedNewtype.NestedNewtype.Modifiers;
+                    found = true;
+                    break;
+                case NestedTypeAliasMemberMemberDeclarationNode nestedAlias:
+                    actualModifiers = nestedAlias.NestedTypeAlias.Modifiers;
+                    found = true;
+                    break;
+            }
+
+            if(found)
+            {
+                break;
+            }
+        }
+
+        if(!found)
         {
             return false;
         }
-
-        // Get the modifiers from the nested type declaration
-        var actualModifiers = GetModifiersFromTypeDeclaration(nestedMember.NestedType);
 
         // Verify count matches
         var expectedCount = MistNestedScopingGenerator.ModifierCount(expectedMods);

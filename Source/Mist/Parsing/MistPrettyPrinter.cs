@@ -157,7 +157,7 @@ public sealed class MistPrettyPrinter
 
     // ─── Type Alias Declarations ────────────────────────────────────────
 
-    private void EmitMemberTypeAliasDeclaration(MemberTypeAliasDeclarationNode aliasDecl)
+    private void EmitTypeAliasDeclaration(TypeAliasDeclarationNode aliasDecl)
     {
         var modifiers = EmitModifiers(aliasDecl.Modifiers);
         var name = aliasDecl.Name.Lexeme;
@@ -165,15 +165,6 @@ public sealed class MistPrettyPrinter
         var typeExpr = EmitRefinableTypeExpression(aliasDecl.Type);
         var constraints = EmitConstraintClauses(aliasDecl.Constraints);
         AppendLine($"{modifiers}type {name}{typeParams} = {typeExpr}{constraints};");
-    }
-
-    private void EmitTypeAliasDeclaration(TypeAliasDeclarationNode aliasDecl)
-    {
-        var name = aliasDecl.Name.Lexeme;
-        var typeParams = EmitTypeParameterList(aliasDecl.TypeParams);
-        var typeExpr = EmitRefinableTypeExpression(aliasDecl.Type);
-        var constraints = EmitConstraintClauses(aliasDecl.Constraints);
-        AppendLine($"type {name}{typeParams} = {typeExpr}{constraints};");
     }
 
     private string EmitRefinableTypeExpression(RefinableTypeExpressionNode node)
@@ -212,9 +203,11 @@ public sealed class MistPrettyPrinter
 
     private void EmitNewtypeDeclaration(NewtypeDeclarationNode newtypeDecl)
     {
+        var modifiers = EmitModifiers(newtypeDecl.Modifiers);
         var name = newtypeDecl.Name.Lexeme;
+        var typeParams = EmitTypeParameterList(newtypeDecl.TypeParams);
         var sourceType = EmitTypeReference(newtypeDecl.SourceType);
-        AppendLine($"type {name} = new {sourceType};");
+        AppendLine($"{modifiers}type {name}{typeParams} = new {sourceType};");
     }
 
     // ─── Type Declarations ───────────────────────────────────────────────
@@ -309,14 +302,20 @@ public sealed class MistPrettyPrinter
             case DefaultBlockMemberMemberDeclarationNode defaultBlockMember:
                 EmitDefaultBlockDeclaration(defaultBlockMember.DefaultBlock);
                 break;
-            case NestedTypeMemberMemberDeclarationNode nestedTypeMember:
-                EmitTypeDeclaration(nestedTypeMember.NestedType);
+            case NestedBodyTypeMemberMemberDeclarationNode nestedBodyMember:
+                EmitTypeBodyDeclaration(nestedBodyMember.NestedBody);
+                break;
+            case NestedEnumMemberMemberDeclarationNode nestedEnumMember:
+                EmitEnumDeclaration(nestedEnumMember.NestedEnum);
+                break;
+            case NestedNewtypeMemberMemberDeclarationNode nestedNewtypeMember:
+                EmitNewtypeDeclaration(nestedNewtypeMember.NestedNewtype);
+                break;
+            case NestedTypeAliasMemberMemberDeclarationNode nestedTypeAliasMember:
+                EmitTypeAliasDeclaration(nestedTypeAliasMember.NestedTypeAlias);
                 break;
             case AssociatedTypeMemberMemberDeclarationNode associatedTypeMember:
                 EmitAssociatedTypeSlotDeclaration(associatedTypeMember.AssociatedType);
-                break;
-            case MemberTypeAliasMemberMemberDeclarationNode memberTypeAlias:
-                EmitMemberTypeAliasDeclaration(memberTypeAlias.MemberTypeAlias);
                 break;
         }
     }

@@ -33,11 +33,13 @@ rule NamespaceDeclaration
 rule TypeDeclaration
     = typeBody:TypeBodyDeclaration as BodyType
     | enumDeclaration:EnumDeclaration as EnumType
-    | newtypeDeclaration:NewtypeDeclaration as NewtypeType
-    | typeAliasDeclaration:TypeAliasDeclaration as TypeAliasType
+    | inline TypeKeywordHead: {
+          newtypeDeclaration:NewtypeDeclaration as NewtypeType,
+          typeAliasDeclaration:TypeAliasDeclaration as TypeAliasType,
+      }
     ;
 
-rule TypeAliasDeclaration = TYPE name:IDENTIFIER typeParams:TypeParameterList? EQUAL type:RefinableTypeExpression
+rule TypeAliasDeclaration : HasModifiers = modifiers:Modifier* TYPE name:IDENTIFIER typeParams:TypeParameterList? EQUAL type:RefinableTypeExpression
     constraints:WhereClause*
     SEMICOLON;
 
@@ -50,7 +52,9 @@ rule RefinementPredicate
     | predicate:AndPattern                              as SimpleRefinementPredicate
     ;
 
-rule NewtypeDeclaration = TYPE name:IDENTIFIER EQUAL NEW sourceType:TypeReference SEMICOLON;
+rule NewtypeDeclaration : HasModifiers = modifiers:Modifier* TYPE name:IDENTIFIER typeParams:TypeParameterList? EQUAL NEW sourceType:TypeReference SEMICOLON;
+
+rule TypeKeywordHead = modifiers:Modifier* TYPE name:IDENTIFIER typeParams:TypeParameterList? EQUAL;
 
 // ─── Parser Rules — Type Parameter and Type Argument Lists ───────────────────
 
@@ -147,8 +151,6 @@ rule AssociatedTypeSlotDeclaration : HasModifiers = modifiers:Modifier* TYPE nam
     constraintClause:(COLON constraints:ConstraintList slotWhereConstraints:WhereClause*)?
     SEMICOLON;
 
-rule AssociatedTypeSlotHead = modifiers:Modifier* TYPE name:IDENTIFIER typeParams:TypeParameterList?;
-
 // ─── Parser Rules — Enum Declarations ────────────────────────────────────────
 
 rule EnumDeclaration : HasModifiers = attributes:AttributeList* modifiers:Modifier* ENUM name:IDENTIFIER
@@ -212,18 +214,16 @@ rule MemberDeclaration
     | indexer:IndexerDeclaration         as IndexerMember
     | defaultBlock:DefaultBlockDeclaration as DefaultBlockMember
     | field:FieldDeclaration             as FieldMember
-    | nestedType:TypeDeclaration         as NestedTypeMember
-    | inline AssociatedTypeSlotHead: {
-          memberTypeAlias:MemberTypeAliasDeclaration as MemberTypeAliasMember,
-          associatedType:AssociatedTypeSlotDeclaration as AssociatedTypeMember,
+    | nestedBody:TypeBodyDeclaration     as NestedBodyTypeMember
+    | nestedEnum:EnumDeclaration         as NestedEnumMember
+    | inline TypeKeywordMemberHead: {
+          nestedNewtype:NewtypeDeclaration             as NestedNewtypeMember,
+          nestedTypeAlias:TypeAliasDeclaration         as NestedTypeAliasMember,
       }
+    | associatedType:AssociatedTypeSlotDeclaration as AssociatedTypeMember
     ;
 
-rule MemberTypeAliasDeclaration = modifiers:Modifier* TYPE name:IDENTIFIER
-    typeParams:TypeParameterList?
-    EQUAL type:RefinableTypeExpression
-    constraints:WhereClause*
-    SEMICOLON;
+rule TypeKeywordMemberHead = modifiers:Modifier* TYPE name:IDENTIFIER typeParams:TypeParameterList? EQUAL;
 
 // ─── Parser Rules — Default Block ───────────────────────────────────────────
 

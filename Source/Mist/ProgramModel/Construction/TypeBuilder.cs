@@ -100,6 +100,80 @@ internal sealed class TypeBuilder
             return;
         }
 
+        FinalizeRegistration(typeDef, declaringType);
+
+        // Newtypes and type aliases don't have member bodies — skip nested
+        // type registration for them.
+        if(typeDef is Newtype or TypeAlias)
+        {
+            return;
+        }
+
+        // Recurse into nested types within the type body.
+        RegisterNestedTypes(typeDef.Scope, typeDecl, typeDef);
+    }
+
+    private void RegisterNestedBodyType(Scope parentScope, TypeBodyDeclarationNode bodyDecl, MistType declaringType)
+    {
+        var namespaceName = parentScope.Namespace!;
+        var typeScope = new Scope(parentScope);
+        typeScope.SetNamespace(namespaceName);
+
+        var name = bodyDecl.Name.Lexeme;
+        // Wrap in a synthetic TypeDeclarationNode for CreateMistType compatibility
+        var wrappedDecl = new BodyTypeTypeDeclarationNode { TypeBody = bodyDecl };
+        var typeDef = bodyDecl.Keyword switch
+        {
+            ClassKeywordTypeKeywordNode => (MistType)new ClassType(name, namespaceName, typeScope, declaringType, wrappedDecl),
+            StructKeywordTypeKeywordNode => new StructType(name, namespaceName, typeScope, declaringType, wrappedDecl),
+            AbstractKeywordTypeKeywordNode => new AbstractType(name, namespaceName, typeScope, declaringType, wrappedDecl),
+            _ => null
+        };
+
+        if(typeDef is null)
+        {
+            return;
+        }
+
+        FinalizeRegistration(typeDef, declaringType);
+        RegisterNestedTypes(typeDef.Scope, wrappedDecl, typeDef);
+    }
+
+    private void RegisterNestedEnum(Scope parentScope, EnumDeclarationNode enumDecl, MistType declaringType)
+    {
+        var namespaceName = parentScope.Namespace!;
+        var typeScope = new Scope(parentScope);
+        typeScope.SetNamespace(namespaceName);
+
+        var typeDef = new EnumType(enumDecl.Name.Lexeme, namespaceName, typeScope, declaringType, enumDecl);
+        FinalizeRegistration(typeDef, declaringType);
+    }
+
+    private void RegisterNestedNewtype(Scope parentScope, NewtypeDeclarationNode newtypeDecl, MistType declaringType)
+    {
+        var namespaceName = parentScope.Namespace!;
+        var typeScope = new Scope(parentScope);
+        typeScope.SetNamespace(namespaceName);
+
+        var typeDef = new Newtype(newtypeDecl.Name.Lexeme, namespaceName, typeScope, declaringType, newtypeDecl);
+        FinalizeRegistration(typeDef, declaringType);
+    }
+
+    private void RegisterNestedTypeAlias(Scope parentScope, TypeAliasDeclarationNode aliasDecl, MistType declaringType)
+    {
+        var namespaceName = parentScope.Namespace!;
+        var typeScope = new Scope(parentScope);
+        typeScope.SetNamespace(namespaceName);
+
+        var typeDef = new TypeAlias(aliasDecl.Name.Lexeme, namespaceName, typeScope, declaringType, aliasDecl);
+        FinalizeRegistration(typeDef, declaringType);
+    }
+
+    /// <summary>
+    /// Shared registration logic: adds the type to the namespace, the declaring type, and the scope.
+    /// </summary>
+    private void FinalizeRegistration(MistType typeDef, MistType? declaringType)
+    {
         // Register in the namespace with a qualified key for nested types.
         var ns = context.ProgramModel.GetOrAddNamespace(typeDef.NamespaceName);
         var registrationName = declaringType is not null
@@ -114,16 +188,6 @@ internal sealed class TypeBuilder
             declaringType.NestedTypes.Add(typeDef);
             declaringType.Scope.AddLocalType(typeDef.Name, typeDef);
         }
-
-        // Newtypes and type aliases don't have member bodies — skip nested
-        // type registration for them.
-        if(typeDef is Newtype or TypeAlias)
-        {
-            return;
-        }
-
-        // Recurse into nested types within the type body.
-        RegisterNestedTypes(typeDef.Scope, typeDecl, typeDef);
     }
 
     /// <summary>
@@ -143,9 +207,20 @@ internal sealed class TypeBuilder
 
         foreach(var member in members)
         {
-            if(member is NestedTypeMemberMemberDeclarationNode nestedTypeMember)
+            switch(member)
             {
-                RegisterType(typeScope, nestedTypeMember.NestedType, declaringType);
+                case NestedBodyTypeMemberMemberDeclarationNode nestedBody:
+                    RegisterNestedBodyType(typeScope, nestedBody.NestedBody, declaringType);
+                    break;
+                case NestedEnumMemberMemberDeclarationNode nestedEnum:
+                    RegisterNestedEnum(typeScope, nestedEnum.NestedEnum, declaringType);
+                    break;
+                case NestedNewtypeMemberMemberDeclarationNode nestedNewtype:
+                    RegisterNestedNewtype(typeScope, nestedNewtype.NestedNewtype, declaringType);
+                    break;
+                case NestedTypeAliasMemberMemberDeclarationNode nestedAlias:
+                    RegisterNestedTypeAlias(typeScope, nestedAlias.NestedTypeAlias, declaringType);
+                    break;
             }
         }
     }

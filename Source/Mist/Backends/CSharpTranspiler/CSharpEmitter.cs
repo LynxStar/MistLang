@@ -4727,8 +4727,27 @@ internal sealed class CSharpSourceWriter
                 // The default block is consumed by the semantic model and emitter's
                 // __CreateDefault generation logic — it is not emitted as a C# member.
                 break;
-            case NestedTypeMemberMemberDeclarationNode nestedTypeMember:
-                EmitTypeDeclaration(nestedTypeMember.NestedType);
+            case NestedBodyTypeMemberMemberDeclarationNode nestedBodyMember:
+                switch(nestedBodyMember.NestedBody.Keyword)
+                {
+                    case ClassKeywordTypeKeywordNode:
+                        EmitClassDeclaration(nestedBodyMember.NestedBody);
+                        break;
+                    case StructKeywordTypeKeywordNode:
+                        EmitStructDeclaration(nestedBodyMember.NestedBody);
+                        break;
+                    case AbstractKeywordTypeKeywordNode:
+                        EmitAbstractDeclaration(nestedBodyMember.NestedBody);
+                        break;
+                }
+
+                break;
+            case NestedEnumMemberMemberDeclarationNode nestedEnumMember:
+                EmitEnumDeclaration(nestedEnumMember.NestedEnum);
+                break;
+            case NestedNewtypeMemberMemberDeclarationNode:
+            case NestedTypeAliasMemberMemberDeclarationNode:
+                // Newtypes and type aliases are erased at the C# level.
                 break;
         }
     }

@@ -1966,7 +1966,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// resolved during Pass 2 when the target type expression is processed.
     /// </summary>
     private static void RegisterMemberTypeAliasDeclaration(
-        MemberTypeAliasDeclarationNode aliasDecl,
+        TypeAliasDeclarationNode aliasDecl,
         Scope typeScope,
         SymbolTable symbolTable,
         SourceText? sourceText,
@@ -3163,9 +3163,27 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case DefaultBlockMemberMemberDeclarationNode defaultBlockMember:
                 RegisterDefaultBlockDeclaration(defaultBlockMember, typeScope, symbolTable, sourceText, diagnostics);
                 break;
-            case NestedTypeMemberMemberDeclarationNode nestedTypeMember:
+            case NestedBodyTypeMemberMemberDeclarationNode nestedBodyMember:
                 RegisterTypeDeclaration(
-                    nestedTypeMember.NestedType,
+                    new BodyTypeTypeDeclarationNode { TypeBody = nestedBodyMember.NestedBody },
+                    typeScope,
+                    symbolTable,
+                    namespaceName: null,
+                    sourceText,
+                    diagnostics);
+                break;
+            case NestedEnumMemberMemberDeclarationNode nestedEnumMember:
+                RegisterTypeDeclaration(
+                    new EnumTypeTypeDeclarationNode { EnumDeclaration = nestedEnumMember.NestedEnum },
+                    typeScope,
+                    symbolTable,
+                    namespaceName: null,
+                    sourceText,
+                    diagnostics);
+                break;
+            case NestedNewtypeMemberMemberDeclarationNode nestedNewtypeMember:
+                RegisterTypeDeclaration(
+                    new NewtypeTypeTypeDeclarationNode { NewtypeDeclaration = nestedNewtypeMember.NestedNewtype },
                     typeScope,
                     symbolTable,
                     namespaceName: null,
@@ -3175,8 +3193,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case AssociatedTypeMemberMemberDeclarationNode associatedTypeMember:
                 EmitAssociatedTypeSlotInWrongContextDiagnostic(associatedTypeMember.AssociatedType.TYPE, sourceText, diagnostics);
                 break;
-            case MemberTypeAliasMemberMemberDeclarationNode memberTypeAlias:
-                RegisterMemberTypeAliasDeclaration(memberTypeAlias.MemberTypeAlias, typeScope, symbolTable, sourceText, diagnostics);
+            case NestedTypeAliasMemberMemberDeclarationNode memberTypeAlias:
+                RegisterMemberTypeAliasDeclaration(memberTypeAlias.NestedTypeAlias, typeScope, symbolTable, sourceText, diagnostics);
                 break;
         }
     }
@@ -8373,8 +8391,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // Check nested types inside this type.
                 foreach(var member in body.TypeBody.Members)
                 {
-                    if(member is NestedTypeMemberMemberDeclarationNode nestedType
-                        && MatchesTypeDeclaration(nestedType.NestedType, declaringNode))
+                    if(member is NestedBodyTypeMemberMemberDeclarationNode nestedBody
+                        && MatchesTypeDeclaration(new BodyTypeTypeDeclarationNode { TypeBody = nestedBody.NestedBody }, declaringNode))
                     {
                         return true;
                     }
@@ -12809,9 +12827,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var preliminaryScope = CreateTypeParameterScope(typeScope, fileScope);
                     foreach(var memberDecl in typeBodyDecl.Members)
                     {
-                        if(memberDecl is MemberTypeAliasMemberMemberDeclarationNode memberTypeAlias)
+                        if(memberDecl is NestedTypeAliasMemberMemberDeclarationNode memberTypeAlias)
                         {
-                            ResolveMemberTypeAliasDeclaration(memberTypeAlias.MemberTypeAlias, typeScope, preliminaryScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                            ResolveMemberTypeAliasDeclaration(memberTypeAlias.NestedTypeAlias, typeScope, preliminaryScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                         }
                     }
 
@@ -12828,9 +12846,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // parameters (e.g., TValue in Array<TValue, Length>) are visible.
                     foreach(var memberDecl in typeBodyDecl.Members)
                     {
-                        if(memberDecl is NestedTypeMemberMemberDeclarationNode nestedTypeMember)
+                        if(memberDecl is NestedBodyTypeMemberMemberDeclarationNode nestedTypeMember)
                         {
-                            ResolveExplicitMemberTypesForTypeDeclaration(nestedTypeMember.NestedType, typeFileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                            ResolveExplicitMemberTypesForTypeDeclaration(new BodyTypeTypeDeclarationNode { TypeBody = nestedTypeMember.NestedBody }, typeFileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                         }
                     }
 
@@ -13552,7 +13570,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// can be referenced in the type expression.
     /// </summary>
     private static void ResolveMemberTypeAliasDeclaration(
-        MemberTypeAliasDeclarationNode aliasDecl,
+        TypeAliasDeclarationNode aliasDecl,
         Scope typeScope,
         Scope fileScope,
         SymbolTable symbolTable,
@@ -13792,9 +13810,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // ArrayBounds/SpanBounds are available when referenced in parameter types.
                     foreach(var memberDecl in typeBodyDecl.Members)
                     {
-                        if(memberDecl is MemberTypeAliasMemberMemberDeclarationNode memberTypeAlias)
+                        if(memberDecl is NestedTypeAliasMemberMemberDeclarationNode memberTypeAlias)
                         {
-                            ResolveMemberTypeAliasDeclaration(memberTypeAlias.MemberTypeAlias, typeScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                            ResolveMemberTypeAliasDeclaration(memberTypeAlias.NestedTypeAlias, typeScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                         }
                     }
 
@@ -13826,9 +13844,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // SpanBounds are available when referenced in parameter types.
                     foreach(var memberDecl in typeBodyDecl.Members)
                     {
-                        if(memberDecl is MemberTypeAliasMemberMemberDeclarationNode memberTypeAlias)
+                        if(memberDecl is NestedTypeAliasMemberMemberDeclarationNode memberTypeAlias)
                         {
-                            ResolveMemberTypeAliasDeclaration(memberTypeAlias.MemberTypeAlias, typeScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                            ResolveMemberTypeAliasDeclaration(memberTypeAlias.NestedTypeAlias, typeScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                         }
                     }
 
@@ -13895,11 +13913,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case IndexerMemberMemberDeclarationNode indexerMember:
                 ResolveIndexerDeclaration(indexerMember.Indexer, typeScope, fileScope, enclosingType, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 break;
-            case NestedTypeMemberMemberDeclarationNode nestedTypeMember:
-                ResolveTypeDeclaration(nestedTypeMember.NestedType, fileScope, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            case NestedBodyTypeMemberMemberDeclarationNode nestedBodyMember:
+                ResolveTypeDeclaration(new BodyTypeTypeDeclarationNode { TypeBody = nestedBodyMember.NestedBody }, fileScope, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 break;
-            case MemberTypeAliasMemberMemberDeclarationNode memberTypeAlias:
-                ResolveMemberTypeAliasDeclaration(memberTypeAlias.MemberTypeAlias, typeScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+            case NestedEnumMemberMemberDeclarationNode nestedEnumMember:
+                ResolveTypeDeclaration(new EnumTypeTypeDeclarationNode { EnumDeclaration = nestedEnumMember.NestedEnum }, fileScope, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            case NestedNewtypeMemberMemberDeclarationNode nestedNewtypeMember:
+                ResolveTypeDeclaration(new NewtypeTypeTypeDeclarationNode { NewtypeDeclaration = nestedNewtypeMember.NestedNewtype }, fileScope, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            case NestedTypeAliasMemberMemberDeclarationNode nestedTypeAliasMember:
+                ResolveMemberTypeAliasDeclaration(nestedTypeAliasMember.NestedTypeAlias, typeScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                 break;
         }
     }
@@ -17948,7 +17972,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 else
                 {
                     // Member-level type alias (e.g., public type ArrayBounds = ZeroOrPositiveInt and < Length;)
-                    var memberAliasNode = symbolTable.GetDeclaringNode(symbol) as MemberTypeAliasDeclarationNode;
+                    var memberAliasNode = symbolTable.GetDeclaringNode(symbol) as TypeAliasDeclarationNode;
                     if(memberAliasNode is not null)
                     {
                         // Resolve using the type scope (parent of the alias symbol's containing scope).

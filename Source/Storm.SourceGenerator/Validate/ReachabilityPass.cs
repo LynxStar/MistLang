@@ -104,9 +104,10 @@ public static class ReachabilityPass
 
     /// <summary>
     /// Performs intra-block reachability analysis for an inline block.
-    /// For each arm, computes FIRST-k of the tail (arm's rule body minus the first
-    /// element — the prefix rule reference). If a later arm's tail FIRST-k set is a
-    /// subset of the union of all earlier arms' tail FIRST-k sets, emits STORM0006.
+    /// For each arm, computes FIRST-k of the tail (arm's rule body minus the prefix
+    /// elements). The prefix length is determined by resolving the inline block's
+    /// prefix rule and counting its body elements. If a later arm's tail FIRST-k set
+    /// is a subset of the union of all earlier arms' tail FIRST-k sets, emits STORM0006.
     /// Handles nested inline blocks recursively.
     /// </summary>
     private static void CheckInlineBlock(
@@ -145,8 +146,10 @@ public static class ReachabilityPass
                 continue;
             }
 
-            // Get the tail: the arm's rule body minus its first element (the prefix reference)
-            var tailExpr = GetTailExpression(armRuleDecl.Body);
+            // Get the tail: the arm's rule body minus the prefix elements.
+            // The prefix may appear as a single rule reference or as inline elements.
+            var armPrefixLength = GetArmPrefixLength(armRuleDecl.Body, inlineBlock.Prefix, grammar);
+            var tailExpr = GetTailExpression(armRuleDecl.Body, armPrefixLength);
             var tailSet = ComputeFirstKSequences(tailExpr, grammar, MaxLookahead);
             tailSequenceSets.Add(tailSet);
         }
@@ -175,23 +178,71 @@ public static class ReachabilityPass
     }
 
     /// <summary>
-    /// Gets the tail expression of a rule body — the body with the first element removed.
-    /// The first element is the prefix rule reference (possibly wrapped in a label).
-    /// If the body is a sequence, returns a new sequence without the first element.
-    /// If the body is a single expression, returns an empty sequence (tail is empty).
+    /// Determines how many leading elements in an arm's body correspond to the inline
+    /// block's prefix. Two cases:
+    /// 1. The arm starts with a single reference to the prefix rule → strip 1 element.
+    /// 2. The arm's leading elements structurally match the prefix rule's body → strip N elements.
+    /// Falls back to 1 if neither case matches cleanly.
     /// </summary>
-    private static StormExpression GetTailExpression(StormExpression body)
+    private static int GetArmPrefixLength(StormExpression armBody, StormExpression prefixExpr, StormGrammar grammar)
+    {
+        // Get the arm's body elements
+        var armElements = armBody is StormSequenceExpr seq ? seq.Elements : new List<StormExpression> { armBody };
+        if(armElements.Count == 0)
+        {
+            return 0;
+        }
+
+        // Case 1: The first element is a reference to the prefix rule
+        if(prefixExpr is StormReferenceExpr prefixRef)
+        {
+            var firstElement = armElements[0];
+            if(firstElement is StormLabeledExpr labeled)
+            {
+                firstElement = labeled.Element;
+            }
+
+            if(firstElement is StormReferenceExpr firstRef && firstRef.Name == prefixRef.Name)
+            {
+                return 1;
+            }
+
+            // Case 2: The arm inlines the prefix elements structurally
+            var prefixDecl = grammar.LookupByName(prefixRef.Name);
+            if(prefixDecl is StormRuleDecl prefixRuleDecl)
+            {
+                var prefixElements = prefixRuleDecl.Body is StormSequenceExpr prefixSeq
+                    ? prefixSeq.Elements.Count
+                    : 1;
+
+                if(armElements.Count >= prefixElements)
+                {
+                    return prefixElements;
+                }
+            }
+        }
+
+        return 1;
+    }
+
+    /// <summary>
+    /// Gets the tail expression of a rule body — the body with the first N elements removed,
+    /// where N is the prefix length. Used by inline block analysis to strip the shared prefix.
+    /// If the body is a sequence, returns a new sequence without the first N elements.
+    /// If the body has fewer than N elements or is not a sequence, returns an empty sequence.
+    /// </summary>
+    private static StormExpression GetTailExpression(StormExpression body, int prefixLength)
     {
         if(body is StormSequenceExpr seq)
         {
-            if(seq.Elements.Count <= 1)
+            if(seq.Elements.Count <= prefixLength)
             {
-                // Only the prefix reference, no tail
+                // Only the prefix elements, no tail
                 return new StormSequenceExpr(new List<StormExpression>());
             }
 
-            // Return everything after the first element
-            var tailElements = seq.Elements.Skip(1).ToList();
+            // Return everything after the prefix elements
+            var tailElements = seq.Elements.Skip(prefixLength).ToList();
             if(tailElements.Count == 1)
             {
                 return tailElements[0];
@@ -200,7 +251,7 @@ public static class ReachabilityPass
             return new StormSequenceExpr(tailElements);
         }
 
-        // The body is a single expression (just the prefix reference) — empty tail
+        // The body is a single expression — empty tail
         return new StormSequenceExpr(new List<StormExpression>());
     }
 

@@ -1,3 +1,4 @@
+using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Model.Types;
 
@@ -15,6 +16,12 @@ internal sealed class ProgramModel : IProgramModel
     /// All registered namespaces, keyed by fully qualified name.
     /// </summary>
     public IReadOnlyDictionary<string, Namespace> Namespaces => namespaces;
+
+    /// <summary>
+    /// Interns synthetic types (unions, constructed types) so that structurally
+    /// identical type references share a single instance throughout the model's lifetime.
+    /// </summary>
+    public TypeInterner TypeInterner { get; } = new();
 
     /// <summary>
     /// Gets an existing namespace or creates and registers a new one.

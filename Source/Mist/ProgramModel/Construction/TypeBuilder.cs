@@ -1,6 +1,5 @@
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
-using Mist.Common.Source;
 using Mist.Generated;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
@@ -54,7 +53,7 @@ internal sealed class TypeBuilder
     /// </summary>
     private void ProcessBlockNamespace(Scope parentScope, BlockNamespaceNamespaceDeclarationNode blockNs)
     {
-        var blockNamespace = ExtractNameFromNode(blockNs.Name);
+        var blockNamespace = QualifiedNameHelper.Build(blockNs.Name);
 
         var blockScope = new Scope(parentScope);
         blockScope.SetNamespace(blockNamespace);
@@ -171,6 +170,7 @@ internal sealed class TypeBuilder
 
     /// <summary>
     /// Shared registration logic: adds the type to the namespace, the declaring type, and the scope.
+    /// Reports a diagnostic if a type with the same name already exists.
     /// </summary>
     private void FinalizeRegistration(MistType typeDef, MistType? declaringType)
     {
@@ -179,6 +179,12 @@ internal sealed class TypeBuilder
         var registrationName = declaringType is not null
             ? $"{declaringType.Name}.{typeDef.Name}"
             : typeDef.Name;
+
+        if(ns.Types.ContainsKey(registrationName))
+        {
+            context.Diagnostics.Report(ProgramModelDiagnostics.DuplicateTypeName, default, "", typeDef.Name, typeDef.NamespaceName);
+        }
+
         ns.Types[registrationName] = typeDef;
 
         // If nested, add to the declaring type and make visible by simple name
@@ -279,68 +285,4 @@ internal sealed class TypeBuilder
         };
     }
 
-    /// <summary>
-    /// Extracts a qualified name from an AST node by reading from its origin source.
-    /// Falls back to the first identifier token's lexeme if source is unavailable.
-    /// </summary>
-    private static string ExtractNameFromNode(QualifiedIdentifierNode qualifiedId)
-    {
-        var sourceText = GetSourceFromOrigin(qualifiedId);
-        if(sourceText is not null)
-        {
-            var span = qualifiedId.Span;
-            if(span.Length > 0 && span.Start + span.Length <= sourceText.Contents.Length)
-            {
-                var extracted = sourceText.Contents.Substring(span.Start, span.Length);
-                if(IsValidQualifiedIdentifier(extracted))
-                {
-                    return extracted;
-                }
-            }
-        }
-
-        return qualifiedId.IDENTIFIER.Lexeme;
-    }
-
-    /// <summary>
-    /// Retrieves the source text from a node's origin, unwrapping synthetic origins.
-    /// Returns null for test origins or nodes without origin.
-    /// </summary>
-    private static SourceText? GetSourceFromOrigin(Storm.Runtime.SyntaxNode node)
-    {
-        var origin = node.Origin;
-        while(origin is not null)
-        {
-            switch(origin)
-            {
-                case ParsedOrigin parsed:
-                    return parsed.Source;
-                case SyntheticOrigin synthetic:
-                    origin = synthetic.DerivedFrom;
-                    break;
-                default:
-                    return null;
-            }
-        }
-
-        return null;
-    }
-
-    private static bool IsValidQualifiedIdentifier(string text)
-    {
-        if(string.IsNullOrEmpty(text))
-        {
-            return false;
-        }
-
-        foreach(var ch in text)
-        {
-            if(!char.IsLetterOrDigit(ch) && ch != '_' && ch != '.')
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
 }

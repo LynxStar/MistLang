@@ -26,11 +26,29 @@ internal sealed class TypeReferenceResolver
     {
         if(typeRef.SingleTypeRefs.Length > 0)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownTypeRefNode, typeRef, null, "UnionType");
-            return ErrorType.Instance;
+            return ResolveUnion(typeRef, scope);
         }
 
         return Resolve(typeRef.First, scope);
+    }
+
+    /// <summary>
+    /// Resolves a union type reference (multiple pipe-separated constituents) into
+    /// an interned <see cref="UnionType"/>.
+    /// </summary>
+    private IMistType ResolveUnion(TypeReferenceNode typeRef, Scope scope)
+    {
+        var constituents = new List<IMistType>(typeRef.SingleTypeRefs.Length + 1)
+        {
+            Resolve(typeRef.First, scope)
+        };
+
+        foreach(var singleRef in typeRef.SingleTypeRefs)
+        {
+            constituents.Add(Resolve(singleRef, scope));
+        }
+
+        return context.ProgramModel.TypeInterner.GetOrCreateUnionType(constituents);
     }
 
     /// <summary>
@@ -106,38 +124,76 @@ internal sealed class TypeReferenceResolver
     private IMistType ResolveNamed(NamedSingleTypeRefSingleTypeRefNode namedRef, Scope scope)
     {
         var name = namedRef.Name.IDENTIFIER.Lexeme;
+        IMistType? baseType;
 
         // Try qualified name (has dots — could be namespace.type or parent.nested).
         if(namedRef.Name.IDENTIFIERs.Length > 0)
         {
-            var qualifiedName = BuildQualifiedName(namedRef.Name);
+            var qualifiedName = QualifiedNameHelper.Build(namedRef.Name);
 
             // First, try as a fully-qualified namespace.type.
-            var typeDef = LookupQualifiedName(qualifiedName);
-            if(typeDef is not null)
-            {
-                return typeDef;
-            }
+            baseType = LookupQualifiedName(qualifiedName);
 
             // Second, try as a nested type key in any reachable namespace.
-            var nestedType = LookupNestedQualifiedName(qualifiedName, scope);
-            if(nestedType is not null)
+            baseType ??= LookupNestedQualifiedName(qualifiedName, scope);
+
+            if(baseType is null)
             {
-                return nestedType;
+                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnresolvedType, namedRef, null, qualifiedName);
+                return ErrorType.Instance;
             }
-
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnresolvedType, namedRef, null, qualifiedName);
-            return ErrorType.Instance;
         }
-
-        // Simple name lookup through scope chain.
-        var resolved = ResolveNamedType(name, scope, namedRef);
-        if(resolved is not null)
+        else
         {
-            return resolved;
+            // Simple name lookup through scope chain.
+            baseType = ResolveNamedType(name, scope, namedRef);
+            if(baseType is null)
+            {
+                return ErrorType.Instance;
+            }
         }
 
-        return ErrorType.Instance;
+        // If type arguments are present, resolve them and wrap in a ConstructedType.
+        if(namedRef.TypeArgs is { } typeArgList)
+        {
+            var typeArgs = ResolveTypeArguments(typeArgList, scope);
+            return context.ProgramModel.TypeInterner.GetOrCreateConstructedType(baseType, typeArgs);
+        }
+
+        return baseType;
+    }
+
+    /// <summary>
+    /// Resolves a TypeArgumentList into a list of resolved types.
+    /// Non-type arguments (integer literals, etc.) are reported as unsupported
+    /// and replaced with ErrorType.
+    /// </summary>
+    private IReadOnlyList<IMistType> ResolveTypeArguments(TypeArgumentListNode typeArgList, Scope scope)
+    {
+        var args = new List<IMistType>();
+
+        ResolveTypeArgument(typeArgList.TypeArgument, scope, args);
+
+        foreach(var arg in typeArgList.TypeArguments)
+        {
+            ResolveTypeArgument(arg, scope, args);
+        }
+
+        return args;
+    }
+
+    private void ResolveTypeArgument(TypeArgumentNode arg, Scope scope, List<IMistType> args)
+    {
+        if(arg is TypeReferenceTypeArgumentTypeArgumentNode typeRefArg)
+        {
+            args.Add(Resolve(typeRefArg.Type, scope));
+        }
+        else
+        {
+            // Dependent type argument (integer, bool, char literal) — not yet resolved.
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownTypeRefNode, arg, null, "DependentTypeArgument");
+            args.Add(ErrorType.Instance);
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -256,26 +312,6 @@ internal sealed class TypeReferenceResolver
     // ═══════════════════════════════════════════════════════════════════════
     // Helpers
     // ═══════════════════════════════════════════════════════════════════════
-
-    private static string BuildQualifiedName(QualifiedIdentifierNode qualifiedId)
-    {
-        if(qualifiedId.IDENTIFIERs.IsDefaultOrEmpty)
-        {
-            return qualifiedId.IDENTIFIER.Lexeme;
-        }
-
-        var sb = new System.Text.StringBuilder(qualifiedId.IDENTIFIER.Lexeme);
-        foreach(var token in qualifiedId.IDENTIFIERs)
-        {
-            if(!string.IsNullOrEmpty(token.Lexeme))
-            {
-                _ = sb.Append('.');
-                _ = sb.Append(token.Lexeme);
-            }
-        }
-
-        return sb.ToString();
-    }
 
     private static bool HasArrayRank(SingleTypeRefNode singleRef)
     {

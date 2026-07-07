@@ -57,6 +57,13 @@ public static class ProgramModelDiagnostics
 
     // ── Type resolution ──────────────────────────────────────────────────
 
+    /// <summary>A type with the same name already exists in this namespace.</summary>
+    public static readonly DiagnosticDescriptor DuplicateTypeName = new(
+        new DiagnosticId("MIST_PM_DUPLICATE_TYPE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "A type named '{0}' already exists in namespace '{1}'.");
+
     /// <summary>A type reference could not be resolved in any reachable scope.</summary>
     public static readonly DiagnosticDescriptor UnresolvedType = new(
         new DiagnosticId("MIST_PM_UNRESOLVED_TYPE"),

@@ -1,4 +1,4 @@
-using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction;
@@ -6,7 +6,7 @@ namespace Mist.ProgramModel.Construction;
 /// <summary>
 /// Phase 2 builder for type aliases. Resolves the aliased type reference
 /// from the declaration's <c>RefinableTypeExpression</c>.
-/// Refinement predicates and union variants are not yet supported.
+/// Refinement predicates are ignored; the base type of each constituent is resolved.
 /// </summary>
 internal sealed class TypeAliasBuilder
 {
@@ -31,8 +31,18 @@ internal sealed class TypeAliasBuilder
 
         if(refinableExpr.RefinableSingleTypeExprs.Length > 0)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownTypeRefNode, refinableExpr, null, "UnionType");
-            typeDef.AliasedType = ErrorType.Instance;
+            // Union type alias: resolve all constituents.
+            var constituents = new List<IMistType>(refinableExpr.RefinableSingleTypeExprs.Length + 1)
+            {
+                typeResolver.Resolve(refinableExpr.First.Type, typeDef.Scope)
+            };
+
+            foreach(var constituent in refinableExpr.RefinableSingleTypeExprs)
+            {
+                constituents.Add(typeResolver.Resolve(constituent.Type, typeDef.Scope));
+            }
+
+            typeDef.AliasedType = context.ProgramModel.TypeInterner.GetOrCreateUnionType(constituents);
             return;
         }
 

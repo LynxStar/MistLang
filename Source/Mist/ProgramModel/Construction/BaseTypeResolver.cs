@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction;
@@ -71,17 +72,18 @@ internal sealed class BaseTypeResolver
     /// </summary>
     private bool TryResolveConcreteBase(BaseTypeRefNode baseTypeRef, ConcreteType typeDef)
     {
-        var name = baseTypeRef.Name.Lexeme;
-
-        var resolved = typeResolver.ResolveNamedType(name, typeDef.Scope, baseTypeRef);
+        var resolved = ResolveBaseTypeRef(baseTypeRef, typeDef);
         if(resolved is null)
         {
-            // Diagnostic already emitted by ResolveNamedType.
+            // Diagnostic already emitted by ResolveBaseTypeRef.
             return true;
         }
 
+        // Unwrap ConstructedType to check the underlying definition kind.
+        var definition = resolved is ConstructedType ct ? ct.Definition : resolved;
+
         // Not a concrete type — let ResolveAbstractBase handle it.
-        if(resolved is not ConcreteType resolvedConcrete)
+        if(definition is not ConcreteType resolvedConcrete)
         {
             return false;
         }
@@ -98,11 +100,11 @@ internal sealed class BaseTypeResolver
         {
             var ownerKind = typeDef is ClassType ? "class" : "struct";
             var baseKind = resolvedConcrete is ClassType ? "class" : "struct";
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.BaseTypeKindMismatch, baseTypeRef, null, ownerKind, baseKind, name);
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.BaseTypeKindMismatch, baseTypeRef, null, ownerKind, baseKind, baseTypeRef.Name.Lexeme);
             return true;
         }
 
-        typeDef.BaseType = resolvedConcrete;
+        typeDef.BaseType = (MistType)resolved;
         return true;
     }
 
@@ -112,27 +114,57 @@ internal sealed class BaseTypeResolver
     /// </summary>
     private void ResolveAbstractBase(BaseTypeRefNode baseTypeRef, MemberType typeDef)
     {
-        var name = baseTypeRef.Name.Lexeme;
-
-        var resolved = typeResolver.ResolveNamedType(name, typeDef.Scope, baseTypeRef);
+        var resolved = ResolveBaseTypeRef(baseTypeRef, typeDef);
         if(resolved is null)
         {
-            // Diagnostic already emitted by ResolveNamedType.
+            // Diagnostic already emitted by ResolveBaseTypeRef.
             return;
         }
 
-        if(resolved is ConcreteType)
+        // Unwrap ConstructedType to check the underlying definition kind.
+        var definition = resolved is ConstructedType ct ? ct.Definition : resolved;
+
+        if(definition is ConcreteType)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.ConcreteInAbstractList, baseTypeRef, null, name);
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.ConcreteInAbstractList, baseTypeRef, null, baseTypeRef.Name.Lexeme);
             return;
         }
 
-        if(resolved is not AbstractType abstractDef)
+        if(definition is not AbstractType)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.InvalidBaseType, baseTypeRef, null, name);
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.InvalidBaseType, baseTypeRef, null, baseTypeRef.Name.Lexeme);
             return;
         }
 
-        typeDef.BaseAbstractTypes.Add(abstractDef);
+        typeDef.BaseAbstractTypes.Add((MistType)resolved);
+    }
+
+    /// <summary>
+    /// Resolves a <see cref="BaseTypeRefNode"/> to its type, accounting for arity
+    /// when type arguments are present. Returns a <see cref="ConstructedType"/> if
+    /// type arguments exist, otherwise the raw definition.
+    /// </summary>
+    private IMistType? ResolveBaseTypeRef(BaseTypeRefNode baseTypeRef, MemberType typeDef)
+    {
+        var name = baseTypeRef.Name.Lexeme;
+
+        // If type arguments are present, look up the arity-bearing name.
+        if(baseTypeRef.TypeArgs is { } typeArgList)
+        {
+            var arity = 1 + typeArgList.TypeArguments.Length;
+            var commas = new string(',', arity - 1);
+            var arityName = $"{name}<{commas}>";
+
+            var definition = typeResolver.ResolveNamedType(arityName, typeDef.Scope, baseTypeRef);
+            if(definition is null)
+            {
+                return null;
+            }
+
+            var typeArgs = typeResolver.ResolveTypeArguments(typeArgList, typeDef.Scope);
+            return context.ProgramModel.TypeInterner.GetOrCreateConstructedType(definition, typeArgs);
+        }
+
+        return typeResolver.ResolveNamedType(name, typeDef.Scope, baseTypeRef);
     }
 }

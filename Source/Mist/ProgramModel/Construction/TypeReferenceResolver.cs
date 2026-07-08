@@ -204,16 +204,21 @@ internal sealed class TypeReferenceResolver
         var name = namedRef.Name.IDENTIFIER.Lexeme;
         IMistType? baseType;
 
+        // Compute arity from type arguments so we can look up the arity-bearing name.
+        var arity = GetTypeArgumentArity(namedRef.TypeArgs);
+        var lookupName = arity > 0 ? BuildArityName(name, arity) : name;
+
         // Try qualified name (has dots — could be namespace.type or parent.nested).
         if(namedRef.Name.IDENTIFIERs.Length > 0)
         {
             var qualifiedName = QualifiedNameHelper.Build(namedRef.Name);
+            var qualifiedLookup = arity > 0 ? BuildArityName(qualifiedName, arity) : qualifiedName;
 
             // First, try as a fully-qualified namespace.type.
-            baseType = LookupQualifiedName(qualifiedName);
+            baseType = LookupQualifiedName(qualifiedLookup);
 
             // Second, try as a nested type key in any reachable namespace.
-            baseType ??= LookupNestedQualifiedName(qualifiedName, scope);
+            baseType ??= LookupNestedQualifiedName(qualifiedLookup, scope);
 
             if(baseType is null)
             {
@@ -224,7 +229,7 @@ internal sealed class TypeReferenceResolver
         else
         {
             // Simple name lookup through scope chain.
-            baseType = ResolveNamedType(name, scope, namedRef);
+            baseType = ResolveNamedType(lookupName, scope, namedRef);
             if(baseType is null)
             {
                 return ErrorType.Instance;
@@ -242,11 +247,35 @@ internal sealed class TypeReferenceResolver
     }
 
     /// <summary>
+    /// Returns the number of type arguments in a type argument list, or 0 if absent.
+    /// </summary>
+    private static int GetTypeArgumentArity(TypeArgumentListNode? typeArgList)
+    {
+        if(typeArgList is null)
+        {
+            return 0;
+        }
+
+        // First argument + trailing arguments.
+        return 1 + typeArgList.TypeArguments.Length;
+    }
+
+    /// <summary>
+    /// Builds the arity-bearing lookup name for a generic type reference.
+    /// E.g., ("List", 1) → "List&lt;&gt;", ("Dict", 2) → "Dict&lt;,&gt;".
+    /// </summary>
+    private static string BuildArityName(string baseName, int arity)
+    {
+        var commas = new string(',', arity - 1);
+        return $"{baseName}<{commas}>";
+    }
+
+    /// <summary>
     /// Resolves a TypeArgumentList into a list of resolved types.
     /// Non-type arguments (integer literals, etc.) are reported as unsupported
     /// and replaced with ErrorType.
     /// </summary>
-    private IReadOnlyList<IMistType> ResolveTypeArguments(TypeArgumentListNode typeArgList, Scope scope)
+    public IReadOnlyList<IMistType> ResolveTypeArguments(TypeArgumentListNode typeArgList, Scope scope)
     {
         var args = new List<IMistType>();
 

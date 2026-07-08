@@ -28,7 +28,7 @@ internal sealed class AbstractTypeBuilder : MemberTypeBuilder
     }
 
     /// <summary>
-    /// Resolves declaration-level information: base abstracts, modifiers.
+    /// Resolves declaration-level information: base abstracts, modifiers, constraints.
     /// </summary>
     private void BuildDeclaration(AbstractType typeDef)
     {
@@ -36,6 +36,8 @@ internal sealed class AbstractTypeBuilder : MemberTypeBuilder
 
         var body = (BodyTypeTypeDeclarationNode)typeDef.DeclarationNode;
         typeDef.Modifiers = ModifierBuilder.Build(body.TypeBody, Context.Diagnostics);
+
+        ConstraintResolver.Resolve(body.TypeBody.Constraints, typeDef.TypeParametersList, typeDef.Scope);
     }
 
     /// <summary>

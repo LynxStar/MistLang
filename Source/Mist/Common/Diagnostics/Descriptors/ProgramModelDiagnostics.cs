@@ -283,4 +283,27 @@ public static class ProgramModelDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
         "Type '{0}' declares more than one default block; only one is permitted per type.");
+
+    // ── Constraint resolution ────────────────────────────────────────────
+
+    /// <summary>A where clause names a type parameter that does not exist on the declaration.</summary>
+    public static readonly DiagnosticDescriptor UnresolvedConstraintTarget = new(
+        new DiagnosticId("MIST_PM_UNRESOLVED_CONSTRAINT_TARGET"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "The constraint clause references type parameter '{0}', which is not declared on this type or method.");
+
+    /// <summary>Mutually exclusive constraints are declared on the same type parameter.</summary>
+    public static readonly DiagnosticDescriptor ConflictingConstraints = new(
+        new DiagnosticId("MIST_PM_CONFLICTING_CONSTRAINTS"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "Type parameter '{0}' has conflicting constraints: '{1}' and '{2}' are mutually exclusive.");
+
+    /// <summary>The same constraint keyword appears more than once on a type parameter.</summary>
+    public static readonly DiagnosticDescriptor DuplicateConstraint = new(
+        new DiagnosticId("MIST_PM_DUPLICATE_CONSTRAINT"),
+        DiagnosticSeverity.Warning,
+        PipelineStage.SemanticModelConstruction,
+        "Type parameter '{0}' has duplicate '{1}' constraint; the redundant occurrence has no effect.");
 }

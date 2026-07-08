@@ -1,3 +1,4 @@
+using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
 
 namespace Mist.ProgramModel.Model.Types;
@@ -33,5 +34,13 @@ internal sealed class TypeParameter : MistType, ITypeParameter
     /// </summary>
     public MistType? Domain { get; internal set; }
 
+    /// <summary>
+    /// The constraints declared on this type parameter via where clauses.
+    /// Populated during Phase 2 when constraints are resolved.
+    /// </summary>
+    public List<TypeParameterConstraint> ConstraintsList { get; } = [];
+
     IMistType? ITypeParameter.Domain => Domain;
+
+    IReadOnlyList<ITypeParameterConstraint> ITypeParameter.Constraints => ConstraintsList;
 }

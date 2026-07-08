@@ -1,7 +1,6 @@
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
-using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Model;
 using SyntaxNode = Storm.Runtime.SyntaxNode;
 

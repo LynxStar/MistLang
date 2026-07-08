@@ -32,7 +32,7 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
     }
 
     /// <summary>
-    /// Resolves declaration-level information: base types, modifiers, generics.
+    /// Resolves declaration-level information: base types, modifiers, constraints.
     /// </summary>
     private void BuildDeclaration(ConcreteType typeDef)
     {
@@ -40,6 +40,8 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
 
         var body = (BodyTypeTypeDeclarationNode)typeDef.DeclarationNode;
         typeDef.Modifiers = ModifierBuilder.Build(body.TypeBody, Context.Diagnostics);
+
+        ConstraintResolver.Resolve(body.TypeBody.Constraints, typeDef.TypeParametersList, typeDef.Scope);
     }
 
     /// <summary>

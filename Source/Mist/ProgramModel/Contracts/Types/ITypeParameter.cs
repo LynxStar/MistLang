@@ -20,4 +20,10 @@ public interface ITypeParameter : IMistType
     /// Null until resolved in Phase 2.
     /// </summary>
     IMistType? Domain { get; }
+
+    /// <summary>
+    /// The constraints declared on this type parameter via where clauses.
+    /// Empty until resolved in Phase 2.
+    /// </summary>
+    IReadOnlyList<ITypeParameterConstraint> Constraints { get; }
 }

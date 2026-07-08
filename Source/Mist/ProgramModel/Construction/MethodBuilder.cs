@@ -12,11 +12,16 @@ internal sealed class MethodBuilder
 {
     private readonly TypeReferenceResolver typeResolver;
     private readonly DelegateResolver delegateResolver;
+    private readonly ConstraintResolver constraintResolver;
 
-    public MethodBuilder(TypeReferenceResolver typeResolver, DelegateResolver delegateResolver)
+    public MethodBuilder(
+        TypeReferenceResolver typeResolver,
+        DelegateResolver delegateResolver,
+        ConstraintResolver constraintResolver)
     {
         this.typeResolver = typeResolver;
         this.delegateResolver = delegateResolver;
+        this.constraintResolver = constraintResolver;
     }
 
     /// <summary>
@@ -51,6 +56,9 @@ internal sealed class MethodBuilder
 
         // Transfer type parameters to the final method instance.
         resolvedMethod.TypeParametersList.AddRange(method.TypeParametersList);
+
+        // Resolve constraints on method-level type parameters.
+        constraintResolver.Resolve(methodDecl.Constraints, resolvedMethod.TypeParametersList, methodScope);
 
         memberType.MethodsList.Add(resolvedMethod);
     }

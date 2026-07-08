@@ -1,7 +1,6 @@
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
-using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 
@@ -359,17 +358,17 @@ internal sealed class TypeBuilder
     private static void AddTypeParameter(
         List<TypeParameter> target, Scope scope, MistType declaringType, TypeParameterNode node, int ordinal)
     {
-        var (name, kind) = node switch
+        var name = node switch
         {
-            RegularTypeParameterTypeParameterNode reg => (reg.Name.Lexeme, TypeParameterKind.Regular),
-            DependentTypeParameterTypeParameterNode dep => (dep.Name.Lexeme, TypeParameterKind.Dependent),
-            NamedConstraintDependentTypeParameterTypeParameterNode named => (named.Name.Lexeme, TypeParameterKind.Dependent),
+            RegularTypeParameterTypeParameterNode reg => reg.Name.Lexeme,
+            DependentTypeParameterTypeParameterNode dep => dep.Name.Lexeme,
+            NamedConstraintDependentTypeParameterTypeParameterNode named => named.Name.Lexeme,
             _ => throw new InvalidOperationException($"Unknown TypeParameterNode variant: {node.GetType().Name}")
         };
 
-        // Value type resolution for dependent parameters will happen in a later pass
-        // once the full type graph is available. For now, store null.
-        var typeParam = new TypeParameter(name, ordinal, kind, valueType: null, scope, declaringType);
+        // Domain resolution (Standard.Type for regular, the annotated type for dependent)
+        // happens in Phase 2 once the Standard library types are available.
+        var typeParam = new TypeParameter(name, ordinal, scope, declaringType);
         target.Add(typeParam);
         scope.AddLocalType(name, typeParam);
     }

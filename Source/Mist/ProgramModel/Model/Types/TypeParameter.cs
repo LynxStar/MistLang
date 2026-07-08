@@ -12,15 +12,11 @@ internal sealed class TypeParameter : MistType, ITypeParameter
     public TypeParameter(
         string name,
         int ordinal,
-        TypeParameterKind kind,
-        MistType? valueType,
         Scope declaringScope,
         MistType declaringType)
         : base(name, declaringType.NamespaceName, declaringScope, declaringType)
     {
         Ordinal = ordinal;
-        Kind = kind;
-        DependentValueType = valueType;
     }
 
     /// <summary>
@@ -29,14 +25,13 @@ internal sealed class TypeParameter : MistType, ITypeParameter
     public int Ordinal { get; }
 
     /// <summary>
-    /// Whether this is a regular (type-carrying) or dependent (value-carrying) parameter.
+    /// The domain of this type parameter — the type whose values can fill this slot.
+    /// For regular type parameters (<c>T</c>), this resolves to <c>Standard.Type</c>.
+    /// For dependent type parameters (<c>N:int</c>), this resolves to the annotated
+    /// value type (e.g., <c>Standard.Int32</c>).
+    /// Null until resolved in Phase 2.
     /// </summary>
-    public TypeParameterKind Kind { get; }
+    public MistType? Domain { get; internal set; }
 
-    /// <summary>
-    /// For dependent type parameters, the resolved value type. Null for regular parameters.
-    /// </summary>
-    public MistType? DependentValueType { get; }
-
-    IMistType? ITypeParameter.ValueType => DependentValueType;
+    IMistType? ITypeParameter.Domain => Domain;
 }

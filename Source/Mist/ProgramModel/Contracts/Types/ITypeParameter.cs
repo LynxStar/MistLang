@@ -14,14 +14,10 @@ public interface ITypeParameter : IMistType
     int Ordinal { get; }
 
     /// <summary>
-    /// Whether this is a regular (type-carrying) parameter or a dependent
-    /// (value-carrying) parameter.
+    /// The domain of this type parameter — the type whose values can fill this slot.
+    /// For regular type parameters (<c>T</c>), this is <c>Standard.Type</c>.
+    /// For dependent type parameters (<c>N:int</c>), this is the annotated value type.
+    /// Null until resolved in Phase 2.
     /// </summary>
-    TypeParameterKind Kind { get; }
-
-    /// <summary>
-    /// For dependent type parameters, the resolved value type (e.g., <c>int</c>).
-    /// Null for regular type parameters.
-    /// </summary>
-    IMistType? ValueType { get; }
+    IMistType? Domain { get; }
 }

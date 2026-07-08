@@ -1,3 +1,4 @@
+using System.Globalization;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Contracts.Types;
@@ -291,16 +292,90 @@ internal sealed class TypeReferenceResolver
 
     private void ResolveTypeArgument(TypeArgumentNode arg, Scope scope, List<IMistType> args)
     {
-        if(arg is TypeReferenceTypeArgumentTypeArgumentNode typeRefArg)
+        switch(arg)
         {
-            args.Add(Resolve(typeRefArg.Type, scope));
+            case TypeReferenceTypeArgumentTypeArgumentNode typeRefArg:
+                args.Add(Resolve(typeRefArg.Type, scope));
+                break;
+
+            case IntegerLiteralTypeArgumentTypeArgumentNode intLit:
+                args.Add(LiftIntegerLiteral(intLit.Literal.Lexeme));
+                break;
+
+            case NegatedIntegerTypeArgumentTypeArgumentNode negLit:
+                args.Add(LiftNegatedIntegerLiteral(negLit.Literal.Lexeme));
+                break;
+
+            case HexLiteralTypeArgumentTypeArgumentNode hexLit:
+                args.Add(LiftHexLiteral(hexLit.Literal.Lexeme));
+                break;
+
+            case BinaryLiteralTypeArgumentTypeArgumentNode binLit:
+                args.Add(LiftBinaryLiteral(binLit.Literal.Lexeme));
+                break;
+
+            case TrueLiteralTypeArgumentTypeArgumentNode:
+                args.Add(context.ProgramModel.TypeInterner.GetOrCreateLiftedType(true, "true"));
+                break;
+
+            case FalseLiteralTypeArgumentTypeArgumentNode:
+                args.Add(context.ProgramModel.TypeInterner.GetOrCreateLiftedType(false, "false"));
+                break;
+
+            case CharLiteralTypeArgumentTypeArgumentNode charLit:
+                args.Add(LiftCharLiteral(charLit.Literal.Lexeme));
+                break;
+
+            default:
+                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownTypeRefNode, arg, null, arg.GetType().Name);
+                args.Add(ErrorType.Instance);
+                break;
         }
-        else
+    }
+
+    private IMistType LiftIntegerLiteral(string lexeme)
+    {
+        var value = long.TryParse(lexeme, out var parsed) ? parsed : 0L;
+        return context.ProgramModel.TypeInterner.GetOrCreateLiftedType(value, lexeme);
+    }
+
+    private IMistType LiftNegatedIntegerLiteral(string lexeme)
+    {
+        var value = long.TryParse(lexeme, out var parsed) ? -parsed : 0L;
+        return context.ProgramModel.TypeInterner.GetOrCreateLiftedType(value, $"-{lexeme}");
+    }
+
+    private IMistType LiftHexLiteral(string lexeme)
+    {
+        var hexStr = lexeme.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+            ? lexeme[2..] : lexeme;
+        var value = long.TryParse(hexStr, NumberStyles.HexNumber, null, out var parsed)
+            ? parsed : 0L;
+        return context.ProgramModel.TypeInterner.GetOrCreateLiftedType(value, lexeme);
+    }
+
+    private IMistType LiftBinaryLiteral(string lexeme)
+    {
+        var binStr = lexeme.StartsWith("0b", StringComparison.OrdinalIgnoreCase)
+            ? lexeme[2..] : lexeme;
+        long value;
+        try
         {
-            // Dependent type argument (integer, bool, char literal) — not yet resolved.
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownTypeRefNode, arg, null, "DependentTypeArgument");
-            args.Add(ErrorType.Instance);
+            value = Convert.ToInt64(binStr, 2);
         }
+        catch
+        {
+            value = 0L;
+        }
+
+        return context.ProgramModel.TypeInterner.GetOrCreateLiftedType(value, lexeme);
+    }
+
+    private IMistType LiftCharLiteral(string lexeme)
+    {
+        // Strip surrounding quotes to get the char value.
+        var charValue = lexeme.Length >= 3 ? lexeme[1] : '\0';
+        return context.ProgramModel.TypeInterner.GetOrCreateLiftedType(charValue, lexeme);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

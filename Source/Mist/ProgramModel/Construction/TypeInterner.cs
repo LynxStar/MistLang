@@ -13,6 +13,23 @@ internal sealed class TypeInterner
     private readonly Dictionary<ConstructedTypeKey, ConstructedType> constructedTypes = [];
     private readonly Dictionary<UnionTypeKey, UnionType> unionTypes = [];
     private readonly Dictionary<TupleTypeKey, TupleType> tupleTypes = [];
+    private readonly Dictionary<object, LiftedType> liftedTypes = [];
+
+    /// <summary>
+    /// Returns the canonical <see cref="LiftedType"/> for the given compile-time constant.
+    /// A single instance is shared across all constructed types that use the same value.
+    /// </summary>
+    public LiftedType GetOrCreateLiftedType(object value, string displayValue)
+    {
+        if(liftedTypes.TryGetValue(value, out var existing))
+        {
+            return existing;
+        }
+
+        var lifted = new LiftedType(value, displayValue);
+        liftedTypes[value] = lifted;
+        return lifted;
+    }
 
     /// <summary>
     /// Collapses a name-carrying tuple decorator to its interned structural type so

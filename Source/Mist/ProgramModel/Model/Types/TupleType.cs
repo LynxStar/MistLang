@@ -3,16 +3,22 @@ using Mist.ProgramModel.Contracts.Types;
 namespace Mist.ProgramModel.Model.Types;
 
 /// <summary>
-/// A tuple type with ordered element types and optional element names.
-/// Interned by element types only — names are cosmetic and do not affect identity.
+/// A structural tuple type with ordered element types. Interned by element types —
+/// this is the identity-bearing tuple representation. Element names, when present at
+/// a declaration site, live on <see cref="NamedTupleType"/>, not here.
+/// <para>
+/// Every tuple exposes its elements positionally as <c>Item1..ItemN</c> fields via
+/// <see cref="PositionalFields"/>. Named aliases are layered on top by
+/// <see cref="NamedTupleType"/>.
+/// </para>
 /// </summary>
 internal sealed class TupleType : MistType, ITupleType
 {
-    public TupleType(IReadOnlyList<IMistType> elementTypes, IReadOnlyList<string?> elementNames)
-        : base(BuildName(elementTypes, elementNames), "", new Scope(null), declaringType: null)
+    public TupleType(IReadOnlyList<IMistType> elementTypes)
+        : base(BuildName(elementTypes), "", new Scope(null), declaringType: null)
     {
         ElementTypes = elementTypes;
-        ElementNames = elementNames;
+        PositionalFields = BuildPositionalFields(elementTypes);
     }
 
     /// <summary>
@@ -21,23 +27,44 @@ internal sealed class TupleType : MistType, ITupleType
     public IReadOnlyList<IMistType> ElementTypes { get; }
 
     /// <summary>
-    /// Optional element names in positional order.
+    /// The positional <c>Item1..ItemN</c> fields, one per element, in order.
     /// </summary>
-    public IReadOnlyList<string?> ElementNames { get; }
+    public IReadOnlyList<Field> PositionalFields { get; }
 
     IReadOnlyList<IMistType> ITupleType.ElementTypes => ElementTypes;
 
-    IReadOnlyList<string?> ITupleType.ElementNames => ElementNames;
+    /// <summary>
+    /// The reserved positional field name for the 1-based element index
+    /// <paramref name="oneBasedIndex"/> (e.g., 1 → <c>Item1</c>).
+    /// </summary>
+    public static string PositionalName(int oneBasedIndex)
+    {
+        return $"Item{oneBasedIndex}";
+    }
 
-    private static string BuildName(IReadOnlyList<IMistType> elementTypes, IReadOnlyList<string?> elementNames)
+    private static List<Field> BuildPositionalFields(IReadOnlyList<IMistType> elementTypes)
+    {
+        var fields = new List<Field>(elementTypes.Count);
+
+        for(var i = 0; i < elementTypes.Count; i++)
+        {
+            fields.Add(new Field(
+                PositionalName(i + 1),
+                elementTypes[i],
+                OwnershipKind.Unrestricted,
+                new MemberModifiers { IsPublic = true }));
+        }
+
+        return fields;
+    }
+
+    private static string BuildName(IReadOnlyList<IMistType> elementTypes)
     {
         var parts = new string[elementTypes.Count];
 
         for(var i = 0; i < elementTypes.Count; i++)
         {
-            parts[i] = elementNames[i] is { } name
-                ? $"{elementTypes[i].Name} {name}"
-                : elementTypes[i].Name;
+            parts[i] = elementTypes[i].Name;
         }
 
         return $"({string.Join(", ", parts)})";

@@ -78,6 +78,13 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "Internal compiler error: unrecognized type reference node '{0}'.");
 
+    /// <summary>A tuple element is named with a reserved positional name (e.g., ItemN).</summary>
+    public static readonly DiagnosticDescriptor ReservedTupleElementName = new(
+        new DiagnosticId("MIST_PM_RESERVED_TUPLE_ELEMENT_NAME"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}' is a reserved tuple element name; it collides with the positional element accessors. Choose a different name.");
+
     // ── Base type resolution ─────────────────────────────────────────────
 
     /// <summary>A concrete type attempts to inherit from an incompatible kind.</summary>

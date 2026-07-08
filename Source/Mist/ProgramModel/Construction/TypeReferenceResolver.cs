@@ -12,6 +12,12 @@ namespace Mist.ProgramModel.Construction;
 /// </summary>
 internal sealed class TypeReferenceResolver
 {
+    /// <summary>
+    /// The prefix shared by every reserved positional tuple accessor
+    /// (<c>Item1</c>, <c>Item2</c>, ...). The positional digits follow this prefix.
+    /// </summary>
+    private const string PositionalAccessorPrefix = "Item";
+
     private readonly BuilderContext context;
 
     public TypeReferenceResolver(BuilderContext context)
@@ -52,8 +58,10 @@ internal sealed class TypeReferenceResolver
     }
 
     /// <summary>
-    /// Resolves a tuple type reference into an interned <see cref="TupleType"/>.
-    /// Element names are preserved but do not affect type identity.
+    /// Resolves a tuple type reference. The structural tuple is always interned by
+    /// element types; when this declaration site names any element, the interned type
+    /// is wrapped in a (non-interned) <see cref="NamedTupleType"/> that carries the
+    /// names without affecting identity.
     /// </summary>
     private IMistType ResolveTuple(TupleSingleTypeRefSingleTypeRefNode tupleRef, Scope scope)
     {
@@ -68,13 +76,56 @@ internal sealed class TypeReferenceResolver
             ResolveTupleElement(additional, scope, elementTypes, elementNames);
         }
 
-        return context.ProgramModel.TypeInterner.GetOrCreateTupleType(elementTypes, elementNames);
+        var structural = context.ProgramModel.TypeInterner.GetOrCreateTupleType(elementTypes);
+
+        if(elementNames.Exists(name => name is not null))
+        {
+            return new NamedTupleType(structural, elementNames);
+        }
+
+        return structural;
     }
 
     private void ResolveTupleElement(TupleTypeElementNode element, Scope scope, List<IMistType> types, List<string?> names)
     {
         types.Add(Resolve(element.Type, scope));
-        names.Add(element.Name?.Lexeme);
+
+        var name = element.Name?.Lexeme;
+
+        if(name is not null && IsReservedTupleElementName(name))
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.ReservedTupleElementName, element, null, name);
+
+            // Drop the reserved name so it does not collide with the positional field.
+            name = null;
+        }
+
+        names.Add(name);
+    }
+
+    /// <summary>
+    /// Determines whether a tuple element name collides with the reserved positional
+    /// accessors (<c>Item1</c>, <c>Item2</c>, ...). Such names are rejected because the
+    /// structural tuple already exposes every element positionally under these names.
+    /// </summary>
+    private static bool IsReservedTupleElementName(string name)
+    {
+        if(!name.StartsWith(PositionalAccessorPrefix, StringComparison.Ordinal)
+            || name.Length == PositionalAccessorPrefix.Length)
+        {
+            return false;
+        }
+
+        for(var i = PositionalAccessorPrefix.Length; i < name.Length; i++)
+        {
+            if(!char.IsAsciiDigit(name[i]))
+            {
+                return false;
+            }
+        }
+
+        // Reject a leading zero (e.g., "Item01"), which is not a canonical positional name.
+        return name[PositionalAccessorPrefix.Length] != '0';
     }
 
     /// <summary>

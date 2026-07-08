@@ -132,7 +132,7 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
             Context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicNotValidOnMember, fieldDecl, null, "fields");
         }
 
-        var field = new Field(name, type, ownership, modifiers, fieldDecl) { Initializer = initializer };
+        var field = new Field(name, type, ownership, modifiers) { Initializer = initializer };
         typeDef.FieldsList.Add(field);
     }
 

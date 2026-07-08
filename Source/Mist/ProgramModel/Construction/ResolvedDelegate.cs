@@ -1,4 +1,3 @@
-using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Model;
 
 namespace Mist.ProgramModel.Construction;
@@ -9,7 +8,7 @@ namespace Mist.ProgramModel.Construction;
 /// </summary>
 internal readonly record struct ResolvedDelegate(
     MemberModifiers Modifiers,
-    IReadOnlyList<IParameter> Parameters,
+    List<Parameter> Parameters,
     Block? Body);
 
 /// <summary>
@@ -22,6 +21,6 @@ internal readonly record struct ResolvedFullDelegate(
     ThisTier? DeclaredThisTier)
 {
     public MemberModifiers Modifiers => Base.Modifiers;
-    public IReadOnlyList<IParameter> Parameters => Base.Parameters;
+    public List<Parameter> Parameters => Base.Parameters;
     public Block? Body => Base.Body;
 }

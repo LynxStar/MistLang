@@ -10,14 +10,14 @@ namespace Mist.ProgramModel.Model;
 internal class Method(
     string name,
     IMistType returnType,
-    IReadOnlyList<IParameter> parameters,
+    List<Parameter> parameters,
     MemberModifiers modifiers) : IMethod
 {
     public string Name { get; } = name;
 
     public IMistType ReturnType { get; } = returnType;
 
-    public IReadOnlyList<IParameter> Parameters { get; } = parameters;
+    public List<Parameter> ParametersList { get; } = parameters;
 
     public MemberModifiers Modifiers { get; } = modifiers;
 
@@ -56,5 +56,6 @@ internal class Method(
 
     IReadOnlyList<ITypeParameter> IMethod.TypeParameters => TypeParametersList;
     IReadOnlyList<IContextBinding> IMethod.ContextBindings => ContextBindingsList;
+    IReadOnlyList<IParameter> IMethod.Parameters => ParametersList;
     ThisTier? IMethod.DeclaredThisTier => DeclaredThisTier;
 }

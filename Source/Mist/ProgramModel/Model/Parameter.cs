@@ -13,4 +13,11 @@ internal sealed class Parameter(
     public string Name { get; } = name;
 
     public IMistType Type { get; } = type;
+
+    /// <summary>
+    /// The adhoc refinement predicate AST node for this parameter, if any
+    /// (from a <c>where paramName >= 0</c> clause). Null until resolved.
+    /// Interpretation deferred to the pattern resolution phase.
+    /// </summary>
+    public Storm.Runtime.SyntaxNode? RefinementNode { get; internal set; }
 }

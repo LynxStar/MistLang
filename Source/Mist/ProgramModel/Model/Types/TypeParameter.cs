@@ -40,6 +40,13 @@ internal sealed class TypeParameter : MistType, ITypeParameter
     /// </summary>
     public List<TypeParameterConstraint> ConstraintsList { get; } = [];
 
+    /// <summary>
+    /// The adhoc refinement predicate AST node for this type parameter, if any
+    /// (from a <c>where Size >= 0</c> clause on a dependent type param).
+    /// Null until resolved. Interpretation deferred to the pattern resolution phase.
+    /// </summary>
+    public Storm.Runtime.SyntaxNode? RefinementNode { get; internal set; }
+
     IMistType? ITypeParameter.Domain => Domain;
 
     IReadOnlyList<ITypeParameterConstraint> ITypeParameter.Constraints => ConstraintsList;

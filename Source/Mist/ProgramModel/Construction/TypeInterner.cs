@@ -1,12 +1,14 @@
 using System.Runtime.CompilerServices;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Types;
+using Storm.Runtime;
 
 namespace Mist.ProgramModel.Construction;
 
 /// <summary>
 /// Interns synthetic type instances (unions, constructed types) so that structurally
 /// identical type references resolve to the same object. Keyed by constituent identity.
+/// Also provides factory methods for non-interned synthetic types (refined types).
 /// </summary>
 internal sealed class TypeInterner
 {
@@ -110,6 +112,16 @@ internal sealed class TypeInterner
         var tuple = new TupleType(structuralElements);
         tupleTypes[key] = tuple;
         return tuple;
+    }
+
+    /// <summary>
+    /// Creates a new <see cref="RefinedType"/> wrapping the given base type with a
+    /// predicate AST node. Refined types are not interned — each declaration site
+    /// produces a distinct type instance even if the predicate is textually identical.
+    /// </summary>
+    public static RefinedType CreateRefinedType(IMistType baseType, SyntaxNode predicateNode)
+    {
+        return new RefinedType(baseType, predicateNode);
     }
 
     /// <summary>

@@ -10,13 +10,13 @@ namespace Mist.ProgramModel.Model;
 internal sealed class Operator(
     OperatorKind kind,
     IMistType returnType,
-    IReadOnlyList<IParameter> parameters,
+    List<Parameter> parameters,
     MemberModifiers modifiers)
     : Method(MapOperatorName(kind), returnType, parameters, modifiers), IOperator
 {
     public OperatorKind Kind { get; } = kind;
 
-    public bool IsUnary => Parameters.Count == 1;
+    public bool IsUnary => ParametersList.Count == 1;
 
     private static string MapOperatorName(OperatorKind kind)
     {

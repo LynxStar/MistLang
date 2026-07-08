@@ -27,7 +27,7 @@ internal sealed class ConstraintResolver
     /// <summary>
     /// Resolves all generic constraint where clauses and adds the resulting
     /// constraints to the corresponding type parameters.
-    /// Adhoc refinement constraints are skipped (handled separately).
+    /// Adhoc refinement constraints target dependent type parameters only.
     /// After resolution, validates for conflicting and duplicate constraints.
     /// </summary>
     /// <param name="whereClauses">The where clause array from the AST node.</param>
@@ -38,6 +38,20 @@ internal sealed class ConstraintResolver
         IReadOnlyList<TypeParameter> typeParameters,
         Scope scope)
     {
+        Resolve(whereClauses, typeParameters, parameters: null, scope);
+    }
+
+    /// <summary>
+    /// Resolves all where clauses: generic constraint clauses are added to type
+    /// parameters; adhoc refinement clauses are stashed on matching type parameters
+    /// or method parameters.
+    /// </summary>
+    public void Resolve(
+        ImmutableArray<WhereClauseNode> whereClauses,
+        IReadOnlyList<TypeParameter> typeParameters,
+        IReadOnlyList<Parameter>? parameters,
+        Scope scope)
+    {
         if(whereClauses.IsDefaultOrEmpty)
         {
             return;
@@ -45,23 +59,16 @@ internal sealed class ConstraintResolver
 
         foreach(var clause in whereClauses)
         {
-            if(clause is not GenericConstraintClauseWhereClauseNode generic)
+            switch(clause)
             {
-                // Adhoc refinement constraints are not handled yet.
-                continue;
+                case GenericConstraintClauseWhereClauseNode generic:
+                    ResolveGenericConstraintClause(generic, typeParameters, scope);
+                    break;
+
+                case AdhocRefinementConstraintWhereClauseNode adhoc:
+                    ResolveAdhocRefinement(adhoc, typeParameters, parameters);
+                    break;
             }
-
-            var name = generic.Name.Lexeme;
-            var target = FindTypeParameter(name, typeParameters);
-
-            if(target is null)
-            {
-                context.Diagnostics.ReportAtNode(
-                    ProgramModelDiagnostics.UnresolvedConstraintTarget, generic, null, name);
-                continue;
-            }
-
-            ResolveConstraintList(generic.Constraints, target, scope);
         }
 
         // Validate constraints after all clauses are resolved.
@@ -72,6 +79,80 @@ internal sealed class ConstraintResolver
                 ValidateConstraints(typeParam);
             }
         }
+    }
+
+    /// <summary>
+    /// Resolves a generic constraint clause (where T : class, IFoo).
+    /// </summary>
+    private void ResolveGenericConstraintClause(
+        GenericConstraintClauseWhereClauseNode generic,
+        IReadOnlyList<TypeParameter> typeParameters,
+        Scope scope)
+    {
+        var name = generic.Name.Lexeme;
+        var target = FindTypeParameter(name, typeParameters);
+
+        if(target is null)
+        {
+            context.Diagnostics.ReportAtNode(
+                ProgramModelDiagnostics.UnresolvedConstraintTarget, generic, null, name);
+            return;
+        }
+
+        ResolveConstraintList(generic.Constraints, target, scope);
+    }
+
+    /// <summary>
+    /// Resolves an adhoc refinement constraint (where x >= 0). Stashes the predicate
+    /// AST node on the matching dependent type parameter or method parameter.
+    /// </summary>
+    private void ResolveAdhocRefinement(
+        AdhocRefinementConstraintWhereClauseNode adhoc,
+        IReadOnlyList<TypeParameter> typeParameters,
+        IReadOnlyList<Parameter>? parameters)
+    {
+        var name = adhoc.Name.Lexeme;
+
+        // First, try to match a dependent type parameter.
+        var typeParam = FindTypeParameter(name, typeParameters);
+        if(typeParam is not null)
+        {
+            typeParam.RefinementNode = adhoc.Predicate;
+            return;
+        }
+
+        // Second, try to match a method parameter.
+        var param = FindParameter(name, parameters);
+        if(param is not null)
+        {
+            param.RefinementNode = adhoc.Predicate;
+            return;
+        }
+
+        // Name doesn't match any type parameter or method parameter.
+        context.Diagnostics.ReportAtNode(
+            ProgramModelDiagnostics.UnresolvedConstraintTarget, adhoc, null, name);
+    }
+
+    /// <summary>
+    /// Finds a parameter by name in the provided list.
+    /// </summary>
+    private static Parameter? FindParameter(string name, IReadOnlyList<Parameter>? parameters)
+    {
+        if(parameters is null)
+        {
+            return null;
+        }
+
+        for(var i = 0; i < parameters.Count; i++)
+        {
+            if(parameters[i].Name == name)
+            {
+                return parameters[i];
+            }
+        }
+
+        return null;
     }
 
     /// <summary>

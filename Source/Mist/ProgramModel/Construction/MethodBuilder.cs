@@ -57,8 +57,8 @@ internal sealed class MethodBuilder
         // Transfer type parameters to the final method instance.
         resolvedMethod.TypeParametersList.AddRange(method.TypeParametersList);
 
-        // Resolve constraints on method-level type parameters.
-        constraintResolver.Resolve(methodDecl.Constraints, resolvedMethod.TypeParametersList, methodScope);
+        // Resolve constraints on method-level type parameters and parameter refinements.
+        constraintResolver.Resolve(methodDecl.Constraints, resolvedMethod.TypeParametersList, resolvedMethod.ParametersList, methodScope);
 
         // Transfer with clause data.
         resolvedMethod.ContextBindingsList.AddRange(common.ContextBindings);

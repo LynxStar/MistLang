@@ -1,12 +1,14 @@
+using Mist.Generated;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction;
 
 /// <summary>
 /// Phase 2 builder for type aliases. Resolves the aliased type reference
-/// from the declaration's <c>RefinableTypeExpression</c>.
-/// Refinement predicates are ignored; the base type of each constituent is resolved.
+/// from the declaration's <c>RefinableTypeExpression</c>, wrapping in a
+/// <see cref="RefinedType"/> when a refinement predicate is present.
 /// </summary>
 internal sealed class TypeAliasBuilder
 {
@@ -31,21 +33,37 @@ internal sealed class TypeAliasBuilder
 
         if(refinableExpr.RefinableSingleTypeExprs.Length > 0)
         {
-            // Union type alias: resolve all constituents.
+            // Union type alias: resolve all constituents, each potentially refined.
             var constituents = new List<IMistType>(refinableExpr.RefinableSingleTypeExprs.Length + 1)
             {
-                typeResolver.Resolve(refinableExpr.First.Type, typeDef.Scope)
+                ResolvePossiblyRefined(refinableExpr.First, typeDef.Scope)
             };
 
             foreach(var constituent in refinableExpr.RefinableSingleTypeExprs)
             {
-                constituents.Add(typeResolver.Resolve(constituent.Type, typeDef.Scope));
+                constituents.Add(ResolvePossiblyRefined(constituent, typeDef.Scope));
             }
 
             typeDef.AliasedType = context.ProgramModel.TypeInterner.GetOrCreateUnionType(constituents);
             return;
         }
 
-        typeDef.AliasedType = typeResolver.Resolve(refinableExpr.First.Type, typeDef.Scope);
+        typeDef.AliasedType = ResolvePossiblyRefined(refinableExpr.First, typeDef.Scope);
+    }
+
+    /// <summary>
+    /// Resolves a single refinable type expression. If a refinement predicate is
+    /// present, wraps the resolved base type in a <see cref="RefinedType"/>.
+    /// </summary>
+    private IMistType ResolvePossiblyRefined(RefinableSingleTypeExprNode node, Scope scope)
+    {
+        var baseType = typeResolver.Resolve(node.Type, scope);
+
+        if(node.Refinement is not null)
+        {
+            return TypeInterner.CreateRefinedType(baseType, node.Refinement);
+        }
+
+        return baseType;
     }
 }

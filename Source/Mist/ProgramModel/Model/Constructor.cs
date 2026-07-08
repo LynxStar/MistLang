@@ -10,7 +10,7 @@ namespace Mist.ProgramModel.Model;
 internal sealed class Constructor(
     string name,
     IMistType returnType,
-    IReadOnlyList<IParameter> parameters,
+    List<Parameter> parameters,
     MemberModifiers modifiers)
     : Method(name, returnType, parameters, modifiers), IConstructor
 {

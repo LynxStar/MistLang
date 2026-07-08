@@ -71,3 +71,42 @@ Drop `BaseTypeRef` entirely. Base clauses accept a full `TypeReference` and inva
 - `BaseTypeResolver` simplifies significantly (delegates to `TypeReferenceResolver`)
 - Tests that construct `BaseTypeRefNode` directly need updating
 - New semantic diagnostics for invalid base type forms
+
+
+## Unify RefinementPredicate into AndPattern
+
+The `RefinementPredicate` rule on type alias declarations and the `AndPattern` used in adhoc `where` clauses represent the same semantic structure (a list of `UnaryPattern` nodes joined by `and`) but parse into different node types:
+
+```storm
+rule RefinementPredicate
+    = AND first:UnaryPattern (AND rest:UnaryPattern)*   as CompoundRefinementPredicate
+    | predicate:AndPattern                              as SimpleRefinementPredicate
+    ;
+
+rule WhereClause
+    = WHERE name:IDENTIFIER COLON constraints:ConstraintList  as GenericConstraintClause
+    | WHERE name:IDENTIFIER predicate:AndPattern              as AdhocRefinementConstraint
+    ;
+```
+
+In practice `SimpleRefinementPredicate` just wraps an `AndPattern` — they carry the same data. The `CompoundRefinementPredicate` variant (with a leading `AND` token) is unclear when it fires given normal syntax like `type Foo = int >= 0 and <= 100;` (the `>=` is not an `AND` token, so it falls into `SimpleRefinementPredicate`).
+
+**Proposed change:**
+
+```storm
+rule RefinableSingleTypeExpr = type:SingleTypeRef refinement:AndPattern?;
+```
+
+Drop `RefinementPredicate` entirely. The refinement slot on a type alias accepts a direct `AndPattern`, identical to what adhoc where clauses use.
+
+**Why:**
+- One node type for predicates everywhere (no unwrapping `SimpleRefinementPredicate` to get to `AndPattern`)
+- Simplifies ProgramModel code — `RefinedType.PredicateNode` can be typed as `AndPatternNode` instead of `SyntaxNode`
+- `TypeParameter.RefinementNode` and `Parameter.RefinementNode` already use `AndPatternNode` — this makes them all uniform
+- Eliminates a seemingly unreachable grammar alternative (`CompoundRefinementPredicate`)
+
+**Impact:**
+- Grammar change (removes `RefinementPredicate` rule, replaces with `AndPattern?` on `RefinableSingleTypeExpr`)
+- Need to verify `CompoundRefinementPredicate` is truly unreachable or identify what syntax triggers it
+- `TypeAliasBuilder`, `MistPrettyPrinter`, and tests that match on `RefinementPredicateNode` need updating
+- `RefinedType.PredicateNode` tightens from `SyntaxNode` to `AndPatternNode`

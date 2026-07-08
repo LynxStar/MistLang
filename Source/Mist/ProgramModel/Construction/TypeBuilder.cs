@@ -157,7 +157,9 @@ internal sealed class TypeBuilder
         var typeScope = new Scope(parentScope);
         typeScope.SetNamespace(namespaceName);
 
-        var typeDef = new Newtype(newtypeDecl.Name.Lexeme, namespaceName, typeScope, declaringType, newtypeDecl);
+        var name = BuildGenericName(newtypeDecl.Name.Lexeme, newtypeDecl.TypeParams);
+        var typeDef = new Newtype(name, namespaceName, typeScope, declaringType, newtypeDecl);
+        PopulateTypeParameters(typeDef.TypeParametersList, typeScope, typeDef, newtypeDecl.TypeParams);
         FinalizeRegistration(typeDef, declaringType);
     }
 
@@ -167,7 +169,9 @@ internal sealed class TypeBuilder
         var typeScope = new Scope(parentScope);
         typeScope.SetNamespace(namespaceName);
 
-        var typeDef = new TypeAlias(aliasDecl.Name.Lexeme, namespaceName, typeScope, declaringType, aliasDecl);
+        var name = BuildGenericName(aliasDecl.Name.Lexeme, aliasDecl.TypeParams);
+        var typeDef = new TypeAlias(name, namespaceName, typeScope, declaringType, aliasDecl);
+        PopulateTypeParameters(typeDef.TypeParametersList, typeScope, typeDef, aliasDecl.TypeParams);
         FinalizeRegistration(typeDef, declaringType);
     }
 
@@ -267,10 +271,16 @@ internal sealed class TypeBuilder
                 return new EnumType(et.EnumDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType, et.EnumDeclaration);
 
             case NewtypeTypeTypeDeclarationNode nt:
-                return new Newtype(nt.NewtypeDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType, nt.NewtypeDeclaration);
+                var ntName = BuildGenericName(nt.NewtypeDeclaration.Name.Lexeme, nt.NewtypeDeclaration.TypeParams);
+                var newtype = new Newtype(ntName, namespaceName, typeScope, declaringType, nt.NewtypeDeclaration);
+                PopulateTypeParameters(newtype.TypeParametersList, typeScope, newtype, nt.NewtypeDeclaration.TypeParams);
+                return newtype;
 
             case TypeAliasTypeTypeDeclarationNode ta:
-                return new TypeAlias(ta.TypeAliasDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType, ta.TypeAliasDeclaration);
+                var taName = BuildGenericName(ta.TypeAliasDeclaration.Name.Lexeme, ta.TypeAliasDeclaration.TypeParams);
+                var alias = new TypeAlias(taName, namespaceName, typeScope, declaringType, ta.TypeAliasDeclaration);
+                PopulateTypeParameters(alias.TypeParametersList, typeScope, alias, ta.TypeAliasDeclaration.TypeParams);
+                return alias;
 
             default:
                 context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownTypeDeclaration, typeDecl, null, typeDecl.GetType().Name);
@@ -315,27 +325,39 @@ internal sealed class TypeBuilder
     /// </summary>
     private static void PopulateTypeParameters(MemberType type, TypeParameterListNode? typeParams)
     {
+        PopulateTypeParameters(type.TypeParametersList, type.Scope, type, typeParams);
+    }
+
+    /// <summary>
+    /// Creates <see cref="TypeParameter"/> instances from the AST type parameter list,
+    /// adds them to the provided list, and registers them in the given scope.
+    /// Works for any type that declares type parameters (member types, aliases, newtypes).
+    /// </summary>
+    private static void PopulateTypeParameters(
+        List<TypeParameter> target, Scope scope, MistType declaringType, TypeParameterListNode? typeParams)
+    {
         if(typeParams is null)
         {
             return;
         }
 
         // Process the first type parameter.
-        AddTypeParameter(type, typeParams.TypeParameter, ordinal: 0);
+        AddTypeParameter(target, scope, declaringType, typeParams.TypeParameter, ordinal: 0);
 
         // Process the remaining type parameters.
         for(var i = 0; i < typeParams.TypeParameters.Length; i++)
         {
-            AddTypeParameter(type, typeParams.TypeParameters[i], ordinal: i + 1);
+            AddTypeParameter(target, scope, declaringType, typeParams.TypeParameters[i], ordinal: i + 1);
         }
     }
 
     /// <summary>
     /// Creates a single <see cref="TypeParameter"/> from an AST node, adds it to the
-    /// member type's parameter list, and registers it in the type's scope so that
-    /// downstream resolution (base clauses, member types) can resolve the name.
+    /// target list, and registers it in the scope so that downstream resolution
+    /// (base clauses, member types, aliased types) can resolve the name.
     /// </summary>
-    private static void AddTypeParameter(MemberType type, TypeParameterNode node, int ordinal)
+    private static void AddTypeParameter(
+        List<TypeParameter> target, Scope scope, MistType declaringType, TypeParameterNode node, int ordinal)
     {
         var (name, kind) = node switch
         {
@@ -347,8 +369,8 @@ internal sealed class TypeBuilder
 
         // Value type resolution for dependent parameters will happen in a later pass
         // once the full type graph is available. For now, store null.
-        var typeParam = new TypeParameter(name, ordinal, kind, valueType: null, type.Scope, type);
-        type.TypeParametersList.Add(typeParam);
-        type.Scope.AddLocalType(name, typeParam);
+        var typeParam = new TypeParameter(name, ordinal, kind, valueType: null, scope, declaringType);
+        target.Add(typeParam);
+        scope.AddLocalType(name, typeParam);
     }
 }

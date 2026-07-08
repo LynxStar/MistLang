@@ -16,6 +16,11 @@ internal sealed class TypeAlias(
     internal TypeAliasDeclarationNode DeclarationNode { get; } = declarationNode;
 
     /// <summary>
+    /// The type parameters declared on this alias. Empty for non-generic aliases.
+    /// </summary>
+    public List<TypeParameter> TypeParametersList { get; } = [];
+
+    /// <summary>
     /// The modifiers declared on this type alias.
     /// </summary>
     public MemberModifiers Modifiers { get; internal set; }

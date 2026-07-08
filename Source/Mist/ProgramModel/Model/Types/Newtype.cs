@@ -16,6 +16,11 @@ internal sealed class Newtype(
     internal NewtypeDeclarationNode DeclarationNode { get; } = declarationNode;
 
     /// <summary>
+    /// The type parameters declared on this newtype. Empty for non-generic newtypes.
+    /// </summary>
+    public List<TypeParameter> TypeParametersList { get; } = [];
+
+    /// <summary>
     /// The modifiers declared on this newtype.
     /// </summary>
     public MemberModifiers Modifiers { get; internal set; }

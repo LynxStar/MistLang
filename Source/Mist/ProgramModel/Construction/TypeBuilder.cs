@@ -324,7 +324,7 @@ internal sealed class TypeBuilder
     /// </summary>
     private static void PopulateTypeParameters(MemberType type, TypeParameterListNode? typeParams)
     {
-        PopulateTypeParameters(type.TypeParametersList, type.Scope, type, typeParams);
+        TypeParameterPopulator.Populate(type.TypeParametersList, type.Scope, type, typeParams);
     }
 
     /// <summary>
@@ -335,41 +335,6 @@ internal sealed class TypeBuilder
     private static void PopulateTypeParameters(
         List<TypeParameter> target, Scope scope, MistType declaringType, TypeParameterListNode? typeParams)
     {
-        if(typeParams is null)
-        {
-            return;
-        }
-
-        // Process the first type parameter.
-        AddTypeParameter(target, scope, declaringType, typeParams.TypeParameter, ordinal: 0);
-
-        // Process the remaining type parameters.
-        for(var i = 0; i < typeParams.TypeParameters.Length; i++)
-        {
-            AddTypeParameter(target, scope, declaringType, typeParams.TypeParameters[i], ordinal: i + 1);
-        }
-    }
-
-    /// <summary>
-    /// Creates a single <see cref="TypeParameter"/> from an AST node, adds it to the
-    /// target list, and registers it in the scope so that downstream resolution
-    /// (base clauses, member types, aliased types) can resolve the name.
-    /// </summary>
-    private static void AddTypeParameter(
-        List<TypeParameter> target, Scope scope, MistType declaringType, TypeParameterNode node, int ordinal)
-    {
-        var name = node switch
-        {
-            RegularTypeParameterTypeParameterNode reg => reg.Name.Lexeme,
-            DependentTypeParameterTypeParameterNode dep => dep.Name.Lexeme,
-            NamedConstraintDependentTypeParameterTypeParameterNode named => named.Name.Lexeme,
-            _ => throw new InvalidOperationException($"Unknown TypeParameterNode variant: {node.GetType().Name}")
-        };
-
-        // Domain resolution (Standard.Type for regular, the annotated type for dependent)
-        // happens in Phase 2 once the Standard library types are available.
-        var typeParam = new TypeParameter(name, ordinal, scope, declaringType);
-        target.Add(typeParam);
-        scope.AddLocalType(name, typeParam);
+        TypeParameterPopulator.Populate(target, scope, declaringType, typeParams);
     }
 }

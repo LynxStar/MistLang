@@ -19,4 +19,9 @@ public interface IMethod
 
     /// <summary>The modifiers declared on this method.</summary>
     MemberModifiers Modifiers { get; }
+
+    /// <summary>
+    /// The type parameters declared on this method. Empty for non-generic methods.
+    /// </summary>
+    IReadOnlyList<ITypeParameter> TypeParameters { get; }
 }

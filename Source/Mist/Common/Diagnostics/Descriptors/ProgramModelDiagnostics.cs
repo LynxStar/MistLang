@@ -306,4 +306,13 @@ public static class ProgramModelDiagnostics
         DiagnosticSeverity.Warning,
         PipelineStage.SemanticModelConstruction,
         "Type parameter '{0}' has duplicate '{1}' constraint; the redundant occurrence has no effect.");
+
+    // ── With clause resolution ───────────────────────────────────────────
+
+    /// <summary>A this-tier with clause is not valid on a constructor.</summary>
+    public static readonly DiagnosticDescriptor ThisTierOnConstructor = new(
+        new DiagnosticId("MIST_PM_THIS_TIER_ON_CONSTRUCTOR"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "A 'with {tier}' clause is not valid on a constructor; constructors always produce an owned value.");
 }

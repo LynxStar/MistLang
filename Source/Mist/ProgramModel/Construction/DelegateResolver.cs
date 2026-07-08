@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Model;
@@ -16,11 +17,13 @@ internal sealed class DelegateResolver
 {
     private readonly BuilderContext context;
     private readonly ParameterBuilder parameterBuilder;
+    private readonly TypeReferenceResolver typeResolver;
 
-    public DelegateResolver(BuilderContext context, ParameterBuilder parameterBuilder)
+    public DelegateResolver(BuilderContext context, ParameterBuilder parameterBuilder, TypeReferenceResolver typeResolver)
     {
         this.context = context;
         this.parameterBuilder = parameterBuilder;
+        this.typeResolver = typeResolver;
     }
 
     /// <summary>
@@ -40,18 +43,72 @@ internal sealed class DelegateResolver
     }
 
     /// <summary>
-    /// Resolves the 6 pieces from a <see cref="IFullDelegateNode"/> and
-    /// validates the intrinsic-or-body contract.
+    /// Resolves the 6 pieces from a <see cref="IFullDelegateNode"/>: the base delegate
+    /// plus context bindings and optional this-tier declaration from with clauses.
     /// </summary>
     public ResolvedFullDelegate ResolveFullDelegate<TNode>(TNode node, Scope scope, MemberType memberType, string memberName)
         where TNode : SyntaxNode, IFullDelegateNode
     {
-        var @base = ResolveDelegate(node, scope, memberType, memberName);
+        var baseDelegate = ResolveDelegate(node, scope, memberType, memberName);
+        var (contextBindings, thisTier) = ResolveWithClauses(node.WithClauses, scope);
 
-        // WithClauses and Constraints are parsed but not yet resolved into model types.
-        // That will be added when we implement with/where resolution.
+        return new ResolvedFullDelegate(baseDelegate, contextBindings, thisTier);
+    }
 
-        return new ResolvedFullDelegate(@base);
+    // ═══════════════════════════════════════════════════════════════════════
+    // With Clause Resolution
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Resolves all with clauses on a full delegate into context bindings and
+    /// an optional this-tier declaration.
+    /// </summary>
+    private (List<ContextBinding> contextBindings, ThisTier? thisTier) ResolveWithClauses(
+        ImmutableArray<WithClauseNode> withClauses,
+        Scope scope)
+    {
+        var contextBindings = new List<ContextBinding>();
+        ThisTier? thisTier = null;
+
+        if(withClauses.IsDefaultOrEmpty)
+        {
+            return (contextBindings, thisTier);
+        }
+
+        foreach(var clause in withClauses)
+        {
+            switch(clause)
+            {
+                case ThisTierWithClauseWithClauseNode tierClause:
+                    thisTier = MapOwnershipSpecifierToThisTier(tierClause.Tier);
+                    break;
+
+                case ContextWithClauseWithClauseNode contextClause:
+                    var resolvedType = typeResolver.Resolve(contextClause.Type, scope);
+                    contextBindings.Add(new ContextBinding(resolvedType, contextClause.Name.Lexeme));
+                    break;
+
+                default:
+                    throw new InvalidOperationException($"Unrecognized with clause node: {clause.GetType().Name}");
+            }
+        }
+
+        return (contextBindings, thisTier);
+    }
+
+    /// <summary>
+    /// Maps an <see cref="OwnershipSpecifierNode"/> to the corresponding <see cref="ThisTier"/>.
+    /// </summary>
+    private static ThisTier MapOwnershipSpecifierToThisTier(OwnershipSpecifierNode specifier)
+    {
+        return specifier switch
+        {
+            OwnedSpecifierOwnershipSpecifierNode => ThisTier.Owned,
+            BorrowedSpecifierOwnershipSpecifierNode => ThisTier.Borrowed,
+            FrozenSpecifierOwnershipSpecifierNode => ThisTier.Frozen,
+            ReadonlyRefSpecifierOwnershipSpecifierNode => ThisTier.ReadonlyRef,
+            _ => throw new InvalidOperationException($"Unrecognized ownership specifier node: {specifier.GetType().Name}")
+        };
     }
 
     // ═══════════════════════════════════════════════════════════════════════

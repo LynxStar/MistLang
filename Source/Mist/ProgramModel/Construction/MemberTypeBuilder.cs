@@ -38,7 +38,7 @@ internal abstract class MemberTypeBuilder
         ConstraintResolver = new ConstraintResolver(context, typeResolver);
         var accessorBuilder = new AccessorBuilder(context);
         ParameterBuilder = new ParameterBuilder(typeResolver);
-        DelegateResolver = new DelegateResolver(context, ParameterBuilder);
+        DelegateResolver = new DelegateResolver(context, ParameterBuilder, typeResolver);
         PropertyBuilder = new PropertyBuilder(context, typeResolver, accessorBuilder);
         IndexerBuilder = new IndexerBuilder(context, typeResolver, accessorBuilder, ParameterBuilder);
         MethodBuilder = new MethodBuilder(typeResolver, DelegateResolver, ConstraintResolver);

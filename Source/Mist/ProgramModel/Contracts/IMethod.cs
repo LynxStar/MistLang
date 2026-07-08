@@ -24,4 +24,16 @@ public interface IMethod
     /// The type parameters declared on this method. Empty for non-generic methods.
     /// </summary>
     IReadOnlyList<ITypeParameter> TypeParameters { get; }
+
+    /// <summary>
+    /// Context bindings declared via <c>with Type name</c> clauses on this method.
+    /// Empty if no context bindings are declared.
+    /// </summary>
+    IReadOnlyList<IContextBinding> ContextBindings { get; }
+
+    /// <summary>
+    /// The ownership tier required on 'this' declared via a <c>with {tier}</c> clause,
+    /// or null if no this-tier clause is present.
+    /// </summary>
+    ThisTier? DeclaredThisTier { get; }
 }

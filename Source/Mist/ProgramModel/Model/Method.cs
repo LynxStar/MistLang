@@ -27,6 +27,17 @@ internal class Method(
     public List<TypeParameter> TypeParametersList { get; } = [];
 
     /// <summary>
+    /// Context bindings from <c>with Type name</c> clauses. Populated in Phase 2.
+    /// </summary>
+    public List<ContextBinding> ContextBindingsList { get; } = [];
+
+    /// <summary>
+    /// The ownership tier required on 'this', declared via a <c>with {tier}</c> clause.
+    /// Null if no this-tier clause is present.
+    /// </summary>
+    public ThisTier? DeclaredThisTier { get; internal set; }
+
+    /// <summary>
     /// The method's own scope. Contains method-level type parameters (if generic)
     /// and will hold locals during expression resolution. Parent is the declaring
     /// type's scope.
@@ -44,4 +55,6 @@ internal class Method(
     public OwnershipKind ReturnOwnership { get; init; }
 
     IReadOnlyList<ITypeParameter> IMethod.TypeParameters => TypeParametersList;
+    IReadOnlyList<IContextBinding> IMethod.ContextBindings => ContextBindingsList;
+    ThisTier? IMethod.DeclaredThisTier => DeclaredThisTier;
 }

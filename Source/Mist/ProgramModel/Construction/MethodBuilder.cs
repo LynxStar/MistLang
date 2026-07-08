@@ -60,6 +60,10 @@ internal sealed class MethodBuilder
         // Resolve constraints on method-level type parameters.
         constraintResolver.Resolve(methodDecl.Constraints, resolvedMethod.TypeParametersList, methodScope);
 
+        // Transfer with clause data.
+        resolvedMethod.ContextBindingsList.AddRange(common.ContextBindings);
+        resolvedMethod.DeclaredThisTier = common.DeclaredThisTier;
+
         memberType.MethodsList.Add(resolvedMethod);
     }
 }

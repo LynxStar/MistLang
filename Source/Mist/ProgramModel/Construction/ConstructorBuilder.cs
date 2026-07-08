@@ -32,10 +32,17 @@ internal sealed class ConstructorBuilder
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AsyncOnlyOnMethods, ctorDecl, null);
         }
 
+        if(common.DeclaredThisTier is not null)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.ThisTierOnConstructor, ctorDecl, null);
+        }
+
         var constructor = new Constructor(concreteType.Name, concreteType, common.Parameters, common.Modifiers)
         {
             Body = common.Body,
         };
+
+        constructor.ContextBindingsList.AddRange(common.ContextBindings);
 
         concreteType.ConstructorsList.Add(constructor);
     }

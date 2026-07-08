@@ -10,6 +10,11 @@ namespace Mist.ProgramModel.Contracts.Types;
 public interface IMemberType : IMistType
 {
     /// <summary>
+    /// The type parameters declared on this type. Empty for non-generic types.
+    /// </summary>
+    IReadOnlyList<ITypeParameter> TypeParameters { get; }
+
+    /// <summary>
     /// The modifiers declared on this type.
     /// </summary>
     MemberModifiers Modifiers { get; }

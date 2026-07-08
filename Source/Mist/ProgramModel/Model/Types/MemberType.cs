@@ -28,6 +28,12 @@ internal abstract class MemberType : MistType, IMemberType
     internal TypeDeclarationNode DeclarationNode { get; }
 
     /// <summary>
+    /// The type parameters declared on this type. Empty for non-generic types.
+    /// Populated during Phase 1 when the type is registered.
+    /// </summary>
+    public List<TypeParameter> TypeParametersList { get; } = [];
+
+    /// <summary>
     /// The modifiers declared on this type.
     /// </summary>
     public MemberModifiers Modifiers { get; internal set; }
@@ -49,6 +55,8 @@ internal abstract class MemberType : MistType, IMemberType
     public List<Indexer> IndexersList { get; } = [];
 
     public List<Operator> OperatorsList { get; } = [];
+
+    IReadOnlyList<ITypeParameter> IMemberType.TypeParameters => TypeParametersList;
 
     IReadOnlyList<IMistType> IMemberType.BaseAbstractTypes => BaseAbstractTypes;
 

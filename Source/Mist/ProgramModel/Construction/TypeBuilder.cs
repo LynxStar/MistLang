@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 
@@ -118,12 +119,12 @@ internal sealed class TypeBuilder
         var typeScope = new Scope(parentScope);
         typeScope.SetNamespace(namespaceName);
 
-        var name = bodyDecl.Name.Lexeme;
+        var name = BuildGenericName(bodyDecl.Name.Lexeme, bodyDecl.TypeParams);
         // Wrap in a synthetic TypeDeclarationNode for CreateMistType compatibility
         var wrappedDecl = new BodyTypeTypeDeclarationNode { TypeBody = bodyDecl };
-        var typeDef = bodyDecl.Keyword switch
+        MemberType? typeDef = bodyDecl.Keyword switch
         {
-            ClassKeywordTypeKeywordNode => (MistType)new ClassType(name, namespaceName, typeScope, declaringType, wrappedDecl),
+            ClassKeywordTypeKeywordNode => new ClassType(name, namespaceName, typeScope, declaringType, wrappedDecl),
             StructKeywordTypeKeywordNode => new StructType(name, namespaceName, typeScope, declaringType, wrappedDecl),
             AbstractKeywordTypeKeywordNode => new AbstractType(name, namespaceName, typeScope, declaringType, wrappedDecl),
             _ => null
@@ -133,6 +134,8 @@ internal sealed class TypeBuilder
         {
             return;
         }
+
+        PopulateTypeParameters(typeDef, bodyDecl.TypeParams);
 
         FinalizeRegistration(typeDef, declaringType);
         RegisterNestedTypes(typeDef.Scope, wrappedDecl, typeDef);
@@ -248,14 +251,17 @@ internal sealed class TypeBuilder
         switch(typeDecl)
         {
             case BodyTypeTypeDeclarationNode body:
-                var name = body.TypeBody.Name.Lexeme;
-                return body.TypeBody.Keyword switch
+                var name = BuildGenericName(body.TypeBody.Name.Lexeme, body.TypeBody.TypeParams);
+                MemberType typeDef = body.TypeBody.Keyword switch
                 {
                     ClassKeywordTypeKeywordNode => new ClassType(name, namespaceName, typeScope, declaringType, typeDecl),
                     StructKeywordTypeKeywordNode => new StructType(name, namespaceName, typeScope, declaringType, typeDecl),
                     AbstractKeywordTypeKeywordNode => new AbstractType(name, namespaceName, typeScope, declaringType, typeDecl),
                     _ => throw new InvalidOperationException($"Unexpected type keyword: {body.TypeBody.Keyword.GetType().Name}")
                 };
+
+                PopulateTypeParameters(typeDef, body.TypeBody.TypeParams);
+                return typeDef;
 
             case EnumTypeTypeDeclarationNode et:
                 return new EnumType(et.EnumDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType, et.EnumDeclaration);
@@ -285,4 +291,64 @@ internal sealed class TypeBuilder
         };
     }
 
+    /// <summary>
+    /// Builds the arity-bearing name for a type. Non-generic types get their plain name;
+    /// generic types get the angle-bracket arity suffix (e.g., <c>Foo&lt;&gt;</c> for 1 param,
+    /// <c>Foo&lt;,&gt;</c> for 2, <c>Foo&lt;,,&gt;</c> for 3).
+    /// </summary>
+    private static string BuildGenericName(string simpleName, TypeParameterListNode? typeParams)
+    {
+        if(typeParams is null)
+        {
+            return simpleName;
+        }
+
+        // The Storm list shape splits into .TypeParameter (first) and .TypeParameters (rest).
+        // N items need N-1 separating commas, and .TypeParameters.Length IS exactly N-1.
+        var commas = new string(',', typeParams.TypeParameters.Length);
+        return $"{simpleName}<{commas}>";
+    }
+
+    /// <summary>
+    /// Creates <see cref="TypeParameter"/> instances from the AST type parameter list
+    /// and registers them on the member type and in its scope.
+    /// </summary>
+    private static void PopulateTypeParameters(MemberType type, TypeParameterListNode? typeParams)
+    {
+        if(typeParams is null)
+        {
+            return;
+        }
+
+        // Process the first type parameter.
+        AddTypeParameter(type, typeParams.TypeParameter, ordinal: 0);
+
+        // Process the remaining type parameters.
+        for(var i = 0; i < typeParams.TypeParameters.Length; i++)
+        {
+            AddTypeParameter(type, typeParams.TypeParameters[i], ordinal: i + 1);
+        }
+    }
+
+    /// <summary>
+    /// Creates a single <see cref="TypeParameter"/> from an AST node, adds it to the
+    /// member type's parameter list, and registers it in the type's scope so that
+    /// downstream resolution (base clauses, member types) can resolve the name.
+    /// </summary>
+    private static void AddTypeParameter(MemberType type, TypeParameterNode node, int ordinal)
+    {
+        var (name, kind) = node switch
+        {
+            RegularTypeParameterTypeParameterNode reg => (reg.Name.Lexeme, TypeParameterKind.Regular),
+            DependentTypeParameterTypeParameterNode dep => (dep.Name.Lexeme, TypeParameterKind.Dependent),
+            NamedConstraintDependentTypeParameterTypeParameterNode named => (named.Name.Lexeme, TypeParameterKind.Dependent),
+            _ => throw new InvalidOperationException($"Unknown TypeParameterNode variant: {node.GetType().Name}")
+        };
+
+        // Value type resolution for dependent parameters will happen in a later pass
+        // once the full type graph is available. For now, store null.
+        var typeParam = new TypeParameter(name, ordinal, kind, valueType: null, type.Scope, type);
+        type.TypeParametersList.Add(typeParam);
+        type.Scope.AddLocalType(name, typeParam);
+    }
 }

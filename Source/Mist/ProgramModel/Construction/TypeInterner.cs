@@ -34,43 +34,21 @@ internal sealed class TypeInterner
     }
 
     /// <summary>
-    /// Collapses a name-carrying tuple decorator to its interned structural type so
-    /// that identity keys never depend on cosmetic element names. All identity-bearing
-    /// inputs to the interner funnel through here, guaranteeing that structurally
-    /// identical types (differing only in tuple element names) intern to one instance.
-    /// </summary>
-    public static IMistType Unwrap(IMistType type)
-    {
-        return type is NamedTupleType named ? named.Underlying : type;
-    }
-
-    private static IReadOnlyList<IMistType> Unwrap(IReadOnlyList<IMistType> types)
-    {
-        var result = new IMistType[types.Count];
-
-        for(var i = 0; i < types.Count; i++)
-        {
-            result[i] = Unwrap(types[i]);
-        }
-
-        return result;
-    }
-
-    /// <summary>
     /// Returns the canonical <see cref="ConstructedType"/> for the given definition and type arguments.
+    /// The interner does not normalize inputs — callers pass types exactly as resolved.
+    /// Structurally equivalent types that differ only by decoration (e.g., named vs unnamed
+    /// tuples) will produce distinct interned instances. The type checker handles equivalence.
     /// </summary>
     public ConstructedType GetOrCreateConstructedType(IMistType definition, IReadOnlyList<IMistType> typeArguments)
     {
-        var structuralDefinition = Unwrap(definition);
-        var structuralArguments = Unwrap(typeArguments);
-        var key = new ConstructedTypeKey(structuralDefinition, structuralArguments);
+        var key = new ConstructedTypeKey(definition, typeArguments);
 
         if(constructedTypes.TryGetValue(key, out var existing))
         {
             return existing;
         }
 
-        var constructed = new ConstructedType(structuralDefinition, structuralArguments);
+        var constructed = new ConstructedType(definition, typeArguments);
         constructedTypes[key] = constructed;
         return constructed;
     }
@@ -81,35 +59,31 @@ internal sealed class TypeInterner
     /// </summary>
     public UnionType GetOrCreateUnionType(IReadOnlyList<IMistType> constituents)
     {
-        var structuralConstituents = Unwrap(constituents);
-        var key = new UnionTypeKey(structuralConstituents);
+        var key = new UnionTypeKey(constituents);
 
         if(unionTypes.TryGetValue(key, out var existing))
         {
             return existing;
         }
 
-        var union = new UnionType(structuralConstituents);
+        var union = new UnionType(constituents);
         unionTypes[key] = union;
         return union;
     }
 
     /// <summary>
-    /// Returns the canonical structural <see cref="TupleType"/> for the given element types.
-    /// Element names are not part of tuple identity and are carried separately by
-    /// <see cref="NamedTupleType"/> at declaration sites.
+    /// Returns the canonical <see cref="TupleType"/> for the given element types.
     /// </summary>
     public TupleType GetOrCreateTupleType(IReadOnlyList<IMistType> elementTypes)
     {
-        var structuralElements = Unwrap(elementTypes);
-        var key = new TupleTypeKey(structuralElements);
+        var key = new TupleTypeKey(elementTypes);
 
         if(tupleTypes.TryGetValue(key, out var existing))
         {
             return existing;
         }
 
-        var tuple = new TupleType(structuralElements);
+        var tuple = new TupleType(elementTypes);
         tupleTypes[key] = tuple;
         return tuple;
     }

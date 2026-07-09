@@ -2,7 +2,6 @@ using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Model;
-using Mist.ProgramModel.Model.Types;
 using SyntaxNode = Storm.Runtime.SyntaxNode;
 
 namespace Mist.ProgramModel.Construction;
@@ -30,14 +29,14 @@ internal sealed class DelegateResolver
     /// Resolves the 4 common pieces from any <see cref="IDelegateNode"/> and
     /// validates the intrinsic-or-body contract.
     /// </summary>
-    public ResolvedDelegate ResolveDelegate<TNode>(TNode node, Scope scope, MemberType memberType, string memberName)
+    public ResolvedDelegate ResolveDelegate<TNode>(TNode node, Scope scope, IMethodHost host, string memberName)
         where TNode : SyntaxNode, IDelegateNode
     {
         var modifiers = ModifierBuilder.Build(node, context.Diagnostics);
         var parameters = parameterBuilder.Resolve(node.Parameters, scope);
         var body = ResolveBody(node.Body);
 
-        ValidateIntrinsicOrBody(node, memberType, memberName, modifiers, body);
+        ValidateIntrinsicOrBody(node, host, memberName, modifiers, body);
 
         return new ResolvedDelegate(modifiers, parameters, body);
     }
@@ -46,10 +45,10 @@ internal sealed class DelegateResolver
     /// Resolves the 6 pieces from a <see cref="IFullDelegateNode"/>: the base delegate
     /// plus context bindings and optional this-tier declaration from with clauses.
     /// </summary>
-    public ResolvedFullDelegate ResolveFullDelegate<TNode>(TNode node, Scope scope, MemberType memberType, string memberName)
+    public ResolvedFullDelegate ResolveFullDelegate<TNode>(TNode node, Scope scope, IMethodHost host, string memberName)
         where TNode : SyntaxNode, IFullDelegateNode
     {
-        var baseDelegate = ResolveDelegate(node, scope, memberType, memberName);
+        var baseDelegate = ResolveDelegate(node, scope, host, memberName);
         var (contextBindings, thisTier) = ResolveWithClauses(node.WithClauses, scope);
 
         return new ResolvedFullDelegate(baseDelegate, contextBindings, thisTier);
@@ -127,28 +126,28 @@ internal sealed class DelegateResolver
 
     private void ValidateIntrinsicOrBody(
         SyntaxNode locationNode,
-        MemberType memberType,
+        IMethodHost host,
         string memberName,
         MemberModifiers modifiers,
         Block? body)
     {
         if(modifiers.IsIntrinsic)
         {
-            ValidateIntrinsic(locationNode, memberType, memberName, body);
+            ValidateIntrinsic(locationNode, host, memberName, body);
         }
         else
         {
-            ValidateBodyRequired(locationNode, memberType, memberName, body);
+            ValidateBodyRequired(locationNode, host, memberName, body);
         }
     }
 
     private void ValidateIntrinsic(
         SyntaxNode locationNode,
-        MemberType memberType,
+        IMethodHost host,
         string memberName,
         Block? body)
     {
-        if(memberType is AbstractType)
+        if(host.IsAbstract)
         {
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicNotValidOnMember, locationNode, null, "abstract members");
             return;
@@ -159,21 +158,19 @@ internal sealed class DelegateResolver
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicMemberCannotHaveBody, locationNode, null, memberName);
         }
 
-        var typeIsIntrinsic = memberType is ConcreteType concrete && concrete.IsIntrinsic;
-
-        if(!typeIsIntrinsic)
+        if(!host.IsIntrinsic)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicRequiresIntrinsicType, locationNode, null, memberType.Name);
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicRequiresIntrinsicType, locationNode, null, host.Name);
         }
     }
 
     private void ValidateBodyRequired(
         SyntaxNode locationNode,
-        MemberType memberType,
+        IMethodHost host,
         string memberName,
         Block? body)
     {
-        if(body is null && memberType is not AbstractType)
+        if(body is null && !host.IsAbstract)
         {
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.MethodMustHaveBody, locationNode, null, memberName);
         }

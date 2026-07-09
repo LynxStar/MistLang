@@ -17,4 +17,11 @@ public interface INamespace
     /// (e.g., "Outer.Inner").
     /// </summary>
     IReadOnlyDictionary<string, IMistType> Types { get; }
+
+    /// <summary>
+    /// Extension blocks declared within this namespace, grouped by receiver type.
+    /// Multiple extension blocks may target the same receiver type; each retains
+    /// its own scope and declarations.
+    /// </summary>
+    IReadOnlyDictionary<IMistType, IReadOnlyList<IExtensionBlock>> Extensions { get; }
 }

@@ -315,4 +315,20 @@ public static class ProgramModelDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
         "A 'with {tier}' clause is not valid on a constructor; constructors always produce an owned value.");
+
+    // ── Extension block validation ───────────────────────────────────────
+
+    /// <summary>Multiple extension blocks in the same namespace declare a member with the same name for the same receiver type.</summary>
+    public static readonly DiagnosticDescriptor DuplicateExtensionMember = new(
+        new DiagnosticId("MIST_PM_DUPLICATE_EXTENSION_MEMBER"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "An extension member named '{0}' is already declared for type '{1}' in this namespace.");
+
+    /// <summary>An extension property cannot use auto-accessors because extension properties have no backing field.</summary>
+    public static readonly DiagnosticDescriptor ExtensionPropertyCannotHaveAutoAccessor = new(
+        new DiagnosticId("MIST_PM_EXTENSION_AUTO_ACCESSOR"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "Extension property '{0}' cannot use auto-accessors (get; / set;); extension properties have no backing field.");
 }

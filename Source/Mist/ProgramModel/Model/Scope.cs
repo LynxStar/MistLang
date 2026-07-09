@@ -26,7 +26,7 @@ internal sealed class Scope
     /// effective namespace; for nested scopes (block namespaces) it is the block's
     /// namespace. Null for the global scope.
     /// </summary>
-    public string? Namespace { get; private set; }
+    public string? Namespace { get; internal set; }
 
     /// <summary>
     /// Namespaces imported into this scope (via using declarations or global usings).
@@ -38,14 +38,6 @@ internal sealed class Scope
     /// this holds its direct nested types (children visible without qualification).
     /// </summary>
     public IReadOnlyDictionary<string, IMistType> LocalTypes => localTypes;
-
-    /// <summary>
-    /// Sets the namespace this scope belongs to.
-    /// </summary>
-    public void SetNamespace(string namespaceName)
-    {
-        Namespace = namespaceName;
-    }
 
     /// <summary>
     /// Adds a namespace to this scope's import list.

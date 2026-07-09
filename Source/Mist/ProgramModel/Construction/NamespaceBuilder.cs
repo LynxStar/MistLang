@@ -45,7 +45,7 @@ internal sealed class NamespaceBuilder
         RegisterNamespaces(ast, sourceText, fileNamespace);
 
         // Step 4: Set the scope's namespace and populate imports.
-        fileScope.SetNamespace(fileNamespace);
+        fileScope.Namespace = fileNamespace;
         fileScope.AddImportedNamespace(fileNamespace);
         PopulateImports(ast, sourceText, fileScope);
 

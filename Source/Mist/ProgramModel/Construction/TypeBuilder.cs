@@ -34,6 +34,10 @@ internal sealed class TypeBuilder
                     RegisterType(fileScope, typeItem.TypeDeclaration, declaringType: null);
                     break;
 
+                case ExtensionItemTopLevelItemNode extensionItem:
+                    StashExtension(fileScope, extensionItem.ExtensionDeclaration);
+                    break;
+
                 case NamespaceItemTopLevelItemNode nsItem
                     when nsItem.NamespaceDeclaration is BlockNamespaceNamespaceDeclarationNode blockNs:
                     ProcessBlockNamespace(fileScope, blockNs);
@@ -56,7 +60,7 @@ internal sealed class TypeBuilder
         var blockNamespace = QualifiedNameHelper.Build(blockNs.Name);
 
         var blockScope = new Scope(parentScope);
-        blockScope.SetNamespace(blockNamespace);
+        blockScope.Namespace = blockNamespace;
 
         ProcessNamespaceBody(blockScope, blockNs.Body);
     }
@@ -74,12 +78,26 @@ internal sealed class TypeBuilder
                     RegisterType(parentScope, typeItem.TypeDeclaration, declaringType: null);
                     break;
 
+                case NamespaceExtensionItemNamespaceBodyItemNode extensionItem:
+                    StashExtension(parentScope, extensionItem.ExtensionDeclaration);
+                    break;
+
                 case NamespaceNamespaceItemNamespaceBodyItemNode nestedNsItem
                     when nestedNsItem.NamespaceDeclaration is BlockNamespaceNamespaceDeclarationNode nestedBlockNs:
                     ProcessBlockNamespace(parentScope, nestedBlockNs);
                     break;
             }
         }
+    }
+
+    /// <summary>
+    /// Stashes an extension block AST for deferred processing in Phase 2.
+    /// The receiver type cannot be resolved until all types are registered.
+    /// </summary>
+    private void StashExtension(Scope scope, ExtensionBlockDeclarationNode extensionDecl)
+    {
+        var namespaceName = scope.Namespace ?? "";
+        context.PendingExtensions.Add(new PendingExtension(extensionDecl, scope, namespaceName));
     }
 
     /// <summary>
@@ -116,7 +134,7 @@ internal sealed class TypeBuilder
     {
         var namespaceName = parentScope.Namespace!;
         var typeScope = new Scope(parentScope);
-        typeScope.SetNamespace(namespaceName);
+        typeScope.Namespace = namespaceName;
 
         var name = BuildGenericName(bodyDecl.Name.Lexeme, bodyDecl.TypeParams);
         // Wrap in a synthetic TypeDeclarationNode for CreateMistType compatibility
@@ -144,7 +162,7 @@ internal sealed class TypeBuilder
     {
         var namespaceName = parentScope.Namespace!;
         var typeScope = new Scope(parentScope);
-        typeScope.SetNamespace(namespaceName);
+        typeScope.Namespace = namespaceName;
 
         var typeDef = new EnumType(enumDecl.Name.Lexeme, namespaceName, typeScope, declaringType, enumDecl);
         FinalizeRegistration(typeDef, declaringType);
@@ -154,7 +172,7 @@ internal sealed class TypeBuilder
     {
         var namespaceName = parentScope.Namespace!;
         var typeScope = new Scope(parentScope);
-        typeScope.SetNamespace(namespaceName);
+        typeScope.Namespace = namespaceName;
 
         var name = BuildGenericName(newtypeDecl.Name.Lexeme, newtypeDecl.TypeParams);
         var typeDef = new Newtype(name, namespaceName, typeScope, declaringType, newtypeDecl);
@@ -166,7 +184,7 @@ internal sealed class TypeBuilder
     {
         var namespaceName = parentScope.Namespace!;
         var typeScope = new Scope(parentScope);
-        typeScope.SetNamespace(namespaceName);
+        typeScope.Namespace = namespaceName;
 
         var name = BuildGenericName(aliasDecl.Name.Lexeme, aliasDecl.TypeParams);
         var typeDef = new TypeAlias(name, namespaceName, typeScope, declaringType, aliasDecl);
@@ -249,7 +267,7 @@ internal sealed class TypeBuilder
         var namespaceName = parentScope.Namespace!;
 
         var typeScope = new Scope(parentScope);
-        typeScope.SetNamespace(namespaceName);
+        typeScope.Namespace = namespaceName;
 
         switch(typeDecl)
         {
@@ -324,7 +342,7 @@ internal sealed class TypeBuilder
     /// </summary>
     private static void PopulateTypeParameters(MemberType type, TypeParameterListNode? typeParams)
     {
-        TypeParameterPopulator.Populate(type.TypeParametersList, type.Scope, type, typeParams);
+        TypeParameterPopulator.Populate(type.TypeParametersList, type.Scope, (MistType)type, typeParams);
     }
 
     /// <summary>

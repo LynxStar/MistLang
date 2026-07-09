@@ -1,7 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Model;
-using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction;
 
@@ -25,24 +24,24 @@ internal sealed class PropertyBuilder
     /// <summary>
     /// Resolves a property declaration on any member-bearing type.
     /// </summary>
-    public void Resolve(PropertyDeclarationNode propertyDecl, MemberType memberType)
+    public void Resolve(PropertyDeclarationNode propertyDecl, IMethodHost host)
     {
         switch(propertyDecl)
         {
             case BlockPropertyPropertyDeclarationNode blockProp:
-                ResolveBlockProperty(blockProp, memberType);
+                ResolveBlockProperty(blockProp, host);
                 break;
 
             case ExpressionBodiedPropertyPropertyDeclarationNode exprProp:
-                ResolveExpressionBodiedProperty(exprProp, memberType);
+                ResolveExpressionBodiedProperty(exprProp, host);
                 break;
         }
     }
 
-    private void ResolveExpressionBodiedProperty(ExpressionBodiedPropertyPropertyDeclarationNode exprProp, MemberType memberType)
+    private void ResolveExpressionBodiedProperty(ExpressionBodiedPropertyPropertyDeclarationNode exprProp, IMethodHost host)
     {
         var name = exprProp.Name.Lexeme;
-        var type = typeResolver.Resolve(exprProp.Type, memberType.Scope);
+        var type = typeResolver.Resolve(exprProp.Type, host.Scope);
         var modifiers = ModifierBuilder.Build(exprProp, context.Diagnostics);
 
         if(modifiers.IsAsync)
@@ -57,15 +56,16 @@ internal sealed class PropertyBuilder
 
         var getter = new PropertyAccessor { ExpressionBody = new Expression(exprProp.Body) };
         var property = new Property(name, type, modifiers) { Getter = getter };
-        memberType.PropertiesList.Add(property);
+        host.PropertiesList.Add(property);
     }
 
-    private void ResolveBlockProperty(BlockPropertyPropertyDeclarationNode blockProp, MemberType memberType)
+    private void ResolveBlockProperty(BlockPropertyPropertyDeclarationNode blockProp, IMethodHost host)
     {
         var name = blockProp.Name.Lexeme;
-        var type = typeResolver.Resolve(blockProp.Type, memberType.Scope);
+        var type = typeResolver.Resolve(blockProp.Type, host.Scope);
         var modifiers = ModifierBuilder.Build(blockProp, context.Diagnostics);
-        var isAbstract = memberType is AbstractType;
+        var isAbstract = host.IsAbstract;
+        var isExtension = host is ExtensionBlock;
 
         if(modifiers.IsAsync)
         {
@@ -82,6 +82,14 @@ internal sealed class PropertyBuilder
 
         foreach(var accessor in blockProp.Accessors)
         {
+            if(isExtension && accessor is AutoGetAccessorAccessorDeclarationNode
+                or AutoSetAccessorAccessorDeclarationNode
+                or AutoInitAccessorAccessorDeclarationNode)
+            {
+                context.Diagnostics.ReportAtNode(
+                    ProgramModelDiagnostics.ExtensionPropertyCannotHaveAutoAccessor, accessor, null, name);
+            }
+
             getter = accessor switch
             {
                 AutoGetAccessorAccessorDeclarationNode autoGet => accessorBuilder.BuildGetter(autoGet.AccessorModifier, name, autoGet, isAbstract, isAuto: true, body: null, expression: null),
@@ -114,6 +122,6 @@ internal sealed class PropertyBuilder
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.EmptyAccessorList, blockProp, null, name);
         }
 
-        memberType.PropertiesList.Add(property);
+        host.PropertiesList.Add(property);
     }
 }

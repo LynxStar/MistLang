@@ -9,4 +9,11 @@ namespace Mist.ProgramModel.Construction;
 internal sealed record BuilderContext(
     Scope GlobalScope,
     Model.ProgramModel ProgramModel,
-    DiagnosticBag Diagnostics);
+    DiagnosticBag Diagnostics)
+{
+    /// <summary>
+    /// Extension block AST nodes collected during Phase 1.
+    /// Processed in Phase 2 after all types are registered.
+    /// </summary>
+    public List<PendingExtension> PendingExtensions { get; } = [];
+}

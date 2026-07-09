@@ -27,23 +27,23 @@ internal sealed class MethodBuilder
     /// <summary>
     /// Resolves a method declaration on any member-bearing type.
     /// </summary>
-    public void Resolve(MethodDeclarationNode methodDecl, MemberType memberType)
+    public void Resolve(MethodDeclarationNode methodDecl, IMethodHost host)
     {
         var name = methodDecl.Name.Lexeme;
 
         // Every method gets its own scope (child of the type's scope).
         // Type parameters are registered here if present; later, locals will be too.
-        var methodScope = new Scope(memberType.Scope);
-        methodScope.SetNamespace(memberType.NamespaceName);
+        var methodScope = new Scope(host.Scope);
+        methodScope.Namespace = host.NamespaceName;
 
         var method = new Method(name, ErrorType.Instance, [], default);
 
         if(methodDecl.TypeParams is not null)
         {
-            TypeParameterPopulator.Populate(method.TypeParametersList, methodScope, memberType, methodDecl.TypeParams);
+            TypeParameterPopulator.Populate(method.TypeParametersList, methodScope, host as MistType, methodDecl.TypeParams);
         }
 
-        var common = delegateResolver.ResolveFullDelegate(methodDecl, methodScope, memberType, name);
+        var common = delegateResolver.ResolveFullDelegate(methodDecl, methodScope, host, name);
         var returnType = typeResolver.Resolve(methodDecl.ReturnType, methodScope);
         var returnOwnership = MemberTypeBuilder.ResolveOwnership(methodDecl.ReturnOwnership);
 
@@ -64,6 +64,6 @@ internal sealed class MethodBuilder
         resolvedMethod.ContextBindingsList.AddRange(common.ContextBindings);
         resolvedMethod.DeclaredThisTier = common.DeclaredThisTier;
 
-        memberType.MethodsList.Add(resolvedMethod);
+        host.MethodsList.Add(resolvedMethod);
     }
 }

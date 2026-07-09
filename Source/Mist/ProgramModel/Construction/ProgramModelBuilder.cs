@@ -60,7 +60,7 @@ public sealed class ProgramModelBuilder
             _ = unitBuilder.Build(unit);
         }
 
-        // Phase 2: Resolve member signatures on all registered types.
+        // Phase 2a: Resolve member signatures on all registered types.
         var typeResolver = new TypeReferenceResolver(context);
         var concreteTypeBuilder = new ConcreteTypeBuilder(context, typeResolver);
         var abstractTypeBuilder = new AbstractTypeBuilder(context, typeResolver);
@@ -92,6 +92,10 @@ public sealed class ProgramModelBuilder
                 }
             }
         }
+
+        // Phase 2b: Resolve extension blocks (after all types are fully resolved).
+        var extensionBuilder = new ExtensionBuilder(context, typeResolver);
+        extensionBuilder.BuildAll();
 
         return programModel;
     }

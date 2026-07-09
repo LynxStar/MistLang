@@ -16,7 +16,7 @@ internal static class TypeParameterPopulator
     /// adds them to the provided list, and registers them in the given scope.
     /// </summary>
     public static void Populate(
-        List<TypeParameter> target, Scope scope, MistType declaringType, TypeParameterListNode? typeParams)
+        List<TypeParameter> target, Scope scope, MistType? declaringType, TypeParameterListNode? typeParams)
     {
         if(typeParams is null)
         {
@@ -32,7 +32,7 @@ internal static class TypeParameterPopulator
     }
 
     private static void AddTypeParameter(
-        List<TypeParameter> target, Scope scope, MistType declaringType, TypeParameterNode node, int ordinal)
+        List<TypeParameter> target, Scope scope, MistType? declaringType, TypeParameterNode node, int ordinal)
     {
         var name = node switch
         {

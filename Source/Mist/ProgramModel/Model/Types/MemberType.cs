@@ -1,4 +1,5 @@
 using Mist.Generated;
+using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
 
@@ -8,7 +9,7 @@ namespace Mist.ProgramModel.Model.Types;
 /// Intermediate base for types that participate in inheritance and have
 /// method/property declarations: classes, structs, and abstracts.
 /// </summary>
-internal abstract class MemberType : MistType, IMemberType
+internal abstract class MemberType : MistType, IMemberType, IMethodHost
 {
     protected MemberType(
         string name,
@@ -67,4 +68,8 @@ internal abstract class MemberType : MistType, IMemberType
     IReadOnlyList<IIndexer> IMemberType.Indexers => IndexersList;
 
     IReadOnlyList<IOperator> IMemberType.Operators => OperatorsList;
+
+    bool IMethodHost.IsAbstract => this is AbstractType;
+
+    bool IMethodHost.IsIntrinsic => this is ConcreteType concrete && concrete.IsIntrinsic;
 }

@@ -14,8 +14,8 @@ internal sealed class TypeParameter : MistType, ITypeParameter
         string name,
         int ordinal,
         Scope declaringScope,
-        MistType declaringType)
-        : base(name, declaringType.NamespaceName, declaringScope, declaringType)
+        MistType? declaringType)
+        : base(name, declaringType?.NamespaceName ?? declaringScope.Namespace ?? "", declaringScope, declaringType)
     {
         Ordinal = ordinal;
     }

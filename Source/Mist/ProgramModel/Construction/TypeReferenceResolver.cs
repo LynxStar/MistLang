@@ -145,11 +145,11 @@ internal sealed class TypeReferenceResolver
             _ => ReportUnsupported(singleRef),
         };
 
-        // Array types are not yet supported in the simplified model.
+        // If the type reference has an array rank suffix, wrap the inner type
+        // in a constructed Standard.Array<TValue, Length>.
         if(HasArrayRank(singleRef))
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownTypeRefNode, singleRef, null, "ArrayType");
-            return ErrorType.Instance;
+            return ResolveArrayType(singleRef, inner);
         }
 
         return inner;
@@ -497,13 +497,46 @@ internal sealed class TypeReferenceResolver
 
     private static bool HasArrayRank(SingleTypeRefNode singleRef)
     {
+        return GetArrayRank(singleRef) is not null;
+    }
+
+    private static ArrayRankSuffixNode? GetArrayRank(SingleTypeRefNode singleRef)
+    {
         return singleRef switch
         {
-            PrimitiveSingleTypeRefSingleTypeRefNode p => p.ArrayRank is not null,
-            NamedSingleTypeRefSingleTypeRefNode n => n.ArrayRank is not null,
-            ParenthesizedTypeRefSingleTypeRefNode pr => pr.ArrayRank is not null,
-            _ => false,
+            PrimitiveSingleTypeRefSingleTypeRefNode p => p.ArrayRank,
+            NamedSingleTypeRefSingleTypeRefNode n => n.ArrayRank,
+            ParenthesizedTypeRefSingleTypeRefNode pr => pr.ArrayRank,
+            _ => null,
         };
+    }
+
+    /// <summary>
+    /// Wraps an element type in a <c>Standard.Array&lt;,&gt;</c> constructed type.
+    /// Sized arrays (<c>int[5]</c>) use a <see cref="LiftedType"/> for the length;
+    /// unsized arrays (<c>int[]</c>) use <see cref="UnknownType"/>.
+    /// </summary>
+    private IMistType ResolveArrayType(SingleTypeRefNode singleRef, IMistType elementType)
+    {
+        var arrayDef = LookupInNamespace("Standard", "Array<,>");
+        if(arrayDef is null)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnresolvedType, singleRef, null, "Standard.Array<,>");
+            return ErrorType.Instance;
+        }
+
+        var rank = GetArrayRank(singleRef)!;
+        IMistType lengthArg = rank switch
+        {
+            SizedArrayRankArrayRankSuffixNode sized =>
+                context.ProgramModel.TypeInterner.GetOrCreateLiftedType(
+                    long.TryParse(sized.Size.Lexeme, out var len) ? len : 0L,
+                    sized.Size.Lexeme),
+            _ => UnknownType.Instance,
+        };
+
+        return context.ProgramModel.TypeInterner.GetOrCreateConstructedType(
+            arrayDef, new IMistType[] { elementType, lengthArg });
     }
 
     private IMistType ReportUnsupported(SingleTypeRefNode node)

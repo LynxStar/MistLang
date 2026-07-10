@@ -16,4 +16,10 @@ internal sealed record BuilderContext(
     /// Processed in Phase 2 after all types are registered.
     /// </summary>
     public List<PendingExtension> PendingExtensions { get; } = [];
+
+    /// <summary>
+    /// With-declaration AST nodes collected during Phase 1.
+    /// Processed in Phase 2c after all types and extensions are resolved.
+    /// </summary>
+    public List<PendingConformance> PendingConformances { get; } = [];
 }

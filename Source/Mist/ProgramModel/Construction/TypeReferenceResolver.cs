@@ -231,7 +231,7 @@ internal sealed class TypeReferenceResolver
         {
             // Simple name lookup through scope chain.
             baseType = ResolveNamedType(lookupName, scope, namedRef);
-            if(baseType is null)
+            if(baseType is ErrorType)
             {
                 return ErrorType.Instance;
             }
@@ -387,7 +387,7 @@ internal sealed class TypeReferenceResolver
     /// Checks local types, then current namespace, then imported namespaces.
     /// Emits a <c>MIST_PM_UNRESOLVED_TYPE</c> diagnostic if not found.
     /// </summary>
-    public IMistType? ResolveNamedType(string name, Scope scope, Storm.Runtime.SyntaxNode locationNode)
+    public IMistType ResolveNamedType(string name, Scope scope, Storm.Runtime.SyntaxNode locationNode)
     {
         var current = scope;
         while(current is not null)
@@ -423,7 +423,7 @@ internal sealed class TypeReferenceResolver
 
         context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnresolvedType, locationNode, null, name);
 
-        return null;
+        return ErrorType.Instance;
     }
 
     /// <summary>

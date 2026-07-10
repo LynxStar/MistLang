@@ -33,8 +33,10 @@ internal sealed class MethodBuilder
 
         // Every method gets its own scope (child of the type's scope).
         // Type parameters are registered here if present; later, locals will be too.
-        var methodScope = new Scope(host.Scope);
-        methodScope.Namespace = host.NamespaceName;
+        var methodScope = new Scope(host.Scope)
+        {
+            Namespace = host.NamespaceName
+        };
 
         var method = new Method(name, ErrorType.Instance, [], default);
 

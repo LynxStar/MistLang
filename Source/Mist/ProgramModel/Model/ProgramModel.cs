@@ -24,6 +24,13 @@ internal sealed class ProgramModel : IProgramModel
     public TypeInterner TypeInterner { get; } = new();
 
     /// <summary>
+    /// Retroactive conformance declarations collected during Phase 2c.
+    /// </summary>
+    public List<ConformanceDeclaration> ConformancesList { get; } = [];
+
+    IReadOnlyList<IConformanceDeclaration> IProgramModel.Conformances => ConformancesList;
+
+    /// <summary>
     /// Gets an existing namespace or creates and registers a new one.
     /// Multiple files may declare the same namespace, so this deduplicates.
     /// </summary>

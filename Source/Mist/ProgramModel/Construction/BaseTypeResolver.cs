@@ -73,9 +73,9 @@ internal sealed class BaseTypeResolver
     private bool TryResolveConcreteBase(BaseTypeRefNode baseTypeRef, ConcreteType typeDef)
     {
         var resolved = ResolveBaseTypeRef(baseTypeRef, typeDef);
-        if(resolved is null)
+        if(resolved is ErrorType)
         {
-            // Diagnostic already emitted by ResolveBaseTypeRef.
+            // Diagnostic already emitted by ResolveNamedType.
             return true;
         }
 
@@ -115,9 +115,9 @@ internal sealed class BaseTypeResolver
     private void ResolveAbstractBase(BaseTypeRefNode baseTypeRef, MemberType typeDef)
     {
         var resolved = ResolveBaseTypeRef(baseTypeRef, typeDef);
-        if(resolved is null)
+        if(resolved is ErrorType)
         {
-            // Diagnostic already emitted by ResolveBaseTypeRef.
+            // Diagnostic already emitted by ResolveNamedType.
             return;
         }
 
@@ -144,7 +144,7 @@ internal sealed class BaseTypeResolver
     /// when type arguments are present. Returns a <see cref="ConstructedType"/> if
     /// type arguments exist, otherwise the raw definition.
     /// </summary>
-    private IMistType? ResolveBaseTypeRef(BaseTypeRefNode baseTypeRef, MemberType typeDef)
+    private IMistType ResolveBaseTypeRef(BaseTypeRefNode baseTypeRef, MemberType typeDef)
     {
         var name = baseTypeRef.Name.Lexeme;
 
@@ -156,9 +156,9 @@ internal sealed class BaseTypeResolver
             var arityName = $"{name}<{commas}>";
 
             var definition = typeResolver.ResolveNamedType(arityName, typeDef.Scope, baseTypeRef);
-            if(definition is null)
+            if(definition is ErrorType)
             {
-                return null;
+                return ErrorType.Instance;
             }
 
             var typeArgs = typeResolver.ResolveTypeArguments(typeArgList, typeDef.Scope);

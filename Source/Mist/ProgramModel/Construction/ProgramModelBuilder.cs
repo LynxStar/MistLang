@@ -97,6 +97,10 @@ public sealed class ProgramModelBuilder
         var extensionBuilder = new ExtensionBuilder(context, typeResolver);
         extensionBuilder.BuildAll();
 
+        // Phase 2c: Resolve retroactive conformance declarations (with blocks).
+        var conformanceBuilder = new ConformanceBuilder(context, typeResolver);
+        conformanceBuilder.BuildAll();
+
         return programModel;
     }
 

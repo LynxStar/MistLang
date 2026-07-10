@@ -716,14 +716,42 @@ public static class ParserEmitter
             case TokenRefIR tokenRef:
                 {
                     var kind = TokenKindRef(tokenRef.Token.Name);
-                    if(withCheck)
+                    var propName = PascalCase(tokenRef.Token.Name);
+
+                    // Only capture if this property name hasn't been captured yet
+                    // (handles cases like multiple COMMA tokens in a rule)
+                    if(!assignedProps.Any(p => p.PropName == propName))
                     {
-                        writer.WriteLine($"if ({okVar} && Peek() != (int){kind}) {okVar} = false;");
-                        writer.WriteLine($"if ({okVar}) Eat();");
+                        var localVar = "_" + propName;
+                        if(withCheck)
+                        {
+                            writer.WriteLine($"Token {localVar} = default;");
+                            writer.WriteBlock($"if ({okVar})", () =>
+                            {
+                                writer.WriteLine($"var _raw = Match((int){kind});");
+                                writer.WriteBlock("if (_raw == null)", () => writer.WriteLine($"{okVar} = false;"));
+                                writer.WriteLine($"else {localVar} = _raw.Value;");
+                            });
+                        }
+                        else
+                        {
+                            writer.WriteLine($"var {localVar} = Require((int){kind});");
+                        }
+
+                        assignedProps.Add((propName, localVar));
                     }
                     else
                     {
-                        writer.WriteLine($"Require((int){kind});");
+                        // Duplicate token — just consume without capturing
+                        if(withCheck)
+                        {
+                            writer.WriteLine($"if ({okVar} && Peek() != (int){kind}) {okVar} = false;");
+                            writer.WriteLine($"if ({okVar}) Eat();");
+                        }
+                        else
+                        {
+                            writer.WriteLine($"Require((int){kind});");
+                        }
                     }
 
                     break;
@@ -878,6 +906,41 @@ public static class ParserEmitter
                         writer.WriteLine($"var {ruleBuilderVar} = ImmutableArray.CreateBuilder<{nodeType}>();");
                     }
 
+                    // Detect unlabeled TokenRefIR inside the star's inner expression that needs
+                    // list accumulation. Uses the LAST TokenRefIR in a sequence, matching the
+                    // AstEmitter.GetPropertyInfoForList behavior which picks the last token
+                    // for the list property name. Only applies when there is NO RuleRefIR in
+                    // the sequence (if a RuleRef exists, the AST uses it for the list property
+                    // and tokens are treated as separators).
+                    TokenRefIR? starTokenRef = null;
+                    if(starRuleRef == null)
+                    {
+                        if(star.Inner is SequenceIR starTokSeq)
+                        {
+                            starTokenRef = starTokSeq.Elements.OfType<TokenRefIR>().LastOrDefault();
+                        }
+                        else if(star.Inner is TokenRefIR directTokRef)
+                        {
+                            starTokenRef = directTokRef;
+                        }
+                    }
+
+                    string? tokenBuilderVar = null;
+                    string? tokenParsedVar = null;
+                    string? tokenPropName = null;
+                    // Only the unlabeled case is handled here. When the repeated token
+                    // is labeled, the tokenListLabels path above already accumulates and
+                    // finalizes it under the label's property name; the token-derived
+                    // list property (if the AST emitter also generates one) is left at
+                    // its default empty value, matching the historical behavior.
+                    if(starTokenRef != null && !labelMap.ContainsKey(starTokenRef))
+                    {
+                        tokenPropName = PascalCase(starTokenRef.Token.Name) + "s";
+                        tokenBuilderVar = "_" + tokenPropName + "Builder";
+                        tokenParsedVar = "_starParsed" + PascalCase(starTokenRef.Token.Name);
+                        writer.WriteLine($"var {tokenBuilderVar} = ImmutableArray.CreateBuilder<Token>();");
+                    }
+
                     // Position-progress loop with ok flag: keep parsing while making progress
                     writer.WriteBlock("while (!_hasError)", () =>
                     {
@@ -906,6 +969,12 @@ public static class ParserEmitter
                         {
                             writer.WriteBlock($"if ({scalarVar} != null)", () => writer.WriteLine($"{builderVar}.Add({scalarVar}.Value);"));
                         }
+
+                        // Accumulate unlabeled tokens into their builder
+                        if(tokenBuilderVar != null && tokenParsedVar != null)
+                        {
+                            writer.WriteBlock($"if ({tokenParsedVar} != null)", () => writer.WriteLine($"{tokenBuilderVar}.Add({tokenParsedVar}.Value);"));
+                        }
                     });
 
                     // Finalize the rule-ref builder and add to assignedProps
@@ -923,6 +992,14 @@ public static class ParserEmitter
                         var finalVar = "_" + propName + "List";
                         writer.WriteLine($"var {finalVar} = {builderVar}.ToImmutable();");
                         assignedProps.Add((propName, finalVar));
+                    }
+
+                    // Finalize the unlabeled token list builder and add to assignedProps
+                    if(tokenBuilderVar != null && tokenPropName != null)
+                    {
+                        var tokenFinalVar = "_" + tokenPropName;
+                        writer.WriteLine($"var {tokenFinalVar} = {tokenBuilderVar}.ToImmutable();");
+                        assignedProps.Add((tokenPropName, tokenFinalVar));
                     }
 
                     break;
@@ -1201,14 +1278,19 @@ public static class ParserEmitter
             case TokenRefIR tokenRef:
                 {
                     var kind = TokenKindRef(tokenRef.Token.Name);
+                    var parsedVar = "_starParsed" + PascalCase(tokenRef.Token.Name);
                     if(withCheck)
                     {
-                        writer.WriteLine($"if ({okVar} && Peek() != (int){kind}) {okVar} = false;");
-                        writer.WriteLine($"if ({okVar}) Eat();");
+                        writer.WriteLine($"Token? {parsedVar} = null;");
+                        writer.WriteBlock($"if ({okVar})", () =>
+                        {
+                            writer.WriteLine($"{parsedVar} = Match((int){kind});");
+                            writer.WriteBlock($"if ({parsedVar} == null)", () => writer.WriteLine($"{okVar} = false;"));
+                        });
                     }
                     else
                     {
-                        writer.WriteLine($"Require((int){kind});");
+                        writer.WriteLine($"var {parsedVar} = Require((int){kind});");
                     }
 
                     break;

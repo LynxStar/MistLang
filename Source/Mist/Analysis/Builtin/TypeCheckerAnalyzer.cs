@@ -12989,15 +12989,37 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     }
 
                     // Fallback: search all symbols for a matching type name.
+                    // This lookup is namespace-blind and import-blind. When more than
+                    // one type shares the bare name it cannot safely choose the
+                    // intended one, so it returns ErrorType instead of guessing. A
+                    // wrong guess resolves the reference to an unrelated same-named
+                    // type and produces spurious diagnostics (e.g. a generic 'default'
+                    // constraint checked against the wrong type). Treating the
+                    // ambiguous case as unresolved leaves downstream checks suppressed,
+                    // matching the prior behavior for these references. A single
+                    // unambiguous match is still resolved.
                     var typeName = ExtractTypeName(namedRef);
+                    ISymbol? matchedSymbol = null;
                     foreach(var sym in model.AllSymbols)
                     {
                         if(sym.Name == typeName && sym.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.TypeAlias)
                         {
-                            var declaredType = sym.DeclaredType ?? ErrorType.Instance;
-                            return ResolveTypeAliasMaybeGeneric(
-                                declaredType, namedRef, model, diagnostics);
+                            if(matchedSymbol is not null)
+                            {
+                                // Ambiguous bare-name match across namespaces:
+                                // cannot resolve safely.
+                                return ErrorType.Instance;
+                            }
+
+                            matchedSymbol = sym;
                         }
+                    }
+
+                    if(matchedSymbol is not null)
+                    {
+                        var declaredType = matchedSymbol.DeclaredType ?? ErrorType.Instance;
+                        return ResolveTypeAliasMaybeGeneric(
+                            declaredType, namedRef, model, diagnostics);
                     }
 
                     return ErrorType.Instance;

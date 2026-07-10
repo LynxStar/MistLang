@@ -41,7 +41,8 @@ internal sealed class IndexerBuilder
 
         if(modifiers.IsIntrinsic)
         {
-            ValidateIntrinsic(indexerDecl, memberType);
+            var typeIsIntrinsic = memberType is ConcreteType concrete && concrete.IsIntrinsic;
+            IntrinsicMemberValidation.Validate(typeIsIntrinsic, memberType.Name, modifiers.IsPublic, indexerDecl, context.Diagnostics);
         }
 
         // Auto-accessors (get; / set;) are valid on indexers only in abstract
@@ -150,16 +151,6 @@ internal sealed class IndexerBuilder
         }
 
         return accessorBuilder.BuildSetter(exprSet.AccessorModifier, "indexer", exprSet, isAbstract, isAuto: false, isInit: false, body: null, expression: exprSet.Expression);
-    }
-
-    private void ValidateIntrinsic(IndexerDeclarationNode indexerDecl, MemberType memberType)
-    {
-        var typeIsIntrinsic = memberType is ConcreteType concrete && concrete.IsIntrinsic;
-
-        if(!typeIsIntrinsic)
-        {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicRequiresIntrinsicType, indexerDecl, null, memberType.Name);
-        }
     }
 
     private PropertyAccessor? RejectInitAccessor(Storm.Runtime.SyntaxNode locationNode)

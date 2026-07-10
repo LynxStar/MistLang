@@ -51,7 +51,11 @@ internal sealed class PropertyBuilder
 
         if(modifiers.IsIntrinsic)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicNotValidOnMember, exprProp, null, "properties");
+            IntrinsicMemberValidation.Validate(host.IsIntrinsic, host.Name, modifiers.IsPublic, exprProp, context.Diagnostics);
+
+            // An expression-bodied property supplies a getter body, so it can never
+            // be a valid intrinsic (backend-provided) property.
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicMemberCannotHaveBody, exprProp, null, name);
         }
 
         var getter = new PropertyAccessor { ExpressionBody = new Expression(exprProp.Body) };
@@ -74,7 +78,7 @@ internal sealed class PropertyBuilder
 
         if(modifiers.IsIntrinsic)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicNotValidOnMember, blockProp, null, "properties");
+            IntrinsicMemberValidation.Validate(host.IsIntrinsic, host.Name, modifiers.IsPublic, blockProp, context.Diagnostics);
         }
 
         PropertyAccessor? getter = null;
@@ -88,6 +92,18 @@ internal sealed class PropertyBuilder
             {
                 context.Diagnostics.ReportAtNode(
                     ProgramModelDiagnostics.ExtensionPropertyCannotHaveAutoAccessor, accessor, null, name);
+            }
+
+            // An intrinsic property is backend-provided: every accessor must be an
+            // auto accessor (get; / set; / init;). A block or expression body means
+            // the developer supplied an implementation, which is not allowed.
+            if(modifiers.IsIntrinsic && accessor is not (
+                AutoGetAccessorAccessorDeclarationNode or
+                AutoSetAccessorAccessorDeclarationNode or
+                AutoInitAccessorAccessorDeclarationNode))
+            {
+                context.Diagnostics.ReportAtNode(
+                    ProgramModelDiagnostics.IntrinsicMemberCannotHaveBody, accessor, null, name);
             }
 
             getter = accessor switch

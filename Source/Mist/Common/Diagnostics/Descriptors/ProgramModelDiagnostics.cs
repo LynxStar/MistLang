@@ -217,6 +217,13 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "Member-level 'intrinsic' is only permitted inside a type that is itself declared 'intrinsic'. Type '{0}' is not intrinsic.");
 
+    /// <summary>An intrinsic field, property, or indexer must be declared public.</summary>
+    public static readonly DiagnosticDescriptor IntrinsicMemberMustBePublic = new(
+        new DiagnosticId("MIST_PM_INTRINSIC_NOT_PUBLIC"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "The 'intrinsic' modifier requires the member to be declared 'public'.");
+
     /// <summary>An indexer cannot use auto-accessors (get; / set;) on a concrete type.</summary>
     public static readonly DiagnosticDescriptor IndexerCannotHaveAutoAccessor = new(
         new DiagnosticId("MIST_PM_INDEXER_AUTO_ACCESSOR"),

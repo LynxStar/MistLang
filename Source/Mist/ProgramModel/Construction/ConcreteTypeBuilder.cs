@@ -131,7 +131,10 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
 
         if(modifiers.IsIntrinsic)
         {
-            Context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicNotValidOnMember, fieldDecl, null, "fields");
+            // An intrinsic field represents backend-provided storage on a built-in
+            // type. It is only meaningful when public (otherwise nothing outside the
+            // type could observe it) and inside an intrinsic type.
+            IntrinsicMemberValidation.Validate(typeDef.IsIntrinsic, typeDef.Name, modifiers.IsPublic, fieldDecl, Context.Diagnostics);
         }
 
         var field = new Field(name, type, ownership, modifiers) { Initializer = initializer };

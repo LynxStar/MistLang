@@ -1,53 +1,5 @@
 # Program Model Backlog
 
-## Accept `intrinsic` on properties, indexers, and fields
-
-The ProgramModel currently rejects the `intrinsic` modifier on any member that
-is not a method or constructor. `PropertyBuilder` emits
-`MIST_PM_INTRINSIC_NOT_VALID` for intrinsic properties, `ConcreteTypeBuilder`
-does the same for fields, and `DelegateResolver` for abstract members:
-
-```csharp
-if(modifiers.IsIntrinsic)
-{
-    context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicNotValidOnMember, blockProp, null, "properties");
-}
-```
-
-The bootstrap standard library relies on intrinsic properties and indexers to
-describe compiler-provided members on built-in types. From
-`Standard/Bootstrap/Array.mist`:
-
-```
-intrinsic public Int32 Length { get; }
-intrinsic public TValue this[ArrayBounds index] { get; set; }
-```
-
-The same shape appears on `Span`, `String`, `Regex`, and `Type`, plus `Current`
-on the nested `Enumerator`. The classic frontend accepts these, so the stdlib
-compiles today; only the new frontend rejects them. This surfaced when running
-the experimental pipeline over the stdlib (intrinsic-on-property errors across
-the bootstrap files).
-
-**Why:**
-- Built-in types (`Array`, `Span`, `String`, and so on) cannot be modeled
-  without intrinsic properties and indexers, which have no body because the
-  compiler supplies the implementation
-- Blocks feeding the standard library through the new frontend at all
-- The distinction between "intrinsic method" and "intrinsic property" is not
-  meaningful for modeling purposes; both are compiler-provided members
-
-**Impact:**
-- `PropertyBuilder` must model an intrinsic property (no accessor bodies,
-  compiler-supplied)
-- Indexer construction needs the same allowance
-- `ConcreteTypeBuilder` field handling must decide whether intrinsic fields are
-  valid (the stdlib does not appear to use them, so this may stay an error -
-  confirm against the grammar and stdlib)
-- The `IntrinsicNotValidOnMember` diagnostic narrows to only the member kinds
-  that genuinely cannot be intrinsic
-
-
 ## Resolve associated and nested member types by simple name
 
 `TypeReferenceResolver.ResolveNamed` cannot resolve a type declared inside

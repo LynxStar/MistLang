@@ -1,0 +1,924 @@
+{
+  "pbtResults": {
+    "5.4 Write property test for alias identity preservation": {
+      "status": "passed",
+      "lastRunTimestamp": 1783736617840
+    },
+    "6.3 Write property test for type kind projection correctness": {
+      "status": "passed",
+      "lastRunTimestamp": 1783737123674
+    },
+    "7.4 Write property test for interface order preservation": {
+      "status": "passed",
+      "lastRunTimestamp": 1783737480354
+    },
+    "7.3 Write property test for base type cache coherence": {
+      "status": "passed",
+      "lastRunTimestamp": 1783737562666
+    },
+    "9.3 Write property test for member projection completeness": {
+      "status": "passed",
+      "lastRunTimestamp": 1783740091631
+    },
+    "10.4 Write property test for constructed type interning": {
+      "status": "passed",
+      "lastRunTimestamp": 1783740701656
+    },
+    "10.3 Write property test for generic arity correctness": {
+      "status": "passed",
+      "lastRunTimestamp": 1783740792186
+    },
+    "11.3 Write property test for delegate family projection": {
+      "status": "passed",
+      "lastRunTimestamp": 1783741805549
+    },
+    "11.4 Write property test for standard interface mapping": {
+      "status": "passed",
+      "lastRunTimestamp": 1783741848074
+    },
+    "12.3 Write property test for nested type key format": {
+      "status": "passed",
+      "lastRunTimestamp": 1783742141336
+    },
+    "15.1 Write integration tests: alias resolution and reference equality": {
+      "status": "passed",
+      "lastRunTimestamp": 1783742650285
+    },
+    "15.5 Write property test for alias substitution in member signatures": {
+      "status": "passed",
+      "lastRunTimestamp": 1783742688892
+    }
+  },
+  "executionHistory": {
+    "1.1 Create `IAmbientTypeProvider.cs` in `Source/Mist/ProgramModel/Contracts/`": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030186
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735038451
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735447439
+      }
+    ],
+    "1.2 Create `AmbientExtensionMethodInfo` record for V2 in `Source/Mist/ProgramModel/Contracts/`": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030228
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735039454
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735448473
+      }
+    ],
+    "1.3 Add `TypeOrigin` enum/property to the ProgramModel type system": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030264
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735040283
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735449643
+      }
+    ],
+    "2.1 Add `IAmbientTypeProvider?` dependency to `TypeReferenceResolver`": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030289
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735472823
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735654409
+      }
+    ],
+    "2.2 Implement peer-source candidate collection in `LookupInNamespace`": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030311
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735662009
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783736053832
+      }
+    ],
+    "2.3 Wire ambient provider through `BuilderContext` and `ProgramModelBuilder`": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030337
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783736061032
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783736295434
+      }
+    ],
+    "3. Checkpoint - Ensure build succeeds with no regressions": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030369
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783744256893
+      }
+    ],
+    "4.1 Create `VisibilityFilterV2.cs` in `Source/Mist/Backends/CSharpTranspiler/`": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030397
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735474346
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735655425
+      }
+    ],
+    "4.2 Write unit tests for VisibilityFilterV2": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030419
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735662773
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783736052987
+      }
+    ],
+    "5.1 Create the alias map infrastructure in `AmbientTypeProviderV2.cs`": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030444
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735663714
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783736052234
+      }
+    ],
+    "5.2 Implement namespace index construction": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030471
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783736061859
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783736296241
+      }
+    ],
+    "5.3 Wire assembly loading into AmbientTypeProviderV2": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030496
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783736062658
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783736297069
+      }
+    ],
+    "5.4 Write property test for alias identity preservation": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030522
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783736311246
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783736759656
+      }
+    ],
+    "6.1 Create `TypeProjectorV2.cs` in `Source/Mist/Backends/CSharpTranspiler/`": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030546
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783736312130
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783736760699
+      }
+    ],
+    "6.2 Implement projection cache and lazy projection flow": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030570
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783736767967
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783736898890
+      }
+    ],
+    "6.3 Write property test for type kind projection correctness": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030593
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783736905741
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783737135861
+      }
+    ],
+    "7.1 Implement base type resolution in TypeProjectorV2": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030614
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783736906533
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783737136565
+      }
+    ],
+    "7.2 Implement interface resolution in TypeProjectorV2": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030636
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783737143428
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783737249317
+      }
+    ],
+    "7.3 Write property test for base type cache coherence": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030662
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783737256075
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783737576651
+      }
+    ],
+    "7.4 Write property test for interface order preservation": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030686
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783737256738
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783737576804
+      }
+    ],
+    "8. Checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030711
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783744260972
+      }
+    ],
+    "9.1 Implement method and constructor projection in TypeProjectorV2": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030736
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783737257696
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783737577412
+      }
+    ],
+    "9.2 Implement property, field, indexer, and operator projection in TypeProjectorV2": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030755
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783737584818
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783737766787
+      }
+    ],
+    "9.3 Write property test for member projection completeness": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030779
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783737775463
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783740108432
+      }
+    ],
+    "10.1 Implement generic type definition projection": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030803
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783737776198
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783740107512
+      }
+    ],
+    "10.2 Implement constructed type creation and method-level generics": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030828
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783740115289
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783740553921
+      }
+    ],
+    "10.3 Write property test for generic arity correctness": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030852
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783740558476
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783741052991
+      }
+    ],
+    "10.4 Write property test for constructed type interning": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030877
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783740559196
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783741053874
+      }
+    ],
+    "11.1 Implement Func/Action delegate projection": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030902
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783740559983
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783741054677
+      }
+    ],
+    "11.2 Implement Nullable, IDisposable, ref/in/out, and by-ref return handling": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030928
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783741062373
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783741556540
+      }
+    ],
+    "11.3 Write property test for delegate family projection": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030953
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783741560454
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783741905193
+      }
+    ],
+    "11.4 Write property test for standard interface mapping": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030972
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783741561242
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783741905948
+      }
+    ],
+    "12.1 Implement nested type projection": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735030997
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783741561962
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783741906728
+      }
+    ],
+    "12.2 Implement extension method scanning via `AmbientExtensionScanner` adaptation": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735031022
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783741914082
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783742009148
+      }
+    ],
+    "12.3 Write property test for nested type key format": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735031047
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783742018150
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783742315729
+      }
+    ],
+    "13. Checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735031071
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783744264825
+      }
+    ],
+    "14.1 Integrate AmbientTypeProviderV2 into `ExperimentalPipeline`": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735031097
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783742018895
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783742316464
+      }
+    ],
+    "14.2 Verify empty-program baseline still produces zero diagnostics": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735031121
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783742324438
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783742435120
+      }
+    ],
+    "15.1 Write integration tests: alias resolution and reference equality": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735031144
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783742440446
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783743491697
+      }
+    ],
+    "15.2 Write integration tests: type projection inserts into ProgramModel": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735031168
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783742441112
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783743492734
+      }
+    ],
+    "15.3 Write integration tests: visibility filtering": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735031194
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783742441874
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783743493327
+      }
+    ],
+    "15.4 Write integration tests: unresolvable inheritance hides type": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735031219
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783742442687
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783743494153
+      }
+    ],
+    "15.5 Write property test for alias substitution in member signatures": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735031244
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783742443516
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783743495179
+      }
+    ],
+    "15.6 Write concurrency test: parallel resolution produces same references": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735031270
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783743499905
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783743672169
+      }
+    ],
+    "16.1 Run existing sample programs through the experimental pipeline": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735031305
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783743682396
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783744123661
+      }
+    ],
+    "16.2 Validate AllFeatures sample ingestion as exit criterion": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735031327
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783744127671
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783744247045
+      }
+    ],
+    "17. Final checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735031352
+      },
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783744269144
+      }
+    ],
+    "1. Define IAmbientTypeProvider interface and supporting types": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783735449668
+      }
+    ],
+    "4. Implement VisibilityFilterV2": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783736053016
+      }
+    ],
+    "2. Implement peer-source resolution in TypeReferenceResolver": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783736295469
+      }
+    ],
+    "5. Implement alias map and namespace index": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783736759753
+      }
+    ],
+    "6. Implement type kind projection": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783737135891
+      }
+    ],
+    "7. Implement base type and interface resolution": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783737576837
+      }
+    ],
+    "9. Implement member projection": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783740108486
+      }
+    ],
+    "10. Implement generic type projection": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783741053916
+      }
+    ],
+    "11. Implement Func/Action and special type handling": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783741905988
+      }
+    ],
+    "12. Implement nested type and extension method support": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783742315770
+      }
+    ],
+    "14. Wire provider into the experimental pipeline": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783742435159
+      }
+    ],
+    "15. Integration testing with real assemblies": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783743672200
+      }
+    ],
+    "16. Sample ingestion validation": [
+      {
+        "executionId": "83c493c3-4760-4ee0-a832-3a142b07c4ab",
+        "chatSessionId": "sess_0da53da1-b271-4c9f-869f-07a6c1526709",
+        "timestamp": 1783744247087
+      }
+    ]
+  }
+}

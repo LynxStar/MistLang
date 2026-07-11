@@ -9,13 +9,18 @@ namespace Mist.ProgramModel.Model;
 internal sealed class Indexer(
     IMistType type,
     List<Parameter> parameters,
-    MemberModifiers modifiers) : IIndexer
+    MemberModifiers modifiers) : IIndexer, IHasAttributes
 {
     public IMistType Type { get; } = type;
 
     public List<Parameter> ParametersList { get; } = parameters;
 
     public MemberModifiers Modifiers { get; } = modifiers;
+
+    /// <summary>
+    /// The attributes applied to this indexer.
+    /// </summary>
+    public List<AttributeData> AttributesList { get; } = [];
 
     /// <summary>
     /// The getter accessor, or null if the indexer has no getter.
@@ -28,4 +33,5 @@ internal sealed class Indexer(
     public PropertyAccessor? Setter { get; init; }
 
     IReadOnlyList<IParameter> IIndexer.Parameters => ParametersList;
+    IReadOnlyList<AttributeData> IHasAttributes.Attributes => AttributesList;
 }

@@ -9,13 +9,18 @@ namespace Mist.ProgramModel.Model;
 internal sealed class Property(
     string name,
     IMistType type,
-    MemberModifiers modifiers) : IProperty
+    MemberModifiers modifiers) : IProperty, IHasAttributes
 {
     public string Name { get; } = name;
 
     public IMistType Type { get; } = type;
 
     public MemberModifiers Modifiers { get; } = modifiers;
+
+    /// <summary>
+    /// The attributes applied to this property.
+    /// </summary>
+    public List<AttributeData> AttributesList { get; } = [];
 
     /// <summary>
     /// The getter accessor, or null if the property has no getter.
@@ -31,4 +36,6 @@ internal sealed class Property(
     /// The property initializer expression, or null if none.
     /// </summary>
     public Expression? Initializer { get; init; }
+
+    IReadOnlyList<AttributeData> IHasAttributes.Attributes => AttributesList;
 }

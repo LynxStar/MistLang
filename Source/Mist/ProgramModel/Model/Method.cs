@@ -11,7 +11,7 @@ internal class Method(
     string name,
     IMistType returnType,
     List<Parameter> parameters,
-    MemberModifiers modifiers) : IMethod
+    MemberModifiers modifiers) : IMethod, IHasAttributes
 {
     public string Name { get; } = name;
 
@@ -20,6 +20,11 @@ internal class Method(
     public List<Parameter> ParametersList { get; } = parameters;
 
     public MemberModifiers Modifiers { get; } = modifiers;
+
+    /// <summary>
+    /// The attributes applied to this method.
+    /// </summary>
+    public List<AttributeData> AttributesList { get; } = [];
 
     /// <summary>
     /// The type parameters declared on this method. Empty for non-generic methods.
@@ -58,4 +63,5 @@ internal class Method(
     IReadOnlyList<IContextBinding> IMethod.ContextBindings => ContextBindingsList;
     IReadOnlyList<IParameter> IMethod.Parameters => ParametersList;
     ThisTier? IMethod.DeclaredThisTier => DeclaredThisTier;
+    IReadOnlyList<AttributeData> IHasAttributes.Attributes => AttributesList;
 }

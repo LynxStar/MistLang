@@ -7,8 +7,13 @@ namespace Mist.ProgramModel.Model.Types;
 /// A type parameter declared on a generic type. This is itself a type — it can
 /// appear in base clauses, member signatures, and anywhere a type reference resolves.
 /// Lives in its declaring type's scope; does not participate in namespace registration.
+///
+/// A regular type parameter is closed by supplying a type argument at the use site.
+/// The <see cref="TypeSlot"/> subclass is a more specific kind that is closed by
+/// conformance instead — and, unlike a plain type parameter, may declare its own
+/// type parameters.
 /// </summary>
-internal sealed class TypeParameter : MistType, ITypeParameter
+internal class TypeParameter : MistType, ITypeParameter
 {
     public TypeParameter(
         string name,

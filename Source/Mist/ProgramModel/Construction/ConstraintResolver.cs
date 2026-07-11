@@ -99,7 +99,7 @@ internal sealed class ConstraintResolver
             return;
         }
 
-        ResolveConstraintList(generic.Constraints, target, scope);
+        ResolveConstraintList(generic.Constraints, target.ConstraintsList, scope);
     }
 
     /// <summary>
@@ -156,10 +156,11 @@ internal sealed class ConstraintResolver
     }
 
     /// <summary>
-    /// Resolves a <see cref="ConstraintListNode"/> and adds all constraints
-    /// to the target type parameter.
+    /// Resolves a <see cref="ConstraintListNode"/> and adds all constraints to the
+    /// given target collection. Shared by type-parameter <c>where</c> clauses and by
+    /// a type slot's own (<c>:</c>) bound.
     /// </summary>
-    private void ResolveConstraintList(ConstraintListNode constraintList, TypeParameter target, Scope scope)
+    internal void ResolveConstraintList(ConstraintListNode constraintList, List<TypeParameterConstraint> target, Scope scope)
     {
         ResolveConstraint(constraintList.Constraint, target, scope);
 
@@ -170,9 +171,9 @@ internal sealed class ConstraintResolver
     }
 
     /// <summary>
-    /// Resolves a single constraint node and adds it to the target type parameter.
+    /// Resolves a single constraint node and adds it to the target collection.
     /// </summary>
-    private void ResolveConstraint(ConstraintNode constraint, TypeParameter target, Scope scope)
+    private void ResolveConstraint(ConstraintNode constraint, List<TypeParameterConstraint> target, Scope scope)
     {
         TypeParameterConstraint resolved = constraint switch
         {
@@ -190,7 +191,7 @@ internal sealed class ConstraintResolver
             _ => throw new InvalidOperationException($"Unrecognized constraint node: {constraint.GetType().Name}")
         };
 
-        target.ConstraintsList.Add(resolved);
+        target.Add(resolved);
     }
 
     /// <summary>

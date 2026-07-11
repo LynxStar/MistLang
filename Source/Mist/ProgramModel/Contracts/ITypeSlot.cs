@@ -1,16 +1,23 @@
-using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Contracts.Types;
 
 namespace Mist.ProgramModel.Contracts;
 
 /// <summary>
-/// A type slot declared on an abstract type. Conforming types must supply
-/// a concrete type that satisfies the slot's constraints.
+/// An associated type slot declared on an abstract type. A slot is a more
+/// specific kind of <see cref="ITypeParameter"/>: it is closed by conformance
+/// (an implementing type supplies the concrete type) rather than by a type
+/// argument supplied at the use site, and — unlike a plain type parameter — it
+/// may declare its own type parameters.
+///
+/// The slot's own constraints (the <c>:</c> bound) live on the inherited
+/// <see cref="ITypeParameter.Constraints"/>; constraints on the slot's own type
+/// parameters live on those parameters.
 /// </summary>
-public interface ITypeSlot
+public interface ITypeSlot : ITypeParameter
 {
-    /// <summary>The name of the type slot.</summary>
-    string Name { get; }
-
-    /// <summary>The modifiers declared on this type slot.</summary>
-    MemberModifiers Modifiers { get; }
+    /// <summary>
+    /// The type parameters declared on this slot itself (e.g. <c>T</c> in
+    /// <c>type Foo&lt;T&gt;;</c>). Empty for a non-generic slot.
+    /// </summary>
+    IReadOnlyList<ITypeParameter> TypeParameters { get; }
 }

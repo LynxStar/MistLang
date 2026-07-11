@@ -15,7 +15,7 @@ internal sealed class AbstractTypeBuilder : MemberTypeBuilder
     public AbstractTypeBuilder(BuilderContext context, TypeReferenceResolver typeResolver)
         : base(context, typeResolver)
     {
-        typeSlotBuilder = new TypeSlotBuilder(context);
+        typeSlotBuilder = new TypeSlotBuilder(context, ConstraintResolver);
     }
 
     /// <summary>
@@ -47,6 +47,18 @@ internal sealed class AbstractTypeBuilder : MemberTypeBuilder
     {
         var body = (BodyTypeTypeDeclarationNode)typeDef.DeclarationNode;
 
+        // First pass: register associated type slots as types in the abstract's
+        // scope so members can reference them by simple name regardless of the
+        // order in which they are declared.
+        foreach(var member in body.TypeBody.Members)
+        {
+            if(member is AssociatedTypeMemberMemberDeclarationNode assocType)
+            {
+                typeSlotBuilder.Resolve(assocType.AssociatedType, typeDef);
+            }
+        }
+
+        // Second pass: resolve the remaining member signatures.
         foreach(var member in body.TypeBody.Members)
         {
             ResolveMember(member, typeDef);
@@ -76,8 +88,8 @@ internal sealed class AbstractTypeBuilder : MemberTypeBuilder
                 OperatorBuilder.Resolve(opMember.Operator, typeDef);
                 break;
 
-            case AssociatedTypeMemberMemberDeclarationNode assocType:
-                typeSlotBuilder.Resolve(assocType.AssociatedType, typeDef);
+            case AssociatedTypeMemberMemberDeclarationNode:
+                // Type slots are registered in the pre-pass in BuildMembers.
                 break;
 
             case NestedBodyTypeMemberMemberDeclarationNode:

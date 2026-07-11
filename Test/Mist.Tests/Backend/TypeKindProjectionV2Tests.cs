@@ -118,7 +118,7 @@ public sealed class TypeKindProjectionV2Tests
             var result = projector.CreateTypeShell(clrType, "TestNamespace");
 
             Assert.NotNull(result);
-            Assert.Equal(TypeOrigin.Assembly, result!.Origin);
+            Assert.Equal(TypeOrigin.Ambient, result!.Origin);
         }
     }
 }

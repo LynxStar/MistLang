@@ -26,4 +26,9 @@ public interface IMistType
     /// Nested types declared within this type.
     /// </summary>
     IReadOnlyList<IMistType> NestedTypes { get; }
+
+    /// <summary>
+    /// Indicates whether this type was declared in source code or projected from an assembly.
+    /// </summary>
+    TypeOrigin Origin { get; }
 }

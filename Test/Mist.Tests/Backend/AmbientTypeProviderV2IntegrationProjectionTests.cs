@@ -1,10 +1,10 @@
 // ambient-type-provider-v2, Property 6: Projection inserts into ProgramModel namespace
-// ambient-type-provider-v2, Property 13: TypeOrigin.Assembly assignment
+// ambient-type-provider-v2, Property 13: TypeOrigin.Ambient assignment
 //
 // **Validates: Requirements 2.6, 2.8, 7.1**
 //
 // Load BCL assemblies, create AmbientTypeProviderV2, call ResolveType for known BCL types,
-// then verify projected types appear in programModel.Namespaces and carry TypeOrigin.Assembly.
+// then verify projected types appear in programModel.Namespaces and carry TypeOrigin.Ambient.
 // No process spawning.
 
 using System.Collections.Immutable;
@@ -21,7 +21,7 @@ namespace Mist.Tests.Backend;
 /// <summary>
 /// Integration tests verifying that <see cref="AmbientTypeProviderV2.ResolveType"/>
 /// inserts projected types into <c>programModel.Namespaces[ns].Types[name]</c> and
-/// assigns <see cref="TypeOrigin.Assembly"/> to all projected types.
+/// assigns <see cref="TypeOrigin.Ambient"/> to all projected types.
 /// </summary>
 public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposable
 {
@@ -186,7 +186,7 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Property 13: TypeOrigin.Assembly assignment
+    // Property 13: TypeOrigin.Ambient assignment
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
@@ -197,7 +197,7 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
 
         // Assert
         Assert.NotNull(resolved);
-        Assert.Equal(TypeOrigin.Assembly, resolved!.Origin);
+        Assert.Equal(TypeOrigin.Ambient, resolved!.Origin);
     }
 
     [Fact]
@@ -206,7 +206,7 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
         var resolved = provider.ResolveType("System.IO", "MemoryStream", programModel);
 
         Assert.NotNull(resolved);
-        Assert.Equal(TypeOrigin.Assembly, resolved!.Origin);
+        Assert.Equal(TypeOrigin.Ambient, resolved!.Origin);
     }
 
     [Fact]
@@ -215,7 +215,7 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
         var resolved = provider.ResolveType("System.Collections.Generic", "List`1", programModel);
 
         Assert.NotNull(resolved);
-        Assert.Equal(TypeOrigin.Assembly, resolved!.Origin);
+        Assert.Equal(TypeOrigin.Ambient, resolved!.Origin);
     }
 
     [Fact]
@@ -224,7 +224,7 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
         var resolved = provider.ResolveType("System", "IDisposable", programModel);
 
         Assert.NotNull(resolved);
-        Assert.Equal(TypeOrigin.Assembly, resolved!.Origin);
+        Assert.Equal(TypeOrigin.Ambient, resolved!.Origin);
     }
 
     [Fact]
@@ -233,7 +233,7 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
         var resolved = provider.ResolveType("System", "DateTime", programModel);
 
         Assert.NotNull(resolved);
-        Assert.Equal(TypeOrigin.Assembly, resolved!.Origin);
+        Assert.Equal(TypeOrigin.Ambient, resolved!.Origin);
     }
 
     [Fact]
@@ -242,7 +242,7 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
         var resolved = provider.ResolveType("System", "DayOfWeek", programModel);
 
         Assert.NotNull(resolved);
-        Assert.Equal(TypeOrigin.Assembly, resolved!.Origin);
+        Assert.Equal(TypeOrigin.Ambient, resolved!.Origin);
     }
 
     [Fact]
@@ -269,7 +269,7 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
         var resolved = provider.ResolveType(ns, typeName, programModel);
 
         Assert.NotNull(resolved);
-        Assert.Equal(TypeOrigin.Assembly, resolved!.Origin);
+        Assert.Equal(TypeOrigin.Ambient, resolved!.Origin);
     }
 
     [Theory]

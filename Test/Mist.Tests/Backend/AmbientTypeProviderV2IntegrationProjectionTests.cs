@@ -42,7 +42,7 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
             "Int32", "Int64", "Int16", "Byte", "SByte",
             "UInt32", "UInt64", "UInt16", "Single", "Double", "Decimal",
             "String", "Boolean", "Char", "Void",
-            "Task", "ValueTask"
+            "Task", "Task<>", "ValueTask", "ValueTask<>"
         };
 
         foreach(var name in standardTypes)

@@ -44,6 +44,14 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
         stdNs.Types["Func<,,>"] = funcArity3;
         stdNs.Types["Void"] = voidType;
 
+        // Register Standard.Action type aliases
+        var action = new ClassType("Action", "Standard", scope, null, null);
+        var actionArity1 = new ClassType("Action<>", "Standard", scope, null, null);
+        var actionArity2 = new ClassType("Action<,>", "Standard", scope, null, null);
+        stdNs.Types["Action"] = action;
+        stdNs.Types["Action<>"] = actionArity1;
+        stdNs.Types["Action<,>"] = actionArity2;
+
         provider = new AmbientTypeProviderV2(
             ImmutableArray<Mist.Driver.LoadedAssemblyInfo>.Empty,
             programModel.TypeInterner,
@@ -92,44 +100,42 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
     }
 
     [Fact]
-    public void ResolveType_SystemAction_ReturnsConstructedTypeWithVoidArg()
+    public void ResolveType_SystemAction_ReturnsStandardAction()
     {
-        // System.Action (non-generic) → ConstructedType(Standard.Func<>, [Standard.Void])
+        // System.Action (non-generic) → Standard.Action (type alias for Func<void>)
         var resolved = provider.ResolveType("System", "Action", programModel);
 
         Assert.NotNull(resolved);
-        var constructed = Assert.IsAssignableFrom<IConstructedType>(resolved!);
+        var expected = programModel.Namespaces["Standard"].Types["Action"];
         Assert.True(
-            ReferenceEquals(constructed.Definition, funcArity1),
-            "Action (non-generic) should use Standard.Func<> as the definition.");
-        _ = Assert.Single(constructed.TypeArguments);
-        Assert.True(
-            ReferenceEquals(constructed.TypeArguments[0], voidType),
-            "Action (non-generic) should have Standard.Void as the sole type argument.");
+            ReferenceEquals(resolved, expected),
+            "ResolveType(\"System\", \"Action\") should return the Standard.Action type alias.");
     }
 
     [Fact]
-    public void ResolveType_SystemActionArity1_ReturnsStandardFuncArity2Definition()
+    public void ResolveType_SystemActionArity1_ReturnsStandardActionArity1()
     {
-        // System.Action`1 (Action<T>) → Standard.Func<,> definition (arity+1)
+        // System.Action`1 (Action<T>) → Standard.Action<>
         var resolved = provider.ResolveType("System", "Action`1", programModel);
 
         Assert.NotNull(resolved);
+        var expected = programModel.Namespaces["Standard"].Types["Action<>"];
         Assert.True(
-            ReferenceEquals(resolved, funcArity2),
-            "ResolveType(\"System\", \"Action`1\") should return the Standard.Func<,> definition (arity N+1 = 2).");
+            ReferenceEquals(resolved, expected),
+            "ResolveType(\"System\", \"Action`1\") should return Standard.Action<>.");
     }
 
     [Fact]
-    public void ResolveType_SystemActionArity2_ReturnsStandardFuncArity3Definition()
+    public void ResolveType_SystemActionArity2_ReturnsStandardActionArity2()
     {
-        // System.Action`2 (Action<T1, T2>) → Standard.Func<,,> definition (arity+1)
+        // System.Action`2 (Action<T1, T2>) → Standard.Action<,>
         var resolved = provider.ResolveType("System", "Action`2", programModel);
 
         Assert.NotNull(resolved);
+        var expected = programModel.Namespaces["Standard"].Types["Action<,>"];
         Assert.True(
-            ReferenceEquals(resolved, funcArity3),
-            "ResolveType(\"System\", \"Action`2\") should return the Standard.Func<,,> definition (arity N+1 = 3).");
+            ReferenceEquals(resolved, expected),
+            "ResolveType(\"System\", \"Action`2\") should return Standard.Action<,>.");
     }
 
     [Fact]

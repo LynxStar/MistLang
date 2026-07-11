@@ -43,7 +43,7 @@ public sealed class AmbientTypeProviderV2IntegrationAliasTests : IDisposable
             "Int32", "Int64", "Int16", "Byte", "SByte",
             "UInt32", "UInt64", "UInt16", "Single", "Double", "Decimal",
             "String", "Boolean", "Char", "Void",
-            "Task", "ValueTask"
+            "Task", "Task<>", "ValueTask", "ValueTask<>"
         };
 
         var scope = new Scope(null);
@@ -157,13 +157,12 @@ public sealed class AmbientTypeProviderV2IntegrationAliasTests : IDisposable
     [Fact]
     public void ResolveType_CalledTwiceForSameNonAliasedType_ArityOverload_ReturnsSameReference()
     {
-        // Arrange - use the arity-aware overload for Dictionary`2
+        // Arrange - resolve Dictionary with arity notation
         var namespaceName = "System.Collections.Generic";
-        var typeName = "Dictionary";
 
-        // Act - resolve twice with arity
-        var first = provider.ResolveType(namespaceName, typeName, 2, programModel);
-        var second = provider.ResolveType(namespaceName, typeName, 2, programModel);
+        // Act - resolve twice with arity notation
+        var first = provider.ResolveType(namespaceName, "Dictionary<,>", programModel);
+        var second = provider.ResolveType(namespaceName, "Dictionary<,>", programModel);
 
         // Assert - both calls return non-null and reference-equal
         Assert.NotNull(first);

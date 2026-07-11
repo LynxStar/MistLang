@@ -4,9 +4,9 @@
 types:
   class:
     shell:
-      - [ ] name
-      - [ ] namespace
-      - [ ] origin (Ambient)
+      - [x] name
+      - [x] namespace
+      - [x] origin (Ambient)
       - [ ] static (abstract + sealed in CLR) -> Mist static modifier
       - [ ] sealed -> sentinel attribute [Sealed] (no Mist concept)
       - [ ] abstract -> sentinel attribute [Abstract] (C# interfaces are Mist abstract types; C# abstract classes need sentinel)
@@ -111,9 +111,9 @@ types:
 
   struct:
     shell:
-      - [ ] name
-      - [ ] namespace
-      - [ ] origin (Ambient)
+      - [x] name
+      - [x] namespace
+      - [x] origin (Ambient)
       - [ ] ref struct (IsByRefLike) -> Mist ref modifier
       - [ ] readonly struct -> Mist readonly modifier
     type_parameters:
@@ -214,9 +214,9 @@ types:
 
   interface:
     shell:
-      - [ ] name
-      - [ ] namespace
-      - [ ] origin (Ambient)
+      - [x] name
+      - [x] namespace
+      - [x] origin (Ambient)
     type_parameters:
       - [ ] declaration (name, position)
       - [ ] constraints:
@@ -274,9 +274,9 @@ types:
 
   enum:
     shell:
-      - [ ] name
-      - [ ] namespace
-      - [ ] origin (Ambient)
+      - [x] name
+      - [x] namespace
+      - [x] origin (Ambient)
       - [ ] underlying type (int, byte, short, long, uint, ulong, ushort, sbyte)
     members:
       - [ ] name
@@ -297,41 +297,41 @@ extensions:
     - [ ] namespace scoping (only visible when imported)
 
 aliases:
-  - [ ] System.Int32 -> Standard.Int32
-  - [ ] System.Int64 -> Standard.Int64
-  - [ ] System.Int16 -> Standard.Int16
-  - [ ] System.Byte -> Standard.Byte
-  - [ ] System.SByte -> Standard.SByte
-  - [ ] System.UInt32 -> Standard.UInt32
-  - [ ] System.UInt64 -> Standard.UInt64
-  - [ ] System.UInt16 -> Standard.UInt16
-  - [ ] System.Single -> Standard.Single
-  - [ ] System.Double -> Standard.Double
-  - [ ] System.Decimal -> Standard.Decimal
-  - [ ] System.String -> Standard.String
-  - [ ] System.Boolean -> Standard.Boolean
-  - [ ] System.Char -> Standard.Char
-  - [ ] System.Void -> Standard.Void
-  - [ ] System.Threading.Tasks.Task -> Standard.Task
-  - [ ] System.Threading.Tasks.ValueTask -> Standard.ValueTask
+  - [x] System.Int32 -> Standard.Int32
+  - [x] System.Int64 -> Standard.Int64
+  - [x] System.Int16 -> Standard.Int16
+  - [x] System.Byte -> Standard.Byte
+  - [x] System.SByte -> Standard.SByte
+  - [x] System.UInt32 -> Standard.UInt32
+  - [x] System.UInt64 -> Standard.UInt64
+  - [x] System.UInt16 -> Standard.UInt16
+  - [x] System.Single -> Standard.Single
+  - [x] System.Double -> Standard.Double
+  - [x] System.Decimal -> Standard.Decimal
+  - [x] System.String -> Standard.String
+  - [x] System.Boolean -> Standard.Boolean
+  - [x] System.Char -> Standard.Char
+  - [x] System.Void -> Standard.Void
+  - [x] System.Threading.Tasks.Task -> Standard.Task
+  - [x] System.Threading.Tasks.ValueTask -> Standard.ValueTask
 
 delegate_families:
-  - [ ] System.Func`N -> Standard.Func (arity N)
-  - [ ] System.Action -> ConstructedType(Standard.Func<>, [Standard.Void])
-  - [ ] System.Action`N -> Standard.Func (arity N+1)
+  - [x] System.Func`N -> Standard.Func (arity N) [via well-known map]
+  - [x] System.Action -> Standard.Action [via well-known map]
+  - [x] System.Action`N -> Standard.Action (arity N) [via well-known map]
 
 name_format:
-  - [ ] accept Mist arity notation (List<> = arity 1, Dict<,> = arity 2, Foo<,,,> = arity 4)
-  - [ ] translate to CLR notation (List`1, Dict`2, Foo`4) internally
-  - [ ] strip arity suffix from CLR names for Mist registration (List`1 -> List<>, Dictionary`2 -> Dictionary<,>)
+  - [x] accept Mist arity notation (List<> = arity 1, Dict<,> = arity 2, Foo<,,,> = arity 4)
+  - [x] translate to CLR notation (List`1, Dict`2, Foo`4) internally
+  - [x] strip arity suffix from CLR names for Mist registration (List`1 -> List<>, Dictionary`2 -> Dictionary<,>)
   - [ ] handle nested type names (Outer.Inner)
 
 recursion_safety:
   # Types can reference themselves in base types, interfaces, or member signatures.
   # Cache must be populated with a shell BEFORE projecting members to avoid infinite recursion.
-  - [ ] insert shell into cache before member projection
-  - [ ] concurrent access returns same instance (TryAdd race handling)
-  - [ ] rollback on projection failure (remove from cache + namespace)
+  - [x] insert shell into cache before member projection
+  - [x] concurrent access returns same instance (TryAdd race handling)
+  - [x] rollback on projection failure (remove from cache + namespace)
 
 sentinel_attributes:
   # Sentinel attributes are ONLY needed when there is NO existing CLR attribute

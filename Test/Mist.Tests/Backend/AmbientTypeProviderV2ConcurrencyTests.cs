@@ -41,7 +41,7 @@ public sealed class AmbientTypeProviderV2ConcurrencyTests : IDisposable
             "Int32", "Int64", "Int16", "Byte", "SByte",
             "UInt32", "UInt64", "UInt16", "Single", "Double", "Decimal",
             "String", "Boolean", "Char", "Void",
-            "Task", "ValueTask"
+            "Task", "Task<>", "ValueTask", "ValueTask<>"
         };
 
         var scope = new Scope(null);

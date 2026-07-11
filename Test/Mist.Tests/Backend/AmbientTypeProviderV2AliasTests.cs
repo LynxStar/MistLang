@@ -35,7 +35,7 @@ public sealed class AmbientTypeProviderV2AliasTests : IDisposable
             "Int32", "Int64", "Int16", "Byte", "SByte",
             "UInt32", "UInt64", "UInt16", "Single", "Double", "Decimal",
             "String", "Boolean", "Char", "Void",
-            "Task", "ValueTask"
+            "Task", "Task<>", "ValueTask", "ValueTask<>"
         };
 
         var scope = new Scope(null);
@@ -116,8 +116,8 @@ public sealed class AmbientTypeProviderV2AliasTests : IDisposable
     public void ResolveType_ArityAwareOverload_ReturnsReferenceEqualStandardInstance(
         string clrNamespace, string clrTypeName, string expectedMistTypeName)
     {
-        // Aliases are non-generic (arity 0)
-        var resolved = provider.ResolveType(clrNamespace, clrTypeName, 0, programModel);
+        // Aliases are non-generic — resolving the bare name should return the Standard instance
+        var resolved = provider.ResolveType(clrNamespace, clrTypeName, programModel);
 
         Assert.NotNull(resolved);
 
@@ -135,8 +135,14 @@ public sealed class AmbientTypeProviderV2AliasTests : IDisposable
     {
         _ = expectedMistTypeName; // unused in this test variant
 
-        // Aliases should NOT match when arity > 0
-        var resolved = provider.ResolveType(clrNamespace, clrTypeName, 1, programModel);
+        // Task and ValueTask have generic variants that ARE aliased (Task<> -> Standard.Task<>)
+        if(clrTypeName is "Task" or "ValueTask")
+        {
+            return;
+        }
+
+        // All other aliases should NOT match when name has arity notation (generic variant)
+        var resolved = provider.ResolveType(clrNamespace, $"{clrTypeName}<>", programModel);
 
         Assert.Null(resolved);
     }

@@ -23,7 +23,7 @@ public sealed class ProgramModel : IProgramModel
     /// Interns synthetic types (unions, constructed types) so that structurally
     /// identical type references share a single instance throughout the model's lifetime.
     /// </summary>
-    public TypeInterner TypeInterner { get; } = new();
+    internal TypeInterner TypeInterner { get; } = new();
 
     /// <summary>
     /// Retroactive conformance declarations collected during Phase 2c.

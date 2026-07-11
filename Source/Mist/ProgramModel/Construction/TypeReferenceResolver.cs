@@ -1,6 +1,7 @@
 using System.Globalization;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
+using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
@@ -20,10 +21,12 @@ internal sealed class TypeReferenceResolver
     private const string PositionalAccessorPrefix = "Item";
 
     private readonly BuilderContext context;
+    private readonly IAmbientTypeProvider ambientProvider;
 
     public TypeReferenceResolver(BuilderContext context)
     {
         this.context = context;
+        ambientProvider = context.AmbientProvider;
     }
 
     /// <summary>
@@ -461,16 +464,53 @@ internal sealed class TypeReferenceResolver
 
     /// <summary>
     /// Looks up a type by simple name within a specific namespace.
+    /// Queries both the namespace registry and the ambient provider, deduplicating
+    /// by reference equality. Returns null if no candidates exist, the single
+    /// candidate if exactly one is found, or <see cref="ErrorType"/> if two distinct
+    /// candidates produce an ambiguity.
     /// </summary>
     private IMistType? LookupInNamespace(string namespaceName, string typeName)
     {
+        IMistType? registryCandidate = null;
+ 
         var namespaces = context.ProgramModel.Namespaces;
         if(namespaces.TryGetValue(namespaceName, out var ns) && ns.Types.TryGetValue(typeName, out var typeDef))
         {
-            return typeDef;
+            registryCandidate = typeDef;
         }
 
-        return null;
+        var ambientCandidate = ambientProvider.ResolveType(namespaceName, typeName, context.ProgramModel);
+
+        // Deduplicate by reference equality (alias-mapped types collapse to one)
+        if(registryCandidate is null && ambientCandidate is null)
+        {
+            return null;
+        }
+
+        if(registryCandidate is not null && ambientCandidate is null)
+        {
+            return registryCandidate;
+        }
+
+        if(registryCandidate is null && ambientCandidate is not null)
+        {
+            return ambientCandidate;
+        }
+
+        // Both non-null — check reference equality
+        if(ReferenceEquals(registryCandidate, ambientCandidate))
+        {
+            return registryCandidate;
+        }
+
+        // Two distinct candidates → ambiguity
+        context.Diagnostics.Report(
+            ProgramModelDiagnostics.AmbiguousType,
+            default,
+            string.Empty,
+            typeName,
+            namespaceName);
+        return ErrorType.Instance;
     }
 
     /// <summary>

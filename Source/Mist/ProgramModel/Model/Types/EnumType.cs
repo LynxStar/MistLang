@@ -12,13 +12,14 @@ internal sealed class EnumType(
     string namespaceName,
     Scope scope,
     MistType? declaringType,
-    EnumDeclarationNode declarationNode)
+    EnumDeclarationNode? declarationNode)
     : MistType(name, namespaceName, scope, declaringType), IEnumType
 {
     /// <summary>
     /// The AST declaration node, stashed during Phase 1 for Phase 2 resolution.
+    /// Null for assembly-projected types.
     /// </summary>
-    internal EnumDeclarationNode DeclarationNode { get; } = declarationNode;
+    internal EnumDeclarationNode? DeclarationNode { get; } = declarationNode;
 
     /// <summary>
     /// The modifiers declared on this enum type.

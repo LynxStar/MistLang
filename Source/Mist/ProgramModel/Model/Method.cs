@@ -11,7 +11,7 @@ internal class Method(
     string name,
     IMistType returnType,
     List<Parameter> parameters,
-    MemberModifiers modifiers) : IMethod
+    MemberModifiers modifiers) : IMethod, IHasAttributes
 {
     public string Name { get; } = name;
 
@@ -20,6 +20,11 @@ internal class Method(
     public List<Parameter> ParametersList { get; } = parameters;
 
     public MemberModifiers Modifiers { get; } = modifiers;
+
+    /// <summary>
+    /// The attributes applied to this method.
+    /// </summary>
+    public List<AttributeData> AttributesList { get; } = [];
 
     /// <summary>
     /// The type parameters declared on this method. Empty for non-generic methods.
@@ -54,8 +59,28 @@ internal class Method(
     /// </summary>
     public OwnershipKind ReturnOwnership { get; init; }
 
+    /// <summary>
+    /// The ref kind of this method's return type. <see cref="RefKind.Ref"/> for by-ref
+    /// returns, <see cref="RefKind.None"/> for standard return-by-value.
+    /// </summary>
+    public RefKind ReturnRefKind { get; internal set; }
+
+    /// <summary>
+    /// Whether this method is a virtual or abstract slot from a CLR base class.
+    /// Used by the emitter to detect implicit override matches when a Mist-derived
+    /// class defines a method matching a CLR base's protected virtual/abstract slot.
+    /// </summary>
+    public bool IsVirtualOrAbstract { get; internal set; }
+
+    /// <summary>
+    /// The CLR access modifier for protected virtual/abstract methods projected for
+    /// override detection (e.g., "protected", "public"). Null for normal methods.
+    /// </summary>
+    public string? ClrAccessModifier { get; internal set; }
+
     IReadOnlyList<ITypeParameter> IMethod.TypeParameters => TypeParametersList;
     IReadOnlyList<IContextBinding> IMethod.ContextBindings => ContextBindingsList;
     IReadOnlyList<IParameter> IMethod.Parameters => ParametersList;
     ThisTier? IMethod.DeclaredThisTier => DeclaredThisTier;
+    IReadOnlyList<AttributeData> IHasAttributes.Attributes => AttributesList;
 }

@@ -1,5 +1,6 @@
 namespace Attributes;
 
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 
@@ -88,11 +89,77 @@ class Program
         var tests = new MyTests();
         tests.TestAddition();
         tests.TestSum(1, 2, 3);
+
+        // PROOF: Attribute on a parameter - the code compiles and runs
+        var fmt = new Formatter();
+        var formatted = fmt.Format("Hello", 42);
+        Console.WriteLine($"Formatter result: {formatted}");
+
+        // PROOF: Attribute on a property - the code compiles and runs
+        var settings = new Settings(100);
+        Console.WriteLine($"Settings timeout: {settings.Timeout}");
+
+        // PROOF: Attribute on an indexer - the code compiles and runs
+        var table = new LookupTable(3);
+        table[0] = 99;
+        Console.WriteLine($"LookupTable[0]: {table[0]}");
+
         Console.WriteLine("--- Attributes Demo End ---");
     }
 
     public static void Main()
     {
         RunDemo();
+    }
+}
+
+// PROOF: Attribute on a parameter - uses a custom attribute targeting parameters
+class ParamTagAttribute : Attribute
+{
+    public string Tag;
+
+    ParamTagAttribute(string tag)
+    {
+        this.Tag = tag;
+    }
+}
+
+class Formatter
+{
+    public string Format([ParamTag("format-input")] string template, int value)
+    {
+        return $"{template}: {value}";
+    }
+}
+
+// PROOF: Attribute on a property declaration
+class Settings
+{
+    [Obsolete("Use Timeout instead")]
+    public int Delay { get; }
+
+    public int Timeout { get; }
+
+    Settings(int timeout)
+    {
+        this.Timeout = timeout;
+    }
+}
+
+// PROOF: Attribute on an indexer declaration
+class LookupTable
+{
+    int[] data;
+
+    LookupTable(int size)
+    {
+        this.data = new int[size];
+    }
+
+    [Obsolete("Use Get method instead")]
+    public int this[int index]
+    {
+        get { return data[index]; }
+        set { data[index] = value; }
     }
 }

@@ -34,6 +34,12 @@ internal abstract class MistType : IMistType
 
     public List<MistType> NestedTypes { get; } = [];
 
+    /// <summary>
+    /// Indicates whether this type was declared in source code or projected from an assembly.
+    /// Defaults to <see cref="TypeOrigin.Source"/> so existing source-declared types are unaffected.
+    /// </summary>
+    public TypeOrigin Origin { get; internal set; } = TypeOrigin.Source;
+
     IMistType? IMistType.DeclaringType => DeclaringType;
 
     IReadOnlyList<IMistType> IMistType.NestedTypes => NestedTypes;

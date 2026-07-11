@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Model;
 
 namespace Mist.ProgramModel.Construction;
@@ -22,4 +23,10 @@ internal sealed record BuilderContext(
     /// Processed in Phase 2c after all types and extensions are resolved.
     /// </summary>
     public List<PendingConformance> PendingConformances { get; } = [];
+
+    /// <summary>
+    /// Optional ambient type provider for resolving CLR types from loaded assemblies.
+    /// When null, the resolver does not query external assemblies.
+    /// </summary>
+    public IAmbientTypeProvider? AmbientProvider { get; init; }
 }

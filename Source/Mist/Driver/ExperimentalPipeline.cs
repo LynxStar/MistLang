@@ -1,7 +1,10 @@
+using System.Collections.Immutable;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver.Contracts;
 using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Contracts;
+using ProgramModelInstance = Mist.ProgramModel.Model.ProgramModel;
 
 namespace Mist.Driver;
 
@@ -37,11 +40,60 @@ public sealed class ExperimentalPipeline : ICompilationPipeline
 
     /// <summary>
     /// Stage 4 – Builds the <see cref="IProgramModel"/> from the parsed ASTs.
+    /// Creates the <see cref="AmbientTypeProviderV2"/> using a factory so that the
+    /// provider receives the ProgramModel after Phase 1 has registered source types.
+    /// The provider is disposed when construction completes.
     /// Returns null on fatal construction failure.
     /// </summary>
     private static IProgramModel? BuildProgramModel(PipelineInput input, DiagnosticBag diagnostics)
     {
-        return ProgramModelBuilder.Build(input.Compilation, input.Asts, input.Options, diagnostics);
+        var assemblyPaths = ResolveSdkAndAdditionalPaths(input, diagnostics);
+
+        return ProgramModelBuilder.Build(
+            input.Compilation,
+            input.Asts,
+            input.Options,
+            diagnostics,
+            ambientProviderFactory: (programModel, diag) =>
+                AmbientTypeProviderV2.Create(
+                    assemblyPaths,
+                    (ProgramModelInstance)programModel,
+                    diag));
+    }
+
+    /// <summary>
+    /// Resolves the full set of assembly paths needed by the ambient provider:
+    /// SDK reference assemblies (System.Runtime, etc.) merged with any NuGet/framework
+    /// assembly paths already resolved by the driver.
+    /// </summary>
+    private static ImmutableArray<string> ResolveSdkAndAdditionalPaths(PipelineInput input, DiagnosticBag diagnostics)
+    {
+        var sdkRefPath = SdkDiscovery.FindReferenceAssemblyPath(
+            input.Options.TargetFramework, diagnostics);
+
+        if(sdkRefPath is null)
+        {
+            // SDK not found — use only the resolved package/framework paths.
+            return input.ResolvedAssemblyPaths;
+        }
+
+        var sdkPaths = Directory.GetFiles(sdkRefPath, "*.dll");
+        var merged = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach(var path in sdkPaths)
+        {
+            _ = merged.Add(path);
+        }
+
+        if(!input.ResolvedAssemblyPaths.IsDefaultOrEmpty)
+        {
+            foreach(var path in input.ResolvedAssemblyPaths)
+            {
+                _ = merged.Add(path);
+            }
+        }
+
+        return merged.ToImmutableArray();
     }
 
     /// <summary>

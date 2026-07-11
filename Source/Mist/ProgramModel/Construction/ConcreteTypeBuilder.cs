@@ -36,9 +36,9 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
     /// </summary>
     private void BuildDeclaration(ConcreteType typeDef)
     {
-        BaseTypeResolver.Resolve(typeDef.DeclarationNode, typeDef);
+        BaseTypeResolver.Resolve(typeDef.DeclarationNode!, typeDef);
 
-        var body = (BodyTypeTypeDeclarationNode)typeDef.DeclarationNode;
+        var body = (BodyTypeTypeDeclarationNode)typeDef.DeclarationNode!;
         typeDef.Modifiers = ModifierBuilder.Build(body.TypeBody, Context.Diagnostics);
 
         ConstraintResolver.Resolve(body.TypeBody.Constraints, typeDef.TypeParametersList, typeDef.Scope);
@@ -49,7 +49,7 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
     /// </summary>
     private void BuildMembers(ConcreteType typeDef)
     {
-        var body = (BodyTypeTypeDeclarationNode)typeDef.DeclarationNode;
+        var body = (BodyTypeTypeDeclarationNode)typeDef.DeclarationNode!;
 
         foreach(var member in body.TypeBody.Members)
         {

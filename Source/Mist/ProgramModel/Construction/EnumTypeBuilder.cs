@@ -25,7 +25,7 @@ internal sealed class EnumTypeBuilder
     /// </summary>
     public void Build(EnumType typeDef)
     {
-        var enumDecl = typeDef.DeclarationNode;
+        var enumDecl = typeDef.DeclarationNode!;
 
         typeDef.Modifiers = ModifierBuilder.Build(enumDecl, context.Diagnostics);
         ResolveUnderlyingType(enumDecl, typeDef);

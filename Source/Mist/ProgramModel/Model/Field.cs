@@ -13,7 +13,7 @@ internal sealed class Field(
     string name,
     IMistType type,
     OwnershipKind ownership,
-    MemberModifiers modifiers) : IField
+    MemberModifiers modifiers) : IField, IHasAttributes
 {
     public string Name { get; } = name;
 
@@ -24,8 +24,15 @@ internal sealed class Field(
     public MemberModifiers Modifiers { get; } = modifiers;
 
     /// <summary>
+    /// The attributes applied to this field.
+    /// </summary>
+    public List<AttributeData> AttributesList { get; } = [];
+
+    /// <summary>
     /// The field initializer expression, or null if none. Also the sole holder of
     /// the field's AST node (via <see cref="Expression.Node"/>) when present.
     /// </summary>
     public Expression? Initializer { get; init; }
+
+    IReadOnlyList<AttributeData> IHasAttributes.Attributes => AttributesList;
 }

@@ -7,7 +7,7 @@ namespace Mist.ProgramModel.Model.Types;
 /// A struct type definition in the program model.
 /// </summary>
 internal sealed class StructType(
-    string name, string namespaceName, Scope scope, MistType? declaringType, TypeDeclarationNode declarationNode)
+    string name, string namespaceName, Scope scope, MistType? declaringType, TypeDeclarationNode? declarationNode)
     : ConcreteType(name, namespaceName, scope, declaringType, declarationNode),
     IStructType
 {

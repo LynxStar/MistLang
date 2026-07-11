@@ -21,12 +21,21 @@ public sealed class ProgramModelBuilder
     /// <param name="asts">The syntax trees produced by Stage 3 (parsing).</param>
     /// <param name="options">Compiler options with namespace root and project folder.</param>
     /// <param name="diagnostics">Diagnostic bag to report construction errors.</param>
+    /// <param name="ambientProvider">Optional provider for resolving CLR types from loaded assemblies.</param>
+    /// <param name="ambientProviderFactory">
+    /// Optional factory that creates an <see cref="IAmbientTypeProvider"/> given the fully-initialized
+    /// ProgramModel (after Phase 1 registers source types). When both <paramref name="ambientProvider"/>
+    /// and <paramref name="ambientProviderFactory"/> are supplied, the pre-built provider takes precedence.
+    /// The factory-created provider is disposed after construction completes.
+    /// </param>
     /// <returns>The built program model, or null on fatal failure.</returns>
     public static IProgramModel? Build(
         MistCompilation compilation,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         CompilerOptions options,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        IAmbientTypeProvider? ambientProvider = null,
+        Func<IProgramModel, DiagnosticBag, IAmbientTypeProvider?>? ambientProviderFactory = null)
     {
         if(asts.Length != compilation.Units.Length)
         {
@@ -44,7 +53,10 @@ public sealed class ProgramModelBuilder
 
         var globalScope = CreateGlobalScope(options);
         var programModel = new Model.ProgramModel();
-        var context = new BuilderContext(globalScope, programModel, diagnostics);
+        var context = new BuilderContext(globalScope, programModel, diagnostics)
+        {
+            AmbientProvider = ambientProvider
+        };
         var unitBuilder = new CompilationUnitBuilder(context);
 
         // Process each compilation unit.
@@ -60,48 +72,64 @@ public sealed class ProgramModelBuilder
             _ = unitBuilder.Build(unit);
         }
 
-        // Phase 2a: Resolve member signatures on all registered types.
-        var typeResolver = new TypeReferenceResolver(context);
-        var concreteTypeBuilder = new ConcreteTypeBuilder(context, typeResolver);
-        var abstractTypeBuilder = new AbstractTypeBuilder(context, typeResolver);
-        var enumTypeBuilder = new EnumTypeBuilder(context, typeResolver);
-        var newtypeBuilder = new NewtypeBuilder(context, typeResolver);
-        var typeAliasBuilder = new TypeAliasBuilder(context, typeResolver);
-
-        foreach(var ns in programModel.Namespaces.Values)
+        // If no pre-built provider was supplied but a factory was, create the provider
+        // now that Phase 1 has registered source types (including Standard Library).
+        IAmbientTypeProvider? factoryProvider = null;
+        if(context.AmbientProvider is null && ambientProviderFactory is not null)
         {
-            foreach(var typeDef in ns.Types.Values)
-            {
-                switch(typeDef)
-                {
-                    case ConcreteType concrete:
-                        concreteTypeBuilder.Build(concrete);
-                        break;
-                    case AbstractType abstractDef:
-                        abstractTypeBuilder.Build(abstractDef);
-                        break;
-                    case EnumType enumDef:
-                        enumTypeBuilder.Build(enumDef);
-                        break;
-                    case Newtype newtypeDef:
-                        newtypeBuilder.Build(newtypeDef);
-                        break;
-                    case TypeAlias typeAliasDef:
-                        typeAliasBuilder.Build(typeAliasDef);
-                        break;
-                }
-            }
+            factoryProvider = ambientProviderFactory(programModel, diagnostics);
+            context = context with { AmbientProvider = factoryProvider };
         }
 
-        // Phase 2b: Resolve extension blocks (after all types are fully resolved).
-        var extensionBuilder = new ExtensionBuilder(context, typeResolver);
-        extensionBuilder.BuildAll();
+        try
+        {
+            // Phase 2a: Resolve member signatures on all registered types.
+            var typeResolver = new TypeReferenceResolver(context);
+            var concreteTypeBuilder = new ConcreteTypeBuilder(context, typeResolver);
+            var abstractTypeBuilder = new AbstractTypeBuilder(context, typeResolver);
+            var enumTypeBuilder = new EnumTypeBuilder(context, typeResolver);
+            var newtypeBuilder = new NewtypeBuilder(context, typeResolver);
+            var typeAliasBuilder = new TypeAliasBuilder(context, typeResolver);
 
-        // Phase 2c: Resolve retroactive conformance declarations (with blocks).
-        var conformanceBuilder = new ConformanceBuilder(context, typeResolver);
-        conformanceBuilder.BuildAll();
+            foreach(var ns in programModel.Namespaces.Values.ToList())
+            {
+                foreach(var typeDef in ns.Types.Values.ToList())
+                {
+                    switch(typeDef)
+                    {
+                        case ConcreteType concrete:
+                            concreteTypeBuilder.Build(concrete);
+                            break;
+                        case AbstractType abstractDef:
+                            abstractTypeBuilder.Build(abstractDef);
+                            break;
+                        case EnumType enumDef:
+                            enumTypeBuilder.Build(enumDef);
+                            break;
+                        case Newtype newtypeDef:
+                            newtypeBuilder.Build(newtypeDef);
+                            break;
+                        case TypeAlias typeAliasDef:
+                            typeAliasBuilder.Build(typeAliasDef);
+                            break;
+                    }
+                }
+            }
 
-        return programModel;
+            // Phase 2b: Resolve extension blocks (after all types are fully resolved).
+            var extensionBuilder = new ExtensionBuilder(context, typeResolver);
+            extensionBuilder.BuildAll();
+
+            // Phase 2c: Resolve retroactive conformance declarations (with blocks).
+            var conformanceBuilder = new ConformanceBuilder(context, typeResolver);
+            conformanceBuilder.BuildAll();
+
+            return programModel;
+        }
+        finally
+        {
+            (factoryProvider as IDisposable)?.Dispose();
+        }
     }
 
     private static Scope CreateGlobalScope(CompilerOptions options)

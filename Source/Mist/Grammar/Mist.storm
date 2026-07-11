@@ -248,10 +248,10 @@ rule FieldDeclaration : HasModifiers = attributes:AttributeList*
     ;
 
 rule PropertyDeclaration
-    = modifiers:Modifier* type:TypeReference name:IDENTIFIER
+    = attributes:AttributeList* modifiers:Modifier* type:TypeReference name:IDENTIFIER
       LEFT_BRACE accessors:AccessorDeclaration+ RIGHT_BRACE
       initializer:(EQUAL Expression SEMICOLON)?                    as BlockProperty : HasModifiers
-    | modifiers:Modifier* type:TypeReference name:IDENTIFIER
+    | attributes:AttributeList* modifiers:Modifier* type:TypeReference name:IDENTIFIER
       SUCH_THAT body:Expression SEMICOLON                          as ExpressionBodiedProperty : HasModifiers
     ;
 
@@ -267,7 +267,7 @@ rule AccessorDeclaration
     | accessorModifier:Modifier? INIT SUCH_THAT expression:Expression SEMICOLON   as ExpressionInitAccessor
     ;
 
-rule IndexerDeclaration : HasModifiers = modifiers:Modifier* type:TypeReference THIS
+rule IndexerDeclaration : HasModifiers = attributes:AttributeList* modifiers:Modifier* type:TypeReference THIS
       LEFT_BRACKET parameters:ParameterList RIGHT_BRACKET
       constraints:WhereClause*
       body:IndexerBody;
@@ -349,7 +349,7 @@ rule OperatorSymbol
     ;
 
 rule ParameterList = Parameter (COMMA Parameter)*;
-rule Parameter = modifier:READONLY? refModifier:REF? ownershipSpecifier:OwnershipSpecifier? type:TypeReference name:(IDENTIFIER | DISCARD);
+rule Parameter = attributes:AttributeList* modifier:READONLY? refModifier:REF? ownershipSpecifier:OwnershipSpecifier? type:TypeReference name:(IDENTIFIER | DISCARD);
 
 rule ArgumentList = Argument (COMMA Argument)*;
 rule Argument = REF expression:Expression as RefArgument | expression:Expression as ValueArgument;

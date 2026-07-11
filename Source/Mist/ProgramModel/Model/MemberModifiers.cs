@@ -33,6 +33,12 @@ public record struct MemberModifiers
     /// <summary>Whether the declaration has <c>ref</c>.</summary>
     public bool IsRef { get; init; }
 
+    /// <summary>Whether the declaration has <c>abstract</c>.</summary>
+    public bool IsAbstract { get; init; }
+
+    /// <summary>Whether the declaration has <c>sealed</c>.</summary>
+    public bool IsSealed { get; init; }
+
     /// <summary>The substructural discipline (affine, linear, relevant, or none).</summary>
     public SubstructuralDiscipline Discipline { get; init; }
 }

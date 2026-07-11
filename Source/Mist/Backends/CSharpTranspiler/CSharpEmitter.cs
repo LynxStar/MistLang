@@ -5774,6 +5774,7 @@ internal sealed class CSharpSourceWriter
 
     private void EmitBlockPropertyDeclaration(BlockPropertyPropertyDeclarationNode blockProp)
     {
+        EmitAttributeLists(blockProp.Attributes);
         var modifiers = EmitModifiers(blockProp.Modifiers);
         var type = EmitTypeReference(blockProp.Type);
         var name = blockProp.Name.Lexeme;
@@ -5814,6 +5815,7 @@ internal sealed class CSharpSourceWriter
 
     private void EmitExpressionBodiedPropertyDeclaration(ExpressionBodiedPropertyPropertyDeclarationNode exprProp)
     {
+        EmitAttributeLists(exprProp.Attributes);
         var modifiers = EmitModifiers(exprProp.Modifiers);
         var type = EmitTypeReference(exprProp.Type);
         var name = exprProp.Name.Lexeme;
@@ -6229,6 +6231,7 @@ internal sealed class CSharpSourceWriter
             return;
         }
 
+        EmitAttributeLists(indexerDecl.Attributes);
         var modifiers = EmitModifiers(indexerDecl.Modifiers);
         var type = EmitTypeReference(indexerDecl.Type);
         var parameters = EmitParameterList(indexerDecl.Parameters);
@@ -6964,19 +6967,44 @@ internal sealed class CSharpSourceWriter
         var type = EmitTypeReference(param.Type, isValueContext: true);
         var name = param.Name.Lexeme;
 
+        // Emit attribute lists inline for parameter attributes.
+        var attrPrefix = "";
+        if(!param.Attributes.IsDefaultOrEmpty)
+        {
+            var attrParts = new List<string>();
+            foreach(var attrList in param.Attributes)
+            {
+                var attrs = new List<AttributeNode> { attrList.Attribute };
+                foreach(var additional in attrList.Attributes)
+                {
+                    attrs.Add(additional);
+                }
+
+                foreach(var attr in attrs)
+                {
+                    var attrName = ExtractQualifiedName(attr.Name);
+                    var typeArgs = EmitTypeArgumentList(attr.TypeArgs);
+                    var args = EmitAttributeArguments(attr);
+                    attrParts.Add($"[{attrName}{typeArgs}{args}]");
+                }
+            }
+
+            attrPrefix = string.Join(" ", attrParts) + " ";
+        }
+
         // Emit ref / ref readonly prefix for ref parameters (Requirement 8.1).
         var symbol = model.GetDeclaredSymbol(param) as Symbol;
         if(symbol is not null)
         {
             return symbol.RefKind switch
             {
-                RefKind.Ref => $"ref {type} {name}",
-                RefKind.RefReadonly => $"ref readonly {type} {name}",
-                _ => $"{type} {name}",
+                RefKind.Ref => $"{attrPrefix}ref {type} {name}",
+                RefKind.RefReadonly => $"{attrPrefix}ref readonly {type} {name}",
+                _ => $"{attrPrefix}{type} {name}",
             };
         }
 
-        return $"{type} {name}";
+        return $"{attrPrefix}{type} {name}";
     }
 
     private string EmitArgumentList(ArgumentListNode? argList, Symbol? calledMethod = null)

@@ -71,6 +71,13 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "The type '{0}' could not be found.");
 
+    /// <summary>A type name resolves to multiple distinct types from different sources (e.g., source and ambient assembly).</summary>
+    public static readonly DiagnosticDescriptor AmbiguousType = new(
+        new DiagnosticId("MIST_PM_AMBIGUOUS_TYPE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "The type '{0}' is ambiguous between multiple definitions in namespace '{1}'.");
+
     /// <summary>An unrecognized type reference AST node was encountered.</summary>
     public static readonly DiagnosticDescriptor UnknownTypeRefNode = new(
         new DiagnosticId("MIST_PM_UNKNOWN_TYPE_REF_NODE"),

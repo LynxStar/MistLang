@@ -8,11 +8,22 @@ namespace Mist.ProgramModel.Model;
 /// </summary>
 internal sealed class Parameter(
     string name,
-    IMistType type) : IParameter
+    IMistType type) : IParameter, IHasAttributes
 {
     public string Name { get; } = name;
 
     public IMistType Type { get; } = type;
+
+    /// <summary>
+    /// The attributes applied to this parameter.
+    /// </summary>
+    public List<AttributeData> AttributesList { get; } = [];
+
+    /// <summary>
+    /// The ref kind of this parameter. <see cref="RefKind.Ref"/> for ref/in/out parameters,
+    /// <see cref="RefKind.None"/> for standard pass-by-value.
+    /// </summary>
+    public RefKind RefKind { get; internal set; }
 
     /// <summary>
     /// The adhoc refinement predicate AST node for this parameter, if any
@@ -20,4 +31,6 @@ internal sealed class Parameter(
     /// Interpretation deferred to the pattern resolution phase.
     /// </summary>
     public Storm.Runtime.SyntaxNode? RefinementNode { get; internal set; }
+
+    IReadOnlyList<AttributeData> IHasAttributes.Attributes => AttributesList;
 }

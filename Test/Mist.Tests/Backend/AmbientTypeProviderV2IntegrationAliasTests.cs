@@ -27,7 +27,7 @@ namespace Mist.Tests.Backend;
 public sealed class AmbientTypeProviderV2IntegrationAliasTests : IDisposable
 {
     private readonly ProgramModelClass programModel;
-    private readonly Namespace standardNamespace;
+    private readonly MistNamespace standardNamespace;
     private readonly MetadataLoadContext metadataContext;
     private readonly AmbientTypeProviderV2 provider;
 

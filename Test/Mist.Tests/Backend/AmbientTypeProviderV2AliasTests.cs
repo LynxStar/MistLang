@@ -20,7 +20,7 @@ namespace Mist.Tests.Backend;
 public sealed class AmbientTypeProviderV2AliasTests : IDisposable
 {
     private readonly ProgramModelClass programModel;
-    private readonly Namespace standardNamespace;
+    private readonly MistNamespace standardNamespace;
     private readonly AmbientTypeProviderV2 provider;
 
     public AmbientTypeProviderV2AliasTests()

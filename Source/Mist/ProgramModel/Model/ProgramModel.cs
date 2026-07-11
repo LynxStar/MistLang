@@ -1,6 +1,6 @@
+using System.Diagnostics.CodeAnalysis;
 using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Contracts;
-using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Model;
 
@@ -8,14 +8,16 @@ namespace Mist.ProgramModel.Model;
 /// Concrete implementation of <see cref="IProgramModel"/>.
 /// Populated by the builder, then exposed as read-only through the interface.
 /// </summary>
-internal sealed class ProgramModel : IProgramModel
+// Suppressed: the class name matches the feature namespace by design.
+[SuppressMessage("Naming", "CA1724:Type names should not match namespaces", Justification = "Intentional - the class represents the concept that the namespace is named after")]
+public sealed class ProgramModel : IProgramModel
 {
-    private readonly Dictionary<string, Namespace> namespaces = [];
+    private readonly Dictionary<string, MistNamespace> namespaces = [];
 
     /// <summary>
     /// All registered namespaces, keyed by fully qualified name.
     /// </summary>
-    public IReadOnlyDictionary<string, Namespace> Namespaces => namespaces;
+    public IReadOnlyDictionary<string, MistNamespace> Namespaces => namespaces;
 
     /// <summary>
     /// Interns synthetic types (unions, constructed types) so that structurally
@@ -26,7 +28,7 @@ internal sealed class ProgramModel : IProgramModel
     /// <summary>
     /// Retroactive conformance declarations collected during Phase 2c.
     /// </summary>
-    public List<ConformanceDeclaration> ConformancesList { get; } = [];
+    internal List<ConformanceDeclaration> ConformancesList { get; } = [];
 
     IReadOnlyList<IConformanceDeclaration> IProgramModel.Conformances => ConformancesList;
 
@@ -34,14 +36,14 @@ internal sealed class ProgramModel : IProgramModel
     /// Gets an existing namespace or creates and registers a new one.
     /// Multiple files may declare the same namespace, so this deduplicates.
     /// </summary>
-    public Namespace GetOrAddNamespace(string fullyQualifiedName)
+    public MistNamespace GetOrAddNamespace(string fullyQualifiedName)
     {
         if(namespaces.TryGetValue(fullyQualifiedName, out var existing))
         {
             return existing;
         }
 
-        var newNamespace = new Namespace(fullyQualifiedName);
+        var newNamespace = new MistNamespace(fullyQualifiedName);
         namespaces[fullyQualifiedName] = newNamespace;
         return newNamespace;
     }

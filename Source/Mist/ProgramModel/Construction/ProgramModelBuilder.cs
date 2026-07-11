@@ -21,12 +21,14 @@ public sealed class ProgramModelBuilder
     /// <param name="asts">The syntax trees produced by Stage 3 (parsing).</param>
     /// <param name="options">Compiler options with namespace root and project folder.</param>
     /// <param name="diagnostics">Diagnostic bag to report construction errors.</param>
+    /// <param name="ambientProvider">Provider for resolving CLR types from loaded assemblies.</param>
     /// <returns>The built program model, or null on fatal failure.</returns>
     public static IProgramModel? Build(
         MistCompilation compilation,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         CompilerOptions options,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        IAmbientTypeProvider ambientProvider)
     {
         if(asts.Length != compilation.Units.Length)
         {
@@ -44,7 +46,7 @@ public sealed class ProgramModelBuilder
 
         var globalScope = CreateGlobalScope(options);
         var programModel = new Model.ProgramModel();
-        var context = new BuilderContext(globalScope, programModel, diagnostics);
+        var context = new BuilderContext(globalScope, programModel, diagnostics, ambientProvider);
         var unitBuilder = new CompilationUnitBuilder(context);
 
         // Process each compilation unit.
@@ -68,28 +70,30 @@ public sealed class ProgramModelBuilder
         var newtypeBuilder = new NewtypeBuilder(context, typeResolver);
         var typeAliasBuilder = new TypeAliasBuilder(context, typeResolver);
 
-        foreach(var ns in programModel.Namespaces.Values)
+        var allTypes = programModel.Namespaces.Values
+            .SelectMany(ns => ns.Types.Values)
+            .ToList()
+            ;
+
+        foreach(var typeDef in allTypes)
         {
-            foreach(var typeDef in ns.Types.Values)
+            switch(typeDef)
             {
-                switch(typeDef)
-                {
-                    case ConcreteType concrete:
-                        concreteTypeBuilder.Build(concrete);
-                        break;
-                    case AbstractType abstractDef:
-                        abstractTypeBuilder.Build(abstractDef);
-                        break;
-                    case EnumType enumDef:
-                        enumTypeBuilder.Build(enumDef);
-                        break;
-                    case Newtype newtypeDef:
-                        newtypeBuilder.Build(newtypeDef);
-                        break;
-                    case TypeAlias typeAliasDef:
-                        typeAliasBuilder.Build(typeAliasDef);
-                        break;
-                }
+                case ConcreteType concrete:
+                    concreteTypeBuilder.Build(concrete);
+                    break;
+                case AbstractType abstractDef:
+                    abstractTypeBuilder.Build(abstractDef);
+                    break;
+                case EnumType enumDef:
+                    enumTypeBuilder.Build(enumDef);
+                    break;
+                case Newtype newtypeDef:
+                    newtypeBuilder.Build(newtypeDef);
+                    break;
+                case TypeAlias typeAliasDef:
+                    typeAliasBuilder.Build(typeAliasDef);
+                    break;
             }
         }
 

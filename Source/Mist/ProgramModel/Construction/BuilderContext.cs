@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Model;
 
 namespace Mist.ProgramModel.Construction;
@@ -9,7 +10,8 @@ namespace Mist.ProgramModel.Construction;
 internal sealed record BuilderContext(
     Scope GlobalScope,
     Model.ProgramModel ProgramModel,
-    DiagnosticBag Diagnostics)
+    DiagnosticBag Diagnostics,
+    IAmbientTypeProvider AmbientProvider)
 {
     /// <summary>
     /// Extension block AST nodes collected during Phase 1.

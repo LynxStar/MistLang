@@ -55,7 +55,7 @@ AmbientTypeProvider V2 integrates .NET assembly types into the ProgramModel as f
 
 #### Acceptance Criteria
 
-1. WHEN the Ambient_Provider is asked to project a CLR type that has an entry in the Alias_Map, THE Ambient_Provider SHALL return the existing `IMistType` instance from the Namespace_Registry instead of creating a new type, such that the returned reference is identity-equal to the Standard Library type instance.
+1. WHEN the Ambient_Provider is asked to project a CLR type that has an entry in the Alias_Map, THE Ambient_Provider SHALL silently return the existing `IMistType` instance from the Namespace_Registry instead of creating a new type, such that the returned reference is identity-equal to the Standard Library type instance, without logging, failing, or emitting diagnostics.
 2. THE Alias_Map SHALL contain mappings for the 11 numeric types (Int32, Int64, Int16, Byte, SByte, UInt32, UInt64, UInt16, Single, Double, Decimal), plus String, Boolean, Char, Void, Task, and ValueTask.
 3. WHEN a CLR method signature references an aliased type in any position (parameter type, return type, or generic type argument), THE Ambient_Provider SHALL resolve that type reference to the corresponding Standard Library instance from the Alias_Map.
 
@@ -99,8 +99,8 @@ AmbientTypeProvider V2 integrates .NET assembly types into the ProgramModel as f
 
 #### Acceptance Criteria
 
-1. THE Ambient_Provider SHALL assign `TypeOrigin.Assembly` to every type it projects from a .NET assembly, except when the type matches an alias entry (e.g., `System.String` maps to `Standard.String`), in which case it SHALL return the existing `TypeOrigin.Source` instance without creating a new type.
-2. WHEN the emitter encounters a type with `TypeOrigin.Assembly`, THE emitter SHALL skip emitting a type definition (class, struct, or interface body) for that type and SHALL emit only a namespace `using` directive or fully-qualified reference as needed.
+1. THE Ambient_Provider SHALL assign `TypeOrigin.Assembly` to every type it projects from a .NET assembly, except when the type matches an alias entry (e.g., `System.String` maps to `Standard.String`), in which case it SHALL return the existing `TypeOrigin.Source` instance without creating a new type. THE Ambient_Provider SHALL assign `TypeOrigin.Assembly` to nested types and constructed types that originate from .NET assemblies. Generic type parameters SHALL NOT receive a TypeOrigin marker as they are structural placeholders, not standalone types.
+2. WHEN the emitter encounters a type with `TypeOrigin.Assembly`, THE emitter SHALL skip emitting a type definition (class, struct, or interface body) for that type and SHALL emit only a namespace `using` directive or fully-qualified reference as needed. THE emitter SHALL emit `using` directives or fully-qualified references for Assembly-origin types only when the type is actually referenced in the emitted compilation unit.
 3. THE ProgramModel SHALL treat types with `TypeOrigin.Assembly` identically to types with `TypeOrigin.Source` during member resolution, generic instantiation, overload resolution, and conformance checking -- the origin marker SHALL NOT influence any semantic analysis outcome.
 4. IF the Ambient_Provider resolves a CLR type whose namespace and name match an alias-mapped Standard Library type, THEN the Ambient_Provider SHALL return the pre-existing Standard Library `MistType` instance rather than projecting a new type.
 
@@ -145,7 +145,7 @@ AmbientTypeProvider V2 integrates .NET assembly types into the ProgramModel as f
 
 1. WHEN a CLR generic type definition is projected, THE Ambient_Provider SHALL populate the `TypeParametersList` with one `TypeParameter` entry per CLR generic parameter, in declaration order, matching the CLR type's generic arity.
 2. WHEN a CLR generic type definition is projected, THE Ambient_Provider SHALL register the type with an arity-bearing name using angle brackets and commas (e.g., `List<>` for arity 1, `Dictionary<,>` for arity 2).
-3. WHEN a CLR type parameter has constraints, THE Ambient_Provider SHALL project each constraint (class, struct, new(), base type, interface) onto the corresponding `TypeParameter`. IF a constraint references a type that cannot be resolved from loaded assemblies, THEN THE Ambient_Provider SHALL hide the entire type (not project it) silently without emitting a diagnostic.
+3. WHEN a CLR type parameter has constraints, THE Ambient_Provider SHALL project each constraint (class, struct, new(), base type, interface) onto the corresponding `TypeParameter`. IF ANY constraint references a type that cannot be resolved from loaded assemblies, THEN THE Ambient_Provider SHALL immediately hide the entire type (not project it) without processing remaining constraints, silently without emitting a diagnostic.
 4. WHEN a type reference to a generic definition includes type arguments, THE Ambient_Provider SHALL use the TypeInterner to create or retrieve the `ConstructedType`, such that identical definition-and-type-argument combinations at different call sites resolve to the same `ConstructedType` instance.
 5. WHEN a CLR method has generic type parameters, THE Ambient_Provider SHALL populate the method's `TypeParametersList` with one `TypeParameter` entry per CLR method-level generic parameter, in declaration order. IF a method-level constraint references a type that cannot be resolved, THEN THE Ambient_Provider SHALL hide that method (not project it) silently without emitting a diagnostic.
 
@@ -190,6 +190,7 @@ AmbientTypeProvider V2 integrates .NET assembly types into the ProgramModel as f
 5. IF a CLR member's signature references an excluded type in any position (return type, parameter types, property type, field type) -- including through by-ref wrappers, array element types, and generic type arguments recursively -- THEN THE Ambient_Provider SHALL exclude that entire member from projection rather than projecting it with an error-type substitution.
 6. THE Ambient_Provider SHALL exclude members that have a ref readonly return type (a by-ref return marked with IsReadOnlyAttribute) from projection.
 7. IF a CLR type is a named delegate (inherits MulticastDelegate, excluding System.Func, System.Action, System.Delegate, and System.MulticastDelegate themselves) whose Invoke method signature contains a pointer type, a ref readonly return, or a ref-struct parameter/return, THEN THE Ambient_Provider SHALL treat that delegate type as excluded for purposes of cascading exclusion in criterion 5.
+8. THE Ambient_Provider SHALL NOT perform override detection analysis on excluded (non-public) types. Only types that pass visibility filtering participate in virtual/abstract method projection.
 
 ### Requirement 14: Assembly Loading
 
@@ -215,6 +216,7 @@ AmbientTypeProvider V2 integrates .NET assembly types into the ProgramModel as f
 4. THE Ambient_Provider SHALL produce only `IMistType` and ProgramModel member types (Method, Property, Field, Constructor, Indexer, Operator).
 5. THE Ambient_Provider SHALL not share any mutable runtime state with the V1 `AssemblyTypeProvider`, including cache dictionaries, `MetadataLoadContext` instances, or static fields; shared read-only source patterns (such as `LoadedAssemblyInfo`) defined in a neutral location outside both `ProgramModel/` and `Backends/CSharpTranspiler/` are permitted.
 6. IF a utility type is shared between the Ambient_Provider and V1 `AssemblyTypeProvider`, THEN THE shared type SHALL itself contain no references to `Mist.Semantics`, `Mist.Semantics.Contracts`, or `Mist.Semantics.Model`.
+7. THE Ambient_Provider SHALL be permitted to produce no types during initialization or transient error states (e.g., when no assemblies load successfully). Consumers SHALL handle an empty provider gracefully.
 
 ### Requirement 16: Nested Type Projection
 
@@ -224,7 +226,7 @@ AmbientTypeProvider V2 integrates .NET assembly types into the ProgramModel as f
 
 1. WHEN Mist code references a CLR nested type by qualified name, THE Ambient_Provider SHALL project that nested type as a `MistType` instance with `DeclaringType` set to the already-projected parent type.
 2. WHEN a nested type inside a non-generic parent is projected, THE Ambient_Provider SHALL register it in the parent's namespace types dictionary using the dot-separated key format `Outer.Inner`.
-3. WHEN a nested type inside a generic parent is projected, THE Ambient_Provider SHALL include the parent's arity in the qualified key using angle-bracket notation (e.g., `List<>.Enumerator`).
+3. WHEN a nested type inside a generic parent is projected, THE Ambient_Provider SHALL include the parent's arity in the qualified key using angle-bracket notation (e.g., `List<>.Enumerator`). WHEN a non-generic nested type is inside a generic parent, THE Ambient_Provider SHALL still register it in the parent's namespace types dictionary using the parent's arity notation (e.g., `List<>.Enumerator`).
 4. WHEN a nested type is itself generic, THE Ambient_Provider SHALL include both the parent's arity and the nested type's arity in the qualified key (e.g., `Outer<>.Inner<>`).
 5. IF a nested type's parent type cannot be resolved from any loaded assembly, THEN THE Ambient_Provider SHALL skip projection of that nested type silently.
 
@@ -234,7 +236,7 @@ AmbientTypeProvider V2 integrates .NET assembly types into the ProgramModel as f
 
 #### Acceptance Criteria
 
-1. WHEN a CLR class has a base class other than `System.Object`, THE Ambient_Provider SHALL set the projected type's `BaseType` to the projected base type instance obtained through the projection cache. `System.Object` SHALL be excluded as a base type (it is implicit and adds no value).
+1. WHEN a CLR class has a base class other than `System.Object`, THE Ambient_Provider SHALL set the projected type's `BaseType` to the projected base type instance obtained through the projection cache. The `BaseType` field SHALL remain null until resolution of the base class completes successfully. `System.Object` SHALL be excluded as a base type (it is implicit and adds no value).
 2. WHEN a CLR type implements one or more interfaces, THE Ambient_Provider SHALL add each projected interface instance to the type's `BaseAbstractTypes` list, preserving the declaration order from the CLR metadata.
 3. IF a CLR type's base class or implemented interface cannot be resolved from any loaded assembly, THEN THE Ambient_Provider SHALL hide the entire type (not project it at all) silently without emitting a diagnostic. The type simply does not appear in the ProgramModel.
 4. WHEN resolving base types or implemented interfaces, THE Ambient_Provider SHALL use the same projection cache used for top-level type resolution, so that a base type or interface reference is reference-equal to the standalone projected type returned by `ResolveType`.

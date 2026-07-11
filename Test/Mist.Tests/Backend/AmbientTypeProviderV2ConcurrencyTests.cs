@@ -10,6 +10,7 @@
 using System.Collections.Immutable;
 using System.Reflection;
 using Mist.Backends.CSharpTranspiler;
+using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -57,23 +58,10 @@ public sealed class AmbientTypeProviderV2ConcurrencyTests : IDisposable
         var resolver = new PathAssemblyResolver(assemblyPaths);
         metadataContext = new MetadataLoadContext(resolver);
 
-        // Build LoadedAssemblyInfo for each assembly that loads successfully.
-        var loaded = ImmutableArray.CreateBuilder<LoadedAssemblyInfo>();
-        foreach(var path in assemblyPaths)
-        {
-            try
-            {
-                var assembly = metadataContext.LoadFromAssemblyPath(path);
-                loaded.Add(new LoadedAssemblyInfo(path, assembly));
-            }
-            catch
-            {
-                // Skip assemblies that fail to load (same as production code).
-            }
-        }
+        var loaded = AmbientTypeProviderV2Factory.LoadAssemblies(assemblyPaths, metadataContext, new DiagnosticBag());
 
         provider = new AmbientTypeProviderV2(
-            loaded.ToImmutable(),
+            loaded,
             programModel.TypeInterner,
             metadataContext);
     }

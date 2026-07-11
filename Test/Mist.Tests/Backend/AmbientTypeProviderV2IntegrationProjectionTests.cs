@@ -10,6 +10,7 @@
 using System.Collections.Immutable;
 using System.Reflection;
 using Mist.Backends.CSharpTranspiler;
+using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -73,22 +74,7 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
         var resolver = new PathAssemblyResolver(assemblyPaths);
         metadataContext = new MetadataLoadContext(resolver);
 
-        var loadedAssemblies = assemblyPaths
-            .Select(path =>
-            {
-                try
-                {
-                    var assembly = metadataContext.LoadFromAssemblyPath(path);
-                    return new LoadedAssemblyInfo(path, assembly);
-                }
-                catch
-                {
-                    return null;
-                }
-            })
-            .Where(info => info is not null)
-            .Cast<LoadedAssemblyInfo>()
-            .ToImmutableArray();
+        var loadedAssemblies = AmbientTypeProviderV2Factory.LoadAssemblies(assemblyPaths, metadataContext, new DiagnosticBag());
 
         provider = new AmbientTypeProviderV2(loadedAssemblies, programModel.TypeInterner, null);
     }

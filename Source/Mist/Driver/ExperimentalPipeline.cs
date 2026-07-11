@@ -19,7 +19,7 @@ public sealed class ExperimentalPipeline : ICompilationPipeline
         var diagnostics = input.Diagnostics;
 
         // Create the ambient type provider up front (SDK + NuGet assembly resolution).
-        using var ambientProvider = AmbientTypeProviderV2.CreateFromTargetFramework(
+        using var ambientProvider = AmbientTypeProviderV2Factory.Create(
             input.Options.TargetFramework,
             input.ResolvedAssemblyPaths,
             new TypeInterner(),

@@ -32,9 +32,9 @@ internal sealed class AbstractTypeBuilder : MemberTypeBuilder
     /// </summary>
     private void BuildDeclaration(AbstractType typeDef)
     {
-        BaseTypeResolver.Resolve(typeDef.DeclarationNode, typeDef);
+        BaseTypeResolver.Resolve(typeDef.DeclarationNode!, typeDef);
 
-        var body = (BodyTypeTypeDeclarationNode)typeDef.DeclarationNode;
+        var body = (BodyTypeTypeDeclarationNode)typeDef.DeclarationNode!;
         typeDef.Modifiers = ModifierBuilder.Build(body.TypeBody, Context.Diagnostics);
 
         ConstraintResolver.Resolve(body.TypeBody.Constraints, typeDef.TypeParametersList, typeDef.Scope);
@@ -45,7 +45,7 @@ internal sealed class AbstractTypeBuilder : MemberTypeBuilder
     /// </summary>
     private void BuildMembers(AbstractType typeDef)
     {
-        var body = (BodyTypeTypeDeclarationNode)typeDef.DeclarationNode;
+        var body = (BodyTypeTypeDeclarationNode)typeDef.DeclarationNode!;
 
         // First pass: register associated type slots as types in the abstract's
         // scope so members can reference them by simple name regardless of the

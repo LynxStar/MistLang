@@ -15,7 +15,7 @@ internal abstract class ConcreteType : MemberType, IConcreteType
         string namespaceName,
         Scope scope,
         MistType? declaringType,
-        TypeDeclarationNode declarationNode)
+        TypeDeclarationNode? declarationNode)
         : base(name, namespaceName, scope, declaringType, declarationNode)
     {
     }
@@ -30,6 +30,17 @@ internal abstract class ConcreteType : MemberType, IConcreteType
     /// Whether this type is backend-backed (intrinsic keyword).
     /// </summary>
     public bool IsIntrinsic => Modifiers.IsIntrinsic;
+
+    /// <summary>
+    /// Whether this type has a Drop() method (explicit or synthesized) or implements IDisposable.
+    /// </summary>
+    public bool HasDrop { get; internal set; }
+
+    /// <summary>
+    /// Whether this type's drop semantics come from IDisposable rather than an explicit Drop() method.
+    /// When true, the emitter emits .Dispose() instead of .Drop() at drop emission sites.
+    /// </summary>
+    public bool IsDisposableDrop { get; internal set; }
 
     /// <summary>
     /// Whether this type has owned semantics (owned keyword).

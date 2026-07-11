@@ -1,0 +1,405 @@
+# Ambient Type Provider V2 - Projection Tasks
+# What needs to be projected from CLR assemblies into the ProgramModel.
+
+types:
+  class:
+    shell:
+      - [ ] name
+      - [ ] namespace
+      - [ ] origin (Ambient)
+      - [ ] static (abstract + sealed in CLR) -> Mist static modifier
+      - [ ] sealed -> sentinel attribute [Sealed] (no Mist concept)
+      - [ ] abstract -> sentinel attribute [Abstract] (C# interfaces are Mist abstract types; C# abstract classes need sentinel)
+    type_parameters:
+      - [ ] declaration (name, position)
+      - [ ] constraints:
+        - [ ] struct constraint
+        - [ ] class constraint
+        - [ ] new() constraint
+        - [ ] base type constraint
+        - [ ] interface constraint
+    base_type:
+      - [ ] resolve direct base
+      - [ ] recursive resolution (base's base must also resolve)
+      - [ ] closed generics (e.g., base is List<int>)
+      - [ ] hide type if base unresolvable
+    interfaces:
+      - [ ] resolve all implemented interfaces
+      - [ ] recursive (interface inheritance)
+      - [ ] closed generics (e.g., implements IComparable<int>)
+      - [ ] hide type if any interface unresolvable
+    constructors:
+      - [ ] parameters:
+        - [ ] type
+        - [ ] name
+        - [ ] attributes (sentinel for ref/out/in)
+      - [ ] visibility (public, protected)
+    methods:
+      - [ ] name
+      - [ ] return type
+        - [ ] open generic (uses type's own type params, e.g., T)
+        - [ ] closed generic (e.g., List<int>)
+      - [ ] parameters:
+        - [ ] type
+          - [ ] open generic (uses type/method type params)
+          - [ ] closed generic
+        - [ ] name
+        - [ ] attributes (sentinel for ref/out/in, params)
+      - [ ] type parameters:
+        - [ ] declaration
+        - [ ] constraints:
+          - [ ] struct constraint
+          - [ ] class constraint
+          - [ ] new() constraint
+          - [ ] base type constraint
+          - [ ] interface constraint
+      - [ ] visibility (public, protected)
+      - [ ] static
+      - [ ] virtual/abstract/override -> sentinel attributes [Virtual]/[Abstract]/[Override]
+      - [ ] attributes (method-level)
+    properties:
+      - [ ] name
+      - [ ] type
+        - [ ] open generic (uses type's type params)
+        - [ ] closed generic
+      - [ ] get accessor
+      - [ ] set accessor
+      - [ ] init accessor -> Mist init keyword
+      - [ ] visibility (public, protected)
+      - [ ] static
+      - [ ] attributes
+    fields:
+      - [ ] name
+      - [ ] type
+        - [ ] open generic
+        - [ ] closed generic
+      - [ ] visibility (public, protected)
+      - [ ] static
+      - [ ] readonly
+      - [ ] const (with value)
+      - [ ] attributes
+    indexers:
+      - [ ] parameters:
+        - [ ] type
+          - [ ] open generic
+          - [ ] closed generic
+        - [ ] name
+        - [ ] attributes
+      - [ ] return type
+        - [ ] open generic
+        - [ ] closed generic
+      - [ ] get accessor
+      - [ ] set accessor
+      - [ ] attributes
+    operators:
+      - [ ] operator symbol
+      - [ ] parameter types
+        - [ ] open generic
+        - [ ] closed generic
+      - [ ] return type
+        - [ ] open generic
+        - [ ] closed generic
+    cast_operators:
+      - [ ] implicit conversion
+      - [ ] explicit conversion
+      - [ ] source type
+      - [ ] target type
+    nested_types:
+      - [ ] recursive projection (all of the above)
+      - [ ] dot-separated namespace key
+      - [ ] DeclaringType reference
+
+  struct:
+    shell:
+      - [ ] name
+      - [ ] namespace
+      - [ ] origin (Ambient)
+      - [ ] ref struct (IsByRefLike) -> Mist ref modifier
+      - [ ] readonly struct -> Mist readonly modifier
+    type_parameters:
+      - [ ] declaration (name, position)
+      - [ ] constraints:
+        - [ ] struct constraint
+        - [ ] class constraint
+        - [ ] new() constraint
+        - [ ] base type constraint
+        - [ ] interface constraint
+    interfaces:
+      - [ ] resolve all implemented
+      - [ ] recursive (interface inheritance)
+      - [ ] closed generics (e.g., implements IEquatable<MyStruct>)
+      - [ ] hide if unresolvable
+    constructors:
+      - [ ] parameters:
+        - [ ] type
+          - [ ] open generic
+          - [ ] closed generic
+        - [ ] name
+        - [ ] attributes (sentinel for ref/out/in)
+      - [ ] visibility (public, protected)
+    methods:
+      - [ ] name
+      - [ ] return type
+        - [ ] open generic
+        - [ ] closed generic
+      - [ ] parameters:
+        - [ ] type
+          - [ ] open generic
+          - [ ] closed generic
+        - [ ] name
+        - [ ] attributes (sentinel for ref/out/in, params)
+      - [ ] type parameters:
+        - [ ] declaration
+        - [ ] constraints:
+          - [ ] struct constraint
+          - [ ] class constraint
+          - [ ] new() constraint
+          - [ ] base type constraint
+          - [ ] interface constraint
+      - [ ] visibility (public, protected)
+      - [ ] static
+      - [ ] virtual/override -> sentinel attributes [Virtual]/[Override]
+      - [ ] attributes (method-level)
+    properties:
+      - [ ] name
+      - [ ] type
+        - [ ] open generic
+        - [ ] closed generic
+      - [ ] get accessor
+      - [ ] set accessor
+      - [ ] init accessor -> Mist init keyword
+      - [ ] visibility (public, protected)
+      - [ ] static
+      - [ ] attributes
+    fields:
+      - [ ] name
+      - [ ] type
+        - [ ] open generic
+        - [ ] closed generic
+      - [ ] visibility (public, protected)
+      - [ ] static
+      - [ ] readonly
+      - [ ] const (with value)
+      - [ ] attributes
+    indexers:
+      - [ ] parameters:
+        - [ ] type
+          - [ ] open generic
+          - [ ] closed generic
+        - [ ] name
+        - [ ] attributes
+      - [ ] return type
+        - [ ] open generic
+        - [ ] closed generic
+      - [ ] get accessor
+      - [ ] set accessor
+      - [ ] attributes
+    operators:
+      - [ ] operator symbol
+      - [ ] parameter types
+        - [ ] open generic
+        - [ ] closed generic
+      - [ ] return type
+        - [ ] open generic
+        - [ ] closed generic
+    cast_operators:
+      - [ ] implicit conversion
+      - [ ] explicit conversion
+      - [ ] source type
+      - [ ] target type
+    nested_types:
+      - [ ] recursive projection (all of the above)
+      - [ ] dot-separated namespace key
+      - [ ] DeclaringType reference
+
+  interface:
+    shell:
+      - [ ] name
+      - [ ] namespace
+      - [ ] origin (Ambient)
+    type_parameters:
+      - [ ] declaration (name, position)
+      - [ ] constraints:
+        - [ ] struct constraint
+        - [ ] class constraint
+        - [ ] new() constraint
+        - [ ] base type constraint
+        - [ ] interface constraint
+    base_interfaces:
+      - [ ] resolve all parent interfaces
+      - [ ] recursive
+      - [ ] closed generics (e.g., IList<T> extends ICollection<T>)
+      - [ ] hide if unresolvable
+    methods:
+      - [ ] name
+      - [ ] return type
+        - [ ] open generic
+        - [ ] closed generic
+      - [ ] parameters:
+        - [ ] type
+          - [ ] open generic
+          - [ ] closed generic
+        - [ ] name
+        - [ ] attributes (sentinel for ref/out/in, params)
+      - [ ] type parameters:
+        - [ ] declaration
+        - [ ] constraints:
+          - [ ] struct constraint
+          - [ ] class constraint
+          - [ ] new() constraint
+          - [ ] base type constraint
+          - [ ] interface constraint
+      - [ ] default implementation detection
+      - [ ] attributes (method-level)
+    properties:
+      - [ ] name
+      - [ ] type
+        - [ ] open generic
+        - [ ] closed generic
+      - [ ] get accessor
+      - [ ] set accessor
+      - [ ] attributes
+    indexers:
+      - [ ] parameters:
+        - [ ] type
+          - [ ] open generic
+          - [ ] closed generic
+        - [ ] name
+        - [ ] attributes
+      - [ ] return type
+        - [ ] open generic
+        - [ ] closed generic
+      - [ ] get accessor
+      - [ ] set accessor
+
+  enum:
+    shell:
+      - [ ] name
+      - [ ] namespace
+      - [ ] origin (Ambient)
+      - [ ] underlying type (int, byte, short, long, uint, ulong, ushort, sbyte)
+    members:
+      - [ ] name
+      - [ ] constant value (typed to underlying type)
+
+extensions:
+  scanning:
+    - [ ] find static classes with [ExtensionAttribute]
+    - [ ] find public static methods with [ExtensionAttribute]
+  per_method:
+    - [ ] extract receiver type (first parameter)
+    - [ ] extract remaining parameters
+    - [ ] extract return type
+    - [ ] extract type parameters
+    - [ ] extract constraints
+  registration:
+    - [ ] associate with receiver type in model
+    - [ ] namespace scoping (only visible when imported)
+
+aliases:
+  - [ ] System.Int32 -> Standard.Int32
+  - [ ] System.Int64 -> Standard.Int64
+  - [ ] System.Int16 -> Standard.Int16
+  - [ ] System.Byte -> Standard.Byte
+  - [ ] System.SByte -> Standard.SByte
+  - [ ] System.UInt32 -> Standard.UInt32
+  - [ ] System.UInt64 -> Standard.UInt64
+  - [ ] System.UInt16 -> Standard.UInt16
+  - [ ] System.Single -> Standard.Single
+  - [ ] System.Double -> Standard.Double
+  - [ ] System.Decimal -> Standard.Decimal
+  - [ ] System.String -> Standard.String
+  - [ ] System.Boolean -> Standard.Boolean
+  - [ ] System.Char -> Standard.Char
+  - [ ] System.Void -> Standard.Void
+  - [ ] System.Threading.Tasks.Task -> Standard.Task
+  - [ ] System.Threading.Tasks.ValueTask -> Standard.ValueTask
+
+delegate_families:
+  - [ ] System.Func`N -> Standard.Func (arity N)
+  - [ ] System.Action -> ConstructedType(Standard.Func<>, [Standard.Void])
+  - [ ] System.Action`N -> Standard.Func (arity N+1)
+
+name_format:
+  - [ ] accept Mist arity notation (List<> = arity 1, Dict<,> = arity 2, Foo<,,,> = arity 4)
+  - [ ] translate to CLR notation (List`1, Dict`2, Foo`4) internally
+  - [ ] strip arity suffix from CLR names for Mist registration (List`1 -> List<>, Dictionary`2 -> Dictionary<,>)
+  - [ ] handle nested type names (Outer.Inner)
+
+recursion_safety:
+  # Types can reference themselves in base types, interfaces, or member signatures.
+  # Cache must be populated with a shell BEFORE projecting members to avoid infinite recursion.
+  - [ ] insert shell into cache before member projection
+  - [ ] concurrent access returns same instance (TryAdd race handling)
+  - [ ] rollback on projection failure (remove from cache + namespace)
+
+sentinel_attributes:
+  # Sentinel attributes are ONLY needed when there is NO existing CLR attribute
+  # that projects over AND the type checker or emitter needs the data.
+  # If the CLR already has an attribute (e.g., [In], [Out]), project THAT attribute
+  # directly -- the emitter uses it to distinguish calling conventions.
+  #
+  # Mist concepts that map directly (no sentinel needed):
+  #   - ref/out/in parameters -> Mist ref (CLR already has [In]/[Out] attributes to distinguish)
+  #   - readonly struct -> Mist readonly modifier
+  #   - init-only setter -> Mist init keyword
+  #   - ref struct -> Mist ref modifier
+  #   - static -> Mist static modifier
+  #
+  # True sentinels (no CLR attribute exists, data would be lost):
+  - [ ] sealed class -> sentinel [Sealed] (no CLR attribute, no Mist concept)
+  - [ ] virtual method -> sentinel [Virtual] (no CLR attribute carries this)
+  - [ ] override method -> sentinel [Override] (no CLR attribute carries this)
+  - [ ] abstract method -> sentinel [Abstract]
+  - [ ] params array -> sentinel [Params] (CLR has [ParamArray] attribute -- project that instead?)
+
+clr_attributes_to_project:
+  # All CLR attributes that have valid destinations in Mist should be projected.
+  # This lets the emitter reconstruct proper calling conventions.
+  - [ ] [In] on parameter (distinguishes Mist ref -> C# in)
+  - [ ] [Out] on parameter (distinguishes Mist ref -> C# out)
+  - [ ] [ParamArray] on parameter (params)
+  - [ ] [IsReadOnly] on struct/parameter (readonly)
+  - [ ] all other public custom attributes on members
+
+visibility_filtering:
+  - [ ] project public members
+  - [ ] project protected members (for inheritance)
+  - [ ] exclude private members
+  - [ ] exclude internal members
+  - [ ] exclude event accessors (add_/remove_)
+  - [ ] exclude pointer-typed parameters
+  - [ ] exclude members with unresolvable parameter/return types
+
+disposable:
+  - [ ] detect IDisposable implementation
+  - [ ] set HasDrop on ConcreteType
+  - [ ] determine Drop() vs bare IDisposable (IsDisposableDrop)
+
+duck_typed_enumerable:
+  # Types that have GetEnumerator()/MoveNext()/Current pattern but don't
+  # implement IEnumerable<T> (e.g., Span<T>). Need synthetic IEnumerable<T>
+  # so Mist foreach works.
+  - [ ] detect GetEnumerator() method (public, parameterless)
+  - [ ] verify enumerator has MoveNext() -> bool
+  - [ ] verify enumerator has Current property
+  - [ ] resolve element type from Current (unwrap by-ref)
+  - [ ] synthesize IEnumerable<TElement> interface on projected type
+  - [ ] synthesize Enumerator associated type slots
+
+intrinsic_substitution:
+  # When resolving types in member signatures, CLR types that map to Standard
+  # Library types must be substituted (e.g., System.Int32 -> Standard.Int32
+  # in return types, parameter types, field types, etc.)
+  - [ ] substitute in method return types
+  - [ ] substitute in method parameter types
+  - [ ] substitute in property types
+  - [ ] substitute in field types
+  - [ ] substitute in indexer parameter/return types
+  - [ ] substitute in base type references
+  - [ ] substitute in interface type arguments
+  - [ ] recursive substitution in constructed generics (e.g., List<int> -> List<Standard.Int32>)
+
+missing_stdlib_types:
+  - [ ] System.ValueTuple`N -> Standard tuple type
+  - [ ] Union type Standard Library representation

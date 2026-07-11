@@ -1,3 +1,4 @@
+using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver.Contracts;
 using Mist.ProgramModel.Construction;
@@ -17,8 +18,21 @@ public sealed class ExperimentalPipeline : ICompilationPipeline
     {
         var diagnostics = input.Diagnostics;
 
+        // Create the ambient type provider up front (SDK + NuGet assembly resolution).
+        using var ambientProvider = AmbientTypeProviderV2.CreateFromTargetFramework(
+            input.Options.TargetFramework,
+            input.ResolvedAssemblyPaths,
+            new TypeInterner(),
+            diagnostics);
+
         // Stage 4: Build Program Model
-        var programModel = BuildProgramModel(input, diagnostics);
+        var programModel = ProgramModelBuilder.Build(
+            input.Compilation,
+            input.Asts,
+            input.Options,
+            diagnostics,
+            ambientProvider);
+
         if(programModel is null)
         {
             return new CompilerResult(false, null, diagnostics.ToImmutableArray());
@@ -33,15 +47,6 @@ public sealed class ExperimentalPipeline : ICompilationPipeline
 
         // Stage 6: Emit
         return Emit(programModel, input, diagnostics);
-    }
-
-    /// <summary>
-    /// Stage 4 – Builds the <see cref="IProgramModel"/> from the parsed ASTs.
-    /// Returns null on fatal construction failure.
-    /// </summary>
-    private static IProgramModel? BuildProgramModel(PipelineInput input, DiagnosticBag diagnostics)
-    {
-        return ProgramModelBuilder.Build(input.Compilation, input.Asts, input.Options, diagnostics);
     }
 
     /// <summary>

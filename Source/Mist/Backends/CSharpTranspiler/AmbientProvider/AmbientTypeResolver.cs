@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
@@ -9,22 +10,44 @@ namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 /// Resolves CLR types to their Mist ProgramModel equivalents during ambient
 /// type projection. Checks the current scope (for type parameters), well-known
 /// types (Standard Library), and projected shells — in that order.
+/// Handles closed generics by interning <see cref="ConstructedType"/> instances.
 /// Emits a diagnostic and returns <see cref="ErrorType"/> for unresolvable types.
 /// </summary>
 internal sealed class AmbientTypeResolver
 {
     private readonly Dictionary<(string Namespace, string ClrName), MistType> shells;
     private readonly Dictionary<(string Namespace, string ClrName), IMistType> wellKnownTypes;
+    private readonly TypeInterner typeInterner;
     private readonly DiagnosticBag diagnostics;
 
     public AmbientTypeResolver(
         Dictionary<(string Namespace, string ClrName), MistType> shells,
         Dictionary<(string Namespace, string ClrName), IMistType> wellKnownTypes,
+        TypeInterner typeInterner,
         DiagnosticBag diagnostics)
     {
         this.shells = shells;
         this.wellKnownTypes = wellKnownTypes;
+        this.typeInterner = typeInterner;
         this.diagnostics = diagnostics;
+    }
+
+    /// <summary>
+    /// Resolves a CLR <see cref="Type"/> reference within the given scope.
+    /// Handles closed generics by resolving the definition and type arguments
+    /// recursively, then interning a <see cref="ConstructedType"/>.
+    /// </summary>
+    public MistType Resolve(Type clrType, Scope scope)
+    {
+        // Closed generic (e.g., IComparable<int>, List<string>).
+        if(clrType.IsGenericType && !clrType.IsGenericTypeDefinition)
+        {
+            return ResolveClosedGeneric(clrType, scope);
+        }
+
+        var ns = clrType.Namespace ?? "";
+        var clrName = clrType.Name;
+        return ResolveByName(ns, clrName, scope);
     }
 
     /// <summary>
@@ -33,7 +56,7 @@ internal sealed class AmbientTypeResolver
     /// then projected shells. Returns <see cref="ErrorType"/> and emits a
     /// diagnostic if not found.
     /// </summary>
-    public MistType Resolve(string ns, string clrName, Scope scope)
+    private MistType ResolveByName(string ns, string clrName, Scope scope)
     {
         // Check scope for type parameters (e.g., where T : U resolves U from scope).
         if(scope.LocalTypes.TryGetValue(clrName, out var localType))
@@ -63,20 +86,24 @@ internal sealed class AmbientTypeResolver
     }
 
     /// <summary>
-    /// Resolves a CLR <see cref="Type"/> reference within the given scope.
-    /// Handles closed generics (returns <see cref="NotProjectedType"/>)
-    /// and extracts namespace + name for lookup.
+    /// Resolves a closed generic CLR type by resolving its definition and each
+    /// type argument, then interning a <see cref="ConstructedType"/>.
+    /// If the definition or any type argument is an error/not-projected sentinel,
+    /// returns <see cref="ErrorType"/>.
     /// </summary>
-    public MistType Resolve(Type clrType, Scope scope)
+    private MistType ResolveClosedGeneric(Type clrType, Scope scope)
     {
-        // Closed generics require type interning — not yet supported.
-        if(clrType.IsGenericType && !clrType.IsGenericTypeDefinition)
+        var definitionClrType = clrType.GetGenericTypeDefinition();
+        var definition = Resolve(definitionClrType, scope);
+
+        var clrArgs = clrType.GetGenericArguments();
+        var resolvedArgs = new List<IMistType>(clrArgs.Length);
+
+        foreach(var clrArg in clrArgs)
         {
-            return NotProjectedType.Instance;
+            resolvedArgs.Add(Resolve(clrArg, scope));
         }
 
-        var ns = clrType.Namespace ?? "";
-        var clrName = clrType.Name;
-        return Resolve(ns, clrName, scope);
+        return typeInterner.GetOrCreateConstructedType(definition, resolvedArgs);
     }
 }

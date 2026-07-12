@@ -49,7 +49,7 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
         var (shells, clrTypes) = CreateShells(wellKnownTypes);
 
         // Phase 2: Project type details onto shells (type params, base types, members).
-        var resolver = new AmbientTypeResolver(shells, wellKnownTypes, diagnostics);
+        var resolver = new AmbientTypeResolver(shells, wellKnownTypes, programModel.TypeInterner, diagnostics);
         ProjectTypes(shells, clrTypes, resolver);
 
         // Merge into ProgramModel namespaces.

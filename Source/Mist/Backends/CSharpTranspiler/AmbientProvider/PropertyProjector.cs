@@ -1,0 +1,60 @@
+using System.Reflection;
+using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Types;
+
+namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
+
+/// <summary>
+/// Projects CLR properties onto a Mist MemberType shell.
+/// </summary>
+internal static class PropertyProjector
+{
+    /// <summary>
+    /// Projects all public instance and static properties onto the given MemberType.
+    /// </summary>
+    public static void Project(MemberType memberType, Type clrType, AmbientTypeResolver resolver)
+    {
+        var properties = clrType.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly);
+
+        foreach(var prop in properties)
+        {
+            var resolvedType = resolver.Resolve(prop.PropertyType, memberType.Scope);
+            var getter = prop.GetMethod is { IsPublic: true } ? new PropertyAccessor() : null;
+            var setter = CreateSetter(prop);
+
+            var modifiers = new MemberModifiers
+            {
+                IsPublic = true,
+                IsStatic = (prop.GetMethod?.IsStatic ?? prop.SetMethod?.IsStatic) == true,
+            };
+
+            var projected = new Property(prop.Name, resolvedType, modifiers)
+            {
+                Getter = getter,
+                Setter = setter,
+            };
+
+            memberType.PropertiesList.Add(projected);
+        }
+    }
+
+    /// <summary>
+    /// Creates a setter accessor if the property has a public set or init method.
+    /// Detects init-only setters via the IsExternalInit convention (return type has
+    /// required modifier IsExternalInit).
+    /// </summary>
+    private static PropertyAccessor? CreateSetter(PropertyInfo prop)
+    {
+        var setMethod = prop.SetMethod;
+        if(setMethod is null || !setMethod.IsPublic)
+        {
+            return null;
+        }
+
+        var isInit = setMethod.ReturnParameter
+            .GetRequiredCustomModifiers()
+            .Any(t => t.FullName == "System.Runtime.CompilerServices.IsExternalInit");
+
+        return new PropertyAccessor { IsInit = isInit };
+    }
+}

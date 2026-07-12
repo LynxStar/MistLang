@@ -58,15 +58,15 @@ types:
       - [ ] virtual/abstract/override -> sentinel attributes [Virtual]/[Abstract]/[Override]
       - [ ] attributes (method-level)
     properties:
-      - [ ] name
-      - [ ] type
-        - [ ] open generic (uses type's type params)
-        - [ ] closed generic
-      - [ ] get accessor
-      - [ ] set accessor
-      - [ ] init accessor -> Mist init keyword
-      - [ ] visibility (public, protected)
-      - [ ] static
+      - [x] name
+      - [x] type
+        - [x] open generic (uses type's type params)
+        - [x] closed generic
+      - [x] get accessor
+      - [x] set accessor
+      - [x] init accessor -> Mist init keyword
+      - [x] visibility (public, protected)
+      - [x] static
       - [ ] attributes
     fields:
       - [x] name

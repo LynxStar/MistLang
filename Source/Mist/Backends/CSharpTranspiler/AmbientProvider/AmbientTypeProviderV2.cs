@@ -179,6 +179,7 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
                     }
 
                     BaseTypeProjector.Project(shell, clrType, resolver);
+                    PropertyProjector.Project(memberType, clrType, resolver);
 
                     if(shell is ConcreteType concreteType)
                     {

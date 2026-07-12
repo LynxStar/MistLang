@@ -29,11 +29,11 @@ types:
       - [x] closed generics (e.g., implements IComparable<int>)
       - [ ] hide type if any interface unresolvable
     constructors:
-      - [ ] parameters:
-        - [ ] type
-        - [ ] name
+      - [x] parameters:
+        - [x] type
+        - [x] name
         - [ ] attributes (sentinel for ref/out/in)
-      - [ ] visibility (public, protected)
+      - [x] visibility (public, protected)
     methods:
       - [ ] name
       - [ ] return type

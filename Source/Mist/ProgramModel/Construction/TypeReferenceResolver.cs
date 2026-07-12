@@ -204,38 +204,23 @@ internal sealed class TypeReferenceResolver
     private IMistType ResolveNamed(NamedSingleTypeRefSingleTypeRefNode namedRef, Scope scope)
     {
         var name = namedRef.Name.IDENTIFIER.Lexeme;
-        IMistType? baseType;
 
         // Compute arity from type arguments so we can look up the arity-bearing name.
         var arity = GetTypeArgumentArity(namedRef.TypeArgs);
         var lookupName = arity > 0 ? BuildArityName(name, arity) : name;
 
-        // Try qualified name (has dots — could be namespace.type or parent.nested).
+        // Build the final lookup key: qualified if dotted, simple otherwise.
         if(namedRef.Name.IDENTIFIERs.Length > 0)
         {
             var qualifiedName = QualifiedNameHelper.Build(namedRef.Name);
-            var qualifiedLookup = arity > 0 ? BuildArityName(qualifiedName, arity) : qualifiedName;
-
-            // First, try as a fully-qualified namespace.type.
-            baseType = LookupQualifiedName(qualifiedLookup);
-
-            // Second, try as a nested type key in any reachable namespace.
-            baseType ??= LookupNestedQualifiedName(qualifiedLookup, scope);
-
-            if(baseType is null)
-            {
-                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnresolvedType, namedRef, null, qualifiedName);
-                return ErrorType.Instance;
-            }
+            lookupName = arity > 0 ? BuildArityName(qualifiedName, arity) : qualifiedName;
         }
-        else
+
+        // Single entry point: resolve the name through the unified three-tier lookup.
+        var baseType = ResolveNamedType(lookupName, scope, namedRef);
+        if(baseType is ErrorType)
         {
-            // Simple name lookup through scope chain.
-            baseType = ResolveNamedType(lookupName, scope, namedRef);
-            if(baseType is ErrorType)
-            {
-                return ErrorType.Instance;
-            }
+            return ErrorType.Instance;
         }
 
         // If type arguments are present, resolve them and wrap in a ConstructedType.
@@ -384,22 +369,33 @@ internal sealed class TypeReferenceResolver
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Looks up a simple (unqualified) name by walking the scope chain.
-    /// Checks local types, then current namespace, then imported namespaces.
-    /// Emits a <c>MIST_PM_UNRESOLVED_TYPE</c> diagnostic if not found.
+    /// Looks up a type name by walking the scope chain.
+    /// Resolution follows C# semantics with a priority order:
+    /// 1. Local types (type parameters, nested types) — cascade with shadowing.
+    /// 2. Own namespace — if found in the scope's own namespace, shadows imports.
+    /// 3. Imports — accumulate from ALL scope levels into a flat pool; ambiguity
+    ///    is reported if multiple distinct types match across the combined imports.
+    /// 4. FQN fallback — if the name contains a dot and nothing above matched,
+    ///    try splitting at the last dot into namespace + type for a direct lookup.
     /// </summary>
     public IMistType ResolveNamedType(string name, Scope scope, Storm.Runtime.SyntaxNode locationNode)
     {
+        // Tier 1: Walk up looking for a local type (shadowing applies).
         var current = scope;
         while(current is not null)
         {
-            // Check types directly visible in this scope (e.g., nested types).
             if(current.LocalTypes.TryGetValue(name, out var localType))
             {
                 return localType;
             }
 
-            // Check current namespace.
+            current = current.Parent;
+        }
+
+        // Tier 2: Check own namespace at each scope level (shadows imports).
+        current = scope;
+        while(current is not null)
+        {
             if(current.Namespace is not null)
             {
                 var found = LookupInNamespace(current.Namespace, name);
@@ -409,55 +405,69 @@ internal sealed class TypeReferenceResolver
                 }
             }
 
-            // Check imported namespaces.
+            current = current.Parent;
+        }
+
+        // Tier 3: Collect all imported namespaces from the entire scope chain
+        // into a flat pool. No shadowing between imports — report ambiguity if
+        // multiple distinct types match.
+        IMistType? match = null;
+        string? matchedNamespace = null;
+        string? conflictNamespace = null;
+
+        current = scope;
+        while(current is not null)
+        {
             foreach(var imported in current.ImportedNamespaces)
             {
                 var found = LookupInNamespace(imported, name);
                 if(found is not null)
                 {
-                    return found;
+                    if(match is null)
+                    {
+                        match = found;
+                        matchedNamespace = imported;
+                    }
+                    else if(!ReferenceEquals(match, found))
+                    {
+                        conflictNamespace = imported;
+                    }
                 }
             }
 
             current = current.Parent;
+        }
+
+        if(conflictNamespace is not null)
+        {
+            context.Diagnostics.ReportAtNode(
+                ProgramModelDiagnostics.AmbiguousType, locationNode, null,
+                name, matchedNamespace!, conflictNamespace);
+            return ErrorType.Instance;
+        }
+
+        if(match is not null)
+        {
+            return match;
+        }
+
+        // Tier 4: FQN fallback — if the name has a dot, try splitting at the last
+        // dot into namespace + type. This handles explicitly qualified names like
+        // "System.Int32" when no shorter match was found above.
+        var lastDot = name.LastIndexOf('.');
+        if(lastDot > 0)
+        {
+            var namespacePart = name[..lastDot];
+            var typePart = name[(lastDot + 1)..];
+            var fqnResult = LookupInNamespace(namespacePart, typePart);
+            if(fqnResult is not null)
+            {
+                return fqnResult;
+            }
         }
 
         context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnresolvedType, locationNode, null, name);
-
         return ErrorType.Instance;
-    }
-
-    /// <summary>
-    /// Looks up a qualified name (e.g., "Outer.Inner") as a nested type key
-    /// in any namespace reachable from the scope. Does not report diagnostics.
-    /// </summary>
-    private IMistType? LookupNestedQualifiedName(string qualifiedName, Scope scope)
-    {
-        var current = scope;
-        while(current is not null)
-        {
-            if(current.Namespace is not null)
-            {
-                var found = LookupInNamespace(current.Namespace, qualifiedName);
-                if(found is not null)
-                {
-                    return found;
-                }
-            }
-
-            foreach(var imported in current.ImportedNamespaces)
-            {
-                var found = LookupInNamespace(imported, qualifiedName);
-                if(found is not null)
-                {
-                    return found;
-                }
-            }
-
-            current = current.Parent;
-        }
-
-        return null;
     }
 
     /// <summary>
@@ -475,24 +485,6 @@ internal sealed class TypeReferenceResolver
         }
 
         return null;
-    }
-
-    /// <summary>
-    /// Looks up a fully-qualified type name (e.g., "Standard.Int32").
-    /// Splits into namespace + simple name and does a direct lookup.
-    /// </summary>
-    private IMistType? LookupQualifiedName(string qualifiedName)
-    {
-        var lastDot = qualifiedName.LastIndexOf('.');
-        if(lastDot < 0)
-        {
-            return null;
-        }
-
-        var namespacePart = qualifiedName[..lastDot];
-        var typeName = qualifiedName[(lastDot + 1)..];
-
-        return LookupInNamespace(namespacePart, typeName);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

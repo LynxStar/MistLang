@@ -33,19 +33,19 @@ internal sealed class AmbientTypeResolver
     /// then projected shells. Returns <see cref="ErrorType"/> and emits a
     /// diagnostic if not found.
     /// </summary>
-    public IMistType Resolve(string ns, string clrName, Scope scope)
+    public MistType Resolve(string ns, string clrName, Scope scope)
     {
         // Check scope for type parameters (e.g., where T : U resolves U from scope).
         if(scope.LocalTypes.TryGetValue(clrName, out var localType))
         {
-            return localType;
+            return (MistType)localType;
         }
 
         var key = (ns, clrName);
 
         if(wellKnownTypes.TryGetValue(key, out var wellKnown))
         {
-            return wellKnown;
+            return (MistType)wellKnown;
         }
 
         if(shells.TryGetValue(key, out var shell))
@@ -60,5 +60,23 @@ internal sealed class AmbientTypeResolver
             (object?)ns,
             clrName);
         return ErrorType.Instance;
+    }
+
+    /// <summary>
+    /// Resolves a CLR <see cref="Type"/> reference within the given scope.
+    /// Handles closed generics (returns <see cref="NotProjectedType"/>)
+    /// and extracts namespace + name for lookup.
+    /// </summary>
+    public MistType Resolve(Type clrType, Scope scope)
+    {
+        // Closed generics require type interning — not yet supported.
+        if(clrType.IsGenericType && !clrType.IsGenericTypeDefinition)
+        {
+            return NotProjectedType.Instance;
+        }
+
+        var ns = clrType.Namespace ?? "";
+        var clrName = clrType.Name;
+        return Resolve(ns, clrName, scope);
     }
 }

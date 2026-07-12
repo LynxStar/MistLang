@@ -2,10 +2,8 @@ using System.Collections.Immutable;
 using System.Reflection;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
-using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
-using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 using ProgramModelType = Mist.ProgramModel.Model.ProgramModel;
 
@@ -18,7 +16,6 @@ namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 /// </summary>
 internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
 {
-    private readonly ImmutableArray<LoadedAssemblyInfo> assemblies;
     private readonly MetadataLoadContext? metadataContext;
     private readonly DiagnosticBag diagnostics;
 
@@ -29,11 +26,10 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
     /// </summary>
     public AmbientTypeProviderV2(
         ImmutableArray<LoadedAssemblyInfo> assemblies,
-        TypeInterner typeInterner,
         MetadataLoadContext? metadataContext,
         DiagnosticBag diagnostics)
     {
-        this.assemblies = assemblies;
+        LoadedAssemblies = assemblies;
         this.metadataContext = metadataContext;
         this.diagnostics = diagnostics;
     }
@@ -41,7 +37,7 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
     /// <summary>
     /// Gets the loaded assemblies available for type resolution.
     /// </summary>
-    public ImmutableArray<LoadedAssemblyInfo> LoadedAssemblies => assemblies;
+    public ImmutableArray<LoadedAssemblyInfo> LoadedAssemblies { get; }
 
     /// <inheritdoc />
     public void BuildAndRegister(ProgramModelType programModel)
@@ -55,6 +51,9 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
         // Phase 2: Project type parameters and constraints.
         var resolver = new AmbientTypeResolver(shells, wellKnownTypes, diagnostics);
         ProjectTypeParameters(shells, clrTypes, resolver);
+
+        // Phase 2b: Project base types and interfaces.
+        ProjectBaseTypes(shells, clrTypes, resolver);
 
         // Merge into ProgramModel namespaces.
         foreach(var (key, shell) in shells)
@@ -106,7 +105,7 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
         var shells = new Dictionary<(string Namespace, string ClrName), MistType>();
         var clrTypes = new Dictionary<(string Namespace, string ClrName), Type>();
 
-        foreach(var assembly in assemblies)
+        foreach(var assembly in LoadedAssemblies)
         {
             var exportedTypes = assembly.MetadataAssembly.GetExportedTypes();
 
@@ -177,6 +176,23 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
             if(shells.TryGetValue(key, out var shell) && shell is MemberType memberType)
             {
                 TypeParameterProjector.Project(memberType, clrType, resolver);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Phase 2b: Projects base types and implemented interfaces onto all shells.
+    /// </summary>
+    private static void ProjectBaseTypes(
+        Dictionary<(string Namespace, string ClrName), MistType> shells,
+        Dictionary<(string Namespace, string ClrName), Type> clrTypes,
+        AmbientTypeResolver resolver)
+    {
+        foreach(var (key, clrType) in clrTypes)
+        {
+            if(shells.TryGetValue(key, out var shell))
+            {
+                BaseTypeProjector.Project(shell, clrType, resolver);
             }
         }
     }

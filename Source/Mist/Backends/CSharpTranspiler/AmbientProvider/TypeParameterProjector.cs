@@ -1,5 +1,4 @@
 using System.Reflection;
-using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 
@@ -89,23 +88,13 @@ internal static class TypeParameterProjector
 
     /// <summary>
     /// Resolves a CLR constraint type through the ambient resolver.
-    /// Generic parameter constraints (where T : U) are resolved via scope lookup
-    /// inside the resolver. Returns null for ErrorType results.
+    /// Returns null for sentinel types (ErrorType, NotProjectedType) that
+    /// should not become constraints.
     /// </summary>
-    private static IMistType? ResolveConstraintType(Type constraintType, Scope scope, AmbientTypeResolver resolver)
+    private static MistType? ResolveConstraintType(Type constraintType, Scope scope, AmbientTypeResolver resolver)
     {
-        // Closed generics (e.g., IComparable<int>) require type interning to represent.
-        // Not yet supported — skip without emitting a diagnostic.
-        if(constraintType.IsGenericType && !constraintType.IsGenericTypeDefinition)
-        {
-            return null;
-        }
-
-        var ns = constraintType.Namespace ?? "";
-        var clrName = constraintType.Name;
-
-        var resolved = resolver.Resolve(ns, clrName, scope);
-        if(resolved is ErrorType)
+        var resolved = resolver.Resolve(constraintType, scope);
+        if(resolved is ErrorType or NotProjectedType)
         {
             return null;
         }

@@ -92,7 +92,6 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
 
         provider = new AmbientTypeProviderV2(
             ImmutableArray<Mist.Driver.LoadedAssemblyInfo>.Empty,
-            programModel.TypeInterner,
             null,
             new DiagnosticBag());
     }

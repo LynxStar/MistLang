@@ -19,13 +19,13 @@ types:
         - [x] base type constraint
         - [x] interface constraint
     base_type:
-      - [ ] resolve direct base
-      - [ ] recursive resolution (base's base must also resolve)
+      - [x] resolve direct base
+      - [x] recursive resolution (base's base must also resolve)
       - [ ] closed generics (e.g., base is List<int>)
       - [ ] hide type if base unresolvable
     interfaces:
-      - [ ] resolve all implemented interfaces
-      - [ ] recursive (interface inheritance)
+      - [x] resolve all implemented interfaces
+      - [x] recursive (interface inheritance)
       - [ ] closed generics (e.g., implements IComparable<int>)
       - [ ] hide type if any interface unresolvable
     constructors:
@@ -125,8 +125,8 @@ types:
         - [x] base type constraint
         - [x] interface constraint
     interfaces:
-      - [ ] resolve all implemented
-      - [ ] recursive (interface inheritance)
+      - [x] resolve all implemented
+      - [x] recursive (interface inheritance)
       - [ ] closed generics (e.g., implements IEquatable<MyStruct>)
       - [ ] hide if unresolvable
     constructors:
@@ -226,8 +226,8 @@ types:
         - [x] base type constraint
         - [x] interface constraint
     base_interfaces:
-      - [ ] resolve all parent interfaces
-      - [ ] recursive
+      - [x] resolve all parent interfaces
+      - [x] recursive
       - [ ] closed generics (e.g., IList<T> extends ICollection<T>)
       - [ ] hide if unresolvable
     methods:

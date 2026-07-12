@@ -87,7 +87,6 @@ public sealed class AmbientTypeProviderV2AliasTests : IDisposable
         // Create provider with empty assemblies and null metadata context
         provider = new AmbientTypeProviderV2(
             ImmutableArray<Mist.Driver.LoadedAssemblyInfo>.Empty,
-            programModel.TypeInterner,
             null,
             new DiagnosticBag());
     }

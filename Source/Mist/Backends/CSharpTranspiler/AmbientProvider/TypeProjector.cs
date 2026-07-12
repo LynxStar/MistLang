@@ -20,23 +20,13 @@ internal static class TypeProjector
         var mistName = NameFormatTranslator.ClrNameToMistName(clrType.Name);
         var scope = new Scope(null);
 
-        MistType shell;
-        if(clrType.IsInterface)
-        {
-            shell = new AbstractType(mistName, namespaceName, scope, null, null);
-        }
-        else if(clrType.IsEnum)
-        {
-            shell = new EnumType(mistName, namespaceName, scope, null, null);
-        }
-        else if(clrType.IsValueType)
-        {
-            shell = new StructType(mistName, namespaceName, scope, null, null);
-        }
-        else
-        {
-            shell = new ClassType(mistName, namespaceName, scope, null, null!);
-        }
+        var shell = clrType.IsInterface
+            ? (MistType)new AbstractType(mistName, namespaceName, scope, null, null)
+            : clrType.IsEnum
+            ? new EnumType(mistName, namespaceName, scope, null, null)
+            : clrType.IsValueType
+            ? new StructType(mistName, namespaceName, scope, null, null)
+            : new ClassType(mistName, namespaceName, scope, null, null!);
 
         shell.Origin = TypeOrigin.Ambient;
         return shell;

@@ -2,7 +2,6 @@ using System.Collections.Immutable;
 using System.Reflection;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
-using Mist.ProgramModel.Construction;
 
 namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 
@@ -26,7 +25,6 @@ internal static class AmbientTypeProviderV2Factory
     public static AmbientTypeProviderV2 Create(
         string targetFramework,
         ImmutableArray<string> additionalAssemblyPaths,
-        TypeInterner typeInterner,
         DiagnosticBag diagnostics)
     {
         var assemblyPaths = ResolveSdkAndAdditionalPaths(targetFramework, additionalAssemblyPaths, diagnostics);
@@ -35,7 +33,7 @@ internal static class AmbientTypeProviderV2Factory
         var context = new MetadataLoadContext(resolver);
         var loaded = LoadAssemblies(assemblyPaths, context, diagnostics);
 
-        return new AmbientTypeProviderV2(loaded, typeInterner, context, diagnostics);
+        return new AmbientTypeProviderV2(loaded, context, diagnostics);
     }
 
     /// <summary>

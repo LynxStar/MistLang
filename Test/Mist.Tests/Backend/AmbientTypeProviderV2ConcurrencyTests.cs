@@ -118,7 +118,6 @@ public sealed class AmbientTypeProviderV2ConcurrencyTests : IDisposable
 
         provider = new AmbientTypeProviderV2(
             loaded,
-            programModel.TypeInterner,
             metadataContext,
             new DiagnosticBag());
 

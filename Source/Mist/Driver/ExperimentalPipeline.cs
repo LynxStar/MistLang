@@ -22,7 +22,6 @@ public sealed class ExperimentalPipeline : ICompilationPipeline
         using var ambientProvider = AmbientTypeProviderV2Factory.Create(
             input.Options.TargetFramework,
             input.ResolvedAssemblyPaths,
-            new TypeInterner(),
             diagnostics);
 
         // Stage 4: Build Program Model

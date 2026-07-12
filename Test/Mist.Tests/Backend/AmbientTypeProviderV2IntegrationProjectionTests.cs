@@ -123,7 +123,7 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
 
         var loadedAssemblies = AmbientTypeProviderV2Factory.LoadAssemblies(assemblyPaths, metadataContext, new DiagnosticBag());
 
-        provider = new AmbientTypeProviderV2(loadedAssemblies, programModel.TypeInterner, null, new DiagnosticBag());
+        provider = new AmbientTypeProviderV2(loadedAssemblies, null, new DiagnosticBag());
 
         // Eagerly build and register all ambient types.
         provider.BuildAndRegister(programModel);

@@ -40,6 +40,7 @@ internal static class PropertyProjector
                 Setter = setter,
             };
 
+            AttributeProjector.Project(prop, projected.AttributesList, memberType.Scope, resolver);
             memberType.PropertiesList.Add(projected);
         }
     }

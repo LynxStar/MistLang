@@ -34,6 +34,7 @@ internal static class FieldProjector
             };
 
             var projected = new Field(field.Name, resolvedType, OwnershipKind.Unrestricted, modifiers);
+            AttributeProjector.Project(field, projected.AttributesList, concreteType.Scope, resolver);
             concreteType.FieldsList.Add(projected);
         }
     }

@@ -33,7 +33,9 @@ internal static class ParameterProjector
                 return null;
             }
 
-            parameters.Add(new Parameter(param.Name ?? "", paramType));
+            var projected = new Parameter(param.Name ?? "", paramType);
+            AttributeProjector.Project(param, projected.AttributesList, scope, resolver);
+            parameters.Add(projected);
         }
 
         return parameters;

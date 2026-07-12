@@ -91,7 +91,7 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
                 ? clrKey.TypeName
                 : $"{clrKey.Namespace}.{clrKey.TypeName}"
                 ;
-            
+
             resolved[clrFqn] = type;
         }
 
@@ -188,6 +188,7 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
                     IndexerProjector.Project(memberType, clrType, resolver);
                     MethodProjector.Project(memberType, clrType, resolver);
                     OperatorProjector.Project(memberType, clrType, resolver);
+                    AttributeProjector.Project(clrType, memberType.AttributesList, memberType.Scope, resolver);
 
                     if(shell is ConcreteType concreteType)
                     {

@@ -35,26 +35,26 @@ types:
         - [ ] attributes (sentinel for ref/out/in)
       - [x] visibility (public, protected)
     methods:
-      - [ ] name
-      - [ ] return type
-        - [ ] open generic (uses type's own type params, e.g., T)
-        - [ ] closed generic (e.g., List<int>)
-      - [ ] parameters:
-        - [ ] type
-          - [ ] open generic (uses type/method type params)
-          - [ ] closed generic
-        - [ ] name
+      - [x] name
+      - [x] return type
+        - [x] open generic (uses type's own type params, e.g., T)
+        - [x] closed generic (e.g., List<int>)
+      - [x] parameters:
+        - [x] type
+          - [x] open generic (uses type/method type params)
+          - [x] closed generic
+        - [x] name
         - [ ] attributes (sentinel for ref/out/in, params)
-      - [ ] type parameters:
-        - [ ] declaration
-        - [ ] constraints:
-          - [ ] struct constraint
-          - [ ] class constraint
-          - [ ] new() constraint
-          - [ ] base type constraint
-          - [ ] interface constraint
-      - [ ] visibility (public, protected)
-      - [ ] static
+      - [x] type parameters:
+        - [x] declaration
+        - [x] constraints:
+          - [x] struct constraint
+          - [x] class constraint
+          - [x] new() constraint
+          - [x] base type constraint
+          - [x] interface constraint
+      - [x] visibility (public, protected)
+      - [x] static
       - [ ] virtual/abstract/override -> sentinel attributes [Virtual]/[Abstract]/[Override]
       - [ ] attributes (method-level)
     properties:
@@ -130,46 +130,46 @@ types:
       - [x] closed generics (e.g., implements IEquatable<MyStruct>)
       - [ ] hide if unresolvable
     constructors:
-      - [ ] parameters:
-        - [ ] type
-          - [ ] open generic
-          - [ ] closed generic
-        - [ ] name
+      - [x] parameters:
+        - [x] type
+          - [x] open generic
+          - [x] closed generic
+        - [x] name
         - [ ] attributes (sentinel for ref/out/in)
-      - [ ] visibility (public, protected)
+      - [x] visibility (public, protected)
     methods:
-      - [ ] name
-      - [ ] return type
-        - [ ] open generic
-        - [ ] closed generic
-      - [ ] parameters:
-        - [ ] type
-          - [ ] open generic
-          - [ ] closed generic
-        - [ ] name
+      - [x] name
+      - [x] return type
+        - [x] open generic
+        - [x] closed generic
+      - [x] parameters:
+        - [x] type
+          - [x] open generic
+          - [x] closed generic
+        - [x] name
         - [ ] attributes (sentinel for ref/out/in, params)
-      - [ ] type parameters:
-        - [ ] declaration
-        - [ ] constraints:
-          - [ ] struct constraint
-          - [ ] class constraint
-          - [ ] new() constraint
-          - [ ] base type constraint
-          - [ ] interface constraint
-      - [ ] visibility (public, protected)
-      - [ ] static
+      - [x] type parameters:
+        - [x] declaration
+        - [x] constraints:
+          - [x] struct constraint
+          - [x] class constraint
+          - [x] new() constraint
+          - [x] base type constraint
+          - [x] interface constraint
+      - [x] visibility (public, protected)
+      - [x] static
       - [ ] virtual/override -> sentinel attributes [Virtual]/[Override]
       - [ ] attributes (method-level)
     properties:
-      - [ ] name
-      - [ ] type
-        - [ ] open generic
-        - [ ] closed generic
-      - [ ] get accessor
-      - [ ] set accessor
-      - [ ] init accessor -> Mist init keyword
-      - [ ] visibility (public, protected)
-      - [ ] static
+      - [x] name
+      - [x] type
+        - [x] open generic
+        - [x] closed generic
+      - [x] get accessor
+      - [x] set accessor
+      - [x] init accessor -> Mist init keyword
+      - [x] visibility (public, protected)
+      - [x] static
       - [ ] attributes
     fields:
       - [x] name
@@ -231,46 +231,46 @@ types:
       - [x] closed generics (e.g., IList<T> extends ICollection<T>)
       - [ ] hide if unresolvable
     methods:
-      - [ ] name
-      - [ ] return type
-        - [ ] open generic
-        - [ ] closed generic
-      - [ ] parameters:
-        - [ ] type
-          - [ ] open generic
-          - [ ] closed generic
-        - [ ] name
+      - [x] name
+      - [x] return type
+        - [x] open generic
+        - [x] closed generic
+      - [x] parameters:
+        - [x] type
+          - [x] open generic
+          - [x] closed generic
+        - [x] name
         - [ ] attributes (sentinel for ref/out/in, params)
-      - [ ] type parameters:
-        - [ ] declaration
-        - [ ] constraints:
-          - [ ] struct constraint
-          - [ ] class constraint
-          - [ ] new() constraint
-          - [ ] base type constraint
-          - [ ] interface constraint
+      - [x] type parameters:
+        - [x] declaration
+        - [x] constraints:
+          - [x] struct constraint
+          - [x] class constraint
+          - [x] new() constraint
+          - [x] base type constraint
+          - [x] interface constraint
       - [ ] default implementation detection
       - [ ] attributes (method-level)
     properties:
-      - [ ] name
-      - [ ] type
-        - [ ] open generic
-        - [ ] closed generic
-      - [ ] get accessor
-      - [ ] set accessor
+      - [x] name
+      - [x] type
+        - [x] open generic
+        - [x] closed generic
+      - [x] get accessor
+      - [x] set accessor
       - [ ] attributes
     indexers:
-      - [ ] parameters:
-        - [ ] type
-          - [ ] open generic
-          - [ ] closed generic
-        - [ ] name
+      - [x] parameters:
+        - [x] type
+          - [x] open generic
+          - [x] closed generic
+        - [x] name
         - [ ] attributes
-      - [ ] return type
-        - [ ] open generic
-        - [ ] closed generic
-      - [ ] get accessor
-      - [ ] set accessor
+      - [x] return type
+        - [x] open generic
+        - [x] closed generic
+      - [x] get accessor
+      - [x] set accessor
 
   enum:
     shell:

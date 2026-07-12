@@ -4,7 +4,7 @@ using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.ProgramModel.Construction;
 
-namespace Mist.Backends.CSharpTranspiler;
+namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 
 /// <summary>
 /// Factory for creating <see cref="AmbientTypeProviderV2"/> instances.
@@ -35,7 +35,7 @@ internal static class AmbientTypeProviderV2Factory
         var context = new MetadataLoadContext(resolver);
         var loaded = LoadAssemblies(assemblyPaths, context, diagnostics);
 
-        return new AmbientTypeProviderV2(loaded, typeInterner, context);
+        return new AmbientTypeProviderV2(loaded, typeInterner, context, diagnostics);
     }
 
     /// <summary>

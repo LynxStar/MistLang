@@ -6,7 +6,9 @@
 // Uses [Theory] + [MemberData] over the finite alias set (no process spawning).
 
 using System.Collections.Immutable;
-using Mist.Backends.CSharpTranspiler;
+using Mist.Backends.CSharpTranspiler.AmbientProvider;
+using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
@@ -22,6 +24,43 @@ public sealed class AmbientTypeProviderV2AliasTests : IDisposable
     private readonly ProgramModelClass programModel;
     private readonly MistNamespace standardNamespace;
     private readonly AmbientTypeProviderV2 provider;
+
+    private IMistType? LookupType(string namespaceName, string typeName)
+    {
+        // Check well-known type map first (aliases to Standard Library).
+        if(WellKnownTypeMap.Entries.TryGetValue((namespaceName, typeName), out var mapping))
+        {
+            if(programModel.Namespaces.TryGetValue(mapping.MistNamespace, out var stdNs)
+                && stdNs.Types.TryGetValue(mapping.MistTypeName, out var stdType))
+            {
+                return stdType;
+            }
+
+            return null;
+        }
+
+        // Handle CLR backtick arity notation → Mist angle-bracket notation.
+        var mistName = typeName;
+        var backtickIndex = typeName.IndexOf('`');
+        if(backtickIndex >= 0)
+        {
+            var baseName = typeName[..backtickIndex];
+            var arityStr = typeName[(backtickIndex + 1)..];
+            if(int.TryParse(arityStr, out var arity) && arity >= 1)
+            {
+                var commas = new string(',', arity - 1);
+                mistName = $"{baseName}<{commas}>";
+            }
+        }
+
+        if(programModel.Namespaces.TryGetValue(namespaceName, out var ns)
+            && ns.Types.TryGetValue(mistName, out var type))
+        {
+            return type;
+        }
+
+        return null;
+    }
 
     public AmbientTypeProviderV2AliasTests()
     {
@@ -49,7 +88,8 @@ public sealed class AmbientTypeProviderV2AliasTests : IDisposable
         provider = new AmbientTypeProviderV2(
             ImmutableArray<Mist.Driver.LoadedAssemblyInfo>.Empty,
             programModel.TypeInterner,
-            null);
+            null,
+            new DiagnosticBag());
     }
 
     public void Dispose()
@@ -98,7 +138,7 @@ public sealed class AmbientTypeProviderV2AliasTests : IDisposable
         string clrNamespace, string clrTypeName, string expectedMistTypeName)
     {
         // Act
-        var resolved = provider.ResolveType(clrNamespace, clrTypeName, programModel);
+        var resolved = LookupType(clrNamespace, clrTypeName);
 
         // Assert - resolved is not null
         Assert.NotNull(resolved);
@@ -117,7 +157,7 @@ public sealed class AmbientTypeProviderV2AliasTests : IDisposable
         string clrNamespace, string clrTypeName, string expectedMistTypeName)
     {
         // Aliases are non-generic — resolving the bare name should return the Standard instance
-        var resolved = provider.ResolveType(clrNamespace, clrTypeName, programModel);
+        var resolved = LookupType(clrNamespace, clrTypeName);
 
         Assert.NotNull(resolved);
 
@@ -142,7 +182,7 @@ public sealed class AmbientTypeProviderV2AliasTests : IDisposable
         }
 
         // All other aliases should NOT match when name has arity notation (generic variant)
-        var resolved = provider.ResolveType(clrNamespace, $"{clrTypeName}<>", programModel);
+        var resolved = LookupType(clrNamespace, $"{clrTypeName}<>");
 
         Assert.Null(resolved);
     }

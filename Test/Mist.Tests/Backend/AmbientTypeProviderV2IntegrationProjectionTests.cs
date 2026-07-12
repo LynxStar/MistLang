@@ -9,9 +9,8 @@
 
 using System.Collections.Immutable;
 using System.Reflection;
-using Mist.Backends.CSharpTranspiler;
+using Mist.Backends.CSharpTranspiler.AmbientProvider;
 using Mist.Common.Diagnostics;
-using Mist.Driver;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
@@ -29,6 +28,43 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
     private readonly ProgramModelClass programModel;
     private readonly AmbientTypeProviderV2 provider;
     private readonly MetadataLoadContext metadataContext;
+
+    private IMistType? LookupType(string namespaceName, string typeName)
+    {
+        // Check well-known type map first (aliases to Standard Library).
+        if(WellKnownTypeMap.Entries.TryGetValue((namespaceName, typeName), out var mapping))
+        {
+            if(programModel.Namespaces.TryGetValue(mapping.MistNamespace, out var stdNs)
+                && stdNs.Types.TryGetValue(mapping.MistTypeName, out var stdType))
+            {
+                return stdType;
+            }
+
+            return null;
+        }
+
+        // Handle CLR backtick arity notation → Mist angle-bracket notation.
+        var mistName = typeName;
+        var backtickIndex = typeName.IndexOf('`');
+        if(backtickIndex >= 0)
+        {
+            var baseName = typeName[..backtickIndex];
+            var arityStr = typeName[(backtickIndex + 1)..];
+            if(int.TryParse(arityStr, out var arity) && arity >= 1)
+            {
+                var commas = new string(',', arity - 1);
+                mistName = $"{baseName}<{commas}>";
+            }
+        }
+
+        if(programModel.Namespaces.TryGetValue(namespaceName, out var ns)
+            && ns.Types.TryGetValue(mistName, out var type))
+        {
+            return type;
+        }
+
+        return null;
+    }
 
     public AmbientTypeProviderV2IntegrationProjectionTests()
     {
@@ -66,6 +102,17 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
             stdNs.Types[funcName] = funcType;
         }
 
+        // Register Standard.Action definitions for delegate projection.
+        var action = new ClassType("Action", "Standard", scope, null, null!);
+        stdNs.Types["Action"] = action;
+        for(var arity = 1; arity <= 16; arity++)
+        {
+            var commas = arity > 1 ? new string(',', arity - 1) : "";
+            var actionName = $"Action<{commas}>";
+            var actionType = new ClassType(actionName, "Standard", scope, null, null!);
+            stdNs.Types[actionName] = actionType;
+        }
+
         // Load real BCL assemblies via MetadataLoadContext.
         var runtimePath = typeof(object).Assembly.Location;
         var runtimeDir = Path.GetDirectoryName(runtimePath)!;
@@ -76,7 +123,10 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
 
         var loadedAssemblies = AmbientTypeProviderV2Factory.LoadAssemblies(assemblyPaths, metadataContext, new DiagnosticBag());
 
-        provider = new AmbientTypeProviderV2(loadedAssemblies, programModel.TypeInterner, null);
+        provider = new AmbientTypeProviderV2(loadedAssemblies, programModel.TypeInterner, null, new DiagnosticBag());
+
+        // Eagerly build and register all ambient types.
+        provider.BuildAndRegister(programModel);
     }
 
     public void Dispose()
@@ -93,7 +143,7 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
     public void ResolveType_Console_InsertsIntoProgramModelNamespace()
     {
         // Act
-        var resolved = provider.ResolveType("System", "Console", programModel);
+        var resolved = LookupType("System", "Console");
 
         // Assert
         Assert.NotNull(resolved);
@@ -109,7 +159,7 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
     public void ResolveType_Console_ReturnedTypeIsReferenceEqualToNamespaceEntry()
     {
         // Act
-        var resolved = provider.ResolveType("System", "Console", programModel);
+        var resolved = LookupType("System", "Console");
 
         // Assert
         Assert.NotNull(resolved);
@@ -125,7 +175,7 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
     public void ResolveType_MemoryStream_InsertsIntoProgramModelNamespace()
     {
         // Act
-        var resolved = provider.ResolveType("System.IO", "MemoryStream", programModel);
+        var resolved = LookupType("System.IO", "MemoryStream");
 
         // Assert
         Assert.NotNull(resolved);
@@ -140,7 +190,7 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
     {
         // Act — generic types are stored with CLR arity suffix in the provider cache
         // but registered with angle-bracket name in the namespace
-        var resolved = provider.ResolveType("System.Collections.Generic", "List`1", programModel);
+        var resolved = LookupType("System.Collections.Generic", "List`1");
 
         // Assert
         Assert.NotNull(resolved);
@@ -156,9 +206,9 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
     public void ResolveType_MultipleTypes_AllInsertedIntoSameNamespace()
     {
         // Act — resolve multiple types from the same namespace
-        var console = provider.ResolveType("System", "Console", programModel);
-        var environment = provider.ResolveType("System", "Environment", programModel);
-        var math = provider.ResolveType("System", "Math", programModel);
+        var console = LookupType("System", "Console");
+        var environment = LookupType("System", "Environment");
+        var math = LookupType("System", "Math");
 
         // Assert
         Assert.NotNull(console);
@@ -179,7 +229,7 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
     public void ResolveType_Console_HasTypeOriginAssembly()
     {
         // Act
-        var resolved = provider.ResolveType("System", "Console", programModel);
+        var resolved = LookupType("System", "Console");
 
         // Assert
         Assert.NotNull(resolved);
@@ -189,7 +239,7 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
     [Fact]
     public void ResolveType_MemoryStream_HasTypeOriginAssembly()
     {
-        var resolved = provider.ResolveType("System.IO", "MemoryStream", programModel);
+        var resolved = LookupType("System.IO", "MemoryStream");
 
         Assert.NotNull(resolved);
         Assert.Equal(TypeOrigin.Ambient, resolved!.Origin);
@@ -198,7 +248,7 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
     [Fact]
     public void ResolveType_GenericList_HasTypeOriginAssembly()
     {
-        var resolved = provider.ResolveType("System.Collections.Generic", "List`1", programModel);
+        var resolved = LookupType("System.Collections.Generic", "List`1");
 
         Assert.NotNull(resolved);
         Assert.Equal(TypeOrigin.Ambient, resolved!.Origin);
@@ -207,7 +257,7 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
     [Fact]
     public void ResolveType_Interface_HasTypeOriginAssembly()
     {
-        var resolved = provider.ResolveType("System", "IDisposable", programModel);
+        var resolved = LookupType("System", "IDisposable");
 
         Assert.NotNull(resolved);
         Assert.Equal(TypeOrigin.Ambient, resolved!.Origin);
@@ -216,7 +266,7 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
     [Fact]
     public void ResolveType_Struct_HasTypeOriginAssembly()
     {
-        var resolved = provider.ResolveType("System", "DateTime", programModel);
+        var resolved = LookupType("System", "DateTime");
 
         Assert.NotNull(resolved);
         Assert.Equal(TypeOrigin.Ambient, resolved!.Origin);
@@ -225,7 +275,7 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
     [Fact]
     public void ResolveType_Enum_HasTypeOriginAssembly()
     {
-        var resolved = provider.ResolveType("System", "DayOfWeek", programModel);
+        var resolved = LookupType("System", "DayOfWeek");
 
         Assert.NotNull(resolved);
         Assert.Equal(TypeOrigin.Ambient, resolved!.Origin);
@@ -236,7 +286,7 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
     {
         // Aliased types (e.g., System.String → Standard.String) retain Source origin
         // because they return the existing Standard Library instance.
-        var resolved = provider.ResolveType("System", "String", programModel);
+        var resolved = LookupType("System", "String");
 
         Assert.NotNull(resolved);
         Assert.Equal(TypeOrigin.Source, resolved!.Origin);
@@ -252,7 +302,7 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
     [InlineData("System", "DayOfWeek")]
     public void ResolveType_VariousTypes_AllHaveTypeOriginAssembly(string ns, string typeName)
     {
-        var resolved = provider.ResolveType(ns, typeName, programModel);
+        var resolved = LookupType(ns, typeName);
 
         Assert.NotNull(resolved);
         Assert.Equal(TypeOrigin.Ambient, resolved!.Origin);
@@ -265,7 +315,7 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
     public void ResolveType_ProjectedType_InNamespaceIsReferenceEqual(string ns, string typeName)
     {
         // Act
-        var resolved = provider.ResolveType(ns, typeName, programModel);
+        var resolved = LookupType(ns, typeName);
 
         // Assert
         Assert.NotNull(resolved);

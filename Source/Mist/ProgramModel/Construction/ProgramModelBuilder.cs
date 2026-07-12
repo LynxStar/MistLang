@@ -62,6 +62,11 @@ public sealed class ProgramModelBuilder
             _ = unitBuilder.Build(unit);
         }
 
+        // Phase 1b: Eagerly build and register all ambient types.
+        // Standard Library shells are now registered, so the provider can resolve
+        // well-known type aliases. All ambient types become visible for Phase 2.
+        ambientProvider.BuildAndRegister(programModel);
+
         // Phase 2a: Resolve member signatures on all registered types.
         var typeResolver = new TypeReferenceResolver(context);
         var concreteTypeBuilder = new ConcreteTypeBuilder(context, typeResolver);

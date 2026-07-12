@@ -1,5 +1,4 @@
 using Mist.ProgramModel.Contracts;
-using Mist.ProgramModel.Contracts.Types;
 using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 
 namespace Mist.Tests.Helpers;
@@ -17,8 +16,8 @@ internal sealed class NullAmbientTypeProvider : IAmbientTypeProvider
     public static NullAmbientTypeProvider Instance { get; } = new();
 
     /// <inheritdoc />
-    public IMistType? ResolveType(string namespaceName, string typeName, ProgramModelClass programModel)
+    public void BuildAndRegister(ProgramModelClass programModel)
     {
-        return null;
+        // No-op: no assemblies to project.
     }
 }

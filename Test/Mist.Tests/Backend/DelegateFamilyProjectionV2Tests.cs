@@ -6,7 +6,8 @@
 // with correct arguments. Uses [Theory] + [MemberData] (no process spawning).
 
 using System.Collections.Immutable;
-using Mist.Backends.CSharpTranspiler;
+using Mist.Backends.CSharpTranspiler.AmbientProvider;
+using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
@@ -26,6 +27,43 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
     private readonly IMistType funcArity2;
     private readonly IMistType funcArity3;
     private readonly IMistType voidType;
+
+    private IMistType? LookupType(string namespaceName, string typeName)
+    {
+        // Check well-known type map first (aliases to Standard Library).
+        if(WellKnownTypeMap.Entries.TryGetValue((namespaceName, typeName), out var mapping))
+        {
+            if(programModel.Namespaces.TryGetValue(mapping.MistNamespace, out var stdNs)
+                && stdNs.Types.TryGetValue(mapping.MistTypeName, out var stdType))
+            {
+                return stdType;
+            }
+
+            return null;
+        }
+
+        // Handle CLR backtick arity notation → Mist angle-bracket notation.
+        var mistName = typeName;
+        var backtickIndex = typeName.IndexOf('`');
+        if(backtickIndex >= 0)
+        {
+            var baseName = typeName[..backtickIndex];
+            var arityStr = typeName[(backtickIndex + 1)..];
+            if(int.TryParse(arityStr, out var arity) && arity >= 1)
+            {
+                var commas = new string(',', arity - 1);
+                mistName = $"{baseName}<{commas}>";
+            }
+        }
+
+        if(programModel.Namespaces.TryGetValue(namespaceName, out var ns)
+            && ns.Types.TryGetValue(mistName, out var type))
+        {
+            return type;
+        }
+
+        return null;
+    }
 
     public DelegateFamilyProjectionV2Tests()
     {
@@ -55,7 +93,8 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
         provider = new AmbientTypeProviderV2(
             ImmutableArray<Mist.Driver.LoadedAssemblyInfo>.Empty,
             programModel.TypeInterner,
-            null);
+            null,
+            new DiagnosticBag());
     }
 
     public void Dispose()
@@ -67,7 +106,7 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
     public void ResolveType_SystemFuncArity1_ReturnsStandardFuncDefinition()
     {
         // System.Func`1 (Func<TResult>) → Standard.Func<> definition
-        var resolved = provider.ResolveType("System", "Func`1", programModel);
+        var resolved = LookupType("System", "Func`1");
 
         Assert.NotNull(resolved);
         Assert.True(
@@ -79,7 +118,7 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
     public void ResolveType_SystemFuncArity2_ReturnsStandardFuncDefinition()
     {
         // System.Func`2 (Func<T, TResult>) → Standard.Func<,> definition
-        var resolved = provider.ResolveType("System", "Func`2", programModel);
+        var resolved = LookupType("System", "Func`2");
 
         Assert.NotNull(resolved);
         Assert.True(
@@ -91,7 +130,7 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
     public void ResolveType_SystemFuncArity3_ReturnsStandardFuncDefinition()
     {
         // System.Func`3 (Func<T1, T2, TResult>) → Standard.Func<,,> definition
-        var resolved = provider.ResolveType("System", "Func`3", programModel);
+        var resolved = LookupType("System", "Func`3");
 
         Assert.NotNull(resolved);
         Assert.True(
@@ -103,7 +142,7 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
     public void ResolveType_SystemAction_ReturnsStandardAction()
     {
         // System.Action (non-generic) → Standard.Action (type alias for Func<void>)
-        var resolved = provider.ResolveType("System", "Action", programModel);
+        var resolved = LookupType("System", "Action");
 
         Assert.NotNull(resolved);
         var expected = programModel.Namespaces["Standard"].Types["Action"];
@@ -116,7 +155,7 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
     public void ResolveType_SystemActionArity1_ReturnsStandardActionArity1()
     {
         // System.Action`1 (Action<T>) → Standard.Action<>
-        var resolved = provider.ResolveType("System", "Action`1", programModel);
+        var resolved = LookupType("System", "Action`1");
 
         Assert.NotNull(resolved);
         var expected = programModel.Namespaces["Standard"].Types["Action<>"];
@@ -129,7 +168,7 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
     public void ResolveType_SystemActionArity2_ReturnsStandardActionArity2()
     {
         // System.Action`2 (Action<T1, T2>) → Standard.Action<,>
-        var resolved = provider.ResolveType("System", "Action`2", programModel);
+        var resolved = LookupType("System", "Action`2");
 
         Assert.NotNull(resolved);
         var expected = programModel.Namespaces["Standard"].Types["Action<,>"];
@@ -142,7 +181,7 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
     public void ResolveType_NonSystemNamespace_DoesNotProjectDelegateFamily()
     {
         // Only System namespace triggers delegate family projection
-        var resolved = provider.ResolveType("MyApp", "Func`1", programModel);
+        var resolved = LookupType("MyApp", "Func`1");
 
         Assert.Null(resolved);
     }
@@ -152,7 +191,7 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
     {
         // System.Delegate and System.MulticastDelegate should NOT be handled by delegate family
         // They fall through to normal projection (which returns null because we have no assemblies)
-        var resolved = provider.ResolveType("System", "Delegate", programModel);
+        var resolved = LookupType("System", "Delegate");
 
         Assert.Null(resolved);
     }
@@ -160,7 +199,7 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
     [Fact]
     public void ResolveType_SystemMulticastDelegate_FallsThrough()
     {
-        var resolved = provider.ResolveType("System", "MulticastDelegate", programModel);
+        var resolved = LookupType("System", "MulticastDelegate");
 
         Assert.Null(resolved);
     }

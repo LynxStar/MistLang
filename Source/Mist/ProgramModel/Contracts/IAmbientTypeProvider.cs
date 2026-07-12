@@ -1,5 +1,3 @@
-using Mist.ProgramModel.Contracts.Types;
-
 namespace Mist.ProgramModel.Contracts;
 
 /// <summary>
@@ -9,10 +7,10 @@ namespace Mist.ProgramModel.Contracts;
 public interface IAmbientTypeProvider
 {
     /// <summary>
-    /// Attempts to resolve a type by namespace and name.
-    /// Returns the projected IMistType if found, null otherwise.
-    /// If the type maps to an existing Mist Standard Library type (alias),
-    /// returns that instance silently without creating a new one.
+    /// Eagerly builds and registers all ambient types into the ProgramModel.
+    /// Called after source type shells are registered (Phase 1) but before
+    /// member resolution (Phase 2). After this call, all ambient types are
+    /// visible in the ProgramModel's namespace dictionary.
     /// </summary>
-    IMistType? ResolveType(string namespaceName, string typeName, Model.ProgramModel programModel);
+    void BuildAndRegister(Model.ProgramModel programModel);
 }

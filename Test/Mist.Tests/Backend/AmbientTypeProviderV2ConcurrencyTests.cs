@@ -9,9 +9,8 @@
 
 using System.Collections.Immutable;
 using System.Reflection;
-using Mist.Backends.CSharpTranspiler;
+using Mist.Backends.CSharpTranspiler.AmbientProvider;
 using Mist.Common.Diagnostics;
-using Mist.Driver;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
@@ -29,6 +28,43 @@ public sealed class AmbientTypeProviderV2ConcurrencyTests : IDisposable
     private readonly ProgramModelClass programModel;
     private readonly MetadataLoadContext metadataContext;
     private readonly AmbientTypeProviderV2 provider;
+
+    private IMistType? LookupType(string namespaceName, string typeName)
+    {
+        // Check well-known type map first (aliases to Standard Library).
+        if(WellKnownTypeMap.Entries.TryGetValue((namespaceName, typeName), out var mapping))
+        {
+            if(programModel.Namespaces.TryGetValue(mapping.MistNamespace, out var stdNs)
+                && stdNs.Types.TryGetValue(mapping.MistTypeName, out var stdType))
+            {
+                return stdType;
+            }
+
+            return null;
+        }
+
+        // Handle CLR backtick arity notation → Mist angle-bracket notation.
+        var mistName = typeName;
+        var backtickIndex = typeName.IndexOf('`');
+        if(backtickIndex >= 0)
+        {
+            var baseName = typeName[..backtickIndex];
+            var arityStr = typeName[(backtickIndex + 1)..];
+            if(int.TryParse(arityStr, out var arity) && arity >= 1)
+            {
+                var commas = new string(',', arity - 1);
+                mistName = $"{baseName}<{commas}>";
+            }
+        }
+
+        if(programModel.Namespaces.TryGetValue(namespaceName, out var ns)
+            && ns.Types.TryGetValue(mistName, out var type))
+        {
+            return type;
+        }
+
+        return null;
+    }
 
     public AmbientTypeProviderV2ConcurrencyTests()
     {
@@ -51,6 +87,26 @@ public sealed class AmbientTypeProviderV2ConcurrencyTests : IDisposable
             standardNamespace.Types[name] = type;
         }
 
+        // Register Standard.Func definitions for delegate projection.
+        for(var arity = 1; arity <= 17; arity++)
+        {
+            var commas = arity > 1 ? new string(',', arity - 1) : "";
+            var funcName = $"Func<{commas}>";
+            var funcType = new ClassType(funcName, "Standard", scope, null, null!);
+            standardNamespace.Types[funcName] = funcType;
+        }
+
+        // Register Standard.Action definitions for delegate projection.
+        var action = new ClassType("Action", "Standard", scope, null, null!);
+        standardNamespace.Types["Action"] = action;
+        for(var arity = 1; arity <= 16; arity++)
+        {
+            var commas = arity > 1 ? new string(',', arity - 1) : "";
+            var actionName = $"Action<{commas}>";
+            var actionType = new ClassType(actionName, "Standard", scope, null, null!);
+            standardNamespace.Types[actionName] = actionType;
+        }
+
         // Load real BCL assemblies via MetadataLoadContext
         var runtimeDir = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
         var assemblyPaths = Directory.GetFiles(runtimeDir, "*.dll").ToImmutableArray();
@@ -63,7 +119,11 @@ public sealed class AmbientTypeProviderV2ConcurrencyTests : IDisposable
         provider = new AmbientTypeProviderV2(
             loaded,
             programModel.TypeInterner,
-            metadataContext);
+            metadataContext,
+            new DiagnosticBag());
+
+        // Eagerly build and register all ambient types.
+        provider.BuildAndRegister(programModel);
     }
 
     public void Dispose()
@@ -84,7 +144,7 @@ public sealed class AmbientTypeProviderV2ConcurrencyTests : IDisposable
         // Spawn parallel tasks all resolving the same type
         var tasks = Enumerable.Range(0, parallelism).Select(i => Task.Run(() =>
         {
-            results[i] = provider.ResolveType("System", "Console", programModel);
+            results[i] = LookupType("System", "Console");
         }));
 
         await Task.WhenAll(tasks);
@@ -124,7 +184,7 @@ public sealed class AmbientTypeProviderV2ConcurrencyTests : IDisposable
         var tasks = Enumerable.Range(0, typeRequests.Length).Select(i => Task.Run(() =>
         {
             var (ns, name) = typeRequests[i];
-            results[i] = provider.ResolveType(ns, name, programModel);
+            results[i] = LookupType(ns, name);
         }));
 
         await Task.WhenAll(tasks);

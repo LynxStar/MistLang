@@ -1,4 +1,4 @@
-using Mist.Backends.CSharpTranspiler;
+using Mist.Backends.CSharpTranspiler.AmbientProvider;
 using Mist.Common.Diagnostics;
 using Mist.Driver.Contracts;
 using Mist.ProgramModel.Construction;

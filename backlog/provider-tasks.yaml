@@ -11,13 +11,13 @@ types:
       - [ ] sealed -> sentinel attribute [Sealed] (no Mist concept)
       - [ ] abstract -> sentinel attribute [Abstract] (C# interfaces are Mist abstract types; C# abstract classes need sentinel)
     type_parameters:
-      - [ ] declaration (name, position)
-      - [ ] constraints:
-        - [ ] struct constraint
-        - [ ] class constraint
-        - [ ] new() constraint
-        - [ ] base type constraint
-        - [ ] interface constraint
+      - [x] declaration (name, position)
+      - [x] constraints:
+        - [x] struct constraint
+        - [x] class constraint
+        - [x] new() constraint
+        - [x] base type constraint
+        - [x] interface constraint
     base_type:
       - [ ] resolve direct base
       - [ ] recursive resolution (base's base must also resolve)
@@ -117,13 +117,13 @@ types:
       - [ ] ref struct (IsByRefLike) -> Mist ref modifier
       - [ ] readonly struct -> Mist readonly modifier
     type_parameters:
-      - [ ] declaration (name, position)
-      - [ ] constraints:
-        - [ ] struct constraint
-        - [ ] class constraint
-        - [ ] new() constraint
-        - [ ] base type constraint
-        - [ ] interface constraint
+      - [x] declaration (name, position)
+      - [x] constraints:
+        - [x] struct constraint
+        - [x] class constraint
+        - [x] new() constraint
+        - [x] base type constraint
+        - [x] interface constraint
     interfaces:
       - [ ] resolve all implemented
       - [ ] recursive (interface inheritance)
@@ -218,13 +218,13 @@ types:
       - [x] namespace
       - [x] origin (Ambient)
     type_parameters:
-      - [ ] declaration (name, position)
-      - [ ] constraints:
-        - [ ] struct constraint
-        - [ ] class constraint
-        - [ ] new() constraint
-        - [ ] base type constraint
-        - [ ] interface constraint
+      - [x] declaration (name, position)
+      - [x] constraints:
+        - [x] struct constraint
+        - [x] class constraint
+        - [x] new() constraint
+        - [x] base type constraint
+        - [x] interface constraint
     base_interfaces:
       - [ ] resolve all parent interfaces
       - [ ] recursive

@@ -92,18 +92,18 @@ types:
       - [x] set accessor
       - [ ] attributes
     operators:
-      - [ ] operator symbol
-      - [ ] parameter types
-        - [ ] open generic
-        - [ ] closed generic
-      - [ ] return type
-        - [ ] open generic
-        - [ ] closed generic
+      - [x] operator symbol
+      - [x] parameter types
+        - [x] open generic
+        - [x] closed generic
+      - [x] return type
+        - [x] open generic
+        - [x] closed generic
     cast_operators:
-      - [ ] implicit conversion
-      - [ ] explicit conversion
-      - [ ] source type
-      - [ ] target type
+      - [x] implicit conversion
+      - [x] explicit conversion
+      - [x] source type
+      - [x] target type
     nested_types:
       - [ ] recursive projection (all of the above)
       - [ ] dot-separated namespace key
@@ -195,18 +195,18 @@ types:
       - [x] set accessor
       - [ ] attributes
     operators:
-      - [ ] operator symbol
-      - [ ] parameter types
-        - [ ] open generic
-        - [ ] closed generic
-      - [ ] return type
-        - [ ] open generic
-        - [ ] closed generic
+      - [x] operator symbol
+      - [x] parameter types
+        - [x] open generic
+        - [x] closed generic
+      - [x] return type
+        - [x] open generic
+        - [x] closed generic
     cast_operators:
-      - [ ] implicit conversion
-      - [ ] explicit conversion
-      - [ ] source type
-      - [ ] target type
+      - [x] implicit conversion
+      - [x] explicit conversion
+      - [x] source type
+      - [x] target type
     nested_types:
       - [ ] recursive projection (all of the above)
       - [ ] dot-separated namespace key

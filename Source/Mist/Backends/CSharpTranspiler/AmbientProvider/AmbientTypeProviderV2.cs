@@ -78,9 +78,7 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
 
         foreach(var (clrKey, mistMapping) in WellKnownTypeMap.Entries)
         {
-            var mistFqn = string.IsNullOrEmpty(mistMapping.MistNamespace)
-                ? mistMapping.MistTypeName
-                : $"{mistMapping.MistNamespace}.{mistMapping.MistTypeName}";
+            var mistFqn = $"{mistMapping.MistNamespace}.{mistMapping.MistTypeName}";
 
             if(!programModel.TypesByFQN.TryGetValue(mistFqn, out var type))
             {
@@ -91,7 +89,9 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
 
             var clrFqn = string.IsNullOrEmpty(clrKey.Namespace)
                 ? clrKey.TypeName
-                : $"{clrKey.Namespace}.{clrKey.TypeName}";
+                : $"{clrKey.Namespace}.{clrKey.TypeName}"
+                ;
+            
             resolved[clrFqn] = type;
         }
 
@@ -165,10 +165,7 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
     /// Phase 2: Single pass over all types — dispatches to the appropriate projector
     /// for type parameters, base types, interfaces, enum members, etc.
     /// </summary>
-    private static void ProjectTypes(
-        Dictionary<string, MistType> shells,
-        Dictionary<string, Type> clrTypes,
-        AmbientTypeResolver resolver)
+    private static void ProjectTypes(Dictionary<string, MistType> shells, Dictionary<string, Type> clrTypes, AmbientTypeResolver resolver)
     {
         foreach(var (fqn, clrType) in clrTypes)
         {
@@ -190,6 +187,7 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
                     PropertyProjector.Project(memberType, clrType, resolver);
                     IndexerProjector.Project(memberType, clrType, resolver);
                     MethodProjector.Project(memberType, clrType, resolver);
+                    OperatorProjector.Project(memberType, clrType, resolver);
 
                     if(shell is ConcreteType concreteType)
                     {

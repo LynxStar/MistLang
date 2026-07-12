@@ -179,6 +179,12 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
                     }
 
                     BaseTypeProjector.Project(shell, clrType, resolver);
+
+                    if(shell is ConcreteType concreteType)
+                    {
+                        FieldProjector.Project(concreteType, clrType, resolver);
+                    }
+
                     break;
             }
         }

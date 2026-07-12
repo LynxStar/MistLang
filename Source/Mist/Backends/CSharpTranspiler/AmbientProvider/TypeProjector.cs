@@ -20,15 +20,22 @@ internal static class TypeProjector
         var mistName = NameFormatTranslator.ClrNameToMistName(clrType.Name);
         var scope = new Scope(null);
 
-        var shell = clrType.IsInterface
-            ? (MistType)new AbstractType(mistName, namespaceName, scope, null, null)
-            : clrType.IsEnum
-            ? new EnumType(mistName, namespaceName, scope, null, null)
-            : clrType.IsValueType
-            ? new StructType(mistName, namespaceName, scope, null, null)
-            : new ClassType(mistName, namespaceName, scope, null, null!);
+        var shell = clrType switch
+        {
+            { IsInterface: true } => (MistType)new AbstractType(mistName, namespaceName, scope, null, null),
+            { IsEnum: true } => new EnumType(mistName, namespaceName, scope, null, null),
+            { IsValueType: true } => new StructType(mistName, namespaceName, scope, null, null),
+            _ => new ClassType(mistName, namespaceName, scope, null, null!),
+        };
 
         shell.Origin = TypeOrigin.Ambient;
+
+        // Static classes in CLR are abstract + sealed.
+        if(clrType.IsAbstract && clrType.IsSealed && shell is MemberType memberType)
+        {
+            memberType.Modifiers = new MemberModifiers { IsStatic = true };
+        }
+
         return shell;
     }
 }

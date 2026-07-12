@@ -7,7 +7,7 @@ types:
       - [x] name
       - [x] namespace
       - [x] origin (Ambient)
-      - [ ] static (abstract + sealed in CLR) -> Mist static modifier
+      - [x] static (abstract + sealed in CLR) -> Mist static modifier
       - [ ] sealed -> sentinel attribute [Sealed] (no Mist concept)
       - [ ] abstract -> sentinel attribute [Abstract] (C# interfaces are Mist abstract types; C# abstract classes need sentinel)
     type_parameters:
@@ -21,12 +21,12 @@ types:
     base_type:
       - [x] resolve direct base
       - [x] recursive resolution (base's base must also resolve)
-      - [ ] closed generics (e.g., base is List<int>)
+      - [x] closed generics (e.g., base is List<int>)
       - [ ] hide type if base unresolvable
     interfaces:
       - [x] resolve all implemented interfaces
       - [x] recursive (interface inheritance)
-      - [ ] closed generics (e.g., implements IComparable<int>)
+      - [x] closed generics (e.g., implements IComparable<int>)
       - [ ] hide type if any interface unresolvable
     constructors:
       - [ ] parameters:
@@ -69,13 +69,13 @@ types:
       - [ ] static
       - [ ] attributes
     fields:
-      - [ ] name
-      - [ ] type
-        - [ ] open generic
-        - [ ] closed generic
-      - [ ] visibility (public, protected)
-      - [ ] static
-      - [ ] readonly
+      - [x] name
+      - [x] type
+        - [x] open generic
+        - [x] closed generic
+      - [x] visibility (public, protected)
+      - [x] static
+      - [x] readonly
       - [ ] const (with value)
       - [ ] attributes
     indexers:
@@ -127,7 +127,7 @@ types:
     interfaces:
       - [x] resolve all implemented
       - [x] recursive (interface inheritance)
-      - [ ] closed generics (e.g., implements IEquatable<MyStruct>)
+      - [x] closed generics (e.g., implements IEquatable<MyStruct>)
       - [ ] hide if unresolvable
     constructors:
       - [ ] parameters:
@@ -172,13 +172,13 @@ types:
       - [ ] static
       - [ ] attributes
     fields:
-      - [ ] name
-      - [ ] type
-        - [ ] open generic
-        - [ ] closed generic
-      - [ ] visibility (public, protected)
-      - [ ] static
-      - [ ] readonly
+      - [x] name
+      - [x] type
+        - [x] open generic
+        - [x] closed generic
+      - [x] visibility (public, protected)
+      - [x] static
+      - [x] readonly
       - [ ] const (with value)
       - [ ] attributes
     indexers:
@@ -228,7 +228,7 @@ types:
     base_interfaces:
       - [x] resolve all parent interfaces
       - [x] recursive
-      - [ ] closed generics (e.g., IList<T> extends ICollection<T>)
+      - [x] closed generics (e.g., IList<T> extends ICollection<T>)
       - [ ] hide if unresolvable
     methods:
       - [ ] name

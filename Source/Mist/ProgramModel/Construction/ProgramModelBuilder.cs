@@ -75,10 +75,7 @@ public sealed class ProgramModelBuilder
         var newtypeBuilder = new NewtypeBuilder(context, typeResolver);
         var typeAliasBuilder = new TypeAliasBuilder(context, typeResolver);
 
-        var allTypes = programModel.Namespaces.Values
-            .SelectMany(ns => ns.Types.Values)
-            .ToList()
-            ;
+        var allTypes = programModel.TypesByFQN.Values.ToList();
 
         foreach(var typeDef in allTypes)
         {

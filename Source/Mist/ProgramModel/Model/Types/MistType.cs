@@ -18,11 +18,34 @@ internal abstract class MistType : IMistType
         NamespaceName = namespaceName;
         Scope = scope;
         DeclaringType = declaringType;
+        FullyQualifiedName = BuildFQN(name, namespaceName, declaringType);
     }
 
     public string Name { get; }
 
     public string NamespaceName { get; }
+
+    /// <inheritdoc />
+    public string FullyQualifiedName { get; }
+
+    /// <summary>
+    /// Computes the FQN for a type: "Namespace.Name" for top-level types,
+    /// "Namespace.Outer.Inner" for nested types (walks the declaring chain).
+    /// </summary>
+    private static string BuildFQN(string name, string namespaceName, MistType? declaringType)
+    {
+        if(declaringType is not null)
+        {
+            return $"{declaringType.FullyQualifiedName}.{name}";
+        }
+
+        if(string.IsNullOrEmpty(namespaceName))
+        {
+            return name;
+        }
+
+        return $"{namespaceName}.{name}";
+    }
 
     /// <summary>
     /// The type's own scope. Parent is the file scope for top-level types,

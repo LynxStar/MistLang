@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Contracts;
+using Mist.ProgramModel.Contracts.Types;
 
 namespace Mist.ProgramModel.Model;
 
@@ -13,11 +14,18 @@ namespace Mist.ProgramModel.Model;
 public sealed class ProgramModel : IProgramModel
 {
     private readonly Dictionary<string, MistNamespace> namespaces = [];
+    private readonly Dictionary<string, IMistType> typesByFQN = [];
 
     /// <summary>
     /// All registered namespaces, keyed by fully qualified name.
     /// </summary>
     public IReadOnlyDictionary<string, MistNamespace> Namespaces => namespaces;
+
+    /// <summary>
+    /// All registered types, keyed by fully qualified name.
+    /// This is the primary type registry for name resolution.
+    /// </summary>
+    public IReadOnlyDictionary<string, IMistType> TypesByFQN => typesByFQN;
 
     /// <summary>
     /// Interns synthetic types (unions, constructed types) so that structurally
@@ -29,6 +37,8 @@ public sealed class ProgramModel : IProgramModel
     /// Retroactive conformance declarations collected during Phase 2c.
     /// </summary>
     internal List<ConformanceDeclaration> ConformancesList { get; } = [];
+
+    IReadOnlyDictionary<string, IMistType> IProgramModel.TypesByFQN => typesByFQN;
 
     IReadOnlyList<IConformanceDeclaration> IProgramModel.Conformances => ConformancesList;
 
@@ -46,5 +56,21 @@ public sealed class ProgramModel : IProgramModel
         var newNamespace = new MistNamespace(fullyQualifiedName);
         namespaces[fullyQualifiedName] = newNamespace;
         return newNamespace;
+    }
+
+    /// <summary>
+    /// Registers a type in the flat FQN dictionary. Returns false if a type
+    /// with the same FQN is already registered (duplicate).
+    /// </summary>
+    internal bool RegisterType(IMistType type)
+    {
+        var fqn = type.FullyQualifiedName;
+        if(typesByFQN.ContainsKey(fqn))
+        {
+            return false;
+        }
+
+        typesByFQN[fqn] = type;
+        return true;
     }
 }

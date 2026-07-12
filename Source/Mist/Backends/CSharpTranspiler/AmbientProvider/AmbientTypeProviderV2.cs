@@ -52,11 +52,12 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
         var resolver = new AmbientTypeResolver(shells, wellKnownTypes, programModel.TypeInterner, diagnostics);
         ProjectTypes(shells, clrTypes, resolver);
 
-        // Merge into ProgramModel namespaces.
-        foreach(var (key, shell) in shells)
+        // Merge into ProgramModel namespaces and flat FQN dictionary.
+        foreach(var (_, shell) in shells)
         {
-            var ns = programModel.GetOrAddNamespace(key.Namespace);
+            var ns = programModel.GetOrAddNamespace(shell.NamespaceName);
             ns.Types[shell.Name] = shell;
+            _ = programModel.RegisterType(shell);
         }
     }
 
@@ -69,23 +70,39 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
     /// <summary>
     /// Resolves all well-known CLR types to their Standard Library instances.
     /// These are types like System.Int32 → Standard.Int32 that already exist
-    /// in the ProgramModel from source compilation.
+    /// in the ProgramModel from source compilation. Returns a dictionary keyed
+    /// by the CLR FQN (e.g., "System.Int32") for use during resolution.
+    /// Checks TypesByFQN first, then falls back to the namespace dictionary
+    /// (for test scenarios that register types directly).
     /// </summary>
-    private static Dictionary<(string Namespace, string ClrName), IMistType> ResolveWellKnownTypes(ProgramModelType programModel)
+    private static Dictionary<string, IMistType> ResolveWellKnownTypes(ProgramModelType programModel)
     {
-        var resolved = new Dictionary<(string Namespace, string ClrName), IMistType>();
+        var resolved = new Dictionary<string, IMistType>();
 
         foreach(var (clrKey, mistMapping) in WellKnownTypeMap.Entries)
         {
-            if(!programModel.Namespaces.TryGetValue(mistMapping.MistNamespace, out var ns)
-                || !ns.Types.TryGetValue(mistMapping.MistTypeName, out var type))
+            var mistFqn = string.IsNullOrEmpty(mistMapping.MistNamespace)
+                ? mistMapping.MistTypeName
+                : $"{mistMapping.MistNamespace}.{mistMapping.MistTypeName}";
+
+            IMistType? type;
+            if(!programModel.TypesByFQN.TryGetValue(mistFqn, out type))
             {
-                throw new InvalidOperationException(
-                    $"ICE: Well-known type '{mistMapping.MistNamespace}.{mistMapping.MistTypeName}' " +
-                    "not found in ProgramModel. The Standard Library must be loaded before ambient type resolution.");
+                // Fallback: check namespace dictionary directly (supports test setups
+                // that register via ns.Types[name] without going through RegisterType).
+                if(!programModel.Namespaces.TryGetValue(mistMapping.MistNamespace, out var ns)
+                    || !ns.Types.TryGetValue(mistMapping.MistTypeName, out type))
+                {
+                    throw new InvalidOperationException(
+                        $"ICE: Well-known type '{mistFqn}' " +
+                        "not found in ProgramModel. The Standard Library must be loaded before ambient type resolution.");
+                }
             }
 
-            resolved[clrKey] = type;
+            var clrFqn = string.IsNullOrEmpty(clrKey.Namespace)
+                ? clrKey.TypeName
+                : $"{clrKey.Namespace}.{clrKey.TypeName}";
+            resolved[clrFqn] = type;
         }
 
         return resolved;
@@ -95,12 +112,13 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
     /// Phase 1: Iterates all exported types from all loaded assemblies and creates
     /// empty shells. Skips well-known types (they already exist as Standard Library instances).
     /// Also builds a parallel CLR type dictionary for use in phase 2.
+    /// Dictionaries are keyed by FQN string (e.g., "System.Console").
     /// </summary>
-    private (Dictionary<(string Namespace, string ClrName), MistType> Shells, Dictionary<(string Namespace, string ClrName), Type> ClrTypes) CreateShells(
-        Dictionary<(string Namespace, string ClrName), IMistType> wellKnownTypes)
+    private (Dictionary<string, MistType> Shells, Dictionary<string, Type> ClrTypes) CreateShells(
+        Dictionary<string, IMistType> wellKnownTypes)
     {
-        var shells = new Dictionary<(string Namespace, string ClrName), MistType>();
-        var clrTypes = new Dictionary<(string Namespace, string ClrName), Type>();
+        var shells = new Dictionary<string, MistType>();
+        var clrTypes = new Dictionary<string, Type>();
 
         foreach(var assembly in LoadedAssemblies)
         {
@@ -122,17 +140,17 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
 
                 var ns = clrType.Namespace ?? "";
                 var clrName = clrType.Name;
-                var key = (ns, clrName);
+                var fqn = string.IsNullOrEmpty(ns) ? clrName : $"{ns}.{clrName}";
 
                 // Skip well-known types — they're Standard Library instances.
-                if(wellKnownTypes.ContainsKey(key))
+                if(wellKnownTypes.ContainsKey(fqn))
                 {
                     continue;
                 }
 
                 // Duplicate type in multiple assemblies without forwarding.
                 // Emit an error diagnostic — user likely has conflicting NuGet packages.
-                if(shells.ContainsKey(key))
+                if(shells.ContainsKey(fqn))
                 {
                     diagnostics.Report(
                         BackendDiagnostics.DuplicateAmbientType,
@@ -145,8 +163,8 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
                 }
 
                 var shell = TypeProjector.CreateShell(clrType, ns);
-                shells[key] = shell;
-                clrTypes[key] = clrType;
+                shells[fqn] = shell;
+                clrTypes[fqn] = clrType;
             }
         }
 
@@ -158,13 +176,13 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
     /// for type parameters, base types, interfaces, enum members, etc.
     /// </summary>
     private static void ProjectTypes(
-        Dictionary<(string Namespace, string ClrName), MistType> shells,
-        Dictionary<(string Namespace, string ClrName), Type> clrTypes,
+        Dictionary<string, MistType> shells,
+        Dictionary<string, Type> clrTypes,
         AmbientTypeResolver resolver)
     {
-        foreach(var (key, clrType) in clrTypes)
+        foreach(var (fqn, clrType) in clrTypes)
         {
-            var shell = shells[key];
+            var shell = shells[fqn];
 
             switch(shell)
             {

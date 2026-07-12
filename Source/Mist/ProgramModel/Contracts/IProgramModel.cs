@@ -1,3 +1,5 @@
+using Mist.ProgramModel.Contracts.Types;
+
 namespace Mist.ProgramModel.Contracts;
 
 /// <summary>
@@ -7,6 +9,13 @@ namespace Mist.ProgramModel.Contracts;
 /// </summary>
 public interface IProgramModel
 {
+    /// <summary>
+    /// All types in the program, keyed by fully qualified name.
+    /// This is the primary type registry — all name resolution ultimately
+    /// resolves to keys in this dictionary.
+    /// </summary>
+    IReadOnlyDictionary<string, IMistType> TypesByFQN { get; }
+
     /// <summary>
     /// All retroactive conformance declarations in the program.
     /// Each declares that a type conforms to an abstract via member mappings.

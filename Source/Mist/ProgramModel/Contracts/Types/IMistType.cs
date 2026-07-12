@@ -18,6 +18,13 @@ public interface IMistType
     string NamespaceName { get; }
 
     /// <summary>
+    /// The fully qualified name of this type, including namespace and any
+    /// nesting path. For example: "Standard.Int32", "MyApp.Outer.Inner".
+    /// Used as the primary key in the flat type registry.
+    /// </summary>
+    string FullyQualifiedName { get; }
+
+    /// <summary>
     /// The enclosing type for nested types; null for top-level types.
     /// </summary>
     IMistType? DeclaringType { get; }

@@ -15,14 +15,14 @@ namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 /// </summary>
 internal sealed class AmbientTypeResolver
 {
-    private readonly Dictionary<(string Namespace, string ClrName), MistType> shells;
-    private readonly Dictionary<(string Namespace, string ClrName), IMistType> wellKnownTypes;
+    private readonly Dictionary<string, MistType> shells;
+    private readonly Dictionary<string, IMistType> wellKnownTypes;
     private readonly TypeInterner typeInterner;
     private readonly DiagnosticBag diagnostics;
 
     public AmbientTypeResolver(
-        Dictionary<(string Namespace, string ClrName), MistType> shells,
-        Dictionary<(string Namespace, string ClrName), IMistType> wellKnownTypes,
+        Dictionary<string, MistType> shells,
+        Dictionary<string, IMistType> wellKnownTypes,
         TypeInterner typeInterner,
         DiagnosticBag diagnostics)
     {
@@ -47,16 +47,16 @@ internal sealed class AmbientTypeResolver
 
         var ns = clrType.Namespace ?? "";
         var clrName = clrType.Name;
-        return ResolveByName(ns, clrName, scope);
+        return ResolveByFQN(ns, clrName, scope);
     }
 
     /// <summary>
-    /// Resolves a CLR type by namespace and CLR name within the given scope.
+    /// Resolves a CLR type by constructing a FQN from namespace and CLR name.
     /// Checks scope locals first (type parameters), then well-known types,
     /// then projected shells. Returns <see cref="ErrorType"/> and emits a
     /// diagnostic if not found.
     /// </summary>
-    private MistType ResolveByName(string ns, string clrName, Scope scope)
+    private MistType ResolveByFQN(string ns, string clrName, Scope scope)
     {
         // Check scope for type parameters (e.g., where T : U resolves U from scope).
         if(scope.LocalTypes.TryGetValue(clrName, out var localType))
@@ -64,14 +64,14 @@ internal sealed class AmbientTypeResolver
             return (MistType)localType;
         }
 
-        var key = (ns, clrName);
+        var fqn = string.IsNullOrEmpty(ns) ? clrName : $"{ns}.{clrName}";
 
-        if(wellKnownTypes.TryGetValue(key, out var wellKnown))
+        if(wellKnownTypes.TryGetValue(fqn, out var wellKnown))
         {
             return (MistType)wellKnown;
         }
 
-        if(shells.TryGetValue(key, out var shell))
+        if(shells.TryGetValue(fqn, out var shell))
         {
             return shell;
         }

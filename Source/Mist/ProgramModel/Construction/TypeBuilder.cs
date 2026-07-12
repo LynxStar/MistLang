@@ -213,21 +213,23 @@ internal sealed class TypeBuilder
     }
 
     /// <summary>
-    /// Shared registration logic: adds the type to the namespace, the declaring type, and the scope.
-    /// Reports a diagnostic if a type with the same name already exists.
+    /// Shared registration logic: adds the type to the flat FQN dictionary,
+    /// the namespace (for backward compat), the declaring type, and the scope.
+    /// Reports a diagnostic if a type with the same FQN already exists.
     /// </summary>
     private void FinalizeRegistration(MistType typeDef, MistType? declaringType)
     {
-        // Register in the namespace with a qualified key for nested types.
+        // Primary registration: flat FQN dictionary.
+        if(!context.ProgramModel.RegisterType(typeDef))
+        {
+            context.Diagnostics.Report(ProgramModelDiagnostics.DuplicateTypeName, default, "", typeDef.Name, typeDef.NamespaceName);
+        }
+
+        // Secondary registration: namespace dictionary (kept for iteration/grouping).
         var ns = context.ProgramModel.GetOrAddNamespace(typeDef.NamespaceName);
         var registrationName = declaringType is not null
             ? $"{declaringType.Name}.{typeDef.Name}"
             : typeDef.Name;
-
-        if(ns.Types.ContainsKey(registrationName))
-        {
-            context.Diagnostics.Report(ProgramModelDiagnostics.DuplicateTypeName, default, "", typeDef.Name, typeDef.NamespaceName);
-        }
 
         ns.Types[registrationName] = typeDef;
 

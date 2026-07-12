@@ -1,7 +1,6 @@
 using System.Globalization;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
-using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
@@ -451,16 +450,11 @@ internal sealed class TypeReferenceResolver
             return match;
         }
 
-        // Tier 4: FQN fallback — if the name has a dot, try splitting at the last
-        // dot into namespace + type. This handles explicitly qualified names like
-        // "System.Int32" when no shorter match was found above.
-        var lastDot = name.LastIndexOf('.');
-        if(lastDot > 0)
+        // Tier 4: FQN fallback — if the name has a dot, try it directly as a
+        // fully-qualified name in the flat dictionary.
+        if(name.Contains('.'))
         {
-            var namespacePart = name[..lastDot];
-            var typePart = name[(lastDot + 1)..];
-            var fqnResult = LookupInNamespace(namespacePart, typePart);
-            if(fqnResult is not null)
+            if(context.ProgramModel.TypesByFQN.TryGetValue(name, out var fqnResult))
             {
                 return fqnResult;
             }
@@ -471,17 +465,27 @@ internal sealed class TypeReferenceResolver
     }
 
     /// <summary>
-    /// Looks up a type by simple name within a specific namespace.
-    /// All ambient types are pre-registered into the ProgramModel namespace
-    /// dictionary by <see cref="IAmbientTypeProvider.BuildAndRegister"/>,
-    /// so a single dictionary lookup covers both source and ambient types.
+    /// Looks up a type by constructing a candidate FQN from namespace + type name
+    /// and checking the flat FQN dictionary. Falls back to the namespace dictionary
+    /// for backward compatibility with test setups that register types directly.
     /// </summary>
     private IMistType? LookupInNamespace(string namespaceName, string typeName)
     {
-        var namespaces = context.ProgramModel.Namespaces;
-        if(namespaces.TryGetValue(namespaceName, out var ns) && ns.Types.TryGetValue(typeName, out var typeDef))
+        var fqn = string.IsNullOrEmpty(namespaceName)
+            ? typeName
+            : $"{namespaceName}.{typeName}";
+
+        if(context.ProgramModel.TypesByFQN.TryGetValue(fqn, out var typeDef))
         {
             return typeDef;
+        }
+
+        // Fallback: check the namespace dictionary directly (supports test setups
+        // that register via ns.Types[name] without going through RegisterType).
+        var namespaces = context.ProgramModel.Namespaces;
+        if(namespaces.TryGetValue(namespaceName, out var ns) && ns.Types.TryGetValue(typeName, out var fallbackType))
+        {
+            return fallbackType;
         }
 
         return null;

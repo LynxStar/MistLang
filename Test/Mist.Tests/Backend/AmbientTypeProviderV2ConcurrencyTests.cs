@@ -34,8 +34,7 @@ public sealed class AmbientTypeProviderV2ConcurrencyTests : IDisposable
         // Check well-known type map first (aliases to Standard Library).
         if(WellKnownTypeMap.Entries.TryGetValue((namespaceName, typeName), out var mapping))
         {
-            if(programModel.Namespaces.TryGetValue(mapping.MistNamespace, out var stdNs)
-                && stdNs.Types.TryGetValue(mapping.MistTypeName, out var stdType))
+            if(programModel.TypesByFQN.TryGetValue($"{mapping.MistNamespace}.{mapping.MistTypeName}", out var stdType))
             {
                 return stdType;
             }
@@ -57,8 +56,7 @@ public sealed class AmbientTypeProviderV2ConcurrencyTests : IDisposable
             }
         }
 
-        if(programModel.Namespaces.TryGetValue(namespaceName, out var ns)
-            && ns.Types.TryGetValue(mistName, out var type))
+        if(programModel.TypesByFQN.TryGetValue($"{namespaceName}.{mistName}", out var type))
         {
             return type;
         }
@@ -69,7 +67,7 @@ public sealed class AmbientTypeProviderV2ConcurrencyTests : IDisposable
     public AmbientTypeProviderV2ConcurrencyTests()
     {
         programModel = new ProgramModelClass();
-        var standardNamespace = programModel.GetOrAddNamespace("Standard");
+        _ = programModel.GetOrAddNamespace("Standard");
 
         // Register Standard Library types required for alias resolution.
         var typeNames = new[]
@@ -84,7 +82,7 @@ public sealed class AmbientTypeProviderV2ConcurrencyTests : IDisposable
         foreach(var name in typeNames)
         {
             var type = new ClassType(name, "Standard", scope, null, null!);
-            standardNamespace.Types[name] = type;
+            _ = programModel.RegisterType(type);
         }
 
         // Register Standard.Func definitions for delegate projection.
@@ -93,18 +91,18 @@ public sealed class AmbientTypeProviderV2ConcurrencyTests : IDisposable
             var commas = arity > 1 ? new string(',', arity - 1) : "";
             var funcName = $"Func<{commas}>";
             var funcType = new ClassType(funcName, "Standard", scope, null, null!);
-            standardNamespace.Types[funcName] = funcType;
+            _ = programModel.RegisterType(funcType);
         }
 
         // Register Standard.Action definitions for delegate projection.
         var action = new ClassType("Action", "Standard", scope, null, null!);
-        standardNamespace.Types["Action"] = action;
+        _ = programModel.RegisterType(action);
         for(var arity = 1; arity <= 16; arity++)
         {
             var commas = arity > 1 ? new string(',', arity - 1) : "";
             var actionName = $"Action<{commas}>";
             var actionType = new ClassType(actionName, "Standard", scope, null, null!);
-            standardNamespace.Types[actionName] = actionType;
+            _ = programModel.RegisterType(actionType);
         }
 
         // Load real BCL assemblies via MetadataLoadContext

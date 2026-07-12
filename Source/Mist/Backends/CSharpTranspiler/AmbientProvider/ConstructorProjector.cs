@@ -11,7 +11,7 @@ internal static class ConstructorProjector
 {
     /// <summary>
     /// Projects all public constructors onto the given ConcreteType.
-    /// Each constructor's return type is set to the declaring type.
+    /// Skips constructors with pointer or unresolvable parameter types.
     /// </summary>
     public static void Project(ConcreteType concreteType, Type clrType, AmbientTypeResolver resolver)
     {
@@ -19,7 +19,11 @@ internal static class ConstructorProjector
 
         foreach(var ctor in constructors)
         {
-            var parameters = ProjectParameters(ctor.GetParameters(), concreteType.Scope, resolver);
+            var parameters = ParameterProjector.Project(ctor.GetParameters(), concreteType.Scope, resolver);
+            if(parameters is null)
+            {
+                continue;
+            }
 
             var modifiers = new MemberModifiers
             {
@@ -29,21 +33,5 @@ internal static class ConstructorProjector
             var projected = new Constructor(concreteType.Name, concreteType, parameters, modifiers);
             concreteType.ConstructorsList.Add(projected);
         }
-    }
-
-    /// <summary>
-    /// Projects CLR parameter metadata into Mist Parameter instances.
-    /// </summary>
-    private static List<Parameter> ProjectParameters(ParameterInfo[] clrParams, Scope scope, AmbientTypeResolver resolver)
-    {
-        var parameters = new List<Parameter>(clrParams.Length);
-
-        foreach(var param in clrParams)
-        {
-            var paramType = resolver.Resolve(param.ParameterType, scope);
-            parameters.Add(new Parameter(param.Name ?? "", paramType));
-        }
-
-        return parameters;
     }
 }

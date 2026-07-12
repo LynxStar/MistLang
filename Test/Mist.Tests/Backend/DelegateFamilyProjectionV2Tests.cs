@@ -33,8 +33,7 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
         // Check well-known type map first (aliases to Standard Library).
         if(WellKnownTypeMap.Entries.TryGetValue((namespaceName, typeName), out var mapping))
         {
-            if(programModel.Namespaces.TryGetValue(mapping.MistNamespace, out var stdNs)
-                && stdNs.Types.TryGetValue(mapping.MistTypeName, out var stdType))
+            if(programModel.TypesByFQN.TryGetValue($"{mapping.MistNamespace}.{mapping.MistTypeName}", out var stdType))
             {
                 return stdType;
             }
@@ -56,8 +55,7 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
             }
         }
 
-        if(programModel.Namespaces.TryGetValue(namespaceName, out var ns)
-            && ns.Types.TryGetValue(mistName, out var type))
+        if(programModel.TypesByFQN.TryGetValue($"{namespaceName}.{mistName}", out var type))
         {
             return type;
         }
@@ -68,7 +66,7 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
     public DelegateFamilyProjectionV2Tests()
     {
         programModel = new ProgramModelClass();
-        var stdNs = programModel.GetOrAddNamespace("Standard");
+        _ = programModel.GetOrAddNamespace("Standard");
         var scope = new Scope(null);
 
         // Register Standard.Func definitions at arities 1-3
@@ -77,18 +75,18 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
         funcArity3 = new ClassType("Func<,,>", "Standard", scope, null, null);
         voidType = new ClassType("Void", "Standard", scope, null, null);
 
-        stdNs.Types["Func<>"] = funcArity1;
-        stdNs.Types["Func<,>"] = funcArity2;
-        stdNs.Types["Func<,,>"] = funcArity3;
-        stdNs.Types["Void"] = voidType;
+        _ = programModel.RegisterType(funcArity1);
+        _ = programModel.RegisterType(funcArity2);
+        _ = programModel.RegisterType(funcArity3);
+        _ = programModel.RegisterType(voidType);
 
         // Register Standard.Action type aliases
         var action = new ClassType("Action", "Standard", scope, null, null);
         var actionArity1 = new ClassType("Action<>", "Standard", scope, null, null);
         var actionArity2 = new ClassType("Action<,>", "Standard", scope, null, null);
-        stdNs.Types["Action"] = action;
-        stdNs.Types["Action<>"] = actionArity1;
-        stdNs.Types["Action<,>"] = actionArity2;
+        _ = programModel.RegisterType(action);
+        _ = programModel.RegisterType(actionArity1);
+        _ = programModel.RegisterType(actionArity2);
 
         provider = new AmbientTypeProviderV2(
             ImmutableArray<Mist.Driver.LoadedAssemblyInfo>.Empty,
@@ -144,7 +142,7 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
         var resolved = LookupType("System", "Action");
 
         Assert.NotNull(resolved);
-        var expected = programModel.Namespaces["Standard"].Types["Action"];
+        var expected = programModel.TypesByFQN["Standard.Action"];
         Assert.True(
             ReferenceEquals(resolved, expected),
             "ResolveType(\"System\", \"Action\") should return the Standard.Action type alias.");
@@ -157,7 +155,7 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
         var resolved = LookupType("System", "Action`1");
 
         Assert.NotNull(resolved);
-        var expected = programModel.Namespaces["Standard"].Types["Action<>"];
+        var expected = programModel.TypesByFQN["Standard.Action<>"];
         Assert.True(
             ReferenceEquals(resolved, expected),
             "ResolveType(\"System\", \"Action`1\") should return Standard.Action<>.");
@@ -170,7 +168,7 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
         var resolved = LookupType("System", "Action`2");
 
         Assert.NotNull(resolved);
-        var expected = programModel.Namespaces["Standard"].Types["Action<,>"];
+        var expected = programModel.TypesByFQN["Standard.Action<,>"];
         Assert.True(
             ReferenceEquals(resolved, expected),
             "ResolveType(\"System\", \"Action`2\") should return Standard.Action<,>.");

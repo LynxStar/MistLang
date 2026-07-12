@@ -1,7 +1,9 @@
 namespace Mist.ProgramModel.Contracts.Types;
 
 /// <summary>
-/// A namespace in the program model. Contains type definitions and nested namespaces.
+/// A namespace in the program model. Holds namespace-scoped declarations
+/// (extensions, conformances) that are only active when the namespace is imported.
+/// Types are stored in the flat <see cref="IProgramModel.TypesByFQN"/> dictionary.
 /// </summary>
 public interface INamespace
 {
@@ -9,14 +11,6 @@ public interface INamespace
     /// The fully qualified name (e.g., "System.Collections.Generic").
     /// </summary>
     string FullyQualifiedName { get; }
-
-    /// <summary>
-    /// Type definitions declared within this namespace, keyed by name.
-    /// Top-level types use their simple name (e.g., "MyClass").
-    /// Nested types use a dot-qualified path from their outermost parent
-    /// (e.g., "Outer.Inner").
-    /// </summary>
-    IReadOnlyDictionary<string, IMistType> Types { get; }
 
     /// <summary>
     /// Extension blocks declared within this namespace, grouped by receiver type.

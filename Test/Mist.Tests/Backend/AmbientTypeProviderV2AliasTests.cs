@@ -22,7 +22,6 @@ namespace Mist.Tests.Backend;
 public sealed class AmbientTypeProviderV2AliasTests : IDisposable
 {
     private readonly ProgramModelClass programModel;
-    private readonly MistNamespace standardNamespace;
     private readonly AmbientTypeProviderV2 provider;
 
     private IMistType? LookupType(string namespaceName, string typeName)
@@ -30,8 +29,7 @@ public sealed class AmbientTypeProviderV2AliasTests : IDisposable
         // Check well-known type map first (aliases to Standard Library).
         if(WellKnownTypeMap.Entries.TryGetValue((namespaceName, typeName), out var mapping))
         {
-            if(programModel.Namespaces.TryGetValue(mapping.MistNamespace, out var stdNs)
-                && stdNs.Types.TryGetValue(mapping.MistTypeName, out var stdType))
+            if(programModel.TypesByFQN.TryGetValue($"{mapping.MistNamespace}.{mapping.MistTypeName}", out var stdType))
             {
                 return stdType;
             }
@@ -53,8 +51,7 @@ public sealed class AmbientTypeProviderV2AliasTests : IDisposable
             }
         }
 
-        if(programModel.Namespaces.TryGetValue(namespaceName, out var ns)
-            && ns.Types.TryGetValue(mistName, out var type))
+        if(programModel.TypesByFQN.TryGetValue($"{namespaceName}.{mistName}", out var type))
         {
             return type;
         }
@@ -65,7 +62,7 @@ public sealed class AmbientTypeProviderV2AliasTests : IDisposable
     public AmbientTypeProviderV2AliasTests()
     {
         programModel = new ProgramModelClass();
-        standardNamespace = programModel.GetOrAddNamespace("Standard");
+        _ = programModel.GetOrAddNamespace("Standard");
 
         // Register all 17 expected Standard Library types as ClassType stubs.
         // The alias map maps CLR types to these Standard namespace types.
@@ -81,7 +78,7 @@ public sealed class AmbientTypeProviderV2AliasTests : IDisposable
         foreach(var name in typeNames)
         {
             var type = new ClassType(name, "Standard", scope, null, null!);
-            standardNamespace.Types[name] = type;
+            _ = programModel.RegisterType(type);
         }
 
         // Create provider with empty assemblies and null metadata context
@@ -143,7 +140,7 @@ public sealed class AmbientTypeProviderV2AliasTests : IDisposable
         Assert.NotNull(resolved);
 
         // Assert - resolved is the exact same instance registered in Standard namespace
-        var expected = standardNamespace.Types[expectedMistTypeName];
+        var expected = programModel.TypesByFQN[$"Standard.{expectedMistTypeName}"];
         Assert.True(
             ReferenceEquals(resolved, expected),
             $"ResolveType(\"{clrNamespace}\", \"{clrTypeName}\") should return the reference-equal " +
@@ -160,7 +157,7 @@ public sealed class AmbientTypeProviderV2AliasTests : IDisposable
 
         Assert.NotNull(resolved);
 
-        var expected = standardNamespace.Types[expectedMistTypeName];
+        var expected = programModel.TypesByFQN[$"Standard.{expectedMistTypeName}"];
         Assert.True(
             ReferenceEquals(resolved, expected),
             $"ResolveType(\"{clrNamespace}\", \"{clrTypeName}\", 0) should return the reference-equal " +

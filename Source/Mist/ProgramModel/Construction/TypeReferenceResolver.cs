@@ -466,8 +466,7 @@ internal sealed class TypeReferenceResolver
 
     /// <summary>
     /// Looks up a type by constructing a candidate FQN from namespace + type name
-    /// and checking the flat FQN dictionary. Falls back to the namespace dictionary
-    /// for backward compatibility with test setups that register types directly.
+    /// and checking the flat FQN dictionary.
     /// </summary>
     private IMistType? LookupInNamespace(string namespaceName, string typeName)
     {
@@ -478,14 +477,6 @@ internal sealed class TypeReferenceResolver
         if(context.ProgramModel.TypesByFQN.TryGetValue(fqn, out var typeDef))
         {
             return typeDef;
-        }
-
-        // Fallback: check the namespace dictionary directly (supports test setups
-        // that register via ns.Types[name] without going through RegisterType).
-        var namespaces = context.ProgramModel.Namespaces;
-        if(namespaces.TryGetValue(namespaceName, out var ns) && ns.Types.TryGetValue(typeName, out var fallbackType))
-        {
-            return fallbackType;
         }
 
         return null;

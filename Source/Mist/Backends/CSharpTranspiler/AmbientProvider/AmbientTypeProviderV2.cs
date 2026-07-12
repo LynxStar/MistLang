@@ -52,11 +52,10 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
         var resolver = new AmbientTypeResolver(shells, wellKnownTypes, programModel.TypeInterner, diagnostics);
         ProjectTypes(shells, clrTypes, resolver);
 
-        // Merge into ProgramModel namespaces and flat FQN dictionary.
+        // Merge into ProgramModel FQN dictionary.
         foreach(var (_, shell) in shells)
         {
-            var ns = programModel.GetOrAddNamespace(shell.NamespaceName);
-            ns.Types[shell.Name] = shell;
+            _ = programModel.GetOrAddNamespace(shell.NamespaceName);
             _ = programModel.RegisterType(shell);
         }
     }
@@ -72,8 +71,6 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
     /// These are types like System.Int32 → Standard.Int32 that already exist
     /// in the ProgramModel from source compilation. Returns a dictionary keyed
     /// by the CLR FQN (e.g., "System.Int32") for use during resolution.
-    /// Checks TypesByFQN first, then falls back to the namespace dictionary
-    /// (for test scenarios that register types directly).
     /// </summary>
     private static Dictionary<string, IMistType> ResolveWellKnownTypes(ProgramModelType programModel)
     {
@@ -85,18 +82,11 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
                 ? mistMapping.MistTypeName
                 : $"{mistMapping.MistNamespace}.{mistMapping.MistTypeName}";
 
-            IMistType? type;
-            if(!programModel.TypesByFQN.TryGetValue(mistFqn, out type))
+            if(!programModel.TypesByFQN.TryGetValue(mistFqn, out var type))
             {
-                // Fallback: check namespace dictionary directly (supports test setups
-                // that register via ns.Types[name] without going through RegisterType).
-                if(!programModel.Namespaces.TryGetValue(mistMapping.MistNamespace, out var ns)
-                    || !ns.Types.TryGetValue(mistMapping.MistTypeName, out type))
-                {
-                    throw new InvalidOperationException(
-                        $"ICE: Well-known type '{mistFqn}' " +
-                        "not found in ProgramModel. The Standard Library must be loaded before ambient type resolution.");
-                }
+                throw new InvalidOperationException(
+                    $"ICE: Well-known type '{mistFqn}' " +
+                    "not found in ProgramModel. The Standard Library must be loaded before ambient type resolution.");
             }
 
             var clrFqn = string.IsNullOrEmpty(clrKey.Namespace)
@@ -199,6 +189,7 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
                     BaseTypeProjector.Project(shell, clrType, resolver);
                     PropertyProjector.Project(memberType, clrType, resolver);
                     IndexerProjector.Project(memberType, clrType, resolver);
+                    MethodProjector.Project(memberType, clrType, resolver);
 
                     if(shell is ConcreteType concreteType)
                     {

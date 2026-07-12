@@ -34,10 +34,10 @@ public sealed class TypeReferenceResolverAmbiguityTests
     /// </summary>
     private static MistType RegisterType(ProgramModelClass programModel, string namespaceName, string typeName)
     {
-        var ns = programModel.GetOrAddNamespace(namespaceName);
+        _ = programModel.GetOrAddNamespace(namespaceName);
         var scope = new Scope(null) { Namespace = namespaceName };
         var type = new ClassType(typeName, namespaceName, scope, null, null);
-        ns.Types[typeName] = type;
+        _ = programModel.RegisterType(type);
         return type;
     }
 
@@ -303,15 +303,15 @@ public sealed class TypeReferenceResolverAmbiguityTests
 
         // Register a type with an arity name in two namespaces.
         // This simulates how generic types are registered (e.g., "List<>").
-        var nsA = context.ProgramModel.GetOrAddNamespace("NsA");
+        _ = context.ProgramModel.GetOrAddNamespace("NsA");
         var scopeA = new Scope(null) { Namespace = "NsA" };
         var listA = new ClassType("List<>", "NsA", scopeA, null, null);
-        nsA.Types["List<>"] = listA;
+        _ = context.ProgramModel.RegisterType(listA);
 
-        var nsB = context.ProgramModel.GetOrAddNamespace("NsB");
+        _ = context.ProgramModel.GetOrAddNamespace("NsB");
         var scopeB = new Scope(null) { Namespace = "NsB" };
         var listB = new ClassType("List<>", "NsB", scopeB, null, null);
-        nsB.Types["List<>"] = listB;
+        _ = context.ProgramModel.RegisterType(listB);
 
         var scope = new Scope(context.GlobalScope) { Namespace = "Consumer" };
         scope.AddImportedNamespace("NsA");
@@ -374,24 +374,28 @@ public sealed class TypeReferenceResolverAmbiguityTests
     {
         var (context, diagnostics) = CreateContext();
 
-        // Create one type and register it in two namespaces (simulating type forwarding).
+        // Register Foo in NsA. With FQN-keyed storage, type forwarding (same object
+        // under two namespace keys) is no longer naturally representable. Instead, we
+        // test the ReferenceEquals deduplication by importing the same namespace at
+        // multiple scope levels — the resolver finds the same object twice and should
+        // not report ambiguity.
         var scope = new Scope(null) { Namespace = "NsA" };
         var sharedFoo = new ClassType("Foo", "NsA", scope, null, null);
 
-        var nsA = context.ProgramModel.GetOrAddNamespace("NsA");
-        nsA.Types["Foo"] = sharedFoo;
+        _ = context.ProgramModel.GetOrAddNamespace("NsA");
+        _ = context.ProgramModel.RegisterType(sharedFoo);
 
-        var nsB = context.ProgramModel.GetOrAddNamespace("NsB");
-        nsB.Types["Foo"] = sharedFoo; // Same object
+        // Import NsA from both outer and inner scope — resolver sees it twice.
+        var outerScope = new Scope(context.GlobalScope) { Namespace = "Consumer" };
+        outerScope.AddImportedNamespace("NsA");
 
-        var resolveScope = new Scope(context.GlobalScope) { Namespace = "Consumer" };
-        resolveScope.AddImportedNamespace("NsA");
-        resolveScope.AddImportedNamespace("NsB");
+        var innerScope = new Scope(outerScope) { Namespace = "Consumer" };
+        innerScope.AddImportedNamespace("NsA");
 
         var resolver = new TypeReferenceResolver(context);
-        var result = resolver.ResolveNamedType("Foo", resolveScope, MakeDummyNode());
+        var result = resolver.ResolveNamedType("Foo", innerScope, MakeDummyNode());
 
-        // Same object in both — should resolve cleanly.
+        // Same object found via duplicate imports — should resolve cleanly.
         var diags = diagnostics.ToImmutableArray();
         Assert.Same(sharedFoo, result);
         Assert.Empty(diags);

@@ -28,7 +28,6 @@ namespace Mist.Tests.Backend;
 public sealed class AmbientTypeProviderV2IntegrationAliasTests : IDisposable
 {
     private readonly ProgramModelClass programModel;
-    private readonly MistNamespace standardNamespace;
     private readonly MetadataLoadContext metadataContext;
     private readonly AmbientTypeProviderV2 provider;
 
@@ -37,8 +36,7 @@ public sealed class AmbientTypeProviderV2IntegrationAliasTests : IDisposable
         // Check well-known type map first (aliases to Standard Library).
         if(WellKnownTypeMap.Entries.TryGetValue((namespaceName, typeName), out var mapping))
         {
-            if(programModel.Namespaces.TryGetValue(mapping.MistNamespace, out var stdNs)
-                && stdNs.Types.TryGetValue(mapping.MistTypeName, out var stdType))
+            if(programModel.TypesByFQN.TryGetValue($"{mapping.MistNamespace}.{mapping.MistTypeName}", out var stdType))
             {
                 return stdType;
             }
@@ -60,8 +58,7 @@ public sealed class AmbientTypeProviderV2IntegrationAliasTests : IDisposable
             }
         }
 
-        if(programModel.Namespaces.TryGetValue(namespaceName, out var ns)
-            && ns.Types.TryGetValue(mistName, out var type))
+        if(programModel.TypesByFQN.TryGetValue($"{namespaceName}.{mistName}", out var type))
         {
             return type;
         }
@@ -72,7 +69,7 @@ public sealed class AmbientTypeProviderV2IntegrationAliasTests : IDisposable
     public AmbientTypeProviderV2IntegrationAliasTests()
     {
         programModel = new ProgramModelClass();
-        standardNamespace = programModel.GetOrAddNamespace("Standard");
+        _ = programModel.GetOrAddNamespace("Standard");
 
         // Register all 17 expected Standard Library types as ClassType stubs.
         var typeNames = new[]
@@ -87,7 +84,7 @@ public sealed class AmbientTypeProviderV2IntegrationAliasTests : IDisposable
         foreach(var name in typeNames)
         {
             var type = new ClassType(name, "Standard", scope, null, null!);
-            standardNamespace.Types[name] = type;
+            _ = programModel.RegisterType(type);
         }
 
         // Register Standard.Func definitions for delegate projection.
@@ -96,18 +93,18 @@ public sealed class AmbientTypeProviderV2IntegrationAliasTests : IDisposable
             var commas = arity > 1 ? new string(',', arity - 1) : "";
             var funcName = $"Func<{commas}>";
             var funcType = new ClassType(funcName, "Standard", scope, null, null!);
-            standardNamespace.Types[funcName] = funcType;
+            _ = programModel.RegisterType(funcType);
         }
 
         // Register Standard.Action definitions for delegate projection.
         var action = new ClassType("Action", "Standard", scope, null, null!);
-        standardNamespace.Types["Action"] = action;
+        _ = programModel.RegisterType(action);
         for(var arity = 1; arity <= 16; arity++)
         {
             var commas = arity > 1 ? new string(',', arity - 1) : "";
             var actionName = $"Action<{commas}>";
             var actionType = new ClassType(actionName, "Standard", scope, null, null!);
-            standardNamespace.Types[actionName] = actionType;
+            _ = programModel.RegisterType(actionType);
         }
 
         // Load real BCL assemblies via MetadataLoadContext
@@ -184,7 +181,7 @@ public sealed class AmbientTypeProviderV2IntegrationAliasTests : IDisposable
         Assert.NotNull(resolved);
 
         // Assert - resolved is the exact same instance registered in Standard namespace
-        var expected = standardNamespace.Types[expectedMistTypeName];
+        var expected = programModel.TypesByFQN[$"Standard.{expectedMistTypeName}"];
         Assert.True(
             ReferenceEquals(resolved, expected),
             $"ResolveType(\"{clrNamespace}\", \"{clrTypeName}\") should return the reference-equal " +
@@ -257,7 +254,7 @@ public sealed class AmbientTypeProviderV2IntegrationAliasTests : IDisposable
         // Verify that resolving "System.Int32" returns the Standard Library instance,
         // NOT a freshly-projected type from the loaded System.Runtime assembly.
         var resolved = LookupType("System", "Int32");
-        var standardInt32 = standardNamespace.Types["Int32"];
+        var standardInt32 = programModel.TypesByFQN["Standard.Int32"];
 
         // The resolved type should be the EXACT Standard Library stub,
         // not a newly projected ClassType with full members.
@@ -267,16 +264,13 @@ public sealed class AmbientTypeProviderV2IntegrationAliasTests : IDisposable
 
         // Additionally verify no new "Int32" was inserted into the "System" namespace
         // (because the alias map short-circuits before projection)
-        if(programModel.Namespaces.TryGetValue("System", out var systemNs))
+        if(programModel.TypesByFQN.TryGetValue("System.Int32", out var systemInt32))
         {
-            if(systemNs.Types.TryGetValue("Int32", out var systemInt32))
-            {
-                // If something is in System.Int32, it should still be reference-equal
-                // to Standard.Int32 (not a duplicate projection)
-                Assert.True(
-                    ReferenceEquals(systemInt32, standardInt32),
-                    "If Int32 exists in System namespace, it should be the same Standard Library instance.");
-            }
+            // If something is in System.Int32, it should still be reference-equal
+            // to Standard.Int32 (not a duplicate projection)
+            Assert.True(
+                ReferenceEquals(systemInt32, standardInt32),
+                "If Int32 exists in System namespace, it should be the same Standard Library instance.");
         }
     }
 }

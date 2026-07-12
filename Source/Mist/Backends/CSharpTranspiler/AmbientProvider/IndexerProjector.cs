@@ -12,6 +12,7 @@ internal static class IndexerProjector
 {
     /// <summary>
     /// Projects all public indexers (properties with index parameters) onto the given MemberType.
+    /// Skips indexers with pointer or unresolvable parameter types.
     /// </summary>
     public static void Project(MemberType memberType, Type clrType, AmbientTypeResolver resolver)
     {
@@ -26,12 +27,15 @@ internal static class IndexerProjector
             }
 
             var resolvedType = resolver.Resolve(prop.PropertyType, memberType.Scope);
-
-            var parameters = new List<Parameter>(indexParams.Length);
-            foreach(var param in indexParams)
+            if(resolvedType is ErrorType or NotProjectedType)
             {
-                var paramType = resolver.Resolve(param.ParameterType, memberType.Scope);
-                parameters.Add(new Parameter(param.Name ?? "", paramType));
+                continue;
+            }
+
+            var parameters = ParameterProjector.Project(indexParams, memberType.Scope, resolver);
+            if(parameters is null)
+            {
+                continue;
             }
 
             var getter = prop.GetMethod is { IsPublic: true } ? new PropertyAccessor() : null;

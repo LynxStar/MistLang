@@ -61,23 +61,11 @@ internal static class MethodProjector
             return null;
         }
 
-        // Resolve parameters.
-        var clrParams = method.GetParameters();
-        var parameters = new List<Parameter>(clrParams.Length);
-        foreach(var param in clrParams)
+        // Resolve parameters via shared projector.
+        var parameters = ParameterProjector.Project(method.GetParameters(), methodScope, resolver);
+        if(parameters is null)
         {
-            if(HasPointerType(param.ParameterType))
-            {
-                return null;
-            }
-
-            var paramType = resolver.Resolve(param.ParameterType, methodScope);
-            if(paramType is ErrorType or NotProjectedType)
-            {
-                return null;
-            }
-
-            parameters.Add(new Parameter(param.Name ?? "", paramType));
+            return null;
         }
 
         var modifiers = new MemberModifiers
@@ -191,14 +179,5 @@ internal static class MethodProjector
         }
 
         return false;
-    }
-
-    /// <summary>
-    /// Checks whether a CLR type involves pointers (unsafe types that cannot
-    /// be represented in Mist).
-    /// </summary>
-    private static bool HasPointerType(Type type)
-    {
-        return type.IsPointer || (type.IsByRef && type.GetElementType()!.IsPointer);
     }
 }

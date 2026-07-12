@@ -18,6 +18,12 @@ internal static class PropertyProjector
 
         foreach(var prop in properties)
         {
+            // Skip indexers — they're projected by IndexerProjector.
+            if(prop.GetIndexParameters().Length > 0)
+            {
+                continue;
+            }
+
             var resolvedType = resolver.Resolve(prop.PropertyType, memberType.Scope);
             var getter = prop.GetMethod is { IsPublic: true } ? new PropertyAccessor() : null;
             var setter = CreateSetter(prop);

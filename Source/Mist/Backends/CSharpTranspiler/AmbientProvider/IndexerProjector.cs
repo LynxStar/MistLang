@@ -1,0 +1,55 @@
+using System.Reflection;
+using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Types;
+
+namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
+
+/// <summary>
+/// Projects CLR indexers onto a Mist MemberType shell.
+/// In CLR, indexers are properties with parameters (typically named "Item").
+/// </summary>
+internal static class IndexerProjector
+{
+    /// <summary>
+    /// Projects all public indexers (properties with index parameters) onto the given MemberType.
+    /// </summary>
+    public static void Project(MemberType memberType, Type clrType, AmbientTypeResolver resolver)
+    {
+        var properties = clrType.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly);
+
+        foreach(var prop in properties)
+        {
+            var indexParams = prop.GetIndexParameters();
+            if(indexParams.Length == 0)
+            {
+                continue;
+            }
+
+            var resolvedType = resolver.Resolve(prop.PropertyType, memberType.Scope);
+
+            var parameters = new List<Parameter>(indexParams.Length);
+            foreach(var param in indexParams)
+            {
+                var paramType = resolver.Resolve(param.ParameterType, memberType.Scope);
+                parameters.Add(new Parameter(param.Name ?? "", paramType));
+            }
+
+            var getter = prop.GetMethod is { IsPublic: true } ? new PropertyAccessor() : null;
+            var setter = prop.SetMethod is { IsPublic: true } ? new PropertyAccessor() : null;
+
+            var modifiers = new MemberModifiers
+            {
+                IsPublic = true,
+                IsStatic = (prop.GetMethod?.IsStatic ?? prop.SetMethod?.IsStatic) == true,
+            };
+
+            var projected = new Indexer(resolvedType, parameters, modifiers)
+            {
+                Getter = getter,
+                Setter = setter,
+            };
+
+            memberType.IndexersList.Add(projected);
+        }
+    }
+}

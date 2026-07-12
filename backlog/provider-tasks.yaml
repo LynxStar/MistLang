@@ -79,17 +79,17 @@ types:
       - [ ] const (with value)
       - [ ] attributes
     indexers:
-      - [ ] parameters:
-        - [ ] type
-          - [ ] open generic
-          - [ ] closed generic
-        - [ ] name
+      - [x] parameters:
+        - [x] type
+          - [x] open generic
+          - [x] closed generic
+        - [x] name
         - [ ] attributes
-      - [ ] return type
-        - [ ] open generic
-        - [ ] closed generic
-      - [ ] get accessor
-      - [ ] set accessor
+      - [x] return type
+        - [x] open generic
+        - [x] closed generic
+      - [x] get accessor
+      - [x] set accessor
       - [ ] attributes
     operators:
       - [ ] operator symbol
@@ -182,17 +182,17 @@ types:
       - [ ] const (with value)
       - [ ] attributes
     indexers:
-      - [ ] parameters:
-        - [ ] type
-          - [ ] open generic
-          - [ ] closed generic
-        - [ ] name
+      - [x] parameters:
+        - [x] type
+          - [x] open generic
+          - [x] closed generic
+        - [x] name
         - [ ] attributes
-      - [ ] return type
-        - [ ] open generic
-        - [ ] closed generic
-      - [ ] get accessor
-      - [ ] set accessor
+      - [x] return type
+        - [x] open generic
+        - [x] closed generic
+      - [x] get accessor
+      - [x] set accessor
       - [ ] attributes
     operators:
       - [ ] operator symbol

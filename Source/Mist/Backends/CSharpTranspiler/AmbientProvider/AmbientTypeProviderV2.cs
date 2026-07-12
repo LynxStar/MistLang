@@ -48,12 +48,9 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
         // Phase 1: Create shells for all exported types.
         var (shells, clrTypes) = CreateShells(wellKnownTypes);
 
-        // Phase 2: Project type parameters and constraints.
+        // Phase 2: Project type details onto shells (type params, base types, members).
         var resolver = new AmbientTypeResolver(shells, wellKnownTypes, diagnostics);
-        ProjectTypeParameters(shells, clrTypes, resolver);
-
-        // Phase 2b: Project base types and interfaces.
-        ProjectBaseTypes(shells, clrTypes, resolver);
+        ProjectTypes(shells, clrTypes, resolver);
 
         // Merge into ProgramModel namespaces.
         foreach(var (key, shell) in shells)
@@ -157,42 +154,32 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
     }
 
     /// <summary>
-    /// Phase 2: Projects type parameters and constraints onto all generic shells.
-    /// Constraint resolution uses the shells dictionary (other ambient types) and
-    /// the well-known types table (Standard Library intrinsics).
+    /// Phase 2: Single pass over all types — dispatches to the appropriate projector
+    /// for type parameters, base types, interfaces, enum members, etc.
     /// </summary>
-    private static void ProjectTypeParameters(
+    private static void ProjectTypes(
         Dictionary<(string Namespace, string ClrName), MistType> shells,
         Dictionary<(string Namespace, string ClrName), Type> clrTypes,
         AmbientTypeResolver resolver)
     {
         foreach(var (key, clrType) in clrTypes)
         {
-            if(!clrType.IsGenericTypeDefinition)
-            {
-                continue;
-            }
+            var shell = shells[key];
 
-            if(shells.TryGetValue(key, out var shell) && shell is MemberType memberType)
+            switch(shell)
             {
-                TypeParameterProjector.Project(memberType, clrType, resolver);
-            }
-        }
-    }
+                case EnumType enumType:
+                    EnumProjector.Project(enumType, clrType, resolver);
+                    break;
 
-    /// <summary>
-    /// Phase 2b: Projects base types and implemented interfaces onto all shells.
-    /// </summary>
-    private static void ProjectBaseTypes(
-        Dictionary<(string Namespace, string ClrName), MistType> shells,
-        Dictionary<(string Namespace, string ClrName), Type> clrTypes,
-        AmbientTypeResolver resolver)
-    {
-        foreach(var (key, clrType) in clrTypes)
-        {
-            if(shells.TryGetValue(key, out var shell))
-            {
-                BaseTypeProjector.Project(shell, clrType, resolver);
+                case MemberType memberType:
+                    if(clrType.IsGenericTypeDefinition)
+                    {
+                        TypeParameterProjector.Project(memberType, clrType, resolver);
+                    }
+
+                    BaseTypeProjector.Project(shell, clrType, resolver);
+                    break;
             }
         }
     }

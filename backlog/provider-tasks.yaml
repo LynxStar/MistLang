@@ -277,9 +277,9 @@ types:
       - [x] name
       - [x] namespace
       - [x] origin (Ambient)
-      - [ ] underlying type (int, byte, short, long, uint, ulong, ushort, sbyte)
+      - [x] underlying type (int, byte, short, long, uint, ulong, ushort, sbyte)
     members:
-      - [ ] name
+      - [x] name
       - [ ] constant value (typed to underlying type)
 
 extensions:

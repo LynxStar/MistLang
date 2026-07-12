@@ -19,11 +19,3 @@ Example:
 The resolver should still produce an ambiguity error because at the same scope level, both A and B are visible and both contain `Foo`. The cascade up scopes is correct (inner shadows outer), but within a scope level the search must be exhaustive across all imported namespaces before returning a result.
 
 Fix: all resolution paths that search multiple namespaces at equal priority must collect all matches and emit an ambiguity diagnostic when more than one is found (same behavior C# has for `CS0104`).
-
-## TypeBuilder: Process Type Parameters Before Bases
-
-Type parameters must be processed before base types during program model construction. A base clause can reference a type's own type parameters (e.g., `class Foo<T> : IComparable<T>`), so those parameters need to be registered and resolvable before the base list is resolved.
-
-Currently, if bases are resolved first, any reference to the type's own type parameters in the base clause will fail to resolve or resolve incorrectly.
-
-Fix: ensure the construction order in `TypeBuilder` (and any equivalent ambient projection path) registers type parameters on the type symbol before attempting to resolve base type references.

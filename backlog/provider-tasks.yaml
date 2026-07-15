@@ -110,9 +110,9 @@ types:
       - [x] target type
       - [x] attributes
     nested_types:
-      - [ ] recursive projection (all of the above)
-      - [ ] dot-separated namespace key
-      - [ ] DeclaringType reference
+      - [x] recursive projection (all of the above)
+      - [x] dot-separated namespace key
+      - [x] DeclaringType reference
 
   struct:
     shell:
@@ -295,16 +295,16 @@ types:
 
 extensions:
   scanning:
-    - [ ] find static classes with [ExtensionAttribute]
-    - [ ] find public static methods with [ExtensionAttribute]
+    - [x] find static classes with [ExtensionAttribute]
+    - [x] find public static methods with [ExtensionAttribute]
   per_method:
-    - [ ] extract receiver type (first parameter)
-    - [ ] extract remaining parameters
-    - [ ] extract return type
-    - [ ] extract type parameters
-    - [ ] extract constraints
+    - [x] extract receiver type (first parameter)
+    - [x] extract remaining parameters
+    - [x] extract return type
+    - [x] extract type parameters
+    - [x] extract constraints
   registration:
-    - [ ] associate with receiver type in model
+    - [x] associate with receiver type in model
     - [ ] namespace scoping (only visible when imported)
 
 aliases:
@@ -335,7 +335,7 @@ name_format:
   - [x] accept Mist arity notation (List<> = arity 1, Dict<,> = arity 2, Foo<,,,> = arity 4)
   - [x] translate to CLR notation (List`1, Dict`2, Foo`4) internally
   - [x] strip arity suffix from CLR names for Mist registration (List`1 -> List<>, Dictionary`2 -> Dictionary<,>)
-  - [ ] handle nested type names (Outer.Inner)
+  - [x] handle nested type names (Outer.Inner)
 
 recursion_safety:
   # Types can reference themselves in base types, interfaces, or member signatures.
@@ -406,14 +406,17 @@ intrinsic_substitution:
   # When resolving types in member signatures, CLR types that map to Standard
   # Library types must be substituted (e.g., System.Int32 -> Standard.Int32
   # in return types, parameter types, field types, etc.)
-  - [ ] substitute in method return types
-  - [ ] substitute in method parameter types
-  - [ ] substitute in property types
-  - [ ] substitute in field types
-  - [ ] substitute in indexer parameter/return types
-  - [ ] substitute in base type references
-  - [ ] substitute in interface type arguments
-  - [ ] recursive substitution in constructed generics (e.g., List<int> -> List<Standard.Int32>)
+  # NOTE: This is handled implicitly by AmbientTypeResolver.ResolveByFQN
+  # which checks wellKnownTypes (keyed by CLR FQN) before shells. Any CLR
+  # type that has a well-known mapping resolves to the Standard Library instance.
+  - [x] substitute in method return types
+  - [x] substitute in method parameter types
+  - [x] substitute in property types
+  - [x] substitute in field types
+  - [x] substitute in indexer parameter/return types
+  - [x] substitute in base type references
+  - [x] substitute in interface type arguments
+  - [x] recursive substitution in constructed generics (e.g., List<int> -> List<Standard.Int32>)
 
 missing_stdlib_types:
   - [ ] System.ValueTuple`N -> Standard tuple type

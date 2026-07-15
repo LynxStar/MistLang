@@ -283,13 +283,21 @@ public sealed class InheritanceChainProjectionPropertyTests
     }
 
     /// <summary>
-    /// Property 8c: Base type members are accessible on derived types.
-    /// For any type in an inheritance chain, the base type's public members
-    /// (methods and properties) are accessible on the derived type because
-    /// reflection includes inherited members.
+    /// Property 8c: Base type INSTANCE members are accessible on derived types.
+    /// For any type in an inheritance chain, the base type's public instance members
+    /// (methods and properties) are accessible on the derived type because reflection
+    /// flattens inherited instance members.
+    ///
+    /// Static members are deliberately excluded: <see cref="TypeProjector.ProjectMembers"/>
+    /// enumerates with <c>BindingFlags.Public | Instance | Static</c> and NO
+    /// <c>FlattenHierarchy</c>, which mirrors C# semantics — inherited static methods are
+    /// reachable only through the base type name, not surfaced on the derived type's member
+    /// set. Asserting they appear on the derived type would be incorrect (e.g. it would fail
+    /// for any type deriving from <c>System.Attribute</c>, whose statics like
+    /// <c>GetCustomAttributes</c> are not inherited onto the derived type).
     /// </summary>
     [Fact]
-    public void P8c_BaseTypeMembers_AccessibleOnDerivedTypes()
+    public void P8c_BaseTypeInstanceMembers_AccessibleOnDerivedTypes()
     {
         RunProperty(GenTypeWithInheritance(), clrType =>
         {
@@ -297,14 +305,15 @@ public sealed class InheritanceChainProjectionPropertyTests
 
             var (projectedType, _) = projector.ProjectType(clrType, stdlib);
 
-            // Get members of the derived type (includes inherited members via reflection)
+            // Get members of the derived type (includes inherited instance members via reflection)
             var derivedMembers = projector.ProjectMembers(clrType, projectedType, stdlib);
             var derivedMemberNames = derivedMembers
                 .Where(m => m.Kind is SymbolKind.Method or SymbolKind.Property)
                 .Select(m => m.Name)
                 .ToHashSet();
 
-            // For each ancestor, check that its declared public members appear on the derived type
+            // For each ancestor, check that its declared public INSTANCE members appear on the
+            // derived type. Static members are not inherited/flattened, so they are excluded.
             foreach(var ancestorClrType in clrChain.Skip(1))
             {
                 var (ancestorType, _) = projector.ProjectType(ancestorClrType, stdlib);
@@ -312,11 +321,12 @@ public sealed class InheritanceChainProjectionPropertyTests
 
                 foreach(var ancestorMember in ancestorMembers)
                 {
-                    if(ancestorMember.Kind is SymbolKind.Method or SymbolKind.Property)
+                    if(ancestorMember.Kind is SymbolKind.Method or SymbolKind.Property
+                        && ancestorMember is not Symbol { IsStatic: true })
                     {
                         Assert.True(
                             derivedMemberNames.Contains(ancestorMember.Name),
-                            $"Base member '{ancestorMember.Name}' from " +
+                            $"Base instance member '{ancestorMember.Name}' from " +
                             $"{ancestorClrType.Name} not found on derived type {clrType.Name}. " +
                             $"Derived members: [{string.Join(", ", derivedMemberNames)}]");
                     }

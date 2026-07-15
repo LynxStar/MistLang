@@ -30,12 +30,23 @@ internal static class TypeProjector
 
         shell.Origin = TypeOrigin.Ambient;
 
-        // Static classes in CLR are abstract + sealed.
-        if(clrType.IsAbstract && clrType.IsSealed && shell is MemberType memberType)
+        if(shell is MemberType memberType)
         {
-            memberType.Modifiers = new MemberModifiers { IsStatic = true };
+            memberType.Modifiers = new MemberModifiers
+            {
+                IsStatic = clrType.IsAbstract && clrType.IsSealed,
+                IsReadonly = clrType.IsValueType && HasCustomAttribute(
+                    clrType,
+                    "System.Runtime.CompilerServices.IsReadOnlyAttribute"),
+            };
         }
 
         return shell;
+    }
+
+    private static bool HasCustomAttribute(Type clrType, string fullyQualifiedName)
+    {
+        return clrType.GetCustomAttributesData()
+            .Any(attribute => attribute.AttributeType.FullName == fullyQualifiedName);
     }
 }

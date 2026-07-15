@@ -88,8 +88,6 @@ internal sealed class AmbientTypeResolver
     /// <summary>
     /// Resolves a closed generic CLR type by resolving its definition and each
     /// type argument, then interning a <see cref="ConstructedType"/>.
-    /// If the definition or any type argument is an error/not-projected sentinel,
-    /// returns <see cref="ErrorType"/>.
     /// </summary>
     private MistType ResolveClosedGeneric(Type clrType, Scope scope)
     {

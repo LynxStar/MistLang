@@ -13,4 +13,11 @@ public enum OwnershipKind
 
     /// <summary>Borrowed — a temporary reference that does not own the value.</summary>
     Borrowed,
+
+    /// <summary>
+    /// Frozen — an immutable view that also blocks the owner from mutating while outstanding.
+    /// Valid on parameters and bindings; not permitted on field declarations (rejected during
+    /// validation). Kept in the shared enum so ownership requirements remain directly comparable.
+    /// </summary>
+    Frozen,
 }

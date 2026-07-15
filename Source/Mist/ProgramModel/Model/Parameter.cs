@@ -8,11 +8,14 @@ namespace Mist.ProgramModel.Model;
 /// </summary>
 internal sealed class Parameter(
     string name,
-    IMistType type) : IParameter, IHasAttributes
+    IMistType type,
+    ParameterModifier modifier = default) : IParameter, IHasAttributes
 {
     public string Name { get; } = name;
 
     public IMistType Type { get; } = type;
+
+    public ParameterModifier Modifier { get; } = modifier;
 
     /// <summary>
     /// The attributes applied to this parameter.

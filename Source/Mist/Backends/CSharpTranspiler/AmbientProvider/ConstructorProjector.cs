@@ -31,6 +31,7 @@ internal static class ConstructorProjector
             };
 
             var projected = new Constructor(concreteType.Name, concreteType, parameters, modifiers);
+            AttributeProjector.Project(ctor, projected.AttributesList, concreteType.Scope, resolver);
             concreteType.ConstructorsList.Add(projected);
         }
     }

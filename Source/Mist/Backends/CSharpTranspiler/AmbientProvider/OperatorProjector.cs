@@ -85,6 +85,7 @@ internal static class OperatorProjector
         };
 
         var op = new Operator(kind, returnType, parameters, modifiers);
+        AttributeProjector.Project(method, op.AttributesList, memberType.Scope, resolver);
         memberType.OperatorsList.Add(op);
     }
 
@@ -105,28 +106,27 @@ internal static class OperatorProjector
             return;
         }
 
-        var clrParams = method.GetParameters();
-        if(clrParams.Length != 1)
+        var clrParameters = method.GetParameters();
+        if(clrParameters.Length != 1)
         {
             return;
         }
 
-        var sourceParamType = resolver.Resolve(clrParams[0].ParameterType, memberType.Scope);
-        if(sourceParamType is ErrorType or NotProjectedType)
+        var parameters = ParameterProjector.Project(clrParameters, memberType.Scope, resolver);
+        if(parameters is null)
         {
             return;
         }
 
-        var sourceParameter = new Parameter(clrParams[0].Name ?? "", sourceParamType);
         var isImplicit = method.Name == "op_Implicit";
-
         var modifiers = new MemberModifiers
         {
             IsPublic = true,
             IsStatic = true,
         };
 
-        var castOp = new CastOperator(targetType, sourceParameter, isImplicit, modifiers);
-        concreteType.CastOperatorsList.Add(castOp);
+        var castOperator = new CastOperator(targetType, parameters[0], isImplicit, modifiers);
+        AttributeProjector.Project(method, castOperator.AttributesList, memberType.Scope, resolver);
+        concreteType.CastOperatorsList.Add(castOperator);
     }
 }

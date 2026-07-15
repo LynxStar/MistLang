@@ -22,7 +22,7 @@ types:
       - [x] resolve direct base
       - [x] recursive resolution (base's base must also resolve)
       - [x] closed generics (e.g., base is List<int>)
-      - [ ] hide type if base unresolvable
+      - [ ] hide type if base unresolvableonl
     interfaces:
       - [x] resolve all implemented interfaces
       - [x] recursive (interface inheritance)
@@ -32,8 +32,9 @@ types:
       - [x] parameters:
         - [x] type
         - [x] name
-        - [ ] attributes (sentinel for ref/out/in)
+        - [x] attributes (CLR custom attributes and calling conventions)
       - [x] visibility (public, protected)
+      - [x] attributes
     methods:
       - [x] name
       - [x] return type
@@ -44,7 +45,7 @@ types:
           - [x] open generic (uses type/method type params)
           - [x] closed generic
         - [x] name
-        - [ ] attributes (sentinel for ref/out/in, params)
+        - [x] attributes (CLR custom attributes, ref/out/in, params)
       - [x] type parameters:
         - [x] declaration
         - [x] constraints:
@@ -56,7 +57,7 @@ types:
       - [x] visibility (public, protected)
       - [x] static
       - [ ] virtual/abstract/override -> sentinel attributes [Virtual]/[Abstract]/[Override]
-      - [ ] attributes (method-level)
+      - [x] attributes (method-level)
     properties:
       - [x] name
       - [x] type
@@ -67,7 +68,7 @@ types:
       - [x] init accessor -> Mist init keyword
       - [x] visibility (public, protected)
       - [x] static
-      - [ ] attributes
+      - [x] attributes
     fields:
       - [x] name
       - [x] type
@@ -77,33 +78,37 @@ types:
       - [x] static
       - [x] readonly
       - [ ] const (with value)
-      - [ ] attributes
+      - [x] attributes
     indexers:
       - [x] parameters:
         - [x] type
           - [x] open generic
           - [x] closed generic
         - [x] name
-        - [ ] attributes
+        - [x] attributes
       - [x] return type
         - [x] open generic
         - [x] closed generic
       - [x] get accessor
       - [x] set accessor
-      - [ ] attributes
+      - [x] attributes
     operators:
       - [x] operator symbol
       - [x] parameter types
         - [x] open generic
         - [x] closed generic
+      - [x] parameter attributes
       - [x] return type
         - [x] open generic
         - [x] closed generic
+      - [x] attributes
     cast_operators:
       - [x] implicit conversion
       - [x] explicit conversion
       - [x] source type
+      - [x] source parameter attributes
       - [x] target type
+      - [x] attributes
     nested_types:
       - [ ] recursive projection (all of the above)
       - [ ] dot-separated namespace key
@@ -115,7 +120,7 @@ types:
       - [x] namespace
       - [x] origin (Ambient)
       - [ ] ref struct (IsByRefLike) -> Mist ref modifier
-      - [ ] readonly struct -> Mist readonly modifier
+      - [x] readonly struct -> Mist readonly modifier
     type_parameters:
       - [x] declaration (name, position)
       - [x] constraints:
@@ -135,8 +140,9 @@ types:
           - [x] open generic
           - [x] closed generic
         - [x] name
-        - [ ] attributes (sentinel for ref/out/in)
+        - [x] attributes (CLR custom attributes and calling conventions)
       - [x] visibility (public, protected)
+      - [x] attributes
     methods:
       - [x] name
       - [x] return type
@@ -147,7 +153,7 @@ types:
           - [x] open generic
           - [x] closed generic
         - [x] name
-        - [ ] attributes (sentinel for ref/out/in, params)
+        - [x] attributes (CLR custom attributes, ref/out/in, params)
       - [x] type parameters:
         - [x] declaration
         - [x] constraints:
@@ -159,7 +165,7 @@ types:
       - [x] visibility (public, protected)
       - [x] static
       - [ ] virtual/override -> sentinel attributes [Virtual]/[Override]
-      - [ ] attributes (method-level)
+      - [x] attributes (method-level)
     properties:
       - [x] name
       - [x] type
@@ -170,7 +176,7 @@ types:
       - [x] init accessor -> Mist init keyword
       - [x] visibility (public, protected)
       - [x] static
-      - [ ] attributes
+      - [x] attributes
     fields:
       - [x] name
       - [x] type
@@ -180,33 +186,37 @@ types:
       - [x] static
       - [x] readonly
       - [ ] const (with value)
-      - [ ] attributes
+      - [x] attributes
     indexers:
       - [x] parameters:
         - [x] type
           - [x] open generic
           - [x] closed generic
         - [x] name
-        - [ ] attributes
+        - [x] attributes
       - [x] return type
         - [x] open generic
         - [x] closed generic
       - [x] get accessor
       - [x] set accessor
-      - [ ] attributes
+      - [x] attributes
     operators:
       - [x] operator symbol
       - [x] parameter types
         - [x] open generic
         - [x] closed generic
+      - [x] parameter attributes
       - [x] return type
         - [x] open generic
         - [x] closed generic
+      - [x] attributes
     cast_operators:
       - [x] implicit conversion
       - [x] explicit conversion
       - [x] source type
+      - [x] source parameter attributes
       - [x] target type
+      - [x] attributes
     nested_types:
       - [ ] recursive projection (all of the above)
       - [ ] dot-separated namespace key
@@ -240,7 +250,7 @@ types:
           - [x] open generic
           - [x] closed generic
         - [x] name
-        - [ ] attributes (sentinel for ref/out/in, params)
+        - [x] attributes (CLR custom attributes, ref/out/in, params)
       - [x] type parameters:
         - [x] declaration
         - [x] constraints:
@@ -250,7 +260,7 @@ types:
           - [x] base type constraint
           - [x] interface constraint
       - [ ] default implementation detection
-      - [ ] attributes (method-level)
+      - [x] attributes (method-level)
     properties:
       - [x] name
       - [x] type
@@ -258,19 +268,20 @@ types:
         - [x] closed generic
       - [x] get accessor
       - [x] set accessor
-      - [ ] attributes
+      - [x] attributes
     indexers:
       - [x] parameters:
         - [x] type
           - [x] open generic
           - [x] closed generic
         - [x] name
-        - [ ] attributes
+        - [x] attributes
       - [x] return type
         - [x] open generic
         - [x] closed generic
       - [x] get accessor
       - [x] set accessor
+      - [x] attributes
 
   enum:
     shell:
@@ -351,16 +362,20 @@ sentinel_attributes:
   - [ ] virtual method -> sentinel [Virtual] (no CLR attribute carries this)
   - [ ] override method -> sentinel [Override] (no CLR attribute carries this)
   - [ ] abstract method -> sentinel [Abstract]
-  - [ ] params array -> sentinel [Params] (CLR has [ParamArray] attribute -- project that instead?)
+  - [x] params array -> project CLR [ParamArray] attribute (no sentinel)
 
 clr_attributes_to_project:
   # All CLR attributes that have valid destinations in Mist should be projected.
   # This lets the emitter reconstruct proper calling conventions.
-  - [ ] [In] on parameter (distinguishes Mist ref -> C# in)
-  - [ ] [Out] on parameter (distinguishes Mist ref -> C# out)
-  - [ ] [ParamArray] on parameter (params)
-  - [ ] [IsReadOnly] on struct/parameter (readonly)
-  - [ ] all other public custom attributes on members
+  - [x] in/ref/readonly on parameter -> represented by ParameterModifier (IsRef + IsReadonly), not stored as an attribute
+  - [x] [Out] on parameter -> stored as an attribute (the one convention ParameterModifier cannot distinguish from plain ref)
+  - [x] [ParamArray] on parameter (params)
+  - [x] readonly struct -> Mist readonly modifier ([IsReadOnly] type attribute filtered out)
+  - [x] public custom attributes on classes/structs/interfaces and their methods, properties, fields, indexers, constructors, operators, cast operators, and parameters
+  - [ ] public custom attributes on enum types and enum members
+  - [x] compiler-internal attributes excluded (CompilerGenerated, Nullable*, Dynamic, Extension, TupleElementNames, IsUnmanaged)
+  - [x] positional constructor argument values (including Type-, enum-, and array-valued)
+  - [x] named property/field argument values
 
 visibility_filtering:
   - [ ] project public members

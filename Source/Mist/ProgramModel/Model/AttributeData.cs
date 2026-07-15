@@ -1,22 +1,21 @@
-using Mist.Generated;
 using Mist.ProgramModel.Contracts.Types;
 
 namespace Mist.ProgramModel.Model;
 
 /// <summary>
-/// Represents a single applied attribute with its resolved type.
-/// Argument resolution is deferred until invocation expression handling is implemented.
+/// Represents a single applied attribute with its resolved type and arguments.
 /// </summary>
 public sealed class AttributeData(
     IMistType attributeType,
-    AttributeNode? attributeNode)
+    IReadOnlyList<object?> positionalArguments,
+    IReadOnlyList<(string Name, object? Value)> namedArguments)
 {
     /// <summary>The resolved attribute class type.</summary>
     public IMistType AttributeType { get; } = attributeType;
 
-    /// <summary>
-    /// The AST node for this attribute. Contains the argument list for source attributes.
-    /// Null for assembly-projected attributes (which have no source AST).
-    /// </summary>
-    public AttributeNode? AttributeNode { get; } = attributeNode;
+    /// <summary>Positional constructor arguments.</summary>
+    public IReadOnlyList<object?> PositionalArguments { get; } = positionalArguments;
+
+    /// <summary>Named property and field assignments.</summary>
+    public IReadOnlyList<(string Name, object? Value)> NamedArguments { get; } = namedArguments;
 }

@@ -38,6 +38,9 @@ internal sealed class ParameterBuilder
         var name = param.Name.Lexeme;
         var type = typeResolver.Resolve(param.Type, scope);
 
+        // Source-side modifier population (ref/readonly/ownership specifier, the struct-vs-class
+        // by-value/by-ref derivation, and the redundant/invalid-combination diagnostics) is handled
+        // by the type-checker pass, not here. Parameters default to an unrestricted by-value modifier.
         return new Parameter(name, type);
     }
 }

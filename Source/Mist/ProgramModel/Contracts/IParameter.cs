@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 
 namespace Mist.ProgramModel.Contracts;
 
@@ -12,4 +13,7 @@ public interface IParameter
 
     /// <summary>The resolved type of the parameter.</summary>
     IMistType Type { get; }
+
+    /// <summary>The readonly / ref / ownership modifiers applied to the parameter.</summary>
+    ParameterModifier Modifier { get; }
 }

@@ -53,6 +53,7 @@ internal static class IndexerProjector
                 Setter = setter,
             };
 
+            AttributeProjector.Project(prop, projected.AttributesList, memberType.Scope, resolver);
             memberType.IndexersList.Add(projected);
         }
     }

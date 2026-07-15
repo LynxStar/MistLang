@@ -11,17 +11,24 @@ namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 internal static class IndexerProjector
 {
     /// <summary>
-    /// Projects all public indexers (properties with index parameters) onto the given MemberType.
+    /// Projects all public and protected indexers (properties with index parameters)
+    /// onto the given MemberType.
     /// Skips indexers with pointer or unresolvable parameter types.
     /// </summary>
     public static void Project(MemberType memberType, Type clrType, AmbientTypeResolver resolver)
     {
-        var properties = clrType.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly);
+        var properties = clrType.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly);
 
         foreach(var prop in properties)
         {
             var indexParams = prop.GetIndexParameters();
             if(indexParams.Length == 0)
+            {
+                continue;
+            }
+
+            // Only project if at least one accessor is public or protected.
+            if(!HasVisibleAccessor(prop))
             {
                 continue;
             }
@@ -38,12 +45,14 @@ internal static class IndexerProjector
                 continue;
             }
 
-            var getter = prop.GetMethod is { IsPublic: true } ? new PropertyAccessor() : null;
-            var setter = prop.SetMethod is { IsPublic: true } ? new PropertyAccessor() : null;
+            var getter = IsVisibleMethod(prop.GetMethod) ? new PropertyAccessor() : null;
+            var setter = IsVisibleMethod(prop.SetMethod) ? new PropertyAccessor() : null;
 
+            var (isPublic, isProtected) = GetVisibility(prop);
             var modifiers = new MemberModifiers
             {
-                IsPublic = true,
+                IsPublic = isPublic,
+                IsProtected = isProtected,
                 IsStatic = (prop.GetMethod?.IsStatic ?? prop.SetMethod?.IsStatic) == true,
             };
 
@@ -56,5 +65,30 @@ internal static class IndexerProjector
             AttributeProjector.Project(prop, projected.AttributesList, memberType.Scope, resolver);
             memberType.IndexersList.Add(projected);
         }
+    }
+
+    private static bool HasVisibleAccessor(PropertyInfo prop)
+    {
+        return IsVisibleMethod(prop.GetMethod) || IsVisibleMethod(prop.SetMethod);
+    }
+
+    private static bool IsVisibleMethod(MethodInfo? method)
+    {
+        if(method is null)
+        {
+            return false;
+        }
+
+        return method.IsPublic || method.IsFamily || method.IsFamilyOrAssembly;
+    }
+
+    private static (bool IsPublic, bool IsProtected) GetVisibility(PropertyInfo prop)
+    {
+        if(prop.GetMethod is { IsPublic: true } || prop.SetMethod is { IsPublic: true })
+        {
+            return (true, false);
+        }
+
+        return (false, true);
     }
 }

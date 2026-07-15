@@ -10,11 +10,11 @@ namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 internal static class PropertyProjector
 {
     /// <summary>
-    /// Projects all public instance and static properties onto the given MemberType.
+    /// Projects all public and protected instance and static properties onto the given MemberType.
     /// </summary>
     public static void Project(MemberType memberType, Type clrType, AmbientTypeResolver resolver)
     {
-        var properties = clrType.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly);
+        var properties = clrType.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly);
 
         foreach(var prop in properties)
         {
@@ -24,13 +24,21 @@ internal static class PropertyProjector
                 continue;
             }
 
+            // Only project if at least one accessor is public or protected.
+            if(!HasVisibleAccessor(prop))
+            {
+                continue;
+            }
+
             var resolvedType = resolver.Resolve(prop.PropertyType, memberType.Scope);
-            var getter = prop.GetMethod is { IsPublic: true } ? new PropertyAccessor() : null;
+            var getter = CreateGetter(prop);
             var setter = CreateSetter(prop);
 
+            var (isPublic, isProtected) = GetPropertyVisibility(prop);
             var modifiers = new MemberModifiers
             {
-                IsPublic = true,
+                IsPublic = isPublic,
+                IsProtected = isProtected,
                 IsStatic = (prop.GetMethod?.IsStatic ?? prop.SetMethod?.IsStatic) == true,
             };
 
@@ -46,19 +54,68 @@ internal static class PropertyProjector
     }
 
     /// <summary>
-    /// Creates a setter accessor if the property has a public set or init method.
+    /// Determines whether a property has at least one public or protected accessor.
+    /// </summary>
+    private static bool HasVisibleAccessor(PropertyInfo prop)
+    {
+        return IsVisibleMethod(prop.GetMethod) || IsVisibleMethod(prop.SetMethod);
+    }
+
+    /// <summary>
+    /// Returns whether a method is public or protected (family/familyOrAssembly).
+    /// </summary>
+    private static bool IsVisibleMethod(MethodInfo? method)
+    {
+        if(method is null)
+        {
+            return false;
+        }
+
+        return method.IsPublic || method.IsFamily || method.IsFamilyOrAssembly;
+    }
+
+    /// <summary>
+    /// Creates a getter accessor if the property has a public or protected get method.
+    /// </summary>
+    private static PropertyAccessor? CreateGetter(PropertyInfo prop)
+    {
+        if(IsVisibleMethod(prop.GetMethod))
+        {
+            return new PropertyAccessor();
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Determines the overall visibility of a property from its most-visible accessor.
+    /// </summary>
+    private static (bool IsPublic, bool IsProtected) GetPropertyVisibility(PropertyInfo prop)
+    {
+        // If either accessor is public, the property is public.
+        if(prop.GetMethod is { IsPublic: true } || prop.SetMethod is { IsPublic: true })
+        {
+            return (true, false);
+        }
+
+        // Otherwise it's protected.
+        return (false, true);
+    }
+
+    /// <summary>
+    /// Creates a setter accessor if the property has a public or protected set or init method.
     /// Detects init-only setters via the IsExternalInit convention (return type has
     /// required modifier IsExternalInit).
     /// </summary>
     private static PropertyAccessor? CreateSetter(PropertyInfo prop)
     {
         var setMethod = prop.SetMethod;
-        if(setMethod is null || !setMethod.IsPublic)
+        if(!IsVisibleMethod(setMethod))
         {
             return null;
         }
 
-        var isInit = setMethod.ReturnParameter
+        var isInit = setMethod!.ReturnParameter
             .GetRequiredCustomModifiers()
             .Any(t => t.FullName == "System.Runtime.CompilerServices.IsExternalInit");
 

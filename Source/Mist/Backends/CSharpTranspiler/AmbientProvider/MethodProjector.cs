@@ -12,13 +12,13 @@ namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 internal static class MethodProjector
 {
     /// <summary>
-    /// Projects all public declared methods onto the given MemberType.
+    /// Projects all public and protected declared methods onto the given MemberType.
     /// Skips property accessors, event accessors, operators, and methods
     /// with unresolvable parameter or return types.
     /// </summary>
     public static void Project(MemberType memberType, Type clrType, AmbientTypeResolver resolver)
     {
-        var methods = clrType.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly);
+        var methods = clrType.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly);
 
         foreach(var method in methods)
         {
@@ -70,7 +70,8 @@ internal static class MethodProjector
 
         var modifiers = new MemberModifiers
         {
-            IsPublic = true,
+            IsPublic = method.IsPublic,
+            IsProtected = method.IsFamily || method.IsFamilyOrAssembly,
             IsStatic = method.IsStatic,
         };
 
@@ -162,11 +163,17 @@ internal static class MethodProjector
 
     /// <summary>
     /// Determines whether a CLR method should be skipped during projection.
-    /// Filters out: property accessors, event accessors, operator overloads,
-    /// and finalizers.
+    /// Filters out: private/internal methods, property accessors, event accessors,
+    /// operator overloads, and finalizers.
     /// </summary>
     private static bool ShouldSkip(MethodInfo method)
     {
+        // Only project public and protected (family) methods.
+        if(!method.IsPublic && !method.IsFamily && !method.IsFamilyOrAssembly)
+        {
+            return true;
+        }
+
         // Property and event accessors are marked as SpecialName.
         if(method.IsSpecialName)
         {

@@ -10,15 +10,21 @@ namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 internal static class FieldProjector
 {
     /// <summary>
-    /// Projects all public instance and static fields (excluding enum backing fields
-    /// and compiler-generated fields) onto the given ConcreteType.
+    /// Projects all public and protected instance and static fields (excluding enum backing
+    /// fields and compiler-generated fields) onto the given ConcreteType.
     /// </summary>
     public static void Project(ConcreteType concreteType, Type clrType, AmbientTypeResolver resolver)
     {
-        var fields = clrType.GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly);
+        var fields = clrType.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly);
 
         foreach(var field in fields)
         {
+            // Only project public and protected fields.
+            if(!field.IsPublic && !field.IsFamily && !field.IsFamilyOrAssembly)
+            {
+                continue;
+            }
+
             // Skip compiler-generated backing fields (e.g., <PropertyName>k__BackingField).
             if(field.Name.StartsWith('<'))
             {
@@ -28,7 +34,8 @@ internal static class FieldProjector
             var resolvedType = resolver.Resolve(field.FieldType, concreteType.Scope);
             var modifiers = new MemberModifiers
             {
-                IsPublic = true,
+                IsPublic = field.IsPublic,
+                IsProtected = field.IsFamily || field.IsFamilyOrAssembly,
                 IsStatic = field.IsStatic,
                 IsReadonly = field.IsInitOnly || field.IsLiteral,
             };

@@ -15,6 +15,9 @@ public record struct MemberModifiers
     /// <summary>Whether the declaration has <c>private</c>.</summary>
     public bool IsPrivate { get; init; }
 
+    /// <summary>Whether the declaration has <c>protected</c>.</summary>
+    public bool IsProtected { get; init; }
+
     /// <summary>Whether the declaration has <c>static</c>.</summary>
     public bool IsStatic { get; init; }
 

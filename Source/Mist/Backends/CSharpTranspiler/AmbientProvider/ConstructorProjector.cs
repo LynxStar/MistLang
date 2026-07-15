@@ -10,15 +10,21 @@ namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 internal static class ConstructorProjector
 {
     /// <summary>
-    /// Projects all public constructors onto the given ConcreteType.
+    /// Projects all public and protected constructors onto the given ConcreteType.
     /// Skips constructors with pointer or unresolvable parameter types.
     /// </summary>
     public static void Project(ConcreteType concreteType, Type clrType, AmbientTypeResolver resolver)
     {
-        var constructors = clrType.GetConstructors(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+        var constructors = clrType.GetConstructors(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly);
 
         foreach(var ctor in constructors)
         {
+            // Only project public and protected constructors.
+            if(!ctor.IsPublic && !ctor.IsFamily && !ctor.IsFamilyOrAssembly)
+            {
+                continue;
+            }
+
             var parameters = ParameterProjector.Project(ctor.GetParameters(), concreteType.Scope, resolver);
             if(parameters is null)
             {
@@ -27,7 +33,8 @@ internal static class ConstructorProjector
 
             var modifiers = new MemberModifiers
             {
-                IsPublic = true,
+                IsPublic = ctor.IsPublic,
+                IsProtected = ctor.IsFamily || ctor.IsFamilyOrAssembly,
             };
 
             var projected = new Constructor(concreteType.Name, concreteType, parameters, modifiers);

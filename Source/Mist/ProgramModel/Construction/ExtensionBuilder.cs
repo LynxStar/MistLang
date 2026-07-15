@@ -62,8 +62,7 @@ internal sealed class ExtensionBuilder
         // Populate extension-level type parameters (if generic extension).
         if(ast.TypeParams is not null)
         {
-            TypeParameterPopulator.Populate(
-                extensionBlock.TypeParametersList, extensionScope, null, ast.TypeParams);
+            TypeParameterPopulator.Populate(extensionBlock.TypeParametersList, extensionScope, null, ast.TypeParams);
         }
 
         // Resolve the receiver type reference.
@@ -137,7 +136,7 @@ internal sealed class ExtensionBuilder
                 {
                     context.Diagnostics.ReportAtNode(
                         ProgramModelDiagnostics.DuplicateExtensionMember,
-                        block.DeclarationNode,
+                        block.DeclarationNode!,
                         null,
                         method.Name,
                         block.ResolvedReceiverType?.Name ?? "?");
@@ -162,7 +161,7 @@ internal sealed class ExtensionBuilder
                 {
                     context.Diagnostics.ReportAtNode(
                         ProgramModelDiagnostics.DuplicateExtensionMember,
-                        block.DeclarationNode,
+                        block.DeclarationNode!,
                         null,
                         property.Name,
                         block.ResolvedReceiverType?.Name ?? "?");

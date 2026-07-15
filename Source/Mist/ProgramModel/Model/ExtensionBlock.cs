@@ -10,6 +10,7 @@ namespace Mist.ProgramModel.Model;
 /// Represents a single <c>extension(ReceiverType name) { ... }</c> declaration.
 /// Each syntactic extension block has its own scope, receiver parameter, and member
 /// declarations. Multiple blocks may target the same receiver type within a namespace.
+/// Also used for ambient (assembly-projected) extension blocks where there is no AST.
 /// </summary>
 internal sealed class ExtensionBlock : IExtensionBlock, IMethodHost
 {
@@ -17,7 +18,7 @@ internal sealed class ExtensionBlock : IExtensionBlock, IMethodHost
         string receiverParameterName,
         string namespaceName,
         Scope scope,
-        ExtensionBlockDeclarationNode declarationNode)
+        ExtensionBlockDeclarationNode? declarationNode)
     {
         ReceiverParameterName = receiverParameterName;
         NamespaceName = namespaceName;
@@ -27,6 +28,7 @@ internal sealed class ExtensionBlock : IExtensionBlock, IMethodHost
 
     /// <summary>
     /// The resolved receiver type. Null until Phase 2 resolves it.
+    /// For ambient extension blocks, set immediately after construction.
     /// </summary>
     public IMistType? ResolvedReceiverType { get; internal set; }
 
@@ -41,8 +43,9 @@ internal sealed class ExtensionBlock : IExtensionBlock, IMethodHost
 
     /// <summary>
     /// The AST node stashed during Phase 1 for Phase 2 member resolution.
+    /// Null for ambient extension blocks projected from assemblies.
     /// </summary>
-    internal ExtensionBlockDeclarationNode DeclarationNode { get; }
+    internal ExtensionBlockDeclarationNode? DeclarationNode { get; }
 
     /// <summary>Type parameters declared on this extension block.</summary>
     public List<TypeParameter> TypeParametersList { get; } = [];

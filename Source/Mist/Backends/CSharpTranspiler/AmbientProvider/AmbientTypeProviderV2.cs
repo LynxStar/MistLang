@@ -58,6 +58,10 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
             _ = programModel.GetOrAddNamespace(shell.NamespaceName);
             _ = programModel.RegisterType(shell);
         }
+
+        // Phase 3: Project extension methods onto namespaces.
+        // Runs after all types are registered so receiver types are resolvable.
+        ExtensionProjector.ProjectExtensions(clrTypes, resolver, programModel);
     }
 
     /// <inheritdoc />

@@ -11,21 +11,30 @@ namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 internal static class TypeProjector
 {
     /// <summary>
-    /// Creates an empty type shell for the given CLR type.
+    /// Creates an empty type shell for a top-level CLR type.
     /// The shell has identity (name, namespace, scope, origin) but no members
     /// or resolved references.
     /// </summary>
     public static MistType CreateShell(Type clrType, string namespaceName)
     {
+        return CreateShell(clrType, namespaceName, declaringType: null, parentScope: null);
+    }
+
+    /// <summary>
+    /// Creates an empty type shell for a CLR type, optionally nested inside a declaring type.
+    /// For nested types, the shell's scope is parented to the declaring type's scope.
+    /// </summary>
+    public static MistType CreateShell(Type clrType, string namespaceName, MistType? declaringType, Scope? parentScope)
+    {
         var mistName = NameFormatTranslator.ClrNameToMistName(clrType.Name);
-        var scope = new Scope(null);
+        var scope = new Scope(parentScope);
 
         var shell = clrType switch
         {
-            { IsInterface: true } => (MistType)new AbstractType(mistName, namespaceName, scope, null, null),
-            { IsEnum: true } => new EnumType(mistName, namespaceName, scope, null, null),
-            { IsValueType: true } => new StructType(mistName, namespaceName, scope, null, null),
-            _ => new ClassType(mistName, namespaceName, scope, null, null!),
+            { IsInterface: true } => (MistType)new AbstractType(mistName, namespaceName, scope, declaringType, null),
+            { IsEnum: true } => new EnumType(mistName, namespaceName, scope, declaringType, null),
+            { IsValueType: true } => new StructType(mistName, namespaceName, scope, declaringType, null),
+            _ => new ClassType(mistName, namespaceName, scope, declaringType, null!),
         };
 
         shell.Origin = TypeOrigin.Ambient;

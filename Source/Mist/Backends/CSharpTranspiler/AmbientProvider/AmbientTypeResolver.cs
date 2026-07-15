@@ -39,33 +39,56 @@ internal sealed class AmbientTypeResolver
     /// </summary>
     public MistType Resolve(Type clrType, Scope scope)
     {
-        // Closed generic (e.g., IComparable<int>, List<string>).
+        // Closed generic (e.g., IComparable<int>, List<string>): resolve the
+        // definition and each argument, then intern a ConstructedType.
         if(clrType.IsGenericType && !clrType.IsGenericTypeDefinition)
         {
             return ResolveClosedGeneric(clrType, scope);
         }
 
-        var ns = clrType.Namespace ?? "";
-        var clrName = clrType.Name;
-        return ResolveByFQN(ns, clrName, scope);
+        // Generic type parameter (e.g., T, TKey): resolve by name from the scope chain.
+        if(clrType.IsGenericParameter)
+        {
+            return ResolveTypeParameter(clrType, scope);
+        }
+
+        // Named type — top-level or nested. Both are a single FQN lookup; the only
+        // difference is how the FQN is spelled, which BuildFQN handles.
+        return ResolveByFQN(BuildFQN(clrType));
     }
 
     /// <summary>
-    /// Resolves a CLR type by constructing a FQN from namespace and CLR name.
-    /// Checks scope locals first (type parameters), then well-known types,
-    /// then projected shells. Returns <see cref="ErrorType"/> and emits a
-    /// diagnostic if not found.
+    /// Resolves a generic type parameter (e.g., T, TKey) by name, walking the scope
+    /// parent chain. A parameter declared on a declaring type stays visible to its
+    /// nested types through scope parentage.
+    /// Returns <see cref="ErrorType"/> and emits a diagnostic if not found.
     /// </summary>
-    private MistType ResolveByFQN(string ns, string clrName, Scope scope)
+    private MistType ResolveTypeParameter(Type clrParam, Scope scope)
     {
-        // Check scope for type parameters (e.g., where T : U resolves U from scope).
-        if(scope.LocalTypes.TryGetValue(clrName, out var localType))
+        for(var current = scope; current is not null; current = current.Parent)
         {
-            return (MistType)localType;
+            if(current.LocalTypes.TryGetValue(clrParam.Name, out var localType))
+            {
+                return (MistType)localType;
+            }
         }
 
-        var fqn = string.IsNullOrEmpty(ns) ? clrName : $"{ns}.{clrName}";
+        diagnostics.Report(
+            BackendDiagnostics.UnresolvedAmbientType,
+            default,
+            "<ambient>",
+            (object?)clrParam.Name,
+            "");
+        return ErrorType.Instance;
+    }
 
+    /// <summary>
+    /// Resolves a type by its pre-built fully qualified name (CLR-format key).
+    /// Checks well-known types first, then projected shells.
+    /// Returns <see cref="ErrorType"/> and emits a diagnostic if not found.
+    /// </summary>
+    private MistType ResolveByFQN(string fqn)
+    {
         if(wellKnownTypes.TryGetValue(fqn, out var wellKnown))
         {
             return (MistType)wellKnown;
@@ -80,9 +103,36 @@ internal sealed class AmbientTypeResolver
             BackendDiagnostics.UnresolvedAmbientType,
             default,
             "<ambient>",
-            (object?)ns,
-            clrName);
+            (object?)fqn,
+            "");
         return ErrorType.Instance;
+    }
+
+    /// <summary>
+    /// Builds a CLR-format FQN for any named type, matching the key format used in
+    /// the shells dictionary. For nested types this walks the DeclaringType chain
+    /// ("Namespace.Outer.Inner"); for top-level types the loop is a no-op and it
+    /// degenerates to "Namespace.Name". Raw CLR names (with backtick arity) are used.
+    /// </summary>
+    private static string BuildFQN(Type clrType)
+    {
+        // Walk any nesting chain from innermost outward: [Inner, Middle, ...].
+        var chain = new List<string>();
+        var current = clrType;
+
+        while(current is not null && current.IsNested)
+        {
+            chain.Add(current.Name);
+            current = current.DeclaringType;
+        }
+
+        // current is now the outermost (non-nested) type — its namespace is the real one.
+        var ns = current?.Namespace ?? "";
+        chain.Add(current?.Name ?? "");
+        chain.Reverse();
+
+        var typePath = string.Join(".", chain);
+        return string.IsNullOrEmpty(ns) ? typePath : $"{ns}.{typePath}";
     }
 
     /// <summary>

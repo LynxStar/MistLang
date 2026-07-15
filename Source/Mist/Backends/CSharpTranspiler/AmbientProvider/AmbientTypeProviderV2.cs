@@ -122,7 +122,7 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
                     continue;
                 }
 
-                // Skip nested types — they're accessed through their declaring type.
+                // Skip nested types — they're projected recursively from their declaring type.
                 if(clrType.IsNested)
                 {
                     continue;
@@ -155,10 +155,67 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
                 var shell = TypeProjector.CreateShell(clrType, ns);
                 shells[fqn] = shell;
                 clrTypes[fqn] = clrType;
+
+                // Recursively create shells for public nested types.
+                CreateNestedShells(clrType, shell, fqn, ns, wellKnownTypes, shells, clrTypes);
             }
         }
 
         return (shells, clrTypes);
+    }
+
+    /// <summary>
+    /// Recursively creates shells for all public nested types of a CLR type.
+    /// Each nested shell uses the parent type's scope as its scope parent.
+    /// Dictionary keys use CLR-format dot notation (e.g., "System.Environment.SpecialFolder").
+    /// </summary>
+    private void CreateNestedShells(
+        Type declaringClrType,
+        MistType declaringShell,
+        string declaringClrFqn,
+        string namespaceName,
+        Dictionary<string, IMistType> wellKnownTypes,
+        Dictionary<string, MistType> shells,
+        Dictionary<string, Type> clrTypes)
+    {
+        var nestedTypes = declaringClrType.GetNestedTypes(BindingFlags.Public);
+
+        foreach(var nestedClrType in nestedTypes)
+        {
+            var nestedShell = TypeProjector.CreateShell(
+                nestedClrType, namespaceName, declaringShell, declaringShell.Scope);
+
+            // Key uses CLR-format: "DeclaringClrFQN.NestedClrName" to match resolver lookups.
+            var nestedClrFqn = $"{declaringClrFqn}.{nestedClrType.Name}";
+
+            // Skip if this FQN collides with a well-known type.
+            if(wellKnownTypes.ContainsKey(nestedClrFqn))
+            {
+                continue;
+            }
+
+            if(shells.ContainsKey(nestedClrFqn))
+            {
+                diagnostics.Report(
+                    BackendDiagnostics.DuplicateAmbientType,
+                    default,
+                    "<ambient>",
+                    (object?)namespaceName,
+                    nestedClrType.Name,
+                    declaringClrType.FullName ?? "<unknown>");
+                continue;
+            }
+
+            shells[nestedClrFqn] = nestedShell;
+            clrTypes[nestedClrFqn] = nestedClrType;
+
+            // Wire up the parent relationship immediately (scope was set at creation).
+            declaringShell.NestedTypes.Add(nestedShell);
+            declaringShell.Scope.AddLocalType(nestedShell.Name, nestedShell);
+
+            // Recurse for deeper nesting (Outer.Middle.Inner).
+            CreateNestedShells(nestedClrType, nestedShell, nestedClrFqn, namespaceName, wellKnownTypes, shells, clrTypes);
+        }
     }
 
     /// <summary>

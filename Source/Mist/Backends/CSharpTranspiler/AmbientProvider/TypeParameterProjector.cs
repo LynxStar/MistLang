@@ -14,6 +14,8 @@ internal static class TypeParameterProjector
     /// Projects CLR generic type parameters onto the projected type.
     /// Creates TypeParameter instances, adds them to the type's TypeParametersList,
     /// and registers them in the type's scope for name resolution.
+    /// For nested types, only the type's own type parameters are projected —
+    /// inherited parameters from the declaring type are accessible via scope parentage.
     /// </summary>
     public static void Project(MemberType projectedType, Type clrType, AmbientTypeResolver resolver)
     {
@@ -24,21 +26,32 @@ internal static class TypeParameterProjector
 
         var clrTypeParams = clrType.GetGenericArguments();
 
+        // For nested types, CLR reports all type parameters including those inherited
+        // from the declaring type. Only project the nested type's own parameters.
+        var inheritedCount = clrType.DeclaringType?.GetGenericArguments().Length ?? 0;
+        var ownCount = clrTypeParams.Length - inheritedCount;
+
+        // If the nested type has no parameters of its own, nothing to project.
+        if(ownCount == 0)
+        {
+            return;
+        }
+
         // Pass 1: Create all type parameters and register them in scope.
         // This must happen before constraint resolution so that cross-parameter
         // constraints (where T : U) can find their targets.
-        for(var i = 0; i < clrTypeParams.Length; i++)
+        for(var i = 0; i < ownCount; i++)
         {
-            var clrParam = clrTypeParams[i];
+            var clrParam = clrTypeParams[inheritedCount + i];
             var typeParam = new TypeParameter(clrParam.Name, i, projectedType.Scope, projectedType);
             projectedType.TypeParametersList.Add(typeParam);
             projectedType.Scope.AddLocalType(clrParam.Name, typeParam);
         }
 
         // Pass 2: Resolve constraints now that all type parameters are in scope.
-        for(var i = 0; i < clrTypeParams.Length; i++)
+        for(var i = 0; i < ownCount; i++)
         {
-            ProjectConstraints(projectedType.TypeParametersList[i], clrTypeParams[i], projectedType.Scope, resolver);
+            ProjectConstraints(projectedType.TypeParametersList[i], clrTypeParams[inheritedCount + i], projectedType.Scope, resolver);
         }
     }
 

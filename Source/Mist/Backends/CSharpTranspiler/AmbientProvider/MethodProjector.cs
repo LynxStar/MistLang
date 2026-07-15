@@ -82,6 +82,7 @@ internal static class MethodProjector
 
         projected.TypeParametersList.AddRange(typeParameters);
         AttributeProjector.Project(method, projected.AttributesList, methodScope, resolver);
+        SentinelAttributes.ApplyMethodAttributes(method, projected.AttributesList);
 
         return projected;
     }

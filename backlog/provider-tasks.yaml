@@ -358,10 +358,10 @@ sentinel_attributes:
   #   - static -> Mist static modifier
   #
   # True sentinels (no CLR attribute exists, data would be lost):
-  - [ ] sealed class -> sentinel [Sealed] (no CLR attribute, no Mist concept)
-  - [ ] virtual method -> sentinel [Virtual] (no CLR attribute carries this)
-  - [ ] override method -> sentinel [Override] (no CLR attribute carries this)
-  - [ ] abstract method -> sentinel [Abstract]
+  - [x] sealed class -> sentinel [Sealed] (no CLR attribute, no Mist concept)
+  - [x] virtual method -> sentinel [Virtual] (no CLR attribute carries this)
+  - [x] override method -> sentinel [Override] (no CLR attribute carries this)
+  - [x] abstract method -> sentinel [Abstract]
   - [x] params array -> project CLR [ParamArray] attribute (no sentinel)
 
 clr_attributes_to_project:
@@ -378,13 +378,13 @@ clr_attributes_to_project:
   - [x] named property/field argument values
 
 visibility_filtering:
-  - [ ] project public members
-  - [ ] project protected members (for inheritance)
-  - [ ] exclude private members
-  - [ ] exclude internal members
-  - [ ] exclude event accessors (add_/remove_)
-  - [ ] exclude pointer-typed parameters
-  - [ ] exclude members with unresolvable parameter/return types
+  - [x] project public members
+  - [x] project protected members (for inheritance)
+  - [x] exclude private members
+  - [x] exclude internal members
+  - [x] exclude event accessors (add_/remove_)
+  - [x] exclude pointer-typed parameters
+  - [x] exclude members with unresolvable parameter/return types
 
 disposable:
   - [ ] detect IDisposable implementation

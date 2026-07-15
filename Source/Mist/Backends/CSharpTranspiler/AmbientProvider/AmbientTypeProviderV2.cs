@@ -250,6 +250,7 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
                     MethodProjector.Project(memberType, clrType, resolver);
                     OperatorProjector.Project(memberType, clrType, resolver);
                     AttributeProjector.Project(clrType, memberType.AttributesList, memberType.Scope, resolver);
+                    SentinelAttributes.ApplyTypeAttributes(clrType, memberType.AttributesList);
 
                     if(shell is ConcreteType concreteType)
                     {

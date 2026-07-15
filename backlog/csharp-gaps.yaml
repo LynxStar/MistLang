@@ -1,0 +1,52 @@
+# C# Language Feature Gaps in Mist
+# Features that C# has which Mist currently lacks but needs for real-world interop.
+
+access_modifiers:
+  protected:
+    status: missing
+    description: |
+      Mist has no 'protected' visibility keyword. Currently ambient types project
+      protected members, but Mist source code cannot declare protected members or
+      restrict access to subclasses. Needed for inheritance-heavy .NET patterns.
+    impacts:
+      - declaring protected members in Mist types
+      - type checker enforcement (only accessible from subclass)
+      - emitter output (emit 'protected' in C#)
+
+  internal:
+    status: missing
+    description: |
+      Mist has no 'internal' visibility concept. All types and members are either
+      public or private. Needed for multi-assembly scenarios where types should be
+      visible within an assembly but not to external consumers.
+    impacts:
+      - declaring internal types and members
+      - assembly-scoped visibility in type checker
+      - InternalsVisibleTo equivalent
+
+  sealed:
+    status: missing
+    description: |
+      Mist has no 'sealed' keyword to prevent inheritance. Currently projected as
+      a sentinel attribute [Sealed] on ambient types, but Mist source cannot declare
+      a class as sealed. Needed to prevent unintended subclassing and enable
+      devirtualization optimizations.
+    impacts:
+      - declaring sealed classes in Mist source
+      - type checker enforcement (cannot inherit from sealed)
+      - emitter output (emit 'sealed' in C#)
+      - sealed override methods (prevent further overriding)
+
+  protected_internal:
+    status: missing
+    description: |
+      Combined access: visible to subclasses OR same assembly. Lower priority than
+      the individual modifiers but needed for full .NET interop.
+    depends_on: [protected, internal]
+
+  private_protected:
+    status: missing
+    description: |
+      Combined access: visible to subclasses within the same assembly only.
+      Lowest priority of the access modifier gaps.
+    depends_on: [protected, internal]

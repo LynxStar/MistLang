@@ -39,6 +39,38 @@ internal sealed class AmbientTypeResolver
     /// </summary>
     public MistType Resolve(Type clrType, Scope scope)
     {
+        // Pointer types (int*, void*, T**) are unsafe and have no Mist representation.
+        // Returning ErrorType causes the owning member to be skipped.
+        if(clrType.IsPointer)
+        {
+            return ErrorType.Instance;
+        }
+
+        // Function pointers (delegate*) have no name and no Mist representation.
+        if(string.IsNullOrEmpty(clrType.Name) && string.IsNullOrEmpty(clrType.Namespace))
+        {
+            return ErrorType.Instance;
+        }
+
+        // Bare by-ref types (T&) that reach the resolver without being unwrapped.
+        // Unwrap to the element type and resolve that instead.
+        if(clrType.IsByRef)
+        {
+            var elementType = clrType.GetElementType()!;
+            if(elementType.IsPointer)
+            {
+                return ErrorType.Instance;
+            }
+
+            return Resolve(elementType, scope);
+        }
+
+        // CLR array type (e.g., int[], string[]): construct Standard.Array<Element, unknown>.
+        if(clrType.IsArray)
+        {
+            return ResolveArrayType(clrType, scope);
+        }
+
         // Closed generic (e.g., IComparable<int>, List<string>): resolve the
         // definition and each argument, then intern a ConstructedType.
         if(clrType.IsGenericType && !clrType.IsGenericTypeDefinition)
@@ -77,8 +109,7 @@ internal sealed class AmbientTypeResolver
             BackendDiagnostics.UnresolvedAmbientType,
             default,
             "<ambient>",
-            (object?)clrParam.Name,
-            "");
+            (object?)clrParam.Name);
         return ErrorType.Instance;
     }
 
@@ -103,8 +134,7 @@ internal sealed class AmbientTypeResolver
             BackendDiagnostics.UnresolvedAmbientType,
             default,
             "<ambient>",
-            (object?)fqn,
-            "");
+            (object?)fqn);
         return ErrorType.Instance;
     }
 
@@ -153,5 +183,28 @@ internal sealed class AmbientTypeResolver
         }
 
         return typeInterner.GetOrCreateConstructedType(definition, resolvedArgs);
+    }
+
+    /// <summary>
+    /// Resolves a CLR array type (e.g., int[], string[]) by constructing
+    /// <c>Standard.Array&lt;ElementType, unknown&gt;</c> — matching how the source-side
+    /// TypeReferenceResolver handles array rank suffixes.
+    /// </summary>
+    private MistType ResolveArrayType(Type clrType, Scope scope)
+    {
+        var elementType = Resolve(clrType.GetElementType()!, scope);
+        if(elementType is ErrorType or NotProjectedType)
+        {
+            return elementType;
+        }
+
+        // Look up Standard.Array<,> from well-known types.
+        if(!wellKnownTypes.TryGetValue("System.Array", out var arrayDef))
+        {
+            return ErrorType.Instance;
+        }
+
+        return typeInterner.GetOrCreateConstructedType(
+            arrayDef, new IMistType[] { elementType, UnknownType.Instance });
     }
 }

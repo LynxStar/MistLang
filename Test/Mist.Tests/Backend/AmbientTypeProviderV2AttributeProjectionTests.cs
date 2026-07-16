@@ -228,6 +228,7 @@ public sealed class AmbientTypeProviderV2AttributeProjectionFixture : IDisposabl
 
         _ = programModel.RegisterType(new AbstractType("IEnumerable<>", "Standard", scope, null, null));
         _ = programModel.RegisterType(new AbstractType("IEnumerator<>", "Standard", scope, null, null));
+        _ = programModel.RegisterType(new ClassType("Array<,>", "Standard", scope, null, null!));
 
         for(var arity = 1; arity <= 17; arity++)
         {

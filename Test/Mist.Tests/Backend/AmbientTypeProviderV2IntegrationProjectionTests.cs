@@ -91,6 +91,10 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
         _ = programModel.RegisterType(ienumerable);
         _ = programModel.RegisterType(ienumerator);
 
+        // Register Standard.Array<,> for CLR array type resolution (T[] → Standard.Array<T, unknown>).
+        var arrayType = new ClassType("Array<,>", "Standard", scope, null, null!);
+        _ = programModel.RegisterType(arrayType);
+
         // Register Standard.Func definitions for delegate projection.
         for(var arity = 1; arity <= 17; arity++)
         {

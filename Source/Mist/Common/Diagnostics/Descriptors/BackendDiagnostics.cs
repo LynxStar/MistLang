@@ -84,5 +84,5 @@ public static class BackendDiagnostics
         new DiagnosticId("MIST_AMBIENT_UNRESOLVED"),
         DiagnosticSeverity.Error,
         PipelineStage.Driver,
-        "Cannot resolve ambient type '{0}.{1}'. The assembly containing this type may not be referenced.");
+        "Cannot resolve ambient type '{0}'. The assembly containing this type may not be referenced.");
 }

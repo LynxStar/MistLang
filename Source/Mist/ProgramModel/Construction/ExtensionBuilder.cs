@@ -130,13 +130,19 @@ internal sealed class ExtensionBuilder
 
         foreach(var block in blocks)
         {
+            // Skip ambient extension blocks — no source location to report against.
+            if(block.DeclarationNode is null)
+            {
+                continue;
+            }
+
             foreach(var method in block.MethodsList)
             {
                 if(seen.TryGetValue(method.Name, out _))
                 {
                     context.Diagnostics.ReportAtNode(
                         ProgramModelDiagnostics.DuplicateExtensionMember,
-                        block.DeclarationNode!,
+                        block.DeclarationNode,
                         null,
                         method.Name,
                         block.ResolvedReceiverType?.Name ?? "?");
@@ -155,13 +161,19 @@ internal sealed class ExtensionBuilder
 
         foreach(var block in blocks)
         {
+            // Skip ambient extension blocks — no source location to report against.
+            if(block.DeclarationNode is null)
+            {
+                continue;
+            }
+
             foreach(var property in block.PropertiesList)
             {
                 if(seen.TryGetValue(property.Name, out _))
                 {
                     context.Diagnostics.ReportAtNode(
                         ProgramModelDiagnostics.DuplicateExtensionMember,
-                        block.DeclarationNode!,
+                        block.DeclarationNode,
                         null,
                         property.Name,
                         block.ResolvedReceiverType?.Name ?? "?");

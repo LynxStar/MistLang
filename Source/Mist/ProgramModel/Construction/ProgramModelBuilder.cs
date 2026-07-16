@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.Driver.Contracts;
 using Mist.ProgramModel.Contracts;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 
@@ -75,9 +76,14 @@ public sealed class ProgramModelBuilder
         var newtypeBuilder = new NewtypeBuilder(context, typeResolver);
         var typeAliasBuilder = new TypeAliasBuilder(context, typeResolver);
 
-        var allTypes = programModel.TypesByFQN.Values.ToList();
+        var sourceTypes = programModel
+            .TypesByFQN
+            .Values
+            .Where(t => t.Origin != TypeOrigin.Ambient)
+            .ToList()
+            ;
 
-        foreach(var typeDef in allTypes)
+        foreach(var typeDef in sourceTypes)
         {
             switch(typeDef)
             {

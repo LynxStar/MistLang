@@ -35,6 +35,8 @@ internal static class WellKnownTypeMap
         [("System.Threading.Tasks", "Task`1")] = ("Standard", "Task<>"),
         [("System.Threading.Tasks", "ValueTask")] = ("Standard", "ValueTask"),
         [("System.Threading.Tasks", "ValueTask`1")] = ("Standard", "ValueTask<>"),
+        // Array (CLR T[] resolves to Standard.Array<T, unknown>)
+        [("System", "Array")] = ("Standard", "Array<,>"),
         // Func family (arity 1-17)
         [("System", "Func`1")] = ("Standard", "Func<>"),
         [("System", "Func`2")] = ("Standard", "Func<,>"),

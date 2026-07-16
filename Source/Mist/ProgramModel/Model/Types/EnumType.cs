@@ -13,7 +13,7 @@ internal sealed class EnumType(
     Scope scope,
     MistType? declaringType,
     EnumDeclarationNode? declarationNode)
-    : MistType(name, namespaceName, scope, declaringType), IEnumType
+    : MistType(name, namespaceName, scope, declaringType), IEnumType, IHasAttributes
 {
     /// <summary>
     /// The AST declaration node, stashed during Phase 1 for Phase 2 resolution.
@@ -36,7 +36,14 @@ internal sealed class EnumType(
     /// </summary>
     public List<EnumMember> MembersList { get; } = [];
 
+    /// <summary>
+    /// The attributes applied to this enum type.
+    /// </summary>
+    public List<AttributeData> AttributesList { get; } = [];
+
     IMistType? IEnumType.UnderlyingType => UnderlyingType;
 
     IReadOnlyList<IEnumMember> IEnumType.Members => MembersList;
+
+    IReadOnlyList<AttributeData> IHasAttributes.Attributes => AttributesList;
 }

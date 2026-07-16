@@ -26,5 +26,8 @@ internal static class EnumProjector
             var member = new EnumMember(field.Name, isDefault: false, value: null);
             enumType.MembersList.Add(member);
         }
+
+        // Project type-level attributes.
+        AttributeProjector.Project(clrType, enumType.AttributesList, enumType.Scope, resolver);
     }
 }

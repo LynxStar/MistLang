@@ -368,7 +368,7 @@ clr_attributes_to_project:
   - [x] [ParamArray] on parameter (params)
   - [x] readonly struct -> Mist readonly modifier ([IsReadOnly] type attribute filtered out)
   - [x] public custom attributes on classes/structs/interfaces and their methods, properties, fields, indexers, constructors, operators, cast operators, and parameters
-  - [ ] public custom attributes on enum types and enum members
+  - [x] public custom attributes on enum types
   - [x] compiler-internal attributes excluded (CompilerGenerated, Nullable*, Dynamic, Extension, TupleElementNames, IsUnmanaged)
   - [x] positional constructor argument values (including Type-, enum-, and array-valued)
   - [x] named property/field argument values
@@ -389,14 +389,12 @@ disposable:
 
 duck_typed_enumerable:
   # Types that have GetEnumerator()/MoveNext()/Current pattern but don't
-  # implement IEnumerable<T> (e.g., Span<T>). Need synthetic IEnumerable<T>
-  # so Mist foreach works.
-  - [ ] detect GetEnumerator() method (public, parameterless)
-  - [ ] verify enumerator has MoveNext() -> bool
-  - [ ] verify enumerator has Current property
-  - [ ] resolve element type from Current (unwrap by-ref)
-  - [ ] synthesize IEnumerable<TElement> interface on projected type
-  - [ ] synthesize Enumerator associated type slots
+  # implement IEnumerable<T> (e.g., Span<T>). NOT a provider concern —
+  # the foreach lowering in the type checker should check the duck-type
+  # pattern directly (like C# does) rather than synthesizing a fake
+  # IEnumerable<T> interface on the projected type.
+  # Deferred to a type-checker/foreach spec.
+  status: deferred (type-checker concern, not provider)
 
 intrinsic_substitution:
   # When resolving types in member signatures, CLR types that map to Standard

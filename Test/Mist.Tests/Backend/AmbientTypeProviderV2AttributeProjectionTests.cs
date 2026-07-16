@@ -181,7 +181,7 @@ public sealed class AmbientTypeProviderV2AttributeProjectionFixture : IDisposabl
     public AmbientTypeProviderV2AttributeProjectionFixture()
     {
         programModel = new ProgramModelClass();
-        RegisterStandardTypes(programModel);
+        AmbientProviderTestHelper.RegisterStandardTypes(programModel);
 
         var runtimeDirectory = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
         var assemblyPaths = Directory.GetFiles(runtimeDirectory, "*.dll")
@@ -207,40 +207,5 @@ public sealed class AmbientTypeProviderV2AttributeProjectionFixture : IDisposabl
     {
         provider.Dispose();
         metadataContext.Dispose();
-    }
-
-    private static void RegisterStandardTypes(ProgramModelClass programModel)
-    {
-        _ = programModel.GetOrAddNamespace("Standard");
-        var scope = new Scope(null);
-        var standardTypes = new[]
-        {
-            "Int32", "Int64", "Int16", "Byte", "SByte",
-            "UInt32", "UInt64", "UInt16", "Single", "Double", "Decimal",
-            "String", "Boolean", "Char", "Void",
-            "Task", "Task<>", "ValueTask", "ValueTask<>"
-        };
-
-        foreach(var name in standardTypes)
-        {
-            _ = programModel.RegisterType(new ClassType(name, "Standard", scope, null, null!));
-        }
-
-        _ = programModel.RegisterType(new AbstractType("IEnumerable<>", "Standard", scope, null, null));
-        _ = programModel.RegisterType(new AbstractType("IEnumerator<>", "Standard", scope, null, null));
-        _ = programModel.RegisterType(new ClassType("Array<,>", "Standard", scope, null, null!));
-
-        for(var arity = 1; arity <= 17; arity++)
-        {
-            var commas = arity > 1 ? new string(',', arity - 1) : "";
-            _ = programModel.RegisterType(new ClassType($"Func<{commas}>", "Standard", scope, null, null!));
-        }
-
-        _ = programModel.RegisterType(new ClassType("Action", "Standard", scope, null, null!));
-        for(var arity = 1; arity <= 16; arity++)
-        {
-            var commas = arity > 1 ? new string(',', arity - 1) : "";
-            _ = programModel.RegisterType(new ClassType($"Action<{commas}>", "Standard", scope, null, null!));
-        }
     }
 }

@@ -169,9 +169,11 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
     }
 
     /// <summary>
-    /// Recursively creates shells for all public nested types of a CLR type.
+    /// Recursively creates shells for all public and protected nested types of a CLR type.
     /// Each nested shell uses the parent type's scope as its scope parent.
     /// Dictionary keys use CLR-format dot notation (e.g., "System.Environment.SpecialFolder").
+    /// Protected nested types are projected for inheritance scenarios — a Mist subclass
+    /// needs access to protected nested types to call protected methods that reference them.
     /// </summary>
     private void CreateNestedShells(
         Type declaringClrType,
@@ -182,12 +184,24 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
         Dictionary<string, MistType> shells,
         Dictionary<string, Type> clrTypes)
     {
-        var nestedTypes = declaringClrType.GetNestedTypes(BindingFlags.Public);
+        var nestedTypes = declaringClrType.GetNestedTypes(BindingFlags.Public | BindingFlags.NonPublic);
 
         foreach(var nestedClrType in nestedTypes)
         {
+            // Only project public and protected nested types.
+            if(!nestedClrType.IsNestedPublic && !nestedClrType.IsNestedFamily && !nestedClrType.IsNestedFamORAssem)
+            {
+                continue;
+            }
+
             var nestedShell = TypeProjector.CreateShell(
                 nestedClrType, namespaceName, declaringShell, declaringShell.Scope);
+
+            // Mark protected nested types so the type checker can enforce visibility.
+            if(!nestedClrType.IsNestedPublic && nestedShell is MemberType nestedMemberType)
+            {
+                nestedMemberType.Modifiers = nestedMemberType.Modifiers with { IsProtected = true };
+            }
 
             // Key uses CLR-format: "DeclaringClrFQN.NestedClrName" to match resolver lookups.
             var nestedClrFqn = $"{declaringClrFqn}.{nestedClrType.Name}";

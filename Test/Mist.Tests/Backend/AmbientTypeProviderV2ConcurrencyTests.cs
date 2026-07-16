@@ -67,43 +67,7 @@ public sealed class AmbientTypeProviderV2ConcurrencyTests : IDisposable
     public AmbientTypeProviderV2ConcurrencyTests()
     {
         programModel = new ProgramModelClass();
-        _ = programModel.GetOrAddNamespace("Standard");
-
-        // Register Standard Library types required for alias resolution.
-        var typeNames = new[]
-        {
-            "Int32", "Int64", "Int16", "Byte", "SByte",
-            "UInt32", "UInt64", "UInt16", "Single", "Double", "Decimal",
-            "String", "Boolean", "Char", "Void",
-            "Task", "Task<>", "ValueTask", "ValueTask<>"
-        };
-
-        var scope = new Scope(null);
-        foreach(var name in typeNames)
-        {
-            var type = new ClassType(name, "Standard", scope, null, null!);
-            _ = programModel.RegisterType(type);
-        }
-
-        // Register Standard.Func definitions for delegate projection.
-        for(var arity = 1; arity <= 17; arity++)
-        {
-            var commas = arity > 1 ? new string(',', arity - 1) : "";
-            var funcName = $"Func<{commas}>";
-            var funcType = new ClassType(funcName, "Standard", scope, null, null!);
-            _ = programModel.RegisterType(funcType);
-        }
-
-        // Register Standard.Action definitions for delegate projection.
-        var action = new ClassType("Action", "Standard", scope, null, null!);
-        _ = programModel.RegisterType(action);
-        for(var arity = 1; arity <= 16; arity++)
-        {
-            var commas = arity > 1 ? new string(',', arity - 1) : "";
-            var actionName = $"Action<{commas}>";
-            var actionType = new ClassType(actionName, "Standard", scope, null, null!);
-            _ = programModel.RegisterType(actionType);
-        }
+        AmbientProviderTestHelper.RegisterStandardTypes(programModel);
 
         // Load real BCL assemblies via MetadataLoadContext
         var runtimeDir = Path.GetDirectoryName(typeof(object).Assembly.Location)!;

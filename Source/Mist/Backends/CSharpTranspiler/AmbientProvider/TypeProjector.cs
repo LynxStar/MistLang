@@ -10,6 +10,10 @@ namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 /// </summary>
 internal static class TypeProjector
 {
+
+    private static string IsReadOnlyAttribute = "System.Runtime.CompilerServices.IsReadOnlyAttribute";
+    private static string IsByRefLikeAttribute = "System.Runtime.CompilerServices.IsByRefLikeAttribute";
+
     /// <summary>
     /// Creates an empty type shell for a top-level CLR type.
     /// The shell has identity (name, namespace, scope, origin) but no members
@@ -44,9 +48,8 @@ internal static class TypeProjector
             memberType.Modifiers = new MemberModifiers
             {
                 IsStatic = clrType.IsAbstract && clrType.IsSealed,
-                IsReadonly = clrType.IsValueType && HasCustomAttribute(
-                    clrType,
-                    "System.Runtime.CompilerServices.IsReadOnlyAttribute"),
+                IsReadonly = clrType.IsValueType && HasCustomAttribute(clrType, IsReadOnlyAttribute),
+                IsRef = clrType.IsValueType && HasCustomAttribute(clrType, IsByRefLikeAttribute),
             };
         }
 
@@ -55,7 +58,9 @@ internal static class TypeProjector
 
     private static bool HasCustomAttribute(Type clrType, string fullyQualifiedName)
     {
-        return clrType.GetCustomAttributesData()
-            .Any(attribute => attribute.AttributeType.FullName == fullyQualifiedName);
+        return clrType
+            .GetCustomAttributesData()
+            .Any(attribute => attribute.AttributeType.FullName == fullyQualifiedName)
+            ;
     }
 }

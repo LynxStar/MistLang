@@ -119,7 +119,7 @@ types:
       - [x] name
       - [x] namespace
       - [x] origin (Ambient)
-      - [ ] ref struct (IsByRefLike) -> Mist ref modifier
+      - [x] ref struct (IsByRefLike) -> Mist ref modifier
       - [x] readonly struct -> Mist readonly modifier
     type_parameters:
       - [x] declaration (name, position)

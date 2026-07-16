@@ -256,6 +256,7 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
                     {
                         FieldProjector.Project(concreteType, clrType, resolver);
                         ConstructorProjector.Project(concreteType, clrType, resolver);
+                        DisposableDetector.Apply(concreteType);
                     }
 
                     break;

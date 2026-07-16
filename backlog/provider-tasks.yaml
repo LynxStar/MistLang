@@ -387,9 +387,9 @@ visibility_filtering:
   - [x] exclude members with unresolvable parameter/return types
 
 disposable:
-  - [ ] detect IDisposable implementation
-  - [ ] set HasDrop on ConcreteType
-  - [ ] determine Drop() vs bare IDisposable (IsDisposableDrop)
+  - [x] detect IDisposable implementation
+  - [x] set HasDrop on ConcreteType
+  - [x] determine Drop() vs bare IDisposable (IsDisposableDrop)
 
 duck_typed_enumerable:
   # Types that have GetEnumerator()/MoveNext()/Current pattern but don't

@@ -8,8 +8,8 @@ types:
       - [x] namespace
       - [x] origin (Ambient)
       - [x] static (abstract + sealed in CLR) -> Mist static modifier
-      - [ ] sealed -> sentinel attribute [Sealed] (no Mist concept)
-      - [ ] abstract -> sentinel attribute [Abstract] (C# interfaces are Mist abstract types; C# abstract classes need sentinel)
+      - [x] sealed -> sentinel attribute [Sealed] (no Mist concept)
+      - [x] abstract -> sentinel attribute [Abstract] (C# interfaces are Mist abstract types; C# abstract classes need sentinel)
     type_parameters:
       - [x] declaration (name, position)
       - [x] constraints:
@@ -56,7 +56,7 @@ types:
           - [x] interface constraint
       - [x] visibility (public, protected)
       - [x] static
-      - [ ] virtual/abstract/override -> sentinel attributes [Virtual]/[Abstract]/[Override]
+      - [x] virtual/abstract/override -> sentinel attributes [Virtual]/[Abstract]/[Override]
       - [x] attributes (method-level)
     properties:
       - [x] name
@@ -164,7 +164,7 @@ types:
           - [x] interface constraint
       - [x] visibility (public, protected)
       - [x] static
-      - [ ] virtual/override -> sentinel attributes [Virtual]/[Override]
+      - [x] virtual/override -> sentinel attributes [Virtual]/[Override]
       - [x] attributes (method-level)
     properties:
       - [x] name
@@ -218,9 +218,9 @@ types:
       - [x] target type
       - [x] attributes
     nested_types:
-      - [ ] recursive projection (all of the above)
-      - [ ] dot-separated namespace key
-      - [ ] DeclaringType reference
+      - [x] recursive projection (all of the above)
+      - [x] dot-separated namespace key
+      - [x] DeclaringType reference
 
   interface:
     shell:

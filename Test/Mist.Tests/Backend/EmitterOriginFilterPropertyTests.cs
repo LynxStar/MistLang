@@ -207,10 +207,10 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
 
     // Regex patterns for detecting type/method/field declarations in emitted C#.
     // These match class/struct declarations, method declarations, and field declarations.
-    [GeneratedRegex(@"^\s*(?:public|private|static|\s)*\s*class\s+(\w+)", RegexOptions.Multiline)]
+    [GeneratedRegex(@"^\s*(?:public|private|protected|internal|sealed|static|\s)*\s*class\s+(\w+)", RegexOptions.Multiline)]
     private static partial Regex ClassDeclRegex();
 
-    [GeneratedRegex(@"^\s*(?:public|private|static|\s)*\s*struct\s+(\w+)", RegexOptions.Multiline)]
+    [GeneratedRegex(@"^\s*(?:public|private|protected|internal|sealed|static|readonly|ref|\s)*\s*struct\s+(\w+)", RegexOptions.Multiline)]
     private static partial Regex StructDeclRegex();
 
     // ─── FsCheck generators ─────────────────────────────────────────────

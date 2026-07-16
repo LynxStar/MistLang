@@ -48,11 +48,10 @@ internal static class IndexerProjector
             var getter = IsVisibleMethod(prop.GetMethod) ? new PropertyAccessor() : null;
             var setter = IsVisibleMethod(prop.SetMethod) ? new PropertyAccessor() : null;
 
-            var (isPublic, isProtected) = GetVisibility(prop);
+            var accessibility = ClrAccessibilityMap.FromProperty(prop);
             var modifiers = new MemberModifiers
             {
-                IsPublic = isPublic,
-                IsProtected = isProtected,
+                Accessibility = accessibility,
                 IsStatic = (prop.GetMethod?.IsStatic ?? prop.SetMethod?.IsStatic) == true,
             };
 
@@ -82,13 +81,4 @@ internal static class IndexerProjector
         return method.IsPublic || method.IsFamily || method.IsFamilyOrAssembly;
     }
 
-    private static (bool IsPublic, bool IsProtected) GetVisibility(PropertyInfo prop)
-    {
-        if(prop.GetMethod is { IsPublic: true } || prop.SetMethod is { IsPublic: true })
-        {
-            return (true, false);
-        }
-
-        return (false, true);
-    }
 }

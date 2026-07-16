@@ -981,6 +981,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // the correct DeclaredType values resolved in Phase 4.
         Pass1_5b_CloneNewtypeMembers(symbolTable);
 
+        // Phase 5: Resolve accessibility and sealed flag on every declaration.
+        // After all types, members, and newtype clones are registered, walk
+        // every symbol to call AccessibilityFacts.TryReduceExplicit on its
+        // modifier list. When no explicit modifier is present, resolve the
+        // scope-kind default (namespace/compilation → Internal; class/struct →
+        // Private; interface/enum → Public; nested type → Private). Store the
+        // concrete value on both the symbol and the type object. Set IsSealed
+        // from AccessibilityFacts.HasSealed on ClassType/StructType.
+        ResolveAccessibilityAndSealed(symbolTable);
+
         // Pass 2e (Phase A): Resolve extension block receiver types and register
         // member signatures in the ExtensionRegistry. This runs BEFORE Pass 2 so
         // that extension members are available during member lookup fallback.
@@ -13348,6 +13358,213 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 targetScope.AddMember(valueSymbol);
             }
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Phase 5 — Resolve Accessibility and Sealed Flag
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Walks every registered symbol in the symbol table and resolves a concrete
+    /// <see cref="Accessibility"/> value. For each declaration:
+    /// <list type="number">
+    ///   <item>Calls <see cref="AccessibilityFacts.TryReduceExplicit"/> on its modifier list.
+    ///         If an explicit modifier is present, stores it.</item>
+    ///   <item>Otherwise resolves the scope-kind default:
+    ///         namespace/compilation (global) → <see cref="Accessibility.Internal"/>;
+    ///         class/struct → <see cref="Accessibility.Private"/>;
+    ///         interface (abstract)/enum → <see cref="Accessibility.Public"/>;
+    ///         nested type (declared inside a class/struct) → <see cref="Accessibility.Private"/>.</item>
+    /// </list>
+    /// Also sets <see cref="ClassType.IsSealed"/> and <see cref="StructType.IsSealed"/>
+    /// from <see cref="AccessibilityFacts.HasSealed"/>.
+    /// <para>
+    /// After this pass completes, every applicable declaration carries a concrete
+    /// <see cref="Accessibility"/> and every class/struct a concrete <c>IsSealed</c>.
+    /// </para>
+    /// </summary>
+    private static void ResolveAccessibilityAndSealed(SymbolTable symbolTable)
+    {
+        foreach(var symbol in symbolTable.AllSymbols)
+        {
+            if(symbol is not Symbol mutableSymbol)
+            {
+                continue;
+            }
+
+            var declaringNode = symbolTable.GetDeclaringNode(symbol);
+            if(declaringNode is null)
+            {
+                continue;
+            }
+
+            // Extract the modifier list from the declaring AST node.
+            var modifiers = GetModifiersFromDeclaringNode(declaringNode);
+            if(modifiers is null)
+            {
+                continue;
+            }
+
+            // Reduce explicit accessibility from modifiers.
+            var explicit_ = AccessibilityFacts.TryReduceExplicit(modifiers, out _);
+
+            if(explicit_.HasValue)
+            {
+                mutableSymbol.Accessibility = explicit_.Value;
+            }
+            else
+            {
+                // Resolve scope-kind default.
+                mutableSymbol.Accessibility = GetScopeKindDefault(symbol, symbolTable);
+            }
+
+            // Set accessibility on the type object as well (types carry their own Accessibility property).
+            switch(symbol.DeclaredType)
+            {
+                case ClassType classType:
+                    classType.Accessibility = mutableSymbol.Accessibility;
+                    classType.IsSealed = AccessibilityFacts.HasSealed(modifiers);
+                    break;
+                case StructType structType:
+                    structType.Accessibility = mutableSymbol.Accessibility;
+                    structType.IsSealed = AccessibilityFacts.HasSealed(modifiers);
+                    break;
+                case AbstractType abstractType:
+                    abstractType.Accessibility = mutableSymbol.Accessibility;
+                    break;
+                case EnumType enumType:
+                    enumType.Accessibility = mutableSymbol.Accessibility;
+                    break;
+                case TypeAliasType typeAliasType:
+                    typeAliasType.Accessibility = mutableSymbol.Accessibility;
+                    break;
+                case NewtypeType newtypeType:
+                    newtypeType.Accessibility = mutableSymbol.Accessibility;
+                    break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Extracts the <see cref="IReadOnlyList{ModifierNode}"/> from a declaring AST node.
+    /// Returns <see langword="null"/> for nodes that do not carry modifiers (e.g., parameters, locals).
+    /// </summary>
+    private static IReadOnlyList<ModifierNode>? GetModifiersFromDeclaringNode(Storm.Runtime.SyntaxNode declaringNode)
+    {
+        return declaringNode switch
+        {
+            TypeBodyDeclarationNode typeBody => typeBody.Modifiers,
+            FieldDeclarationNode field => field.Modifiers,
+            MethodDeclarationNode method => method.Modifiers,
+            ConstructorDeclarationNode ctor => ctor.Modifiers,
+            OperatorDeclarationNode op => op.Modifiers,
+            CastOperatorDeclarationNode castOp => castOp.Modifiers,
+            EnumDeclarationNode enumDecl => enumDecl.Modifiers,
+            TypeAliasDeclarationNode alias => alias.Modifiers,
+            NewtypeDeclarationNode newtype => newtype.Modifiers,
+            _ => GetPropertyModifiers(declaringNode),
+        };
+    }
+
+    /// <summary>
+    /// Extracts modifiers from property-like declaration nodes.
+    /// </summary>
+    private static IReadOnlyList<ModifierNode>? GetPropertyModifiers(Storm.Runtime.SyntaxNode declaringNode)
+    {
+        return declaringNode switch
+        {
+            BlockPropertyPropertyDeclarationNode bp => bp.Modifiers,
+            ExpressionBodiedPropertyPropertyDeclarationNode ep => ep.Modifiers,
+            IndexerDeclarationNode indexer => indexer.Modifiers,
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Determines the scope-kind default accessibility for a symbol with no explicit modifier.
+    /// The default is derived from the symbol's enclosing scope kind:
+    /// <list type="bullet">
+    ///   <item>namespace / compilation (global) scope → <see cref="Accessibility.Internal"/></item>
+    ///   <item>class or struct scope → <see cref="Accessibility.Private"/></item>
+    ///   <item>interface (abstract type) or enum scope → <see cref="Accessibility.Public"/></item>
+    ///   <item>nested type (type declared inside another type) → <see cref="Accessibility.Private"/></item>
+    /// </list>
+    /// </summary>
+    private static Accessibility GetScopeKindDefault(ISymbol symbol, SymbolTable symbolTable)
+    {
+        // A type-declaration symbol's "enclosing scope" is the scope it was added to.
+        // If that scope is a namespace scope (whose parent is global, or which is the
+        // global scope itself), the default is Internal. If it's a type's member scope,
+        // the default depends on the enclosing type kind.
+        var containingScope = symbol.ContainingScope;
+
+        // For member-level declarations (fields, methods, etc.), the containing scope
+        // IS the type's member scope. Walk registered types to find which type owns it.
+        var enclosingTypeKind = FindEnclosingTypeKind(containingScope, symbolTable);
+
+        return enclosingTypeKind switch
+        {
+            // Members inside a class or struct default to Private.
+            EnclosingScopeKind.Class => Accessibility.Private,
+            EnclosingScopeKind.Struct => Accessibility.Private,
+            // Members inside an interface (abstract type) or enum default to Public.
+            EnclosingScopeKind.Abstract => Accessibility.Public,
+            EnclosingScopeKind.Enum => Accessibility.Public,
+            // Top-level declarations in a namespace/compilation scope default to Internal.
+            _ => Accessibility.Internal,
+        };
+    }
+
+    /// <summary>
+    /// The kind of the enclosing scope for scope-kind default resolution.
+    /// </summary>
+    private enum EnclosingScopeKind
+    {
+        /// <summary>Namespace or compilation (global) scope.</summary>
+        NamespaceOrGlobal,
+        /// <summary>A class's member scope.</summary>
+        Class,
+        /// <summary>A struct's member scope.</summary>
+        Struct,
+        /// <summary>An abstract type (interface) member scope.</summary>
+        Abstract,
+        /// <summary>An enum member scope.</summary>
+        Enum,
+    }
+
+    /// <summary>
+    /// Determines what kind of enclosing scope contains the given scope. Searches
+    /// registered type symbols to find one whose member scope matches, returning
+    /// the appropriate <see cref="EnclosingScopeKind"/>.
+    /// </summary>
+    private static EnclosingScopeKind FindEnclosingTypeKind(IScope containingScope, SymbolTable symbolTable)
+    {
+        foreach(var typeSymbol in symbolTable.AllSymbols)
+        {
+            var memberScope = typeSymbol.DeclaredType switch
+            {
+                ClassType ct => ct.MemberScope,
+                StructType st => st.MemberScope,
+                AbstractType at => at.MemberScope,
+                EnumType et => et.MemberScope,
+                _ => null,
+            };
+
+            if(memberScope is not null && ReferenceEquals(memberScope, containingScope))
+            {
+                return typeSymbol.Kind switch
+                {
+                    SymbolKind.Class => EnclosingScopeKind.Class,
+                    SymbolKind.Struct => EnclosingScopeKind.Struct,
+                    SymbolKind.Abstract => EnclosingScopeKind.Abstract,
+                    SymbolKind.Enum => EnclosingScopeKind.Enum,
+                    _ => EnclosingScopeKind.NamespaceOrGlobal,
+                };
+            }
+        }
+
+        // No type owns this scope → must be namespace or global.
+        return EnclosingScopeKind.NamespaceOrGlobal;
     }
 
     /// <summary>

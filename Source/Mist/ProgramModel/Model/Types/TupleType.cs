@@ -52,7 +52,7 @@ internal sealed class TupleType : MistType, ITupleType
                 PositionalName(i + 1),
                 elementTypes[i],
                 OwnershipKind.Unrestricted,
-                new MemberModifiers { IsPublic = true }));
+                new MemberModifiers { Accessibility = Accessibility.Public }));
         }
 
         return fields;

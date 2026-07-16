@@ -45,12 +45,25 @@ internal static class TypeProjector
 
         if(shell is MemberType memberType)
         {
+            var isStaticClass = clrType.IsAbstract && clrType.IsSealed;
+
             memberType.Modifiers = new MemberModifiers
             {
-                IsStatic = clrType.IsAbstract && clrType.IsSealed,
+                Accessibility = clrType.IsNested
+                    ? ClrAccessibilityMap.FromNestedType(clrType)
+                    : clrType.IsPublic ? Accessibility.Public : Accessibility.Private,
+                IsStatic = isStaticClass,
                 IsReadonly = clrType.IsValueType && HasCustomAttribute(clrType, IsReadOnlyAttribute),
                 IsRef = clrType.IsValueType && HasCustomAttribute(clrType, IsByRefLikeAttribute),
             };
+
+            // Set the first-class sealed flag from CLR metadata.
+            // A CLR static class (abstract+sealed) is treated as neither sealed nor abstract,
+            // matching the sentinel attribute logic in SentinelAttributes.ApplyTypeAttributes.
+            if(shell is ConcreteType concreteType)
+            {
+                concreteType.IsSealed = clrType.IsSealed && !isStaticClass;
+            }
         }
 
         return shell;

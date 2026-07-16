@@ -141,6 +141,13 @@ public sealed class Symbol : ISymbol
     public bool IsStatic { get; internal set; }
 
     /// <summary>
+    /// The resolved accessibility of this symbol. Assigned during Semantic Model
+    /// construction and never null/pending afterward. Defaults to
+    /// <see cref="Accessibility.Private"/> until explicitly set.
+    /// </summary>
+    public Accessibility Accessibility { get; internal set; } = Accessibility.Private;
+
+    /// <summary>
     /// Indicates whether this async method should emit <c>ValueTask&lt;T&gt;</c>
     /// instead of <c>Task&lt;T&gt;</c> in the generated C#. This is computed by
     /// <c>ValueTaskUsageAnalysisPass</c> in the C# transpiler backend.

@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Types;
 using SyntaxNode = Storm.Runtime.SyntaxNode;
 
 namespace Mist.ProgramModel.Construction;
@@ -33,6 +34,10 @@ internal sealed class DelegateResolver
         where TNode : SyntaxNode, IDelegateNode
     {
         var modifiers = ModifierBuilder.Build(node, context.Diagnostics);
+
+        // Resolve scope-based default accessibility when no explicit access modifier is present.
+        modifiers = ModifierBuilder.ApplyDefault(modifiers, node.Modifiers, host as MistType);
+
         var parameters = parameterBuilder.Resolve(node.Parameters, scope);
         var body = ResolveBody(node.Body);
 

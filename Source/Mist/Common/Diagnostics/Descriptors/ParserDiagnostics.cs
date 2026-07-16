@@ -76,4 +76,18 @@ public static class ParserDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.Parsing,
         "Property slots cannot have default implementations. Only methods can have defaults.");
+
+    /// <summary>
+    /// A declaration has more than one access modifier (e.g. <c>public private</c>).
+    /// Mist has four standalone access levels — <c>public</c>, <c>private</c>,
+    /// <c>protected</c>, and <c>internal</c> — and no combined levels. Exactly one
+    /// access modifier is allowed per declaration.
+    /// </summary>
+    public static readonly DiagnosticDescriptor MultipleAccessModifiers = new(
+        new DiagnosticId("MIST_PARSE_MULTIPLE_ACCESS"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Parsing,
+        "A declaration cannot have multiple access modifiers. "
+            + "Mist supports four standalone levels (public, private, protected, internal) "
+            + "and no combined levels. Use exactly one.");
 }

@@ -80,7 +80,7 @@ internal static class OperatorProjector
 
         var modifiers = new MemberModifiers
         {
-            IsPublic = true,
+            Accessibility = ClrAccessibilityMap.FromMethod(method),
             IsStatic = true,
         };
 
@@ -121,7 +121,7 @@ internal static class OperatorProjector
         var isImplicit = method.Name == "op_Implicit";
         var modifiers = new MemberModifiers
         {
-            IsPublic = true,
+            Accessibility = ClrAccessibilityMap.FromMethod(method),
             IsStatic = true,
         };
 

@@ -40,5 +40,5 @@ intrinsic public ref struct ReadOnlySpan<T, Length:ZeroOrPositiveInt> : IEnumera
     intrinsic public ReadOnlySpan(Array<T, unknown> source);
 }
 
-type Span<T> = Span<T, unknown>;
-type ReadOnlySpan<T> = ReadOnlySpan<T, unknown>;
+public type Span<T> = Span<T, unknown>;
+public type ReadOnlySpan<T> = ReadOnlySpan<T, unknown>;

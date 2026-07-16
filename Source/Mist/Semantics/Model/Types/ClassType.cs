@@ -98,14 +98,19 @@ public sealed class ClassType : IType
     public IReadOnlyList<ISymbol>? SyntheticDropFields { get; internal set; }
 
     /// <summary>
+    /// The resolved accessibility of this class type.
+    /// </summary>
+    public Accessibility Accessibility { get; internal set; }
+
+    /// <summary>
     /// Indicates whether this CLR class is abstract (cannot be instantiated directly).
     /// Only set for types projected from CLR assemblies.
     /// </summary>
     public bool IsAbstract { get; internal set; }
 
     /// <summary>
-    /// Indicates whether this CLR class is sealed (cannot be inherited from).
-    /// Only set for types projected from CLR assemblies.
+    /// Indicates whether this class is sealed (cannot be inherited from).
+    /// Set for both CLR-projected types and user-declared sealed classes.
     /// </summary>
     public bool IsSealed { get; internal set; }
 

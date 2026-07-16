@@ -68,7 +68,7 @@ internal sealed class NamedTupleType : MistType, INamedTupleType
                     name,
                     elementTypes[i],
                     OwnershipKind.Unrestricted,
-                    new MemberModifiers { IsPublic = true }));
+                    new MemberModifiers { Accessibility = Accessibility.Public }));
             }
         }
 

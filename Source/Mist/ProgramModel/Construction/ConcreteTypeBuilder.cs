@@ -39,7 +39,16 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
         BaseTypeResolver.Resolve(typeDef.DeclarationNode!, typeDef);
 
         var body = (BodyTypeTypeDeclarationNode)typeDef.DeclarationNode!;
-        typeDef.Modifiers = ModifierBuilder.Build(body.TypeBody, Context.Diagnostics);
+        var modifiers = ModifierBuilder.Build(body.TypeBody, Context.Diagnostics, out var hasSealed);
+
+        // Resolve scope-based default if no explicit access modifier was specified.
+        if(!ModifierBuilder.HasExplicitAccessModifier(body.TypeBody.Modifiers))
+        {
+            modifiers = modifiers with { Accessibility = ModifierBuilder.GetScopeDefault(typeDef.DeclaringType) };
+        }
+
+        typeDef.Modifiers = modifiers;
+        typeDef.IsSealed = hasSealed;
 
         ConstraintResolver.Resolve(body.TypeBody.Constraints, typeDef.TypeParametersList, typeDef.Scope);
     }
@@ -122,6 +131,13 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
         var type = TypeResolver.Resolve(fieldDecl.Type, typeDef.Scope);
         var ownership = ResolveOwnership(fieldDecl.OwnershipSpecifier);
         var modifiers = ModifierBuilder.Build(fieldDecl, Context.Diagnostics);
+
+        // Resolve scope-based default: members inside a class/struct default to Private.
+        if(!ModifierBuilder.HasExplicitAccessModifier(fieldDecl.Modifiers))
+        {
+            modifiers = modifiers with { Accessibility = ModifierBuilder.GetScopeDefault(typeDef) };
+        }
+
         var initializer = fieldDecl.Initializer is { } initExpr ? new Expression(initExpr) : null;
 
         if(modifiers.IsAsync)
@@ -134,7 +150,7 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
             // An intrinsic field represents backend-provided storage on a built-in
             // type. It is only meaningful when public (otherwise nothing outside the
             // type could observe it) and inside an intrinsic type.
-            IntrinsicMemberValidation.Validate(typeDef.IsIntrinsic, typeDef.Name, modifiers.IsPublic, fieldDecl, Context.Diagnostics);
+            IntrinsicMemberValidation.Validate(typeDef.IsIntrinsic, typeDef.Name, modifiers.Accessibility == Accessibility.Public, fieldDecl, Context.Diagnostics);
         }
 
         var field = new Field(name, type, ownership, modifiers) { Initializer = initializer };

@@ -2254,11 +2254,11 @@ internal sealed class CSharpSourceWriter
         }
 
         var modifiers = EmitModifiers(enumDecl.Modifiers);
-        // Mist enums without an explicit access modifier default to public in emitted C#.
-        if(!modifiers.Contains("public") && !modifiers.Contains("private"))
-        {
-            modifiers = "public " + modifiers;
-        }
+        // Emit the resolved accessibility keyword from the semantic model (Req 15.1, 15.2).
+        // Always use the resolved value since the Semantic Model guarantees every declaration
+        // carries a concrete Accessibility after construction.
+        modifiers = StripAccessKeywords(modifiers);
+        modifiers = AccessibilityKeyword(enumType.Accessibility) + " " + modifiers;
 
         var name = enumDecl.Name.Lexeme;
 
@@ -2874,9 +2874,23 @@ internal sealed class CSharpSourceWriter
         }
 
         var modifiers = EmitModifiers(classDecl.Modifiers);
-        // Mist classes without an explicit access modifier default to public in emitted C#.
-        if(!modifiers.Contains("public") && !modifiers.Contains("private"))
+        // Emit the resolved accessibility keyword from the semantic model (Req 15.1, 15.2).
+        // This emits explicit `private` rather than relying on the C# default.
+        if(symbol?.DeclaredType is ClassType classTypeForAccess)
         {
+            // Strip any AST-derived access keywords from EmitModifiers — we replace with the resolved value.
+            modifiers = StripAccessKeywords(modifiers);
+            modifiers = AccessibilityKeyword(classTypeForAccess.Accessibility) + " " + modifiers;
+            // Emit `sealed` on classes whose IsSealed flag is set (Req 15.3).
+            if(classTypeForAccess.IsSealed)
+            {
+                modifiers += "sealed ";
+            }
+        }
+        else if(!modifiers.Contains("public") && !modifiers.Contains("private")
+            && !modifiers.Contains("protected") && !modifiers.Contains("internal"))
+        {
+            // Fallback for symbols without resolved accessibility (should not happen after Semantic Model construction).
             modifiers = "public " + modifiers;
         }
 
@@ -4054,10 +4068,34 @@ internal sealed class CSharpSourceWriter
             return;
         }
 
-        var modifiers = EmitModifiers(structDecl.Modifiers);
-        // Mist structs without an explicit access modifier default to public in emitted C#.
-        if(!modifiers.Contains("public") && !modifiers.Contains("private"))
+        // ── Struct-to-class lowering decision (Req 15.4, 15.5) ──────────────
+        // A Mist struct lowers to a C# `class` when it cannot be represented as a
+        // legal C# value-type `struct`: (a) it declares a base struct, (b) it is the
+        // base of another struct, or (c) it declares a `protected` member.
+        // When lowered to a class, normal inheritance, `protected` members, and `sealed`
+        // are emitted. When kept as a struct, `sealed` is omitted (C# structs are
+        // implicitly sealed) and the base struct is dropped from the base list.
+        var lowerToClass = ShouldLowerStructToClass(symbol?.DeclaredType as StructType);
+
+        if(lowerToClass)
         {
+            EmitStructAsClass(structDecl, symbol);
+            return;
+        }
+
+        var modifiers = EmitModifiers(structDecl.Modifiers);
+        // Emit the resolved accessibility keyword from the semantic model (Req 15.1, 15.2).
+        // This emits explicit `private` rather than relying on the C# default.
+        // For structs, `sealed` is omitted because C# structs are implicitly sealed.
+        if(symbol?.DeclaredType is StructType structTypeForAccess)
+        {
+            modifiers = StripAccessKeywords(modifiers);
+            modifiers = AccessibilityKeyword(structTypeForAccess.Accessibility) + " " + modifiers;
+        }
+        else if(!modifiers.Contains("public") && !modifiers.Contains("private")
+            && !modifiers.Contains("protected") && !modifiers.Contains("internal"))
+        {
+            // Fallback for symbols without resolved accessibility.
             modifiers = "public " + modifiers;
         }
 
@@ -4363,6 +4401,257 @@ internal sealed class CSharpSourceWriter
             && derivedStructForConversions.BaseType is not null)
         {
             EmitStructImplicitConversions(derivedStructForConversions, name);
+        }
+
+        insideStruct = previousInsideStruct;
+        indentLevel--;
+        AppendLine("}");
+    }
+
+    /// <summary>
+    /// Determines whether a Mist struct must be lowered to a C# <c>class</c> because
+    /// it cannot be represented as a legal C# value-type <c>struct</c>.
+    /// A struct is lowered to a class when:
+    /// (a) it declares a base struct (inherits from another struct),
+    /// (b) it is the base of another struct (another struct inherits from it), or
+    /// (c) it declares a <c>protected</c> member.
+    /// </summary>
+    private bool ShouldLowerStructToClass(StructType? structType)
+    {
+        if(structType is null)
+        {
+            return false;
+        }
+
+        // (a) Declares a base struct.
+        if(structType.BaseType is not null)
+        {
+            return true;
+        }
+
+        // (b) Is the base of another struct.
+        // Check all struct types in the model to see if any has this struct as its base.
+        // The BaseType may be a ConstructedType wrapping the generic definition, so check both
+        // direct references and unwrapped generic definitions.
+        foreach(var sym in model.AllSymbols)
+        {
+            if(sym.DeclaredType is not StructType otherStruct || otherStruct.BaseType is null)
+            {
+                continue;
+            }
+
+            if(ReferenceEquals(otherStruct.BaseType, structType))
+            {
+                return true;
+            }
+
+            // Handle generic structs: BaseType may be a ConstructedType whose GenericDefinition
+            // is this struct (e.g., ExtendedContainer<T> : Container<T> stores a ConstructedType
+            // wrapping Container as its BaseType).
+            if(otherStruct.BaseType is ConstructedType constructed
+                && ReferenceEquals(constructed.GenericDefinition, structType))
+            {
+                return true;
+            }
+        }
+
+        // (c) Declares a `protected` member.
+        foreach(var member in structType.MemberScope.Members)
+        {
+            if(member is Symbol memberSym && memberSym.Accessibility == Accessibility.Protected)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Emits a Mist struct as a C# <c>class</c> when it cannot be represented as a
+    /// legal C# value-type struct (Req 15.4, 15.5). This handles structs that declare
+    /// a base struct, are the base of another struct, or declare a protected member.
+    /// Emits normal C# inheritance, <c>protected</c> members, and <c>sealed</c> when set.
+    /// </summary>
+    private void EmitStructAsClass(TypeBodyDeclarationNode structDecl, ISymbol? symbol)
+    {
+        var structType = symbol?.DeclaredType as StructType;
+
+        var modifiers = EmitModifiers(structDecl.Modifiers);
+        // Emit the resolved accessibility keyword from the semantic model (Req 15.1, 15.2).
+        if(structType is not null)
+        {
+            modifiers = StripAccessKeywords(modifiers);
+            modifiers = AccessibilityKeyword(structType.Accessibility) + " " + modifiers;
+            // Emit `sealed` on classes whose IsSealed flag is set (Req 15.3).
+            if(structType.IsSealed)
+            {
+                modifiers += "sealed ";
+            }
+        }
+        else if(!modifiers.Contains("public") && !modifiers.Contains("private")
+            && !modifiers.Contains("protected") && !modifiers.Contains("internal"))
+        {
+            modifiers = "public " + modifiers;
+        }
+
+        var name = structDecl.Name.Lexeme;
+        var typeParams = EmitTypeParameterList(structDecl.TypeParams);
+        var baseClause = "";
+        if(structDecl.BaseList is not null)
+        {
+            // When lowered to a class, emit normal C# inheritance including the base struct.
+            var implementorScope = structType?.MemberScope;
+            var baseParts = implementorScope is not null
+                ? EmitBaseListWithAssociatedTypeArgs(
+                    structDecl.BaseList,
+                    implementorScope,
+                    null,
+                    name,
+                    typeParams)
+                : EmitBaseListWithTypeArgs(structDecl.BaseList);
+
+            // Append with-block conformance interfaces to the inheritance list.
+            var withBlockInterfaces = CollectWithBlockInterfaceNames(symbol?.DeclaredType);
+            if(withBlockInterfaces.Count > 0)
+            {
+                baseParts = baseParts.Length > 0
+                    ? $"{baseParts}, {string.Join(", ", withBlockInterfaces)}"
+                    : string.Join(", ", withBlockInterfaces);
+            }
+
+            if(baseParts.Length > 0)
+            {
+                baseClause = $" : {baseParts}";
+            }
+        }
+        else if(structType is not null)
+        {
+            var parts = new List<string>();
+
+            // Abstracts — append associated type slot concrete types as additional type arguments.
+            foreach(var abs in structType.Abstracts)
+            {
+                parts.Add(EmitAbstractWithAssociatedTypeArgs(abs, structType.MemberScope, null, name, typeParams));
+            }
+
+            // Append with-block conformance interfaces to the inheritance list.
+            var withBlockInterfaces = CollectWithBlockInterfaceNames(structType);
+            parts.AddRange(withBlockInterfaces);
+
+            if(parts.Count > 0)
+            {
+                baseClause = $" : {string.Join(", ", parts)}";
+            }
+        }
+
+        // Emit user-declared attribute annotations from source.
+        EmitAttributeLists(structDecl.Attributes);
+
+        // Emit [DependentType(...)] attributes for each dependent type parameter.
+        if(symbol?.DeclaredType is not null)
+        {
+            EmitDependentTypeAttributes(GetTypeParametersFromType(symbol.DeclaredType));
+        }
+
+        AppendLine($"{modifiers}class {name}{typeParams}{baseClause}");
+        // Emit constraint clauses (where T : ...) for constrained type parameters.
+        if(symbol?.DeclaredType is not null)
+        {
+            var typeParamsForConstraints = GetTypeParametersFromType(symbol.DeclaredType);
+            EmitConstraintClauses(typeParamsForConstraints);
+        }
+
+        AppendLine("{");
+        indentLevel++;
+
+        // Emit dependent type properties (e.g., `public static int Size => TSize.Value;`)
+        var hasDependentProperties = false;
+        if(symbol?.DeclaredType is not null)
+        {
+            hasDependentProperties = EmitDependentTypeProperties(GetTypeParametersFromType(symbol.DeclaredType));
+        }
+
+        // When lowered to a class, struct methods should NOT get the `readonly` modifier —
+        // C# classes have no readonly method concept.
+        var previousInsideStruct = insideStruct;
+        insideStruct = false;
+
+        // Emit factory delegate fields and constructor for parameterized constructor constraints.
+        var hasFactoryFields = false;
+        if(symbol?.DeclaredType is not null)
+        {
+            var typeParamsForFactory = GetTypeParametersFromType(symbol.DeclaredType);
+            if(HasParameterizedConstructorConstraints(typeParamsForFactory))
+            {
+                hasFactoryFields = true;
+                EmitFactoryDelegateFields(typeParamsForFactory);
+
+                var hasUserConstructors = structDecl.Members.Any(m =>
+                    m is ConstructorMemberMemberDeclarationNode);
+                if(hasUserConstructors)
+                {
+                    currentClassFactoryTypeParams = typeParamsForFactory;
+                }
+                else
+                {
+                    EmitFactoryDelegateConstructor(name, typeParamsForFactory);
+                }
+            }
+        }
+
+        // Track dependent type parameter names declared on this struct.
+        var previousTypeDependentParamNames = currentTypeDependentParamNames;
+        if(symbol?.DeclaredType is not null)
+        {
+            var typeParamsForDep = GetTypeParametersFromType(symbol.DeclaredType);
+            var depNames = new HashSet<string>(StringComparer.Ordinal);
+            foreach(var tp in typeParamsForDep)
+            {
+                if(tp is DependentTypeParameterType depParam)
+                {
+                    _ = depNames.Add(depParam.Name);
+                }
+            }
+
+            currentTypeDependentParamNames = depNames.Count > 0 ? depNames : null;
+        }
+
+        // Emit every member in declaration order.
+        for(var i = 0; i < structDecl.Members.Length; i++)
+        {
+            if(i > 0 || hasFactoryFields || hasDependentProperties)
+            {
+                AppendLine();
+            }
+
+            EmitMemberDeclaration(structDecl.Members[i]);
+        }
+
+        // Clear class-level factory tracking after emitting all members.
+        currentClassFactoryTypeParams = null;
+        currentTypeDependentParamNames = previousTypeDependentParamNames;
+
+        // Emit CLR boilerplate for IEnumerator<T> and IEnumerable<T> implementations.
+        if(structType is not null)
+        {
+            EmitIteratorInterfaceBoilerplate(structType);
+        }
+
+        // Emit forwarding stubs for default interface methods the struct inherits but does
+        // not override, so the defaults are callable directly on the type (Rust-style).
+        if(structType is not null)
+        {
+            EmitDefaultMethodForwardingStubs(
+                structType.Abstracts,
+                structDecl.Members,
+                abstractParamSubs: null);
+        }
+
+        // Emit explicit interface implementations and forwarding stubs for with-block conformances.
+        if(symbol?.DeclaredType is not null)
+        {
+            EmitWithBlockConformanceMembers(symbol.DeclaredType, structDecl.Members);
         }
 
         insideStruct = previousInsideStruct;
@@ -14423,6 +14712,15 @@ internal sealed class CSharpSourceWriter
                 case PrivateModifierModifierNode:
                     parts.Add("private");
                     break;
+                case ProtectedModifierModifierNode:
+                    parts.Add("protected");
+                    break;
+                case InternalModifierModifierNode:
+                    parts.Add("internal");
+                    break;
+                case SealedModifierModifierNode:
+                    parts.Add("sealed");
+                    break;
                 case StaticModifierModifierNode:
                     parts.Add("static");
                     break;
@@ -14435,6 +14733,43 @@ internal sealed class CSharpSourceWriter
         }
 
         return string.Join(" ", parts) + " ";
+    }
+
+    /// <summary>
+    /// Returns the C# keyword for a resolved <see cref="Accessibility"/> value.
+    /// </summary>
+    private static string AccessibilityKeyword(Accessibility accessibility)
+    {
+        return accessibility switch
+        {
+            Accessibility.Public => "public",
+            Accessibility.Private => "private",
+            Accessibility.Protected => "protected",
+            Accessibility.Internal => "internal",
+            _ => "internal",
+        };
+    }
+
+    /// <summary>
+    /// Strips any access modifier keywords and the <c>sealed</c> keyword from a modifier
+    /// string produced by <see cref="EmitModifiers"/>. Used when the emitter replaces
+    /// AST-derived access modifiers with the resolved <see cref="Accessibility"/> value.
+    /// Retains non-access modifiers such as <c>static</c>.
+    /// </summary>
+    private static string StripAccessKeywords(string modifiers)
+    {
+        if(modifiers.Length == 0)
+        {
+            return "";
+        }
+
+        var result = modifiers
+            .Replace("public ", "")
+            .Replace("private ", "")
+            .Replace("protected ", "")
+            .Replace("internal ", "")
+            .Replace("sealed ", "");
+        return result;
     }
 
     // ─── Attribute Emission Helpers ─────────────────────────────────────

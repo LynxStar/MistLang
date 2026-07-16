@@ -3,6 +3,7 @@ using Mist.Common.Diagnostics;
 using Mist.Common.Source;
 using Mist.Lexing.Contracts;
 using Mist.Parsing.Contracts;
+using Mist.Semantics.Model;
 
 namespace Mist.Parsing;
 
@@ -76,6 +77,15 @@ public sealed class MistParser : IParser
         // diagnostic (Requirement 13.3).
         DetectPropertyDefaultInAbstract(tokens, diagnostics);
 
+        // Validate that no declaration carries more than one access modifier.
+        // Mist has four standalone access levels and no combined levels (Req 2.6).
+        // This validation walks the parsed AST rather than scanning tokens because
+        // it relies on the semantic modifier list attached to each declaration node.
+        if(root is not null)
+        {
+            ValidateAccessModifierCombinations(root, diagnostics);
+        }
+
         // Assign ParsedOrigin to every node in the tree so diagnostics
         // can resolve source locations without span-containment heuristics.
         if(root is not null)
@@ -108,6 +118,52 @@ public sealed class MistParser : IParser
             tokens,
             Root: root,
             Diagnostics: ImmutableArray<Diagnostic>.Empty);
+    }
+
+    /// <summary>
+    /// Walks the parsed AST and emits a <c>MIST_PARSE_MULTIPLE_ACCESS</c> diagnostic
+    /// for every declaration whose modifier list contains more than one access modifier.
+    /// Uses <see cref="AccessibilityFacts.TryReduceExplicit"/> as the single source of
+    /// truth for counting access modifiers (Requirement 2.6).
+    /// </summary>
+    private static void ValidateAccessModifierCombinations(
+        Storm.Runtime.SyntaxNode root,
+        DiagnosticBag diagnostics)
+    {
+        if(root is Generated.IHasModifiersNode hasModifiers)
+        {
+            CheckModifiers(hasModifiers, diagnostics);
+        }
+
+        foreach(var child in root.Children())
+        {
+            if(child is not null)
+            {
+                ValidateAccessModifierCombinations(child, diagnostics);
+            }
+        }
+    }
+
+    private static void CheckModifiers(
+        Generated.IHasModifiersNode node,
+        DiagnosticBag diagnostics)
+    {
+        var modifiers = node.Modifiers;
+
+        if(modifiers.IsDefaultOrEmpty)
+        {
+            return;
+        }
+
+        _ = AccessibilityFacts.TryReduceExplicit(modifiers, out var accessModifierCount);
+
+        if(accessModifierCount > 1)
+        {
+            diagnostics.ReportAtNode(
+                ParserDiagnostics.MultipleAccessModifiers,
+                (Storm.Runtime.SyntaxNode)node,
+                null);
+        }
     }
 
     /// <summary>

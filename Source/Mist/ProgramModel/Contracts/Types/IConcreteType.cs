@@ -9,6 +9,13 @@ namespace Mist.ProgramModel.Contracts.Types;
 public interface IConcreteType : IMemberType
 {
     /// <summary>
+    /// Whether this type is sealed (cannot be inherited from).
+    /// Separate from <see cref="IMemberType.Modifiers"/> — sealed is a type-level
+    /// concept, not an accessibility modifier.
+    /// </summary>
+    bool IsSealed { get; }
+
+    /// <summary>
     /// The base type this concrete type inherits from (class → class, struct → struct).
     /// Null if no concrete base is declared.
     /// </summary>

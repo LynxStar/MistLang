@@ -34,11 +34,10 @@ internal static class PropertyProjector
             var getter = CreateGetter(prop);
             var setter = CreateSetter(prop);
 
-            var (isPublic, isProtected) = GetPropertyVisibility(prop);
+            var accessibility = ClrAccessibilityMap.FromProperty(prop);
             var modifiers = new MemberModifiers
             {
-                IsPublic = isPublic,
-                IsProtected = isProtected,
+                Accessibility = accessibility,
                 IsStatic = (prop.GetMethod?.IsStatic ?? prop.SetMethod?.IsStatic) == true,
             };
 
@@ -85,21 +84,6 @@ internal static class PropertyProjector
         }
 
         return null;
-    }
-
-    /// <summary>
-    /// Determines the overall visibility of a property from its most-visible accessor.
-    /// </summary>
-    private static (bool IsPublic, bool IsProtected) GetPropertyVisibility(PropertyInfo prop)
-    {
-        // If either accessor is public, the property is public.
-        if(prop.GetMethod is { IsPublic: true } || prop.SetMethod is { IsPublic: true })
-        {
-            return (true, false);
-        }
-
-        // Otherwise it's protected.
-        return (false, true);
     }
 
     /// <summary>

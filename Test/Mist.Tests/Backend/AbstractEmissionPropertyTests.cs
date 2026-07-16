@@ -243,10 +243,10 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
     [GeneratedRegex(@"^\s*(?:public\s+)?interface\s+(\w+)(?:\s*:\s*(\w+))?", RegexOptions.Multiline)]
     private static partial Regex InterfaceDeclPattern();
 
-    [GeneratedRegex(@"^\s*(?:(?:public|private|static)\s+)*class\s+(\w+)(?:\s*:\s*(\w+))?", RegexOptions.Multiline)]
+    [GeneratedRegex(@"^\s*(?:(?:public|private|protected|internal|sealed|static)\s+)*class\s+(\w+)(?:\s*:\s*(\w+))?", RegexOptions.Multiline)]
     private static partial Regex ClassDeclPattern();
 
-    [GeneratedRegex(@"^\s*(?:(?:public|private|static)\s+)*struct\s+(\w+)(?:\s*:\s*(\w+))?", RegexOptions.Multiline)]
+    [GeneratedRegex(@"^\s*(?:(?:public|private|protected|internal|sealed|static|readonly|ref)\s+)*struct\s+(\w+)(?:\s*:\s*(\w+))?", RegexOptions.Multiline)]
     private static partial Regex StructDeclPattern();
 
     // ─── Test data model ─────────────────────────────────────────────────

@@ -34,8 +34,7 @@ internal static class FieldProjector
             var resolvedType = resolver.Resolve(field.FieldType, concreteType.Scope);
             var modifiers = new MemberModifiers
             {
-                IsPublic = field.IsPublic,
-                IsProtected = field.IsFamily || field.IsFamilyOrAssembly,
+                Accessibility = ClrAccessibilityMap.FromField(field),
                 IsStatic = field.IsStatic,
                 IsReadonly = field.IsInitOnly || field.IsLiteral,
             };

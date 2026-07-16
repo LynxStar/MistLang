@@ -1332,7 +1332,7 @@ begin:n.concat(c,"(\\s*\\.\\s*",c,")*",n.lookahead(/\s*=\s*[^#\s]/)),
 className:"attr",starts:{end:/$/,contains:[s,l,t,i,r,a]}}]}}})()
 ;hljs.registerLanguage("ini",e)})();// Mist language definition for highlight.js 11.x
 hljs.registerLanguage("mist", function(hljs) {
-  var MODIFIERS = 'public private static readonly mutable owned frozen borrowed ref implicit explicit intrinsic async linear affine relevant';
+  var MODIFIERS = 'public private protected internal sealed static readonly mutable owned frozen borrowed ref implicit explicit intrinsic async linear affine relevant';
   var RESERVED_TYPES = 'int uint long ulong short ushort byte sbyte float double decimal bool char string regex void unknown var func';
   var KEYWORDS = 'namespace using class struct abstract enum extension type where ' +
     'if else while for foreach in return new break is and or not ' +

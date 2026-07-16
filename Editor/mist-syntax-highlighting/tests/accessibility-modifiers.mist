@@ -1,0 +1,43 @@
+// SYNTAX TEST "source.mist"
+
+// ===== Accessibility modifiers (storage.modifier.mist) =====
+// protected, internal, and sealed are scoped as storage.modifier.mist.
+
+protected int secret;
+// <- storage.modifier.mist
+
+internal class Helper {
+// <- storage.modifier.mist
+}
+
+sealed class Frozen {
+// <- storage.modifier.mist
+}
+
+// ===== Combined with other modifiers =====
+
+public sealed class PublicFrozen {
+// <- storage.modifier.mist
+//     ^^^^^^ storage.modifier.mist
+}
+
+protected static int sharedSecret;
+// <- storage.modifier.mist
+//        ^^^^^^ storage.modifier.mist
+
+internal sealed class InternalFrozen {
+// <- storage.modifier.mist
+//       ^^^^^^ storage.modifier.mist
+}
+
+// ===== Word boundary tests =====
+// These identifiers contain the keywords as substrings but must NOT match.
+
+var protectedCount = 0;
+//  ^^^^^^^^^^^^^^ variable.other.property.mist
+
+var internalState = 0;
+//  ^^^^^^^^^^^^^ variable.other.property.mist
+
+var sealedEnvelope = 0;
+//  ^^^^^^^^^^^^^^ variable.other.property.mist

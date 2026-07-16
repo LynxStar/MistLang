@@ -135,10 +135,10 @@ public sealed class EnumEmissionTests
     /// a record class without an explicit access modifier (C# defaults to internal
     /// for top-level types).
     ///
-    /// **Validates: Requirement 10.3**
+    /// **Validates: Requirement 15.1, 15.2**
     /// </summary>
     [Fact]
-    public void DefaultVisibility_EmitsPublicWhenNoExplicitModifier()
+    public void DefaultVisibility_EmitsResolvedAccessibility()
     {
         var mistSource = """
             enum Direction : int {
@@ -153,12 +153,13 @@ public sealed class EnumEmissionTests
 
         var emittedCSharp = CompileAndGetEmittedCSharp(mistSource);
 
-        // Mist enums without an explicit access modifier default to public in emitted C#
-        Assert.Contains("public record class Direction(int Value)", emittedCSharp);
+        // Top-level enums without an explicit access modifier resolve to internal (scope-kind default).
+        // The emitter now emits the resolved accessibility keyword explicitly (Req 15.1, 15.2).
+        Assert.Contains("internal record class Direction(int Value)", emittedCSharp);
 
-        // Should NOT contain "private" or "internal" modifiers
+        // Should NOT contain "private" or "public" modifiers (since resolved is internal)
         Assert.DoesNotContain("private record class Direction", emittedCSharp);
-        Assert.DoesNotContain("internal record class Direction", emittedCSharp);
+        Assert.DoesNotContain("public record class Direction", emittedCSharp);
     }
 
     /// <summary>

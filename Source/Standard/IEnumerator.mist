@@ -1,6 +1,6 @@
 namespace Standard;
 
-abstract IEnumerator<TElement>
+public abstract IEnumerator<TElement>
 {
     bool MoveNext();
     TElement Current { get; }

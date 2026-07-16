@@ -1,4 +1,5 @@
 using Mist.Common.Source;
+using Mist.Semantics.Model;
 
 namespace Mist.Semantics.Contracts;
 
@@ -51,4 +52,10 @@ public interface ISymbol
     IScope ContainingScope { get; }
     IType? DeclaredType { get; }
     SourceSpan? DeclarationSpan { get; }
+
+    /// <summary>
+    /// The resolved accessibility of this symbol. Assigned during Semantic Model
+    /// construction and never null/pending afterward.
+    /// </summary>
+    Accessibility Accessibility { get; }
 }

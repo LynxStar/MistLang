@@ -15,6 +15,11 @@ public sealed class TypeAliasType : IType
     public string DisplayName => Name;
     public TypeKind Kind => UnderlyingType.Kind;
 
+    /// <summary>
+    /// The resolved accessibility of this type alias.
+    /// </summary>
+    public Accessibility Accessibility { get; internal set; }
+
     public TypeAliasType(
         string name,
         IType underlyingType,

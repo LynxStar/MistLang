@@ -16,9 +16,10 @@ internal sealed class PropertyAccessor
     public bool IsInit { get; init; }
 
     /// <summary>
-    /// Whether this accessor has restricted visibility (private).
+    /// The accessibility of this accessor, when it differs from the property's accessibility.
+    /// Defaults to <see cref="Accessibility.Public"/> (inherits property accessibility).
     /// </summary>
-    public bool IsPrivate { get; init; }
+    public Accessibility Accessibility { get; init; }
 
     /// <summary>
     /// The block body of this accessor, if it has one.

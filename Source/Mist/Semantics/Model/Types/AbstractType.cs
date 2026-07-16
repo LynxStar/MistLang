@@ -11,6 +11,12 @@ public sealed class AbstractType : IType
     public TypeKind Kind => TypeKind.Abstract;
     public IScope MemberScope { get; }
     public string? ContainingNamespace { get; }
+
+    /// <summary>
+    /// The resolved accessibility of this abstract type.
+    /// </summary>
+    public Accessibility Accessibility { get; internal set; }
+
     public IReadOnlyList<IType> Abstracts { get; internal set; } = Array.Empty<IType>();
     public IReadOnlyList<IType> TypeParameters { get; internal set; } = Array.Empty<IType>();
 

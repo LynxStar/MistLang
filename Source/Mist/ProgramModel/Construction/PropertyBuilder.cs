@@ -1,6 +1,7 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction;
 
@@ -44,6 +45,9 @@ internal sealed class PropertyBuilder
         var type = typeResolver.Resolve(exprProp.Type, host.Scope);
         var modifiers = ModifierBuilder.Build(exprProp, context.Diagnostics);
 
+        // Resolve scope-based default accessibility.
+        modifiers = ModifierBuilder.ApplyDefault(modifiers, exprProp.Modifiers, host as MistType);
+
         if(modifiers.IsAsync)
         {
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AsyncOnlyOnMethods, exprProp, null);
@@ -51,7 +55,7 @@ internal sealed class PropertyBuilder
 
         if(modifiers.IsIntrinsic)
         {
-            IntrinsicMemberValidation.Validate(host.IsIntrinsic, host.Name, modifiers.IsPublic, exprProp, context.Diagnostics);
+            IntrinsicMemberValidation.Validate(host.IsIntrinsic, host.Name, modifiers.Accessibility == Accessibility.Public, exprProp, context.Diagnostics);
 
             // An expression-bodied property supplies a getter body, so it can never
             // be a valid intrinsic (backend-provided) property.
@@ -71,6 +75,9 @@ internal sealed class PropertyBuilder
         var isAbstract = host.IsAbstract;
         var isExtension = host is ExtensionBlock;
 
+        // Resolve scope-based default accessibility.
+        modifiers = ModifierBuilder.ApplyDefault(modifiers, blockProp.Modifiers, host as MistType);
+
         if(modifiers.IsAsync)
         {
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AsyncOnlyOnMethods, blockProp, null);
@@ -78,7 +85,7 @@ internal sealed class PropertyBuilder
 
         if(modifiers.IsIntrinsic)
         {
-            IntrinsicMemberValidation.Validate(host.IsIntrinsic, host.Name, modifiers.IsPublic, blockProp, context.Diagnostics);
+            IntrinsicMemberValidation.Validate(host.IsIntrinsic, host.Name, modifiers.Accessibility == Accessibility.Public, blockProp, context.Diagnostics);
         }
 
         PropertyAccessor? getter = null;

@@ -154,7 +154,7 @@ internal static class ExtensionProjector
         // Build the Method instance.
         var modifiers = new MemberModifiers
         {
-            IsPublic = true,
+            Accessibility = Accessibility.Public,
             IsStatic = true,
         };
 

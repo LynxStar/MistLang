@@ -15,6 +15,11 @@ public sealed class EnumType : IType
     public IScope MemberScope { get; }
     public string? ContainingNamespace { get; }
 
+    /// <summary>
+    /// The resolved accessibility of this enum type.
+    /// </summary>
+    public Accessibility Accessibility { get; internal set; }
+
     /// <summary>The defaultability status of this enum type.</summary>
     public DefaultabilityStatus Defaultability { get; internal set; } = DefaultabilityStatus.Unknown;
 

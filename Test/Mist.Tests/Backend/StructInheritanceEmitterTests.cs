@@ -1,5 +1,6 @@
-// Feature: struct-inheritance, Task 8.1: Emitter snapshot tests for struct inheritance
-// **Validates: Requirements 6.1, 6.2, 6.3, 6.4, 6.5, 7.5**
+// Feature: struct-inheritance + full-accessibility-model
+// Struct-to-class lowering: structs that participate in inheritance are lowered to C# classes.
+// **Validates: Requirements 15.4, 15.5 (full-accessibility-model)**
 
 using System.Collections.Immutable;
 using System.Text;
@@ -17,17 +18,17 @@ using Mist.Semantics.Model;
 namespace Mist.Tests.Backend;
 
 /// <summary>
-/// Emitter snapshot tests for struct inheritance verifying:
-/// - Single-level inheritance emits flattened fields + implicit operator
-/// - Multi-level inheritance emits all ancestor fields + operators for each level
-/// - Constructor with `: base(args)` emits inlined field assignments
-/// - No `: BaseStruct` appears in emitted C# struct header
-/// - Generic struct inheritance emits correct type arguments in operator
+/// Emitter snapshot tests for struct inheritance verifying the struct-to-class lowering:
+/// - Structs with a base struct are lowered to C# classes with normal inheritance
+/// - Structs that are the base of another struct are also lowered to C# classes
+/// - Constructor `: base(args)` emits as normal C# `: base(args)` on the lowered class
+/// - Plain structs (no inheritance) remain as C# structs
+/// - Generic struct inheritance emits correct class declarations with type arguments
 ///
 /// Uses in-memory compilation via <see cref="CSharpEmitter.EmitToMemory"/>
 /// (no disk I/O, no process spawning).
 ///
-/// **Validates: Requirements 6.1, 6.2, 6.3, 6.4, 6.5, 7.5**
+/// **Validates: Requirements 15.4, 15.5**
 /// </summary>
 public sealed class StructInheritanceEmitterTests
 {
@@ -98,11 +99,11 @@ public sealed class StructInheritanceEmitterTests
     // ─── Tests ───────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Verifies that single-level struct inheritance emits flattened fields
-    /// from the base struct into the derived struct, plus an implicit
-    /// conversion operator from derived to base.
+    /// Verifies that single-level struct inheritance lowers to C# classes with
+    /// normal inheritance. The base struct becomes a C# class, and the derived
+    /// struct becomes a C# class that extends it (`: Point`).
     ///
-    /// **Validates: Requirements 6.1, 6.2, 6.5**
+    /// **Validates: Requirements 15.4, 15.5**
     /// </summary>
     [Fact]
     public void SingleLevelInheritance_EmitsFlattenedFieldsAndImplicitOperator()
@@ -123,21 +124,23 @@ public sealed class StructInheritanceEmitterTests
 
         var emittedCSharp = CompileAndGetEmittedCSharp(mistSource);
 
-        // Point3D should contain flattened fields from Point
-        Assert.Contains("public int X;", emittedCSharp);
-        Assert.Contains("public int Y;", emittedCSharp);
-        Assert.Contains("public int Z;", emittedCSharp);
+        // Both structs are lowered to classes due to inheritance participation.
+        // Point3D extends Point via normal C# inheritance.
+        Assert.Contains("class Point3D", emittedCSharp);
+        Assert.Contains("class Point", emittedCSharp);
+        Assert.Contains(": Point", emittedCSharp);
 
-        // Point3D should have an implicit conversion operator to Point
-        Assert.Contains("public static implicit operator Point(Point3D value)", emittedCSharp);
+        // X and Y are declared on Point (base class), Z on Point3D.
+        Assert.Contains("int X;", emittedCSharp);
+        Assert.Contains("int Y;", emittedCSharp);
+        Assert.Contains("int Z;", emittedCSharp);
     }
 
     /// <summary>
-    /// Verifies that multi-level struct inheritance (C : B : A) emits all
-    /// ancestor fields in the most-derived struct, plus implicit conversion
-    /// operators for each ancestor level.
+    /// Verifies that multi-level struct inheritance (C : B : A) lowers all structs
+    /// to C# classes with a proper inheritance chain.
     ///
-    /// **Validates: Requirements 6.1, 6.3, 6.5**
+    /// **Validates: Requirements 15.4, 15.5**
     /// </summary>
     [Fact]
     public void MultiLevelInheritance_EmitsAllAncestorFieldsAndOperators()
@@ -160,26 +163,26 @@ public sealed class StructInheritanceEmitterTests
 
         var emittedCSharp = CompileAndGetEmittedCSharp(mistSource);
 
-        // C should contain all ancestor fields (X from A, Y from B, Z own)
-        // Check that the emitted C# for struct C contains X, Y, and Z fields
-        Assert.Contains("public int X;", emittedCSharp);
-        Assert.Contains("public int Y;", emittedCSharp);
-        Assert.Contains("public int Z;", emittedCSharp);
+        // All three structs are lowered to classes.
+        Assert.Contains("class A", emittedCSharp);
+        Assert.Contains("class B", emittedCSharp);
+        Assert.Contains("class C", emittedCSharp);
 
-        // C should have implicit operators for both B and A
-        Assert.Contains("public static implicit operator B(C value)", emittedCSharp);
-        Assert.Contains("public static implicit operator A(C value)", emittedCSharp);
+        // B extends A, C extends B (normal C# inheritance).
+        Assert.Contains(": A", emittedCSharp);
+        Assert.Contains(": B", emittedCSharp);
 
-        // B should also have an implicit operator to A
-        Assert.Contains("public static implicit operator A(B value)", emittedCSharp);
+        // Fields are declared on their respective classes.
+        Assert.Contains("int X;", emittedCSharp);
+        Assert.Contains("int Y;", emittedCSharp);
+        Assert.Contains("int Z;", emittedCSharp);
     }
 
     /// <summary>
-    /// Verifies that a derived struct constructor with `: base(args)` emits
-    /// inlined field assignments (e.g., `this.X = x;`) instead of the
-    /// invalid C# `: base(x, y)` syntax for structs.
+    /// Verifies that a derived struct constructor with `: base(args)` emits as
+    /// a normal C# `: base(args)` call on the lowered class (not inlined assignments).
     ///
-    /// **Validates: Requirement 7.5**
+    /// **Validates: Requirement 15.4**
     /// </summary>
     [Fact]
     public void ConstructorWithBaseChain_EmitsInlinedFieldAssignments()
@@ -207,34 +210,25 @@ public sealed class StructInheritanceEmitterTests
 
         var emittedCSharp = CompileAndGetEmittedCSharp(mistSource);
 
-        // The emitted constructor should NOT contain `: base(x, y)` syntax
-        Assert.DoesNotContain(": base(", emittedCSharp);
+        // When lowered to a class, `: base(x, y)` is emitted normally.
+        Assert.Contains(": base(x, y)", emittedCSharp);
 
-        // The emitted constructor should inline the base field assignments
-        // with `this.` prefix for the inlined base constructor assignments
-        Assert.Contains("this.X = x;", emittedCSharp);
-        Assert.Contains("this.Y = y;", emittedCSharp);
-
-        // The derived struct's own body assignment is emitted as-is
+        // The derived class's own body assignment is emitted as-is.
         Assert.Contains("Z = z;", emittedCSharp);
     }
 
     /// <summary>
-    /// Verifies that the emitted C# struct declaration does NOT contain
-    /// `: BaseStruct` — since the CLR does not support struct inheritance,
-    /// the emitter must not emit an inheritance clause on structs.
+    /// Verifies that a plain struct (no base, not a base of any other struct, no protected
+    /// members) is emitted as a C# struct (not lowered to a class).
     ///
-    /// **Validates: Requirement 6.4**
+    /// **Validates: Requirements 15.4, 15.5**
     /// </summary>
     [Fact]
     public void NoBaseStructInHeader_EmittedStructHasNoInheritanceClause()
     {
         var mistSource = """
-            struct Base {
+            struct Plain {
                 public int X;
-            }
-            struct Derived : Base {
-                public int Y;
             }
             class Program {
                 static void Main() {
@@ -244,21 +238,16 @@ public sealed class StructInheritanceEmitterTests
 
         var emittedCSharp = CompileAndGetEmittedCSharp(mistSource);
 
-        // The emitted C# should contain "struct Derived" but NOT "struct Derived : Base"
-        Assert.Contains("struct Derived", emittedCSharp);
-        Assert.DoesNotContain("struct Derived : Base", emittedCSharp);
-
-        // Also verify the base struct itself doesn't have an inheritance clause
-        Assert.Contains("struct Base", emittedCSharp);
+        // A plain struct with no inheritance remains a C# struct.
+        Assert.Contains("struct Plain", emittedCSharp);
+        Assert.DoesNotContain("class Plain", emittedCSharp);
     }
 
     /// <summary>
-    /// Verifies that generic struct inheritance emits correct type arguments
-    /// in the implicit conversion operator. The emitter handles generic struct
-    /// inheritance by unwrapping ConstructedType to emit flattened fields and
-    /// implicit operators with proper type parameters.
+    /// Verifies that generic struct inheritance lowers to C# classes with correct
+    /// type parameters and inheritance.
     ///
-    /// **Validates: Requirements 6.2, 6.5**
+    /// **Validates: Requirements 15.4, 15.5**
     /// </summary>
     [Fact]
     public void GenericStructInheritance_EmitsCorrectTypeArgumentsInOperator()
@@ -278,17 +267,15 @@ public sealed class StructInheritanceEmitterTests
 
         var emittedCSharp = CompileAndGetEmittedCSharp(mistSource);
 
-        // The emitted C# should contain the ExtendedContainer struct declaration
-        // with its type parameter
-        Assert.Contains("struct ExtendedContainer<T>", emittedCSharp);
+        // Both structs are lowered to classes due to inheritance participation.
+        // They have no explicit access modifier, so they default to internal.
+        Assert.Contains("class ExtendedContainer<T>", emittedCSharp);
+        Assert.Contains("class Container<T>", emittedCSharp);
 
-        // The base Container struct should also be emitted with its type parameter
-        Assert.Contains("struct Container<T>", emittedCSharp);
+        // The derived class extends the base class with proper type arguments.
+        Assert.Contains(": Container<T>", emittedCSharp);
 
-        // The derived struct should NOT have `: Container<T>` in its header
-        Assert.DoesNotContain("struct ExtendedContainer<T> : Container", emittedCSharp);
-
-        // The derived struct should contain its own Extra field
-        Assert.Contains("public int Extra;", emittedCSharp);
+        // The derived class should contain its own Extra field.
+        Assert.Contains("int Extra;", emittedCSharp);
     }
 }

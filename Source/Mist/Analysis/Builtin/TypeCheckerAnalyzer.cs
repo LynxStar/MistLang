@@ -199,6 +199,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Task 2.3: Validate that all enum declarations have readonly base types
         // (MIST_TC_0102, MIST_TC_0103, Requirements 2.1–2.4, 3.1–3.5).
         CheckEnumBaseTypeReadonly(model, diagnostics);
+
+        // Task 4.5: Accessibility-consistency, base/interface, and override/interface-impl enforcement.
+        // These methods are implemented but require ClassType.Accessibility to be correctly
+        // propagated (which depends on ResolveAccessibilityAndSealed in SemanticModelBuilder).
+        CheckAccessibilityConsistency(model, diagnostics);
+        CheckBaseTypeAndInterfaceAccessibility(model, diagnostics);
+        CheckOverrideAndInterfaceImplAccessibility(model, diagnostics);
+
+        // Task 4.6: Nested-type accessibility-domain enforcement (Requirements 11.1, 11.2).
+        CheckNestedTypeAccessibilityDomain(model, diagnostics);
+
+        // Task 4.7: Sealed enforcement and protected-in-sealed handling
+        // (Requirements 12.1–12.9, 13.1–13.3).
+        CheckSealedEnforcement(model, diagnostics);
+        CheckProtectedInSealed(model, diagnostics);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -2879,10 +2894,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             case BlockPropertyPropertyDeclarationNode blockProp:
                 {
-                    var propModifiers = ExtractPropertyModifiers(blockProp.Modifiers);
+                    var isStatic = ExtractIsStatic(blockProp.Modifiers);
 
                     // Task 5.4: Check accessor modifier restrictiveness (MIST_TC_0022).
-                    CheckAccessorModifierRestrictiveness(blockProp.Accessors, propModifiers, diagnostics);
+                    CheckAccessorModifierRestrictiveness(blockProp.Accessors, propertySymbol, diagnostics);
 
                     // Task 5.1: Walk accessor bodies for type correctness.
                     foreach(var accessor in blockProp.Accessors)
@@ -2894,7 +2909,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     CheckFieldKeywordUsageInAccessors(blockProp.Accessors, propInfo, diagnostics);
 
                     // Task 5.7: Check this in static accessor (MIST_TC_0026).
-                    if(propModifiers.IsStatic)
+                    if(isStatic)
                     {
                         CheckThisInStaticAccessors(blockProp.Accessors, diagnostics);
                     }
@@ -2903,7 +2918,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
             case ExpressionBodiedPropertyPropertyDeclarationNode exprProp:
                 {
-                    var propModifiers = ExtractPropertyModifiers(exprProp.Modifiers);
+                    var isStatic = ExtractIsStatic(exprProp.Modifiers);
 
                     // Task 5.8: Check expression body type compatibility (MIST_TC_0028).
                     CheckExpression(exprProp.Body, model, diagnostics);
@@ -2917,7 +2932,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     }
 
                     // Task 5.7: Check this in static expression-bodied property (MIST_TC_0026).
-                    if(propModifiers.IsStatic)
+                    if(isStatic)
                     {
                         CheckThisInExpression(exprProp.Body, diagnostics);
                     }
@@ -2953,10 +2968,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         _ = GetPropertyMetadata(indexerSymbol);
         var indexerType = indexerSymbol.DeclaredType ?? ErrorType.Instance;
-        var indexerModifiers = ExtractPropertyModifiers(indexerDecl.Modifiers);
 
         // Task 5.4: Check accessor modifier restrictiveness (MIST_TC_0022).
-        CheckAccessorModifierRestrictiveness(blockBody.Accessors, indexerModifiers, diagnostics);
+        CheckAccessorModifierRestrictiveness(blockBody.Accessors, indexerSymbol, diagnostics);
 
         // ── Flow narrowing: inject parameter refinement narrowing for indexer parameters (Requirement 8.1–8.5) ──
         var paramNarrowings = InjectParameterRefinementNarrowing(declaringNode, model);
@@ -3059,10 +3073,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// <summary>
     /// Checks accessor modifier restrictiveness (MIST_TC_0022).
     /// An accessor modifier must be strictly more restrictive than the property's access level.
+    /// Now reads accessibility from the property symbol rather than from AST modifiers.
     /// </summary>
     private static void CheckAccessorModifierRestrictiveness(
         IReadOnlyList<AccessorDeclarationNode> accessors,
-        MemberModifiers propModifiers,
+        ISymbol propertySymbol,
 
         DiagnosticBag diagnostics)
     {
@@ -3074,8 +3089,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 continue; // No explicit accessor modifier — OK.
             }
 
-            var propLevel = GetAccessLevel(propModifiers);
-            var accessorLevel = GetModifierAccessLevel(accessorModifier);
+            var propLevel = propertySymbol.Accessibility;
+            var accessorLevel = GetModifierAccessibility(accessorModifier);
 
             // The accessor modifier must be strictly more restrictive than the property.
             if(!IsMoreRestrictive(accessorLevel, propLevel))
@@ -3279,78 +3294,66 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Access level ordering for restrictiveness comparison.
-    /// Lower value = more restrictive.
+    /// Gets the accessibility from a modifier AST node (used for accessor modifiers
+    /// which are not yet stored on a symbol).
     /// </summary>
-    private enum AccessLevel
-    {
-        Private = 0,
-        // Protected = 1, // Not yet supported in Mist
-        // Internal = 2,  // Not yet supported in Mist
-        Public = 3,
-    }
-
-    /// <summary>
-    /// Gets the access level from property modifiers.
-    /// Default (no modifier) is private.
-    /// </summary>
-    private static AccessLevel GetAccessLevel(MemberModifiers modifiers)
-    {
-        if(modifiers.IsPublic)
-        {
-            return AccessLevel.Public;
-        }
-
-        return AccessLevel.Private; // Default is private.
-    }
-
-    /// <summary>
-    /// Gets the access level from a modifier AST node.
-    /// </summary>
-    private static AccessLevel GetModifierAccessLevel(ModifierNode modifier)
+    private static Accessibility GetModifierAccessibility(ModifierNode modifier)
     {
         return modifier switch
         {
-            PublicModifierModifierNode => AccessLevel.Public,
-            PrivateModifierModifierNode => AccessLevel.Private,
-            _ => AccessLevel.Private,
+            PublicModifierModifierNode => Accessibility.Public,
+            PrivateModifierModifierNode => Accessibility.Private,
+            ProtectedModifierModifierNode => Accessibility.Protected,
+            InternalModifierModifierNode => Accessibility.Internal,
+            _ => Accessibility.Private,
         };
     }
 
     /// <summary>
     /// Returns true if <paramref name="accessor"/> is strictly more restrictive than <paramref name="property"/>.
+    /// Uses the resolved <see cref="Accessibility"/> enum values.
     /// </summary>
-    private static bool IsMoreRestrictive(AccessLevel accessor, AccessLevel property)
+    private static bool IsMoreRestrictive(Accessibility accessor, Accessibility property)
     {
-        return (int)accessor < (int)property;
+        // Ordering: Private < Protected/Internal < Public.
+        // Protected and Internal are incomparable but both less than Public and more than Private.
+        var accessorRank = GetAccessibilityRank(accessor);
+        var propertyRank = GetAccessibilityRank(property);
+        return accessorRank < propertyRank;
     }
 
     /// <summary>
-    /// Extracts modifier flags from a property's modifier list.
+    /// Returns a numeric rank for accessibility restrictiveness comparison.
+    /// Lower = more restrictive. Protected and Internal share the same rank.
     /// </summary>
-    private static MemberModifiers ExtractPropertyModifiers(IReadOnlyList<ModifierNode> modifiers)
+    private static int GetAccessibilityRank(Accessibility accessibility)
     {
-        var isPublic = false;
-        var isPrivate = false;
-        var isStatic = false;
+        return accessibility switch
+        {
+            Accessibility.Private => 0,
+            Accessibility.Protected => 1,
+            Accessibility.Internal => 1,
+            Accessibility.Public => 3,
+            _ => 0,
+        };
+    }
 
+    /// <summary>
+    /// Extracts the staticness flag from a property's modifier list.
+    /// Accessibility is no longer read from AST modifiers here — it comes from
+    /// <see cref="ISymbol.Accessibility"/> on the property symbol.
+    /// </summary>
+    private static bool ExtractIsStatic(IReadOnlyList<ModifierNode> modifiers)
+    {
         foreach(var mod in modifiers)
         {
-            switch(mod)
+            if(mod is StaticModifierModifierNode)
             {
-                case PublicModifierModifierNode:
-                    isPublic = true;
-                    break;
-                case PrivateModifierModifierNode:
-                    isPrivate = true;
-                    break;
-                case StaticModifierModifierNode:
-                    isStatic = true;
-                    break;
+                return true;
             }
         }
 
-        return new MemberModifiers(isPublic, isPrivate, isStatic);
+        return false;
     }
 
     /// <summary>
@@ -14563,12 +14566,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Backend symbols are assumed public; only check user-defined members.
         if(symbol.Origin != SymbolOrigin.Backend)
         {
-            SyntaxNode? declaringNode;
-            try { declaringNode = model.GetDeclaringNode(symbol); }
-            catch { declaringNode = null; }
-
-            var modifiers = GetMemberModifiers(declaringNode);
-            if(!modifiers.IsPublic)
+            // Read the resolved accessibility from the symbol. The Type Checker
+            // never computes defaults — the Semantic Model already set concrete values.
+            if(symbol.Accessibility == Accessibility.Private)
             {
                 // Private members are only accessible within the declaring type.
                 var declaringType = GetDeclaringTypeOfMember(symbol);
@@ -14936,6 +14936,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// Checks access modifier rules for a member access or method call.
     /// Emits MIST_TC_0014 (private access), MIST_TC_0015 (static via instance),
     /// or MIST_TC_0016 (instance via type name).
+    /// Now reads accessibility from <see cref="ISymbol.Accessibility"/> rather than
+    /// computing it from AST modifiers. The Type Checker never computes a default.
     /// </summary>
     private void CheckMemberAccessModifiers(
         string memberName,
@@ -14966,35 +14968,57 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return;
         }
 
-        // Get the declaring AST node to inspect modifiers.
+        // Get the declaring AST node to inspect modifiers (only for staticness now).
         SyntaxNode? declaringNode;
         try { declaringNode = model.GetDeclaringNode(memberSymbol); }
         catch { return; }
 
-        // Extract modifier information from the declaring node.
+        // Extract only staticness from the declaring node.
         var modifiers = GetMemberModifiers(declaringNode);
 
-        // R9.1, R9.3: Private member access check.
-        // Members with no modifier default to private (R9.3).
-        // Exception: Struct members without an explicit modifier default to public,
-        // matching C++ struct semantics where value types expose their fields by default.
-        if(!modifiers.IsPublic)
-        {
-            // Check if the declaring type is a struct — struct members default to public.
-            var declaringType = GetDeclaringTypeOfMember(memberSymbol);
-            var isStructMember = declaringType is StructType;
-            var hasExplicitPrivate = modifiers.IsPrivate;
+        // ── Full accessibility enforcement (Requirements 6, 7, 11.3) ─────
+        var memberAccessibility = memberSymbol.Accessibility;
+        var declaringType = GetDeclaringTypeOfMember(memberSymbol);
 
-            // Struct members are private only when explicitly marked private.
-            // Non-struct members are private by default (no modifier = private).
-            if(hasExplicitPrivate || !isStructMember)
-            {
-                if(declaringType is not null && !IsSameType(declaringType, currentEnclosingType))
+        switch(memberAccessibility)
+        {
+            case Accessibility.Private:
+                // Private members are accessible only within the declaring type's
+                // domain, which includes the declaring type itself and any nested
+                // types of the same declaring type (Req 7.1, 11.3).
+                if(declaringType is not null && !IsWithinDeclaringTypeDomain(declaringType, currentEnclosingType))
                 {
-                    diagnostics.ReportAtNode(TypeCheckDiagnostics.MemberInaccessible, accessNode, "TypeChecker");
-                    return; // Don't emit additional diagnostics for the same access.
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.PrivateOutsideDomain, accessNode, "TypeChecker", memberName);
+                    return;
                 }
-            }
+
+                break;
+
+            case Accessibility.Protected:
+                // Protected members are accessible from the declaring type or any
+                // type derived from it (Req 7.2).
+                if(declaringType is not null && !IsDeclaredOrDerivedType(declaringType, currentEnclosingType))
+                {
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.ProtectedNonDerived, accessNode, "TypeChecker", memberName);
+                    return;
+                }
+
+                break;
+
+            case Accessibility.Internal:
+                // Internal members are accessible only within the same compilation.
+                // A reference from an External_Assembly is an error (Req 6.4, 7.3).
+                if(IsCrossAssemblyReference(memberSymbol, model))
+                {
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.InternalCrossAssembly, accessNode, "TypeChecker", memberName);
+                    return;
+                }
+
+                break;
+
+            case Accessibility.Public:
+                // Public members are always accessible — no check needed.
+                break;
         }
 
         // R9.4: Static members must be accessed via type name, not instance.
@@ -15024,6 +15048,216 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
             }
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Accessibility domain helpers (Requirements 6, 7, 11.3)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Determines whether the given <paramref name="accessingType"/> is within the
+    /// accessibility domain of <paramref name="declaringType"/> for private-access
+    /// purposes. The domain includes the declaring type itself and any nested type
+    /// declared within the same declaring type (Requirement 11.3).
+    /// </summary>
+    private static bool IsWithinDeclaringTypeDomain(IType declaringType, IType? accessingType)
+    {
+        if(accessingType is null)
+        {
+            return false;
+        }
+
+        // Same type — always in domain.
+        if(IsSameType(declaringType, accessingType))
+        {
+            return true;
+        }
+
+        // Check if the accessing type is a nested type whose enclosing type is
+        // the declaring type. Walk up the nesting chain: the accessing type's
+        // ContainingNamespace or parent scope may point to the declaring type.
+        // In the Mist model, nesting is modeled by the parent scope chain —
+        // a nested type's MemberScope.Parent is the enclosing type's MemberScope.
+        var enclosingType = GetEnclosingTypeOfType(accessingType);
+        while(enclosingType is not null)
+        {
+            if(IsSameType(declaringType, enclosingType))
+            {
+                return true;
+            }
+
+            enclosingType = GetEnclosingTypeOfType(enclosingType);
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Determines whether the <paramref name="accessingType"/> is the same as
+    /// or derived from the <paramref name="declaringType"/> for protected-access
+    /// purposes (Requirement 7.2).
+    /// </summary>
+    private static bool IsDeclaredOrDerivedType(IType declaringType, IType? accessingType)
+    {
+        if(accessingType is null)
+        {
+            return false;
+        }
+
+        // Same type — always in domain.
+        if(IsSameType(declaringType, accessingType))
+        {
+            return true;
+        }
+
+        // Walk the class inheritance chain.
+        if(accessingType is ClassType accessingClass)
+        {
+            var current = accessingClass.BaseType as ClassType;
+            while(current is not null)
+            {
+                if(IsSameType(declaringType, current))
+                {
+                    return true;
+                }
+
+                current = current.BaseType as ClassType;
+            }
+        }
+
+        // Walk the struct inheritance chain (Mist structs are inheritable).
+        if(accessingType is StructType accessingStruct)
+        {
+            var current = accessingStruct.BaseType as StructType;
+            while(current is not null)
+            {
+                if(IsSameType(declaringType, current))
+                {
+                    return true;
+                }
+
+                current = current.BaseType as StructType;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Determines whether a reference to the given symbol crosses the compilation-as-assembly
+    /// boundary. A symbol is considered "cross-assembly" (external) when:
+    /// <list type="bullet">
+    ///   <item>Its origin is <see cref="SymbolOrigin.Backend"/> (CLR/runtime-projected type), or</item>
+    ///   <item>It belongs to a referenced project unit (its compilation unit has a non-null
+    ///   <see cref="CompilationUnit.OriginProjectPath"/>).</item>
+    /// </list>
+    /// Same-compilation symbols are those defined in the current compilation's own source units
+    /// (OriginProjectPath is null and Origin is UserCode). (Requirements 6.1, 6.2, 6.5)
+    /// </summary>
+    private static bool IsCrossAssemblyReference(ISymbol symbol, ISemanticModel model)
+    {
+        // Backend-origin symbols are always external (CLR/runtime projected).
+        if(symbol.Origin == SymbolOrigin.Backend)
+        {
+            return true;
+        }
+
+        // For user-code symbols, check if they belong to a referenced project unit.
+        // Walk the compilation units to see if the symbol's containing namespace matches
+        // a referenced project's namespace root, or if the symbol's declaring node
+        // is from a source file that belongs to a referenced project.
+        var declaringType = GetDeclaringTypeOfMember(symbol);
+        if(declaringType is null)
+        {
+            return false;
+        }
+
+        var containingNamespace = declaringType switch
+        {
+            ClassType ct => ct.ContainingNamespace,
+            StructType st => st.ContainingNamespace,
+            _ => null,
+        };
+
+        if(containingNamespace is null)
+        {
+            return false;
+        }
+
+        // Build a set of namespace roots from referenced projects.
+        foreach(var unit in model.Units)
+        {
+            if(unit.OriginProjectPath is not null && unit.NamespaceRoot is not null)
+            {
+                if(containingNamespace == unit.NamespaceRoot
+                    || containingNamespace.StartsWith(unit.NamespaceRoot + ".", StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Gets the enclosing type of a type by walking the scope chain. In the Mist model,
+    /// a nested type's member scope's parent is the enclosing type's member scope.
+    /// Returns null if the type is not nested.
+    /// </summary>
+    private static IType? GetEnclosingTypeOfType(IType type)
+    {
+        // Get the type's member scope.
+        var memberScope = type switch
+        {
+            ClassType ct => ct.MemberScope,
+            StructType st => st.MemberScope,
+            AbstractType at => at.MemberScope,
+            _ => null,
+        };
+
+        if(memberScope is null)
+        {
+            return null;
+        }
+
+        // The parent of the type's member scope is the enclosing scope.
+        // If the enclosing scope contains a type symbol whose member scope
+        // matches the type's member scope's parent, that's the enclosing type.
+        var enclosingScope = memberScope.Parent;
+        if(enclosingScope is null)
+        {
+            return null;
+        }
+
+        // Check if the enclosing scope is itself a type's member scope
+        // by looking for a type symbol in the grandparent scope.
+        var grandparentScope = enclosingScope.Parent;
+        if(grandparentScope is null)
+        {
+            return null;
+        }
+
+        foreach(var member in grandparentScope.Members)
+        {
+            if(member.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract)
+            {
+                var ownerScope = member.DeclaredType switch
+                {
+                    ClassType ct => ct.MemberScope,
+                    StructType st => st.MemberScope,
+                    AbstractType at => at.MemberScope,
+                    _ => null,
+                };
+
+                if(ownerScope is not null && ReferenceEquals(ownerScope, enclosingScope))
+                {
+                    return member.DeclaredType;
+                }
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -15136,18 +15370,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     /// <summary>
     /// Modifier flags extracted from a member's AST declaring node.
+    /// Only <see cref="IsStatic"/> is retained from the AST helper — accessibility
+    /// is now read from <see cref="ISymbol.Accessibility"/> on the resolved symbol.
     /// </summary>
-    private readonly record struct MemberModifiers(bool IsPublic, bool IsPrivate, bool IsStatic)
-    {
-        /// <summary>
-        /// True if the member has no explicit access modifier (defaults to private per R9.3).
-        /// </summary>
-        public bool HasNoAccessModifier => !IsPublic && !IsPrivate;
-    }
+    private readonly record struct MemberModifiers(bool IsStatic);
 
     /// <summary>
-    /// Extracts modifier information from a member's AST declaring node.
-    /// Returns default (all false) for backend symbols or nodes without modifiers.
+    /// Extracts the staticness flag from a member's AST declaring node.
+    /// Accessibility is no longer extracted here — it is read from
+    /// <see cref="ISymbol.Accessibility"/> on the resolved symbol.
+    /// Returns default (IsStatic: false) for backend symbols or nodes without modifiers.
     /// </summary>
     private static MemberModifiers GetMemberModifiers(SyntaxNode? declaringNode)
     {
@@ -15164,31 +15396,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         if(modifiers is null || modifiers.Count == 0)
         {
-            // No modifiers → defaults to private (R9.3), not static.
-            return new MemberModifiers(IsPublic: false, IsPrivate: false, IsStatic: false);
+            return new MemberModifiers(IsStatic: false);
         }
 
-        var isPublic = false;
-        var isPrivate = false;
         var isStatic = false;
 
         foreach(var mod in modifiers)
         {
-            switch(mod)
+            if(mod is StaticModifierModifierNode)
             {
-                case PublicModifierModifierNode:
-                    isPublic = true;
-                    break;
-                case PrivateModifierModifierNode:
-                    isPrivate = true;
-                    break;
-                case StaticModifierModifierNode:
-                    isStatic = true;
-                    break;
+                isStatic = true;
+                break;
             }
         }
 
-        return new MemberModifiers(isPublic, isPrivate, isStatic);
+        return new MemberModifiers(isStatic);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -15754,6 +15976,896 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
             }
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Accessibility-consistency enforcement (Requirements 8.1–8.6)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// For every declaration, verifies that no type exposed in its signature
+    /// (return type, parameter types, field type, property/indexer type) is
+    /// less accessible than the declaration itself.
+    /// Emits <c>MIST_TC_0173</c> (InconsistentAccessibility) on violations.
+    /// </summary>
+    private static void CheckAccessibilityConsistency(ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        foreach(var symbol in model.AllSymbols)
+        {
+            if(symbol.Origin == SymbolOrigin.Backend)
+            {
+                continue;
+            }
+
+            var declarationAccessibility = symbol.Accessibility;
+
+            SyntaxNode? declaringNode = null;
+            try { declaringNode = model.GetDeclaringNode(symbol); }
+            catch { /* ignore */ }
+
+            switch(symbol.Kind)
+            {
+                case SymbolKind.Method:
+                    {
+                        // Check return type.
+                        var returnType = symbol.DeclaredType;
+                        if(returnType is not null && !IsErrorType(returnType))
+                        {
+                            CheckTypeAccessibility(returnType, declarationAccessibility, "return type", symbol.Name, declaringNode, diagnostics);
+                        }
+
+                        // Check parameter types.
+                        var paramTypes = ParameterSignature.Extract(symbol, model);
+                        foreach(var paramType in paramTypes)
+                        {
+                            if(!IsErrorType(paramType))
+                            {
+                                CheckTypeAccessibility(paramType, declarationAccessibility, "parameter type", symbol.Name, declaringNode, diagnostics);
+                            }
+                        }
+
+                        break;
+                    }
+
+                case SymbolKind.Constructor:
+                    {
+                        // Check parameter types.
+                        var paramTypes = ParameterSignature.Extract(symbol, model);
+                        foreach(var paramType in paramTypes)
+                        {
+                            if(!IsErrorType(paramType))
+                            {
+                                CheckTypeAccessibility(paramType, declarationAccessibility, "parameter type", symbol.Name, declaringNode, diagnostics);
+                            }
+                        }
+
+                        break;
+                    }
+
+                case SymbolKind.Field:
+                    {
+                        var fieldType = symbol.DeclaredType;
+                        if(fieldType is not null && !IsErrorType(fieldType))
+                        {
+                            CheckTypeAccessibility(fieldType, declarationAccessibility, "field type", symbol.Name, declaringNode, diagnostics);
+                        }
+
+                        break;
+                    }
+
+                case SymbolKind.Property:
+                    {
+                        var propType = symbol.DeclaredType;
+                        if(propType is not null && !IsErrorType(propType))
+                        {
+                            CheckTypeAccessibility(propType, declarationAccessibility, "property type", symbol.Name, declaringNode, diagnostics);
+                        }
+
+                        break;
+                    }
+
+                case SymbolKind.Indexer:
+                    {
+                        // Check indexer return type.
+                        var indexerType = symbol.DeclaredType;
+                        if(indexerType is not null && !IsErrorType(indexerType))
+                        {
+                            CheckTypeAccessibility(indexerType, declarationAccessibility, "indexer type", symbol.Name, declaringNode, diagnostics);
+                        }
+
+                        // Check indexer parameter types.
+                        var paramTypes = ParameterSignature.Extract(symbol, model);
+                        foreach(var paramType in paramTypes)
+                        {
+                            if(!IsErrorType(paramType))
+                            {
+                                CheckTypeAccessibility(paramType, declarationAccessibility, "parameter type", symbol.Name, declaringNode, diagnostics);
+                            }
+                        }
+
+                        break;
+                    }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks whether a type exposed in a signature is at least as accessible as the
+    /// declaration that exposes it. Emits <c>MIST_TC_0173</c> if the type is less accessible.
+    /// Only checks named user types (ClassType, StructType, AbstractType, EnumType, TypeAliasType, NewtypeType);
+    /// primitive types, arrays, tuples, and error types are always considered accessible.
+    /// </summary>
+    private static void CheckTypeAccessibility(
+        IType exposedType,
+        Accessibility declarationAccessibility,
+        string signatureRole,
+        string declarationName,
+        SyntaxNode? declaringNode,
+        DiagnosticBag diagnostics)
+    {
+        if(declaringNode is null)
+        {
+            return;
+        }
+
+        // Unwrap type aliases to check the underlying type's accessibility.
+        if(exposedType is TypeAliasType alias)
+        {
+            // Check the alias itself.
+            if(!AccessibilityOrder.IsAtLeastAsAccessibleAs(alias.Accessibility, declarationAccessibility))
+            {
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.InconsistentAccessibility, declaringNode, "TypeChecker", signatureRole, alias.DisplayName, "member", declarationName);
+                return;
+            }
+
+            // Also check the underlying type.
+            CheckTypeAccessibility(alias.UnderlyingType, declarationAccessibility, signatureRole, declarationName, declaringNode, diagnostics);
+            return;
+        }
+
+        // Get the type's accessibility. Not all types carry it (e.g., PrimitiveType, ArrayType).
+        var typeAccessibility = GetTypeAccessibility(exposedType);
+        if(typeAccessibility is null)
+        {
+            // For array types, check the element type.
+            if(exposedType is ArrayType arrayType)
+            {
+                CheckTypeAccessibility(arrayType.ElementType, declarationAccessibility, signatureRole, declarationName, declaringNode, diagnostics);
+            }
+
+            // For constructed types, check the generic definition and type arguments.
+            if(exposedType is ConstructedType constructedType)
+            {
+                CheckTypeAccessibility(constructedType.GenericDefinition, declarationAccessibility, signatureRole, declarationName, declaringNode, diagnostics);
+                foreach(var typeArg in constructedType.TypeArguments)
+                {
+                    CheckTypeAccessibility(typeArg, declarationAccessibility, signatureRole, declarationName, declaringNode, diagnostics);
+                }
+            }
+
+            return;
+        }
+
+        if(!AccessibilityOrder.IsAtLeastAsAccessibleAs(typeAccessibility.Value, declarationAccessibility))
+        {
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.InconsistentAccessibility, declaringNode, "TypeChecker", signatureRole, exposedType.DisplayName, "member", declarationName);
+        }
+    }
+
+    /// <summary>
+    /// Extracts the <see cref="Accessibility"/> from a type, or returns <c>null</c>
+    /// if the type is a primitive, type parameter, or other type without a declared accessibility.
+    /// </summary>
+    private static Accessibility? GetTypeAccessibility(IType type)
+    {
+        return type switch
+        {
+            ClassType ct => ct.Accessibility,
+            StructType st => st.Accessibility,
+            AbstractType at => at.Accessibility,
+            EnumType et => et.Accessibility,
+            TypeAliasType ta => ta.Accessibility,
+            NewtypeType nt => nt.Accessibility,
+            _ => null,
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Base-type and interface accessibility enforcement (Requirements 9.1–9.4)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// For every class, struct, and abstract type, verifies that:
+    /// <list type="bullet">
+    ///   <item>The base class (if any) is at least as accessible as the type.</item>
+    ///   <item>Each implemented interface/abstract is at least as accessible as the type.</item>
+    ///   <item>Each base interface of an interface is at least as accessible as the derived interface.</item>
+    /// </list>
+    /// Emits <c>MIST_TC_0174</c> (BaseLessAccessible) on violations.
+    /// </summary>
+    private static void CheckBaseTypeAndInterfaceAccessibility(ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        foreach(var symbol in model.AllSymbols)
+        {
+            if(symbol.Origin == SymbolOrigin.Backend)
+            {
+                continue;
+            }
+
+            if(symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract))
+            {
+                continue;
+            }
+
+            var declaredType = symbol.DeclaredType;
+            if(declaredType is null)
+            {
+                continue;
+            }
+
+            SyntaxNode? declaringNode = null;
+            try { declaringNode = model.GetDeclaringNode(symbol); }
+            catch { continue; }
+
+            if(declaringNode is null)
+            {
+                continue;
+            }
+
+            var typeAccessibility = GetTypeAccessibility(declaredType);
+            if(typeAccessibility is null)
+            {
+                continue;
+            }
+
+            // Check base class (classes and structs).
+            IType? baseType = declaredType switch
+            {
+                ClassType ct => ct.BaseType,
+                StructType st => st.BaseType,
+                _ => null,
+            };
+
+            if(baseType is not null)
+            {
+                var baseAccessibility = GetTypeAccessibility(baseType);
+                if(baseAccessibility is not null
+                    && !AccessibilityOrder.IsAtLeastAsAccessibleAs(baseAccessibility.Value, typeAccessibility.Value))
+                {
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.BaseLessAccessible, declaringNode, "TypeChecker", baseType.DisplayName, declaredType.DisplayName);
+                }
+            }
+
+            // Check implemented abstracts/interfaces.
+            var abstracts = declaredType switch
+            {
+                ClassType ct => ct.Abstracts,
+                StructType st => st.Abstracts,
+                AbstractType at => at.Abstracts,
+                _ => Array.Empty<IType>(),
+            };
+
+            foreach(var abs in abstracts)
+            {
+                var absAccessibility = GetTypeAccessibility(abs);
+                if(absAccessibility is not null
+                    && !AccessibilityOrder.IsAtLeastAsAccessibleAs(absAccessibility.Value, typeAccessibility.Value))
+                {
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.BaseLessAccessible, declaringNode, "TypeChecker", abs.DisplayName, declaredType.DisplayName);
+                }
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Override and interface-implementation accessibility enforcement (Requirements 10.1–10.3)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// For every method that implements an abstract member (interface implementation),
+    /// verifies that:
+    /// <list type="bullet">
+    ///   <item>An overriding member has the same accessibility as the overridden member (Req 10.1).</item>
+    ///   <item>A member implementing an interface member is public (Req 10.2).</item>
+    /// </list>
+    /// In Mist, abstract (interface) members are implicitly public. An implementing
+    /// member must therefore be public to satisfy the C# rule that interface
+    /// implementations are public.
+    /// Emits <c>MIST_TC_0175</c> (OverrideAccessibilityViolation) on violations.
+    /// </summary>
+    private static void CheckOverrideAndInterfaceImplAccessibility(ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        foreach(var symbol in model.AllSymbols)
+        {
+            if(symbol.Origin == SymbolOrigin.Backend)
+            {
+                continue;
+            }
+
+            if(symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+            {
+                continue;
+            }
+
+            var declaredType = symbol.DeclaredType;
+            if(declaredType is null)
+            {
+                continue;
+            }
+
+            var memberScope = declaredType switch
+            {
+                ClassType ct => ct.MemberScope,
+                StructType st => st.MemberScope,
+                _ => null,
+            };
+
+            if(memberScope is null)
+            {
+                continue;
+            }
+
+            // Get the abstracts implemented by this type.
+            var abstracts = declaredType switch
+            {
+                ClassType ct => ct.Abstracts,
+                StructType st => st.Abstracts,
+                _ => Array.Empty<IType>(),
+            };
+
+            if(abstracts.Count == 0)
+            {
+                continue;
+            }
+
+            // For each abstract member, find the implementing member and check accessibility.
+            foreach(var absType in abstracts)
+            {
+                if(absType is not AbstractType abs)
+                {
+                    continue;
+                }
+
+                foreach(var abstractMember in abs.MemberScope.Members)
+                {
+                    if(abstractMember.Kind is not (SymbolKind.Method or SymbolKind.Property or SymbolKind.Indexer))
+                    {
+                        continue;
+                    }
+
+                    // Find the implementing member in this type.
+                    ISymbol? implMember = null;
+                    foreach(var member in memberScope.Members)
+                    {
+                        if(member.Name == abstractMember.Name && member.Kind == abstractMember.Kind)
+                        {
+                            implMember = member;
+                            break;
+                        }
+                    }
+
+                    if(implMember is null)
+                    {
+                        continue; // Missing implementations are reported elsewhere.
+                    }
+
+                    // C# rule: interface implementations must be public.
+                    // Abstract members in Mist are implicitly public.
+                    if(implMember.Accessibility != Accessibility.Public)
+                    {
+                        SyntaxNode? implNode = null;
+                        try { implNode = model.GetDeclaringNode(implMember); }
+                        catch { /* ignore */ }
+
+                        if(implNode is not null)
+                        {
+                            diagnostics.ReportAtNode(TypeCheckDiagnostics.OverrideAccessibilityViolation, implNode, "TypeChecker", implMember.Accessibility.ToString().ToLowerInvariant(), abs.DisplayName, abstractMember.Name);
+                        }
+                    }
+                }
+            }
+
+            // Check overriding members in class inheritance (base class virtual methods).
+            // In C#, an overriding member must have the same accessibility as the overridden member.
+            if(declaredType is ClassType classType && classType.BaseType is ClassType baseClass)
+            {
+                CheckOverrideAccessibilityAgainstBase(memberScope, baseClass, model, diagnostics);
+            }
+            else if(declaredType is StructType structType && structType.BaseType is StructType baseStruct)
+            {
+                CheckOverrideAccessibilityAgainstBaseStruct(memberScope, baseStruct, model, diagnostics);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks that overriding members in a class have the same accessibility as
+    /// the corresponding member in the base class.
+    /// </summary>
+    private static void CheckOverrideAccessibilityAgainstBase(
+        IScope memberScope,
+        ClassType baseClass,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        foreach(var member in memberScope.Members)
+        {
+            if(member.Kind is not (SymbolKind.Method or SymbolKind.Property))
+            {
+                continue;
+            }
+
+            if(member.Origin == SymbolOrigin.Backend)
+            {
+                continue;
+            }
+
+            // Search for a matching member in the base class chain.
+            var baseMember = FindMemberInBaseClassChain(member.Name, member.Kind, baseClass);
+            if(baseMember is null)
+            {
+                continue;
+            }
+
+            // If the base member is from Backend (CLR), skip — accessibility mismatch
+            // for CLR-projected members is not enforceable from user code.
+            if(baseMember.Origin == SymbolOrigin.Backend)
+            {
+                continue;
+            }
+
+            // An overriding member must have the same accessibility as the overridden member.
+            if(member.Accessibility != baseMember.Accessibility)
+            {
+                SyntaxNode? memberNode = null;
+                try { memberNode = model.GetDeclaringNode(member); }
+                catch { /* ignore */ }
+
+                if(memberNode is not null)
+                {
+                    var baseTypeName = baseClass.DisplayName;
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.OverrideAccessibilityViolation, memberNode, "TypeChecker", member.Accessibility.ToString().ToLowerInvariant(), baseTypeName, baseMember.Name);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks that overriding members in a struct have the same accessibility as
+    /// the corresponding member in the base struct.
+    /// </summary>
+    private static void CheckOverrideAccessibilityAgainstBaseStruct(
+        IScope memberScope,
+        StructType baseStruct,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        foreach(var member in memberScope.Members)
+        {
+            if(member.Kind is not (SymbolKind.Method or SymbolKind.Property))
+            {
+                continue;
+            }
+
+            if(member.Origin == SymbolOrigin.Backend)
+            {
+                continue;
+            }
+
+            // Search for a matching member in the base struct chain.
+            var baseMember = FindMemberInBaseStructChain(member.Name, member.Kind, baseStruct);
+            if(baseMember is null)
+            {
+                continue;
+            }
+
+            if(baseMember.Origin == SymbolOrigin.Backend)
+            {
+                continue;
+            }
+
+            // An overriding member must have the same accessibility as the overridden member.
+            if(member.Accessibility != baseMember.Accessibility)
+            {
+                SyntaxNode? memberNode = null;
+                try { memberNode = model.GetDeclaringNode(member); }
+                catch { /* ignore */ }
+
+                if(memberNode is not null)
+                {
+                    var baseTypeName = baseStruct.DisplayName;
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.OverrideAccessibilityViolation, memberNode, "TypeChecker", member.Accessibility.ToString().ToLowerInvariant(), baseTypeName, baseMember.Name);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Searches the class inheritance chain for a member with the given name and kind.
+    /// Returns the first match found in the ancestor chain, or null.
+    /// </summary>
+    private static ISymbol? FindMemberInBaseClassChain(string name, SymbolKind kind, ClassType baseClass)
+    {
+        var current = baseClass;
+        while(current is not null)
+        {
+            foreach(var member in current.MemberScope.Members)
+            {
+                if(member.Name == name && member.Kind == kind)
+                {
+                    return member;
+                }
+            }
+
+            current = current.BaseType as ClassType;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Searches the struct inheritance chain for a member with the given name and kind.
+    /// Returns the first match found in the ancestor chain, or null.
+    /// </summary>
+    private static ISymbol? FindMemberInBaseStructChain(string name, SymbolKind kind, StructType baseStruct)
+    {
+        var current = baseStruct;
+        while(current is not null)
+        {
+            foreach(var member in current.MemberScope.Members)
+            {
+                if(member.Name == name && member.Kind == kind)
+                {
+                    return member;
+                }
+            }
+
+            current = current.BaseType as StructType;
+        }
+
+        return null;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Nested-type accessibility-domain enforcement (Requirements 11.1, 11.2)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// For every type reference in the program (field types, parameter types, return types,
+    /// base types, etc.), checks whether the referenced type is a nested type whose computed
+    /// accessibility domain excludes the referencing location.
+    /// <para>
+    /// A nested type's accessibility domain is the intersection of its own declared
+    /// <see cref="Accessibility"/> and its enclosing type's accessibility domain (Req 11.1).
+    /// References from outside this computed domain are rejected (Req 11.2); references
+    /// from within are permitted.
+    /// </para>
+    /// Emits <c>MIST_TC_0176</c> (NestedTypeOutsideDomain) on violations.
+    /// </summary>
+    private static void CheckNestedTypeAccessibilityDomain(ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        foreach(var symbol in model.AllSymbols)
+        {
+            if(symbol.Origin == SymbolOrigin.Backend)
+            {
+                continue;
+            }
+
+            // Determine the enclosing type of the symbol (the location from which types are referenced).
+            var referencingType = GetDeclaringTypeOfMember(symbol);
+
+            SyntaxNode? declaringNode = null;
+            try { declaringNode = model.GetDeclaringNode(symbol); }
+            catch { /* ignore */ }
+
+            switch(symbol.Kind)
+            {
+                case SymbolKind.Method:
+                    {
+                        // Check return type.
+                        var returnType = symbol.DeclaredType;
+                        if(returnType is not null && !IsErrorType(returnType))
+                        {
+                            CheckNestedTypeReference(returnType, referencingType, declaringNode, diagnostics);
+                        }
+
+                        // Check parameter types.
+                        var paramTypes = ParameterSignature.Extract(symbol, model);
+                        foreach(var paramType in paramTypes)
+                        {
+                            if(!IsErrorType(paramType))
+                            {
+                                CheckNestedTypeReference(paramType, referencingType, declaringNode, diagnostics);
+                            }
+                        }
+
+                        break;
+                    }
+
+                case SymbolKind.Constructor:
+                    {
+                        // Check parameter types.
+                        var paramTypes = ParameterSignature.Extract(symbol, model);
+                        foreach(var paramType in paramTypes)
+                        {
+                            if(!IsErrorType(paramType))
+                            {
+                                CheckNestedTypeReference(paramType, referencingType, declaringNode, diagnostics);
+                            }
+                        }
+
+                        break;
+                    }
+
+                case SymbolKind.Field:
+                    {
+                        var fieldType = symbol.DeclaredType;
+                        if(fieldType is not null && !IsErrorType(fieldType))
+                        {
+                            CheckNestedTypeReference(fieldType, referencingType, declaringNode, diagnostics);
+                        }
+
+                        break;
+                    }
+
+                case SymbolKind.Property:
+                    {
+                        var propType = symbol.DeclaredType;
+                        if(propType is not null && !IsErrorType(propType))
+                        {
+                            CheckNestedTypeReference(propType, referencingType, declaringNode, diagnostics);
+                        }
+
+                        break;
+                    }
+
+                case SymbolKind.Indexer:
+                    {
+                        // Check indexer return type.
+                        var indexerType = symbol.DeclaredType;
+                        if(indexerType is not null && !IsErrorType(indexerType))
+                        {
+                            CheckNestedTypeReference(indexerType, referencingType, declaringNode, diagnostics);
+                        }
+
+                        // Check indexer parameter types.
+                        var paramTypes = ParameterSignature.Extract(symbol, model);
+                        foreach(var paramType in paramTypes)
+                        {
+                            if(!IsErrorType(paramType))
+                            {
+                                CheckNestedTypeReference(paramType, referencingType, declaringNode, diagnostics);
+                            }
+                        }
+
+                        break;
+                    }
+
+                case SymbolKind.Class:
+                case SymbolKind.Struct:
+                    {
+                        // Check base type and implemented abstracts.
+                        var declaredType = symbol.DeclaredType;
+                        if(declaredType is null)
+                        {
+                            break;
+                        }
+
+                        IType? baseType = declaredType switch
+                        {
+                            ClassType ct => ct.BaseType,
+                            StructType st => st.BaseType,
+                            _ => null,
+                        };
+
+                        if(baseType is not null && !IsErrorType(baseType))
+                        {
+                            CheckNestedTypeReference(baseType, referencingType, declaringNode, diagnostics);
+                        }
+
+                        var abstracts = declaredType switch
+                        {
+                            ClassType ct => ct.Abstracts,
+                            StructType st => st.Abstracts,
+                            _ => Array.Empty<IType>(),
+                        };
+
+                        foreach(var abs in abstracts)
+                        {
+                            if(!IsErrorType(abs))
+                            {
+                                CheckNestedTypeReference(abs, referencingType, declaringNode, diagnostics);
+                            }
+                        }
+
+                        break;
+                    }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks if a referenced type is a nested type and, if so, whether the reference
+    /// location is within the nested type's computed accessibility domain.
+    /// The domain is the intersection of the nested type's own accessibility and its
+    /// enclosing type's accessibility domain.
+    /// </summary>
+    private static void CheckNestedTypeReference(
+        IType referencedType,
+        IType? referencingType,
+        SyntaxNode? declaringNode,
+        DiagnosticBag diagnostics)
+    {
+        if(declaringNode is null)
+        {
+            return;
+        }
+
+        // Unwrap type aliases — check the alias itself and its underlying type.
+        if(referencedType is TypeAliasType alias)
+        {
+            CheckNestedTypeReferenceForNamedType(alias, referencingType, declaringNode, diagnostics);
+            CheckNestedTypeReference(alias.UnderlyingType, referencingType, declaringNode, diagnostics);
+            return;
+        }
+
+        // For array types, check the element type.
+        if(referencedType is ArrayType arrayType)
+        {
+            CheckNestedTypeReference(arrayType.ElementType, referencingType, declaringNode, diagnostics);
+            return;
+        }
+
+        // For constructed types, check the generic definition and type arguments.
+        if(referencedType is ConstructedType constructedType)
+        {
+            CheckNestedTypeReference(constructedType.GenericDefinition, referencingType, declaringNode, diagnostics);
+            foreach(var typeArg in constructedType.TypeArguments)
+            {
+                CheckNestedTypeReference(typeArg, referencingType, declaringNode, diagnostics);
+            }
+
+            return;
+        }
+
+        // Check the type itself.
+        CheckNestedTypeReferenceForNamedType(referencedType, referencingType, declaringNode, diagnostics);
+    }
+
+    /// <summary>
+    /// For a specific named type (ClassType, StructType, etc.), checks if it is nested
+    /// and whether the referencing location is within its computed accessibility domain.
+    /// </summary>
+    private static void CheckNestedTypeReferenceForNamedType(
+        IType referencedType,
+        IType? referencingType,
+        SyntaxNode? declaringNode,
+        DiagnosticBag diagnostics)
+    {
+        // Only check user-defined named types that can be nested.
+        var enclosingType = GetEnclosingTypeOfType(referencedType);
+        if(enclosingType is null)
+        {
+            // Not a nested type — no domain intersection check needed.
+            return;
+        }
+
+        // The type is nested. Compute whether the reference is within the
+        // nested type's accessibility domain (the intersection of its own
+        // accessibility and its enclosing type's domain).
+        if(!IsWithinNestedTypeDomain(referencedType, enclosingType, referencingType))
+        {
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.NestedTypeOutsideDomain, declaringNode!, "TypeChecker", referencedType.DisplayName);
+        }
+    }
+
+    /// <summary>
+    /// Determines whether <paramref name="referencingType"/> is within the accessibility
+    /// domain of a nested type. The domain is the intersection of:
+    /// <list type="bullet">
+    ///   <item>The nested type's own declared accessibility domain.</item>
+    ///   <item>Its enclosing type's accessibility domain (recursively for multi-level nesting).</item>
+    /// </list>
+    /// Both conditions must be satisfied for the reference to be within the domain.
+    /// </summary>
+    private static bool IsWithinNestedTypeDomain(
+        IType nestedType,
+        IType enclosingType,
+        IType? referencingType)
+    {
+        // First, check the nested type's own accessibility against the referencing location.
+        var nestedAccessibility = GetTypeAccessibility(nestedType);
+        if(nestedAccessibility is null)
+        {
+            return true; // Can't determine accessibility — assume accessible.
+        }
+
+        if(!IsTypeAccessibleFrom(nestedAccessibility.Value, enclosingType, referencingType))
+        {
+            return false;
+        }
+
+        // Second, check the enclosing type's accessibility domain.
+        // If the enclosing type is itself nested, recursively check its domain.
+        var grandparentType = GetEnclosingTypeOfType(enclosingType);
+        if(grandparentType is not null)
+        {
+            // The enclosing type is also nested — recursively check its domain.
+            if(!IsWithinNestedTypeDomain(enclosingType, grandparentType, referencingType))
+            {
+                return false;
+            }
+        }
+        else
+        {
+            // The enclosing type is a top-level type. Check its accessibility
+            // against the referencing location.
+            var enclosingAccessibility = GetTypeAccessibility(enclosingType);
+            if(enclosingAccessibility is not null)
+            {
+                if(!IsTopLevelTypeAccessibleFrom(enclosingAccessibility.Value))
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Checks whether a nested type with the given accessibility, declared within
+    /// <paramref name="declaringType"/>, is accessible from <paramref name="referencingType"/>.
+    /// This is the per-level check (not recursive — does not check the enclosing type's domain).
+    /// </summary>
+    private static bool IsTypeAccessibleFrom(
+        Accessibility nestedAccessibility,
+        IType declaringType,
+        IType? referencingType)
+    {
+        switch(nestedAccessibility)
+        {
+            case Accessibility.Public:
+                return true;
+
+            case Accessibility.Private:
+                // Private nested type: accessible only within the declaring type
+                // and its own nested types.
+                return IsWithinDeclaringTypeDomain(declaringType, referencingType);
+
+            case Accessibility.Protected:
+                // Protected nested type: accessible from the declaring type or derived types.
+                return IsDeclaredOrDerivedType(declaringType, referencingType);
+
+            case Accessibility.Internal:
+                // Internal nested type: accessible only within the same compilation.
+                // Since all user code is in the same compilation, internal is always accessible.
+                return true;
+
+            default:
+                return true;
+        }
+    }
+
+    /// <summary>
+    /// Checks whether a top-level type with the given accessibility is accessible
+    /// from the referencing type's location. For top-level types:
+    /// <list type="bullet">
+    ///   <item><c>Public</c> and <c>Internal</c>: accessible within the same compilation.</item>
+    ///   <item><c>Private</c>: only accessible within the same file/scope (unusual for top-level).</item>
+    ///   <item><c>Protected</c>: invalid for top-level types (would be caught elsewhere).</item>
+    /// </list>
+    /// Since all user-code is in the same compilation, top-level internal and public types
+    /// are always accessible. This method is relevant primarily for cross-assembly checks.
+    /// </summary>
+    private static bool IsTopLevelTypeAccessibleFrom(Accessibility typeAccessibility)
+    {
+        // Within the same compilation, both Public and Internal top-level types are accessible.
+        // Private top-level types are unusual but would only be accessible within their own scope.
+        // Cross-assembly checks for internal are handled by IsCrossAssemblyReference at the
+        // member-access level. For type references within the same compilation, all top-level
+        // types are accessible.
+        return typeAccessibility is Accessibility.Public or Accessibility.Internal;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -18494,7 +19606,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             if(!ownFieldNames.Contains(fieldName))
                             {
                                 // Field is inherited — check visibility.
-                                if(!IsMemberPublicViaModel(fieldSymbol, model))
+                                if(!IsMemberPublic(fieldSymbol))
                                 {
                                     diagnostics.ReportAtNode(CommonDiagnostics.DefaultFieldNotVisible, fieldOverride, "TypeChecker");
                                 }
@@ -18526,7 +19638,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             // 2. Validate visibility for inherited fields.
                             if(!ownFieldNames.Contains(fieldName))
                             {
-                                if(!IsMemberPublicViaModel(fieldSymbol, model))
+                                if(!IsMemberPublic(fieldSymbol))
                                 {
                                     diagnostics.ReportAtNode(CommonDiagnostics.DefaultFieldNotVisible, typeBinding, "TypeChecker");
                                 }
@@ -18584,17 +19696,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Checks whether a member symbol is public by examining its declaring AST node's modifiers
-    /// via the semantic model.
+    /// Checks whether a member symbol is public by reading its resolved accessibility.
     /// </summary>
-    private static bool IsMemberPublicViaModel(ISymbol member, ISemanticModel model)
+    private static bool IsMemberPublic(ISymbol member)
     {
-        SyntaxNode declaringNode;
-        try { declaringNode = model.GetDeclaringNode(member); }
-        catch { return false; }
-
-        var modifiers = GetMemberModifiers(declaringNode);
-        return modifiers.IsPublic;
+        return member.Accessibility == Accessibility.Public;
     }
 
     /// <summary>
@@ -19831,13 +20937,8 @@ node, model, diagnostics);
                 continue;
             }
 
-            // Check if the constructor is public.
-            SyntaxNode ctorNode;
-            try { ctorNode = model.GetDeclaringNode(member); }
-            catch { continue; }
-
-            var modifiers = GetMemberModifiers(ctorNode);
-            if(modifiers.IsPublic)
+            // Check if the constructor is public using the resolved accessibility.
+            if(member.Accessibility == Accessibility.Public)
             {
                 results.Add(member);
             }
@@ -20864,5 +21965,308 @@ node, model, diagnostics);
             IndexerDeclarationNode indexerDecl => indexerDecl.Constraints,
             _ => ImmutableArray<WhereClauseNode>.Empty,
         };
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Sealed enforcement (Requirements 12.1–12.9, 13.3)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Enforces sealed-type rules across the compilation:
+    /// <list type="bullet">
+    ///   <item>Reject deriving from a sealed class or sealed struct (Req 12.1–12.4).</item>
+    ///   <item>Accept type aliases targeting sealed types (Req 12.5).</item>
+    ///   <item>Accept refinement types over sealed types (Req 12.6).</item>
+    ///   <item>Reject newtypes wrapping sealed types (Req 12.7).</item>
+    ///   <item>Reject <c>sealed</c> on type alias declarations (Req 12.9).</item>
+    ///   <item>Reject <c>sealed</c> on non-type members (Req 13.3).</item>
+    /// </list>
+    /// </summary>
+    private static void CheckSealedEnforcement(ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        foreach(var symbol in model.AllSymbols)
+        {
+            if(symbol.Origin == SymbolOrigin.Backend)
+            {
+                continue;
+            }
+
+            switch(symbol.Kind)
+            {
+                case SymbolKind.Class:
+                    {
+                        // Check if this class derives from a sealed type (Req 12.2, 12.4).
+                        if(symbol.DeclaredType is ClassType classType && classType.BaseType is not null)
+                        {
+                            if(IsTypeSealedForInheritance(classType.BaseType))
+                            {
+                                SyntaxNode? node = null;
+                                try { node = model.GetDeclaringNode(symbol); }
+                                catch { /* ignore */ }
+
+                                if(node is not null)
+                                {
+                                    diagnostics.ReportAtNode(TypeCheckDiagnostics.SealedInheritance, node, "TypeChecker", classType.BaseType.DisplayName);
+                                }
+                            }
+                        }
+
+                        break;
+                    }
+
+                case SymbolKind.Struct:
+                    {
+                        // Check if this struct derives from a sealed type (Req 12.2, 12.4).
+                        if(symbol.DeclaredType is StructType structType && structType.BaseType is not null)
+                        {
+                            if(IsTypeSealedForInheritance(structType.BaseType))
+                            {
+                                SyntaxNode? node = null;
+                                try { node = model.GetDeclaringNode(symbol); }
+                                catch { /* ignore */ }
+
+                                if(node is not null)
+                                {
+                                    diagnostics.ReportAtNode(TypeCheckDiagnostics.SealedInheritance, node, "TypeChecker", structType.BaseType.DisplayName);
+                                }
+                            }
+                        }
+
+                        break;
+                    }
+
+                case SymbolKind.Newtype:
+                    {
+                        // Reject newtype wrapping a sealed type (Req 12.7).
+                        if(symbol.DeclaredType is NewtypeType newtypeType)
+                        {
+                            if(IsTypeSealedForInheritance(newtypeType.SourceType))
+                            {
+                                SyntaxNode? node = null;
+                                try { node = model.GetDeclaringNode(symbol); }
+                                catch { /* ignore */ }
+
+                                if(node is not null)
+                                {
+                                    diagnostics.ReportAtNode(TypeCheckDiagnostics.NewtypeOverSealed, node, "TypeChecker", newtypeType.SourceType.DisplayName);
+                                }
+                            }
+                        }
+
+                        break;
+                    }
+
+                case SymbolKind.TypeAlias:
+                    {
+                        // Check for `sealed` modifier on a type alias (Req 12.9).
+                        CheckSealedOnTypeAlias(symbol, model, diagnostics);
+                        // Type aliases targeting sealed types are accepted (Req 12.5) — no check needed.
+                        // Refinement types over sealed types are accepted (Req 12.6) — no check needed.
+                        break;
+                    }
+
+                case SymbolKind.Method:
+                case SymbolKind.Field:
+                case SymbolKind.Property:
+                case SymbolKind.Constructor:
+                case SymbolKind.Indexer:
+                    {
+                        // Reject `sealed` on non-type members (Req 13.3).
+                        CheckSealedOnNonTypeMember(symbol, model, diagnostics);
+                        break;
+                    }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Determines whether a type is sealed for inheritance-checking purposes.
+    /// Returns <c>true</c> for sealed classes and sealed structs (both user-declared
+    /// and External_Assembly-projected types).
+    /// </summary>
+    private static bool IsTypeSealedForInheritance(IType type)
+    {
+        // Unwrap type aliases — the alias is transparent, check the underlying type.
+        if(type is TypeAliasType alias)
+        {
+            return IsTypeSealedForInheritance(alias.UnderlyingType);
+        }
+
+        return type switch
+        {
+            ClassType ct => ct.IsSealed,
+            StructType st => st.IsSealed,
+            _ => false,
+        };
+    }
+
+    /// <summary>
+    /// Checks whether a type alias declaration carries the <c>sealed</c> modifier and
+    /// emits <c>MIST_TC_0179</c> (SealedOnNonType) if so.
+    /// </summary>
+    private static void CheckSealedOnTypeAlias(ISymbol symbol, ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        SyntaxNode? node = null;
+        try { node = model.GetDeclaringNode(symbol); }
+        catch { return; }
+
+        if(node is not TypeAliasDeclarationNode aliasDecl)
+        {
+            return;
+        }
+
+        foreach(var mod in aliasDecl.Modifiers)
+        {
+            if(mod is SealedModifierModifierNode)
+            {
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.SealedOnNonType, node, "TypeChecker", "a type alias");
+                return;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks whether a non-type member declaration carries the <c>sealed</c> modifier
+    /// and emits <c>MIST_TC_0179</c> (SealedOnNonType) if so. Applies to methods, fields,
+    /// properties, constructors, and indexers (Req 13.3).
+    /// </summary>
+    private static void CheckSealedOnNonTypeMember(ISymbol symbol, ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        SyntaxNode? node = null;
+        try { node = model.GetDeclaringNode(symbol); }
+        catch { return; }
+
+        if(node is null)
+        {
+            return;
+        }
+
+        IReadOnlyList<ModifierNode>? modifiers = node switch
+        {
+            MethodDeclarationNode method => method.Modifiers,
+            FieldDeclarationNode field => field.Modifiers,
+            BlockPropertyPropertyDeclarationNode blockProp => blockProp.Modifiers,
+            ExpressionBodiedPropertyPropertyDeclarationNode exprProp => exprProp.Modifiers,
+            ConstructorDeclarationNode ctor => ctor.Modifiers,
+            IndexerDeclarationNode indexer => indexer.Modifiers,
+            OperatorDeclarationNode op => op.Modifiers,
+            CastOperatorDeclarationNode castOp => castOp.Modifiers,
+            _ => null,
+        };
+
+        if(modifiers is null)
+        {
+            return;
+        }
+
+        foreach(var mod in modifiers)
+        {
+            if(mod is SealedModifierModifierNode)
+            {
+                var memberKind = node switch
+                {
+                    MethodDeclarationNode => "a method",
+                    FieldDeclarationNode => "a field",
+                    BlockPropertyPropertyDeclarationNode => "a property",
+                    ExpressionBodiedPropertyPropertyDeclarationNode => "a property",
+                    ConstructorDeclarationNode => "a constructor",
+                    IndexerDeclarationNode => "an indexer",
+                    OperatorDeclarationNode => "an operator",
+                    CastOperatorDeclarationNode => "a cast operator",
+                    _ => "a non-type member",
+                };
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.SealedOnNonType, node, "TypeChecker", memberKind);
+                return;
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Protected-in-sealed warning (Requirement 13.1, 13.2)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// For every sealed class or sealed struct, checks whether any of its members
+    /// have <c>Protected</c> accessibility. If so, emits a warning-severity diagnostic
+    /// (<c>MIST_TC_0180</c>) stating that the protected modifier is unnecessary because
+    /// the type cannot be inherited. This mirrors C# CS0628.
+    /// <para>
+    /// Protected members on non-sealed types are fully enforced without a warning (Req 13.1).
+    /// </para>
+    /// </summary>
+    private static void CheckProtectedInSealed(ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        foreach(var symbol in model.AllSymbols)
+        {
+            if(symbol.Origin == SymbolOrigin.Backend)
+            {
+                continue;
+            }
+
+            if(symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+            {
+                continue;
+            }
+
+            var declaredType = symbol.DeclaredType;
+            if(declaredType is null)
+            {
+                continue;
+            }
+
+            // Only check sealed types.
+            var isSealed = declaredType switch
+            {
+                ClassType ct => ct.IsSealed,
+                StructType st => st.IsSealed,
+                _ => false,
+            };
+
+            if(!isSealed)
+            {
+                continue;
+            }
+
+            // Get the member scope and check each member's accessibility.
+            var memberScope = declaredType switch
+            {
+                ClassType ct => ct.MemberScope,
+                StructType st => st.MemberScope,
+                _ => null,
+            };
+
+            if(memberScope is null)
+            {
+                continue;
+            }
+
+            foreach(var member in memberScope.Members)
+            {
+                if(member.Origin == SymbolOrigin.Backend)
+                {
+                    continue;
+                }
+
+                // Only check members that belong directly to this type (not inherited).
+                if(!ReferenceEquals(member.ContainingScope, memberScope))
+                {
+                    continue;
+                }
+
+                if(member.Accessibility != Accessibility.Protected)
+                {
+                    continue;
+                }
+
+                SyntaxNode? memberNode = null;
+                try { memberNode = model.GetDeclaringNode(member); }
+                catch { /* ignore */ }
+
+                if(memberNode is not null)
+                {
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.ProtectedInSealed, memberNode, "TypeChecker", member.Name);
+                }
+            }
+        }
     }
 }

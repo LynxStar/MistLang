@@ -14,6 +14,17 @@ public sealed class StructType : IType
     public string? ContainingNamespace { get; }
 
     /// <summary>
+    /// The resolved accessibility of this struct type.
+    /// </summary>
+    public Accessibility Accessibility { get; internal set; }
+
+    /// <summary>
+    /// Indicates whether this struct is sealed (cannot be inherited from).
+    /// Set for user-declared sealed structs.
+    /// </summary>
+    public bool IsSealed { get; internal set; }
+
+    /// <summary>
     /// The base struct type, if this struct extends another struct.
     /// Null for structs with no base struct.
     /// </summary>

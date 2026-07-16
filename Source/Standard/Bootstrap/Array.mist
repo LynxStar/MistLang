@@ -1,6 +1,6 @@
 namespace Standard;
 
-type ZeroOrPositiveInt = int >= 0;
+public type ZeroOrPositiveInt = int >= 0;
 
 intrinsic public class Array<TValue, Length:ZeroOrPositiveInt> : IEnumerable<TValue>
 {

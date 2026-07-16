@@ -10,17 +10,17 @@
 
 extension(unknown self) 
 {
-    string ToString() 
+    public string ToString() 
     {
         return "";
     }
 
-    int GetHashCode() 
+    public int GetHashCode() 
     {
         return 0;
     }
 
-    Type GetType()
+    public Type GetType()
     {
         return Type.Of(self);
     }

@@ -135,7 +135,7 @@ public sealed partial class InheritanceEmissionPropertyTests : IDisposable
 
     // Regex to extract class declarations from emitted C#.
     // Captures: optional modifiers, class name, and optional base clause.
-    [GeneratedRegex(@"^\s*(?:(?:public|private|static)\s+)*class\s+(\w+)(?:\s*:\s*(\w+))?", RegexOptions.Multiline)]
+    [GeneratedRegex(@"^\s*(?:(?:public|private|protected|internal|sealed|static)\s+)*class\s+(\w+)(?:\s*:\s*(\w+))?", RegexOptions.Multiline)]
     private static partial Regex ClassDeclPattern();
 
     // ─── Test data model ─────────────────────────────────────────────────

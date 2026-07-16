@@ -214,7 +214,7 @@ public sealed partial class ClassAbstractEmissionPropertyTests : IDisposable
 
     // Regex to extract class declarations with full inheritance clause.
     // Captures: class name (group 1) and optional inheritance clause (group 2).
-    [GeneratedRegex(@"^\s*(?:(?:public|private|static)\s+)*class\s+(\w+)(?:\s*:\s*(.+?))?\s*$", RegexOptions.Multiline)]
+    [GeneratedRegex(@"^\s*(?:(?:public|private|protected|internal|sealed|static)\s+)*class\s+(\w+)(?:\s*:\s*(.+?))?\s*$", RegexOptions.Multiline)]
     private static partial Regex ClassDeclWithInheritancePattern();
 
     // ─── Test data model ─────────────────────────────────────────────────

@@ -34,6 +34,9 @@ internal sealed class IndexerBuilder
         var parameters = parameterBuilder.Resolve(indexerDecl.Parameters, memberType.Scope);
         var isAbstract = memberType is AbstractType;
 
+        // Resolve scope-based default accessibility.
+        modifiers = ModifierBuilder.ApplyDefault(modifiers, indexerDecl.Modifiers, memberType);
+
         if(modifiers.IsAsync)
         {
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AsyncOnlyOnMethods, indexerDecl, null);
@@ -42,7 +45,7 @@ internal sealed class IndexerBuilder
         if(modifiers.IsIntrinsic)
         {
             var typeIsIntrinsic = memberType is ConcreteType concrete && concrete.IsIntrinsic;
-            IntrinsicMemberValidation.Validate(typeIsIntrinsic, memberType.Name, modifiers.IsPublic, indexerDecl, context.Diagnostics);
+            IntrinsicMemberValidation.Validate(typeIsIntrinsic, memberType.Name, modifiers.Accessibility == Accessibility.Public, indexerDecl, context.Diagnostics);
         }
 
         // Auto-accessors (get; / set;) are valid on indexers only in abstract

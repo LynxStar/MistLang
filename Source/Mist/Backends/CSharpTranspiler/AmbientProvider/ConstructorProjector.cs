@@ -33,8 +33,7 @@ internal static class ConstructorProjector
 
             var modifiers = new MemberModifiers
             {
-                IsPublic = ctor.IsPublic,
-                IsProtected = ctor.IsFamily || ctor.IsFamilyOrAssembly,
+                Accessibility = ClrAccessibilityMap.FromMethod(ctor),
             };
 
             var projected = new Constructor(concreteType.Name, concreteType, parameters, modifiers);

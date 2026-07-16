@@ -1,1 +1,1 @@
-type Optional<T> = T | void;
+public type Optional<T> = T | void;

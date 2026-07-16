@@ -1573,4 +1573,110 @@ public static class TypeCheckDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.Analysis,
         "Type alias '{0}' expects {1} type argument(s) but was given {2}.");
+
+    // ── Accessibility enforcement diagnostics ────────────────────────────
+
+    /// <summary>
+    /// A private member is referenced from outside its declaring type's accessibility domain.
+    /// </summary>
+    public static readonly DiagnosticDescriptor PrivateOutsideDomain = new(
+        new DiagnosticId("MIST_TC_0170"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "'{0}' is inaccessible due to its protection level (private members are accessible only within the declaring type)");
+
+    /// <summary>
+    /// A protected member is referenced from a type that neither declares nor derives from
+    /// the declaring type.
+    /// </summary>
+    public static readonly DiagnosticDescriptor ProtectedNonDerived = new(
+        new DiagnosticId("MIST_TC_0171"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "'{0}' is inaccessible due to its protection level (protected members are accessible only within the declaring type or derived types)");
+
+    /// <summary>
+    /// An internal member is referenced from an external assembly (cross-compilation boundary).
+    /// </summary>
+    public static readonly DiagnosticDescriptor InternalCrossAssembly = new(
+        new DiagnosticId("MIST_TC_0172"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "'{0}' is inaccessible due to its protection level (internal members are accessible only within the same compilation)");
+
+    /// <summary>
+    /// A declaration exposes a type in its signature that is less accessible than itself.
+    /// </summary>
+    public static readonly DiagnosticDescriptor InconsistentAccessibility = new(
+        new DiagnosticId("MIST_TC_0173"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Inconsistent accessibility: {0} '{1}' is less accessible than {2} '{3}'");
+
+    /// <summary>
+    /// A base class or implemented interface is less accessible than the deriving or
+    /// implementing type.
+    /// </summary>
+    public static readonly DiagnosticDescriptor BaseLessAccessible = new(
+        new DiagnosticId("MIST_TC_0174"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Inconsistent accessibility: base type '{0}' is less accessible than type '{1}'");
+
+    /// <summary>
+    /// An override or interface implementation violates the accessibility rules for its position.
+    /// </summary>
+    public static readonly DiagnosticDescriptor OverrideAccessibilityViolation = new(
+        new DiagnosticId("MIST_TC_0175"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "'{0}': cannot change access modifiers when overriding '{1}' member '{2}'");
+
+    /// <summary>
+    /// A nested type is referenced from outside its computed accessibility domain.
+    /// </summary>
+    public static readonly DiagnosticDescriptor NestedTypeOutsideDomain = new(
+        new DiagnosticId("MIST_TC_0176"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "'{0}' is inaccessible due to its protection level (nested type is outside its accessibility domain)");
+
+    /// <summary>
+    /// A type attempts to derive from a sealed class or sealed struct.
+    /// </summary>
+    public static readonly DiagnosticDescriptor SealedInheritance = new(
+        new DiagnosticId("MIST_TC_0177"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot derive from sealed type '{0}'");
+
+    /// <summary>
+    /// A newtype wraps a sealed type, which is not permitted.
+    /// </summary>
+    public static readonly DiagnosticDescriptor NewtypeOverSealed = new(
+        new DiagnosticId("MIST_TC_0178"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot declare a newtype over sealed type '{0}'");
+
+    /// <summary>
+    /// The <c>sealed</c> modifier is applied to a type alias or a non-type member,
+    /// where it is not valid.
+    /// </summary>
+    public static readonly DiagnosticDescriptor SealedOnNonType = new(
+        new DiagnosticId("MIST_TC_0179"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "The 'sealed' modifier is not valid on {0}; it can only be applied to class or struct declarations");
+
+    /// <summary>
+    /// A <c>protected</c> member is declared inside a <c>sealed</c> type. The declaration
+    /// compiles but produces a warning because the sealed type cannot be inherited.
+    /// This mirrors C# CS0628.
+    /// </summary>
+    public static readonly DiagnosticDescriptor ProtectedInSealed = new(
+        new DiagnosticId("MIST_TC_0180"),
+        DiagnosticSeverity.Warning,
+        PipelineStage.Analysis,
+        "'{0}' is a new protected member declared in a sealed type; protected members in sealed types are unnecessary because the type cannot be inherited");
 }

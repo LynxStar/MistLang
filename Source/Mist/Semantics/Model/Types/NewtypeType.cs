@@ -16,6 +16,11 @@ public sealed class NewtypeType : IType
     public string DisplayName => Name;
     public TypeKind Kind => SourceType.Kind;
 
+    /// <summary>
+    /// The resolved accessibility of this newtype.
+    /// </summary>
+    public Accessibility Accessibility { get; internal set; }
+
     public NewtypeType(string name, IType sourceType)
     {
         Name = name;

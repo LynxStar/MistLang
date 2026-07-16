@@ -9,11 +9,11 @@ intrinsic public relevant class Task<TResult>
     intrinsic public static Task<TResult> WhenAny(Task<TResult>[] tasks);
 }
 
-type Task = Task<void>;
+public type Task = Task<void>;
 
 intrinsic public linear class ValueTask<TResult>
 {
     intrinsic public TResult Drop();
 }
 
-type ValueTask = ValueTask<void>;
+public type ValueTask = ValueTask<void>;

@@ -1,0 +1,990 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Add `PROTECTED`, `INTERNAL`, and `SEALED` keyword tokens to the grammar and regenerate the lexer": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225612560
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225624955
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784227785084
+      }
+    ],
+    "1.2 Write example tests for keyword lexing": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225612628
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784227865390
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784228440274
+      }
+    ],
+    "2.1 Extend the shared `Modifier` rule and regenerate the parser": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225612689
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784227866261
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784228441246
+      }
+    ],
+    "2.2 Create the classic `Accessibility` enum": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225612737
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225625702
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784227785875
+      }
+    ],
+    "2.3 Create the `AccessibilityFacts` reduction helper": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225612782
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784228603907
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784229296663
+      }
+    ],
+    "2.4 Add the multiple-access-modifier diagnostic and wire parse-stage combination validation": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225612820
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784229307466
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784233293196
+      }
+    ],
+    "2.5 Write property test for single-modifier reduction": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225612862
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784229308229
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784233293900
+      }
+    ],
+    "2.6 Write property test for sealed orthogonality": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225612907
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784229309103
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784233294850
+      }
+    ],
+    "2.7 Write property test for multiple-access-modifier rejection": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225612944
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784233300895
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784233732597
+      }
+    ],
+    "3.1 Add resolved `Accessibility` to the member symbol": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225612977
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784227867087
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784228442406
+      }
+    ],
+    "3.2 Add `Accessibility` and `IsSealed` to the type model objects": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225613017
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784227867990
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784228443578
+      }
+    ],
+    "3.3 Resolve scope-based defaults during Semantic Model construction": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225613065
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784229310012
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784233295637
+      }
+    ],
+    "3.4 Write property test for scope-kind default resolution": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225613099
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784233740421
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784234991967
+      }
+    ],
+    "3.5 Write property test for resolution completeness": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225613153
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784233741253
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784234992695
+      }
+    ],
+    "3.6 Write example tests for the sealed flag structure": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225613181
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784233742106
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784234993533
+      }
+    ],
+    "4.1 Add the accessibility `TypeCheckDiagnostics` descriptor entries": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225613224
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225626630
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784227786996
+      }
+    ],
+    "4.2 Add the `AccessibilityOrder` partial-order helper": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225613264
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225627590
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784227787989
+      }
+    ],
+    "4.3 Refactor `TypeCheckerAnalyzer` to consume resolved accessibility": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225613308
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784233738716
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784234994452
+      }
+    ],
+    "4.4 Implement member-access enforcement and the compilation-as-assembly boundary": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225613347
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784236189727
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784237288172
+      }
+    ],
+    "4.5 Implement signature-consistency, base/interface, and override/interface-impl enforcement": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225613388
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784237297552
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784238817964
+      }
+    ],
+    "4.6 Implement nested-type accessibility-domain enforcement": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225613423
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784239085546
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784240691493
+      }
+    ],
+    "4.7 Implement sealed enforcement and protected-in-sealed handling": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225613467
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784240703938
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784241751101
+      }
+    ],
+    "4.8 Write property test for private member domains": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225613537
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784237298324
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784238818840
+      }
+    ],
+    "4.9 Write property test for protected member domains": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225613581
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784237299167
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784238819852
+      }
+    ],
+    "4.10 Write property test for the internal compilation boundary": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225613614
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784237299963
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784238820807
+      }
+    ],
+    "4.11 Write property test for accessibility consistency": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225613647
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784239086286
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784240693081
+      }
+    ],
+    "4.12 Write property test for base-type and interface accessibility": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225613677
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784239087141
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784240692243
+      }
+    ],
+    "4.13 Write property test for override and interface-implementation rules": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225613713
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784239087969
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784240694356
+      }
+    ],
+    "4.14 Write property test for nested-type domains": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225613759
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784240704775
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784241750341
+      }
+    ],
+    "4.15 Write property test for sealed inheritance": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225613801
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784241762250
+      }
+    ],
+    "4.16 Write property test for sealed interactions with Mist constructs": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225613853
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784241764807
+      }
+    ],
+    "4.17 Write property test for sealed placement": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225613889
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784241763118
+      }
+    ],
+    "4.18 Write property test for protected-in-sealed warning": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225613923
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784241763912
+      }
+    ],
+    "4.19 Write cross-assembly internal integration test": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225613961
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784238831719
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784239079766
+      }
+    ],
+    "5.1 Emit explicit accessibility and `sealed` keywords": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225613997
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784233739590
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784236176119
+      }
+    ],
+    "5.2 Implement struct-to-class lowering for non-value-type structs": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225614038
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784236190568
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784237286622
+      }
+    ],
+    "5.3 Write property test for explicit emission": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225614086
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784236191495
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784237288429
+      }
+    ],
+    "5.4 Write round-trip property test for valid C#": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225614116
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784237300935
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784238821626
+      }
+    ],
+    "6. Checkpoint - Classic pipeline builds and enforces end-to-end": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225614147
+      }
+    ],
+    "7.1 Create the experimental `Accessibility` enum": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225614187
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225628395
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784227788864
+      }
+    ],
+    "7.2 Migrate `MemberModifiers` to the single `Accessibility` field": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225614227
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784227868904
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784228444506
+      }
+    ],
+    "7.3 Add a first-class sealed flag to Program Model type declarations": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225614267
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784228453110
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784228594786
+      }
+    ],
+    "7.4 Resolve scope-based defaults during Program Model construction": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225614303
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784228604747
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784229297425
+      }
+    ],
+    "7.5 Write property test for cross-pipeline default agreement": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225614344
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784235004174
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784236176991
+      }
+    ],
+    "8.1 Map CLR accessibility onto the four-level enum without broadening": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225614384
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784228605589
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784229298420
+      }
+    ],
+    "8.2 Populate the first-class sealed flag from CLR and reconcile with the sentinel": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225614423
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784229311229
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784233296779
+      }
+    ],
+    "8.3 Write property test for CLR accessibility projection": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225614463
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784233301757
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784233733514
+      }
+    ],
+    "8.4 Write property test for CLR sealed projection": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225614501
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784235004890
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784236177843
+      }
+    ],
+    "8.5 Write experimental-representation integration test": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225614552
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784235005714
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784236178690
+      }
+    ],
+    "9.1 Clean up compiler Mist sources and the standard library": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225614582
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784241761340
+      }
+    ],
+    "9.2 Clean up samples, snippets, and test `.mist` fixtures": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225614635
+      }
+    ],
+    "10.1 Add the new modifiers to the TextMate grammar": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225614673
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784227797283
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784227856434
+      }
+    ],
+    "10.2 Sync the book highlighter modifier lists": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225614715
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784227798111
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784227857293
+      }
+    ],
+    "10.3 Write grammar scope tests for the new modifiers": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225614754
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784228453996
+      },
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784228593970
+      }
+    ],
+    "11.1 Create the `FullAccessibilityModel` sample with the locked proof code": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225614794
+      }
+    ],
+    "11.2 Integrate the sample into AllFeatures": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225614838
+      }
+    ],
+    "11.3 Write the sample proof-code integration test (approved process-spawning test)": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225614875
+      }
+    ],
+    "12.1 Add the Accessibility chapter with compiled snippets": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225614923
+      }
+    ],
+    "12.2 Reference the chapter in SUMMARY.md": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225614967
+      }
+    ],
+    "12.3 Verify book snippets compile": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225615008
+      }
+    ],
+    "13.1 Build the whole codebase with zero errors and zero warnings": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225615051
+      }
+    ],
+    "13.2 Run `dotnet format --verify-no-changes`": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225615103
+      }
+    ],
+    "14. Final checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784225615145
+      }
+    ],
+    "1. Lexer and grammar keyword tokens": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784228440403
+      }
+    ],
+    "10. TextMate grammar and book highlighter sync": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784228594047
+      }
+    ],
+    "2. Parser modifier rule, reduction, and combination validation": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784233732675
+      }
+    ],
+    "3. Classic Semantic Model: accessibility storage and default resolution": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784234993569
+      }
+    ],
+    "7. Experimental Program Model: enum, sealed flag, and default resolution": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784236177130
+      }
+    ],
+    "8. Ambient Type Provider: CLR projection and sealed flag": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784236178743
+      }
+    ],
+    "5. C# backend emission and struct lowering": [
+      {
+        "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784238821681
+      }
+    ]
+  }
+}

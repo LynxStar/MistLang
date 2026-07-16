@@ -70,8 +70,7 @@ internal static class MethodProjector
 
         var modifiers = new MemberModifiers
         {
-            IsPublic = method.IsPublic,
-            IsProtected = method.IsFamily || method.IsFamilyOrAssembly,
+            Accessibility = ClrAccessibilityMap.FromMethod(method),
             IsStatic = method.IsStatic,
         };
 

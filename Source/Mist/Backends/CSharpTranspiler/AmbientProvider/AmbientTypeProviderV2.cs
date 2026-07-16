@@ -197,12 +197,6 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
             var nestedShell = TypeProjector.CreateShell(
                 nestedClrType, namespaceName, declaringShell, declaringShell.Scope);
 
-            // Mark protected nested types so the type checker can enforce visibility.
-            if(!nestedClrType.IsNestedPublic && nestedShell is MemberType nestedMemberType)
-            {
-                nestedMemberType.Modifiers = nestedMemberType.Modifiers with { IsProtected = true };
-            }
-
             // Key uses CLR-format: "DeclaringClrFQN.NestedClrName" to match resolver lookups.
             var nestedClrFqn = $"{declaringClrFqn}.{nestedClrType.Name}";
 

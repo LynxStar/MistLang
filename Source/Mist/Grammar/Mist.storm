@@ -182,17 +182,20 @@ rule MemberMapping = sourceName:IDENTIFIER AS targetName:IDENTIFIER SEMICOLON;
 // ─── Parser Rules — Modifiers ────────────────────────────────────────────────
 
 rule Modifier
-    = PUBLIC    as PublicModifier
-    | PRIVATE   as PrivateModifier
-    | STATIC    as StaticModifier
-    | INTRINSIC as IntrinsicModifier
-    | READONLY  as ReadonlyModifier
-    | OWNED     as OwnedModifier
-    | AFFINE    as AffineModifier
-    | LINEAR    as LinearModifier
-    | RELEVANT  as RelevantModifier
-    | ASYNC     as AsyncModifier
-    | REF       as RefModifier
+    = PUBLIC     as PublicModifier
+    | PRIVATE    as PrivateModifier
+    | PROTECTED  as ProtectedModifier
+    | INTERNAL   as InternalModifier
+    | SEALED     as SealedModifier
+    | STATIC     as StaticModifier
+    | INTRINSIC  as IntrinsicModifier
+    | READONLY   as ReadonlyModifier
+    | OWNED      as OwnedModifier
+    | AFFINE     as AffineModifier
+    | LINEAR     as LinearModifier
+    | RELEVANT   as RelevantModifier
+    | ASYNC      as AsyncModifier
+    | REF        as RefModifier
     ;
 
 // ─── Parser Rules — Ownership Specifiers ─────────────────────────────────────

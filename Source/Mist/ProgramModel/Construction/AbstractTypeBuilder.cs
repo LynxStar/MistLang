@@ -35,7 +35,15 @@ internal sealed class AbstractTypeBuilder : MemberTypeBuilder
         BaseTypeResolver.Resolve(typeDef.DeclarationNode!, typeDef);
 
         var body = (BodyTypeTypeDeclarationNode)typeDef.DeclarationNode!;
-        typeDef.Modifiers = ModifierBuilder.Build(body.TypeBody, Context.Diagnostics);
+        var modifiers = ModifierBuilder.Build(body.TypeBody, Context.Diagnostics);
+
+        // Resolve scope-based default if no explicit access modifier was specified.
+        if(!ModifierBuilder.HasExplicitAccessModifier(body.TypeBody.Modifiers))
+        {
+            modifiers = modifiers with { Accessibility = ModifierBuilder.GetScopeDefault(typeDef.DeclaringType) };
+        }
+
+        typeDef.Modifiers = modifiers;
 
         ConstraintResolver.Resolve(body.TypeBody.Constraints, typeDef.TypeParametersList, typeDef.Scope);
     }

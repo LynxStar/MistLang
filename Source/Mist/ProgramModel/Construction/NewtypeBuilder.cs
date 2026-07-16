@@ -23,7 +23,15 @@ internal sealed class NewtypeBuilder
     public void Build(Newtype typeDef)
     {
         var decl = typeDef.DeclarationNode;
-        typeDef.Modifiers = ModifierBuilder.Build(decl, context.Diagnostics);
+        var modifiers = ModifierBuilder.Build(decl, context.Diagnostics);
+
+        // Resolve scope-based default if no explicit access modifier was specified.
+        if(!ModifierBuilder.HasExplicitAccessModifier(decl.Modifiers))
+        {
+            modifiers = modifiers with { Accessibility = ModifierBuilder.GetScopeDefault(typeDef.DeclaringType) };
+        }
+
+        typeDef.Modifiers = modifiers;
         typeDef.SourceType = typeResolver.Resolve(decl.SourceType, typeDef.Scope);
     }
 }

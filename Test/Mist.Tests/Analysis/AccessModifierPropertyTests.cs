@@ -317,7 +317,8 @@ public class AccessModifierPropertyTests
         var model = BuildModel(ast);
         var diagnostics = RunTypeChecker(model);
 
-        var hasAccessError = diagnostics.Any(d => d.Id.Value == "MIST_TC_0014");
+        var hasAccessError = diagnostics.Any(d =>
+            d.Id.Value == "MIST_TC_0014" || d.Id.Value == "MIST_TC_0170");
 
         return scenario.ShouldHaveError ? hasAccessError : !hasAccessError;
     }
@@ -336,7 +337,8 @@ public class AccessModifierPropertyTests
         var model = BuildModel(ast);
         var diagnostics = RunTypeChecker(model);
 
-        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_TC_0014");
+        Assert.DoesNotContain(diagnostics, d =>
+            d.Id.Value == "MIST_TC_0014" || d.Id.Value == "MIST_TC_0170");
     }
 
     [Fact]
@@ -349,7 +351,8 @@ public class AccessModifierPropertyTests
         var model = BuildModel(ast);
         var diagnostics = RunTypeChecker(model);
 
-        Assert.Contains(diagnostics, d => d.Id.Value == "MIST_TC_0014");
+        Assert.Contains(diagnostics, d =>
+            d.Id.Value == "MIST_TC_0014" || d.Id.Value == "MIST_TC_0170");
     }
 
     [Fact]
@@ -362,7 +365,8 @@ public class AccessModifierPropertyTests
         var model = BuildModel(ast);
         var diagnostics = RunTypeChecker(model);
 
-        Assert.Contains(diagnostics, d => d.Id.Value == "MIST_TC_0014");
+        Assert.Contains(diagnostics, d =>
+            d.Id.Value == "MIST_TC_0014" || d.Id.Value == "MIST_TC_0170");
     }
 
     // ═══════════════════════════════════════════════════════════════════════

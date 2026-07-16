@@ -45,7 +45,7 @@ internal sealed class AccessorBuilder
         ModifierNode? modifier, string memberName, Storm.Runtime.SyntaxNode locationNode,
         bool isAbstract, bool isAuto, bool isInit, BlockNode? body, ExpressionNode? expression)
     {
-        var isPrivate = false;
+        var accessibility = Accessibility.Public;
 
         if(modifier is not null)
         {
@@ -55,7 +55,7 @@ internal sealed class AccessorBuilder
             }
             else if(modifier is PrivateModifierModifierNode)
             {
-                isPrivate = true;
+                accessibility = Accessibility.Private;
             }
             else
             {
@@ -67,7 +67,7 @@ internal sealed class AccessorBuilder
         {
             IsAuto = isAuto,
             IsInit = isInit,
-            IsPrivate = isPrivate,
+            Accessibility = accessibility,
             Body = body is not null ? new Block(body) : null,
             ExpressionBody = expression is not null ? new Expression(expression) : null,
         };

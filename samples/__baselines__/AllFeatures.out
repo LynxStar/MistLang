@@ -1683,4 +1683,13 @@ Formatter result: Hello: 42
 Settings timeout: 100
 LookupTable[0]: 99
 --- Attributes Demo End ---
+=== FullAccessibilityModel Mist Sample ===
+square: 4 sides, fingerprint 10
+sides via same-compilation access: 4
+balance after deposit: 125
+currency (internal): USD
+north: magnitude 1
+frozen: value 21, checksum 42
+vector name (internal): north
+Done!
 === Done! ===

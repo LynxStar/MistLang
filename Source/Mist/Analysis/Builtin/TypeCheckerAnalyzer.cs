@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Text.RegularExpressions;
 using Mist.Analysis.Contracts;
 using Mist.Common.Diagnostics;
+using Mist.Common.Source;
 using Mist.Driver.Contracts;
 using Mist.Generated;
 using Mist.Semantics.Contracts;
@@ -14970,7 +14971,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             case Accessibility.Internal:
                 // Internal members are accessible only within the same compilation.
                 // A reference from an External_Assembly is an error (Req 6.4, 7.3).
-                if(IsCrossAssemblyReference(memberSymbol, model))
+                if(IsCrossAssemblyReference(memberSymbol, accessNode, model))
                 {
                     diagnostics.ReportAtNode(TypeCheckDiagnostics.InternalCrossAssembly, accessNode, "TypeChecker", memberName);
                     return;
@@ -15107,16 +15108,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     /// <summary>
     /// Determines whether a reference to the given symbol crosses the compilation-as-assembly
-    /// boundary. A symbol is considered "cross-assembly" (external) when:
+    /// boundary. A reference is "cross-assembly" (external) when:
     /// <list type="bullet">
-    ///   <item>Its origin is <see cref="SymbolOrigin.Backend"/> (CLR/runtime-projected type), or</item>
-    ///   <item>It belongs to a referenced project unit (its compilation unit has a non-null
-    ///   <see cref="CompilationUnit.OriginProjectPath"/>).</item>
+    ///   <item>The symbol's origin is <see cref="SymbolOrigin.Backend"/> (CLR/runtime-projected type), or</item>
+    ///   <item>The accessing site and the declaring member live in <em>different</em> projects.</item>
     /// </list>
-    /// Same-compilation symbols are those defined in the current compilation's own source units
-    /// (OriginProjectPath is null and Origin is UserCode). (Requirements 6.1, 6.2, 6.5)
+    /// The project of a source unit is identified by its <see cref="CompilationUnit.OriginProjectPath"/>
+    /// (<see langword="null"/> for the current compilation's own source units, non-null for a
+    /// referenced project). Crucially, a referenced project accessing its <em>own</em> internal
+    /// members (accessing site and declaration share the same <c>OriginProjectPath</c>) is
+    /// in-assembly and must not be flagged — only accesses that genuinely cross a project
+    /// boundary are rejected. (Requirements 6.1, 6.2, 6.5)
     /// </summary>
-    private static bool IsCrossAssemblyReference(ISymbol symbol, ISemanticModel model)
+    private static bool IsCrossAssemblyReference(ISymbol symbol, SyntaxNode accessNode, ISemanticModel model)
     {
         // Backend-origin symbols are always external (CLR/runtime projected).
         if(symbol.Origin == SymbolOrigin.Backend)
@@ -15124,42 +15128,59 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return true;
         }
 
-        // For user-code symbols, check if they belong to a referenced project unit.
-        // Walk the compilation units to see if the symbol's containing namespace matches
-        // a referenced project's namespace root, or if the symbol's declaring node
-        // is from a source file that belongs to a referenced project.
-        var declaringType = GetDeclaringTypeOfMember(symbol);
-        if(declaringType is null)
+        // Determine the project of the declaring member and of the accessing site by
+        // mapping each to its owning compilation unit's OriginProjectPath. The reference
+        // crosses the assembly boundary only when the two projects differ.
+        SyntaxNode? declaringNode = null;
+        try { declaringNode = model.GetDeclaringNode(symbol); }
+        catch { /* unresolved declaring node — treated as same-project below */ }
+
+        var declaringProject = GetProjectPathForNode(declaringNode, model);
+        var accessingProject = GetProjectPathForNode(accessNode, model);
+
+        return !string.Equals(declaringProject, accessingProject, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Resolves the <see cref="CompilationUnit.OriginProjectPath"/> of the source unit that
+    /// contains <paramref name="node"/>, or <see langword="null"/> when the node belongs to
+    /// the current compilation's own sources (or its origin cannot be resolved). Two nodes in
+    /// the same project return equal values; a current-project node and a referenced-project
+    /// node return different values.
+    /// </summary>
+    private static string? GetProjectPathForNode(SyntaxNode? node, ISemanticModel model)
+    {
+        var sourcePath = GetNodeSourcePath(node);
+        if(sourcePath is null)
         {
-            return false;
+            return null;
         }
 
-        var containingNamespace = declaringType switch
-        {
-            ClassType ct => ct.ContainingNamespace,
-            StructType st => st.ContainingNamespace,
-            _ => null,
-        };
-
-        if(containingNamespace is null)
-        {
-            return false;
-        }
-
-        // Build a set of namespace roots from referenced projects.
         foreach(var unit in model.Units)
         {
-            if(unit.OriginProjectPath is not null && unit.NamespaceRoot is not null)
+            if(string.Equals(unit.Source.Path, sourcePath, StringComparison.Ordinal))
             {
-                if(containingNamespace == unit.NamespaceRoot
-                    || containingNamespace.StartsWith(unit.NamespaceRoot + ".", StringComparison.Ordinal))
-                {
-                    return true;
-                }
+                return unit.OriginProjectPath;
             }
         }
 
-        return false;
+        return null;
+    }
+
+    /// <summary>
+    /// Resolves the source file path of a node by chasing its <see cref="NodeOrigin"/> chain
+    /// to the underlying <see cref="ParsedOrigin"/>. Returns <see langword="null"/> for
+    /// synthesized nodes with no parsed origin.
+    /// </summary>
+    private static string? GetNodeSourcePath(SyntaxNode? node)
+    {
+        var origin = node?.Origin;
+        while(origin is SyntheticOrigin synthetic)
+        {
+            origin = synthetic.DerivedFrom;
+        }
+
+        return origin is ParsedOrigin parsed ? parsed.Source.Path : null;
     }
 
     /// <summary>
@@ -15267,6 +15288,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     return found;
                 }
             }
+        }
+
+        // Classes and structs are inheritable in Mist — walk the base-type chain so
+        // that inherited members are found for accessibility enforcement. A generic
+        // base is stored as a ConstructedType, which the recursive call unwraps.
+        var baseType = targetType switch
+        {
+            ClassType baseClassOwner => baseClassOwner.BaseType,
+            StructType baseStructOwner => baseStructOwner.BaseType,
+            _ => null,
+        };
+
+        if(baseType is not null)
+        {
+            return FindMemberSymbol(baseType, memberName, model);
         }
 
         return null;

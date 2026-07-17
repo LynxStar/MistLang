@@ -22982,54 +22982,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             result = new NamespaceReferenceType(name);
                         }
                         // In a non-static instance context, bare identifiers may refer
-                        // to inherited members from the base class chain. Walk the
-                        // BaseType chain to find the member, mirroring what
+                        // to inherited members from the base type chain. Structs are
+                        // inheritable in Mist, so both classes and structs participate.
+                        // Walk the BaseType chain to find the member, mirroring what
                         // LookupMemberType does for explicit this.member access.
-                        else if(!isStatic && enclosingType is ClassType enclosingClass)
+                        else if(!isStatic
+                            && TryResolveInheritedMemberType(enclosingType, name, out var inheritedMemberType, out var inheritedSymbol))
                         {
-                            IType? inheritedMemberType = null;
-                            ISymbol? inheritedSymbol = null;
-                            var ancestor = enclosingClass.BaseType as ClassType;
-                            while(ancestor is not null)
+                            result = inheritedMemberType;
+
+                            // Register usage site so downstream analysis (e.g., auto-unwrap
+                            // for async methods) can resolve the symbol from the identifier node.
+                            if(inheritedSymbol is not null && inheritedSymbol.Kind is SymbolKind.Method)
                             {
-                                foreach(var m in ancestor.MemberScope.Members)
-                                {
-                                    if(m.Name == name)
-                                    {
-                                        inheritedMemberType = m.DeclaredType ?? ErrorType.Instance;
-                                        inheritedSymbol = m;
-                                        break;
-                                    }
-                                }
-
-                                if(inheritedMemberType is not null)
-                                {
-                                    break;
-                                }
-
-                                ancestor = ancestor.BaseType as ClassType;
-                            }
-
-                            if(inheritedMemberType is not null)
-                            {
-                                result = inheritedMemberType;
-
-                                // Register usage site so downstream analysis (e.g., auto-unwrap
-                                // for async methods) can resolve the symbol from the identifier node.
-                                if(inheritedSymbol is not null && inheritedSymbol.Kind is SymbolKind.Method)
-                                {
-                                    symbolTable.RegisterUsageSite(identifier, inheritedSymbol);
-                                }
-                            }
-                            else
-                            {
-                                diagnostics.Add(MakeDiagnosticWithLocation(
-                                    "MIST_UNDEFINED_IDENTIFIER",
-                                    DiagnosticSeverity.Error,
-                                    $"The name '{name}' does not exist in the current context.",
-                                    identifier,
-                                    sourceText));
-                                result = ErrorType.Instance;
+                                symbolTable.RegisterUsageSite(identifier, inheritedSymbol);
                             }
                         }
                         else
@@ -23326,6 +23292,82 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     // ─── Helper Methods ──────────────────────────────────────────────────
+
+    /// <summary>
+    /// Walks the base-type chain of a class or struct enclosing type looking for an
+    /// inherited instance member by name. Structs are inheritable in Mist, so both
+    /// <see cref="ClassType"/> and <see cref="StructType"/> participate; a struct base
+    /// may be stored directly or wrapped in a <see cref="ConstructedType"/> (generic
+    /// base), so both shapes are unwrapped. Returns <see langword="true"/> and sets
+    /// the member's declared type and symbol when found.
+    /// </summary>
+    private static bool TryResolveInheritedMemberType(
+        IType? enclosingType,
+        string name,
+        out IType inheritedMemberType,
+        out ISymbol? inheritedSymbol)
+    {
+        inheritedMemberType = ErrorType.Instance;
+        inheritedSymbol = null;
+
+        // Determine the first ancestor scope to search: the base of the enclosing
+        // class or struct. Non-inheritable enclosing types have no base chain.
+        var ancestor = NextBaseMemberScope(enclosingType);
+
+        while(ancestor is not null)
+        {
+            foreach(var m in ancestor.Value.Scope.Members)
+            {
+                if(m.Name == name)
+                {
+                    inheritedMemberType = m.DeclaredType ?? ErrorType.Instance;
+                    inheritedSymbol = m;
+                    return true;
+                }
+            }
+
+            ancestor = NextBaseMemberScope(ancestor.Value.Type);
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Returns the member scope of the base type of <paramref name="type"/> (for a
+    /// class or struct), unwrapping a <see cref="ConstructedType"/> base to its
+    /// generic definition. Returns <see langword="null"/> when there is no inheritable
+    /// base. The returned tuple also carries the resolved base type so callers can
+    /// continue walking the chain.
+    /// </summary>
+    private static (IScope Scope, IType Type)? NextBaseMemberScope(IType? type)
+    {
+        var baseType = type switch
+        {
+            ClassType c => c.BaseType,
+            StructType s => s.BaseType,
+            _ => null,
+        };
+
+        // Unwrap a generic base (e.g. `struct Derived<T> : Base<T>`).
+        if(baseType is ConstructedType ct)
+        {
+            baseType = ct.GenericDefinition;
+        }
+
+        var scope = baseType switch
+        {
+            ClassType c => c.MemberScope,
+            StructType s => s.MemberScope,
+            _ => null,
+        };
+
+        if(scope is null)
+        {
+            return null;
+        }
+
+        return (scope, baseType!);
+    }
 
     /// <summary>
     /// Looks up a member by name on a given type. Searches the type's member scope
@@ -23840,6 +23882,26 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 var memberType = member.DeclaredType ?? ErrorType.Instance;
                 return SubstituteMemberTypeIfNeeded(memberType, constructedTypeParams, constructedTypeArgs);
+            }
+
+            // Structs are inheritable in Mist — walk the base-struct chain for
+            // inherited members (parallel to the class base-chain walk above).
+            if(targetType is StructType)
+            {
+                var baseScope = NextBaseMemberScope(targetType);
+                while(baseScope is not null)
+                {
+                    foreach(var m in baseScope.Value.Scope.Members)
+                    {
+                        if(m.Name == memberName)
+                        {
+                            var memberType = m.DeclaredType ?? ErrorType.Instance;
+                            return SubstituteMemberTypeIfNeeded(memberType, constructedTypeParams, constructedTypeArgs);
+                        }
+                    }
+
+                    baseScope = NextBaseMemberScope(baseScope.Value.Type);
+                }
             }
 
             // For abstract types, walk inherited abstract types transitively.

@@ -80,7 +80,7 @@ public sealed class FullAccessibilityModelSampleTests
     /// and asserts the stdout matches the Requirement 20 expected output
     /// line by line with zero warnings.
     /// </summary>
-    [Fact(Skip = "Blocked by MIST_UNDEFINED_IDENTIFIER for inherited struct fields (name/magnitude do not resolve in UnitVector via struct inheritance)")]
+    [Fact]
     public void FullAccessibilityModelSample_CompilesAndProducesExactExpectedOutput()
     {
         // Arrange: locate the sample directory and discover all .mist files
@@ -178,7 +178,7 @@ public sealed class FullAccessibilityModelSampleTests
     /// <c>FullAccessibilityModel.Program.RunDemo()</c> and includes the
     /// feature in the full-suite sample run.
     /// </summary>
-    [Fact(Skip = "Blocked by MIST_UNDEFINED_IDENTIFIER for inherited struct fields (name/magnitude do not resolve in UnitVector via struct inheritance)")]
+    [Fact]
     public void AllFeatures_IncludesFullAccessibilityModelOutput()
     {
         // Arrange: locate AllFeatures sample directory

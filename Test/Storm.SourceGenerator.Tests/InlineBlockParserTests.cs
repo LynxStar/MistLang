@@ -361,6 +361,20 @@ public class InlineBlockParserTests
     //  **Validates: Requirements 2.1, 2.2, 2.3, 2.5**
     // ═══════════════════════════════════════════════════════════════════
 
+    // Storm reserved keywords (see StormLexer.ClassifyKeyword). A generated
+    // identifier whose lowercased form matches one of these is excluded: arm
+    // labels and nested labels are lowercased via ToLowerInvariant(), so an
+    // unfiltered identifier like "As" would become the keyword "as" and produce
+    // invalid source (e.g. `{ as:RuleA as AltA }`), which fails to parse. Rule
+    // references, alternative names, and prefixes keep their uppercase start and
+    // are already keyword-safe, but filtering the shared generator uniformly is
+    // harmless and mirrors the other Storm property tests.
+    private static readonly HashSet<string> Keywords = new(StringComparer.Ordinal)
+    {
+        "rule", "token", "fragment", "hidden", "import", "grammar",
+        "as", "mode", "default", "push", "pop", "inline", "trait",
+    };
+
     private static Gen<string> GenIdentifier()
     {
         var startChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".ToCharArray();
@@ -369,7 +383,8 @@ public class InlineBlockParserTests
         return Gen.Elements(startChars).SelectMany(start =>
             Gen.Choose(1, 6).SelectMany(len =>
                 Gen.ArrayOf(Gen.Elements(contChars), len)
-                    .Select(chars => start + new string(chars))));
+                    .Select(chars => start + new string(chars))))
+            .Where(id => !Keywords.Contains(id.ToLowerInvariant()));
     }
 
     private record InlineArmSpec(string? Label, string RuleRef, string AltName);

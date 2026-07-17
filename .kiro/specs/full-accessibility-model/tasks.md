@@ -202,7 +202,7 @@ Two independent `Accessibility` enums are defined (one per pipeline, per Req 3.5
     - Emit a generated corpus of accepted programs (including inheritable structs, sealed structs, and `protected` struct members) and compile the C# in-process via Roslyn (`CSharpCompilationDriver`); assert zero C# accessibility/compile errors (no `dotnet` process spawn)
     - _Validates: Requirements 15.4, 15.5 (Property 19)_
 
-- [ ] 6. Checkpoint - Classic pipeline builds and enforces end-to-end
+- [x] 6. Checkpoint - Classic pipeline builds and enforces end-to-end
   - Ensure all tests pass, ask the user if questions arise.
 
 - [x] 7. Experimental Program Model: enum, sealed flag, and default resolution
@@ -272,44 +272,44 @@ Two independent `Accessibility` enums are defined (one per pipeline, per Req 3.5
     - Assert `protected`, `internal`, and `sealed` scope as `storage.modifier.mist` (example/snapshot tests under `Editor/mist-syntax-highlighting/tests/`)
     - _Requirements: 19.1, 19.2, 19.3_
 
-- [ ] 11. Sample application
-  - [ ] 11.1 Create the `FullAccessibilityModel` sample with the locked proof code
+- [x] 11. Sample application
+  - [x] 11.1 Create the `FullAccessibilityModel` sample with the locked proof code
     - Create `samples/FullAccessibilityModel/` with `Shape.mist`, `Square.mist`, `Ledger.mist`, `Vector.mist`, `UnitVector.mist`, `Frozen.mist`, and `Program.mist` containing the proof code **verbatim and immutable**, plus `mist.toml` (`name = "FullAccessibilityModel"`)
     - Build and run the sample and confirm the exact locked stdout with zero warnings; if the proof code or its output appears inconsistent with a requirement, halt and request user intervention rather than weakening the implementation or editing the proof code
     - _Requirements: 20.1, 20.2, 20.3, 20.4, 20.6, 20.7_
 
-  - [ ] 11.2 Integrate the sample into AllFeatures
+  - [x] 11.2 Integrate the sample into AllFeatures
     - Register `FullAccessibilityModel` under `[references]` in `samples/AllFeatures/mist.toml` and add `FullAccessibilityModel.Program.RunDemo();` to `samples/AllFeatures/Program.mist`
     - _Requirements: 20.5_
 
-  - [ ] 11.3 Write the sample proof-code integration test (approved process-spawning test)
+  - [x] 11.3 Write the sample proof-code integration test (approved process-spawning test)
     - Compile the sample in-process, then run the built output a small fixed number of times (directly and via `AllFeatures`) and assert the exact locked stdout with zero warnings
     - This is the single approved process-spawning test (compile in-process, spawn only to run the built output, well under the forbidden per-iteration threshold)
     - _Requirements: 20.1, 20.2, 20.3, 20.4, 20.5, 20.6_
 
-- [ ] 12. Book chapter and analog-mapping record
-  - [ ] 12.1 Add the Accessibility chapter with compiled snippets
+- [x] 12. Book chapter and analog-mapping record
+  - [x] 12.1 Add the Accessibility chapter with compiled snippets
     - Add an Accessibility chapter under the Object Model section of `book/src/` with paired `.mist`/`.cs` snippets under `book/snippets/object-model/accessibility/` (SnippetEmitter-generated); cover the four levels, Mist's omission of `protected internal`/`private protected` and their collapse on projection, scope-based defaults, the compilation-as-assembly boundary for `internal`, `sealed` classes and structs, and the single Allow_But_Warn case; record the analog-mapping decisions
     - _Requirements: 17.1, 17.2, 17.3, 17.4, 21.1, 21.2, 21.3_
 
-  - [ ] 12.2 Reference the chapter in SUMMARY.md
+  - [x] 12.2 Reference the chapter in SUMMARY.md
     - Add the new chapter to `book/src/SUMMARY.md` in the Object Model section
     - _Requirements: 21.4_
 
-  - [ ] 12.3 Verify book snippets compile
+  - [x] 12.3 Verify book snippets compile
     - Run the SnippetEmitter over the accessibility snippets and confirm every paired `.mist`/`.cs` snippet compiles
     - _Requirements: 21.3_
 
-- [ ] 13. Whole-codebase verification
-  - [ ] 13.1 Build the whole codebase with zero errors and zero warnings
+- [x] 13. Whole-codebase verification
+  - [x] 13.1 Build the whole codebase with zero errors and zero warnings
     - Build compiler sources, samples, snippets, and test `.mist` fixtures under the new rules; confirm zero errors and zero warnings (the smoke gate confirming the cleanup and struct-member flip were applied completely)
     - _Requirements: 18.8_
 
-  - [ ] 13.2 Run `dotnet format --verify-no-changes`
+  - [x] 13.2 Run `dotnet format --verify-no-changes`
     - Run `dotnet format --verify-no-changes` for touched `Source/` files and fix any violations
     - _Requirements: 18.8_
 
-- [ ] 14. Final checkpoint - Ensure all tests pass
+- [x] 14. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

@@ -33,10 +33,7 @@ internal sealed class DelegateResolver
     public ResolvedDelegate ResolveDelegate<TNode>(TNode node, Scope scope, IMethodHost host, string memberName)
         where TNode : SyntaxNode, IDelegateNode
     {
-        var modifiers = ModifierBuilder.Build(node, context.Diagnostics);
-
-        // Resolve scope-based default accessibility when no explicit access modifier is present.
-        modifiers = ModifierBuilder.ApplyDefault(modifiers, node.Modifiers, host as MistType);
+        var modifiers = ModifierBuilder.Build(node, context.Diagnostics, host as MistType);
 
         var parameters = parameterBuilder.Resolve(node.Parameters, scope);
         var body = ResolveBody(node.Body);

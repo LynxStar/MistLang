@@ -22,10 +22,8 @@ internal abstract class ConcreteType : MemberType, IConcreteType
 
     /// <summary>
     /// Whether this type is sealed (cannot be inherited from).
-    /// Separate from <see cref="MemberModifiers"/> — sealed is a type-level
-    /// concept, not an accessibility modifier.
     /// </summary>
-    public bool IsSealed { get; internal set; }
+    public bool IsSealed => Modifiers.IsSealed;
 
     /// <summary>
     /// The base type this concrete type inherits from (class → class, struct → struct).

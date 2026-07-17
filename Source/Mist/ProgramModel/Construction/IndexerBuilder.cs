@@ -30,12 +30,9 @@ internal sealed class IndexerBuilder
     public void Resolve(IndexerDeclarationNode indexerDecl, MemberType memberType)
     {
         var type = typeResolver.Resolve(indexerDecl.Type, memberType.Scope);
-        var modifiers = ModifierBuilder.Build(indexerDecl, context.Diagnostics);
+        var modifiers = ModifierBuilder.Build(indexerDecl, context.Diagnostics, memberType);
         var parameters = parameterBuilder.Resolve(indexerDecl.Parameters, memberType.Scope);
         var isAbstract = memberType is AbstractType;
-
-        // Resolve scope-based default accessibility.
-        modifiers = ModifierBuilder.ApplyDefault(modifiers, indexerDecl.Modifiers, memberType);
 
         if(modifiers.IsAsync)
         {

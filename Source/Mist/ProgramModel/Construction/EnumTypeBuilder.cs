@@ -27,13 +27,7 @@ internal sealed class EnumTypeBuilder
     {
         var enumDecl = typeDef.DeclarationNode!;
 
-        var modifiers = ModifierBuilder.Build(enumDecl, context.Diagnostics);
-
-        // Resolve scope-based default if no explicit access modifier was specified.
-        if(!ModifierBuilder.HasExplicitAccessModifier(enumDecl.Modifiers))
-        {
-            modifiers = modifiers with { Accessibility = ModifierBuilder.GetScopeDefault(typeDef.DeclaringType) };
-        }
+        var modifiers = ModifierBuilder.Build(enumDecl, context.Diagnostics, typeDef.DeclaringType);
 
         typeDef.Modifiers = modifiers;
 

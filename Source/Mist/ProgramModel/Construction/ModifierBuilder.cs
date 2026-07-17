@@ -8,60 +8,28 @@ using SyntaxNode = Storm.Runtime.SyntaxNode;
 namespace Mist.ProgramModel.Construction;
 
 /// <summary>
-/// Resolves an AST modifier list into a <see cref="MemberModifiers"/> value.
-/// This is the single point of truth for mapping parsed modifiers to the
-/// program model — all member builders delegate here to avoid drift.
+/// Resolves an AST modifier list into a <see cref="MemberModifiers"/> value with
+/// scope-based default accessibility already applied. This is the single point of
+/// truth for mapping parsed modifiers to the program model — all member builders
+/// delegate here to avoid drift.
 /// </summary>
 internal static class ModifierBuilder
 {
     /// <summary>
-    /// Builds a <see cref="MemberModifiers"/> directly from a node that implements
-    /// <see cref="IHasModifiersNode"/>. The node itself is used as the diagnostic location.
+    /// Builds a <see cref="MemberModifiers"/> from a node that implements
+    /// <see cref="IHasModifiersNode"/>. Applies the scope-based default accessibility
+    /// when no explicit access modifier is present. The node itself is used as the
+    /// diagnostic location. Reports diagnostics for universally-invalid combinations
+    /// (e.g. public + private, multiple substructural disciplines).
     /// </summary>
-    public static MemberModifiers Build<TNode>(TNode node, DiagnosticBag diagnostics)
+    public static MemberModifiers Build<TNode>(TNode node, DiagnosticBag diagnostics, MistType? declaringType)
         where TNode : SyntaxNode, IHasModifiersNode
     {
-        return Build(node.Modifiers, diagnostics, node);
-    }
-
-    /// <summary>
-    /// Builds a <see cref="MemberModifiers"/> directly from a node that implements
-    /// <see cref="IHasModifiersNode"/>, additionally returning whether the <c>sealed</c>
-    /// modifier was present. The node itself is used as the diagnostic location.
-    /// </summary>
-    public static MemberModifiers Build<TNode>(TNode node, DiagnosticBag diagnostics, out bool hasSealed)
-        where TNode : SyntaxNode, IHasModifiersNode
-    {
-        return Build(node.Modifiers, diagnostics, node, out hasSealed);
-    }
-
-    /// <summary>
-    /// Builds a <see cref="MemberModifiers"/> from the given modifier node list.
-    /// Used for nodes that do not yet implement <see cref="IHasModifiersNode"/>
-    /// (e.g. property declaration alternatives). Prefer the generic overload.
-    /// Reports diagnostics for universally-invalid combinations (e.g. public + private,
-    /// multiple substructural disciplines).
-    /// Safe to call with a default (uninitialized) array.
-    /// </summary>
-    internal static MemberModifiers Build(ImmutableArray<ModifierNode> modifiers, DiagnosticBag diagnostics, SyntaxNode locationNode)
-    {
-        return Build(modifiers, diagnostics, locationNode, out _);
-    }
-
-    /// <summary>
-    /// Core build overload that also reports whether the <c>sealed</c> modifier was present.
-    /// </summary>
-    internal static MemberModifiers Build(
-        ImmutableArray<ModifierNode> modifiers,
-        DiagnosticBag diagnostics,
-        SyntaxNode locationNode,
-        out bool hasSealed)
-    {
-        hasSealed = false;
+        var modifiers = node.Modifiers;
 
         if(modifiers.IsDefault)
         {
-            return default;
+            return new MemberModifiers { Accessibility = GetScopeDefault(declaringType) };
         }
 
         var result = new MemberModifiers();
@@ -89,7 +57,7 @@ internal static class ModifierBuilder
                     accessModifierCount++;
                     break;
                 case SealedModifierModifierNode:
-                    hasSealed = true;
+                    result = result with { IsSealed = true };
                     break;
                 case StaticModifierModifierNode:
                     result = result with { IsStatic = true };
@@ -125,8 +93,12 @@ internal static class ModifierBuilder
         {
             result = result with { Accessibility = accessibility };
         }
+        else if(accessModifierCount == 0)
+        {
+            result = result with { Accessibility = GetScopeDefault(declaringType) };
+        }
 
-        ValidateUniversalConflicts(accessModifierCount, diagnostics, locationNode, modifiers);
+        ValidateUniversalConflicts(accessModifierCount, diagnostics, node, modifiers);
 
         return result;
     }
@@ -141,7 +113,7 @@ internal static class ModifierBuilder
     /// </list>
     /// Nested types inside a class/struct default to <see cref="Accessibility.Private"/>.
     /// </summary>
-    public static Accessibility GetScopeDefault(MistType? declaringType)
+    internal static Accessibility GetScopeDefault(MistType? declaringType)
     {
         return declaringType switch
         {
@@ -151,46 +123,6 @@ internal static class ModifierBuilder
             EnumType => Accessibility.Public,
             _ => Accessibility.Private,
         };
-    }
-
-    /// <summary>
-    /// Returns <c>true</c> if the modifier list contains at least one explicit access
-    /// modifier (<c>public</c>, <c>private</c>, <c>protected</c>, or <c>internal</c>).
-    /// </summary>
-    public static bool HasExplicitAccessModifier(ImmutableArray<ModifierNode> modifiers)
-    {
-        if(modifiers.IsDefault)
-        {
-            return false;
-        }
-
-        foreach(var mod in modifiers)
-        {
-            if(mod is PublicModifierModifierNode
-                or PrivateModifierModifierNode
-                or ProtectedModifierModifierNode
-                or InternalModifierModifierNode)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// Applies the scope-based default accessibility to a <see cref="MemberModifiers"/> value
-    /// when no explicit access modifier was present in the modifier list. Returns the
-    /// modifiers unchanged when an explicit access modifier was specified.
-    /// </summary>
-    public static MemberModifiers ApplyDefault(MemberModifiers modifiers, ImmutableArray<ModifierNode> rawModifiers, MistType? declaringType)
-    {
-        if(HasExplicitAccessModifier(rawModifiers))
-        {
-            return modifiers;
-        }
-
-        return modifiers with { Accessibility = GetScopeDefault(declaringType) };
     }
 
     /// <summary>

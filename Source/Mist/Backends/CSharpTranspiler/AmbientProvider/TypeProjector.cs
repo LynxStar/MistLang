@@ -52,18 +52,11 @@ internal static class TypeProjector
                 Accessibility = clrType.IsNested
                     ? ClrAccessibilityMap.FromNestedType(clrType)
                     : clrType.IsPublic ? Accessibility.Public : Accessibility.Private,
+                IsSealed = clrType.IsSealed && !isStaticClass,
                 IsStatic = isStaticClass,
                 IsReadonly = clrType.IsValueType && HasCustomAttribute(clrType, isReadOnlyAttribute),
                 IsRef = clrType.IsValueType && HasCustomAttribute(clrType, isByRefLikeAttribute),
             };
-
-            // Set the first-class sealed flag from CLR metadata.
-            // A CLR static class (abstract+sealed) is treated as neither sealed nor abstract,
-            // matching the sentinel attribute logic in SentinelAttributes.ApplyTypeAttributes.
-            if(shell is ConcreteType concreteType)
-            {
-                concreteType.IsSealed = clrType.IsSealed && !isStaticClass;
-            }
         }
 
         return shell;

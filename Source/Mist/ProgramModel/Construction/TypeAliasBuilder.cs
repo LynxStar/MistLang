@@ -27,13 +27,7 @@ internal sealed class TypeAliasBuilder
     public void Build(TypeAlias typeDef)
     {
         var decl = typeDef.DeclarationNode;
-        var modifiers = ModifierBuilder.Build(decl, context.Diagnostics);
-
-        // Resolve scope-based default if no explicit access modifier was specified.
-        if(!ModifierBuilder.HasExplicitAccessModifier(decl.Modifiers))
-        {
-            modifiers = modifiers with { Accessibility = ModifierBuilder.GetScopeDefault(typeDef.DeclaringType) };
-        }
+        var modifiers = ModifierBuilder.Build(decl, context.Diagnostics, typeDef.DeclaringType);
 
         typeDef.Modifiers = modifiers;
 

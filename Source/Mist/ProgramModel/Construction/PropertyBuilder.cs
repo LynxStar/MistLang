@@ -43,10 +43,7 @@ internal sealed class PropertyBuilder
     {
         var name = exprProp.Name.Lexeme;
         var type = typeResolver.Resolve(exprProp.Type, host.Scope);
-        var modifiers = ModifierBuilder.Build(exprProp, context.Diagnostics);
-
-        // Resolve scope-based default accessibility.
-        modifiers = ModifierBuilder.ApplyDefault(modifiers, exprProp.Modifiers, host as MistType);
+        var modifiers = ModifierBuilder.Build(exprProp, context.Diagnostics, host as MistType);
 
         if(modifiers.IsAsync)
         {
@@ -71,12 +68,9 @@ internal sealed class PropertyBuilder
     {
         var name = blockProp.Name.Lexeme;
         var type = typeResolver.Resolve(blockProp.Type, host.Scope);
-        var modifiers = ModifierBuilder.Build(blockProp, context.Diagnostics);
+        var modifiers = ModifierBuilder.Build(blockProp, context.Diagnostics, host as MistType);
         var isAbstract = host.IsAbstract;
         var isExtension = host is ExtensionBlock;
-
-        // Resolve scope-based default accessibility.
-        modifiers = ModifierBuilder.ApplyDefault(modifiers, blockProp.Modifiers, host as MistType);
 
         if(modifiers.IsAsync)
         {

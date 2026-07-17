@@ -12,6 +12,9 @@ public record struct MemberModifiers
     /// <summary>The declared accessibility of the member.</summary>
     public Accessibility Accessibility { get; init; }
 
+    /// <summary>Whether the declaration has <c>sealed</c>.</summary>
+    public bool IsSealed { get; init; }
+
     /// <summary>Whether the declaration has <c>static</c>.</summary>
     public bool IsStatic { get; init; }
 

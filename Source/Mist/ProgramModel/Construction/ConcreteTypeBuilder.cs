@@ -39,16 +39,9 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
         BaseTypeResolver.Resolve(typeDef.DeclarationNode!, typeDef);
 
         var body = (BodyTypeTypeDeclarationNode)typeDef.DeclarationNode!;
-        var modifiers = ModifierBuilder.Build(body.TypeBody, Context.Diagnostics, out var hasSealed);
-
-        // Resolve scope-based default if no explicit access modifier was specified.
-        if(!ModifierBuilder.HasExplicitAccessModifier(body.TypeBody.Modifiers))
-        {
-            modifiers = modifiers with { Accessibility = ModifierBuilder.GetScopeDefault(typeDef.DeclaringType) };
-        }
+        var modifiers = ModifierBuilder.Build(body.TypeBody, Context.Diagnostics, typeDef.DeclaringType);
 
         typeDef.Modifiers = modifiers;
-        typeDef.IsSealed = hasSealed;
 
         ConstraintResolver.Resolve(body.TypeBody.Constraints, typeDef.TypeParametersList, typeDef.Scope);
     }
@@ -130,13 +123,7 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
         var name = fieldDecl.Name.Lexeme;
         var type = TypeResolver.Resolve(fieldDecl.Type, typeDef.Scope);
         var ownership = ResolveOwnership(fieldDecl.OwnershipSpecifier);
-        var modifiers = ModifierBuilder.Build(fieldDecl, Context.Diagnostics);
-
-        // Resolve scope-based default: members inside a class/struct default to Private.
-        if(!ModifierBuilder.HasExplicitAccessModifier(fieldDecl.Modifiers))
-        {
-            modifiers = modifiers with { Accessibility = ModifierBuilder.GetScopeDefault(typeDef) };
-        }
+        var modifiers = ModifierBuilder.Build(fieldDecl, Context.Diagnostics, typeDef);
 
         var initializer = fieldDecl.Initializer is { } initExpr ? new Expression(initExpr) : null;
 

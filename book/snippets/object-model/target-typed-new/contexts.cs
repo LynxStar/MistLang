@@ -19,11 +19,11 @@ public class Point
         return $"Point({X}, {Y})";
     }
 }
-public class Container
+internal class Container
 {
     public Point Origin = new Point(0, 0);
 }
-public class Program
+internal class Program
 {
     public static Point MakePoint(int x, int y)
     {

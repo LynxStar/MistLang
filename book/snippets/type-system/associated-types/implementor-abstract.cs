@@ -11,7 +11,7 @@ public interface IProducer<TOutput>
 {
     TOutput CreateOutput(string msg);
 }
-public class MessageProducer : IProducer<MessageProducer.Output>
+internal class MessageProducer : IProducer<MessageProducer.Output>
 {
     public class Output : IStringable
     {

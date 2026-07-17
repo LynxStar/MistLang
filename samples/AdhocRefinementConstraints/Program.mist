@@ -102,19 +102,19 @@ public class BoundedRange
 // ─── 11. Method with both generic constraint and parameter refinement ────────
 
 
-abstract IDisplayable
+public abstract IDisplayable
 {
     string Display();
 }
 
-class DisplayWidget : IDisplayable
+public class DisplayWidget : IDisplayable
 {
     int _id;
     public DisplayWidget(int id) { _id = id; }
     public string Display() { return $"Widget#{_id}"; }
 }
 
-class MixedConstraintDemo<T> where T : IDisplayable
+public class MixedConstraintDemo<T> where T : IDisplayable
 {
     public T Item;
     public MixedConstraintDemo(T item) { this.Item = item; }
@@ -147,13 +147,13 @@ public class Wrapper<N:int> : FixedArray<string, N> where N >= 0 { }
 
 // ─── 15. Abstract type with parameter refinement — same constraint (Liskov) ─
 
-abstract IValidator
+public abstract IValidator
 {
     string Validate(int value) where value >= 0;
 }
 
 // Implements with the SAME constraint — valid (same predicate)
-class StrictValidator : IValidator
+public class StrictValidator : IValidator
 {
     public string Validate(int value) where value >= 0
     {
@@ -164,7 +164,7 @@ class StrictValidator : IValidator
 // ─── 16. Abstract type with parameter refinement — no constraint (Liskov) ────
 
 // Implements with NO constraint — valid (weaker, accepts everything)
-class LenientValidator : IValidator
+public class LenientValidator : IValidator
 {
     public string Validate(int value)
     {
@@ -174,13 +174,13 @@ class LenientValidator : IValidator
 
 // ─── 17. Abstract type with parameter refinement — weaker constraint (Liskov) 
 
-abstract IStrictProcessor
+public abstract IStrictProcessor
 {
     string Process(int x) where x >= 10 and <= 100;
 }
 
 // Implements with a WEAKER constraint — valid (accepts a superset: >= 0 implies >= 10 and <= 100 → >= 0 accepts more)
-class WeakerProcessor : IStrictProcessor
+public class WeakerProcessor : IStrictProcessor
 {
     public string Process(int x) where x >= 0
     {

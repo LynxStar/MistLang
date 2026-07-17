@@ -1,4 +1,4 @@
-abstract IGreetable
+public abstract IGreetable
 {
     string Name();
 

@@ -276,7 +276,7 @@ public sealed class DropAnalyzer : IAnalyzer
                         catch { continue; }
                     }
 
-                    ReportIncompatibleField(typeSymbol, member, containerDiscipline, constraintDiscipline, fieldNode, model, diagnostics);
+                    ReportIncompatibleField(typeSymbol, member, containerDiscipline, constraintDiscipline, fieldNode, diagnostics);
                 }
 
                 continue;
@@ -304,7 +304,7 @@ public sealed class DropAnalyzer : IAnalyzer
                     catch { continue; }
                 }
 
-                ReportIncompatibleField(typeSymbol, member, containerDiscipline, fieldDiscipline, fieldNode, model, diagnostics);
+                ReportIncompatibleField(typeSymbol, member, containerDiscipline, fieldDiscipline, fieldNode, diagnostics);
             }
         }
     }
@@ -415,7 +415,6 @@ public sealed class DropAnalyzer : IAnalyzer
         SubstructuralDiscipline containerDiscipline,
         SubstructuralDiscipline fieldDiscipline,
         SyntaxNode fieldNode,
-        ISemanticModel model,
         DiagnosticBag diagnostics)
     {
         var modifierName = fieldDiscipline switch

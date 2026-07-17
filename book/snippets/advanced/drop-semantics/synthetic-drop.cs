@@ -2,7 +2,7 @@ using System;
 
 namespace Snippets;
 
-public class Handle
+private class Handle
 {
     int Id;
 

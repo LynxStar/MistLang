@@ -138,7 +138,7 @@ public static class LinearDropElisionGenerators
         // Linear local is passed (moved) to a consuming function.
         // The function takes ownership; no Drop() should be emitted in the caller for this local.
         return $$"""
-            linear class Resource
+            public linear class Resource
             {
                 int id;
 
@@ -156,7 +156,7 @@ public static class LinearDropElisionGenerators
                     return id;
                 }
             }
-            class Sink
+            public class Sink
             {
                 public static void Consume(Resource r)
                 {
@@ -179,7 +179,7 @@ public static class LinearDropElisionGenerators
         // Linear local is returned from the method — ownership transfers to the caller.
         // No Drop() should be emitted for this local in the method that returns it.
         return $$"""
-            linear class Resource
+            public linear class Resource
             {
                 int id;
 
@@ -440,7 +440,7 @@ public sealed class LinearAutoDropAndElisionPropertyTests : IDisposable
     public void LinearLocal_MovedToFunction_ElidesDrop()
     {
         var source = """
-            linear class Resource
+            public linear class Resource
             {
                 int id;
 
@@ -458,7 +458,7 @@ public sealed class LinearAutoDropAndElisionPropertyTests : IDisposable
                     return id;
                 }
             }
-            class Sink
+            public class Sink
             {
                 public static void Consume(Resource r)
                 {
@@ -493,7 +493,7 @@ public sealed class LinearAutoDropAndElisionPropertyTests : IDisposable
     public void LinearLocal_Returned_ElidesDrop()
     {
         var source = """
-            linear class Resource
+            public linear class Resource
             {
                 int id;
 

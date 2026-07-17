@@ -115,7 +115,7 @@ public sealed class ConditionalMoveBranchDropTests : IDisposable
     private const string LinearTypeAndSink = """
         namespace TestProgram;
 
-        linear class Resource
+        public linear class Resource
         {
             public void Drop()
             {
@@ -127,7 +127,7 @@ public sealed class ConditionalMoveBranchDropTests : IDisposable
             }
         }
 
-        class Sink
+        public class Sink
         {
             public static void Consume(Resource r)
             {

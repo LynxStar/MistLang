@@ -3,6 +3,6 @@ namespace Attributes;
 using System;
 
 // Stub attribute class for demonstrating generic type arguments in attributes.
-class JsonConverterAttribute<T> : Attribute
+public class JsonConverterAttribute<T> : Attribute
 {
 }

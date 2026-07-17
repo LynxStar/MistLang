@@ -280,7 +280,7 @@ public sealed class CrossFileTypeResolutionTests : IDisposable
                 using Standard;
                 namespace CrossFile;
 
-                abstract ISerializer {
+                public abstract ISerializer {
                     string Serialize(int data);
                 }
                 """),

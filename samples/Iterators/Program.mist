@@ -6,7 +6,7 @@ namespace Iterators;
 
 // PROOF: User-defined struct enumerator implementing IEnumerator<TElement>
 // PROOF: MoveNext() and Current satisfy the abstract type contract
-class Range : IEnumerable<int>
+public class Range : IEnumerable<int>
 {
     public struct Enumerator : IEnumerator<int>
     {
@@ -26,7 +26,7 @@ class Range : IEnumerable<int>
 
 // PROOF: User-defined class enumerator implementing IEnumerator<TElement>
 // PROOF: Associated type slot satisfied by a class (not just structs)
-class Words : IEnumerable<string>
+public class Words : IEnumerable<string>
 {
     public class Enumerator : IEnumerator<string>
     {

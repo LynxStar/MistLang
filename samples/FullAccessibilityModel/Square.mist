@@ -1,0 +1,20 @@
+// samples/FullAccessibilityModel/Square.mist
+using Standard;
+
+namespace FullAccessibilityModel;
+
+// PROOF: a derived class reads an inherited `protected` member and an inherited `internal` member
+// (positive path for derived access in the same compilation). It does NOT read the base's `private` member.
+public class Square : Shape
+{
+    public Square() : base("square", 4, 7)
+    {
+    }
+
+    public string Describe()
+    {
+        // PROOF: `label` (protected) and `sideCount` (internal) are accessible from the derived type;
+        // `tag` is private to Shape and is only reachable via the public Fingerprint() method.
+        return $"{label}: {sideCount} sides, fingerprint {Fingerprint()}";
+    }
+}

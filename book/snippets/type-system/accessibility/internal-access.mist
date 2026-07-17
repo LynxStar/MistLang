@@ -1,0 +1,24 @@
+public class Logger
+{
+    internal string prefix;
+
+    public Logger(string prefix)
+    {
+        this.prefix = prefix;
+    }
+
+    public string Format(string message)
+    {
+        return $"[{prefix}] {message}";
+    }
+}
+
+// Another type in the same compilation can access `internal` members
+public class LoggerFactory
+{
+    public static string GetPrefix(Logger logger)
+    {
+        // `prefix` is internal, accessible within the same compilation
+        return logger.prefix;
+    }
+}

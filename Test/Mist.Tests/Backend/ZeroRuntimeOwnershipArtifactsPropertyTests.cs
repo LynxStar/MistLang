@@ -205,7 +205,7 @@ public sealed class ZeroRuntimeOwnershipArtifactsPropertyTests : IDisposable
                let source = $$"""
                    using Standard;
 
-                   class {{typeName}} : IClonable<{{typeName}}> {
+                   public class {{typeName}} : IClonable<{{typeName}}> {
                        int data;
                        public owned {{typeName}} Clone() {
                            return new {{typeName}}();

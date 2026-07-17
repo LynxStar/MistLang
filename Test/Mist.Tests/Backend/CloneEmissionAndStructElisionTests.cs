@@ -150,14 +150,14 @@ public sealed class CloneEmissionAndStructElisionTests
     {
         // Assigning to a field on an owned-bound instance from a non-owned clonable source.
         const string source = """
-            owned class Inner {
+            public owned class Inner {
                 int data;
 
                 public Inner(int d) {
                     this.data = d;
                 }
             }
-            owned class Outer {
+            public owned class Outer {
                 Inner child;
 
                 public Outer(owned Inner c) {
@@ -220,7 +220,7 @@ public sealed class CloneEmissionAndStructElisionTests
     {
         // A struct assigned to a field of an owned-bound instance — no .Clone() needed.
         const string source = """
-            struct Coord {
+            public struct Coord {
                 int x;
                 int y;
 
@@ -229,7 +229,7 @@ public sealed class CloneEmissionAndStructElisionTests
                     this.y = cy;
                 }
             }
-            owned class Canvas {
+            public owned class Canvas {
                 Coord origin;
 
                 public Canvas(Coord o) {

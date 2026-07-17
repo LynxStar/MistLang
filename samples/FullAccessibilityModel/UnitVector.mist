@@ -1,0 +1,18 @@
+// samples/FullAccessibilityModel/UnitVector.mist
+using Standard;
+
+namespace FullAccessibilityModel;
+
+// PROOF: a struct may inherit from another struct in Mist (unlike C#'s value-type structs).
+public struct UnitVector : Vector
+{
+    public UnitVector(string name) : base(name, 1)
+    {
+    }
+
+    public string Describe()
+    {
+        // PROOF: `magnitude` (protected) and `name` (internal) are both accessible from the derived struct in the same compilation.
+        return $"{name}: magnitude {magnitude}";
+    }
+}

@@ -3,7 +3,7 @@ using System;
 namespace Snippet;
 
 [Serializable, Obsolete("combined")]
-public class Legacy
+internal class Legacy
 {
 
     public static Legacy __CreateDefault()
@@ -14,7 +14,7 @@ public class Legacy
 }
 [Serializable]
 [Obsolete("use NewService")]
-public class OldService
+internal class OldService
 {
 
     public static OldService __CreateDefault()

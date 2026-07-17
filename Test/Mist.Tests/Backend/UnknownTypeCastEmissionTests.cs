@@ -220,11 +220,11 @@ public sealed class UnknownTypeCastEmissionTests : IDisposable
     public void CastToUnknown_FromUserClassInstance_EmitsObjectCast()
     {
         const string mistSource =
-            "class Bar {\n" +
+            "public class Bar {\n" +
             "    public int value;\n" +
             "    public Bar(int v) { this.value = v; }\n" +
             "}\n" +
-            "class Foo {\n" +
+            "public class Foo {\n" +
             "    public unknown Widen(Bar b) {\n" +
             "        return (unknown) b;\n" +
             "    }\n" +
@@ -274,14 +274,14 @@ public sealed class UnknownTypeCastEmissionTests : IDisposable
     public void CastFromUnknown_WithImplicitOperator_EmitsStandardCast()
     {
         const string mistSource =
-            "class MyInt {\n" +
+            "public class MyInt {\n" +
             "    public int value;\n" +
             "    public MyInt(int v) { this.value = v; }\n" +
             "    public static implicit operator MyInt(unknown u) {\n" +
             "        return new MyInt(0);\n" +
             "    }\n" +
             "}\n" +
-            "class Foo {\n" +
+            "public class Foo {\n" +
             "    public MyInt Convert(unknown x) {\n" +
             "        return (MyInt) x;\n" +
             "    }\n" +
@@ -317,14 +317,14 @@ public sealed class UnknownTypeCastEmissionTests : IDisposable
     public void CastFromUnknown_WithExplicitOperator_EmitsStandardCast()
     {
         const string mistSource =
-            "class MyInt {\n" +
+            "public class MyInt {\n" +
             "    public int value;\n" +
             "    public MyInt(int v) { this.value = v; }\n" +
             "    public static explicit operator MyInt(unknown u) {\n" +
             "        return new MyInt(0);\n" +
             "    }\n" +
             "}\n" +
-            "class Foo {\n" +
+            "public class Foo {\n" +
             "    public MyInt Convert(unknown x) {\n" +
             "        return (MyInt) x;\n" +
             "    }\n" +

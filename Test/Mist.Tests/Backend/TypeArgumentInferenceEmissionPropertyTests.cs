@@ -196,13 +196,13 @@ public sealed class TypeArgumentInferenceEmissionPropertyTests : IDisposable
                from methodName in Gen.Elements(MethodNames)
                let value = DefaultValueFor(typeName)
                let source = $$"""
-                   class Box<T> {
+                   public class Box<T> {
                        public T Value;
                        public Box(T v) {
                            Value = v;
                        }
                    }
-                   class Helpers {
+                   public class Helpers {
                        public static T {{methodName}}<T>(Box<T> container) {
                            return container.Value;
                        }

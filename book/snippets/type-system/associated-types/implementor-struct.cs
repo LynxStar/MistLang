@@ -7,7 +7,7 @@ public interface IIterator<TCursor>
 {
     TCursor CreateCursor(int pos);
 }
-public class RangeIterator : IIterator<RangeIterator.Cursor>
+internal class RangeIterator : IIterator<RangeIterator.Cursor>
 {
     public struct Cursor
     {

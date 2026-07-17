@@ -6,7 +6,7 @@ public interface IOrderable
 {
     int GetOrder();
 }
-public class Sorter<T>
+internal class Sorter<T>
     where T : IOrderable
 {
     public T First;

@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-public class Animal
+internal class Animal
 {
     public string Species;
 
@@ -16,7 +16,7 @@ public class Animal
         return Species;
     }
 }
-public class AnimalHandler<T>
+internal class AnimalHandler<T>
     where T : Animal
 {
     public T Animal;

@@ -1,0 +1,26 @@
+// samples/FullAccessibilityModel/Ledger.mist
+using Standard;
+
+namespace FullAccessibilityModel;
+
+// PROOF: `sealed` on a class parses and is accepted with no diagnostic.
+public sealed class Ledger
+{
+    // PROOF: `private` field is accessed only inside the declaring type (positive path for private access).
+    private int balance;
+
+    // PROOF: `internal` field is readable elsewhere in the same compilation.
+    internal string currency;
+
+    public Ledger(string currency, int opening)
+    {
+        this.currency = currency;
+        this.balance = opening;
+    }
+
+    public int Deposit(int amount)
+    {
+        balance = balance + amount;
+        return balance;
+    }
+}

@@ -7,19 +7,19 @@ namespace GenericConstraints;
 
 // ─── Supporting types ────────────────────────────────────────────────────
 
-abstract IOrderable {
+public abstract IOrderable {
     int GetOrder();
 }
 
-abstract IPrintable {
+public abstract IPrintable {
     string Print();
 }
 
-abstract Describable {
+public abstract Describable {
     string Describe();
 }
 
-class Animal {
+public class Animal {
     public string Species;
     public Animal(string species) {
         Species = species;
@@ -29,15 +29,15 @@ class Animal {
     }
 }
 
-class Dog : Animal {
+public class Dog : Animal {
     public Dog() : base("Dog") { }
 }
 
-class Cat : Animal {
+public class Cat : Animal {
     public Cat() : base("Cat") { }
 }
 
-struct Point {
+public struct Point {
     public int X;
     public int Y;
     public Point(int x, int y) {
@@ -46,7 +46,7 @@ struct Point {
     }
 }
 
-class Widget : IPrintable, Describable {
+public class Widget : IPrintable, Describable {
     public int Id;
     public Widget() {
         Id = 0;
@@ -69,7 +69,7 @@ class Widget : IPrintable, Describable {
     }
 }
 
-class OrderableInt : IOrderable {
+public class OrderableInt : IOrderable {
     public int Value;
     public OrderableInt() {
         Value = 0;
@@ -82,7 +82,7 @@ class OrderableInt : IOrderable {
     }
 }
 
-class SimpleImpl : IPrintable {
+public class SimpleImpl : IPrintable {
     public string Print() {
         return "SimpleImpl";
     }
@@ -90,7 +90,7 @@ class SimpleImpl : IPrintable {
 
 // ─── 1. class constraint ─────────────────────────────────────────────────
 
-class RefOnly<T> where T : class {
+public class RefOnly<T> where T : class {
     public T Item;
     public RefOnly(T item) {
         Item = item;
@@ -102,7 +102,7 @@ class RefOnly<T> where T : class {
 
 // ─── 2. struct constraint ────────────────────────────────────────────────
 
-class ValOnly<T> where T : struct {
+public class ValOnly<T> where T : struct {
     public T Item;
     public ValOnly(T item) {
         Item = item;
@@ -114,7 +114,7 @@ class ValOnly<T> where T : struct {
 
 // ─── 3. abstract type constraint with method call ────────────────────────────
 
-class Sorter<T> where T : IOrderable {
+public class Sorter<T> where T : IOrderable {
     public T First;
     public T Second;
     public Sorter(T first, T second) {
@@ -128,7 +128,7 @@ class Sorter<T> where T : IOrderable {
 
 // ─── 4. abstract type constraint with member access ──────────────────────
 
-class Describer<T> where T : Describable {
+public class Describer<T> where T : Describable {
     public T Item;
     public Describer(T item) {
         Item = item;
@@ -140,7 +140,7 @@ class Describer<T> where T : Describable {
 
 // ─── 5. base class constraint with member access ─────────────────────────
 
-class AnimalHandler<T> where T : Animal {
+public class AnimalHandler<T> where T : Animal {
     public T Animal;
     public AnimalHandler(T animal) {
         Animal = animal;
@@ -152,7 +152,7 @@ class AnimalHandler<T> where T : Animal {
 
 // ─── 6. parameterless new() constraint ───────────────────────────────────
 
-class Creator<T> where T : new() {
+public class Creator<T> where T : new() {
     public T Create() {
         return new T();
     }
@@ -160,7 +160,7 @@ class Creator<T> where T : new() {
 
 // ─── 7. parameterized new(int) constraint ────────────────────────────────
 
-class IntFactory<T> where T : new(int) {
+public class IntFactory<T> where T : new(int) {
     public T Create(int value) {
         return new T(value);
     }
@@ -168,7 +168,7 @@ class IntFactory<T> where T : new(int) {
 
 // ─── 8. multiple constructor constraints: new(), new(int), new(bool) ─────
 
-class MultiFactory<T> where T : new(), new(int), new(bool) {
+public class MultiFactory<T> where T : new(), new(int), new(bool) {
     public T CreateDefault() {
         return new T();
     }
@@ -182,7 +182,7 @@ class MultiFactory<T> where T : new(), new(int), new(bool) {
 
 // ─── 9. multiple constraints on single type parameter ────────────────────
 
-class PrintableCreator<T> where T : class, IPrintable, new() {
+public class PrintableCreator<T> where T : class, IPrintable, new() {
     public T CreateNew() {
         return new T();
     }
@@ -190,7 +190,7 @@ class PrintableCreator<T> where T : class, IPrintable, new() {
 
 // ─── 10. multiple where clauses on multi-parameter generic ───────────────
 
-class Pair<K, V> where K : IOrderable where V : new() {
+public class Pair<K, V> where K : IOrderable where V : new() {
     public K Key;
     public V Value;
     public Pair(K key) {
@@ -201,7 +201,7 @@ class Pair<K, V> where K : IOrderable where V : new() {
 
 // ─── 11. constraints on generic methods ──────────────────────────────────
 
-class MethodConstraints {
+public class MethodConstraints {
     public static T CreateItem<T>() where T : new() {
         return new T();
     }
@@ -209,14 +209,14 @@ class MethodConstraints {
 
 // ─── 12. constraint propagation through inheritance ──────────────────────
 
-class BaseContainer<T> where T : IPrintable {
+public class BaseContainer<T> where T : IPrintable {
     public T Item;
     public BaseContainer(T item) {
         Item = item;
     }
 }
 
-class DerivedContainer<T> : BaseContainer<T> where T : IPrintable, new() {
+public class DerivedContainer<T> : BaseContainer<T> where T : IPrintable, new() {
     public DerivedContainer(T item) : base(item) { }
     public T CreateNew() {
         return new T();
@@ -225,7 +225,7 @@ class DerivedContainer<T> : BaseContainer<T> where T : IPrintable, new() {
 
 // ─── 13. constructor constraints at any position ─────────────────────────
 
-class AnyPosition<T> where T : new(int), IOrderable, class {
+public class AnyPosition<T> where T : new(int), IOrderable, class {
     public T Item;
     public AnyPosition(int value) {
         Item = new T(value);
@@ -234,12 +234,12 @@ class AnyPosition<T> where T : new(int), IOrderable, class {
 
 // ─── 14. abstract type declaration with constraint ───────────────────────────
 
-abstract IRepository<T> where T : class, new() {
+public abstract IRepository<T> where T : class, new() {
     T GetById(int id);
     void Save(T item);
 }
 
-class WidgetRepository : IRepository<Widget> {
+public class WidgetRepository : IRepository<Widget> {
     public Widget GetById(int id) {
         return new Widget(id);
     }
@@ -248,7 +248,7 @@ class WidgetRepository : IRepository<Widget> {
 
 // ─── 15. struct declaration with constraint ──────────────────────────────
 
-struct Holder<T> where T : IPrintable {
+public struct Holder<T> where T : IPrintable {
     public T Value;
     public Holder(T value) {
         Value = value;
@@ -257,12 +257,12 @@ struct Holder<T> where T : IPrintable {
 
 // ─── 16. generic abstract type with constraint ──────────────────────────
 
-abstract Transformable<T> where T : new() {
+public abstract Transformable<T> where T : new() {
     T Transform(T input);
     T CreateDefault();
 }
 
-class Doubler : Transformable<Widget> {
+public class Doubler : Transformable<Widget> {
     public Widget Transform(Widget input) {
         return new Widget(input.Id * 2);
     }
@@ -273,7 +273,7 @@ class Doubler : Transformable<Widget> {
 
 // ─── 17. generic abstract type with constraint — nominal conformance ─────
 
-class Tripler : Transformable<Widget>
+public class Tripler : Transformable<Widget>
 {
     public Widget Transform(Widget input) 
     {
@@ -285,7 +285,7 @@ class Tripler : Transformable<Widget>
     }
 }
 
-class TransformableHolder
+public class TransformableHolder
 {
     public static T UseTransformable<T>(Transformable<T> transformable) where T : new()
     {

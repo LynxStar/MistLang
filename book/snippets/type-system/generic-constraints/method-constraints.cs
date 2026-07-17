@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-public class MethodConstraints
+internal class MethodConstraints
 {
     public static T CreateItem<T>()
         where T : new()

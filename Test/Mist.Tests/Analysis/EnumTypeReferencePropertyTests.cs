@@ -222,7 +222,7 @@ public class EnumTypeReferencePropertyTests
         var enumDecl = new EnumDeclarationNode
         {
             Name = Tok(scenario.EnumName),
-            Modifiers = ImmutableArray<ModifierNode>.Empty,
+            Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
             TypeAnnotation = null,
             Members = MakeEnumMemberList(members),
         };

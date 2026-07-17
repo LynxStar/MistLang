@@ -2,7 +2,7 @@ namespace Testing;
 
 using Xunit;
 
-class MathTests
+public class MathTests
 {
     [Fact]
     public void Addition()

@@ -17,7 +17,7 @@ namespace ArityOverloads;
 // ─── Mist-defined arity overloads ────────────────────────────────────────────
 
 // Non-generic Wrapper: wraps a fixed string label.
-class Wrapper {
+public class Wrapper {
     public string Label;
 
     public Wrapper(string label) {
@@ -30,7 +30,7 @@ class Wrapper {
 }
 
 // Single type parameter: wraps one value.
-class Wrapper<T> {
+public class Wrapper<T> {
     public T Value;
 
     public Wrapper(T value) {
@@ -43,7 +43,7 @@ class Wrapper<T> {
 }
 
 // Two type parameters: wraps a pair of values.
-class Wrapper<T1, T2> {
+public class Wrapper<T1, T2> {
     public T1 First;
     public T2 Second;
 
@@ -58,7 +58,7 @@ class Wrapper<T1, T2> {
 }
 
 // Three type parameters: wraps a triple.
-class Wrapper<T1, T2, T3> {
+public class Wrapper<T1, T2, T3> {
     public T1 First;
     public T2 Second;
     public T3 Third;
@@ -76,7 +76,7 @@ class Wrapper<T1, T2, T3> {
 
 // ─── Type alias coexistence with generic type ────────────────────────────────
 
-class Result<T> {
+public class Result<T> {
     public T Value;
     public bool Success;
 
@@ -98,7 +98,7 @@ type Result = Result<string>;
 
 // ─── Container using different arities as field types ────────────────────────
 
-class ArityContainer {
+public class ArityContainer {
     public Wrapper Plain;
     public Wrapper<int> Single;
     public Wrapper<string, bool> Pair;

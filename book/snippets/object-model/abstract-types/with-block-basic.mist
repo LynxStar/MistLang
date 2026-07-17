@@ -1,4 +1,4 @@
-abstract INamed
+public abstract INamed
 {
     string Name();
 }

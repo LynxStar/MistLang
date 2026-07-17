@@ -116,7 +116,7 @@ public static class RelevantDropEveryReferenceGenerators
         // whose body is the generated variant.
         return
             "namespace TestProgram;\n\n" +
-            "relevant class SharedResource\n" +
+            "public relevant class SharedResource\n" +
             "{\n" +
             "    public void Drop()\n" +
             "    {\n" +
@@ -126,7 +126,7 @@ public static class RelevantDropEveryReferenceGenerators
             "        return 1;\n" +
             "    }\n" +
             "}\n\n" +
-            "class Sink\n" +
+            "public class Sink\n" +
             "{\n" +
             "    public static void Consume(SharedResource arg)\n" +
             "    {\n" +
@@ -347,7 +347,7 @@ public sealed class RelevantDropEveryReferencePropertyTests : IDisposable
 
         return
             "namespace TestProgram;\n\n" +
-            "relevant class SharedResource\n" +
+            "public relevant class SharedResource\n" +
             "{\n" +
             "    public void Drop()\n" +
             "    {\n" +
@@ -357,7 +357,7 @@ public sealed class RelevantDropEveryReferencePropertyTests : IDisposable
             "        return 1;\n" +
             "    }\n" +
             "}\n\n" +
-            "class Sink\n" +
+            "public class Sink\n" +
             "{\n" +
             "    public static void Consume(SharedResource arg)\n" +
             "    {\n" +

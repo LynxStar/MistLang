@@ -1,4 +1,4 @@
-abstract IFixedCollection<Size:int>
+public abstract IFixedCollection<Size:int>
 {
     int GetSize();
     string GetInfo();

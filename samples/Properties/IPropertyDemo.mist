@@ -4,12 +4,12 @@ using Standard;
 
 namespace Properties;
 
-abstract ILabeled
+public abstract ILabeled
 {
     string Label { get; }
 }
 
-abstract IEditable : ILabeled
+public abstract IEditable : ILabeled
 {
     int Value { get; set; }
 }

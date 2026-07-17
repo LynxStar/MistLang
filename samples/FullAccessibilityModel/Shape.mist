@@ -1,0 +1,36 @@
+// samples/FullAccessibilityModel/Shape.mist
+using Standard;
+
+namespace FullAccessibilityModel;
+
+// PROOF: `protected` and `internal` parse and are enforced as member accessibility.
+public class Shape
+{
+    // PROOF: protected field is reachable from derived types (positive path for protected access).
+    protected string label;
+
+    // PROOF: internal field is reachable from any type in the same compilation.
+    internal int sideCount;
+
+    // PROOF: private field is reachable only inside the declaring type.
+    private int tag;
+
+    public Shape(string label, int sideCount, int tag)
+    {
+        this.label = label;
+        this.sideCount = sideCount;
+        this.tag = tag;
+    }
+
+    // PROOF: default (no modifier) member resolves to `private`; used only inside the declaring type.
+    int SecretSalt()
+    {
+        return 3;
+    }
+
+    // PROOF: a public method reads the private `tag` and the private-by-default SecretSalt from within the declaring type.
+    public int Fingerprint()
+    {
+        return tag + SecretSalt();
+    }
+}

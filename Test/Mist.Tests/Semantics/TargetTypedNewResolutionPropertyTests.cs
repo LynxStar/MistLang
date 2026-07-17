@@ -206,10 +206,10 @@ public static class TargetTypedNewResolutionGenerators
     private static string BuildFieldInitializerSource(string className, string fieldName, int argCount)
     {
         var args = BuildCtorArgs(argCount);
-        return "class " + className + " {\n" +
+        return "public class " + className + " {\n" +
                BuildCtorDecl(className, argCount) +
                "}\n\n" +
-               "class Container {\n" +
+               "public class Container {\n" +
                "    public " + className + " " + fieldName + " = new(" + args + ");\n" +
                "}";
     }

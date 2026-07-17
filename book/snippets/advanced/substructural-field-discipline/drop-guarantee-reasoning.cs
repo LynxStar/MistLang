@@ -2,7 +2,7 @@ using System;
 
 namespace Snippets;
 
-public class AffineToken
+private class AffineToken
 {
     int Id;
 
@@ -16,7 +16,7 @@ public class AffineToken
         System.Console.WriteLine($"AffineToken({Id}).Drop()");
     }
 }
-public class PlainData
+private class PlainData
 {
     int Value;
 

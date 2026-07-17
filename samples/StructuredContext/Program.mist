@@ -80,7 +80,7 @@ public class StringHolder
 }
 
 // Abstract type with with-clause on method
-abstract IContextConsumer
+public abstract IContextConsumer
 {
     string Consume() with Config cfg;
 }
@@ -95,7 +95,7 @@ public class ConsumerImpl : IContextConsumer
 }
 
 // Abstract type with with-clause on method
-abstract ContextReader
+public abstract ContextReader
 {
     string ReadContext() with int count;
 }

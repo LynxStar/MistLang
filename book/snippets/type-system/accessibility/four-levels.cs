@@ -1,0 +1,27 @@
+using System;
+
+namespace Snippet;
+
+public class Account
+{
+    public string name;
+
+    private int balance;
+
+    protected int overdraftLimit;
+
+    internal string accountType;
+
+    public Account(string name, int balance, int overdraftLimit, string accountType)
+    {
+        this.name = name;
+        this.balance = balance;
+        this.overdraftLimit = overdraftLimit;
+        this.accountType = accountType;
+    }
+
+    public int GetBalance()
+    {
+        return balance;
+    }
+}

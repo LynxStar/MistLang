@@ -6,11 +6,11 @@ using System.Diagnostics;
 
 // PROOF: Attribute on a class declaration with no arguments
 [Serializable]
-class Config
+public class Config
 {
     string name;
 
-    Config(string name)
+    public Config(string name)
     {
         this.name = name;
     }
@@ -19,13 +19,13 @@ class Config
 // PROOF: Multiple attributes in separate lists on a class
 [Serializable]
 [Obsolete("Use NewService instead")]
-class OldService
+public class OldService
 {
 }
 
 // PROOF: Attribute with positional arguments on a method
 // PROOF: Attribute with named argument on a method
-class MyTests
+public class MyTests
 {
     [Obsolete("use TestAdditionV2")]
     public void TestAddition()
@@ -47,12 +47,12 @@ class MyTests
 
 // PROOF: Attribute on a struct
 [Serializable]
-struct Point
+public struct Point
 {
-    int x;
-    int y;
+    public int x;
+    public int y;
 
-    Point(int x, int y)
+    public Point(int x, int y)
     {
         this.x = x;
         this.y = y;
@@ -61,23 +61,23 @@ struct Point
 
 // PROOF: Attribute with typeof argument (type literal)
 [DebuggerTypeProxy(List<int>)]
-class CustomCollection
+public class CustomCollection
 {
 }
 
 // PROOF: Multiple attributes in a single list
 [Serializable, Obsolete("combined")]
-class MultiAttr
+public class MultiAttr
 {
 }
 
 // PROOF: Generic attribute type arguments
 [JsonConverter<int>]
-class TypedConfig
+public class TypedConfig
 {
 }
 
-class Program
+public class Program
 {
     public static void RunDemo()
     {
@@ -114,7 +114,7 @@ class Program
 }
 
 // PROOF: Attribute on a parameter - uses a custom attribute targeting parameters
-class ParamTagAttribute : Attribute
+public class ParamTagAttribute : Attribute
 {
     public string Tag;
 
@@ -124,7 +124,7 @@ class ParamTagAttribute : Attribute
     }
 }
 
-class Formatter
+public class Formatter
 {
     public string Format([ParamTag("format-input")] string template, int value)
     {
@@ -133,7 +133,7 @@ class Formatter
 }
 
 // PROOF: Attribute on a property declaration
-class Settings
+public class Settings
 {
     [Obsolete("Use Timeout instead")]
     public int Delay { get; }
@@ -147,7 +147,7 @@ class Settings
 }
 
 // PROOF: Attribute on an indexer declaration
-class LookupTable
+public class LookupTable
 {
     int[] data;
 

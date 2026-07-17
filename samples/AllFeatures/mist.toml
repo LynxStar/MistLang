@@ -66,3 +66,4 @@ AsOperator = { path = "../AsOperator" }
 AnonymousTypes = { path = "../AnonymousTypes" }
 DisposableDropInterop = { path = "../DisposableDropInterop" }
 Attributes = { path = "../Attributes" }
+FullAccessibilityModel = { path = "../FullAccessibilityModel" }

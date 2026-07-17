@@ -1,9 +1,9 @@
-abstract IStringable
+public abstract IStringable
 {
     string Stringify();
 }
 
-abstract IProducer
+public abstract IProducer
 {
     type Output : IStringable;
 

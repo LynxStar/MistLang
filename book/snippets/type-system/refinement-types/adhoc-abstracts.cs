@@ -6,7 +6,7 @@ public interface IStrictProcessor
 {
     string Process(int x);
 }
-public class WeakerProcessor : IStrictProcessor
+internal class WeakerProcessor : IStrictProcessor
 {
     public string Process(int x)
     {
@@ -19,7 +19,7 @@ public class WeakerProcessor : IStrictProcessor
         return inst;
     }
 }
-public class LenientProcessor : IStrictProcessor
+internal class LenientProcessor : IStrictProcessor
 {
     public string Process(int x)
     {

@@ -1,0 +1,17 @@
+// Top-level type: defaults to `internal`
+class TopLevelService
+{
+    // Class member: defaults to `private`
+    int counter;
+
+    public TopLevelService()
+    {
+        this.counter = 0;
+    }
+
+    // Explicit public method
+    public int GetCounter()
+    {
+        return counter;
+    }
+}

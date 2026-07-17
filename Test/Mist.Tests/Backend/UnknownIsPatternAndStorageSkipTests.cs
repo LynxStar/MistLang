@@ -268,8 +268,8 @@ public sealed class UnknownIsPatternAndStorageSkipTests : IDisposable
     public void IsPattern_OptionalIntWithBinding_EmitsClosedGenericPattern()
     {
         const string mistSource =
-            "class Optional<T> { public int has; public Optional() { this.has = 0; } }\n" +
-            "class Foo {\n" +
+            "public class Optional<T> { public int has; public Optional() { this.has = 0; } }\n" +
+            "public class Foo {\n" +
             "    public static void Main() { }\n" +
             "    public void Narrow(Optional<int> foo) {\n" +
             "        if (foo is Optional<int> oi) { }\n" +
@@ -307,8 +307,8 @@ public sealed class UnknownIsPatternAndStorageSkipTests : IDisposable
     public void IsPattern_OptionalIntWithBinding_WhitespaceInsensitive()
     {
         const string mistSource =
-            "class Optional<T> { public int has; public Optional() { this.has = 0; } }\n" +
-            "class Foo {\n" +
+            "public class Optional<T> { public int has; public Optional() { this.has = 0; } }\n" +
+            "public class Foo {\n" +
             "    public static void Main() { }\n" +
             "    public void Narrow(Optional<int> foo) {\n" +
             "        if (foo is Optional<int> oi) { }\n" +

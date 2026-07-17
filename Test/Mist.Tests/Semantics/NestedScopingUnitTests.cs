@@ -128,7 +128,7 @@ public sealed class NestedScopingUnitTests
         // A nested class containing every kind of member declaration
         var source = """
             class Outer {
-                class Inner {
+                public class Inner {
                     int data;
                     
                     Inner() { }

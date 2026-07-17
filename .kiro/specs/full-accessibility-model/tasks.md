@@ -86,7 +86,7 @@ Two independent `Accessibility` enums are defined (one per pipeline, per Req 3.5
     - Assert a `sealed` vs non-`sealed` class/struct sets `IsSealed` independently of its `Accessibility` value
     - _Requirements: 3.2_
 
-- [ ] 4. Classic Type Checker: refactor and full enforcement
+- [x] 4. Classic Type Checker: refactor and full enforcement
   - [x] 4.1 Add the accessibility `TypeCheckDiagnostics` descriptor entries
     - Add `DiagnosticDescriptor` fields to `Source/Mist/Common/Diagnostics/Descriptors/TypeCheckDiagnostics.cs` for: private-outside-domain, protected-non-derived, internal-cross-assembly, inconsistent-accessibility, base/interface-less-accessible, override/interface-impl violation, nested-type-outside-domain, sealed-inheritance, newtype-over-sealed, sealed-on-alias/non-type (Error), and protected-in-sealed (**Warning**)
     - Assign next-free `MIST_TC_*` IDs unique across all registries, `PipelineStage.Analysis`
@@ -158,22 +158,22 @@ Two independent `Accessibility` enums are defined (one per pipeline, per Req 3.5
     - Generate nested types and reference sites; assert reject outside the computed domain and accept within
     - _Validates: Requirements 11.1, 11.2 (Property 13)_
 
-  - [ ] 4.15 Write property test for sealed inheritance
+  - [x] 4.15 Write property test for sealed inheritance
     - **Feature: full-accessibility-model, Property 14: Deriving from a sealed type is rejected, from a non-sealed type is accepted**
     - Generate sealed/non-sealed bases (user-declared and external-marked); assert reject sealed-base derivation, accept non-sealed base and `sealed` declarations
     - _Validates: Requirements 12.1, 12.2, 12.3, 12.4 (Property 14)_
 
-  - [ ] 4.16 Write property test for sealed interactions with Mist constructs
+  - [x] 4.16 Write property test for sealed interactions with Mist constructs
     - **Feature: full-accessibility-model, Property 15: Sealed interacts correctly with Mist-specific type constructs**
     - Generate alias/refinement/newtype over sealed types; assert alias and refinement accepted, newtype rejected
     - _Validates: Requirements 12.5, 12.6, 12.7 (Property 15)_
 
-  - [ ] 4.17 Write property test for sealed placement
+  - [x] 4.17 Write property test for sealed placement
     - **Feature: full-accessibility-model, Property 16: Sealed is valid only on class and struct declarations**
     - Generate `sealed` on aliases, methods, and other non-type members; assert an error is reported
     - _Validates: Requirements 12.9, 13.3 (Property 16)_
 
-  - [ ] 4.18 Write property test for protected-in-sealed warning
+  - [x] 4.18 Write property test for protected-in-sealed warning
     - **Feature: full-accessibility-model, Property 17: A protected member in a sealed type compiles with exactly one warning**
     - Generate sealed and non-sealed types with `Protected` members; assert exactly one warning in the sealed case and none in the non-sealed case
     - _Validates: Requirements 13.1, 13.2 (Property 17)_
@@ -250,12 +250,12 @@ Two independent `Accessibility` enums are defined (one per pipeline, per Req 3.5
     - Build the Program Model and project representative CLR types in-process; assert both the `Accessibility` value and the sealed flag are populated on declarations and projected types/members
     - _Requirements: 4.1, 4.2, 5.9, 16.1, 16.2_
 
-- [ ] 9. Existing-violation cleanup under the new rules
-  - [ ] 9.1 Clean up compiler Mist sources and the standard library
+- [x] 9. Existing-violation cleanup under the new rules
+  - [x] 9.1 Clean up compiler Mist sources and the standard library
     - Audit compiler-bundled Mist sources and `Source/Standard/*.mist`; apply the struct-member flip fixes with the narrowest sufficient modifier (least privilege), and upgrade unspecified standard-library types/members to explicit `public` (intended-public upgrade so they stay visible across the compilation-as-assembly boundary)
     - _Requirements: 18.1, 18.2, 18.3, 18.4, 18.5, 18.6, 18.7_
 
-  - [ ] 9.2 Clean up samples, snippets, and test `.mist` fixtures
+  - [x] 9.2 Clean up samples, snippets, and test `.mist` fixtures
     - Audit existing `samples/**`, `book/snippets/**`, and `Test/**` `.mist` fixtures; add the narrowest explicit modifiers required so they build clean under the new rules (no gratuitous broadening); halt and report if any genuine cross-boundary usage cannot be satisfied without broadening
     - _Requirements: 18.1, 18.2, 18.3, 18.4, 18.5, 18.6_
 

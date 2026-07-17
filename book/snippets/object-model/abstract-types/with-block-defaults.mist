@@ -1,4 +1,4 @@
-abstract ITaggable
+public abstract ITaggable
 {
     string Tag();
 

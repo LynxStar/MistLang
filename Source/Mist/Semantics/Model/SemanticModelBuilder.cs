@@ -13419,26 +13419,29 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
 
             // Set accessibility on the type object as well (types carry their own Accessibility property).
-            switch(symbol.DeclaredType)
+            // Only propagate accessibility to the type when the symbol IS the type declaration itself
+            // (not when it's a member whose DeclaredType happens to reference that type, e.g. a method
+            // with that type as its return type).
+            switch(symbol.Kind)
             {
-                case ClassType classType:
+                case SymbolKind.Class when symbol.DeclaredType is ClassType classType:
                     classType.Accessibility = mutableSymbol.Accessibility;
                     classType.IsSealed = AccessibilityFacts.HasSealed(modifiers);
                     break;
-                case StructType structType:
+                case SymbolKind.Struct when symbol.DeclaredType is StructType structType:
                     structType.Accessibility = mutableSymbol.Accessibility;
                     structType.IsSealed = AccessibilityFacts.HasSealed(modifiers);
                     break;
-                case AbstractType abstractType:
+                case SymbolKind.Abstract when symbol.DeclaredType is AbstractType abstractType:
                     abstractType.Accessibility = mutableSymbol.Accessibility;
                     break;
-                case EnumType enumType:
+                case SymbolKind.Enum when symbol.DeclaredType is EnumType enumType:
                     enumType.Accessibility = mutableSymbol.Accessibility;
                     break;
-                case TypeAliasType typeAliasType:
+                case SymbolKind.TypeAlias when symbol.DeclaredType is TypeAliasType typeAliasType:
                     typeAliasType.Accessibility = mutableSymbol.Accessibility;
                     break;
-                case NewtypeType newtypeType:
+                case SymbolKind.Newtype when symbol.DeclaredType is NewtypeType newtypeType:
                     newtypeType.Accessibility = mutableSymbol.Accessibility;
                     break;
             }

@@ -207,12 +207,12 @@ public sealed class AssociatedTypeEmissionPropertyTests : IDisposable
 
         // Emit shared type declarations (one per scenario kind)
         _ = sb.AppendLine("// --- Unconstrained slot ---");
-        _ = sb.AppendLine("abstract IHolder {");
+        _ = sb.AppendLine("public abstract IHolder {");
         _ = sb.AppendLine("    type Element;");
         _ = sb.AppendLine("    int GetValue();");
         _ = sb.AppendLine("}");
         _ = sb.AppendLine();
-        _ = sb.AppendLine("class Holder : IHolder {");
+        _ = sb.AppendLine("public class Holder : IHolder {");
         _ = sb.AppendLine("    public struct Element {");
         _ = sb.AppendLine("        public int Val;");
         _ = sb.AppendLine("        public Element(int v) { Val = v; }");
@@ -224,12 +224,12 @@ public sealed class AssociatedTypeEmissionPropertyTests : IDisposable
         _ = sb.AppendLine();
 
         _ = sb.AppendLine("// --- Struct-constrained slot ---");
-        _ = sb.AppendLine("abstract IContainer {");
+        _ = sb.AppendLine("public abstract IContainer {");
         _ = sb.AppendLine("    type Item : struct;");
         _ = sb.AppendLine("    int GetData();");
         _ = sb.AppendLine("}");
         _ = sb.AppendLine();
-        _ = sb.AppendLine("class Container : IContainer {");
+        _ = sb.AppendLine("public class Container : IContainer {");
         _ = sb.AppendLine("    public struct Item {");
         _ = sb.AppendLine("        public int X;");
         _ = sb.AppendLine("        public Item(int x) { X = x; }");
@@ -241,16 +241,16 @@ public sealed class AssociatedTypeEmissionPropertyTests : IDisposable
         _ = sb.AppendLine();
 
         _ = sb.AppendLine("// --- Abstract-constrained slot ---");
-        _ = sb.AppendLine("abstract IStringable {");
+        _ = sb.AppendLine("public abstract IStringable {");
         _ = sb.AppendLine("    string GetStr();");
         _ = sb.AppendLine("}");
         _ = sb.AppendLine();
-        _ = sb.AppendLine("abstract IFactory {");
+        _ = sb.AppendLine("public abstract IFactory {");
         _ = sb.AppendLine("    type Product : IStringable;");
         _ = sb.AppendLine("    string Produce();");
         _ = sb.AppendLine("}");
         _ = sb.AppendLine();
-        _ = sb.AppendLine("class Factory : IFactory {");
+        _ = sb.AppendLine("public class Factory : IFactory {");
         _ = sb.AppendLine("    public class Product : IStringable {");
         _ = sb.AppendLine("        string _name;");
         _ = sb.AppendLine("        public Product(string n) { _name = n; }");

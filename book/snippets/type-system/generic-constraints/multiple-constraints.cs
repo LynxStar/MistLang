@@ -6,7 +6,7 @@ public interface IPrintable
 {
     string Print();
 }
-public class PrintableCreator<T>
+internal class PrintableCreator<T>
     where T : class, IPrintable, new()
 {
     public T CreateNew()

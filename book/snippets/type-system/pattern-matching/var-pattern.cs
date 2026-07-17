@@ -11,9 +11,11 @@ public class Program
 
     public static void Main(string[] args)
     {
-        if (Program.ComputeScore() is var score and > 0)
         {
-            Console.WriteLine($"Positive score: {score}");
+            if (Program.ComputeScore() is var score and > 0)
+            {
+                Console.WriteLine($"Positive score: {score}");
+            }
         }
     }
 

@@ -8,7 +8,7 @@ public interface IRepository<T>
     T GetById(int id);
     void Save(T item);
 }
-public struct Holder<T>
+internal struct Holder<T>
 {
     public T Value;
 

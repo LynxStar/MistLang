@@ -16,11 +16,11 @@ namespace AssociatedTypes;
 
 // ─── Supporting abstract types ───────────────────────────────────────────────
 
-abstract IStringable {
+public abstract IStringable {
     string Stringify();
 }
 
-abstract IResettable {
+public abstract IResettable {
     string GetState();
 }
 
@@ -31,12 +31,12 @@ abstract IResettable {
 // participates in the contract.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-abstract IProducer {
+public abstract IProducer {
     type Output : IStringable;
     Output Produce(string value);
 }
 
-class MessageProducer : IProducer {
+public class MessageProducer : IProducer {
     public class Output : IStringable {
         public string Value;
         public Output(string value) { Value = value; }
@@ -53,13 +53,13 @@ class MessageProducer : IProducer {
 // Input as both a return type and parameter type in its method signatures.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-abstract Consumable {
+public abstract Consumable {
     type Input : IStringable;
     Input Accept(string data);
     string Describe(Input item);
 }
 
-class StringConsumer : Consumable {
+public class StringConsumer : Consumable {
     public class Input : IStringable {
         public string Data;
         public Input(string data) { Data = data; }
@@ -79,13 +79,13 @@ class StringConsumer : Consumable {
 // The abstract type uses Cursor as both return and parameter type.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-abstract IIterator {
+public abstract IIterator {
     type Cursor : struct;
     Cursor Start();
     Cursor Advance(Cursor current);
 }
 
-class RangeIterator : IIterator {
+public class RangeIterator : IIterator {
     public struct Cursor {
         public int Position;
         public Cursor(int pos) { Position = pos; }
@@ -104,12 +104,12 @@ class RangeIterator : IIterator {
 // The abstract type uses Product as a return type.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-abstract IFactory {
+public abstract IFactory {
     type Product : class;
     Product Create(string name, int weight);
 }
 
-class WidgetFactory : IFactory {
+public class WidgetFactory : IFactory {
     public class Product {
         public string Name;
         public int Weight;
@@ -126,12 +126,12 @@ class WidgetFactory : IFactory {
 // The abstract type uses State as a return type.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-abstract IStatefulProducer {
+public abstract IStatefulProducer {
     type State : IStringable, IResettable;
     State CreateState(int initial);
 }
 
-class CounterProducer : IStatefulProducer {
+public class CounterProducer : IStatefulProducer {
     public class State : IStringable, IResettable {
         public int Count;
         public State(int count) { Count = count; }
@@ -150,13 +150,13 @@ class CounterProducer : IStatefulProducer {
 // TIn as a parameter, proving both coexist correctly.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-abstract IMapper<TIn> {
+public abstract IMapper<TIn> {
     type Mapped : IStringable;
     Mapped Map(TIn value);
     TIn GetDefault();
 }
 
-class IntMapper : IMapper<int> {
+public class IntMapper : IMapper<int> {
     public class Mapped : IStringable {
         public int Value;
         public Mapped(int v) { Value = v; }
@@ -170,7 +170,7 @@ class IntMapper : IMapper<int> {
     }
 }
 
-class StringMapper : IMapper<string> {
+public class StringMapper : IMapper<string> {
     public class Mapped : IStringable {
         public string Value;
         public Mapped(string v) { Value = v; }
@@ -190,13 +190,13 @@ class StringMapper : IMapper<string> {
 // The abstract type uses Element as a return type.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-abstract IContainer {
+public abstract IContainer {
     type Element;
     Element Get(int index);
     int GetSize();
 }
 
-class IntContainer : IContainer {
+public class IntContainer : IContainer {
     public struct Element {
         public int Value;
         public Element(int v) { Value = v; }
@@ -215,12 +215,12 @@ class IntContainer : IContainer {
 // The abstract type uses Value as a return type.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-abstract IValueProducer {
+public abstract IValueProducer {
     type Value : class, IStringable;
     Value Create(int x, int y);
 }
 
-class PointProducer : IValueProducer {
+public class PointProducer : IValueProducer {
     public class Value : IStringable {
         public int X;
         public int Y;
@@ -238,14 +238,14 @@ class PointProducer : IValueProducer {
 // constraints. The abstract type uses both Key and Value in its method signatures.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-abstract IKeyValueStore {
+public abstract IKeyValueStore {
     type Key : struct;
     type Value : class;
     Key MakeKey(int id);
     Value MakeValue(string data);
 }
 
-class StringStore : IKeyValueStore {
+public class StringStore : IKeyValueStore {
     public struct Key {
         public int Id;
         public Key(int id) { Id = id; }
@@ -268,17 +268,17 @@ class StringStore : IKeyValueStore {
 // slots. Each abstract type uses its slot in a method signature.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-abstract IReadable {
+public abstract IReadable {
     type Reader : struct;
     Reader OpenReader(int offset);
 }
 
-abstract IWritable {
+public abstract IWritable {
     type Writer : class;
     Writer OpenWriter(int bufferSize);
 }
 
-class FileStream : IReadable, IWritable {
+public class FileStream : IReadable, IWritable {
     public struct Reader {
         public int Offset;
         public Reader(int offset) { Offset = offset; }
@@ -304,16 +304,16 @@ class FileStream : IReadable, IWritable {
 // inside slot constraint type arguments.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-abstract IWrapper<T> {
+public abstract IWrapper<T> {
     T Unwrap();
 }
 
-abstract IBoxFactory<T> {
+public abstract IBoxFactory<T> {
     type Boxed : IWrapper<T>;
     Boxed Wrap(T value);
 }
 
-class IntBoxFactory : IBoxFactory<int> {
+public class IntBoxFactory : IBoxFactory<int> {
     public class Boxed : IWrapper<int> {
         public int Inner;
         public Boxed(int v) { Inner = v; }
@@ -324,7 +324,7 @@ class IntBoxFactory : IBoxFactory<int> {
     }
 }
 
-class StringBoxFactory : IBoxFactory<string> {
+public class StringBoxFactory : IBoxFactory<string> {
     public class Boxed : IWrapper<string> {
         public string Inner;
         public Boxed(string v) { Inner = v; }
@@ -343,17 +343,17 @@ class StringBoxFactory : IBoxFactory<string> {
 // abstract type in the C# output since C# lacks higher-kinded types.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-abstract ITransform<TIn, TOut> {
+public abstract ITransform<TIn, TOut> {
     TOut Transform(TIn input);
 }
 
-abstract IConverter<TIn> {
+public abstract IConverter<TIn> {
     type Converted<TOut> : ITransform<TIn, TOut>;
     Converted<string> ConvertToString(TIn input);
     Converted<int> ConvertToInt(TIn input);
 }
 
-class IntConverter : IConverter<int> {
+public class IntConverter : IConverter<int> {
     public class Converted<TOut> : ITransform<int, TOut> {
         public TOut Value;
         public Converted(TOut v) { Value = v; }

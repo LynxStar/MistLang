@@ -10,7 +10,7 @@ namespace TargetTypedNew;
 // PROOF: Target-typed new resolves type from assignment to existing variable
 // PROOF: Target-typed new works with generic types
 
-class Point
+public class Point
 {
     public int X;
     public int Y;
@@ -27,7 +27,7 @@ class Point
     }
 }
 
-class Pair<T>
+public class Pair<T>
 {
     public T First;
     public T Second;
@@ -44,13 +44,13 @@ class Pair<T>
     }
 }
 
-class Container
+public class Container
 {
     // PROOF: field initializer with target-typed new
     public Point Origin = new(0, 0);
 }
 
-class Program
+public class Program
 {
     // PROOF: return type inference
     public static Point MakePoint(int x, int y)

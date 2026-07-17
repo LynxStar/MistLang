@@ -144,7 +144,7 @@ public sealed class AbstractDefaultMethodEmissionTests : IDisposable
             using Standard;
             namespace TestProgram;
 
-            abstract IGreeting
+            public abstract IGreeting
             {
                 string Name();
                 string Greet() { return $"Hello, I am {this.Name()}"; }
@@ -178,7 +178,7 @@ public sealed class AbstractDefaultMethodEmissionTests : IDisposable
             using Standard;
             namespace TestProgram;
 
-            abstract IGreeting
+            public abstract IGreeting
             {
                 string Name();
                 string Greet() { return $"Hello, I am {this.Name()}"; }
@@ -211,13 +211,13 @@ public sealed class AbstractDefaultMethodEmissionTests : IDisposable
             using Standard;
             namespace TestProgram;
 
-            abstract IBase
+            public abstract IBase
             {
                 string Tag();
                 string Banner() { return $"[{this.Tag()}]"; }
             }
 
-            abstract IDerived : IBase
+            public abstract IDerived : IBase
             {
                 int Extra();
             }
@@ -251,7 +251,7 @@ public sealed class AbstractDefaultMethodEmissionTests : IDisposable
             using Standard;
             namespace TestProgram;
 
-            abstract IPrefixer
+            public abstract IPrefixer
             {
                 string Prefix();
                 string Decorate(string text) { return $"{this.Prefix()}{text}"; }

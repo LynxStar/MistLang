@@ -1,5 +1,3 @@
-using Mist.ProgramModel.Contracts;
-
 namespace Mist.ProgramModel.Contracts.Types;
 
 /// <summary>

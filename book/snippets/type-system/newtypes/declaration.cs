@@ -1,7 +1,5 @@
 using System;
 
-namespace Standard.Bootstrap;
-
 public readonly struct UserId
 {
     public readonly int Value;

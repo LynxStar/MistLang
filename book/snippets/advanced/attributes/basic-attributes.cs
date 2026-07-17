@@ -3,7 +3,7 @@ using System;
 namespace Snippet;
 
 [Serializable]
-public class Config
+internal class Config
 {
     string name;
 
@@ -12,7 +12,7 @@ public class Config
         this.name = name;
     }
 }
-public class Service
+internal class Service
 {
     [Obsolete("use RunV2")]
     public void Run()

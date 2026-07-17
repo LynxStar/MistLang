@@ -11,7 +11,7 @@ public interface IProducer<TOutput>
 {
     TOutput CreateOutput(string msg);
 }
-public class Helpers
+internal class Helpers
 {
     public static string Describe<T, TOutput>(T producer)
         where T : IProducer<TOutput>

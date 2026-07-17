@@ -2,7 +2,7 @@ using System;
 
 namespace Snippets;
 
-public class Resource
+private class Resource
 {
     int Id;
 
@@ -16,7 +16,7 @@ public class Resource
         System.Console.WriteLine($"Resource({Id}).Drop()");
     }
 }
-public class Token
+private class Token
 {
     int Id;
 
@@ -30,7 +30,7 @@ public class Token
         System.Console.WriteLine($"Token({Id}).Drop()");
     }
 }
-public class Subscription
+private class Subscription
 {
     int Id;
 
@@ -52,7 +52,7 @@ public class Subscription
         System.Console.WriteLine($"Subscription({Id}).Drop()");
     }
 }
-public class PlainData
+private class PlainData
 {
     int Value;
 

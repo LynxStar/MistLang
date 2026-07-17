@@ -504,6 +504,11 @@
         "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
         "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
         "timestamp": 1784241762250
+      },
+      {
+        "executionId": "ad20fffb-b3f7-41d6-8d9f-5b5873643dc8",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784246729251
       }
     ],
     "4.16 Write property test for sealed interactions with Mist constructs": [
@@ -516,6 +521,11 @@
         "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
         "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
         "timestamp": 1784241764807
+      },
+      {
+        "executionId": "ad20fffb-b3f7-41d6-8d9f-5b5873643dc8",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784246729985
       }
     ],
     "4.17 Write property test for sealed placement": [
@@ -528,6 +538,11 @@
         "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
         "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
         "timestamp": 1784241763118
+      },
+      {
+        "executionId": "ad20fffb-b3f7-41d6-8d9f-5b5873643dc8",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784246730835
       }
     ],
     "4.18 Write property test for protected-in-sealed warning": [
@@ -540,6 +555,11 @@
         "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
         "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
         "timestamp": 1784241763912
+      },
+      {
+        "executionId": "ad20fffb-b3f7-41d6-8d9f-5b5873643dc8",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784246731734
       }
     ],
     "4.19 Write cross-assembly internal integration test": [
@@ -814,6 +834,16 @@
         "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
         "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
         "timestamp": 1784241761340
+      },
+      {
+        "executionId": "ad20fffb-b3f7-41d6-8d9f-5b5873643dc8",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784246743076
+      },
+      {
+        "executionId": "ad20fffb-b3f7-41d6-8d9f-5b5873643dc8",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784249316988
       }
     ],
     "9.2 Clean up samples, snippets, and test `.mist` fixtures": [
@@ -821,6 +851,16 @@
         "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
         "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
         "timestamp": 1784225614635
+      },
+      {
+        "executionId": "ad20fffb-b3f7-41d6-8d9f-5b5873643dc8",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784246743954
+      },
+      {
+        "executionId": "ad20fffb-b3f7-41d6-8d9f-5b5873643dc8",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784249317598
       }
     ],
     "10.1 Add the new modifiers to the TextMate grammar": [
@@ -879,6 +919,11 @@
         "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
         "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
         "timestamp": 1784225614794
+      },
+      {
+        "executionId": "ad20fffb-b3f7-41d6-8d9f-5b5873643dc8",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784249326483
       }
     ],
     "11.2 Integrate the sample into AllFeatures": [
@@ -900,6 +945,16 @@
         "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
         "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
         "timestamp": 1784225614923
+      },
+      {
+        "executionId": "ad20fffb-b3f7-41d6-8d9f-5b5873643dc8",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784249327322
+      },
+      {
+        "executionId": "ad20fffb-b3f7-41d6-8d9f-5b5873643dc8",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784250413355
       }
     ],
     "12.2 Reference the chapter in SUMMARY.md": [
@@ -984,6 +1039,20 @@
         "executionId": "c2d1d503-7e46-4eab-bbb3-84b3ea48fc2a",
         "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
         "timestamp": 1784238821681
+      }
+    ],
+    "4. Classic Type Checker: refactor and full enforcement": [
+      {
+        "executionId": "ad20fffb-b3f7-41d6-8d9f-5b5873643dc8",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784246731768
+      }
+    ],
+    "9. Existing-violation cleanup under the new rules": [
+      {
+        "executionId": "ad20fffb-b3f7-41d6-8d9f-5b5873643dc8",
+        "chatSessionId": "sess_d78c92d5-3bc6-45ea-9e6c-435280852156",
+        "timestamp": 1784249317656
       }
     ]
   }

@@ -1,7 +1,5 @@
 using System;
 
-namespace Snippet;
-
 public readonly struct UserId
 {
     public readonly int Value;
@@ -14,6 +12,8 @@ public readonly struct UserId
     public static explicit operator UserId(int value) => new UserId(value);
     public static explicit operator int(UserId id) => id.Value;
 }
+namespace Snippet;
+
 public class Program
 {
     private static void Identify(object value)

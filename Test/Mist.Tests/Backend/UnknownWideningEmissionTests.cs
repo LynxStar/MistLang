@@ -191,11 +191,11 @@ public sealed class UnknownWideningEmissionTests : IDisposable
     public void Widening_ListIntToListUnknown_EmitsDynamicTarget()
     {
         const string mistSource =
-            "class List<T> {\n" +
+            "public class List<T> {\n" +
             "    public int length;\n" +
             "    public List() { this.length = 0; }\n" +
             "}\n" +
-            "class Foo {\n" +
+            "public class Foo {\n" +
             "    public static void Main() { }\n" +
             "    public void Widen(List<int> intList) {\n" +
             "        List<unknown> xs = intList;\n" +
@@ -265,11 +265,11 @@ public sealed class UnknownWideningEmissionTests : IDisposable
     public void Widening_MapStringIntToMapStringUnknown_EmitsDynamicTarget()
     {
         const string mistSource =
-            "class Map<K, V> {\n" +
+            "public class Map<K, V> {\n" +
             "    public int size;\n" +
             "    public Map() { this.size = 0; }\n" +
             "}\n" +
-            "class Foo {\n" +
+            "public class Foo {\n" +
             "    public static void Main() { }\n" +
             "    public void Widen(Map<string, int> stringIntMap) {\n" +
             "        Map<string, unknown> m = stringIntMap;\n" +
@@ -306,11 +306,11 @@ public sealed class UnknownWideningEmissionTests : IDisposable
     public void Widening_ReturnListIntAsListUnknown_EmitsDynamicReturn()
     {
         const string mistSource =
-            "class List<T> {\n" +
+            "public class List<T> {\n" +
             "    public int length;\n" +
             "    public List() { this.length = 0; }\n" +
             "}\n" +
-            "class Foo {\n" +
+            "public class Foo {\n" +
             "    public static void Main() { }\n" +
             "    public List<unknown> WidenReturn(List<int> intList) {\n" +
             "        return intList;\n" +
@@ -372,11 +372,11 @@ public sealed class UnknownWideningEmissionTests : IDisposable
         // (`EmitVariableDeclaration`) rather than the parameter-list
         // path.
         const string mistSource =
-            "class List<T> {\n" +
+            "public class List<T> {\n" +
             "    public int length;\n" +
             "    public List() { this.length = 0; }\n" +
             "}\n" +
-            "class Foo {\n" +
+            "public class Foo {\n" +
             "    public static void Main() { }\n" +
             "    public void Widen(List<int> intList) {\n" +
             "        List<unknown> xs = intList;\n" +
@@ -404,11 +404,11 @@ public sealed class UnknownWideningEmissionTests : IDisposable
     public void NoWidening_SameConstructedType_DoesNotInsertCast()
     {
         const string mistSource =
-            "class List<T> {\n" +
+            "public class List<T> {\n" +
             "    public int length;\n" +
             "    public List() { this.length = 0; }\n" +
             "}\n" +
-            "class Foo {\n" +
+            "public class Foo {\n" +
             "    public static void Main() { }\n" +
             "    public void Pass(List<int> a) {\n" +
             "        List<int> b = a;\n" +

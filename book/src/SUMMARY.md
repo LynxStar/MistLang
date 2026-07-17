@@ -35,6 +35,7 @@
 
 # Type System
 
+- [Accessibility](type-system/accessibility.md)
 - [Generics](type-system/generics.md)
 - [Generic Constraints](type-system/generic-constraints.md)
 - [Associated Types](type-system/associated-types.md)

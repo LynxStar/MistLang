@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-public struct Point
+public class Point
 {
     public int X;
 
@@ -14,25 +14,12 @@ public struct Point
         this.Y = y;
     }
 }
-public struct Point3D
+public class Point3D : Point
 {
-    public int X;
-
-    public int Y;
-
     public int Z;
 
-    public Point3D(int x, int y, int z)
+    public Point3D(int x, int y, int z) : base(x, y)
     {
         this.Z = z;
-    }
-
-    public static implicit operator Point(Point3D value)
-    {
-        return new Point
-        {
-            X = value.X,
-            Y = value.Y,
-        };
     }
 }

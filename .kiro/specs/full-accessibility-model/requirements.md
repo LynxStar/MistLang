@@ -501,8 +501,8 @@ public class Program
         var unit = new UnitVector("north");
         Console.WriteLine(unit.Describe());
 
-        var frozen = new Frozen(21);
-        Console.WriteLine($"frozen: value {frozen.value}, checksum {frozen.Checksum()}");
+        var frozenItem = new Frozen(21);
+        Console.WriteLine($"frozen: value {frozenItem.value}, checksum {frozenItem.Checksum()}");
 
         // PROOF: `internal` struct member readable from a non-derived type in the same compilation.
         Console.WriteLine($"vector name (internal): {unit.name}");

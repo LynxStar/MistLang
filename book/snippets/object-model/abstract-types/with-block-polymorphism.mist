@@ -1,4 +1,4 @@
-abstract IDescribable
+public abstract IDescribable
 {
     string Describe();
 }

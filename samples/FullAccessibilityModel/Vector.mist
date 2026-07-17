@@ -1,0 +1,20 @@
+// samples/FullAccessibilityModel/Vector.mist
+using Standard;
+
+namespace FullAccessibilityModel;
+
+// PROOF: Mist structs are inheritable, so `protected` and `internal` are real, enforced modifiers on struct members.
+public struct Vector
+{
+    // PROOF: protected struct field is reachable from a derived struct (positive path for protected-on-struct).
+    protected int magnitude;
+
+    // PROOF: internal struct field is readable elsewhere in the same compilation.
+    internal string name;
+
+    public Vector(string name, int magnitude)
+    {
+        this.name = name;
+        this.magnitude = magnitude;
+    }
+}

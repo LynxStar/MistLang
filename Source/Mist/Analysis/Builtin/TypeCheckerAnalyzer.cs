@@ -8475,25 +8475,25 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             case LessThanRelationalPatternPrimaryPatternNode ltPattern:
                 {
-                    CheckRelationalPattern(ltPattern, ltPattern.Constant, "<", scrutineeType, model, diagnostics);
+                    CheckRelationalPattern(ltPattern, ltPattern.Constant, scrutineeType, model, diagnostics);
                     break;
                 }
 
             case GreaterThanRelationalPatternPrimaryPatternNode gtPattern:
                 {
-                    CheckRelationalPattern(gtPattern, gtPattern.Constant, ">", scrutineeType, model, diagnostics);
+                    CheckRelationalPattern(gtPattern, gtPattern.Constant, scrutineeType, model, diagnostics);
                     break;
                 }
 
             case LessThanOrEqualRelationalPatternPrimaryPatternNode ltePattern:
                 {
-                    CheckRelationalPattern(ltePattern, ltePattern.Constant, "<=", scrutineeType, model, diagnostics);
+                    CheckRelationalPattern(ltePattern, ltePattern.Constant, scrutineeType, model, diagnostics);
                     break;
                 }
 
             case GreaterThanOrEqualRelationalPatternPrimaryPatternNode gtePattern:
                 {
-                    CheckRelationalPattern(gtePattern, gtePattern.Constant, ">=", scrutineeType, model, diagnostics);
+                    CheckRelationalPattern(gtePattern, gtePattern.Constant, scrutineeType, model, diagnostics);
                     break;
                 }
 
@@ -8597,7 +8597,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static void CheckRelationalPattern(
         PrimaryPatternNode patternNode,
         VoidCoalescingNode constantExpr,
-        string op,
         IType scrutineeType,
         ISemanticModel model,
         DiagnosticBag diagnostics)
@@ -9281,30 +9280,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             default:
                 return false;
         }
-    }
-
-    /// <summary>
-    /// Produces a display-only suggestion string for the diagnostic message
-    /// emitted by <see cref="PatternNarrowToClosedGenericWithUnknown"/>.
-    /// Replaces every occurrence of <c>unknown</c> in the type's
-    /// <see cref="IType.DisplayName"/> with a concrete placeholder (<c>T</c>)
-    /// so the suggestion reads naturally (e.g., <c>List&lt;T&gt;</c> instead
-    /// of <c>List&lt;unknown&gt;</c>).
-    /// </summary>
-    /// <remarks>
-    /// This helper operates on the display name as a string because the
-    /// suggestion is purely presentational: no real substitution type is
-    /// in hand, and the diagnostic is only intended to guide the developer
-    /// toward a concrete narrow.
-    /// </remarks>
-    private static string ReplaceUnknownWithConcretePlaceholder(IType type)
-    {
-        // Simple string replacement on the display name is sufficient here:
-        // `unknown` is a reserved keyword token and cannot appear as part
-        // of any other identifier. We only need the substring replacement
-        // to be consistent; the exact placeholder is for documentation
-        // purposes only.
-        return type.DisplayName.Replace("unknown", "T", StringComparison.Ordinal);
     }
 
     private void CheckAdditiveNode(AdditiveNode node, ISemanticModel model, DiagnosticBag diagnostics)
@@ -10502,21 +10477,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Produces the user-facing message for <see cref="BareUnknownMemberAccess"/>
-    /// (Task 25.1). Names the receiver's static type and suggests using an
-    /// <c>is</c> pattern to narrow before accessing members (Req 13.1, Req 16.4).
-    /// </summary>
-    private static string FormatBareUnknownMemberAccessMessage(
-        string memberName,
-        string receiverTypeDisplayName)
-    {
-        return $"Cannot access member '{memberName}' on a value of type " +
-               $"'{receiverTypeDisplayName}': 'unknown' has no members. Use an " +
-               "'is' pattern to narrow the value to a concrete type before " +
-               "accessing members.";
-    }
-
-    /// <summary>
     /// Checks that a property being read has an accessible get accessor (MIST_TC_0019).
     /// </summary>
     private static void CheckPropertyReadAccess(
@@ -11321,7 +11281,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 else
                 {
                     // Emit inference failure diagnostic.
-                    EmitInferenceFailureDiagnostic(inferenceResult, inferSym.Name, methodCall, diagnostics);
+                    EmitInferenceFailureDiagnostic(inferenceResult, methodCall, diagnostics);
                 }
             }
 
@@ -11572,7 +11532,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     else
                     {
                         // Emit inference failure diagnostic.
-                        EmitInferenceFailureDiagnostic(inferenceResult, singleSym.Name, methodCall, diagnostics);
+                        EmitInferenceFailureDiagnostic(inferenceResult, methodCall, diagnostics);
                     }
                 }
                 else
@@ -12305,11 +12265,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             if(concreteParam.RefKind == RefKind.Ref && argNode is ValueArgumentArgumentNode)
             {
-                // Parameter is ref but argument is missing the 'ref' keyword.                diagnostics.ReportAtNode(TypeCheckDiagnostics.RefKeywordMissing, argNode, "TypeChecker");
+                // Parameter is ref but argument is missing the 'ref' keyword.
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.RefKeywordMissing, argNode, "TypeChecker");
             }
             else if(concreteParam.RefKind == RefKind.None && argNode is RefArgumentArgumentNode)
             {
-                // Parameter is not ref but argument has a spurious 'ref' keyword.                diagnostics.ReportAtNode(TypeCheckDiagnostics.RefKeywordOnNonRefParam, argNode, "TypeChecker");
+                // Parameter is not ref but argument has a spurious 'ref' keyword.
+                diagnostics.ReportAtNode(TypeCheckDiagnostics.RefKeywordOnNonRefParam, argNode, "TypeChecker");
             }
         }
     }
@@ -16146,10 +16108,34 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return;
         }
 
+        // Backend-backed types (projected from CLR assemblies) are universally accessible
+        // within a Mist compilation regardless of their projected accessibility level.
+        // The CLR -> Mist accessibility mapping (assembly -> Private) is correct for
+        // visibility filtering (hiding non-public members), but should not trigger
+        // inconsistent-accessibility diagnostics for types that are reachable as dependencies.
+        if(IsBackendBacked(exposedType))
+        {
+            return;
+        }
+
         if(!AccessibilityOrder.IsAtLeastAsAccessibleAs(typeAccessibility.Value, declarationAccessibility))
         {
             diagnostics.ReportAtNode(TypeCheckDiagnostics.InconsistentAccessibility, declaringNode, "TypeChecker", signatureRole, exposedType.DisplayName, "member", declarationName);
         }
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if the type is projected from a CLR assembly (backend-backed),
+    /// meaning it is universally accessible regardless of its projected accessibility level.
+    /// </summary>
+    private static bool IsBackendBacked(IType type)
+    {
+        return type switch
+        {
+            ClassType ct => ct.IsBackendBacked,
+            StructType st => st.IsBackendBacked,
+            _ => false,
+        };
     }
 
     /// <summary>
@@ -16203,7 +16189,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 continue;
             }
 
-            SyntaxNode? declaringNode = null;
+            SyntaxNode? declaringNode;
             try { declaringNode = model.GetDeclaringNode(symbol); }
             catch { continue; }
 
@@ -16219,14 +16205,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             // Check base class (classes and structs).
-            IType? baseType = declaredType switch
+            var baseType = declaredType switch
             {
                 ClassType ct => ct.BaseType,
                 StructType st => st.BaseType,
                 _ => null,
             };
 
-            if(baseType is not null)
+            if(baseType is not null && !IsBackendBacked(baseType))
             {
                 var baseAccessibility = GetTypeAccessibility(baseType);
                 if(baseAccessibility is not null
@@ -16247,6 +16233,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             foreach(var abs in abstracts)
             {
+                if(IsBackendBacked(abs))
+                {
+                    continue;
+                }
+
                 var absAccessibility = GetTypeAccessibility(abs);
                 if(absAccessibility is not null
                     && !AccessibilityOrder.IsAtLeastAsAccessibleAs(absAccessibility.Value, typeAccessibility.Value))
@@ -16651,7 +16642,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             break;
                         }
 
-                        IType? baseType = declaredType switch
+                        var baseType = declaredType switch
                         {
                             ClassType ct => ct.BaseType,
                             StructType st => st.BaseType,
@@ -16823,28 +16814,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         IType declaringType,
         IType? referencingType)
     {
-        switch(nestedAccessibility)
+        return nestedAccessibility switch
         {
-            case Accessibility.Public:
-                return true;
-
-            case Accessibility.Private:
-                // Private nested type: accessible only within the declaring type
-                // and its own nested types.
-                return IsWithinDeclaringTypeDomain(declaringType, referencingType);
-
-            case Accessibility.Protected:
-                // Protected nested type: accessible from the declaring type or derived types.
-                return IsDeclaredOrDerivedType(declaringType, referencingType);
-
-            case Accessibility.Internal:
-                // Internal nested type: accessible only within the same compilation.
-                // Since all user code is in the same compilation, internal is always accessible.
-                return true;
-
-            default:
-                return true;
-        }
+            Accessibility.Public => true,
+            Accessibility.Private => IsWithinDeclaringTypeDomain(declaringType, referencingType),
+            Accessibility.Protected => IsDeclaredOrDerivedType(declaringType, referencingType),
+            Accessibility.Internal => true,
+            _ => true,
+        };
     }
 
     /// <summary>
@@ -19467,40 +19444,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Produces the user-facing message for <see cref="BareUnknownOperator"/>
-    /// in the binary-operator case (Task 25.2). Names the operator and the
-    /// operand type(s) that are <c>unknown</c>, and suggests using an
-    /// <c>is</c> pattern to narrow before applying the operator
-    /// (Req 13.2, Req 16.4).
-    /// </summary>
-    private static string FormatBareUnknownBinaryOperatorMessage(
-        string op,
-        IType leftType,
-        IType rightType)
-    {
-        return $"Operator '{op}' cannot be applied to operands of type " +
-               $"'{leftType.DisplayName}' and '{rightType.DisplayName}': " +
-               "no operators are defined for 'unknown'. Use an 'is' pattern " +
-               "to narrow the value to a concrete type before applying the operator.";
-    }
-
-    /// <summary>
-    /// Produces the user-facing message for <see cref="BareUnknownOperator"/>
-    /// in the unary-operator case (Task 25.2). Names the operator and the
-    /// operand type, and suggests using an <c>is</c> pattern to narrow
-    /// before applying the operator (Req 13.2, Req 16.4).
-    /// </summary>
-    private static string FormatBareUnknownUnaryOperatorMessage(
-        string op,
-        IType operandType)
-    {
-        return $"Operator '{op}' cannot be applied to operand of type " +
-               $"'{operandType.DisplayName}': no operators are defined for " +
-               "'unknown'. Use an 'is' pattern to narrow the value to a " +
-               "concrete type before applying the operator.";
-    }
-
-    /// <summary>
     /// Formats a candidate method symbol's signature for diagnostic messages.
     /// Example: "Print(int)" or "Print(string, int)"
     /// </summary>
@@ -20472,18 +20415,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static void EmitInferenceFailureDiagnostic(
         InferenceResult inferenceResult,
-        string methodName,
         MethodCallSuffixPostfixSuffixNode methodCall,
-
         DiagnosticBag diagnostics)
     {
         if(inferenceResult.Conflicts is { Count: > 0 })
         {
-            var conflict = inferenceResult.Conflicts[0]; diagnostics.ReportAtNode(TypeCheckDiagnostics.TypeInferenceConflict, methodCall, "TypeChecker");
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.TypeInferenceConflict, methodCall, "TypeChecker");
         }
         else if(inferenceResult.UninferrableTypeParameters is { Count: > 0 })
         {
-            var names = string.Join(", ", inferenceResult.UninferrableTypeParameters.Select(n => $"'{n}'")); diagnostics.ReportAtNode(TypeCheckDiagnostics.TypeInferenceFailed, methodCall, "TypeChecker");
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.TypeInferenceFailed, methodCall, "TypeChecker");
         }
     }
 
@@ -20752,7 +20693,7 @@ node, model, diagnostics);
         DiagnosticBag diagnostics)
     {
         // Collect public constructors from the type argument.
-        var publicConstructors = CollectPublicConstructors(typeArgument, model);
+        var publicConstructors = CollectPublicConstructors(typeArgument);
 
         // For each constructor constraint, check if at least one public constructor matches.
         foreach(var requiredParams in constructorConstraints)
@@ -20913,7 +20854,7 @@ node, model, diagnostics);
     /// <summary>
     /// Collects all public constructors from a type argument.
     /// </summary>
-    private static List<ISymbol> CollectPublicConstructors(IType typeArgument, ISemanticModel model)
+    private static List<ISymbol> CollectPublicConstructors(IType typeArgument)
     {
         var results = new List<ISymbol>();
 
@@ -21249,7 +21190,7 @@ node, model, diagnostics);
             // Check adhoc refinement constraint on the dependent parameter.
             if(depParam.AdhocConstraint is { } constraint)
             {
-                ValidateMethodCallAdhocConstraint(depParam, constraint, argNode, model, diagnostics);
+                ValidateMethodCallAdhocConstraint(constraint, argNode, model, diagnostics);
             }
         }
     }
@@ -21260,7 +21201,6 @@ node, model, diagnostics);
     /// and evaluates the predicate, or checks implication for forwarded parameters.
     /// </summary>
     private static void ValidateMethodCallAdhocConstraint(
-        DependentTypeParameterType depParam,
         RefinementPredicate constraint,
         TypeArgumentNode argNode,
         ISemanticModel model,
@@ -22106,7 +22046,7 @@ node, model, diagnostics);
     /// </summary>
     private static void CheckSealedOnTypeAlias(ISymbol symbol, ISemanticModel model, DiagnosticBag diagnostics)
     {
-        SyntaxNode? node = null;
+        SyntaxNode? node;
         try { node = model.GetDeclaringNode(symbol); }
         catch { return; }
 
@@ -22132,7 +22072,7 @@ node, model, diagnostics);
     /// </summary>
     private static void CheckSealedOnNonTypeMember(ISymbol symbol, ISemanticModel model, DiagnosticBag diagnostics)
     {
-        SyntaxNode? node = null;
+        SyntaxNode? node;
         try { node = model.GetDeclaringNode(symbol); }
         catch { return; }
 

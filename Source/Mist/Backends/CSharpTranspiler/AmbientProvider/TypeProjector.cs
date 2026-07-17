@@ -11,8 +11,8 @@ namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 internal static class TypeProjector
 {
 
-    private static string IsReadOnlyAttribute = "System.Runtime.CompilerServices.IsReadOnlyAttribute";
-    private static string IsByRefLikeAttribute = "System.Runtime.CompilerServices.IsByRefLikeAttribute";
+    private static string isReadOnlyAttribute = "System.Runtime.CompilerServices.IsReadOnlyAttribute";
+    private static string isByRefLikeAttribute = "System.Runtime.CompilerServices.IsByRefLikeAttribute";
 
     /// <summary>
     /// Creates an empty type shell for a top-level CLR type.
@@ -53,8 +53,8 @@ internal static class TypeProjector
                     ? ClrAccessibilityMap.FromNestedType(clrType)
                     : clrType.IsPublic ? Accessibility.Public : Accessibility.Private,
                 IsStatic = isStaticClass,
-                IsReadonly = clrType.IsValueType && HasCustomAttribute(clrType, IsReadOnlyAttribute),
-                IsRef = clrType.IsValueType && HasCustomAttribute(clrType, IsByRefLikeAttribute),
+                IsReadonly = clrType.IsValueType && HasCustomAttribute(clrType, isReadOnlyAttribute),
+                IsRef = clrType.IsValueType && HasCustomAttribute(clrType, isByRefLikeAttribute),
             };
 
             // Set the first-class sealed flag from CLR metadata.

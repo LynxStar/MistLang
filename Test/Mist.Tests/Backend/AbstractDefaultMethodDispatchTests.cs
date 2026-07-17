@@ -154,7 +154,7 @@ public sealed class AbstractDefaultMethodDispatchTests : IDisposable
             using Standard;
             namespace TestProgram;
 
-            abstract IGreeting
+            public abstract IGreeting
             {
                 string Name();
                 string Greet() { return $"Hello, {this.Name()}"; }
@@ -174,7 +174,7 @@ public sealed class AbstractDefaultMethodDispatchTests : IDisposable
             }
 
             // Inherited default through a child abstract type.
-            abstract IFancy : IGreeting
+            public abstract IFancy : IGreeting
             {
                 int Level();
             }
@@ -186,7 +186,7 @@ public sealed class AbstractDefaultMethodDispatchTests : IDisposable
             }
 
             // Default with parameters.
-            abstract IPrefixer
+            public abstract IPrefixer
             {
                 string Prefix();
                 string Decorate(string text) { return $"{this.Prefix()}{text}"; }

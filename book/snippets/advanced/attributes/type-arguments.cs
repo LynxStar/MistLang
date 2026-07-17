@@ -4,7 +4,7 @@ using System.Diagnostics;
 namespace Snippet;
 
 [DebuggerTypeProxy(typeof(List<int>))]
-public class CustomList
+internal class CustomList
 {
 
     public static CustomList __CreateDefault()
@@ -14,7 +14,7 @@ public class CustomList
     }
 }
 [JsonConverter<int>]
-public class TypedConfig
+internal class TypedConfig
 {
 
     public static TypedConfig __CreateDefault()

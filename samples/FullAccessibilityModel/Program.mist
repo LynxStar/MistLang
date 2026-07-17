@@ -1,0 +1,47 @@
+// samples/FullAccessibilityModel/Program.mist
+using Standard;
+
+namespace FullAccessibilityModel;
+
+public class Program
+{
+    // PROOF: reads an `internal` member from a non-derived type in the same compilation.
+    private static int ReadSides(Shape shape)
+    {
+        return shape.sideCount;
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== FullAccessibilityModel Mist Sample ===");
+
+        var square = new Square();
+        Console.WriteLine(square.Describe());
+
+        // PROOF: `internal` member reachable from a non-derived type in the same compilation.
+        Console.WriteLine($"sides via same-compilation access: {ReadSides(square)}");
+
+        var ledger = new Ledger("USD", 100);
+        Console.WriteLine($"balance after deposit: {ledger.Deposit(25)}");
+
+        // PROOF: `internal` field readable from another type in the same compilation.
+        Console.WriteLine($"currency (internal): {ledger.currency}");
+
+        // Struct demonstrations (Mist structs are inheritable).
+        var unit = new UnitVector("north");
+        Console.WriteLine(unit.Describe());
+
+        var frozenItem = new Frozen(21);
+        Console.WriteLine($"frozen: value {frozenItem.value}, checksum {frozenItem.Checksum()}");
+
+        // PROOF: `internal` struct member readable from a non-derived type in the same compilation.
+        Console.WriteLine($"vector name (internal): {unit.name}");
+
+        Console.WriteLine("Done!");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Snippet;
 
-public class Validator
+internal class Validator
 {
     [Range(1, 100)]
     public int Score;

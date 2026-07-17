@@ -4,14 +4,14 @@ using Standard;
 
 namespace ShapeAbstracts;
 
-abstract IShape
+public abstract IShape
 {
     string Name { get; }
     string Describe();
     int Area();
 }
 
-abstract IResizable : IShape
+public abstract IResizable : IShape
 {
     int Scale { get; set; }
     int ResizedArea(int factor);

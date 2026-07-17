@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-public class Pair<K, V>
+internal class Pair<K, V>
     where V : new()
 {
     public K Key;

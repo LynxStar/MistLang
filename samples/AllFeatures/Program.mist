@@ -76,6 +76,7 @@ public class Program
         AnonymousTypes.Program.RunDemo();
         DisposableDropInterop.Program.RunDemo();
         Attributes.Program.RunDemo();
+        FullAccessibilityModel.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

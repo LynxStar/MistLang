@@ -1,4 +1,6 @@
+#pragma warning disable IDE0130 // Namespace intentionally flat so emission sites need no extra using
 namespace Mist.Common.Diagnostics;
+#pragma warning restore IDE0130
 
 /// <summary>
 /// Diagnostic descriptors for the C# transpiler backend, compilation driver,

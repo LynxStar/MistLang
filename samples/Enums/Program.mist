@@ -81,7 +81,7 @@ public enum MixedResult : int | string {
 }
 
 // --- 14. Default (internal) visibility ---
-enum LogLevel : int {
+public enum LogLevel : int {
     Info = 0,
     Warn = 1,
     Error = 2
@@ -150,7 +150,7 @@ public enum Severity : Label {
 // support modifiers on abstract type declarations). Now that the parser
 // correctly handles them, the emitter issues are exposed.
 
-abstract IMessage {
+public abstract IMessage {
     string GetText();
 }
 
@@ -189,7 +189,7 @@ public enum Pet : Animal {
 }
 
 // --- Helper class demonstrating enum as field type (10) ---
-class Config {
+public class Config {
     public LogLevel level;
 
     public Config(LogLevel lvl)

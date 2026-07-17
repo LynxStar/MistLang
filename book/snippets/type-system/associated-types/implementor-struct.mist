@@ -1,4 +1,4 @@
-abstract IIterator
+public abstract IIterator
 {
     type Cursor : struct;
 

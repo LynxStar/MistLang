@@ -445,11 +445,11 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         switch(targetInfo.TargetKind)
         {
             case AssignmentTargetKind.Field:
-                CheckReadonlyFieldOutsideConstructor(targetInfo, assignment, declaringTypeScope, model, diagnostics);
+                CheckReadonlyFieldOutsideConstructor(targetInfo, assignment, declaringTypeScope, diagnostics);
                 break;
 
             case AssignmentTargetKind.PropertyOrIndexerSetter:
-                CheckReadonlyPropertySetterOutsideConstructor(targetInfo, assignment, declaringTypeScope, model, diagnostics);
+                CheckReadonlyPropertySetterOutsideConstructor(targetInfo, assignment, declaringTypeScope, diagnostics);
                 break;
         }
     }
@@ -461,7 +461,6 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         AssignmentTargetInfo targetInfo,
         AssignmentNode assignment,
         IScope? declaringTypeScope,
-        ISemanticModel model,
         DiagnosticBag diagnostics)
     {
         if(targetInfo.MemberName is null)
@@ -520,7 +519,6 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         AssignmentTargetInfo targetInfo,
         AssignmentNode assignment,
         IScope? declaringTypeScope,
-        ISemanticModel model,
         DiagnosticBag diagnostics)
     {
         if(targetInfo.MemberName is null)

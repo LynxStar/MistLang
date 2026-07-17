@@ -1,0 +1,26 @@
+// samples/FullAccessibilityModel/Frozen.mist
+using Standard;
+
+namespace FullAccessibilityModel;
+
+// PROOF: `sealed` is accepted on a struct with no diagnostic; because Mist structs are inheritable, sealing one is meaningful.
+public sealed struct Frozen
+{
+    // PROOF: default (no modifier) struct member resolves to `private`; used only inside the declaring struct.
+    int checksum;
+
+    // PROOF: explicit `public` struct member.
+    public int value;
+
+    public Frozen(int value)
+    {
+        this.value = value;
+        this.checksum = value * 2;
+    }
+
+    // PROOF: the sealed struct has NO protected member, so it does not trigger the sealed-protected warning.
+    public int Checksum()
+    {
+        return checksum;
+    }
+}

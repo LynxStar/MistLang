@@ -1,0 +1,12 @@
+// This compiles but produces a warning: the protected
+// accessibility is unnecessary because a sealed type
+// cannot be inherited.
+public sealed class Singleton
+{
+    protected int instanceCount;
+
+    public Singleton()
+    {
+        this.instanceCount = 1;
+    }
+}

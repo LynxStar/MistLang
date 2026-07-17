@@ -189,6 +189,54 @@ Finally, the flat sugar and the canonical bracketed form denote the same type. `
 and `Foo<[int, string]>` are the same type; the flat form is resolved into the bracketed form by the
 binding rule.
 
+### Declaration Kinds That May Carry a Pack
+
+A pack type-parameter list -- written `<params TArgs>` or in the explicit `<Type[]:TArgs>` form -- is
+permitted on every generic-capable declaration kind Mist provides: `class`, `struct`, `abstract` (an
+abstract type), type alias (`type Name<...> = ...;`), and newtype (`type Name<...> = new Source;`), as
+well as on method type-parameter lists. Nothing is special per kind: the same pack rules -- binding,
+arity-in-slots, and one `params` per list -- apply uniformly wherever a pack appears.
+
+Mist has no `interface` keyword -- abstract types (similar to, but not identical to, C#'s interfaces) fill that role -- and no `delegate`
+keyword -- the callable role is filled by the `Func` class family. So there is no separate
+variadic-interface or variadic-delegate form; those roles are covered by variadic abstract types and
+the variadic `Func` class respectively.
+
+One-line example per kind:
+
+- **Variadic class:** `class Bundle<params TArgs> { }`.
+- **Variadic struct:** a value type; the value tuple `(TArgs...)` is itself the canonical variadic
+  struct.
+- **Variadic abstract type:** an `abstract` type carrying a pack (see the next subsection).
+- **Variadic alias:** `type Action<params TArgs> = Func<TArgs..., void>;`.
+- **Variadic newtype:** `type Row<params TArgs> = new (TArgs...);`, which clones the source tuple's
+  members into a nominally distinct type.
+
+### Variadic Abstract Types
+
+Because abstract types fill the role that C# interfaces play (they are similar, though not identical), a variadic abstract type is simply an abstract
+type carrying a pack. For example:
+
+```mist
+abstract IApplier<params TArgs, TResult>
+{
+    TResult Apply(params TArgs args);
+}
+```
+
+A type implements a variadic abstract type in one of two ways:
+
+- **At a concrete arity**, where the variadic slots monomorphize. Implementing `IApplier<int, int, int>`
+  (so `TArgs = [int, int]` and `TResult = int`) means providing `int Apply(int a, int b)` -- the value
+  pack has been expanded to the concrete parameter list at that arity.
+- **Generically**, by spreading the implementer's own pack into the base list:
+  `class Boxed<params TArgs> : IApplier<TArgs..., int> { ... }`. This reuses the base-type-list spread
+  (already an accepted spread position) together with the pack declaration on the abstract type.
+
+This is not a new mechanism. A variadic abstract type is just an abstract type carrying a pack, and
+implementing one is ordinary abstract-type implementation with the pack either concretized (at a
+concrete arity) or spread through (for a generic implementer).
+
 ### Position Semantics of a Pack Identifier
 
 Inside a body, the meaning of a pack identifier `TArgs` depends on the position it appears in:
@@ -202,8 +250,8 @@ Inside a body, the meaning of a pack identifier `TArgs` depends on the position 
    discipline. When legal, `TArgs[i]` yields a single comptime `Type` value coerced into type
    position -- the type-literal duality of [type-literals](../type-literals/design.md) run backward
    (a `Type` value becoming a type).
-4. **Spread, `TArgs...`,** in a type-argument list, base/interface list, tuple-type element
-   position, or member-declaring position. Expands the pack in place. Spread is definable as sugar
+4. **Spread, `TArgs...`,** in a type-argument list, base-type list (including implemented abstract
+   types), tuple-type element position, or member-declaring position. Expands the pack in place. Spread is definable as sugar
    over rules 1 and 3 plus comptime iteration: for `i` in `0 .. TArgs.Length`, emit a copy
    substituting the type `TArgs[i]`. A value pack parameter is **not** a spread position: it is
    declared with `params` (`params TArgs args`), not with `...` (see Value Side).
@@ -231,6 +279,10 @@ becomes more precisely known:
   }
   ```
 
+  The value-side counterpart narrows the pack value with `args is (concrete tuple) x` (for example
+  `args is (int, int, int) triple`), enabling a matching fixed-arity forward within that branch; see
+  "Generic Body Checking and Provable Forwarding".
+
 - **Deferred.** Range- or refinement-bounded sizes such as `Type[2..8]` are out of scope; they
   require range-as-refinement support (see Non-Goals / Deferred).
 
@@ -249,7 +301,7 @@ The value counterpart of a type pack is a real, first-class value.
   and lifts it from a homogeneous array to a heterogeneous pack.
 - `...` is purely the spread and decompose operator; it is not a parameter-declaration marker. It
   forms tuple types (`(TArgs...)`), decomposes a tuple value at a use site (`args...`), expands a
-  type pack in type-argument and base/interface lists, and generates members in a type body
+  type pack in type-argument and base-type lists (including implemented abstract types), and generates members in a type body
   (`public TArgs... Item;`). Declaring `params TArgs args` rather than the older `TArgs... args`
   removes the overload where `...` doubled as a declaration marker, cleanly separating `params`
   (slurp) from `...` (spread).
@@ -339,6 +391,93 @@ Because `params TArgs args` is a single `(TArgs...)` (`ValueTuple`) parameter, i
   - `Foo((TArgs...) a, (TArgs2...) b, params string[] names)` shows the single `params` being the
     array while both packs are passed as explicit tuples.
 
+### Generic Body Checking and Provable Forwarding
+
+A variadic method body is type-checked once, generically, and must be well-typed for every
+instantiation its signature and constraints permit. This is declaration-time (definite) checking,
+consistent with Mist's no-unproven-access model: the body is verified against what is *proven* about
+its type parameters, not against any single instantiation. Nothing here is special to packs -- it is
+the same discipline that governs an ordinary type parameter. Inside
+`class Foo<TValue> { int Bar(TValue value) { return Double(value); } }` the call `Double(value)` is a
+comptime error because `TValue` is not proven to be `int`, even though the body would succeed for the
+one instantiation `TValue = int`. A pack parameter `TArgs : Type[]` is checked the same way: with no
+constraints, `TArgs` may be any `Type[]`, so the body may only do what is provable for every such
+value. There is no custom variadic rule here, only ordinary open-generic type checking.
+
+Inside the body a value pack `args : (TArgs...)` has a **symbolic shape** -- unknown length and
+unknown element types. Spreading it with `args...` is therefore well-typed only into a destination
+that accepts that pack for every `TArgs`: another `params TArgs` or `(TArgs...)` parameter, or a
+`Func<TArgs..., R>` value whose parameter list *is* the pack. In those destinations the match holds by
+construction for all `TArgs`, so no per-instantiation reasoning is required.
+
+Spreading a symbolic pack into a **fixed-arity** destination whose parameter list is not provably
+`(TArgs...)` is rejected at the declaration with `MIST_VAR_0011`, because it cannot be proven
+well-typed for every `TArgs`:
+
+```mist
+// Rejected with MIST_VAR_0011: Sum3 wants exactly (int, int, int), but TArgs is
+// symbolic -- this would be ill-typed for, e.g., TArgs = [string].
+int Bad<params TArgs>(params TArgs args) {
+    return Sum3(args...);   // Sum3(int, int, int)
+}
+
+// Accepted: f's parameter list IS the pack, so f(args...) type-checks for all TArgs.
+TResult Apply<params TArgs, TResult>(Func<TArgs..., TResult> f, params TArgs args) {
+    return f(args...);
+}
+```
+
+The rejection of `Sum3(args...)` is exactly the `Double(value)` rejection above, one level up: a
+fixed-arity target is provably compatible only for particular pack values, and a symbolic pack is not
+one of them.
+
+A generic body can still forward into a fixed-arity destination -- it just has to prove the shape
+first. This is the value-side counterpart of the type-side `TArgs is Type[N]` narrowing in the
+Capability Ladder, and it is nothing new: it is ordinary flow narrowing applied to the pack *value*
+through the same `is` form. Inside a branch guarded by `args is (int, int, int) triple`, the pack's
+shape is proven, so `Sum3(triple...)` is well-typed within that branch even though the unnarrowed
+`Sum3(args...)` is rejected with `MIST_VAR_0011`. Different branches may narrow to different shapes --
+a different length and a different element type -- and forward accordingly, while a fallback branch
+that proves nothing about the shape uses only the size-agnostic operations such as `TArgs.Length`. The
+destination check stays honest per branch: forwarding into a destination that does not match the
+narrowed shape -- for example `Sum3(pair...)` where `pair` is `(string, string)` -- is still
+`MIST_VAR_0011`.
+
+```mist
+// Narrowing recovers fixed-arity forwarding: inside each `is` branch the pack shape is
+// proven, so the matching fixed-arity call type-checks. A wrong-shape forward in a branch
+// (for example Sum3(pair...)) would still be MIST_VAR_0011.
+int Categorize<params TArgs>(params TArgs args) {
+    if (args is (int, int, int) triple) {
+        return Sum3(triple...);        // proven (int, int, int) here
+    } else if (args is (string, string) pair) {
+        return Join(pair...).Length;   // different length and element type
+    } else {
+        return TArgs.Length;           // size-agnostic fallback
+    }
+}
+```
+
+Narrowing does not relax the destination check; it only supplies a proven shape to check against.
+The following contrasts the two ways a forward is still rejected -- a wrong-shape forward inside a
+branch, and an unnarrowed forward with no proven shape -- so every claim above appears as an annotated
+line rather than only in prose:
+
+```mist
+int StillRejected<params TArgs>(params TArgs args) {
+    if (args is (string, string) pair) {
+        return Sum3(pair...);   // MIST_VAR_0011: (string, string) cannot fill Sum3(int, int, int)
+    }
+    return Sum3(args...);       // MIST_VAR_0011: unnarrowed pack is symbolic here (Property 19)
+}
+```
+
+This is the generic case of the general tuple-decomposition rule (see below), not a separate
+mechanism. A **concrete** tuple decomposition -- for example `(7, "foo", false)...` -- is still
+checked directly against the known destination, because its element types are known. The new rule is
+only the generic case, where the pack shape is symbolic and "well-typed" must mean "provably
+well-typed for every instantiation."
+
 ### Unifying Principle
 
 On both the type side and the value side a pack is a single slot; arity counts slots; and the same
@@ -361,7 +500,7 @@ Spreading is one idea applied to two worlds (types and values), plus their paral
 
 | Operand | Spreads into | Example positions |
 |---|---|---|
-| comptime `Type[]` (for example `TArgs...`) | TYPE slots | type-argument lists, tuple-type element lists, field/member type positions, base/interface lists |
+| comptime `Type[]` (for example `TArgs...`) | TYPE slots | type-argument lists, tuple-type element lists, field/member type positions, base-type lists (including implemented abstract types) |
 | any tuple value (for example `args...` or `x...`) | ARGUMENT slots (tuple decomposition) | call arguments, tuple literals |
 | zip (for example `field... = args...`) | PAIRED positions | parallel expansion of two operands, element by element |
 
@@ -375,7 +514,7 @@ A spread is accepted in each of the following positions:
 
 - type-argument lists (for example `type Action<params TArgs> = Func<TArgs..., void>;`),
 - field declarations,
-- base and interface lists,
+- base-type lists (including implemented abstract types),
 - tuple types and return types.
 
 Value parameters are **not** a spread position: a value pack parameter is declared with `params`
@@ -385,23 +524,33 @@ forming tuple types (`(TArgs...)`), and generating members (`public TArgs... Ite
 
 ## Spread-Generated Members
 
-When a spread appears in a member-declaring position, it generates a family of members named by a
-stem plus a 1-based index:
+When a spread appears in a member-declaring position, `public TArgs... Item;` declares a member
+family keyed by the stem `Item`. Because the value pack is a ValueTuple, the one declaration surfaces
+both the whole tuple and its elements:
 
 ```mist
-public TArgs... Item;   // generates Item1, Item2, ..., ItemN
+public TArgs... Item;   // aggregate `Item : (TArgs...)` plus projections Item1 .. ItemN
 ```
 
 Rules:
 
-- **Naming is stem + 1-based index** (`Item1 .. ItemN`), matching `ValueTuple` interop.
-- **The stem namespace is reserved.** No other member may equal the stem or use it as a prefix; two
-  spread stems may not prefix one another; and the stem must be non-empty.
-- **Empty pack expands to zero members.** Length-1 gives `Item1` (the suffix is always present, even
-  for a single element).
-- **Multiple spreads of the same pack in one type are correlated at the same N.** For example
-  `Key...` and `Value...` generate `Key1 .. KeyN` and `Value1 .. ValueN` for the same `N`.
-- **Spread-generated members are themselves re-spreadable.**
+- **Aggregate stem.** The stem `Item` is a member of type `(TArgs...)` -- the whole ValueTuple.
+  Reading `Item` yields the tuple, so an instance exposes both `bundle.Item` (the tuple) and
+  `bundle.Item1` (its first element).
+- **Element projections.** `Item1 .. ItemN` use stem + 1-based index (matching ValueTuple interop).
+  `Item{k}` has type `TArgs[k-1]` and is the k-th element of `Item` (equivalently `Item.Item{k}`),
+  surfaced directly on the enclosing type.
+- **Member kind and accessibility.** The aggregate and its projections take the same member kind
+  (field or property) and accessibility as the declaration, so `public TArgs... Item { get; }` yields
+  get-only property members.
+- **Reserved names.** The spread owns the stem `Item` and every `Item{i}` name: no other member may
+  use `Item` or any `Item{i}`, no two spread stems may prefix one another, and the stem must be
+  non-empty (`MIST_VAR_0007` / `MIST_VAR_0008`).
+- **Empty and unit packs.** An empty pack yields the empty aggregate and zero projections; a length-1
+  pack yields `Item : (T)` and the single projection `Item1` (the suffix is always present).
+- **Correlation.** Multiple spreads of the same pack in one type are correlated at the same `N`.
+- **Re-spread.** Spread-generated members are re-spreadable: `Item...` spreads the aggregate's
+  elements (equivalently spreads the `Item` tuple).
 
 ## Constraints
 
@@ -509,43 +658,45 @@ new Between<int, string, bool, double>();
 // TFirst = int (left end), TLast = double (right end), TMid = [string, bool]
 ```
 
-## Architecture (Supporting: How Each Compiler Stage Participates)
+## Architecture
 
-The feature threads through the existing pipeline. No stage needs a new subsystem; each extends what
+The feature threads through the existing pipeline, so this section describes how each compiler stage
+participates in realizing the language model above. No stage needs a new subsystem; each extends what
 [dependent-types](../dependent-types/design.md) and
-[generics-type-arguments](../generics-type-arguments/design.md) already established.
+[generics-type-arguments](../generics-type-arguments/design.md) already established. The pipeline
+diagram below shows the stages and the variadics-specific responsibility each one takes on.
 
 ```mermaid
 graph TD
     A[Mist Source] --> B[Lexer]
-    B --> C[Parser / Storm Grammar]
+    B --> C["Parser / Storm Grammar"]
     C --> D[ProgramModel Construction]
     D --> E[Type Checker Analyzer]
-    E --> F[C# Transpiler Backend]
+    E --> F["C# Transpiler Backend"]
 
     subgraph "Grammar surface"
         G1[params modifier on TypeParameter]
         G2["Type[] and Type[N] as dependent domains"]
-        G3[spread suffix ... in type-arg / value-arg / base / member positions]
+        G3["spread suffix ... in type-arg / value-arg / base / member positions"]
         G4["params modifier on value Parameter (pack tuple or array)"]
     end
 
     subgraph "Program model"
-        P1[TypeParameter with Domain = Type array]
-        P2[IsPack / arity-in-slots]
+        P1["TypeParameter with Domain = Type array"]
+        P2["IsPack / arity-in-slots"]
         P3["value pack Parameter: single (TArgs...) slot via params + flat call convention"]
     end
 
     subgraph "Type checker"
-        T1[binding rule: flat -> bracketed]
-        T2[position semantics + capability ladder]
+        T1["binding rule: flat -> bracketed"]
+        T2["position semantics + capability ladder"]
         T3[whole-pack constraints elementwise]
         T4[pack inference from value args]
     end
 
     subgraph "Backend"
         B1[monomorphize per constructed arity]
-        B2[Func/Action + ValueTuple mapping]
+        B2["Func/Action + ValueTuple mapping"]
         B3[arity-ceiling diagnostic]
     end
 
@@ -555,35 +706,7 @@ graph TD
     F --> B1 & B2 & B3
 ```
 
-### Grammar Surface
-
-The grammar changes are localized to the type-parameter, type-argument, and spread surfaces, in the
-spirit of the minimal additions made for dependent types.
-
-- **`params` modifier on a type parameter.** Extend the `TypeParameter` rule (currently
-  `DependentTypeParameter`, `NamedConstraintDependentTypeParameter`, `RegularTypeParameter` in
-  `Source/Mist/Grammar/Mist.storm`) with a pack alternative that accepts an optional `params`
-  keyword and a `Type[]` (or `Type[N]`) domain annotation. `params TArgs` and `Type[]:TArgs` are two
-  concrete surface spellings of the same underlying dependent parameter.
-- **Type-array domains.** The dependent-parameter annotation, which today accepts a `PrimitiveType`,
-  is broadened so the domain may be the metatype array `Type[]` (unknown length) or `Type[N]`
-  (fixed length). This is the point where a pack becomes "a dependent type parameter over `Type[]`."
-- **Spread suffix.** A postfix `...` is accepted after a pack identifier in type-argument lists,
-  value-argument lists (tuple decomposition), tuple-type element lists, base/interface lists, and
-  member-declaration type positions. It is **not** accepted as a value-parameter declaration marker:
-  a value pack parameter is declared with `params` (see the next bullet). The flat form
-  `Foo<int, string>` continues to parse through the existing `TypeArgumentList`; the binding rule (a
-  program-model / type-checker concern, not a grammar concern) later folds it into the bracketed
-  canonical form.
-- **Value-level `params`.** The value parameter grammar accepts a leading `params` modifier whose
-  target is either a pack (`params TArgs args`, a `(TArgs...)` tuple slot) or a homogeneous array
-  (`params T[] xs`). Disambiguation from the type-pack `params` is structural: the type-pack `params`
-  occurs inside `<>`, the value-parameter `params` in a value parameter list.
-
-Pretty-printing round-trips each surface form (`params TArgs`, `Type[]:TArgs`, `TArgs...`, flat and
-bracketed argument lists) so that parse-print-parse is stable.
-
-### Program-Model Representation
+## Data Models
 
 The program model already represents a type parameter as a `TypeParameter` with an `Ordinal` and a
 `Domain` (the type whose values fill the slot -- `Standard.Type` for a regular parameter,
@@ -608,6 +731,36 @@ The program model already represents a type parameter as a `TypeParameter` with 
 Per the ProgramModel isolation rule, all of this lives in the program-model type system and its
 constructor; no legacy semantic types are introduced.
 
+## Components and Interfaces
+
+### Grammar Surface
+
+The grammar changes are localized to the type-parameter, type-argument, and spread surfaces, in the
+spirit of the minimal additions made for dependent types.
+
+- **`params` modifier on a type parameter.** Extend the `TypeParameter` rule (currently
+  `DependentTypeParameter`, `NamedConstraintDependentTypeParameter`, `RegularTypeParameter` in
+  `Source/Mist/Grammar/Mist.storm`) with a pack alternative that accepts an optional `params`
+  keyword and a `Type[]` (or `Type[N]`) domain annotation. `params TArgs` and `Type[]:TArgs` are two
+  concrete surface spellings of the same underlying dependent parameter.
+- **Type-array domains.** The dependent-parameter annotation, which today accepts a `PrimitiveType`,
+  is broadened so the domain may be the metatype array `Type[]` (unknown length) or `Type[N]`
+  (fixed length). This is the point where a pack becomes "a dependent type parameter over `Type[]`."
+- **Spread suffix.** A postfix `...` is accepted after a pack identifier in type-argument lists,
+  value-argument lists (tuple decomposition), tuple-type element lists, base-type lists (including
+  implemented abstract types), and member-declaration type positions. It is **not** accepted as a value-parameter declaration marker:
+  a value pack parameter is declared with `params` (see the next bullet). The flat form
+  `Foo<int, string>` continues to parse through the existing `TypeArgumentList`; the binding rule (a
+  program-model / type-checker concern, not a grammar concern) later folds it into the bracketed
+  canonical form.
+- **Value-level `params`.** The value parameter grammar accepts a leading `params` modifier whose
+  target is either a pack (`params TArgs args`, a `(TArgs...)` tuple slot) or a homogeneous array
+  (`params T[] xs`). Disambiguation from the type-pack `params` is structural: the type-pack `params`
+  occurs inside `<>`, the value-parameter `params` in a value parameter list.
+
+Pretty-printing round-trips each surface form (`params TArgs`, `Type[]:TArgs`, `TArgs...`, flat and
+bracketed argument lists) so that parse-print-parse is stable.
+
 ### Type-Checker Rules
 
 The type checker is where packs acquire their behavior:
@@ -624,8 +777,12 @@ The type checker is where packs acquire their behavior:
   guard-based narrowing (`is Type[N]`). Value-side spread (`x...`) is checked as **general tuple
   decomposition**: it applies to any tuple value, and the tuple's ordered element types must match
   the target argument or parameter slots positionally under assignability -- a decomposition or type
-  mismatch is an ordinary type error, and `args...` is just the case where the tuple originated from
-  a pack.
+  mismatch (the wrong number of slots, or an element not assignable to its slot) is reported as
+  `MIST_VAR_0011`, and `args...` is just the case where the tuple originated from a pack. In a
+  generic body the spread must be provably well-typed for **every** instantiation, exactly as any
+  expression in an open generic is checked; a symbolic value pack spread into a destination that is
+  not provably `(TArgs...)`-compatible (a fixed-arity signature such as `Sum3(int, int, int)`) is
+  therefore rejected with `MIST_VAR_0011`, since it cannot be shown well-typed for all `TArgs`.
 - **Constraints.** A whole-pack constraint is discharged elementwise: every element type must
   satisfy the bound before a constrained member may be used on an element or on `args[i]`.
 - **Zip.** Permit `field... = args...` only when both operands are proven equal length (same origin
@@ -685,9 +842,232 @@ diagnostic.
 | `MIST_VAR_0008` | Program model | Empty spread stem |
 | `MIST_VAR_0009` | Type checker | A pack element does not satisfy a whole-pack constraint |
 | `MIST_VAR_0010` | Backend | Construction exceeds the target CLR type capacity (`Func`/`Action` over 16 inputs, or non-nestable ValueTuple over 7) |
+| `MIST_VAR_0011` | Type checker | A value-side spread whose expansion does not match its destination slots -- the wrong number of slots, or an element not assignable to the corresponding slot -- including a symbolic value pack (`args...`) spread into a fixed-arity destination that is not provably `(TArgs...)`-compatible for every instantiation |
 
 Recovery follows the established pattern: on a binding or position error the offending slot is treated
 as an error type so downstream analysis can continue and report additional diagnostics in one pass.
+
+## Correctness Properties
+
+These are the executable, universal properties the implementation must satisfy. Each is a
+falsifiable "for all" statement over the feature's pure operations -- binding, spread expansion,
+type identity, round-trip printing, inference, and diagnostic emission -- and each lists the
+requirement(s) it validates by number. They are exercised by property-based tests using the existing
+FsCheck setup, a minimum of 100 iterations per property, and the batched / in-process compilation
+approach required by the workspace test-process policy (generate all scenarios, compile once, run
+once, compare per scenario). The vocabulary matches the language model above: pack,
+`Unbracketed_Pack`, `Bracketed_Pack`, spread, zip, `Type[]` / `Type[N]`, `(TArgs...)`, and the
+`MIST_VAR_*` diagnostic codes.
+
+### Property 1: Print/parse round-trip
+
+For every valid AST that contains variadic surface forms -- pack declarations in both the `params`
+and `Type[]:` / `Type[N]:` spellings, `params TArgs args` and homogeneous `params T[]` value
+parameters, plain `(TArgs...)` tuple parameters, spreads (`TArgs...` and `args...`), and both flat
+and bracketed argument lists -- parsing the text produced by the pretty-printer yields an AST that is
+structurally equal to the original: identical node kinds and nesting, declared identifiers, element
+types, fixed-size domain lengths, and modifiers, and the same flat-versus-bracketed choice for each
+argument list, disregarding source positions and formatting trivia.
+
+**Validates: Requirements 2.1, 2.2, 2.3, 2.4, 2.5, 2.6**
+
+### Property 2: Type identity reflects the pack value
+
+For any variadic family `Foo` and any two comptime `Type[]` values `v1` and `v2`, the constructed
+types `Foo<v1>` and `Foo<v2>` are the same type if and only if `v1` and `v2` are equal `Type[]`
+values -- the same length and, at every index, elementwise-equal element types under the
+type-equality relation used for ordinary type arguments -- so identity is order-sensitive and
+arity-sensitive.
+
+**Validates: Requirements 5.1, 5.2, 5.3, 5.4**
+
+### Property 3: Flat/bracketed equivalence
+
+For any declared slot list containing a single `Unbracketed_Pack` and any use-site argument list, the
+flat construction form and its bracketed canonical form (the pack's contiguous middle run wrapped in
+`[...]`) bind to identical slot assignments and denote the same type, so `Foo<int, string>` and
+`Foo<[int, string]>` are interchangeable.
+
+**Validates: Requirements 3, 4**
+
+### Property 4: Binding determinism and totality
+
+For any declared slot list with at most one `Unbracketed_Pack` and any argument list whose length is
+at least (fixed slots + `Bracketed_Pack` slots), the binding rule yields exactly one assignment in
+which the leading fixed and bracketed slots take the leading arguments in order, the trailing fixed
+and bracketed slots take the trailing arguments in order, and the `Unbracketed_Pack` takes exactly
+the contiguous middle run (possibly empty); every argument list shorter than that minimum is rejected
+with `MIST_VAR_0005`.
+
+**Validates: Requirements 4, 3**
+
+### Property 5: Spread width equals source length
+
+For any comptime `Type[]` of length N, spreading it into type slots yields exactly N types in order;
+for any tuple value of N elements, decomposing it into argument slots yields exactly N arguments in
+order; and an empty operand (an empty pack or an empty tuple) yields zero.
+
+**Validates: Requirements 6.8, 8**
+
+### Property 6: Generated-member count equals pack length
+
+For any member spread with stem S over a pack of length N, the declaration produces the aggregate
+member `S` of type `(TArgs...)` (the whole tuple) plus exactly N element-projection members S1..SN
+(1-based), where each projection Sk has the pack's element type at 0-based index k-1 and equals the
+k-th element of S, and both the aggregate and the projections take the spread's accessibility and
+member kind; an empty pack produces the empty aggregate and zero projections; and two spreads of the
+same pack in one type produce index-aligned projections at the same N.
+
+**Validates: Requirements 10.1, 10.6, 10.7, 10.8**
+
+### Property 7: Inference agrees with the explicit form
+
+For any variadic method and any list of value arguments, inferring the pack (together with any fixed
+type parameters) from the value arguments produces the same instantiation as supplying the explicit
+bracketed type-argument form, so `M(a, b, c)` and `M<[A, B, C]>(...)` -- where Ai is the static type
+of the i-th argument -- resolve identically.
+
+**Validates: Requirements 14.1, 14.2, 14.3, 14.4**
+
+### Property 8: Arity is slot count
+
+For any type-parameter list and any value-parameter list, the declared arity equals the number of
+declared slots, where each pack -- a type-array pack spelled `params` or `Type[]:`, or a value pack
+`params TArgs args` -- counts as exactly one slot, independent of the concrete pack length it later
+absorbs.
+
+**Validates: Requirements 3.6, 7.2**
+
+### Property 9: One sugared pack per list
+
+For any type-parameter or value-parameter list, a list containing exactly one sugared `params`
+`Unbracketed_Pack` is accepted, and a list containing two or more raises `MIST_VAR_0001`. This holds
+uniformly for type-parameter lists (including method type-parameter lists) and value-parameter lists,
+counting a value pack `params TArgs args` and a homogeneous `params T[]` alike as one `params`.
+
+**Validates: Requirements 3.4, 3.5, 7.8, 7.9, 12.4, 12.5, 13.5**
+
+### Property 10: Position-semantics soundness
+
+For any pack identifier: use in expression position denotes the comptime `Type[]` value; use in bare
+type position is rejected with `MIST_VAR_0002`; indexing an unknown-length `Type[]` pack in type
+position is rejected with `MIST_VAR_0003`; indexing a fixed-size `Type[N]` pack at a comptime index i
+is accepted if and only if `0 <= i < N` and otherwise raises `MIST_VAR_0004`; and guard-narrowing an
+unknown-length pack to `Type[N]` restores in-range indexing within the guarded branch.
+
+**Validates: Requirements 6.1, 6.3, 6.4, 6.5, 6.6, 6.7**
+
+### Property 11: Tuple-decomposition well-typedness
+
+For any tuple value `x` and any target slot list, decomposing `x...` into that slot list is
+well-typed if and only if the tuple's ordered element types are positionally assignable to the target
+slots; otherwise it is rejected with `MIST_VAR_0011`. This holds for every tuple value, whether or not
+it originated from a pack. In a generic body, "well-typed" means provably well-typed for every
+instantiation the signature and constraints permit.
+
+**Validates: Requirements 7.5, 8.4**
+
+### Property 12: Zip requires provably-equal length
+
+For any two spread operands, a zip is accepted if and only if the operands are proven to have equal
+length (same origin or otherwise established), in which case it produces exactly N paired positions
+with each left-hand slot receiving exactly one right-hand value; otherwise it raises `MIST_VAR_0006`.
+
+**Validates: Requirements 8.5, 8.6, 8.7**
+
+### Property 13: Empty-pack coherence
+
+For any family and method over an empty pack, the empty pack yields an arity-0 construction, zero
+spread slots, zero generated members, the zero-argument callable (`Func<TResult>`), and vacuously
+satisfies any whole-pack constraint (no `MIST_VAR_0009`).
+
+**Validates: Requirements 4.3, 6.8, 10.6, 11.4, 15.4**
+
+### Property 14: Unbounded front end, backend ceiling
+
+For any pack of any element count, the grammar, program model, and type checker accept the
+construction and never reject on the basis of pack length; only the backend emits `MIST_VAR_0010`,
+and then only when a construction exceeds the target CLR capacity (a `System.Func` / `System.Action`
+over 16 inputs, or a non-nestable `System.ValueTuple` over 7), while a `System.ValueTuple` over 7 that
+can be nested is represented by nesting rather than rejected.
+
+**Validates: Requirements 16.1, 16.2, 16.3, 16.4, 16.5**
+
+### Property 15: Func invocation generalization
+
+For any constructed `Func<params TArgs, TResult>` value and any invocation argument list, the
+invocation is well-typed with result type `TResult` if and only if the argument list has the same
+length as `TArgs` and each argument is assignable to the corresponding element type of `TArgs`; a
+length mismatch or a non-assignable argument is rejected. This one rule applies at every arity,
+including the empty pack (a zero-argument invocation), with no per-arity invocation recognition
+retained.
+
+**Validates: Requirements 15.6, 15.7, 15.8**
+
+### Property 16: Whole-pack constraint enforcement
+
+For any pack declared with a whole-pack constraint C and any non-empty binding, the construction is
+well-typed if and only if every element type independently satisfies C, in which case any member
+declared by C may be used on each element type and on each corresponding `args[i]`; every element
+that fails C raises `MIST_VAR_0009` and is treated as an error type so downstream analysis continues.
+
+**Validates: Requirements 11.1, 11.2, 11.3**
+
+### Property 17: Spread accepted in every designated position
+
+For any comptime `Type[]` spread, the spread is well-formed in each designated type position --
+type-argument lists, field and member-declaration type positions, base-type lists (including
+implemented abstract types), and tuple-type element lists (including tuple return types) -- contributing exactly one entry per element
+(per Property 5) with no position-attributable diagnostic; and no value-parameter position is a
+spread position, since a value pack is declared with `params` rather than a `...` suffix.
+
+**Validates: Requirements 9.1, 9.2, 9.3, 9.4, 9.5**
+
+### Property 18: Homogeneous value-level params collection
+
+For any method with a homogeneous `params T[]` parameter and any invocation whose trailing arguments
+(those supplied after the fixed leading parameters) are each assignable to T, the trailing arguments
+are collected in left-to-right order into a single `T[]` of that length; an empty trailing list
+yields a non-null length-0 `T[]`; and if any trailing argument is not assignable to T, the invocation
+is rejected as an ordinary type error and the parameter is left unbound.
+
+**Validates: Requirements 13.2, 13.3, 13.7**
+
+### Property 19: Spread respects destination typing (generic enforcement)
+
+For any variadic method, the body is type-checked generically and must be well-typed for every
+instantiation. Therefore a symbolic value pack spread `args...` is accepted if and only if its
+destination provably accepts the pack `(TArgs...)` for every `TArgs` -- another `params TArgs` /
+`(TArgs...)` parameter, or a `Func<TArgs..., R>` value -- and is rejected with `MIST_VAR_0011` when
+the destination is a fixed-arity signature not provably `(TArgs...)`-compatible (for example
+forwarding `args...` into `Sum3(int, int, int)`), even though that same forward would succeed for the
+single instantiation `TArgs = [int, int, int]`. This is the negative counterpart to Property 15's
+positive forwarding.
+
+**Validates: Requirements 8.4, 12.6**
+
+### Property 20: Narrowing recovers provable forwarding
+
+For any variadic method body, within a branch guarded by `args is T x` for a concrete tuple type `T`
+(for example `args is (int, int, int) triple`), the value pack is narrowed to `T`, so spreading
+`x...` into a destination whose slots match `T` is well-typed inside that branch, even though the same
+spread on the unnarrowed pack is rejected outside it (Property 19). Narrowing to different tuple shapes
+in different branches independently enables the forwarding appropriate to each shape, and a spread into
+a destination that does not match the narrowed shape `T` is still rejected with `MIST_VAR_0011`.
+
+**Validates: Requirements 6.7, 12.9**
+
+### Property 21: Packs are accepted on every declaration kind
+
+For every generic-capable declaration kind Mist provides -- `class`, `struct`, `abstract` type, type
+alias, and newtype -- and for method type-parameter lists, a pack type-parameter list is accepted and
+governed by the same pack rules (binding, arity-in-slots, one `params` per list). A variadic abstract
+type may be declared and implemented, either at a concrete arity (its variadic member slots
+monomorphize to that arity) or generically (the implementer spreads its own pack into the base-type
+list). Mist has no `interface` or `delegate` keyword, so there is no distinct variadic-interface or
+variadic-delegate form.
+
+**Validates: Requirements 22.1, 22.2**
 
 ## Testing Strategy
 
@@ -704,8 +1084,8 @@ universal properties.
   Property tests use the existing FsCheck setup, a minimum of 100 iterations per property, and the
   batched / in-process compilation approach required by the workspace test-process policy.
 
-The formal correctness properties, with their requirement references, are added in the Correctness
-Properties section after requirements are derived (design-first sequencing).
+The formal correctness properties, with their requirement references, are set out in the preceding
+Correctness Properties section.
 
 ## Non-Goals / Deferred
 

@@ -60,6 +60,7 @@ The design defines a dedicated `MIST_VAR_*` diagnostic range. Requirements refer
 - **MIST_VAR_0008** (Program model): An empty Spread Stem.
 - **MIST_VAR_0009** (Type checker): A pack element that does not satisfy a Whole_Pack_Constraint.
 - **MIST_VAR_0010** (Backend): A construction that exceeds the target CLR type capacity.
+- **MIST_VAR_0011** (Type checker): A value-side spread whose expansion does not match its destination slots (the wrong number of slots, or an element not assignable to the corresponding slot), including a symbolic value pack (args...) spread into a fixed-arity destination not provably (TArgs...)-compatible for every instantiation.
 
 ## Requirements
 
@@ -71,7 +72,7 @@ The design defines a dedicated `MIST_VAR_*` diagnostic range. Requirements refer
 
 1. THE Grammar SHALL accept both the `params TArgs` spelling and the explicit `Type[]:TArgs` spelling as valid type-parameter productions, so that the two forms are interchangeable surface spellings of the same dependent type parameter.
 2. THE Grammar SHALL accept the fixed-size domain annotation `Type[N]:TArgs`, where `N` is a Comptime length, as a valid pack type-parameter production.
-3. THE Grammar SHALL accept a postfix Spread suffix `...` applied to an identifier operand in type-argument lists, argument lists, tuple-type element lists, base and interface lists, and member-declaration type positions, regardless of whether the operand denotes a type pack (for example `TArgs...`) or a tuple value (for example `args...`), and SHALL NOT accept the `...` suffix as a value-parameter declaration marker (a value pack parameter is declared with `params`, per acceptance criterion 4).
+3. THE Grammar SHALL accept a postfix Spread suffix `...` applied to an identifier operand in type-argument lists, argument lists, tuple-type element lists, base-type lists (including abstract types), and member-declaration type positions, regardless of whether the operand denotes a type pack (for example `TArgs...`) or a tuple value (for example `args...`), and SHALL NOT accept the `...` suffix as a value-parameter declaration marker (a value pack parameter is declared with `params`, per acceptance criterion 4).
 4. THE Grammar SHALL accept a leading `params` modifier on a value parameter as a valid value-parameter production, whether the parameter's declared type is a pack type parameter (for example `params TArgs args`) or an array type `T[]` (for example `params string[] parts`).
 5. WHEN the Parser encounters either a `params` modifier or an explicit `Type[]:` or `Type[N]:` domain annotation inside a type-parameter list, THE Parser SHALL parse the annotated type parameter as a Type_Parameter_Pack declaration.
 6. WHEN the Parser encounters a `params` modifier on a value parameter within a value parameter list, THE Parser SHALL parse that parameter as a value-side `params` parameter -- a Value_Pack when its declared type is a pack type parameter (for example `params TArgs args`) and a Value_Level_Params when its declared type is an array type `T[]` (for example `params string[] parts`) -- distinguishing it by its position in the value parameter list from a `params` modifier inside a type-parameter list (which is a Type_Parameter_Pack).
@@ -168,7 +169,7 @@ The design defines a dedicated `MIST_VAR_*` diagnostic range. Requirements refer
 1. WHERE a Comptime `Type[]` operand is spread (for example `TArgs...`), THE Type_Checker SHALL expand the operand into a number of type slots equal to the operand's length (`.Length`), preserving element order so that the element at each position of the operand occupies the corresponding expanded type slot, and expanding an empty operand into zero type slots.
 2. WHERE any tuple value is spread (for example the value pack `args...`, or an ordinary tuple `(7, "foo", false)...`), THE Type_Checker SHALL decompose the tuple into a number of argument slots equal to the tuple's element count, preserving element order so that the element at each position occupies the corresponding argument slot, and expanding an empty tuple into zero argument slots.
 3. THE Type_Checker SHALL apply tuple decomposition (the value-side Spread) to every tuple value, not only to value packs, so that a Value_Pack `args...` is simply the case where the tuple originated from a pack.
-4. WHEN a tuple value is decomposed into argument or parameter slots (for example `SomeMethod(x...)`), THE Type_Checker SHALL treat the decomposition as well-typed if and only if the tuple's ordered element types match the target slots positionally under assignability, and SHALL otherwise report an ordinary type error.
+4. WHEN a tuple value is decomposed into argument or parameter slots (for example `SomeMethod(x...)`), THE Type_Checker SHALL treat the decomposition as well-typed if and only if the tuple's ordered element types match the target slots positionally under assignability, and SHALL otherwise emit diagnostic MIST_VAR_0011.
 5. WHERE two operands are spread in parallel as a Zip (for example `field... = args...`), THE Type_Checker SHALL expand them element by element into `N` paired positions, where `N` is the common length of the two operands, pairing the operands position by position so that each left-hand slot receives exactly one right-hand value.
 6. THE Type_Checker SHALL permit a Zip only when the two operands are proven to have equal length, either because they originate from the same pack or because equal length has otherwise been established.
 7. IF a Zip is attempted between operands not proven to have equal length, THEN THE Type_Checker SHALL emit diagnostic MIST_VAR_0006.
@@ -181,7 +182,7 @@ The design defines a dedicated `MIST_VAR_*` diagnostic range. Requirements refer
 
 1. WHERE a Comptime `Type[]` Spread appears in a type-argument list (for example `Func<TArgs..., void>` in `type Action<params TArgs> = Func<TArgs..., void>;`), THE Type_Checker SHALL treat the Spread as well-formed in that position, SHALL expand it into one type-argument per element of the spread `Type[]` (so a pack of length 2 contributes 2 type-arguments), and SHALL NOT emit a diagnostic attributable to the Spread's position.
 2. WHERE a Comptime `Type[]` Spread appears in a field declaration (for example `public TArgs... Item;`), THE Type_Checker SHALL treat the Spread as well-formed in that position and SHALL NOT emit a diagnostic attributable to the Spread's position.
-3. WHERE a Comptime `Type[]` Spread appears in a base or interface list (for example `: TArgs...`), THE Type_Checker SHALL treat the Spread as well-formed in that position, SHALL expand it into one base-or-interface entry per element of the spread `Type[]`, and SHALL NOT emit a diagnostic attributable to the Spread's position.
+3. WHERE a Comptime `Type[]` Spread appears in a base-type list (including implemented abstract types) (for example `: TArgs...`), THE Type_Checker SHALL treat the Spread as well-formed in that position, SHALL expand it into one base-type entry per element of the spread `Type[]`, and SHALL NOT emit a diagnostic attributable to the Spread's position.
 4. WHERE a Comptime `Type[]` Spread appears in a tuple-type element list, including a tuple type used as a return type (for example `(TArgs...)`), THE Type_Checker SHALL treat the Spread as well-formed in that position, SHALL expand it into one tuple element per element of the spread `Type[]`, and SHALL NOT emit a diagnostic attributable to the Spread's position.
 5. THE Type_Checker SHALL NOT treat a value-parameter declaration as a Spread position, because a value pack parameter is declared with the `params` modifier (`params TArgs args`, per Requirement 7) rather than with a `...` spread suffix.
 
@@ -191,15 +192,15 @@ The design defines a dedicated `MIST_VAR_*` diagnostic range. Requirements refer
 
 #### Acceptance Criteria
 
-1. WHERE a Spread of a Type_Parameter_Pack appears in a member-declaring position with Stem `S` (for example `public TArgs... Item;`), THE Program_Model_Builder SHALL generate exactly `N` Spread_Generated_Members named `S1` through `SN` using 1-based indexing, where `N` is the pack length, such that each member `Sk` (for `k` in the range `1` through `N`) has the pack's element type at 0-based index `k - 1` and has the same accessibility and member kind as the Spread declaration.
-2. THE Program_Model_Builder SHALL reserve the Stem namespace so that no other member equals the Stem or uses the Stem as a prefix, and so that no two Spread Stems prefix one another.
-3. IF a Spread Stem collides with another member by equaling the Stem, using the Stem as a prefix, or having two Stems prefix one another, THEN THE Program_Model_Builder SHALL emit diagnostic MIST_VAR_0007.
+1. WHERE a Spread of a Type_Parameter_Pack appears in a member-declaring position with Stem `S` (for example `public TArgs... Item;`), THE Program_Model_Builder SHALL declare an aggregate member `S` of tuple type `(TArgs...)` (the whole ValueTuple) together with exactly `N` element-projection members `S1` through `SN` (1-based), where `N` is the pack length, each projection `Sk` has the pack's element type at 0-based index `k - 1` and denotes the k-th element of `S`, and the aggregate and all projections take the same accessibility and member kind (field or property) as the Spread declaration, so that an instance exposes both the tuple `S` and its elements `Sk`.
+2. THE Program_Model_Builder SHALL reserve the Stem namespace so that the Spread owns the aggregate name `S` and every `S{i}` projection name; no other member may use the Stem `S` or any `S{i}` name, and no two Spread Stems may prefix one another.
+3. IF a member outside the Spread family uses the Stem `S` or an `S{i}` name, or two Spread Stems prefix one another, THEN THE Program_Model_Builder SHALL emit diagnostic MIST_VAR_0007.
 4. THE Program_Model_Builder SHALL require a non-empty Stem.
 5. IF a Spread declares an empty Stem, THEN THE Program_Model_Builder SHALL emit diagnostic MIST_VAR_0008.
-6. WHERE the pack is empty, THE Program_Model_Builder SHALL generate zero members from the Spread.
-7. WHERE the pack has length 1, THE Program_Model_Builder SHALL generate the single member `S1` (the numeric suffix is always present) whose type is the pack's single element type.
-8. WHERE two Spreads of the same pack appear in one type (for example `Key...` and `Value...`), THE Program_Model_Builder SHALL generate for each Spread the same member count `N` equal to the shared pack length, indexed `1` through `N` (for example `Key1 .. KeyN` and `Value1 .. ValueN`), such that the members at the same index `k` derive from the pack's element at 0-based index `k - 1`.
-9. THE Type_Checker SHALL permit Spread_Generated_Members to be re-spread.
+6. WHERE the pack is empty, THE Program_Model_Builder SHALL produce the empty aggregate and zero element projections.
+7. WHERE the pack has length 1, THE Program_Model_Builder SHALL produce the aggregate `S` of type `(T)` and the single projection `S1` (the numeric suffix is always present).
+8. WHERE two Spreads of the same pack appear in one type (for example `Key...` and `Value...`), THE Program_Model_Builder SHALL produce for each Spread index-aligned element projections at the same count `N` (for example `Key1 .. KeyN` and `Value1 .. ValueN`).
+9. THE Type_Checker SHALL permit Spread-Generated members to be re-spread, so that `S...` spreads the aggregate's elements.
 
 ### Requirement 11: Whole-Pack Constraints
 
@@ -223,6 +224,10 @@ The design defines a dedicated `MIST_VAR_*` diagnostic range. Requirements refer
 3. WHERE a method body passes `args...` in an argument position of a call (for example `Consume(args...)`), THE Type_Checker SHALL expand the Value_Pack into one argument per pack element, in declaration order, filling the callee's corresponding argument slots.
 4. THE Program_Model_Builder SHALL permit at most one Unbracketed_Pack per method type-parameter list.
 5. IF a method type-parameter list declares more than one Unbracketed_Pack, THEN THE Program_Model_Builder SHALL emit diagnostic MIST_VAR_0001.
+6. WHEN the Type_Checker checks a variadic method body, THE Type_Checker SHALL require the body to be well-typed for every instantiation the signature and constraints permit, applying the same open-generic type-checking discipline used for any type parameter (for example, in `class Foo<TValue> { int Bar(TValue value) { return Double(value); } }`, `Double(value)` is rejected because `TValue` is not proven to be `int`).
+7. WHERE a variadic method body forwards a value pack with `args...`, THE Type_Checker SHALL accept the spread when its destination provably accepts the pack `(TArgs...)` for every `TArgs` -- another `params TArgs` or `(TArgs...)` parameter, or a `Func<TArgs..., R>` value.
+8. IF a variadic method body spreads a value pack `args...` into a fixed-arity destination that is not provably `(TArgs...)`-compatible for every instantiation (for example `Sum3(args...)` where `Sum3` takes `(int, int, int)`), THEN THE Type_Checker SHALL emit diagnostic MIST_VAR_0011.
+9. WHERE a variadic method body guards a value pack with `args is T x` for a concrete tuple type `T` (for example `args is (int, int, int) triple`), THE Type_Checker SHALL narrow the pack to `T` within that branch so that spreading `x...` into a destination whose slots match `T` is well-typed (recovering the forwarding that criterion 8 rejects for an unnarrowed symbolic pack), and IF a spread within such a branch targets a destination that does not match the narrowed shape `T`, THEN THE Type_Checker SHALL emit diagnostic MIST_VAR_0011.
 
 ### Requirement 13: Value-Level params
 
@@ -293,7 +298,7 @@ The design defines a dedicated `MIST_VAR_*` diagnostic range. Requirements refer
 #### Acceptance Criteria
 
 1. A sample project SHALL exist at `samples/Variadics/Program.mist` with a corresponding `samples/Variadics/mist.toml` project file whose `name` field is set to `"Variadics"`.
-2. The sample SHALL demonstrate every usage axis defined in the preceding requirements, including but not limited to: the single-declaration `Func` family with a non-empty pack, the empty-pack `Func<TResult>` case, the `Action` alias spreading a pack into `Func`, a method-level type pack with call-site inference, expression-position `.Length` on a pack, forwarding a value pack with `args...` into a fixed-arity method, a middle pack resolved by the Binding_Rule, a spread-generated indexed member family, a whole-pack constraint used elementwise, the explicit bracketed construction form `M<[...]>()`, multiple bracketed `Type[]:` packs disambiguated at the use site, and homogeneous value-level `params`.
+2. The sample SHALL demonstrate every usage axis defined in the preceding requirements, including but not limited to: the single-declaration `Func` family (arity 1) with invocation, the empty-pack `Func<TResult>` case, the `Action` alias spreading a pack into `Func`, a method-level type pack with call-site inference and expression-position `TArgs.Length`, explicit bracketed construction `M<[...]>(...)`, a middle pack bound by the Binding_Rule, multiple bracketed `Type[]:` packs disambiguated at the use site, forwarding a value pack with `args...` into a `Func` of the same pack, value-pack narrowing with `args is (concrete tuple)` that recovers fixed-arity forwarding across branches of differing length and element type, general tuple decomposition of a plain tuple value, spread-generated members (the aggregate tuple and the indexed projections, in both field and property kinds) populated by a zip constructor and re-spread into a Func, a fixed-size `Type[N]` pack with a whole-pack constraint used elementwise, homogeneous value-level `params`, a variadic abstract type declared and implemented (via a base-type-list spread), and a variadic struct.
 3. Each demonstrated pattern SHALL print labeled output to stdout so correctness is observable.
 4. The sample SHALL include a `public static void RunDemo()` entry point that exercises the demonstrated patterns.
 5. `samples/AllFeatures/Program.mist` SHALL call `Variadics.Program.RunDemo()` and `samples/AllFeatures/mist.toml` SHALL include a reference entry for the Variadics project, so that the feature is exercised in the full-suite sample run.
@@ -307,15 +312,100 @@ using Standard;
 
 namespace Variadics;
 
+abstract IShape
+{
+    int Area();
+}
+
+public struct Circle : IShape
+{
+    public int Area()
+    {
+        return 3;
+    }
+}
+
+public struct Square : IShape
+{
+    public int Area()
+    {
+        return 4;
+    }
+}
+
+// PROOF: spread-generated members. `public TArgs... Item;` surfaces the aggregate `Item`
+//        (the whole (TArgs...) tuple) and the element projections Item1..ItemN. The
+//        constructor zips the value pack into the members; Map re-spreads them (R10.9).
+public class Bundle<params TArgs>
+{
+    public TArgs... Item;
+
+    public Bundle(params TArgs values)
+    {
+        Item... = values...;
+    }
+
+    public TResult Map<TResult>(Func<TArgs..., TResult> f)
+    {
+        return f(Item...);
+    }
+}
+
+// PROOF: spread-generated members as a property kind -- `public TArgs... Slot { get; }`
+//        generates get-only property projections Slot1..SlotN.
+public class ReadOnlyRow<params TArgs>
+{
+    public TArgs... Slot { get; }
+
+    public ReadOnlyRow(params TArgs values)
+    {
+        Slot... = values...;
+    }
+}
+
+// PROOF: fixed-size pack Type[2] + whole-pack constraint. `where TShapes : IShape` makes
+//        Area() callable on each spread-generated member (Shape1, Shape2) even though their
+//        types are the symbolic pack elements TShapes[0] and TShapes[1].
+// PROOF: a variadic STRUCT (value type) carrying a fixed-size pack and a whole-pack constraint.
+public struct ShapePair<Type[2]:TShapes> where TShapes : IShape
+{
+    public TShapes... Shape;
+
+    public ShapePair(params TShapes shapes)
+    {
+        Shape... = shapes...;
+    }
+
+    public int TotalArea()
+    {
+        return Shape1.Area() + Shape2.Area();
+    }
+}
+
+// PROOF: a variadic abstract type (Mist's interface-like construct) declared with a pack.
+abstract ICountable<params TArgs>
+{
+    int Count();
+}
+
+// PROOF: a variadic class implements the variadic abstract type by spreading its own pack
+//        into the base-type list (ICountable<TArgs...>).
+public class Tup<params TArgs> : ICountable<TArgs...>
+{
+    public int Count()
+    {
+        return TArgs.Length;
+    }
+}
+
 public class Program
 {
     public static void RunDemo()
     {
         Console.WriteLine("=== Variadics Sample ===");
 
-        // PROOF: the single Func<params TArgs, TResult> declaration covers arity 1;
-        // PROOF: invoking a Func value is well-typed because the argument list matches
-        //        TArgs=[int] elementwise and the result type is TResult=string.
+        // PROOF: the single Func<params TArgs, TResult> declaration covers arity 1; invoking it
+        //        is well-typed because the argument list matches TArgs=[int] and returns TResult=string.
         Func<int, string> label = n => $"n={n}";
         Console.WriteLine(label(5));
 
@@ -323,45 +413,139 @@ public class Program
         Func<string> greet = () => "empty-pack";
         Console.WriteLine(greet());
 
-        // PROOF: Action<params TArgs> = Func<TArgs..., void> spreads the pack into Func;
-        //        Action<int> resolves to Func<int, void>.
+        // PROOF: Action<params TArgs> = Func<TArgs..., void> spreads the pack into Func.
         Action<int> act = n => Console.WriteLine($"act={n}");
         act(7);
 
-        // PROOF: a method-level type pack with call-site inference infers
-        //        TArgs=[int, string, bool] from the value arguments; the pack identifier
-        //        in expression position is the comptime Type[] value, so TArgs.Length is 3.
+        // PROOF: method-level pack with call-site inference (TArgs=[int, string, bool]);
+        //        TArgs.Length reads the arity in expression position.
         var arity = Describe(1, "x", true);
         Console.WriteLine($"arity={arity}");
 
-        // PROOF: the value pack args : (TArgs...) is spread with args... into a
-        //        fixed-arity method's argument slots (forwarding).
-        Console.WriteLine($"forward={ForwardSum(2, 3, 4)}");
+        // PROOF: explicit bracketed construction supplies the pack directly instead of inferring.
+        var explicitArity = Describe<[int, string, bool]>(1, "x", true);
+        Console.WriteLine($"explicit={explicitArity}");
 
-        // PROOF: value-level params is homogeneous; xs is a real int[] and the call site
-        //        is flat. The empty call binds xs to an empty array.
-        Console.WriteLine($"sum={SumAll(1, 2, 3, 4)}");
-        Console.WriteLine($"sumEmpty={SumAll()}");
+        // PROOF: a middle pack bound by the Binding_Rule -- first and last bind inward from the
+        //        ends, the pack absorbs the middle, so TMid=[string, string] and its length is 2.
+        var middle = MiddleCount(1, "a", "b", true);
+        Console.WriteLine($"middle={middle}");
+
+        // PROOF: two bracketed Type[]: packs disambiguated at the use site. A=[int, int], B=[string].
+        var twoPacks = TwoPacks<[int, int], [string]>();
+        Console.WriteLine($"twoPacks={twoPacks}");
+
+        // PROOF: forwarding a value pack into a Func whose parameter list IS the pack; provable for
+        //        every TArgs (a fixed-arity target would be MIST_VAR_0011, see Requirement 21).
+        Func<int, int, int, int> add = (a, b, c) => a + b + c;
+        var forward = Apply(add, 2, 3, 4);
+        Console.WriteLine($"forward={forward}");
+
+        // PROOF: value-pack narrowing. Each `is` branch proves a concrete shape, so the matching
+        //        fixed-arity forward type-checks; branches narrow to different length AND element
+        //        type; the else branch uses only the size-agnostic TArgs.Length.
+        var narrowInt = Categorize(2, 3, 4);
+        Console.WriteLine($"narrowInt={narrowInt}");
+        var narrowStr = Categorize("ab", "cd");
+        Console.WriteLine($"narrowStr={narrowStr}");
+        var narrowElse = Categorize(true);
+        Console.WriteLine($"narrowElse={narrowElse}");
+
+        // PROOF: general tuple decomposition -- `...` spreads any tuple value, not only a pack.
+        var pair = (10, 20);
+        var tupleSpread = Add2(pair...);
+        Console.WriteLine($"tupleSpread={tupleSpread}");
+
+        // PROOF: spread-generated members. Read the aggregate `Item` (the whole ValueTuple)
+        //        and the projection `Item1` (its first element) from the same instance.
+        var bundle = new Bundle<int, string, bool>(42, "hi", true);
+        var whole = bundle.Item;
+        Console.WriteLine($"bundleAgg={whole.Item1}:{whole.Item2}:{whole.Item3}");
+        Console.WriteLine($"bundleItem1={bundle.Item1}");
+
+        // PROOF: re-spread the generated members (Item...) into a Func of the same pack.
+        Func<int, string, bool, string> fmt = (a, b, c) => $"{a}-{b}-{c}";
+        var mapped = bundle.Map(fmt);
+        Console.WriteLine($"bundleMap={mapped}");
+
+        // PROOF: spread-generated members as a property kind (Slot1, Slot2 are get properties).
+        var row = new ReadOnlyRow<int, string>(7, "z");
+        Console.WriteLine($"prop={row.Slot1}:{row.Slot2}");
+
+        // PROOF: fixed-size pack + whole-pack constraint; Area() is callable on each element
+        //        because every pack element is proven to implement IShape.
+        var shapePair = new ShapePair<Circle, Square>(new Circle(), new Square());
+        Console.WriteLine($"area={shapePair.TotalArea()}");
+
+        // PROOF: a variadic abstract type implemented by a variadic class, used through the
+        //        abstract type. Count() returns the pack arity (3).
+        ICountable<int, string, bool> counter = new Tup<int, string, bool>();
+        Console.WriteLine($"abstractCount={counter.Count()}");
+
+        // PROOF: value-level params is homogeneous; xs is a real int[] and the call site is flat.
+        var sum = SumAll(1, 2, 3, 4);
+        Console.WriteLine($"sum={sum}");
+        var sumEmpty = SumAll();
+        Console.WriteLine($"sumEmpty={sumEmpty}");
 
         Console.WriteLine("=== Variadics Done ===");
     }
 
-    // PROOF: <params TArgs> declares a type pack; TArgs.Length reads the arity through the
-    //        always-available size-agnostic capability of an unknown-length pack.
+    // PROOF: <params TArgs> declares a type pack; TArgs.Length is the size-agnostic arity.
     public static int Describe<params TArgs>(params TArgs args)
     {
         return TArgs.Length;
     }
 
-    // PROOF: args... forwards the tuple value into Sum3's three argument slots.
-    public static int ForwardSum<params TArgs>(params TArgs args)
+    // PROOF: middle pack -- TFirst and TLast bind inward from the ends, TMid absorbs the middle.
+    public static int MiddleCount<TFirst, params TMid, TLast>(TFirst first, params TMid mid, TLast last)
     {
-        return Sum3(args...);
+        return TMid.Length;
+    }
+
+    // PROOF: two bracketed Type[]: packs; each is supplied in brackets at the use site.
+    public static int TwoPacks<Type[]:A, Type[]:B>()
+    {
+        return A.Length + B.Length;
+    }
+
+    // PROOF: args... forwards the value pack into f, whose parameter list IS TArgs, so the spread
+    //        type-checks for every TArgs, not just this call's shape.
+    public static TResult Apply<params TArgs, TResult>(Func<TArgs..., TResult> f, params TArgs args)
+    {
+        return f(args...);
+    }
+
+    // PROOF: narrowing the value pack with `is` re-enables provable fixed-arity forwarding.
+    public static int Categorize<params TArgs>(params TArgs args)
+    {
+        if (args is (int, int, int) triple)
+        {
+            return Sum3(triple...);
+        }
+        else if (args is (string, string) pair)
+        {
+            return Join(pair...).Length;
+        }
+        else
+        {
+            return TArgs.Length;
+        }
     }
 
     public static int Sum3(int a, int b, int c)
     {
         return a + b + c;
+    }
+
+    public static string Join(string a, string b)
+    {
+        return a + b;
+    }
+
+    public static int Add2(int a, int b)
+    {
+        return a + b;
     }
 
     // PROOF: value-level params yields a real array; foreach iterates the collected values.
@@ -390,7 +574,20 @@ n=5
 empty-pack
 act=7
 arity=3
+explicit=3
+middle=2
+twoPacks=3
 forward=9
+narrowInt=9
+narrowStr=4
+narrowElse=1
+tupleSpread=30
+bundleAgg=42:hi:true
+bundleItem1=42
+bundleMap=42-hi-true
+prop=7:z
+area=7
+abstractCount=3
 sum=10
 sumEmpty=0
 === Variadics Done ===
@@ -415,6 +612,54 @@ sumEmpty=0
 
 1. WHEN value-level `params` is implemented, THE Compiler team SHALL update the `params arrays` row in `CSHARP_FEATURES.md` from unimplemented to implemented, with a note describing homogeneous value-level `params T[]` support.
 2. THE Compiler team SHALL update the `Summary` table in `CSHARP_FEATURES.md` to reflect the new implementation counts.
+
+### Requirement 21: Negative Proof -- Spread Destination Enforcement
+
+**User Story:** As a Mist developer, I want a locked negative test proving the type checker rejects an unprovable spread, so that an implementation cannot silently bypass destination typing to obtain a green build.
+
+#### Acceptance Criteria
+
+1. A negative test fixture SHALL contain the Negative Proof Code below verbatim, and the Compiler SHALL reject it, emitting diagnostic MIST_VAR_0011 on the `Sum3(args...)` spread.
+2. THE negative fixture SHALL NOT be added to the runnable sample at `samples/Variadics/Program.mist` (which must compile without errors); it SHALL live as a type-checker rejection test.
+3. IF the fixture compiles successfully, THEN the test SHALL fail, because a successful compile means the Type_Checker is not enforcing destination typing on spread.
+
+#### Negative Proof Code
+
+```mist
+using Standard;
+
+namespace Variadics;
+
+public class NegativeProofs
+{
+    // NEGATIVE PROOF: this MUST NOT compile. args is a symbolic pack (TArgs...), so
+    // Sum3(args...) cannot be proven well-typed for every TArgs -- it would fail for
+    // TArgs = [string]. This is ordinary open-generic checking: the same reason
+    // Double(value) is rejected in Foo<TValue>. The type checker MUST reject the spread
+    // with MIST_VAR_0011.
+    public static int ForwardSumBad<params TArgs>(params TArgs args)
+    {
+        return Sum3(args...);
+    }
+
+    public static int Sum3(int a, int b, int c)
+    {
+        return a + b + c;
+    }
+}
+```
+
+**Expected:** compilation fails with diagnostic MIST_VAR_0011 reported on `Sum3(args...)`.
+
+### Requirement 22: Pack-Bearing Declaration Kinds and Variadic Abstract Types
+
+**User Story:** As a Mist developer, I want to declare a pack on any generic-capable declaration kind and to write variadic abstract types, so that variadics work uniformly across the language's type system.
+
+#### Acceptance Criteria
+
+1. THE Program_Model_Builder SHALL accept a pack type-parameter list (`params TArgs` or `Type[]:TArgs`) on every generic-capable declaration kind Mist provides -- a `class`, a `struct`, an `abstract` type, a type alias (`type Name<...> = ...;`), and a newtype (`type Name<...> = new Source;`) -- as well as on a method type-parameter list, applying the same pack rules (the Binding_Rule, arity counted in slots, and at most one `params` per list) uniformly across all of them. (Mist has no `interface` or `delegate` keyword; abstract types -- similar to, but not identical to, C#'s interfaces -- fill that role, and the `Func` class family fills the callable role.)
+2. WHERE an `abstract` type declares a pack (for example `abstract IApplier<params TArgs, TResult> { TResult Apply(params TArgs args); }`), THE Type_Checker SHALL permit a type to implement it either at a concrete arity, where the variadic member slots monomorphize to that arity (implementing `IApplier<int, int, int>` requires `int Apply(int a, int b)`), or generically, where the implementer spreads its own pack into the base-type list (for example `class Boxed<params TArgs> : IApplier<TArgs..., int>`), reusing the base-type-list spread.
+3. WHERE a type alias or a newtype declares a pack (for example `type Action<params TArgs> = Func<TArgs..., void>;` or `type Row<params TArgs> = new (TArgs...);`), THE Program_Model_Builder SHALL bind the pack per the Binding_Rule at the use site, and a newtype SHALL clone the (possibly variadic) source type's members into a nominally distinct type.
 
 ## Non-Goals / Deferred
 

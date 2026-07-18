@@ -127,7 +127,7 @@ public sealed class ProgramModelBuilder
             {
                 if(method.Body is not null)
                 {
-                    BodyBinder.BindDelegate(method, context);
+                    BodyBinder.BindDelegate(method, memberType, context);
                 }
             }
         }

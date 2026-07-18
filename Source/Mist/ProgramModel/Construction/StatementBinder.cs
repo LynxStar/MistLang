@@ -17,6 +17,7 @@ internal static class StatementBinder
         {
             VariableDeclarationStatementStatementNode declaration => BindVariableDeclaration(declaration, ctx, context),
             ReturnStatementStatementNode returnStatement => BindReturn(returnStatement.ReturnStatement, ctx, context),
+            ExpressionStatementStatementNode exprStatement => BindExpressionStatement(exprStatement, ctx, context),
             BlockStatementStatementNode nestedBlock => BindNestedBlock(nestedBlock.BlockStatement, ctx, context),
             _ => new UnsupportedStatement(statement),
         };
@@ -25,8 +26,14 @@ internal static class StatementBinder
     private static Block BindNestedBlock(BlockNode node, BindingContext ctx, BuilderContext context)
     {
         var block = new Block(node);
-        BodyBinder.BindBody(block, new Scope(ctx.Scope), ctx.ReturnType, context);
+        BodyBinder.BindBody(block, new Scope(ctx.Scope), ctx.ReturnType, ctx.EnclosingType, context);
         return block;
+    }
+
+    private static ExpressionStatement BindExpressionStatement(ExpressionStatementStatementNode statement, BindingContext ctx, BuilderContext context)
+    {
+        var expression = ExpressionBinder.BindExpression(statement.ExpressionStatement.Expression, ctx, context);
+        return new ExpressionStatement(expression);
     }
 
     private static Statement BindVariableDeclaration(VariableDeclarationStatementStatementNode statement, BindingContext ctx, BuilderContext context)

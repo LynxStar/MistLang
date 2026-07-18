@@ -135,6 +135,38 @@ public sealed class BodyBindingIntegrationTests : IDisposable
         _ = Assert.IsType<UnresolvedExpression>(returnStatement.Value);
     }
 
+    [Fact]
+    public void SimpliestSample_BindsWithNoSentinels()
+    {
+        var source = """
+            using Standard;
+            namespace Simpliest;
+            public class Program
+            {
+                public static void Main(string[] args)
+                {
+                    RunDemo();
+                }
+                public static void RunDemo()
+                {
+                    Console.WriteLine("General KENOBI!");
+                }
+            }
+            """;
+
+        var model = BuildProgramModel(source, namespaceRoot: "Simpliest");
+
+        // Main body: RunDemo() — bare method call on the enclosing type.
+        var main = GetMethod(model, "Simpliest", "Program", "Main");
+        Assert.NotNull(main.Body);
+        AssertNoSentinels(main.Body!);
+
+        // RunDemo body: Console.WriteLine("General KENOBI!") — static member access + invocation.
+        var runDemo = GetMethod(model, "Simpliest", "Program", "RunDemo");
+        Assert.NotNull(runDemo.Body);
+        AssertNoSentinels(runDemo.Body!);
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // Harness
     // ═══════════════════════════════════════════════════════════════════════
@@ -145,7 +177,65 @@ public sealed class BodyBindingIntegrationTests : IDisposable
         return type.MethodsList.Single(m => m.Name == methodName);
     }
 
-    private IProgramModel BuildProgramModel(string source, string fileName = "test.mist")
+    private static Method GetMethod(IProgramModel model, string namespaceName, string typeName, string methodName)
+    {
+        var type = Assert.IsAssignableFrom<MemberType>(model.TypesByFQN[$"{namespaceName}.{typeName}"]);
+        return type.MethodsList.Single(m => m.Name == methodName);
+    }
+
+    private static void AssertNoSentinels(Block block)
+    {
+        foreach(var statement in block.Statements)
+        {
+            Assert.IsNotType<UnsupportedStatement>(statement);
+
+            switch(statement)
+            {
+                case LocalDeclarationStatement decl:
+                    if(decl.Initializer is not null)
+                    {
+                        AssertExpressionResolved(decl.Initializer);
+                    }
+
+                    break;
+                case ReturnStatement ret:
+                    if(ret.Value is not null)
+                    {
+                        AssertExpressionResolved(ret.Value);
+                    }
+
+                    break;
+                case ExpressionStatement exprStmt:
+                    AssertExpressionResolved(exprStmt.Expression);
+                    break;
+                case Block nested:
+                    AssertNoSentinels(nested);
+                    break;
+            }
+        }
+    }
+
+    private static void AssertExpressionResolved(Expression expr)
+    {
+        Assert.IsNotType<UnresolvedExpression>(expr);
+
+        switch(expr)
+        {
+            case InvocationExpression invocation:
+                AssertExpressionResolved(invocation.Receiver);
+                foreach(var arg in invocation.Arguments)
+                {
+                    AssertExpressionResolved(arg);
+                }
+
+                break;
+            case MemberAccessExpression memberAccess:
+                AssertExpressionResolved(memberAccess.Receiver);
+                break;
+        }
+    }
+
+    private IProgramModel BuildProgramModel(string source, string fileName = "test.mist", string namespaceRoot = "TestProject")
     {
         var lexer = new MistLexer();
         var parser = new MistParser();
@@ -167,8 +257,8 @@ public sealed class BodyBindingIntegrationTests : IDisposable
             Backend: new BackendId("csharp"),
             OutputDirectory: outputDir,
             BinDirectory: Path.Combine(outputDir, "bin"),
-            ProjectName: "TestProject",
-            NamespaceRoot: "TestProject",
+            ProjectName: namespaceRoot,
+            NamespaceRoot: namespaceRoot,
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
         var buildDiagnostics = new DiagnosticBag();
@@ -193,6 +283,21 @@ public sealed class BodyBindingIntegrationTests : IDisposable
         public void BuildAndRegister(ProgramModelClass programModel)
         {
             AmbientProviderTestHelper.RegisterStandardTypes(programModel);
+
+            // Register a Console shell with a WriteLine method so that
+            // Console.WriteLine("...") resolves during body binding.
+            var consoleScope = new Scope(null);
+            var consoleType = new ClassType("Console", "Standard", consoleScope, null, null!);
+            _ = programModel.RegisterType(consoleType);
+
+            var voidType = programModel.TypesByFQN["Standard.Void"];
+            var stringType = programModel.TypesByFQN["Standard.String"];
+            var writeLineMethod = new Method(
+                "WriteLine",
+                voidType,
+                [new Parameter("value", stringType)],
+                new MemberModifiers { IsStatic = true });
+            consoleType.MethodsList.Add(writeLineMethod);
 
             // Mark the Standard shells as ambient so the Phase 2a source-type build
             // loop skips them (they carry no AST declaration to resolve), matching how

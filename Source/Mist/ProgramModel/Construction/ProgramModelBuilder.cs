@@ -69,12 +69,11 @@ public sealed class ProgramModelBuilder
         ambientProvider.BuildAndRegister(programModel);
 
         // Phase 2a: Resolve member signatures on all registered types.
-        var typeResolver = new TypeReferenceResolver(context);
-        var concreteTypeBuilder = new ConcreteTypeBuilder(context, typeResolver);
-        var abstractTypeBuilder = new AbstractTypeBuilder(context, typeResolver);
-        var enumTypeBuilder = new EnumTypeBuilder(context, typeResolver);
-        var newtypeBuilder = new NewtypeBuilder(context, typeResolver);
-        var typeAliasBuilder = new TypeAliasBuilder(context, typeResolver);
+        var concreteTypeBuilder = new ConcreteTypeBuilder(context, context.TypeResolver);
+        var abstractTypeBuilder = new AbstractTypeBuilder(context, context.TypeResolver);
+        var enumTypeBuilder = new EnumTypeBuilder(context, context.TypeResolver);
+        var newtypeBuilder = new NewtypeBuilder(context, context.TypeResolver);
+        var typeAliasBuilder = new TypeAliasBuilder(context, context.TypeResolver);
 
         var sourceTypes = programModel
             .TypesByFQN
@@ -106,12 +105,32 @@ public sealed class ProgramModelBuilder
         }
 
         // Phase 2b: Resolve extension blocks (after all types are fully resolved).
-        var extensionBuilder = new ExtensionBuilder(context, typeResolver);
+        var extensionBuilder = new ExtensionBuilder(context, context.TypeResolver);
         extensionBuilder.BuildAll();
 
         // Phase 2c: Resolve retroactive conformance declarations (with blocks).
-        var conformanceBuilder = new ConformanceBuilder(context, typeResolver);
+        var conformanceBuilder = new ConformanceBuilder(context, context.TypeResolver);
         conformanceBuilder.BuildAll();
+
+        // Phase 3: Bind member bodies into the resolved, AST-free bound tree.
+        // Walking-skeleton scope: method bodies only. Constructs the binder does
+        // not yet handle bind to sentinel nodes (no throws, no diagnostics), so
+        // this is safe to run over every source program.
+        foreach(var typeDef in sourceTypes)
+        {
+            if(typeDef is not MemberType memberType)
+            {
+                continue;
+            }
+
+            foreach(var method in memberType.MethodsList)
+            {
+                if(method.Body is not null)
+                {
+                    BodyBinder.BindDelegate(method, context);
+                }
+            }
+        }
 
         return programModel;
     }

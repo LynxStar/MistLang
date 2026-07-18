@@ -136,7 +136,7 @@ internal sealed class TypeReferenceResolver
     {
         var inner = singleRef switch
         {
-            VoidSingleTypeRefSingleTypeRefNode => ResolveReservedAlias("Void"),
+            VoidSingleTypeRefSingleTypeRefNode => LookupWellKnown(WellKnownTypes.Void),
             UnknownSingleTypeRefSingleTypeRefNode => UnknownType.Instance,
             PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef => ResolveReservedAlias(primitiveRef),
             NamedSingleTypeRefSingleTypeRefNode namedRef => ResolveNamed(namedRef, scope),
@@ -161,40 +161,40 @@ internal sealed class TypeReferenceResolver
     /// </summary>
     private IMistType ResolveReservedAlias(PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef)
     {
-        var typeName = primitiveRef.PrimitiveType switch
+        var wellKnown = primitiveRef.PrimitiveType switch
         {
-            IntTypePrimitiveTypeNode => "Int32",
-            UintTypePrimitiveTypeNode => "UInt32",
-            LongTypePrimitiveTypeNode => "Int64",
-            UlongTypePrimitiveTypeNode => "UInt64",
-            ShortTypePrimitiveTypeNode => "Int16",
-            UshortTypePrimitiveTypeNode => "UInt16",
-            ByteTypePrimitiveTypeNode => "Byte",
-            SbyteTypePrimitiveTypeNode => "SByte",
-            FloatTypePrimitiveTypeNode => "Single",
-            DoubleTypePrimitiveTypeNode => "Double",
-            DecimalTypePrimitiveTypeNode => "Decimal",
-            BoolTypePrimitiveTypeNode => "Boolean",
-            CharTypePrimitiveTypeNode => "Char",
-            StringTypePrimitiveTypeNode => "String",
-            RegexTypePrimitiveTypeNode => "Regex",
+            IntTypePrimitiveTypeNode => WellKnownTypes.Int32,
+            UintTypePrimitiveTypeNode => WellKnownTypes.UInt32,
+            LongTypePrimitiveTypeNode => WellKnownTypes.Int64,
+            UlongTypePrimitiveTypeNode => WellKnownTypes.UInt64,
+            ShortTypePrimitiveTypeNode => WellKnownTypes.Int16,
+            UshortTypePrimitiveTypeNode => WellKnownTypes.UInt16,
+            ByteTypePrimitiveTypeNode => WellKnownTypes.Byte,
+            SbyteTypePrimitiveTypeNode => WellKnownTypes.SByte,
+            FloatTypePrimitiveTypeNode => WellKnownTypes.Single,
+            DoubleTypePrimitiveTypeNode => WellKnownTypes.Double,
+            DecimalTypePrimitiveTypeNode => WellKnownTypes.Decimal,
+            BoolTypePrimitiveTypeNode => WellKnownTypes.Boolean,
+            CharTypePrimitiveTypeNode => WellKnownTypes.Char,
+            StringTypePrimitiveTypeNode => WellKnownTypes.String,
+            RegexTypePrimitiveTypeNode => WellKnownTypes.Regex,
             _ => null,
         };
 
-        return ResolveReservedAlias(typeName);
-    }
-
-    /// <summary>
-    /// Looks up a reserved alias by simple name in the Standard namespace.
-    /// </summary>
-    private IMistType ResolveReservedAlias(string? typeName)
-    {
-        if(typeName is null)
+        if(wellKnown is null)
         {
             return ErrorType.Instance;
         }
 
-        return LookupInNamespace("Standard", typeName) ?? ErrorType.Instance;
+        return LookupWellKnown(wellKnown);
+    }
+
+    /// <summary>
+    /// Resolves a <see cref="WellKnownType"/> by looking up its name in its namespace.
+    /// </summary>
+    public IMistType LookupWellKnown(WellKnownType wellKnown)
+    {
+        return LookupInNamespace(wellKnown.Namespace, wellKnown.Name) ?? ErrorType.Instance;
     }
 
     /// <summary>

@@ -1,3 +1,4 @@
+using Mist.ProgramModel;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
@@ -21,26 +22,18 @@ internal static class AmbientProviderTestHelper
         _ = programModel.GetOrAddNamespace("Standard");
         var scope = new Scope(null);
 
-        // Primitive types (aliases for System.Int32, System.String, etc.)
-        var primitiveTypes = new[]
+        // Primitive types + structural types (Task, ValueTask, Void, etc.)
+        foreach(var wellKnown in WellKnownTypes.AllStandardTypes)
         {
-            "Int32", "Int64", "Int16", "Byte", "SByte",
-            "UInt32", "UInt64", "UInt16", "Single", "Double", "Decimal",
-            "String", "Boolean", "Char", "Void",
-            "Task", "Task<>", "ValueTask", "ValueTask<>",
-        };
-
-        foreach(var name in primitiveTypes)
-        {
-            _ = programModel.RegisterType(new ClassType(name, "Standard", scope, null, null!));
+            _ = programModel.RegisterType(new ClassType(wellKnown.Name, wellKnown.Namespace, scope, null, null!));
         }
 
         // Interfaces used for interface mapping.
-        _ = programModel.RegisterType(new AbstractType("IEnumerable<>", "Standard", scope, null, null));
-        _ = programModel.RegisterType(new AbstractType("IEnumerator<>", "Standard", scope, null, null));
+        _ = programModel.RegisterType(new AbstractType(WellKnownTypes.IEnumerable.Name, WellKnownTypes.IEnumerable.Namespace, scope, null, null));
+        _ = programModel.RegisterType(new AbstractType(WellKnownTypes.IEnumerator.Name, WellKnownTypes.IEnumerator.Namespace, scope, null, null));
 
         // Array definition for CLR T[] → Standard.Array<T, unknown>.
-        _ = programModel.RegisterType(new ClassType("Array<,>", "Standard", scope, null, null!));
+        _ = programModel.RegisterType(new ClassType(WellKnownTypes.Array.Name, WellKnownTypes.Array.Namespace, scope, null, null!));
 
         // Func family (arity 1-17).
         for(var arity = 1; arity <= 17; arity++)

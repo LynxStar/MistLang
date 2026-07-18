@@ -1,6 +1,8 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Statements;
 
 namespace Mist.ProgramModel.Construction;
 
@@ -37,7 +39,7 @@ internal sealed class AccessorBuilder
         {
             IsAuto = isAuto,
             Body = body is not null ? new Block(body) : null,
-            ExpressionBody = expression is not null ? new Expression(expression) : null,
+            ExpressionBody = expression is not null ? new UnresolvedExpression(expression) : null,
         };
     }
 
@@ -69,7 +71,7 @@ internal sealed class AccessorBuilder
             IsInit = isInit,
             Accessibility = accessibility,
             Body = body is not null ? new Block(body) : null,
-            ExpressionBody = expression is not null ? new Expression(expression) : null,
+            ExpressionBody = expression is not null ? new UnresolvedExpression(expression) : null,
         };
     }
 

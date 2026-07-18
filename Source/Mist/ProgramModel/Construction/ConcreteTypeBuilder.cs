@@ -1,6 +1,7 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction;
@@ -125,7 +126,7 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
         var ownership = ResolveOwnership(fieldDecl.OwnershipSpecifier);
         var modifiers = ModifierBuilder.Build(fieldDecl, Context.Diagnostics, typeDef);
 
-        var initializer = fieldDecl.Initializer is { } initExpr ? new Expression(initExpr) : null;
+        var initializer = fieldDecl.Initializer is { } initExpr ? new UnresolvedExpression(initExpr) : null;
 
         if(modifiers.IsAsync)
         {
@@ -164,7 +165,7 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
             {
                 case DefaultFieldOverrideDefaultFieldInitializerNode fieldOverride:
                     var name = fieldOverride.FieldName.Lexeme;
-                    var value = new Expression(fieldOverride.Value);
+                    var value = new UnresolvedExpression(fieldOverride.Value);
                     entries.Add(new DefaultValueEntry(name, value));
                     break;
 
@@ -187,7 +188,7 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
         foreach(var nestedOverride in typeBinding.NestedEntries)
         {
             var nestedName = nestedOverride.FieldName.Lexeme;
-            var nestedValue = new Expression(nestedOverride.Value);
+            var nestedValue = new UnresolvedExpression(nestedOverride.Value);
             nested.Add(new DefaultValueEntry(nestedName, nestedValue));
         }
 

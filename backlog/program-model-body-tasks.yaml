@@ -1,0 +1,432 @@
+# Program Model - Body Binding Tasks (Frontend 2, Option 1: principled)
+#
+# What needs to be RESOLVED to turn raw AST method/accessor/constructor/operator
+# bodies into a fully-typed, AST-free "bound tree" owned by the ProgramModel.
+#
+# Today Model/Block.cs and Model/Expression.cs are one-line wrappers around the
+# raw BlockNode/ExpressionNode. Method.Body is a Block? wrapper; Method.Scope is a
+# declared placeholder that is never populated with locals. The declaration layer
+# (types, members, signatures -- see provider-tasks.yaml) is done; this file tracks
+# the remaining half: statements, expressions, patterns, and all the name/overload/
+# conversion resolution + inference needed to give every expression a resolved type
+# and every call/operator/member a resolved symbol -- WITHOUT referencing syntax
+# nodes as keys and WITHOUT touching the legacy Mist.Semantics / Mist.Analysis systems.
+#
+# Design principles (from the program-model steering):
+#   - CLEAN ROOM (non-negotiable): this is a from-scratch implementation. Do NOT
+#     read, reference, port, or derive from the legacy Mist.Semantics or Mist.Analysis
+#     code. Specify every behavior from the language definition -- the grammar
+#     (Source/Mist/Grammar) and the feature specs (.kiro/specs) -- never from the old
+#     binder or analyzers. The classic pipeline is NOT a verification oracle either
+#     (see verification).
+#   - Contracts first: bound-node public API lives in ProgramModel/Contracts/,
+#     implementations are internal in ProgramModel/Model/.
+#   - AST-free navigation: a bound node carries its own resolved Type, resolved
+#     symbols, chosen overloads, inferred type args, and conversion classifications
+#     as INTRINSIC properties -- never in syntax-node-keyed side tables.
+#   - Immutable after construction.
+#   - No Mist.Semantics.* / Mist.Analysis.* references; reuse only the
+#     ProgramModel/Construction resolvers already built for the declaration layer.
+#
+# One binder owns all resolution (IMPORTANT): every part of body resolution -- name
+# binding, member/method lookup, overload resolution, generic type-argument inference,
+# operator resolution, and conversion classification -- lives in this one clean-room
+# binder, specified from the grammar and specs. Pure validation (definite assignment,
+# ownership/drop/readonly discipline, refinement satisfaction, exhaustiveness,
+# accessibility, escape) is OUT OF SCOPE (see out_of_scope) -- but the bound tree must
+# carry enough information to run those checks later.
+#
+# Legend: [ ] todo   [x] done   [~] partial/exists.  "->" = produces / maps to.
+
+# =============================================================================
+infrastructure:
+# =============================================================================
+  bound_node_hierarchy:
+    # Replace the AST-wrapper stubs (Model/Block.cs, Model/Expression.cs) with a
+    # real bound tree. Contracts in Contracts/Bound/, impls in Model/Bound/.
+    - [ ] IBoundStatement base contract + Model base
+    - [ ] IBoundExpression base contract (carries resolved Type: IMistType)
+    - [ ] IBoundPattern base contract (carries input/narrowed type + bound variables)
+    - [ ] IBoundBlock (ordered statements + owning Scope)
+    - [ ] every bound expression exposes:
+      - [ ] Type (IMistType, resolved, never null; ErrorType sentinel for failures)
+      - [ ] ownership/value-category (value, local ref, this) where relevant
+    - [ ] SourceOrigin on every bound node (ProgramModel's own origin type, for diagnostics)
+    - [ ] visitor / walker over the bound tree (for later emitter + inference passes)
+    - [ ] error-expression sentinel type (ProgramModel's own; suppresses cascading errors)
+
+  locals_and_scopes:
+    # Scope (Model/Scope.cs) is currently TYPE-only (imports + nested/local types).
+    # Method.Scope exists but is never populated. Bodies need local-variable symbols.
+    - [ ] local-variable symbol model (name, resolved type, ownership tier, ref-kind, readonly-status, source origin)
+    - [ ] extend Scope to hold local variables + parameters (not just types)
+    - [ ] parameter symbols registered into the member's body scope before binding
+    - [ ] nested block scopes (child scope per block; shadowing rules)
+    - [ ] duplicate-local detection within a scope (diagnostic)
+    - [ ] discard `_` handling (introduces no binding)
+    - [ ] scope lookup order: locals -> params -> enclosing type members (this) -> file imports -> namespace -> global/ambient
+
+  body_binding_pass:
+    # New Phase 3 in ProgramModelBuilder (Phase 1 = shells, Phase 2 = signatures).
+    # Runs AFTER all signatures across all compilation units are resolved, so
+    # cross-references (calls into not-yet-bound members) resolve against signatures.
+    - [ ] add Phase 3 "bind bodies" orchestration to ProgramModelBuilder
+    - [ ] bind bodies only after every type + member signature is resolved
+    - [ ] per-member entry points: method / constructor / operator / cast-operator / property-accessor / indexer-accessor bodies
+    - [ ] intrinsic and abstract members have no body -> skip (already flagged during signature build)
+    - [ ] diagnostics via DiagnosticBag + ProgramModelDiagnostics (no legacy diagnostic types)
+    - [ ] reuse existing resolvers: TypeReferenceResolver, DelegateResolver, ConstraintResolver, TypeInterner, BuilderContext
+    - [ ] target-type is threaded EXPLICITLY as a parameter of the bind functions
+          (a single immutable "binding context" value passed down the recursion;
+           NOT ambient mutable fields on the binder)
+
+# =============================================================================
+statements:
+# =============================================================================
+  block:
+    - [ ] BlockStatement -> bound block with its own scope
+    - [ ] nested BlockStatement (bare `{ }`)
+  variable_declaration:
+    - [ ] TypedVariableDeclaration (`T x = init;`) -> declared type resolved; initializer bound with declared type as target
+    - [ ] InferredVariableDeclaration (`var x = init;`) -> type inferred from initializer
+    - [ ] UninitializedVariableStatement (`T x;`) -> declared type, no initializer
+    - [ ] VarTupleDeconstruction (`var (a, b) = init;`) -> element types from initializer tuple type
+    - [ ] TypedTupleDeconstruction (`(T a, U b) = init;`) -> per-element declared types
+    - [ ] readonly modifier -> readonly-status on the local
+    - [ ] ownership specifier on local (owned / frozen / readonly-ref / borrowed / ref)
+    - [ ] bare `ref` local vs `readonly ref` lend distinction (ref-kind vs ownership tier)
+  return:
+    - [ ] ReturnStatement with value -> value bound with method return type as target
+    - [ ] bare `return;` (void)
+    - [ ] `return ref expr;` (ref return)
+    - [ ] top-level-statement return -> must be integer exit code (TLS mode, enclosing type is null)
+  conditionals:
+    - [ ] IfStatement (condition bound to bool)
+    - [ ] ElseIf chain (ElseIfElseClause)
+    - [ ] ElseBlock (ElseBlockElseClause)
+    - [ ] pattern variables from `is` in the condition are in scope in the THEN branch only (not else)
+    - [ ] refinement/union narrowing applied inside the THEN branch (see mist_specific.narrowing)
+  loops:
+    - [ ] WhileStatement (condition bound to bool)
+    - [ ] ForStatement: initializer (typed-var-decl / var-decl / expression), condition, iterator, own for-scope
+    - [ ] ForeachStatement TypedForeach + VarForeach: iteration variable scope
+    - [ ] foreach element-type inference from IEnumerable<T> (with type-argument substitution; single-impl requirement, else require annotation)
+    - [ ] foreach duck-typed GetEnumerator/MoveNext/Current path (deferred? see iterators-enumerables spec) -- decide + track
+    - [ ] BreakStatement (NOTE: grammar has NO `continue`, `do-while`, `switch`-statement, `throw`, `using`-statement, `yield`)
+  readonly_block:
+    - [ ] ReadonlyBlockStatement (`readonly { }`) -> bound block flagged readonly-context
+  expression_statement:
+    - [ ] ExpressionStatement -> bound expression in statement position
+    - [ ] discarded-async-invocation tracking (bare async call whose result is dropped -> scope-exit await obligation; see mist_specific.async)
+  context_statements:
+    # The `with` family (structured-context). See mist_specific.context.
+    - [ ] WithVarDeclarationStatement (`with var x = init;`)
+    - [ ] WithTypedDeclarationStatement (`with T x = init;`)
+    - [ ] WithDiscardDeclarationStatement (`with T _ = init;`) -> no local, context-keyed by type
+    - [ ] WithPushStatement (`with expr;`)
+    - [ ] WithBlockStatement (`with (expr) { }`)
+    - [ ] WithVarBlockStatement (`with (var x = init) { }`) -> child scope for the binding
+
+# =============================================================================
+expressions:
+# =============================================================================
+  literals:
+    - [ ] integer literal -> type from suffix (int / uint / long / ulong)
+    - [ ] hex literal / binary literal (same suffix-based typing)
+    - [ ] float literal -> type from suffix (double / float / decimal)
+    - [ ] string literal -> string
+    - [ ] char literal -> char
+    - [ ] regex literal -> regex
+    - [ ] true / false -> bool
+    - [ ] interpolated string -> string (bind each ExpressionPart; TextPart is literal)
+  identifier_and_this:
+    - [ ] IdentifierExpression -> local / parameter / field / property / method-group / type / namespace-prefix
+    - [ ] implicit-this instance/inherited member resolution (walk base chain, classes AND structs)
+    - [ ] ThisExpression (error in static context)
+    - [ ] FieldKeywordExpression (`field`) -> backing field of enclosing property accessor
+    - [ ] TypeLiteralExpression (type in expression position):
+      - [ ] as metatype (Standard.Type) for reflection (`int.Name` -> typeof(int).Name)
+      - [ ] redirect to referenced type for static member access (`string.IsNullOrEmpty(...)`)
+      - [ ] as `void` value when target type is void/optional (void value literal)
+  assignment:
+    - [ ] simple assignment (`=`) -> result type is target type; bind RHS with target-type context
+    - [ ] void-coalescing assignment (`??=`)
+    - [ ] note: assignable-target validation is a CHECK (out_of_scope); binding still resolves target/value/result
+  operators:
+    - [ ] void-coalescing (`??`)
+    - [ ] logical or / and (`||`, `&&`) -> bool
+    - [ ] equality (`==`, `!=`) -> operator resolution + bool result
+    - [ ] relational comparison (`<`, `>`, `<=`, `>=`) -> operator resolution + bool result
+    - [ ] additive / multiplicative (`+ - * / %`):
+      - [ ] builtin numeric common-type (widening ranks: sbyte<byte<short<ushort<int<uint<long<ulong<float<double<decimal)
+      - [ ] string concatenation (`+` with a string operand -> string)
+      - [ ] user-defined operator overload resolution (search BOTH operand types, left-operand tiebreak)
+    - [ ] unary negate (`-`), logical not (`!`) -> operator resolution (builtin + user-defined)
+    - [ ] resolved operator symbol recorded as an intrinsic property of the bound binary/unary node
+  cast_and_as:
+    - [ ] CastExpression `(T)x` -> target type; classify conversion (see conversions)
+    - [ ] enum cast is fallible -> result type `Enum | void`
+    - [ ] AsExpression `x as T` -> classify as provable (identity/widening) vs runtime-checked (narrowing/union-extraction/unknown-narrowing); store the classification on the node
+  postfix:
+    - [ ] MemberAccessSuffix (`.name`) -> instance/static member type
+    - [ ] OptionalMemberAccessSuffix (`?.name`) -> lifted to `T | void`
+    - [ ] MethodCallSuffix (`.name<T>(args)`) -> method resolution + overload + return type
+    - [ ] OptionalMethodCallSuffix (`?.name(args)`)
+    - [ ] InvocationSuffix (`(args)`) -> call on method group / Func / delegate value
+    - [ ] IndexSuffix (`[i]`) -> indexer resolution / array-element / span-element
+    - [ ] SwitchExpressionSuffix (`switch { arms }`) -> see patterns.switch_expression
+  object_creation:
+    - [ ] ObjectCreationExpression (`new T<...>(args) { init }`) -> constructor overload resolution
+    - [ ] ObjectCreationExpressionNoArgs (`new T<...> { init }`)
+    - [ ] TargetTypedNewExpression (`new(args) { init }`) -> type from target context; ctor resolution
+    - [ ] TargetTypedNewExpressionNoArgs (`new { init }` via initializer)
+    - [ ] AnonymousTypeExpression (`new { Name = e, projection }`) -> synthesized anonymous type (explicit + projected properties; name inference; duplicate detection)
+    - [ ] property initializer block (NamedPropertyAssignment + CollectionElementAssignment)
+  arrays_and_spans:
+    - [ ] ArrayCreationExpression (`new T[n]`) -> array type (known length if literal size)
+    - [ ] StackallocExpression (`stackalloc T[n]`) -> span type (known length if literal; readonly from target context)
+    - [ ] EmptyArrayLiteralExpression (`[]`) -> element type from target context
+    - [ ] ArrayLiteralExpression (`[a, b, ...]`) -> element type via best-common-type
+  tuples:
+    - [ ] TupleLiteralExpression (named + unnamed elements) -> tuple type (interned; names as use-site metadata)
+    - [ ] tuple element access (`.Item1`, named element) -- handled in member access
+  parenthesized_and_default:
+    - [ ] ParenthesizedExpression -> inner type
+    - [ ] DefaultExpression (`default(T)`) -> T
+    - [ ] DefaultLiteralExpression (`default`) -> type from target context
+  lambdas:
+    # NET-NEW: no prior body binding to lean on. Specify from the first-class-functions
+    # / delegate-func-conversion / func-async-auto-await-fix specs.
+    - [ ] LambdaExpression BlockLambda + ExpressionLambda
+    - [ ] parameter lists: ParenthesizedLambdaParams (typed + untyped) + SingleImplicitParam
+    - [ ] target-type-driven parameter inference (from Func / Action / DelegateType)
+    - [ ] explicit-typed-parameter lambdas without target type -> construct Func type
+    - [ ] body binding in a child scope; return-type inference (expression body, or collect block returns -> common type)
+    - [ ] `static` and `async` lambda modifiers
+    - [ ] async lambda return-type wrapping (-> Task<T>)
+    - [ ] method-group -> delegate / Func conversion (single-overload selection against target)
+    - [ ] closure-capture analysis (record captured symbols for the future emitter)
+  arguments:
+    - [ ] ValueArgument
+    - [ ] RefArgument (`ref x`)
+    - [ ] argument binding threads parameter types as target types (lambdas, void literal, default, target-typed new)
+
+# =============================================================================
+patterns:
+# =============================================================================
+  # Used by `is` expressions and switch-expression arms. Binding introduces pattern
+  # variables and computes the narrowed type; exhaustiveness is a CHECK (out_of_scope).
+  combinators:
+    - [ ] OrPattern / AndPattern
+    - [ ] UnaryPattern: NotPattern / DirectPattern
+    - [ ] ParenthesizedPattern
+  primary_patterns:
+    - [ ] TypePattern (`T name`) -> introduces `name : T`
+    - [ ] BareTypePattern (`T`) -> type test; also enum-member pattern (EnumName.Member)
+    - [ ] VarPattern (`var name`) -> binds scrutinee's static type
+    - [ ] DiscardPattern (`_`)
+    - [ ] relational patterns (`< > <= >=` const)
+    - [ ] ConstantPattern (int / float / string / char / regex / true / false)
+    - [ ] PropertyPattern (`Type? { sub: pat, ... } name?`) -> recurse subpatterns; optional trailing binding
+    - [ ] TuplePositionalPattern (`(p, p, ...)`) -> per-element scrutinee types
+    - [ ] ListPattern (`[ ... ]`) with slice element (`.. name`)
+  variable_binding:
+    - [ ] introduce pattern variables into the correct scope (if-then / switch arm)
+    - [ ] named-tuple element destructuring binds each named element (C#-style; whole-binding uses unnamed tuple type)
+  switch_expression:
+    - [ ] SwitchArm: pattern + optional `when` guard (bound at VoidCoalescing precedence) + result expression
+    - [ ] arm scope holds the arm's pattern variables
+    - [ ] result-type unification across arms (best-common-type / common base)
+
+# =============================================================================
+name_and_symbol_resolution:
+# =============================================================================
+  # All part of the one clean-room binder; specify from the grammar and the
+  # method-overloading / type-argument-inference / extension-method-binding specs.
+  members:
+    - [ ] member lookup on a receiver type (instance vs static)
+    - [ ] base-chain walk for classes and structs (inherited members)
+    - [ ] ConstructedType member lookup with type-parameter -> type-argument substitution
+    - [ ] constrained type-parameter member access (via abstract / base-class constraints)
+    - [ ] associated-type-slot member access
+    - [ ] default-method-in-abstract fallback (Rust-style defaults callable on the concrete type)
+    - [ ] special-cased member access: tuple (ItemN + named), anonymous type, enum member, array (.Length/.AsSpan), span (.Length/.Slice), string
+    - [ ] type-alias transparency (unwrap before member lookup)
+    - [ ] union projection for member access (`T | void` -> member resolved on T)
+  methods_and_overloads:
+    - [ ] method-group collection (own scope + inherited + ambient)
+    - [ ] overload resolution (applicability, most-specific, left-operand tiebreak, ref exact-match filtering, non-generic preference)
+    - [ ] resolved method symbol recorded as an intrinsic property of the bound call node
+  generic_inference:
+    - [ ] generic method type-argument inference (unify parameter types against argument types)
+    - [ ] lambda arguments deferred during applicability (wildcard until overload selected)
+    - [ ] substitute inferred type args into the return type
+    - [ ] explicit type arguments path (`.m<T>(...)`) + arity checks
+    - [ ] inferred type args recorded as an intrinsic property of the bound call node
+  extensions:
+    - [ ] extension-member binding via the extension registry (already built in Phase 1/2)
+    - [ ] applicability + specificity ordering; ambiguity diagnostic
+    - [ ] namespace-visibility filtering (only imported namespaces)
+    - [ ] generic extension receiver-type unification
+    - [ ] static extension members (TypeName.Member) + universal + union-receiver extensions
+  constructors_indexers:
+    - [ ] constructor overload resolution (object creation + target-typed new)
+    - [ ] constructor chains (`: this(...)` / `: base(...)`)
+    - [ ] indexer resolution (get/set), array/span element access
+  namespaces:
+    - [ ] namespace-prefix / fully-qualified name resolution in expression position
+    - [ ] ambient (CLR) type + member resolution via the ambient provider
+
+# =============================================================================
+type_inference_and_conversions:
+# =============================================================================
+  target_typing:
+    # Thread the target type explicitly as a parameter of the bind functions.
+    - [ ] variable-declaration target type
+    - [ ] return-statement target type (method/lambda return)
+    - [ ] assignment-RHS target type
+    - [ ] argument target type (from resolved parameter type)
+    - [ ] object-creation / target-typed-new (constructor parameter types)
+    - [ ] empty-array element target type
+    - [ ] lambda parameter target types
+    - [ ] void-value-literal + default-literal target type
+  best_common_type:
+    - [ ] switch-expression arm unification
+    - [ ] array-literal element unification
+    - [ ] lambda multi-return unification
+  conversions:
+    # Model conversions EXPLICITLY as a bound conversion node carrying a classification,
+    # so the future emitter knows exactly what to emit. Specify the rules from the type
+    # specs (type-unions, newtypes, refinement-types, unknown-type, cast-operators,
+    # as-operator, optional-types, enums, value-tuples, stack-only-types).
+    - [ ] identity
+    - [ ] numeric widening (via implicit cast operators on stdlib bootstrap types)
+    - [ ] reference / subtype (class + struct base chains)
+    - [ ] abstract implementation (+ retroactive with-block conformance)
+    - [ ] constructed-generic identity + covariant unknown-widening (class-only restriction)
+    - [ ] tuple structural (arity + element assignability; name erasure)
+    - [ ] array / span sizing (known-length -> unknown-length; kind must match for spans)
+    - [ ] union widening (constituent -> union; union -> wider union) and narrowing (via `is`)
+    - [ ] dependent-type-parameter <-> value type
+    - [ ] newtype nominal distinctness (only same newtype; explicit cast required otherwise)
+    - [ ] delegate / func signature compatibility + method-group conversion
+    - [ ] refinement subtyping (predicate implication) + widening to base type
+    - [ ] enum -> underlying type
+    - [ ] type-alias transparency (unwrap both sides)
+    - [ ] unknown top-type rules (any non-void -> unknown ok; unknown -> concrete rejected; narrow via `is`)
+    - [ ] user-defined implicit / explicit cast operator resolution (record the operator on the node)
+
+# =============================================================================
+mist_specific_semantics:
+# =============================================================================
+  ownership:
+    - [ ] ownership specifier on locals/returns (owned / frozen / readonly-ref / borrowed / ref) -> OwnershipKind on bound local
+    - [ ] ref locals / ref returns (RefKind)
+    - [ ] readonly locals (readonly-status)
+    - [ ] this-tier from `with {tier}` clause (already on Method.DeclaredThisTier; ensure bodies see it)
+    - [ ] NOTE: move/borrow DISCIPLINE is a check (out_of_scope); binding records tiers only
+  context:
+    - [ ] resolve context values pushed via the `with` family
+    - [ ] ambient context lookup (a value of a context-bound type is available in scope)
+    - [ ] context-binding scoping (push / block / var-block)
+    - [ ] NOTE: cooperation-contract + context DISCIPLINE is a check (out_of_scope)
+  dependent_types:
+    - [ ] dependent value arguments in expressions (e.g. `N:int` type params carrying values)
+    - [ ] dependent-parameter references / forwarding in bodies
+  refinement_and_union_narrowing:
+    - [ ] narrow from `is` pattern (then-branch / arm scope)
+    - [ ] narrow from comparisons / conditions
+    - [ ] for-loop bound narrowing (array-bounds-flow-analysis feeds this; decide scope)
+    - [ ] union narrowing to a constituent
+    - [ ] NOTE: refinement SATISFACTION solving is a check (out_of_scope); binding tracks narrowed types
+  newtypes:
+    - [ ] newtype wrap / unwrap in expressions (member access unwraps to source; assignment stays nominal)
+  async_await:
+    - [ ] `await` unwraps Task<T> / ValueTask<T> -> T
+    - [ ] auto-await: direct invocation of async method in sync context auto-unwraps Task<T>
+    - [ ] async block (`async { }`) -> Task<T>; async hint block (`async valuetask { }`) -> ValueTask<T>
+    - [ ] async functor (`async expr`) -> wraps in Task<T>
+    - [ ] discarded-task tracking per block scope (scope-exit await); async promotion signal for the emitter
+  stackalloc_ref:
+    - [ ] stackalloc -> span type (known/unknown length; readonly from target)
+    - [ ] ref-expression / ref-argument value categories
+
+# =============================================================================
+emitter_lowering_annotations:
+# =============================================================================
+  # Facts the FUTURE emitter needs, produced during binding. These are INTRINSIC
+  # bound-node properties (never syntax-node-keyed side tables). Listed so the
+  # bound-node contracts reserve room for them now.
+  - [ ] resolved Type on every bound expression
+  - [ ] resolved operator symbol on binary/unary/implicit-cast nodes
+  - [ ] inferred type arguments on generic call nodes
+  - [ ] as-conversion kind: provable vs runtime-checked
+  - [ ] resolved member / method / constructor symbol on access + call nodes
+  - [ ] implicit .Clone() insertion sites (ownership bridging via IClonable)
+  - [ ] discarded async tasks per block scope (scope-exit await)
+  # Inference passes that run as pipeline stages (NOT analyzers) and feed the emitter.
+  # Decide whether these run during Phase 3 binding or as separate post-binding passes.
+  - [ ] readonly inference (member readonly classification) [track: needed for emit]
+  - [ ] IClonable derivation [track: needed for move/clone emit]
+  - [ ] synthetic Drop() inference + auto-drop scope obligations [track: needed for drop emit]
+  - [ ] ownership tier inference + move/borrow resolution [track: needed for clone/move emit]
+
+# =============================================================================
+binding_pass_integration:
+# =============================================================================
+  member_bodies:
+    - [ ] method bodies
+    - [ ] constructor bodies + constructor chains
+    - [ ] operator bodies
+    - [ ] cast-operator bodies
+    - [ ] property accessors: block get/set/init, expression-bodied (`such that`), auto (no body), `field` keyword
+    - [ ] expression-bodied property (`prop such that expr`)
+    - [ ] indexer accessors (block + expression-bodied)
+    - [ ] field initializers (`= expr`)
+    - [ ] enum member values (`= expr`)
+    - [ ] default blocks (default field/type initializers)
+  top_level:
+    - [ ] top-level statements (enclosing type null; integer exit-code return contract)
+  wiring:
+    - [ ] populate Method.Scope / accessor scopes with parameters + locals during binding
+    - [ ] attach the bound block to the member (replace the raw Block/BlockNode wrapper)
+    - [ ] wire ExperimentalPipeline stage 5/6 later (analyzers + emitter consume the bound tree) -- OUT OF SCOPE here, but bound tree is their input
+
+# =============================================================================
+out_of_scope:
+# =============================================================================
+  # Analyzers are intentionally skipped for now (user directive). These are pure
+  # CHECKS -- the bound tree must carry enough info to run them later, but the checks
+  # themselves are NOT part of finishing the ProgramModel body representation. When
+  # they are eventually built they must ALSO be clean-room (no legacy Analysis code);
+  # the names below only identify which deferred check is meant.
+  analyzer_checks:
+    - definite assignment / forward dataflow
+    - ownership / move / borrow discipline enforcement (OwnershipAnalyzer)
+    - drop / use-after-drop discipline (DropAnalyzer)
+    - readonly discipline enforcement (ReadonlyAnalyzer)
+    - refinement satisfaction solving (RefinementSolver)
+    - switch exhaustiveness (ExhaustivenessChecker)
+    - accessibility enforcement
+    - frame / stack escape (FrameEscapeAnalyzer)
+    - structured-context discipline (ContextCheckerAnalyzer)
+    - entry-point signature validation (EntryPointAnalyzer)
+  emitter:
+    - the C# emitter itself (separate task list; consumes this bound tree)
+
+# =============================================================================
+verification:
+# =============================================================================
+  # Clean-room verification: the classic pipeline is NOT an oracle. Correctness is
+  # established from the language spec and from AUTHORED expected results -- never by
+  # diffing against the legacy Semantics/Analysis output.
+  #
+  # ProgramModel has no unit tests by design and is normally exercised end-to-end.
+  # The emitter does not exist yet, so during this phase verification is limited to
+  # self-contained checks on the bound tree.
+  - [ ] structural invariants: every bound expression has a non-null resolved type (ErrorType only where a diagnostic was emitted)
+  - [ ] every call / member / operator node has a resolved symbol (or a recorded error)
+  - [ ] every conversion site carries an explicit classification
+  - [ ] targeted assertions: bind small authored Mist snippets and assert the expected bound-node types / resolved symbols directly (expectations derived from the spec, not from the legacy frontend)
+  - [ ] progress against samples/ (mirror the provider approach): start from the empty/simple app and work up to AllFeatures binding with zero construction diagnostics
+  - [ ] once the emitter exists: emit C#, compile it, run it, and assert the program output equals the AUTHORED expected output (final exit criterion; no comparison against the classic pipeline)

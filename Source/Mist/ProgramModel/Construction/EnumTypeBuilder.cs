@@ -1,5 +1,6 @@
 using Mist.Generated;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction;
@@ -72,7 +73,7 @@ internal sealed class EnumTypeBuilder
     {
         var name = memberNode.Name.Lexeme;
         var isDefault = memberNode.IsDefault is not null;
-        var value = memberNode.Value is { } valueExpr ? new Expression(valueExpr) : null;
+        var value = memberNode.Value is { } valueExpr ? new UnresolvedExpression(valueExpr) : null;
 
         typeDef.MembersList.Add(new EnumMember(name, isDefault, value));
     }

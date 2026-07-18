@@ -1,6 +1,7 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction;
@@ -59,7 +60,7 @@ internal sealed class PropertyBuilder
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicMemberCannotHaveBody, exprProp, null, name);
         }
 
-        var getter = new PropertyAccessor { ExpressionBody = new Expression(exprProp.Body) };
+        var getter = new PropertyAccessor { ExpressionBody = new UnresolvedExpression(exprProp.Body) };
         var property = new Property(name, type, modifiers) { Getter = getter };
         host.PropertiesList.Add(property);
     }
@@ -131,7 +132,7 @@ internal sealed class PropertyBuilder
         {
             Getter = getter,
             Setter = setter,
-            Initializer = !isAbstract && blockProp.Initializer is { } initExpr ? new Expression(initExpr) : null,
+            Initializer = !isAbstract && blockProp.Initializer is { } initExpr ? new UnresolvedExpression(initExpr) : null,
         };
 
         if(getter is null && setter is null)

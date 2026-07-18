@@ -345,4 +345,11 @@ public static class ProgramModelDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
         "Extension property '{0}' cannot use auto-accessors (get; / set;); extension properties have no backing field.");
+
+    /// <summary>A local variable with the same name is already declared in this scope.</summary>
+    public static readonly DiagnosticDescriptor DuplicateLocalVariable = new(
+        new DiagnosticId("MIST_PM_DUPLICATE_LOCAL"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "A variable named '{0}' is already declared in this scope.");
 }

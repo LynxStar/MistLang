@@ -1,3 +1,4 @@
+using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
 
 namespace Mist.ProgramModel.Model;
@@ -10,6 +11,7 @@ internal sealed class Scope
 {
     private readonly List<string> importedNamespaces = [];
     private readonly Dictionary<string, IMistType> localTypes = [];
+    private readonly Dictionary<string, LocalSymbol> localVariables = [];
 
     public Scope(Scope? parent)
     {
@@ -57,5 +59,42 @@ internal sealed class Scope
     public void AddLocalType(string name, IMistType typeDef)
     {
         localTypes[name] = typeDef;
+    }
+
+    /// <summary>
+    /// Registers a local variable (or parameter alias) in this scope. Reports an
+    /// error diagnostic if a variable with the same name already exists directly in
+    /// this scope.
+    /// </summary>
+    public void RegisterLocal(LocalSymbol local, DiagnosticBag diagnostics)
+    {
+        if(!localVariables.TryAdd(local.Name, local))
+        {
+            diagnostics.Add(new Diagnostic(
+                ProgramModelDiagnostics.DuplicateLocalVariable.Id,
+                ProgramModelDiagnostics.DuplicateLocalVariable.DefaultSeverity,
+                ProgramModelDiagnostics.DuplicateLocalVariable.Stage,
+                string.Format(ProgramModelDiagnostics.DuplicateLocalVariable.MessageTemplate, local.Name),
+                Location: default,
+                CompilationUnitPath: "<unknown>",
+                AnalyzerName: null));
+        }
+    }
+
+    /// <summary>
+    /// Looks up a local variable or parameter by name, walking the parent chain.
+    /// Returns null if no local with that name is in scope.
+    /// </summary>
+    public LocalSymbol? LookupLocal(string name)
+    {
+        for(var scope = this; scope is not null; scope = scope.Parent)
+        {
+            if(scope.localVariables.TryGetValue(name, out var local))
+            {
+                return local;
+            }
+        }
+
+        return null;
     }
 }

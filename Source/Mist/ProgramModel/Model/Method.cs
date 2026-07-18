@@ -1,5 +1,6 @@
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Model;
@@ -51,6 +52,7 @@ internal class Method(
 
     /// <summary>
     /// The method body, or null if the method has no body (abstract or intrinsic).
+    /// The statements are filled in during Phase 3 (body binding).
     /// </summary>
     public Block? Body { get; init; }
 

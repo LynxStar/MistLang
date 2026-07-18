@@ -1,5 +1,6 @@
 using Mist.Generated;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Expressions;
 
 namespace Mist.ProgramModel.Model;
 

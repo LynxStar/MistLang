@@ -41,9 +41,10 @@ internal static class StatementBinder
         Expression? initializer = null;
         if(typed.Initializer is not null)
         {
-            ctx.TargetType = declaredType;
-            initializer = ExpressionBinder.BindExpression(typed.Initializer, ctx, context);
-            ctx.TargetType = null;
+            using(ctx.PushTargetType(declaredType))
+            {
+                initializer = ExpressionBinder.BindExpression(typed.Initializer, ctx, context);
+            }
         }
 
         var local = new LocalSymbol(typed.Name.Lexeme, declaredType);
@@ -58,9 +59,12 @@ internal static class StatementBinder
             return new ReturnStatement(value: null);
         }
 
-        ctx.TargetType = ctx.ReturnType;
-        var value = ExpressionBinder.BindExpression(returnStatement.Value, ctx, context);
-        ctx.TargetType = null;
+        Expression value;
+        using(ctx.PushTargetType(ctx.ReturnType))
+        {
+            value = ExpressionBinder.BindExpression(returnStatement.Value, ctx, context);
+        }
+
         return new ReturnStatement(value);
     }
 }

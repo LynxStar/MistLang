@@ -31,4 +31,36 @@ internal sealed class BindingContext
         Scope = scope;
         ReturnType = returnType;
     }
+
+    /// <summary>
+    /// Sets <see cref="TargetType"/> for the duration of a <c>using</c> block,
+    /// restoring the previous value on dispose. Prevents forgetting to restore
+    /// and scopes the target type visually to exactly where it applies.
+    /// </summary>
+    public TargetTypeScope PushTargetType(IMistType? type)
+    {
+        return new TargetTypeScope(this, type);
+    }
+
+    /// <summary>
+    /// RAII guard that restores <see cref="BindingContext.TargetType"/> to its
+    /// previous value on dispose. Struct to avoid allocation.
+    /// </summary>
+    internal struct TargetTypeScope : IDisposable
+    {
+        private readonly BindingContext ctx;
+        private readonly IMistType? previous;
+
+        public TargetTypeScope(BindingContext ctx, IMistType? type)
+        {
+            this.ctx = ctx;
+            previous = ctx.TargetType;
+            ctx.TargetType = type;
+        }
+
+        public void Dispose()
+        {
+            ctx.TargetType = previous;
+        }
+    }
 }

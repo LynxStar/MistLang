@@ -39,6 +39,9 @@ internal static class TypeParameterPopulator
             RegularTypeParameterTypeParameterNode reg => reg.Name.Lexeme,
             DependentTypeParameterTypeParameterNode dep => dep.Name.Lexeme,
             NamedConstraintDependentTypeParameterTypeParameterNode named => named.Name.Lexeme,
+            // Variadics: type-parameter packs (params TArgs / Type[]:TArgs / Type[N]:TArgs).
+            ParamsPackTypeParameterTypeParameterNode pack => pack.Name.Lexeme,
+            ExplicitPackTypeParameterTypeParameterNode explicitPack => explicitPack.Name.Lexeme,
             _ => throw new InvalidOperationException($"Unknown TypeParameterNode variant: {node.GetType().Name}")
         };
 

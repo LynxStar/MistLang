@@ -113,3 +113,6 @@ token AWAIT = "await";
 
 // Stack allocation keyword
 token STACKALLOC = "stackalloc";
+
+// Variadics keyword — value-level params and the type-parameter pack sugar.
+token PARAMS = "params";

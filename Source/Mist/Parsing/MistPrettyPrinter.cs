@@ -930,7 +930,14 @@ public sealed class MistPrettyPrinter
 
     private string EmitParameter(ParameterNode param)
     {
-        var prefix = param.Modifier is not null ? "readonly " : "";
+        // Variadics: leading `params` marks a value pack (`params TArgs args`) or a
+        // homogeneous value-level params array (`params string[] parts`).
+        var prefix = param.ParamsModifier is not null ? "params " : "";
+        if(param.Modifier is not null)
+        {
+            prefix += "readonly ";
+        }
+
         if(param.RefModifier is not null)
         {
             prefix += "ref ";
@@ -1041,6 +1048,10 @@ public sealed class MistPrettyPrinter
                 return "void";
             case UnknownSingleTypeRefSingleTypeRefNode:
                 return "unknown";
+            case SpreadSingleTypeRefSingleTypeRefNode spreadRef:
+                // Variadics: a pack spread in type position, e.g. `TArgs...` in
+                // `Func<TArgs..., void>`, `public TArgs... Item;`, or `(TArgs...)`.
+                return $"{ExtractQualifiedName(spreadRef.Name)}...";
             case NamedSingleTypeRefSingleTypeRefNode namedRef:
                 {
                     var name = ExtractQualifiedName(namedRef.Name);
@@ -2002,6 +2013,9 @@ public sealed class MistPrettyPrinter
                     var args = EmitArgumentList(invocation.Arguments);
                     return $"{target}({args})";
                 }
+            case SpreadSuffixPostfixSuffixNode:
+                // Variadics: value-side spread / zip operand, e.g. `args...`, `Item...`.
+                return $"{target}...";
             case SwitchExpressionSuffixPostfixSuffixNode switchExpr:
                 {
                     var sb = new StringBuilder();
@@ -2164,6 +2178,15 @@ public sealed class MistPrettyPrinter
 
                     return $"({string.Join(", ", parts)})";
                 }
+            case GenericInvocationExpressionPrimaryNode genInvoke:
+                {
+                    // Bare (unqualified) generic call with explicit type arguments, e.g.
+                    // `Describe<[int, string]>(1, "x")` or `TwoPacks<[int], [string]>()`.
+                    var name = genInvoke.Name.Lexeme;
+                    var typeArgs = EmitTypeArgumentList(genInvoke.TypeArgs);
+                    var args = EmitArgumentList(genInvoke.Arguments);
+                    return $"{name}{typeArgs}({args})";
+                }
             case IdentifierExpressionPrimaryNode ident:
                 return ident.Name.Lexeme;
             case FieldKeywordExpressionPrimaryNode:
@@ -2323,6 +2346,12 @@ public sealed class MistPrettyPrinter
     {
         return tp switch
         {
+            // Variadics: `params TArgs` (bracket-free pack sugar).
+            ParamsPackTypeParameterTypeParameterNode pack =>
+                $"params {pack.Name.Lexeme}",
+            // Variadics: explicit pack domain `Type[]:TArgs` or `Type[N]:TArgs`.
+            ExplicitPackTypeParameterTypeParameterNode explicitPack =>
+                $"{explicitPack.DomainName.Lexeme}{EmitArrayRankSuffix(explicitPack.ArrayRank)}:{explicitPack.Name.Lexeme}",
             DependentTypeParameterTypeParameterNode dep =>
                 $"{dep.Name.Lexeme}:{EmitPrimitiveType(dep.ValueType)}",
             NamedConstraintDependentTypeParameterTypeParameterNode named =>
@@ -2330,6 +2359,20 @@ public sealed class MistPrettyPrinter
             RegularTypeParameterTypeParameterNode reg =>
                 reg.Name.Lexeme,
             _ => tp.GetName().Lexeme,
+        };
+    }
+
+    /// <summary>
+    /// Emits an array rank suffix: <c>[N]</c> for a sized rank or <c>[]</c> for an unsized rank.
+    /// Used by the explicit pack domain form (<c>Type[]:TArgs</c> / <c>Type[N]:TArgs</c>).
+    /// </summary>
+    private static string EmitArrayRankSuffix(ArrayRankSuffixNode? rank)
+    {
+        return rank switch
+        {
+            SizedArrayRankArrayRankSuffixNode sized => $"[{sized.Size.Lexeme}]",
+            UnsizedArrayRankArrayRankSuffixNode => "[]",
+            _ => "",
         };
     }
 
@@ -2370,9 +2413,32 @@ public sealed class MistPrettyPrinter
             TrueLiteralTypeArgumentTypeArgumentNode => "true",
             FalseLiteralTypeArgumentTypeArgumentNode => "false",
             CharLiteralTypeArgumentTypeArgumentNode charLit => charLit.Literal.Lexeme,
+            BracketedPackTypeArgumentTypeArgumentNode bracketed => EmitBracketedPackTypeArgument(bracketed),
             TypeReferenceTypeArgumentTypeArgumentNode typeRef => EmitTypeReference(typeRef.Type),
             _ => "",
         };
+    }
+
+    /// <summary>
+    /// Emits a bracketed pack type argument, e.g. <c>[int, string]</c> or the empty pack <c>[]</c>.
+    /// </summary>
+    private string EmitBracketedPackTypeArgument(BracketedPackTypeArgumentTypeArgumentNode bracketed)
+    {
+        if(bracketed.PackElements is null)
+        {
+            return "[]";
+        }
+
+        var parts = new List<string>
+        {
+            EmitTypeReference(bracketed.PackElements.TypeReference)
+        };
+        foreach(var tr in bracketed.PackElements.TypeReferences)
+        {
+            parts.Add(EmitTypeReference(tr));
+        }
+
+        return $"[{string.Join(", ", parts)}]";
     }
 
     /// <summary>

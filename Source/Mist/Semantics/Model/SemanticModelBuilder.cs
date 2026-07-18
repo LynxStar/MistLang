@@ -3901,17 +3901,43 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return Array.Empty<IType>();
         }
 
+        var nodes = new List<TypeParameterNode> { typeParamList.TypeParameter };
+        nodes.AddRange(typeParamList.TypeParameters);
+
+        // ── Variadics: determine which pack (if any) is the single unbracketed pack. ──
+        // A `params` pack is always unbracketed. A lone explicit `Type[]:` pack (the only
+        // pack in the list, with no `params` pack) is promoted to unbracketed by inverse
+        // sugar. More than one unbracketed (`params`) pack is diagnostic MIST_VAR_0001.
+        var paramsPackCount = nodes.Count(n => n is ParamsPackTypeParameterTypeParameterNode);
+        var explicitPackCount = nodes.Count(n => n is ExplicitPackTypeParameterTypeParameterNode);
+
+        if(paramsPackCount > 1)
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                VariadicsDiagnostics.MultipleParamsPacks.Id.Value,
+                DiagnosticSeverity.Error,
+                "More than one 'params' pack in a single type-parameter list; at most one is allowed.",
+                typeParamList,
+                sourceText));
+        }
+
+        // Inverse sugar: a lone explicit pack (no `params` pack, exactly one pack total)
+        // is treated as the unbracketed pack so a single-pack family never needs brackets.
+        var promoteLoneExplicit = paramsPackCount == 0 && explicitPackCount == 1;
+
         var typeParams = new List<IType>();
         var seenNames = new HashSet<string>();
-        var ordinal = 0;
-
-        // Process the first type parameter.
-        ProcessTypeParameter(typeParamList.TypeParameter, ordinal++, enclosingTypeName, seenNames, typeParams, sourceText, diagnostics);
-
-        // Process the rest of the type parameters.
-        foreach(var tp in typeParamList.TypeParameters)
+        for(var i = 0; i < nodes.Count; i++)
         {
-            ProcessTypeParameter(tp, ordinal++, enclosingTypeName, seenNames, typeParams, sourceText, diagnostics);
+            var node = nodes[i];
+            var isUnbracketedPack = node switch
+            {
+                ParamsPackTypeParameterTypeParameterNode => true,
+                ExplicitPackTypeParameterTypeParameterNode => promoteLoneExplicit,
+                _ => false,
+            };
+
+            ProcessTypeParameter(node, i, enclosingTypeName, seenNames, typeParams, isUnbracketedPack, sourceText, diagnostics);
         }
 
         return typeParams;
@@ -3928,6 +3954,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         string? enclosingTypeName,
         HashSet<string> seenNames,
         List<IType> typeParams,
+        bool isUnbracketedPack,
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
@@ -3953,6 +3980,37 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 $"Type parameter '{name}' shadows the enclosing type name.",
                 node,
                 sourceText));
+        }
+
+        // ── Variadics: type-parameter packs (params TArgs / Type[]:TArgs / Type[N]:TArgs). ──
+        // A pack is modeled as a TypeParameterType flagged IsPack; its value domain is the
+        // metatype array Type[]. The unbracketed flag (decided at the list level) records
+        // which single pack may be constructed bracket-free.
+        if(node is ParamsPackTypeParameterTypeParameterNode)
+        {
+            typeParams.Add(new TypeParameterType(name, ordinal)
+            {
+                IsPack = true,
+                IsUnbracketedPack = isUnbracketedPack,
+                PackFixedArity = null,
+            });
+            return;
+        }
+
+        if(node is ExplicitPackTypeParameterTypeParameterNode explicitPack)
+        {
+            int? fixedArity = explicitPack.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank
+                && int.TryParse(sizedRank.Size.Lexeme, out var parsedArity)
+                ? parsedArity
+                : null;
+
+            typeParams.Add(new TypeParameterType(name, ordinal)
+            {
+                IsPack = true,
+                IsUnbracketedPack = isUnbracketedPack,
+                PackFixedArity = fixedArity,
+            });
+            return;
         }
 
         // Determine whether this is a dependent type parameter or a regular one.

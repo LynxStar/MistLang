@@ -30,6 +30,9 @@ public static class TypeParameterNodeExtensions
             DependentTypeParameterTypeParameterNode dep => dep.Name,
             NamedConstraintDependentTypeParameterTypeParameterNode named => named.Name,
             RegularTypeParameterTypeParameterNode reg => reg.Name,
+            // Variadics: type-parameter packs.
+            ParamsPackTypeParameterTypeParameterNode pack => pack.Name,
+            ExplicitPackTypeParameterTypeParameterNode explicitPack => explicitPack.Name,
             _ => throw new InvalidOperationException(
                 $"Unknown TypeParameterNode variant: {node.GetType().Name}"),
         };

@@ -30,6 +30,9 @@ internal static class WellKnownTypeMap
         [("System", "Boolean")] = ("Standard", "Boolean"),
         [("System", "Char")] = ("Standard", "Char"),
         [("System", "Void")] = ("Standard", "Void"),
+        // Ranges and indices (map System.Index/System.Range to their spellable Standard names)
+        [("System", "Index")] = ("Standard", "Index"),
+        [("System", "Range")] = ("Standard", "Range"),
         // Async
         [("System.Threading.Tasks", "Task")] = ("Standard", "Task"),
         [("System.Threading.Tasks", "Task`1")] = ("Standard", "Task<>"),

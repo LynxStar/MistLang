@@ -6,7 +6,7 @@ namespace Iterators;
 
 // PROOF: User-defined struct enumerator implementing IEnumerator<TElement>
 // PROOF: MoveNext() and Current satisfy the abstract type contract
-public class Range : IEnumerable<int>
+public class CountSequence : IEnumerable<int>
 {
     public struct Enumerator : IEnumerator<int>
     {
@@ -19,7 +19,7 @@ public class Range : IEnumerable<int>
 
     private int count;
 
-    public Range(int count) { this.count = count; }
+    public CountSequence(int count) { this.count = count; }
 
     public Enumerator GetEnumerator() { return new Enumerator(count); }
 }
@@ -66,8 +66,8 @@ public class Program
         // PROOF: GetEnumerator() returns concrete struct type (not boxed)
         // PROOF: Type checker resolved TElement=int from IEnumerable<int>
         Console.WriteLine("--- Struct Enumerator ---");
-        var range = new Range(4);
-        foreach (int x in range)
+        var countSequence = new CountSequence(4);
+        foreach (int x in countSequence)
         {
             Console.WriteLine($"x={x}");
         }
@@ -99,7 +99,7 @@ public class Program
 
         // PROOF: foreach with var infers element type from user-defined IEnumerable<int>
         Console.WriteLine("--- Var Foreach (Struct Enumerator) ---");
-        foreach (var x in range)
+        foreach (var x in countSequence)
         {
             Console.WriteLine($"var_x={x}");
         }

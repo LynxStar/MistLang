@@ -12632,7 +12632,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         // Unary is a discriminated union.
-        if(multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+        if(multiplicative?.Left.UnwrapRange() is not PostfixExpressionUnaryNode postfixUnary)
         {
             return null;
         }
@@ -15980,14 +15980,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             case ListPatternPrimaryPatternNode listPattern:
                 {
-                    // Determine the element type for subpattern recursion.
+                    // Determine the element type for element sub-pattern recursion.
                     var elementType = scrutineeType is ArrayType arrayType
                         ? arrayType.ElementType
                         : ErrorType.Instance;
 
                     if(listPattern.Elements is not null)
                     {
-                        CollectFromListPatternElementList(listPattern.Elements, elementType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+                        // Thread the receiver (scrutinee) type alongside the element type:
+                        // element sub-patterns bind against the element type, while a slice
+                        // sub-pattern binds against the receiver's slice-result type.
+                        CollectFromListPatternElementList(listPattern.Elements, scrutineeType, elementType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
                     }
 
                     break;
@@ -16100,6 +16103,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     private static void CollectFromListPatternElementList(
         ListPatternElementListNode elementList,
+        IType receiverType,
         IType elementType,
         Scope thenScope,
         SymbolTable symbolTable,
@@ -16109,16 +16113,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        CollectFromListPatternElement(elementList.ListPatternElement, elementType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+        CollectFromListPatternElement(elementList.ListPatternElement, receiverType, elementType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
 
         foreach(var element in elementList.ListPatternElements)
         {
-            CollectFromListPatternElement(element, elementType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+            CollectFromListPatternElement(element, receiverType, elementType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
         }
     }
 
     private static void CollectFromListPatternElement(
         ListPatternElementNode element,
+        IType receiverType,
         IType elementType,
         Scope thenScope,
         SymbolTable symbolTable,
@@ -16135,21 +16140,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 break;
 
             case SliceElementListPatternElementNode sliceElement:
-                // Slice element with an identifier (`.. rest`): register the identifier.
-                if(sliceElement.Name.HasValue)
+                // Slice element carrying a sub-pattern (`.. var rest`, `.. _`, ...):
+                // recurse so any bindings it introduces are registered, using the
+                // sub-pattern's own span. A binding sub-pattern binds to the receiver's
+                // slice-result type, so `.. var middle` on an `int[]` binds `middle : int[]`
+                // (Req 20.2). When the receiver is not sliceable, fall back to
+                // ErrorType.Instance (the type checker reports the diagnostic).
+                if(sliceElement.Subpattern is not null)
                 {
-                    var name = sliceElement.Name.Value.Lexeme;
-                    if(name != "_")
-                    {
-                        // The slice variable captures a sub-array, so its type
-                        // is the same as the scrutinee array type (not the element type).
-                        // For now, use ErrorType since we don't have the full
-                        // array type here — the type checker will validate.
-                        var varSpan = ToMistSourceSpan(sliceElement.Name.Value.Span);
-                        var varSymbol = new Symbol(name, SymbolKind.LocalVariable, SymbolOrigin.UserCode, thenScope, ErrorType.Instance, varSpan);
-                        thenScope.AddMember(varSymbol);
-                        symbolTable.Register(varSymbol, sliceElement);
-                    }
+                    var sliceType = TryGetSliceResultType(receiverType, out var sliceResultType)
+                        ? sliceResultType
+                        : ErrorType.Instance;
+                    CollectFromPattern(sliceElement.Subpattern, sliceType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
                 }
 
                 break;
@@ -18125,7 +18127,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return false;
         }
 
-        var unary = multiplicative.Left;
+        var unary = multiplicative.Left.UnwrapRange();
 
         // Check if it's an async functor expression.
         if(unary is AsyncExpressionUnaryNode)
@@ -20373,7 +20375,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return false;
         }
 
-        if(multiplicative.Left is not PostfixExpressionUnaryNode postfix)
+        if(multiplicative.Left.UnwrapRange() is not PostfixExpressionUnaryNode postfix)
         {
             return false;
         }
@@ -20963,11 +20965,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        var leftType = ResolveUnary(node.Left, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        var leftType = ResolveRange(node.Left, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
         if(node.Right is not null && !ReferenceEquals(node.Right, node.Left))
         {
-            var rightType = ResolveUnary(node.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            var rightType = ResolveRange(node.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
             var result = GetCommonNumericType(leftType, rightType);
             expressionTypes[node] = result;
             return result;
@@ -20975,6 +20977,60 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         expressionTypes[node] = leftType;
         return leftType;
+    }
+
+    /// <summary>
+    /// Resolves a <see cref="RangeNode"/> operand of the multiplicative tier. The
+    /// pass-through <see cref="NonRangeRangeNode"/> form adopts its inner unary's type,
+    /// preserving existing type resolution for every non-range expression.
+    /// </summary>
+    private static IType ResolveRange(
+        RangeNode node,
+        Scope currentScope,
+        Scope fileScope,
+        IType enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        switch(node)
+        {
+            case NonRangeRangeNode nonRange:
+                {
+                    var operandType = ResolveUnary(nonRange.Operand, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    expressionTypes[node] = operandType;
+                    return operandType;
+                }
+
+            case RangeExpressionRangeNode rangeExpr:
+                {
+                    // Resolve each present bound (either may be absent) so its node
+                    // receives a type, then resolve the range expression itself to
+                    // Standard.Range regardless of which bounds are present (Req 5.2).
+                    if(rangeExpr.Start is not null)
+                    {
+                        _ = ResolveUnary(rangeExpr.Start, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    }
+
+                    if(rangeExpr.End is not null)
+                    {
+                        _ = ResolveUnary(rangeExpr.End, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    }
+
+                    var result = ResolveStandardType("Range", fileScope, symbolTable);
+                    expressionTypes[node] = result;
+                    return result;
+                }
+
+            default:
+                {
+                    expressionTypes[node] = ErrorType.Instance;
+                    return ErrorType.Instance;
+                }
+        }
     }
 
     private static IType ResolveUnary(
@@ -21003,6 +21059,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var operandType = ResolveUnary(negate.Operand, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                     expressionTypes[node] = operandType;
                     return operandType;
+                }
+            case FromEndExpressionUnaryNode fromEnd:
+                {
+                    // Resolve the operand so it receives a type, then resolve the
+                    // index-from-end expression itself to Standard.Index (Req 5.1).
+                    _ = ResolveUnary(fromEnd.Operand, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    var result = ResolveStandardType("Index", fileScope, symbolTable);
+                    expressionTypes[node] = result;
+                    return result;
                 }
             case CastExpressionUnaryNode castExpr:
                 return ResolveCastExpression(castExpr, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
@@ -21897,8 +21962,33 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
             case IndexSuffixPostfixSuffixNode indexSuffix:
                 {
-                    // Resolve the index expression.
-                    _ = ResolveExpression(indexSuffix.Index, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    // Resolve the index/range argument so it receives a type, then
+                    // branch the element-access result type on the argument's type
+                    // (ranges-and-indices, Req 8.1-8.5). Ordinary integer arguments
+                    // fall through to the existing array/custom-indexer behavior below.
+                    var argType = ResolveExpression(indexSuffix.Index, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+                    // Range argument on a sliceable receiver: the slice-result type
+                    // (array -> same array, span -> same span, string -> string,
+                    // otherwise the declared Range-indexer / Slice(int,int) result
+                    // type) (Req 8.2-8.5).
+                    if(IsStandardRangeType(argType)
+                        && IsSliceableType(targetType)
+                        && TryGetSliceResultType(targetType, out var sliceResultType))
+                    {
+                        expressionTypes[suffix] = sliceResultType;
+                        return sliceResultType;
+                    }
+
+                    // Index argument on an indexable receiver: the receiver's element
+                    // type (Req 8.1).
+                    if(IsStandardIndexType(argType)
+                        && IsIndexableType(targetType)
+                        && TryGetElementType(targetType, out var indexElementType))
+                    {
+                        expressionTypes[suffix] = indexElementType;
+                        return indexElementType;
+                    }
 
                     // The result type is the element type of the array.
                     if(targetType is ArrayType arrayType)
@@ -26320,6 +26410,29 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
+    /// Resolves a Standard Library type by its simple name (e.g. <c>"Index"</c> ->
+    /// <c>Standard.Index</c>, <c>"Range"</c> -> <c>Standard.Range</c>) directly against
+    /// the stdlib namespace, following the same bypass-all-scoping pattern as
+    /// <see cref="ResolvePrimitiveByKeyword"/>. This is the static-context equivalent of
+    /// <c>IStdlibTypeProvider.LookupStandardType</c>. Returns <see cref="UnknownType.Instance"/>
+    /// when the Standard Library is not loaded (e.g. unit tests that build a semantic model
+    /// from a minimal AST without stdlib), so those configurations continue to work.
+    /// </summary>
+    private static IType ResolveStandardType(string simpleName, Scope fileScope, SymbolTable symbolTable)
+    {
+        try
+        {
+            var globalScope = FindGlobalScope(fileScope) ?? fileScope;
+            return LookupQualifiedStdlibType(globalScope, symbolTable, "Standard." + simpleName);
+        }
+        catch(StdlibMissingException)
+        {
+            // Stdlib not loaded — no spellable Standard.Index/Standard.Range available.
+            return UnknownType.Instance;
+        }
+    }
+
+    /// <summary>
     /// Returns <c>true</c> when <paramref name="type"/> represents the
     /// Mist <c>string</c> / <c>Standard.String</c> type, regardless of
     /// whether the instance is the legacy <see cref="LegacyPrimitiveTypes.String"/>
@@ -26365,6 +26478,320 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             or "ushort" or "UInt16"
             or "byte" or "Byte"
             or "sbyte" or "SByte";
+    }
+
+    // ─── ranges-and-indices: element-access type classification (Req 8) ──────
+    // Shared type-classification predicates used by element-access result typing
+    // (this file) and, subsequently, by the type checker's receiver validation and
+    // list/slice pattern checking. Well-known indexable/sliceable shapes (arrays,
+    // spans, string, List<T>) are recognized directly; every other type is
+    // classified by introspecting its countable/indexer/Slice members, reusing the
+    // same member-lookup and substitution utilities the rest of this file uses.
+
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="type"/> is the spellable
+    /// <c>Standard.Index</c> struct that surfaces <c>System.Index</c>.
+    /// </summary>
+    private static bool IsStandardIndexType(IType type)
+    {
+        return UnwrapClassificationType(type) is StructType { DisplayName: "Index", ContainingNamespace: "Standard" };
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="type"/> is the spellable
+    /// <c>Standard.Range</c> struct that surfaces <c>System.Range</c>.
+    /// </summary>
+    private static bool IsStandardRangeType(IType type)
+    {
+        return UnwrapClassificationType(type) is StructType { DisplayName: "Range", ContainingNamespace: "Standard" };
+    }
+
+    /// <summary>
+    /// Unwraps refinement and alias wrappers to the underlying type used for
+    /// element-access classification, so a refined or aliased array/span/string
+    /// still classifies as countable/indexable/sliceable.
+    /// </summary>
+    private static IType UnwrapClassificationType(IType type)
+    {
+        while(true)
+        {
+            switch(type)
+            {
+                case RefinementType refinement:
+                    type = refinement.BaseType;
+                    break;
+                case TypeAliasType alias:
+                    type = alias.UnderlyingType;
+                    break;
+                default:
+                    return type;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="type"/> exposes an <c>int</c>-typed
+    /// <c>Length</c> or <c>Count</c>, allowing an index-from-end position to be
+    /// resolved to a concrete offset (arrays, spans, and <c>string</c> are countable
+    /// by construction).
+    /// </summary>
+    internal static bool IsCountableType(IType type)
+    {
+        var unwrapped = UnwrapClassificationType(type);
+        if(unwrapped is ArrayType or SpanType)
+        {
+            return true;
+        }
+
+        if(IsStringLikeType(unwrapped))
+        {
+            return true;
+        }
+
+        return HasIntProperty(unwrapped, "Length") || HasIntProperty(unwrapped, "Count");
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="type"/> is countable and exposes an
+    /// <c>int</c>-argument indexer: arrays, <c>Span&lt;T&gt;</c>,
+    /// <c>ReadOnlySpan&lt;T&gt;</c>, <c>string</c>, <c>List&lt;T&gt;</c>, and any
+    /// countable type carrying an integer (or <c>Index</c>) indexer.
+    /// </summary>
+    internal static bool IsIndexableType(IType type)
+    {
+        var unwrapped = UnwrapClassificationType(type);
+        if(unwrapped is ArrayType or SpanType)
+        {
+            return true;
+        }
+
+        if(IsStringLikeType(unwrapped))
+        {
+            return true;
+        }
+
+        return IsCountableType(unwrapped) && TryGetIndexerReturnType(unwrapped, wantRange: false) is not null;
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="type"/> is countable and produces a
+    /// contiguous sub-sequence through a <c>Range</c>-accepting indexer or a
+    /// <c>Slice(int, int)</c> method: arrays, <c>Span&lt;T&gt;</c>,
+    /// <c>ReadOnlySpan&lt;T&gt;</c>, <c>string</c>, plus the general countable-plus-
+    /// sliceable shape. <c>List&lt;T&gt;</c> is indexable but NOT sliceable (matching
+    /// C#), because it exposes neither a <c>Range</c> indexer nor a <c>Slice</c> method.
+    /// </summary>
+    internal static bool IsSliceableType(IType type)
+    {
+        var unwrapped = UnwrapClassificationType(type);
+        if(unwrapped is ArrayType or SpanType)
+        {
+            return true;
+        }
+
+        if(IsStringLikeType(unwrapped))
+        {
+            return true;
+        }
+
+        if(!IsCountableType(unwrapped))
+        {
+            return false;
+        }
+
+        return TryGetIndexerReturnType(unwrapped, wantRange: true) is not null
+            || TryGetSliceMethodReturnType(unwrapped) is not null;
+    }
+
+    /// <summary>
+    /// Resolves the element type produced by an index-from-end (or ordinary integer)
+    /// element access: the array/span element type directly, otherwise the declared
+    /// return type of the receiver's integer-argument indexer (the <c>string</c>
+    /// indexer yields <c>char</c>, the <c>List&lt;T&gt;</c> indexer yields <c>T</c>).
+    /// </summary>
+    internal static bool TryGetElementType(IType type, out IType elementType)
+    {
+        var unwrapped = UnwrapClassificationType(type);
+        switch(unwrapped)
+        {
+            case ArrayType arrayType:
+                elementType = arrayType.ElementType;
+                return true;
+            case SpanType spanType:
+                elementType = spanType.ElementType;
+                return true;
+        }
+
+        if(TryGetIndexerReturnType(unwrapped, wantRange: false) is { } indexerReturn)
+        {
+            elementType = indexerReturn;
+            return true;
+        }
+
+        elementType = ErrorType.Instance;
+        return false;
+    }
+
+    /// <summary>
+    /// Resolves the result type of a range (slice) element access: the same array
+    /// type for an array receiver, the same span type for a span receiver,
+    /// <c>string</c> for a <c>string</c> receiver, otherwise the declared return type
+    /// of the receiver's <c>Range</c> indexer or <c>Slice(int, int)</c> method. Array
+    /// and span results use an unknown length because a range slice length is not
+    /// statically known in general.
+    /// </summary>
+    internal static bool TryGetSliceResultType(IType type, out IType sliceResultType)
+    {
+        var unwrapped = UnwrapClassificationType(type);
+        switch(unwrapped)
+        {
+            case ArrayType arrayType:
+                sliceResultType = new ArrayType(arrayType.ElementType);
+                return true;
+            case SpanType spanType:
+                sliceResultType = new SpanType(spanType.ElementType, spanType.IsReadOnly);
+                return true;
+        }
+
+        if(IsStringLikeType(unwrapped))
+        {
+            sliceResultType = unwrapped;
+            return true;
+        }
+
+        if(TryGetIndexerReturnType(unwrapped, wantRange: true) is { } rangeIndexerReturn)
+        {
+            sliceResultType = rangeIndexerReturn;
+            return true;
+        }
+
+        if(TryGetSliceMethodReturnType(unwrapped) is { } sliceMethodReturn)
+        {
+            sliceResultType = sliceMethodReturn;
+            return true;
+        }
+
+        sliceResultType = ErrorType.Instance;
+        return false;
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="type"/> declares a property named
+    /// <paramref name="name"/> whose type is an integer. Reuses <see cref="LookupMemberSymbol"/>
+    /// so inherited members are found and <see cref="ConstructedType"/> receivers are unwrapped.
+    /// </summary>
+    private static bool HasIntProperty(IType type, string name)
+    {
+        var member = LookupMemberSymbol(type, name);
+        return member is { Kind: SymbolKind.Property, DeclaredType: { } declaredType }
+            && IsIntegerType(declaredType);
+    }
+
+    /// <summary>
+    /// Finds an indexer on <paramref name="type"/> and returns its declared return
+    /// type (with type-argument substitution applied for a <see cref="ConstructedType"/>
+    /// receiver). When <paramref name="wantRange"/> is <c>true</c> the indexer's first
+    /// parameter must be <c>Standard.Range</c>; otherwise it must be an integer or
+    /// <c>Standard.Index</c>. For the integer case, an indexer with no discoverable
+    /// CLR parameters (a Mist-declared indexer) is accepted as a fallback so existing
+    /// element-access typing is preserved. Returns <c>null</c> when no matching
+    /// indexer exists.
+    /// </summary>
+    private static IType? TryGetIndexerReturnType(IType type, bool wantRange)
+    {
+        var memberScope = TryGetClassificationMemberScope(type);
+        if(memberScope is null)
+        {
+            return null;
+        }
+
+        ISymbol? match = null;
+        ISymbol? firstIndexer = null;
+        foreach(var member in memberScope.Members)
+        {
+            if(member.Kind != SymbolKind.Indexer)
+            {
+                continue;
+            }
+
+            firstIndexer ??= member;
+            if(member is Symbol { Parameters.Count: > 0 } indexerSymbol
+                && indexerSymbol.Parameters[0].DeclaredType is { } parameterType)
+            {
+                var matches = wantRange
+                    ? IsStandardRangeType(parameterType)
+                    : IsIntegerType(parameterType) || IsStandardIndexType(parameterType);
+                if(matches)
+                {
+                    match = member;
+                    break;
+                }
+            }
+        }
+
+        // Fall back to the first indexer only for the integer/Index case: a
+        // Mist-declared indexer carries no CLR parameter symbols, so this keeps
+        // element access resolving as it does today.
+        if(match is null && !wantRange)
+        {
+            match = firstIndexer;
+        }
+
+        if(match?.DeclaredType is not { } returnType)
+        {
+            return null;
+        }
+
+        return SubstituteReturnTypeForConstructed(type, returnType);
+    }
+
+    /// <summary>
+    /// Finds a <c>Slice(int, int)</c> method on <paramref name="type"/> and returns
+    /// its declared return type (with type-argument substitution applied for a
+    /// <see cref="ConstructedType"/> receiver), or <c>null</c> when absent.
+    /// </summary>
+    private static IType? TryGetSliceMethodReturnType(IType type)
+    {
+        var member = LookupMemberSymbol(type, "Slice");
+        if(member is Symbol { Kind: SymbolKind.Method, Parameters.Count: 2 } sliceMethod
+            && sliceMethod.Parameters[0].DeclaredType is { } firstParameter && IsIntegerType(firstParameter)
+            && sliceMethod.Parameters[1].DeclaredType is { } secondParameter && IsIntegerType(secondParameter)
+            && sliceMethod.DeclaredType is { } sliceReturnType)
+        {
+            return SubstituteReturnTypeForConstructed(type, sliceReturnType);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Returns the member scope for a type used in element-access classification,
+    /// unwrapping a <see cref="ConstructedType"/> to its generic definition.
+    /// </summary>
+    private static IScope? TryGetClassificationMemberScope(IType type)
+    {
+        var lookupType = type is ConstructedType constructed ? constructed.GenericDefinition : type;
+        return GetMemberScope(lookupType);
+    }
+
+    /// <summary>
+    /// Applies type-argument substitution to <paramref name="returnType"/> when
+    /// <paramref name="type"/> is a <see cref="ConstructedType"/>, so a generic
+    /// indexer/Slice member's element or slice-result type is closed over the
+    /// receiver's type arguments (e.g. <c>List&lt;int&gt;</c> yields <c>int</c>).
+    /// </summary>
+    private static IType SubstituteReturnTypeForConstructed(IType type, IType returnType)
+    {
+        if(type is ConstructedType constructed)
+        {
+            var typeParameters = GetTypeParameters(constructed.GenericDefinition);
+            if(typeParameters.Count > 0)
+            {
+                return SubstituteTypeParameters(returnType, typeParameters, constructed.TypeArguments);
+            }
+        }
+
+        return returnType;
     }
 
     /// <summary>

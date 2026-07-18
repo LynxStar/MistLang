@@ -1,0 +1,13 @@
+using Standard;
+
+var numbers = [10, 20, 30, 40, 50];
+
+// An index-from-end expression is a first-class value of type `Index`.
+Index fromEnd = ^2;
+Console.WriteLine($"valueAtStored={numbers[fromEnd]}");
+
+// A range expression is a first-class value of type `Range`.
+Range window = 0..2;
+var slice = numbers[window];
+Console.WriteLine($"slice0={slice[0]}");
+Console.WriteLine($"slice1={slice[1]}");

@@ -77,7 +77,7 @@ public class RefFieldStorageProhibitionTests
             Suffix = ImmutableArray<PostfixSuffixNode>.Empty,
         };
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = unary } };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
@@ -115,7 +115,7 @@ public class RefFieldStorageProhibitionTests
             Suffix = ImmutableArray.Create<PostfixSuffixNode>(memberAccess),
         };
         var lhsUnary = new PostfixExpressionUnaryNode { Primary = lhsPostfix };
-        var lhsMult = new MultiplicativeNode { Left = lhsUnary };
+        var lhsMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = lhsUnary } };
         var lhsAdd = new AdditiveNode { Left = lhsMult };
         var lhsRel = new RelationalComparisonRelationalNode { Left = lhsAdd };
         var lhsEq = new EqualityNode { Left = lhsRel };

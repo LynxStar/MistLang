@@ -3,11 +3,11 @@
 // **Validates: Requirements 15.4, 15.5**
 
 using System.Collections.Immutable;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Mist.Analysis.Builtin;
 using Mist.Analysis.Contracts;
 using Mist.Backends.Contracts;

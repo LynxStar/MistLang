@@ -348,6 +348,6 @@ public class AsyncParsingTests
     private static UnaryNode? GetUnaryFromAdditiveLeft(AdditiveNode additive)
     {
         var multiplicative = additive.Left;
-        return multiplicative.Left;
+        return multiplicative.Left.UnwrapRange();
     }
 }

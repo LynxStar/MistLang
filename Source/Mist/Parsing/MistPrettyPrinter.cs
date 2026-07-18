@@ -1910,9 +1910,11 @@ public sealed class MistPrettyPrinter
                 return EmitPattern(patternElement.Pattern);
             case SliceElementListPatternElementNode sliceElement:
                 {
-                    if(sliceElement.Name.HasValue)
+                    // Print `..` for a bare slice, or `.. <subpattern>` (single space after
+                    // `..`) for a carrying slice, reading from the sub-pattern.
+                    if(sliceElement.Subpattern is not null)
                     {
-                        return $".. {sliceElement.Name.Value.Lexeme}";
+                        return $".. {EmitPattern(sliceElement.Subpattern)}";
                     }
 
                     return "..";
@@ -1938,16 +1940,38 @@ public sealed class MistPrettyPrinter
 
     private string EmitMultiplicative(MultiplicativeNode multiplicative)
     {
-        var left = EmitUnary(multiplicative.Left);
+        var left = EmitRange(multiplicative.Left);
 
         if(multiplicative.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
         {
             var op = multiplicative.Operator.Lexeme;
-            var right = EmitUnary(multiplicative.Right);
+            var right = EmitRange(multiplicative.Right);
             return $"{left} {op} {right}";
         }
 
         return left;
+    }
+
+    private string EmitRange(RangeNode range)
+    {
+        switch(range)
+        {
+            case NonRangeRangeNode nonRange:
+                return EmitUnary(nonRange.Operand);
+            case RangeExpressionRangeNode rangeExpr:
+                {
+                    // Range `start..end`: emit the present bounds via the unary emitter
+                    // with an absent bound rendered as nothing and no space around `..`,
+                    // so all four forms round-trip: `a..b`, `a..`, `..b`, `..`. A from-end
+                    // bound renders through EmitUnary as `^k`, so `1..^1` prints as `1..^1`.
+                    var start = rangeExpr.Start is not null ? EmitUnary(rangeExpr.Start) : string.Empty;
+                    var end = rangeExpr.End is not null ? EmitUnary(rangeExpr.End) : string.Empty;
+                    return $"{start}..{end}";
+                }
+
+            default:
+                return string.Empty;
+        }
     }
 
     private string EmitUnary(UnaryNode unary)
@@ -1959,6 +1983,11 @@ public sealed class MistPrettyPrinter
             CastExpressionUnaryNode castExpr => $"({EmitTypeReference(castExpr.TargetType)}){EmitUnary(castExpr.Operand)}",
             LogicalNotUnaryNode logicalNot => $"!{EmitUnary(logicalNot.Operand)}",
             NegateUnaryNode negate => $"-{EmitUnary(negate.Operand)}",
+            // Index-from-end `^operand`: the `^` operator immediately followed by the
+            // operand with no space (Mist surface syntax, e.g. `^1`, `^count`). This is
+            // the pretty-printer form for round-tripping Mist source; it deliberately
+            // differs from the C# emitter, which parenthesizes the operand as `^(k)`.
+            FromEndExpressionUnaryNode fromEnd => $"^{EmitUnary(fromEnd.Operand)}",
             PostfixExpressionUnaryNode postfix => EmitPostfix(postfix.Primary),
             _ => "",
         };

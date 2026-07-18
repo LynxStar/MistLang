@@ -102,7 +102,7 @@ public class OptionalOperatorParsingPropertyTests
         var relational = (RelationalComparisonRelationalNode)equality.Left;
         var additive = relational.Left;
         var multiplicative = additive.Left;
-        var unary = (PostfixExpressionUnaryNode)multiplicative.Left;
+        var unary = (PostfixExpressionUnaryNode)multiplicative.Left.UnwrapRange()!;
         var postfix = unary.Primary;
 
         // The postfix node should have exactly chainLength OptionalMemberAccessSuffix nodes
@@ -294,7 +294,8 @@ public class OptionalOperatorParsingPropertyTests
 
     private static string GetIdentifierFromMultiplicative(MultiplicativeNode node)
     {
-        return GetIdentifierFromUnary(node.Left);
+        // These parser tests only build pass-through (NonRange) operands.
+        return GetIdentifierFromUnary(node.Left.UnwrapRange()!);
     }
 
     private static string GetIdentifierFromUnary(UnaryNode node)

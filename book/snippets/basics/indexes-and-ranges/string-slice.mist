@@ -1,0 +1,11 @@
+var text = "Hello, world";
+
+// Slicing a string produces a NEW string containing the selected characters.
+var hello = text[0..5];
+var world = text[7..];
+
+Console.WriteLine($"hello={hello}");
+Console.WriteLine($"world={world}");
+
+// A from-end index on a string reads a single character.
+Console.WriteLine($"last={text[^1]}");

@@ -1,0 +1,610 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Add the `CARET` (`^`) token to `Source/Mist/Grammar/tokens/operators.storm`": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381258855
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381282152
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381408400
+      }
+    ],
+    "2.1 Add the from-end alternative to the `Unary` rule in `Source/Mist/Grammar/Mist.storm`": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381258936
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381448553
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381568163
+      }
+    ],
+    "2.2 Insert the `Range` precedence tier and retype `Multiplicative` operands in `Mist.storm`": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381258986
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381571100
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381762169
+      }
+    ],
+    "2.3 Generalize `SliceElement` to carry an optional full sub-pattern in `Mist.storm`": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381259039
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381765525
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784382017450
+      }
+    ],
+    "2.4 Regenerate the parser from the grammar (no hand edits to generated code)": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381259067
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784382020389
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784382259542
+      }
+    ],
+    "3.1 Add `UnwrapRange` and re-thread all consumers so the solution compiles again": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381259093
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784382262626
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784384247186
+      }
+    ],
+    "4. Checkpoint - grammar, parser, and precedence are green": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381259129
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784384252415
+      }
+    ],
+    "5.1 Add the Bootstrap declarations and CLR mappings": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381259162
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784384255803
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784385788862
+      }
+    ],
+    "6.1 Resolve the new expression nodes and thread the Range tier": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381259191
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784385792789
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784386947513
+      }
+    ],
+    "6.4 Element-access result typing and shared type predicates": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381259229
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784386950415
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784388045697
+      }
+    ],
+    "6.7 Slice sub-pattern binding types": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381259258
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784388048923
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784388698619
+      }
+    ],
+    "7.1 Register the new and repurposed diagnostics in `TypeCheckDiagnostics.cs`": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381259291
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784388704084
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784388999933
+      }
+    ],
+    "7.2 Implement `CheckFromEndExpression`": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381259321
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784389003249
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784389500973
+      }
+    ],
+    "7.4 Implement `CheckRange`": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381259348
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784389551287
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784390196136
+      }
+    ],
+    "7.6 Extend `CheckIndexSuffix` to branch on the argument type": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381259374
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784390199392
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784390653760
+      }
+    ],
+    "7.8 Broaden `CheckListPatternElementList`": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381259411
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784390657132
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784391269666
+      }
+    ],
+    "8. Checkpoint - type resolution and type checking are green": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381259435
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784391277581
+      }
+    ],
+    "9.1 Emit the index and range expressions via an `EmitRange` dispatcher": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381259459
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784391284056
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784391646258
+      }
+    ],
+    "9.3 Element access: native lowering plus `Slice(int, int)` fallback": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381259490
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784391649534
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784392530264
+      }
+    ],
+    "9.4 Extend `EmitListPatternElement` for slice sub-patterns": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381259604
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784392540713
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784392730324
+      }
+    ],
+    "10.1 Print the new expression and pattern forms and thread the Range tier": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381259632
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784392734210
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784393005962
+      }
+    ],
+    "11. Checkpoint - emission and pretty-printing are green": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381259670
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784393011140
+      }
+    ],
+    "13.1 Highlight `^` and `..` in `Editor/mist-syntax-highlighting/syntaxes/mist.tmLanguage.json`": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381259733
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784393069690
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784393418968
+      }
+    ],
+    "14.1 Migrate `samples/Iterators/Program.mist`: `Range` -> `CountSequence`": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381259763
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784393069734
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784393419853
+      }
+    ],
+    "14.2 Migrate `samples/RefinementTypes/Program.mist`: `Range` -> `Interval`, `ValidRange` -> `ValidInterval`": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381259786
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784393070978
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784393425008
+      }
+    ],
+    "14.3 Migrate `book/snippets/type-system/refinement-types/property-pattern.mist`: `Range` -> `Interval`, `ValidRange` -> `ValidInterval`": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381259829
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784393075164
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784393425798
+      }
+    ],
+    "15.1 Create `samples/RangesAndIndices/Program.mist` and wire it into `AllFeatures`": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381259857
+      },
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784393433227
+      },
+      {
+        "executionId": "38dea5a6-a86f-4468-b263-9db58f74304f",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784395185009
+      }
+    ],
+    "16. Checkpoint - sample compiles and AllFeatures baseline matches (runtime Properties 12, 13, 17 validated)": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381259889
+      },
+      {
+        "executionId": "38dea5a6-a86f-4468-b263-9db58f74304f",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784395190164
+      }
+    ],
+    "17.1 Book: add the `^`/`..` section and the list/slice-pattern section": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381259926
+      },
+      {
+        "executionId": "38dea5a6-a86f-4468-b263-9db58f74304f",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784395200290
+      },
+      {
+        "executionId": "38dea5a6-a86f-4468-b263-9db58f74304f",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784395767882
+      }
+    ],
+    "17.2 Update `CSHARP_FEATURES.md`": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381259960
+      },
+      {
+        "executionId": "38dea5a6-a86f-4468-b263-9db58f74304f",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784395200980
+      },
+      {
+        "executionId": "38dea5a6-a86f-4468-b263-9db58f74304f",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784395768478
+      }
+    ],
+    "18. Final checkpoint - full suite green": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381259993
+      },
+      {
+        "executionId": "38dea5a6-a86f-4468-b263-9db58f74304f",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784395779801
+      },
+      {
+        "executionId": "38dea5a6-a86f-4468-b263-9db58f74304f",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784396208339
+      }
+    ],
+    "1. Lexer: add the from-end operator token": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784381408430
+      }
+    ],
+    "2. Grammar and parser: from-end, range, and generalized slice": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784382259630
+      }
+    ],
+    "3. Thread the Range tier through every `Multiplicative` consumer": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784384247224
+      }
+    ],
+    "5. Surface the `Index` and `Range` types": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784385789002
+      }
+    ],
+    "6. Semantic model resolution": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784388698680
+      }
+    ],
+    "7. Type checker": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784391269725
+      }
+    ],
+    "9. C# emitter": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784392730374
+      }
+    ],
+    "10. Pretty printer": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784393006003
+      }
+    ],
+    "13. TextMate grammar highlighting": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784393419023
+      }
+    ],
+    "14. Migrate existing `Range` type names": [
+      {
+        "executionId": "087c4b9c-7ac1-429f-9b82-c0d555292c08",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784393425845
+      }
+    ],
+    "15. Sample app and AllFeatures integration": [
+      {
+        "executionId": "38dea5a6-a86f-4468-b263-9db58f74304f",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784395185111
+      }
+    ],
+    "17. Documentation and feature tracking": [
+      {
+        "executionId": "38dea5a6-a86f-4468-b263-9db58f74304f",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784395768530
+      }
+    ],
+    "12.1 Run and, if needed, extend `ArrayLiteralPatternDisambiguationPropertyTests`": [
+      {
+        "executionId": "c15eb8fc-aaee-4d16-9138-bfd16520fd13",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784397040273
+      }
+    ],
+    "12. Verify array-literal vs list-pattern disambiguation still holds": [
+      {
+        "executionId": "c15eb8fc-aaee-4d16-9138-bfd16520fd13",
+        "chatSessionId": "sess_8b5ff2a0-91b0-40b8-836a-3636c68a8631",
+        "timestamp": 1784397040341
+      }
+    ]
+  }
+}

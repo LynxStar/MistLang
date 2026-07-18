@@ -2,13 +2,13 @@ using System;
 
 namespace Snippet;
 
-public class Range
+public class Interval
 {
     public readonly int Start;
 
     public readonly int End;
 
-    public Range(int start, int end)
+    public Interval(int start, int end)
     {
         this.Start = start;
         this.End = end;
@@ -18,10 +18,10 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        var r = new Range(10, 50);
+        var r = new Interval(10, 50);
         if (r.Start >= 0)
         {
-            Range valid = r;
+            Interval valid = r;
             Console.WriteLine($"Valid: Start={valid.Start}");
         }
     }

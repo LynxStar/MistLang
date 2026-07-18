@@ -27,6 +27,7 @@ internal static class AmbientProviderTestHelper
             "Int32", "Int64", "Int16", "Byte", "SByte",
             "UInt32", "UInt64", "UInt16", "Single", "Double", "Decimal",
             "String", "Boolean", "Char", "Void",
+            "Index", "Range",
             "Task", "Task<>", "ValueTask", "ValueTask<>",
         };
 

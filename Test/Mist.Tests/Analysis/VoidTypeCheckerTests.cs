@@ -66,7 +66,7 @@ public class VoidTypeCheckerTests
             Suffix = ImmutableArray.Create<PostfixSuffixNode>(suffix),
         };
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = unary } };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
@@ -96,8 +96,8 @@ public class VoidTypeCheckerTests
     /// </summary>
     private static ExpressionNode MakeEqualityExpression(UnaryNode left, UnaryNode right, string op)
     {
-        var leftMult = new MultiplicativeNode { Left = left };
-        var rightMult = new MultiplicativeNode { Left = right };
+        var leftMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = left } };
+        var rightMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = right } };
         var leftAdd = new AdditiveNode { Left = leftMult };
         var rightAdd = new AdditiveNode { Left = rightMult };
         var leftRel = new RelationalComparisonRelationalNode { Left = leftAdd };
@@ -195,7 +195,7 @@ public class VoidTypeCheckerTests
             Suffix = ImmutableArray.Create<PostfixSuffixNode>(suffix),
         };
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = unary } };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };

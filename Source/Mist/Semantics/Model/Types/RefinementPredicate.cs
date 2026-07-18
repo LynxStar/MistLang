@@ -863,7 +863,7 @@ public sealed class RefinementPredicate
             return null;
         }
 
-        if(multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+        if(multiplicative?.Left.UnwrapRange() is not PostfixExpressionUnaryNode postfixUnary)
         {
             return null;
         }

@@ -84,7 +84,7 @@ public class AccessModifierPropertyTests
             Suffix = ImmutableArray.Create<PostfixSuffixNode>(suffix),
         };
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = unary } };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
@@ -114,7 +114,7 @@ public class AccessModifierPropertyTests
             Suffix = ImmutableArray.Create<PostfixSuffixNode>(suffix),
         };
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = unary } };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
@@ -318,7 +318,7 @@ public class AccessModifierPropertyTests
         var diagnostics = RunTypeChecker(model);
 
         var hasAccessError = diagnostics.Any(d =>
-            d.Id.Value == "MIST_TC_0014" || d.Id.Value == "MIST_TC_0170");
+            d.Id.Value is "MIST_TC_0014" or "MIST_TC_0170");
 
         return scenario.ShouldHaveError ? hasAccessError : !hasAccessError;
     }
@@ -338,7 +338,7 @@ public class AccessModifierPropertyTests
         var diagnostics = RunTypeChecker(model);
 
         Assert.DoesNotContain(diagnostics, d =>
-            d.Id.Value == "MIST_TC_0014" || d.Id.Value == "MIST_TC_0170");
+            d.Id.Value is "MIST_TC_0014" or "MIST_TC_0170");
     }
 
     [Fact]
@@ -352,7 +352,7 @@ public class AccessModifierPropertyTests
         var diagnostics = RunTypeChecker(model);
 
         Assert.Contains(diagnostics, d =>
-            d.Id.Value == "MIST_TC_0014" || d.Id.Value == "MIST_TC_0170");
+            d.Id.Value is "MIST_TC_0014" or "MIST_TC_0170");
     }
 
     [Fact]
@@ -366,7 +366,7 @@ public class AccessModifierPropertyTests
         var diagnostics = RunTypeChecker(model);
 
         Assert.Contains(diagnostics, d =>
-            d.Id.Value == "MIST_TC_0014" || d.Id.Value == "MIST_TC_0170");
+            d.Id.Value is "MIST_TC_0014" or "MIST_TC_0170");
     }
 
     // ═══════════════════════════════════════════════════════════════════════

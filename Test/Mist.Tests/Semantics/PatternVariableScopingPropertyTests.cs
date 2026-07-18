@@ -176,7 +176,7 @@ public class PatternVariableScopingPropertyTests
             Suffix = ImmutableArray<PostfixSuffixNode>.Empty,
         };
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = unary } };
         return new AdditiveNode { Left = mult };
     }
 

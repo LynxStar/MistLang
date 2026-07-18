@@ -1,0 +1,19 @@
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var numbers = [10, 20, 30, 40, 50];
+
+        // List patterns are valid switch-arm patterns. The empty pattern `[]`
+        // matches a zero-length receiver, `[_]` a single element, `[_, _]` a
+        // pair, and the `_` catch-all covers everything else.
+        var label = numbers switch {
+            [] => "empty",
+            [_] => "single",
+            [_, _] => "pair",
+            _ => "many"
+        };
+
+        Console.WriteLine($"label={label}");
+    }
+}

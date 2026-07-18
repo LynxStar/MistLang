@@ -81,7 +81,7 @@ public class PrettyPrinterPropertyTests
             Suffix = ImmutableArray.Create<PostfixSuffixNode>(suffix),
         };
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = unary } };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
@@ -106,7 +106,7 @@ public class PrettyPrinterPropertyTests
             Suffix = ImmutableArray<PostfixSuffixNode>.Empty,
         };
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = unary } };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
@@ -119,14 +119,14 @@ public class PrettyPrinterPropertyTests
     private static ExpressionNode MakeBinaryExpression(ExpressionNode left, string op, ExpressionNode right)
     {
         // Build an additive expression: left op right
-        var leftUnary = ((RelationalComparisonRelationalNode)left.AsAssignment().Target.Left.Left.Left.Left).Left.Left.Left;
-        var rightUnary = ((RelationalComparisonRelationalNode)right.AsAssignment().Target.Left.Left.Left.Left).Left.Left.Left;
+        var leftUnary = ((RelationalComparisonRelationalNode)left.AsAssignment().Target.Left.Left.Left.Left).Left.Left.Left.UnwrapRange()!;
+        var rightUnary = ((RelationalComparisonRelationalNode)right.AsAssignment().Target.Left.Left.Left.Left).Left.Left.Left.UnwrapRange()!;
 
         var add = new AdditiveNode
         {
-            Left = new MultiplicativeNode { Left = leftUnary },
+            Left = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = leftUnary } },
             Operator = MakeToken(op),
-            Right = new MultiplicativeNode { Left = rightUnary },
+            Right = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = rightUnary } },
         };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
@@ -241,7 +241,7 @@ public class PrettyPrinterPropertyTests
             Suffix = ImmutableArray.Create<PostfixSuffixNode>(memberSuffix),
         };
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = unary } };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };

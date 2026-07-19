@@ -52,6 +52,16 @@ internal static class VariadicsCompilerFixture
         ImmutableArray.Create<IAnalyzer>(new TypeCheckerAnalyzer()),
         ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
 
+    // ── Serializes access to the shared driver ───────────────────────────────
+    // The driver is reused to avoid re-lexing/re-parsing the stdlib on every
+    // compile, but its SemanticModelBuilder and TypeCheckerAnalyzer hold mutable
+    // per-compile instance state (e.g. the analyzer's currentEnclosingType). That
+    // state is safe to reuse across *sequential* iterations, but xUnit runs test
+    // classes in parallel, so concurrent Compile calls would corrupt it (surfacing
+    // as spurious cross-type diagnostics). Guarding every compile with this lock
+    // restores the sequential-access invariant the shared driver relies on.
+    private static readonly object CompileGate = new();
+
     // Reused lexer/parser for the parse-only helper (no pipeline, no analysis).
     private static readonly ILexer Lexer = new MistLexer();
     private static readonly IParser Parser = new MistParser();
@@ -101,7 +111,10 @@ internal static class VariadicsCompilerFixture
                     : globalUsings.ToImmutableArray(),
                 OutputType: outputType);
 
-            return SharedDriver.Compile(options);
+            lock(CompileGate)
+            {
+                return SharedDriver.Compile(options);
+            }
         }
         finally
         {

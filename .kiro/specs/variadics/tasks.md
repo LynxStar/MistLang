@@ -616,6 +616,17 @@ final checkpoint.
       `System.Func<TResult>`); map a value pack `(TArgs...)` to `System.ValueTuple`, nesting when over
       7 elements; map spread-generated members to `Item1..ItemN`
     - _Requirements: 15.1, 16.3, 16.5_
+    - **REOPENED (backend body-level emission incomplete).** What landed: CLR type-name mapping
+      (`Func`/`Action` -> `System.Func`/`System.Action`, `ValueTuple` nesting for N > 7) and a
+      skeleton monomorphized type emitter (`VariadicMonomorphizer`) that writes `Variadic_*.g.cs`.
+      What is NOT done: the emitter still copies the Mist body-level syntax verbatim into the user's
+      `.cs`, so the emitted C# is invalid. Confirmed by emitting `samples/Variadics`: pack type
+      parameters emit as a single `<TArgs>` instead of expanded `<T1..TN>`; `params TArgs` value
+      parameters emit as invalid C# `params TArgs`; `...` spreads (`f(args...)`, `Item... = values...`)
+      copy through verbatim; `TArgs.Length` emits verbatim; explicit bracketed constructions
+      (`Describe<[int, string, bool]>(...)`) emit empty; spread-generated members and the variadic
+      abstract base list are not monomorphized. The outstanding body-level work is task 27 below; the
+      sample cannot compile or run until it lands.
 
   - [x] 19.2 Emit value-level `params T[]` as a C# params array
     - Emit a Value_Level_Params parameter as a C# `params T[]` array parameter so the callee receives
@@ -690,6 +701,7 @@ final checkpoint.
     - Using the shared classic `CompilerDriver`, compile `samples/Variadics` in-process and assert
       zero errors and zero warnings (per the zero-warnings policy); do not spawn a process to run it
     - _Requirements: 18.6_
+    - **RESOLVED by task 27.11.** The full end-to-end gate now compiles the emitted C# through csc, runs the produced program, and matches the Requirement 18 expected output line-by-line; the sample compiles cleanly with zero errors and zero warnings.
 
 - [x] 23. Negative proof - spread destination enforcement (locked gate, classic pipeline)
   - [x] 23.1 Add the classic type-checker rejection test for the Requirement 21 Negative Proof Code
@@ -717,6 +729,84 @@ final checkpoint.
     - Change the `params arrays` row from unimplemented to implemented with a note describing
       homogeneous value-level `params T[]` support, and update the `Summary` table counts
     - _Requirements: 20.1, 20.2_
+
+- [x] 27. Classic backend: body-level variadic monomorphization (runnable sample)
+  - The type checker accepts the Requirement 18 sample, but the C# backend copies Mist body-level
+    syntax verbatim, so the emitted C# does not compile. This task completes the emitter so the
+    sample compiles through `csc` and produces the exact expected output. All work is in
+    `Source/Mist/Backends/CSharpTranspiler/` (`CSharpEmitter.cs`, `VariadicMonomorphizer.cs`,
+    `CSharpTypeMap.cs`) unless noted.
+
+  - [x] 27.1 Monomorphize variadic type declarations and suppress open-generic emission
+    - Emit one concrete C# type per observed arity for each variadic type (`Bundle<T1, T2, T3>`,
+      `ReadOnlyRow<T1, T2>`, `ShapePair<T1, T2>`, `Tup<T1, T2, T3>`) and stop emitting the raw
+      open-generic form (currently `class Bundle<TArgs>`). Make the `VariadicMonomorphizer` output the
+      sole definition and rewrite construction sites (`new Bundle<int, string, bool>(...)`) to the
+      monomorphized type name.
+    - _Requirements: 15.1, 16.5, 22.1_
+
+  - [x] 27.2 Emit spread-generated members and the zip constructor body
+    - For `public TArgs... Item;` emit the aggregate `Item` as `System.ValueTuple<...>` plus the
+      `Item1..ItemN` projections on the emitted type, honoring field vs property kind
+      (`Slot { get; }`), and emit the zip constructor body `Item... = values...;` as per-element
+      assignment / tuple construction. Cover the fixed-size `Shape` pack.
+    - _Requirements: 10.1, 10.7, 10.8, 10.9, 8.5_
+
+  - [x] 27.3 Emit value-side spread at call sites
+    - Expand `f(args...)`, `f(Item...)`, `Sum3(triple...)`, `Join(pair...)`, and `Add2(pair...)` into
+      concrete positional arguments (ValueTuple element accesses), replacing the verbatim `...`
+      currently emitted.
+    - _Requirements: 7.5, 8.2, 8.3, 12.3_
+
+  - [x] 27.4 Emit expression-position pack operations
+    - Emit `TArgs.Length` (and other size-agnostic operations) as the compile-time arity constant of
+      the monomorphized instance.
+    - _Requirements: 6.1, 6.2_
+
+  - [x] 27.5 Monomorphize variadic method declarations per call-site arity
+    - Generate a concrete C# method per observed arity for `Describe`, `MiddleCount`, `TwoPacks`,
+      `Apply`, and `Categorize` (expand the pack type parameter to positional `T1..TN`, expand the
+      value-pack parameter, substitute the body) and resolve each call site to the right monomorphized
+      overload.
+    - _Requirements: 12.1, 12.2, 12.3, 14.1, 14.2_
+
+  - [x] 27.6 Emit explicit bracketed type-argument construction
+    - Fix emission of `Describe<[int, string, bool]>(...)` and `TwoPacks<[int, int], [string]>()`,
+      which currently emit an empty expression; expand the bracketed pack type arguments into the
+      monomorphized call.
+    - _Requirements: 14.3_
+
+  - [x] 27.7 Emit value-pack narrowing
+    - Emit `args is (int, int, int) triple` as a C# `ValueTuple` pattern match and forward the narrowed
+      tuple (`Sum3(triple...)`), across branches that narrow to different shapes.
+    - _Requirements: 12.9, 6.7_
+
+  - [x] 27.8 Emit value-pack parameters under the flattened call convention
+    - Emit a value pack `params TArgs values` as a `System.ValueTuple<...>` parameter (not the invalid
+      C# `params TArgs`) and expand flattened call sites accordingly. Homogeneous `params T[]` stays a
+      C# `params` array (task 19.2).
+    - _Requirements: 7.1, 7.4_
+
+  - [x] 27.9 Emit the variadic abstract type and its implementation at concrete arity
+    - Emit `ICountable<TArgs>` as an interface without instance fields and
+      `Tup<...> : ICountable<int, string, bool>` with the base-list spread monomorphized to the
+      concrete arity (currently emitted as `ICountable<object>`).
+    - _Requirements: 22.2, 9.3_
+
+  - [x] 27.10 Investigate and fix the dropped-operand additive emission defect
+    - `a + b + c` currently emits as `a + c` (the middle operand is dropped) in both lambda and method
+      bodies, which alone would make `forward` and `Sum3` produce wrong values. Find the root cause in
+      the additive-expression emission path, fix it, and add a regression test. Determine whether this
+      is a pre-existing emitter defect independent of variadics and flag it to the user if so.
+    - _Requirements: 18.7_
+
+  - [x] 27.11 Run the Variadics sample end-to-end and validate the exact expected output
+    - Compile `samples/Variadics` through the full classic pipeline including the C# compile (`csc`),
+      run the produced program, and assert its stdout matches the Requirement 18 expected output
+      line-by-line. This is the real Requirement 18.6 / 18.7 gate. Only update
+      `samples/__baselines__/AllFeatures.out` once the produced output matches; do not adjust the
+      proof code or the expected output to force a pass.
+    - _Requirements: 18.6, 18.7_
 
 - [x] 26. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
@@ -756,6 +846,14 @@ final checkpoint.
 - The variadic newtype (Requirement 22.3) is covered by the classic semantic model (task 10.5) and
   Property 21 (task 17.8); it is intentionally not placed in the runnable sample.
 - Diagnostics `MIST_VAR_0001` through `MIST_VAR_0011` follow the design's Error Handling table.
+- **Backend body-level monomorphization outstanding (task 27).** Tasks 9-18 (semantic model + type
+  checker) and 19.2 / 19.3 (value-level `params` array emission and the arity-ceiling diagnostic) are
+  complete, and the Requirement 18 sample type-checks. However, task 19.1 delivered only CLR type-name
+  mapping and skeleton type emission; the emitter still copies Mist body-level syntax (`...` spreads,
+  `params TArgs`, `TArgs.Length`, bracketed pack type arguments, spread-generated member access,
+  variadic base lists) verbatim, so the emitted C# does not compile. Task 27 completes the body-level
+  monomorphization. Requirement 18.6 (compile) and 18.7 (exact output) are NOT met until task 27.11
+  passes.
 
 ## Task Dependency Graph
 
@@ -796,7 +894,12 @@ sub-tasks (including optional `*` tests) appear.
     { "id": 23, "tasks": ["20.3"] },
     { "id": 24, "tasks": ["22.1"] },
     { "id": 25, "tasks": ["22.2"] },
-    { "id": 26, "tasks": ["22.3", "24.1", "25.1"] }
+    { "id": 26, "tasks": ["24.1", "25.1"] },
+    { "id": 27, "tasks": ["27.1"] },
+    { "id": 28, "tasks": ["27.2", "27.4", "27.8"] },
+    { "id": 29, "tasks": ["27.3", "27.5", "27.6", "27.7"] },
+    { "id": 30, "tasks": ["27.9", "27.10"] },
+    { "id": 31, "tasks": ["27.11", "22.3"] }
   ]
 }
 ```

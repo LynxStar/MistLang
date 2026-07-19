@@ -80,12 +80,12 @@ Fib: 0 1 1 2 3 5 8 13 21 34
 FindFirst(30)=2
 FindFirst(99)=-1
 DigitSum(12345)=15
-concat=MistLang
+concat=Mist Lang
 1 2 3 
 2 4 6 
 3 6 9 
 isGreeting=True
-bracket=[]
+bracket=[Mist]
 doubled=42
 length=5
 p1=Point(3, 4) p2=Point(0, 0)
@@ -1047,7 +1047,7 @@ cfg.Describe=Configured(ComputedValue=25, Label=item_25)
 first=100
 second=200
 third=300
-sum=400
+sum=600
 === Structured Concurrency Sample ===
 [task-type-reference]
   Task<int> obtained, type is Task
@@ -1692,4 +1692,26 @@ north: magnitude 1
 frozen: value 21, checksum 42
 vector name (internal): north
 Done!
+=== Variadics Sample ===
+n=5
+empty-pack
+act=7
+arity=3
+explicit=3
+middle=2
+twoPacks=3
+forward=9
+narrowInt=9
+narrowStr=4
+narrowElse=1
+tupleSpread=30
+bundleAgg=42:hi:True
+bundleItem1=42
+bundleMap=42-hi-True
+prop=7:z
+area=7
+abstractCount=3
+sum=10
+sumEmpty=0
+=== Variadics Done ===
 === Done! ===

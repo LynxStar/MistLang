@@ -1352,6 +1352,21 @@
         "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
         "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
         "timestamp": 1784433070020
+      },
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784478055832
+      },
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784478070071
+      },
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784478716507
       }
     ],
     "19.2 Emit value-level `params T[]` as a C# params array": [
@@ -1494,6 +1509,11 @@
         "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
         "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
         "timestamp": 1784473305543
+      },
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784478055934
       }
     ],
     "22.1 Create the Variadics sample project": [
@@ -1560,6 +1580,11 @@
         "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
         "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
         "timestamp": 1784473761918
+      },
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784478055986
       }
     ],
     "23.1 Add the classic type-checker rejection test for the Requirement 21 Negative Proof Code": [
@@ -1648,6 +1673,11 @@
         "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
         "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
         "timestamp": 1784477223510
+      },
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784478056692
       }
     ],
     "9. Classic semantic model: pack type parameters, arity, and type identity": [
@@ -1975,6 +2005,11 @@
         "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
         "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
         "timestamp": 1784472388919
+      },
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784478716581
       }
     ],
     "20. Func / Action bootstrap rewrite (classic pipeline)": [
@@ -2039,6 +2074,188 @@
         "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
         "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
         "timestamp": 1784475168939
+      }
+    ],
+    "27.1 Monomorphize variadic type declarations and suppress open-generic emission": [
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784478056034
+      },
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784478726033
+      },
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784479706763
+      }
+    ],
+    "27.2 Emit spread-generated members and the zip constructor body": [
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784478056079
+      },
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784479712411
+      },
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784480850297
+      }
+    ],
+    "27.3 Emit value-side spread at call sites": [
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784478056133
+      },
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784485211294
+      },
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784486136058
+      }
+    ],
+    "27.4 Emit expression-position pack operations": [
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784478056185
+      },
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784479713263
+      },
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784482348516
+      }
+    ],
+    "27.5 Monomorphize variadic method declarations per call-site arity": [
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784478056226
+      },
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784483176734
+      },
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784485208483
+      }
+    ],
+    "27.6 Emit explicit bracketed type-argument construction": [
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784478056295
+      },
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784486138928
+      },
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784487082024
+      }
+    ],
+    "27.7 Emit value-pack narrowing": [
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784478056344
+      },
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784487082054
+      },
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784488069138
+      }
+    ],
+    "27.8 Emit value-pack parameters under the flattened call convention": [
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784478056398
+      },
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784479713366
+      },
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784483159284
+      }
+    ],
+    "27.9 Emit the variadic abstract type and its implementation at concrete arity": [
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784478056450
+      },
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784489657041
+      },
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784491080862
+      }
+    ],
+    "27.10 Investigate and fix the dropped-operand additive emission defect": [
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784478056600
+      },
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784488090370
+      },
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784489653231
+      }
+    ],
+    "27.11 Run the Variadics sample end-to-end and validate the exact expected output": [
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784478056643
+      },
+      {
+        "executionId": "c27cd35a-0465-470c-9a9f-13fd201a7327",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784491107195
       }
     ]
   }

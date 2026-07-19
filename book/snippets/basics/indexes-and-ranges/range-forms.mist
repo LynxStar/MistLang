@@ -1,0 +1,18 @@
+var numbers = [10, 20, 30, 40, 50];
+
+// Both bounds: from index 1 (inclusive) up to index 4 (exclusive).
+var both = numbers[1..4];
+
+// Start only: from index 2 through to the end.
+var startOnly = numbers[2..];
+
+// End only: from the start up to index 2 (exclusive).
+var endOnly = numbers[..2];
+
+// Full range: a copy of every element.
+var full = numbers[..];
+
+Console.WriteLine($"both={both.Length}");
+Console.WriteLine($"startOnly={startOnly.Length}");
+Console.WriteLine($"endOnly={endOnly.Length}");
+Console.WriteLine($"full={full.Length}");

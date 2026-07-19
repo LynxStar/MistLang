@@ -119,7 +119,7 @@ public class UnboundedExhaustivenessPropertyTests
             Suffix = ImmutableArray<PostfixSuffixNode>.Empty,
         };
         var unaryExpr = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unaryExpr };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = unaryExpr } };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };

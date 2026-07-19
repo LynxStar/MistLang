@@ -171,6 +171,8 @@ The pattern `[> 0, > 0]` matches an array of exactly two elements where both are
 
 List patterns compose with all other subpatterns. You can use relational patterns, logical combinators, or even nested property patterns inside the element positions.
 
+For the full treatment of list patterns, slice bindings, `switch`-arm usage, the empty list pattern `[]`, and the at-most-one-slice rule, see [List and Slice Patterns](list-slice-patterns.md).
+
 ## Tuple Positional Patterns
 
 Tuple positional patterns match tuple elements by position using parenthesized syntax. Instead of the verbose property pattern approach (`value is { Item1: > 0, Item2: > 0 }`), you write the subpatterns directly in parentheses separated by commas — one subpattern per tuple element, matched by position.

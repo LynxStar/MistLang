@@ -704,6 +704,16 @@
           "match": "\\?\\."
         },
         {
+          "comment": "Range operator: matched before the accessor '.' so 'a..b', 'a..', '..b', '..', and slice-pattern '..' inside list patterns all scope as an operator",
+          "name": "keyword.operator.mist",
+          "match": "\\.\\."
+        },
+        {
+          "comment": "Index-from-end operator: ^expr",
+          "name": "keyword.operator.mist",
+          "match": "\\^"
+        },
+        {
           "comment": "Type conversion operator: expr as Type — highlight keyword and following type",
           "match": "\\b(as)\\s+(?:(int|uint|long|ulong|short|ushort|byte|sbyte|float|double|decimal|bool|char|string|regex|unknown)|([A-Z]\\w*))",
           "captures": {
@@ -747,7 +757,6 @@
     },
     "punctuation": {
       "patterns": [
-        { "name": "punctuation.range.mist", "match": "\\.\\." },
         { "name": "punctuation.accessor.mist", "match": "\\." },
         { "name": "punctuation.separator.comma.mist", "match": "," },
         { "name": "punctuation.terminator.statement.mist", "match": ";" }

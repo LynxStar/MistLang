@@ -78,7 +78,7 @@ public static class MistAsExpressionGenerator
             Suffix = ImmutableArray<PostfixSuffixNode>.Empty,
         };
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = unary } };
         return new AdditiveNode { Left = mult };
     }
 
@@ -94,7 +94,7 @@ public static class MistAsExpressionGenerator
             Suffix = ImmutableArray<PostfixSuffixNode>.Empty,
         };
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = unary } };
         return new AdditiveNode { Left = mult };
     }
 
@@ -110,7 +110,7 @@ public static class MistAsExpressionGenerator
             Suffix = ImmutableArray<PostfixSuffixNode>.Empty,
         };
         var leftUnary = new PostfixExpressionUnaryNode { Primary = leftPostfix };
-        var leftMult = new MultiplicativeNode { Left = leftUnary };
+        var leftMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = leftUnary } };
 
         var rightPrimary = new IdentifierExpressionPrimaryNode { Name = Tok(rightName) };
         var rightPostfix = new PostfixNode
@@ -119,7 +119,7 @@ public static class MistAsExpressionGenerator
             Suffix = ImmutableArray<PostfixSuffixNode>.Empty,
         };
         var rightUnary = new PostfixExpressionUnaryNode { Primary = rightPostfix };
-        var rightMult = new MultiplicativeNode { Left = rightUnary };
+        var rightMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = rightUnary } };
 
         return new AdditiveNode { Left = leftMult, Operator = Tok("+"), Right = rightMult };
     }

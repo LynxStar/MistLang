@@ -1,0 +1,3 @@
+namespace Standard;
+
+intrinsic public struct Range { }

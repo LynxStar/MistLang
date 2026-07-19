@@ -1,0 +1,19 @@
+using Standard;
+
+// Slicing a span with a range yields a VIEW over the same backing memory,
+// not a copy.
+Span<int> buffer = stackalloc int[5];
+buffer[0] = 10;
+buffer[1] = 20;
+buffer[2] = 30;
+buffer[3] = 40;
+buffer[4] = 50;
+
+var view = buffer[1..4];
+Console.WriteLine($"viewLength={view.Length}");
+Console.WriteLine($"view0={view[0]}");
+
+// Writing through the view is visible through the original span, because
+// both reference the same stack memory.
+view[0] = 99;
+Console.WriteLine($"buffer1={buffer[1]}");

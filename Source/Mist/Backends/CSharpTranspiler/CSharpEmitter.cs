@@ -1508,10 +1508,18 @@ internal sealed class CSharpSourceWriter
 
     private void ScanMultiplicativeForValueReturningCalls(MultiplicativeNode node, HashSet<string> voidMethodNames, bool isValueContext)
     {
-        ScanUnaryForValueReturningCalls(node.Left, voidMethodNames, isValueContext);
-        if(node.Right is not null && !ReferenceEquals(node.Right, node.Left))
+        // Scan the pass-through (NonRange) operand's inner unary. A genuine range
+        // expression contains no value-returning calls in existing code paths; range
+        // scanning is a later range task.
+        if(node.Left.UnwrapRange() is { } left)
         {
-            ScanUnaryForValueReturningCalls(node.Right, voidMethodNames, isValueContext);
+            ScanUnaryForValueReturningCalls(left, voidMethodNames, isValueContext);
+        }
+
+        if(node.Right is not null && !ReferenceEquals(node.Right, node.Left)
+            && node.Right.UnwrapRange() is { } right)
+        {
+            ScanUnaryForValueReturningCalls(right, voidMethodNames, isValueContext);
         }
     }
 
@@ -5620,7 +5628,7 @@ internal sealed class CSharpSourceWriter
             return null;
         }
 
-        var unary = multiplicative.Left;
+        var unary = multiplicative.Left.UnwrapRange();
         if(unary is not PostfixExpressionUnaryNode postfixUnary)
         {
             return null;
@@ -7882,7 +7890,8 @@ internal sealed class CSharpSourceWriter
             return null;
         }
 
-        if(multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+        var unary = multiplicative?.Left.UnwrapRange();
+        if(unary is not PostfixExpressionUnaryNode postfixUnary)
         {
             return null;
         }
@@ -13257,6 +13266,20 @@ internal sealed class CSharpSourceWriter
         return string.Join(", ", parts);
     }
 
+    /// <summary>
+    /// Emits a single <see cref="ListPatternElementNode"/> in its C# list-pattern form.
+    /// <para>
+    /// A fixed element emits through <see cref="EmitPattern"/> (Req 22.1). A
+    /// <see cref="SliceElementListPatternElementNode"/> emits the C# slice pattern
+    /// <c>..</c> when it carries no sub-pattern (Req 22.2), or <c>.. &lt;subpattern&gt;</c>
+    /// (a single space then the sub-pattern's C# emission) when it carries one (Req 22.3).
+    /// Reading <see cref="SliceElementListPatternElementNode.Subpattern"/> reproduces
+    /// <c>.. var m</c>, <c>.. _</c>, <c>.. int[] rest</c>, <c>.. [.., 5]</c>, and
+    /// <c>.. { Length: &gt; 0 }</c>. Element order is preserved by the caller
+    /// <see cref="EmitListPatternElementList"/>, and the element is emitted in the
+    /// corresponding C# <c>is</c>/<c>switch</c> position (Req 22.4).
+    /// </para>
+    /// </summary>
     private string EmitListPatternElement(ListPatternElementNode element)
     {
         switch(element)
@@ -13265,10 +13288,9 @@ internal sealed class CSharpSourceWriter
                 return EmitPattern(patternElement.Pattern);
             case SliceElementListPatternElementNode sliceElement:
                 {
-                    // C# requires `.. var name` for slice variables (Mist uses `.. name`)
-                    if(sliceElement.Name.HasValue)
+                    if(sliceElement.Subpattern is not null)
                     {
-                        return $".. var {sliceElement.Name.Value.Lexeme}";
+                        return $".. {EmitPattern(sliceElement.Subpattern)}";
                     }
 
                     return "..";
@@ -13335,9 +13357,40 @@ internal sealed class CSharpSourceWriter
             multiplicative,
             multiplicative.Left,
             multiplicative.Operator.Lexeme,
-            multiplicative.Unarys,
+            multiplicative.Ranges,
             multiplicative.Right,
-            EmitUnary);
+            EmitRange);
+    }
+
+    /// <summary>
+    /// Emits a <see cref="RangeNode"/> operand of the multiplicative tier.
+    /// <para>
+    /// The pass-through <see cref="NonRangeRangeNode"/> form emits its inner unary
+    /// unchanged, preserving existing output for every non-range expression. A
+    /// genuine <see cref="RangeExpressionRangeNode"/> emits the C# range operator
+    /// <c>..</c> with each present bound rendered through the unary emitter and each
+    /// absent bound rendered as nothing, so all four forms (<c>a..b</c>, <c>a..</c>,
+    /// <c>..b</c>, <c>..</c>) are preserved. Because a from-end bound is a
+    /// <see cref="FromEndExpressionUnaryNode"/>, it renders as <c>^(k)</c> via the
+    /// unary emitter, so <c>1..^1</c> emits as <c>1..^(1)</c>.
+    /// </para>
+    /// </summary>
+    private string EmitRange(RangeNode range)
+    {
+        switch(range)
+        {
+            case NonRangeRangeNode nonRange:
+                return EmitUnary(nonRange.Operand);
+            case RangeExpressionRangeNode rangeExpr:
+                {
+                    var start = rangeExpr.Start is not null ? EmitUnary(rangeExpr.Start) : string.Empty;
+                    var end = rangeExpr.End is not null ? EmitUnary(rangeExpr.End) : string.Empty;
+                    return $"{start}..{end}";
+                }
+
+            default:
+                return string.Empty;
+        }
     }
 
     private string EmitUnary(UnaryNode unary)
@@ -13355,6 +13408,15 @@ internal sealed class CSharpSourceWriter
                 {
                     var operand = EmitUnary(negate.Operand);
                     return EmitUnaryOperator(negate, "-", operand);
+                }
+            case FromEndExpressionUnaryNode fromEnd:
+                {
+                    // Index-from-end `^operand` emits the C# `System.Index` from-end
+                    // expression with the operand always parenthesized, so precedence
+                    // and evaluation order are preserved regardless of the operand
+                    // shape: `^1` -> `^(1)`, `^(count + 1)` -> `^((count + 1))`.
+                    var operand = EmitUnary(fromEnd.Operand);
+                    return $"^({operand})";
                 }
             case AsyncExpressionUnaryNode asyncExpr:
                 {
@@ -15006,6 +15068,32 @@ internal sealed class CSharpSourceWriter
                 }
             case IndexSuffixPostfixSuffixNode indexSuffix:
                 {
+                    // Element access `receiver[argument]`. The argument is emitted through
+                    // the normal expression pipeline, so a from-end index `^k` renders as
+                    // `^(k)` (unary emitter) and a range `a..b` renders as `a..b`
+                    // (EmitRange), preserving present/absent and from-end bounds. Element
+                    // access is emitted in its natural C# form `{receiver}[{argument}]`
+                    // (Req 11.3, 11.4) and the C# compiler performs its built-in
+                    // Index/Range lowering.
+                    //
+                    // Native lowering covers every receiver category the type checker
+                    // accepts (SemanticModelBuilder.IsIndexableType / IsSliceableType):
+                    // arrays (new array, Req 10.5), Span<T>/ReadOnlySpan<T> (view,
+                    // Req 10.6), string (new string, Req 10.7), a System.Range indexer
+                    // (used directly), and a Countable type with an `int` Count/Length
+                    // plus a Slice(int, int) method (C# implicit range support lowers
+                    // `receiver[range]` to `receiver.Slice(offset, length)`, satisfying
+                    // Req 11.5). That last case holds even when the members are declared
+                    // on an interface, so the "slice member reachable only through an
+                    // interface" scenario the design flagged as a possible native-lowering
+                    // gap does not actually occur (verified against the C# compiler for
+                    // both concrete- and interface-typed receivers). This resolves the
+                    // design's open question (design section 6b) in favor of universal
+                    // native lowering: because C# always slices through the receiver's own
+                    // Slice member (or its Range indexer), the emitter never materializes
+                    // an explicit Slice(int, int) call with a local GetOffsetAndLength
+                    // computation -- which could not be expressed in this expression
+                    // position without re-evaluating the receiver anyway.
                     var index = EmitExpression(indexSuffix.Index);
                     return $"{target}[{index}]";
                 }

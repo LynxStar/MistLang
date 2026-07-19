@@ -80,7 +80,7 @@ A refinement type can constrain properties of a class or struct type using prope
 {{#endtab }}
 {{#endtabs }}
 
-The property pattern `{ Start: >= 0 }` constrains the `Start` property of `Range`. Because `Range` is declared `readonly`, the compiler can guarantee the constraint holds for the lifetime of the value after validation.
+The property pattern `{ Start: >= 0 }` constrains the `Start` property of `Interval`. Because `Interval` is declared `readonly`, the compiler can guarantee the constraint holds for the lifetime of the value after validation.
 
 ## Everything is Compile-Time
 

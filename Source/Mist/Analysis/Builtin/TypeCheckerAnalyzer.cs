@@ -2210,10 +2210,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         List<ReadViolation> violations,
         HashSet<string>? allNonDefaultableFields)
     {
-        AnalyzeUnaryForReads(multiplicative.Left, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
-        if(multiplicative.Right is not null)
+        // A genuine range expression (UnwrapRange == null) contributes no field reads
+        // that this analysis handles; range-bound read analysis is a later range task.
+        if(multiplicative.Left.UnwrapRange() is { } left)
         {
-            AnalyzeUnaryForReads(multiplicative.Right, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+            AnalyzeUnaryForReads(left, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+        }
+
+        if(multiplicative.Right is not null && multiplicative.Right.UnwrapRange() is { } right)
+        {
+            AnalyzeUnaryForReads(right, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
         }
     }
 
@@ -2512,7 +2518,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return false;
         }
 
-        if(multiplicative.Left is not PostfixExpressionUnaryNode postfixExpr)
+        if(multiplicative.Left.UnwrapRange() is not PostfixExpressionUnaryNode postfixExpr)
         {
             return false;
         }
@@ -2535,7 +2541,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var assignment = expr.AsAssignmentOrNull();
         if(assignment?.Target.Left?.Left.Left.Left is RelationalComparisonRelationalNode relational)
         {
-            if(relational.Left.Left.Left is PostfixExpressionUnaryNode postfixExpr
+            if(relational.Left.Left.Left.UnwrapRange() is PostfixExpressionUnaryNode postfixExpr
                 && postfixExpr.Primary?.Target is ThisExpressionPrimaryNode thisNode)
             {
                 return thisNode;
@@ -2595,7 +2601,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(multiplicative.Left is not PostfixExpressionUnaryNode postfixExpr)
+        if(multiplicative.Left.UnwrapRange() is not PostfixExpressionUnaryNode postfixExpr)
         {
             return null;
         }
@@ -2698,7 +2704,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(multiplicative.Left is not PostfixExpressionUnaryNode postfixExpr)
+        if(multiplicative.Left.UnwrapRange() is not PostfixExpressionUnaryNode postfixExpr)
         {
             return null;
         }
@@ -2778,7 +2784,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(multiplicative.Left is not PostfixExpressionUnaryNode postfixExpr)
+        if(multiplicative.Left.UnwrapRange() is not PostfixExpressionUnaryNode postfixExpr)
         {
             return null;
         }
@@ -5221,7 +5227,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+        if(multiplicative?.Left.UnwrapRange() is not PostfixExpressionUnaryNode postfixUnary)
         {
             return null;
         }
@@ -5261,7 +5267,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+        if(multiplicative?.Left.UnwrapRange() is not PostfixExpressionUnaryNode postfixUnary)
         {
             return null;
         }
@@ -5352,7 +5358,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+        if(multiplicative?.Left.UnwrapRange() is not PostfixExpressionUnaryNode postfixUnary)
         {
             return null;
         }
@@ -5499,7 +5505,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+        if(multiplicative?.Left.UnwrapRange() is not PostfixExpressionUnaryNode postfixUnary)
         {
             return null;
         }
@@ -5731,7 +5737,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+        if(multiplicative?.Left.UnwrapRange() is not PostfixExpressionUnaryNode postfixUnary)
         {
             return null;
         }
@@ -6046,7 +6052,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+        if(multiplicative?.Left.UnwrapRange() is not PostfixExpressionUnaryNode postfixUnary)
         {
             return null;
         }
@@ -7516,7 +7522,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(multiplicative.Left is not PostfixExpressionUnaryNode postfixExpr)
+        if(multiplicative.Left.UnwrapRange() is not PostfixExpressionUnaryNode postfixExpr)
         {
             return null;
         }
@@ -7570,7 +7576,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        var unary = multiplicative.Left;
+        var unary = multiplicative.Left.UnwrapRange();
         if(multiplicative.Right is not null)
         {
             return null;
@@ -8565,19 +8571,33 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             case ListPatternPrimaryPatternNode listPattern:
                 {
-                    // MIST_TC_0054: Verify scrutinee is an array type.
-                    if(scrutineeType is not ArrayType arrayType)
+                    // Suppress cascading diagnostics when the scrutinee already
+                    // resolved to an error/unknown type upstream.
+                    if(scrutineeType is ErrorType or UnknownType)
                     {
-                        diagnostics.ReportAtNode(TypeCheckDiagnostics.PatternListRequiresArray, listPattern, "TypeChecker");
                         break;
                     }
 
-                    var elementType = arrayType.ElementType;
+                    // MIST_TC_0054: a list pattern requires a countable, indexable
+                    // receiver (arrays, spans, string, List<T>, countable+int-indexer),
+                    // not just an array (Req 20.3).
+                    if(!SemanticModelBuilder.IsIndexableType(scrutineeType))
+                    {
+                        diagnostics.ReportAtNode(
+                            TypeCheckDiagnostics.PatternListRequiresIndexable, listPattern, "TypeChecker", scrutineeType.DisplayName);
+                        break;
+                    }
 
-                    // Count fixed elements and recursively validate.
+                    // Element sub-patterns are checked against the receiver's element
+                    // type (Req 20.1); a carried slice sub-pattern is validated against
+                    // the receiver's slice-result type inside the element-list check.
+                    var elementType = SemanticModelBuilder.TryGetElementType(scrutineeType, out var resolvedElementType)
+                        ? resolvedElementType
+                        : ErrorType.Instance;
+
                     if(listPattern.Elements is not null)
                     {
-                        CheckListPatternElementList(listPattern.Elements, elementType, model, diagnostics);
+                        CheckListPatternElementList(listPattern.Elements, scrutineeType, elementType, model, diagnostics);
                     }
 
                     break;
@@ -8858,13 +8878,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Validates a list pattern element list: counts fixed elements, checks for
-    /// too many elements, and recursively validates element patterns.
+    /// Validates a list pattern element list: retains the fixed-element count used by
+    /// the <see cref="TypeCheckDiagnostics.PatternListTooManyElements"/> (MIST_TC_0055)
+    /// check, enforces the at-most-one-slice rule
+    /// (<see cref="TypeCheckDiagnostics.PatternListMultipleSlices"/>, MIST_TC_0186,
+    /// Req 20.4), type-checks each fixed element sub-pattern against the receiver's
+    /// element type (Req 20.1), and validates each slice element against the receiver's
+    /// slice-result type via <see cref="CheckSliceElement"/> (Req 20.2, 20.5).
     /// </summary>
     private static void CheckListPatternElementList(
         ListPatternElementListNode elementList,
+        IType receiverType,
         IType elementType,
-
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
@@ -8872,9 +8897,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var allElements = new List<ListPatternElementNode> { elementList.ListPatternElement };
         allElements.AddRange(elementList.ListPatternElements);
 
-        // Count fixed (non-slice) elements.
+        // Count fixed (non-slice) elements and slice elements.
         var fixedCount = 0;
         var hasSlice = false;
+        var sliceCount = 0;
         foreach(var element in allElements)
         {
             if(element is PatternElementListPatternElementNode)
@@ -8884,6 +8910,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             else if(element is SliceElementListPatternElementNode)
             {
                 hasSlice = true;
+                sliceCount++;
             }
         }
 
@@ -8898,6 +8925,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // The warning is informational — the actual length check happens at runtime.
         }
 
+        // MIST_TC_0186: a list pattern may contain at most one slice pattern (Req 20.4).
+        if(sliceCount > 1)
+        {
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.PatternListMultipleSlices, elementList, "TypeChecker");
+        }
+
         // Recursively validate each element pattern.
         foreach(var element in allElements)
         {
@@ -8906,11 +8939,61 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 case PatternElementListPatternElementNode patternElement:
                     CheckPattern(patternElement.Pattern, elementType, model, diagnostics);
                     break;
-                case SliceElementListPatternElementNode:
-                    // Slice elements need no type checking.
+                case SliceElementListPatternElementNode sliceElement:
+                    CheckSliceElement(sliceElement, receiverType, model, diagnostics);
                     break;
             }
         }
+    }
+
+    /// <summary>
+    /// Validates a slice element (<c>.. subpattern?</c>) inside a list pattern. A bare
+    /// slice needs no further checking beyond the indexable-receiver requirement the
+    /// caller already enforced. A slice that carries a sub-pattern requires the
+    /// receiver to be a sliceable type (<see cref="SemanticModelBuilder.IsSliceableType"/>);
+    /// otherwise <see cref="TypeCheckDiagnostics.PatternSliceRequiresSliceable"/>
+    /// (MIST_TC_0187) is emitted naming the receiver type (Req 20.5). When the receiver
+    /// is sliceable the carried sub-pattern is type-checked against the receiver's
+    /// slice-result type (<see cref="SemanticModelBuilder.TryGetSliceResultType"/>,
+    /// Req 20.2). A receiver that already resolved to an error/unknown type is
+    /// suppressed to avoid cascading diagnostics, mirroring the sibling pattern checks.
+    /// </summary>
+    private static void CheckSliceElement(
+        SliceElementListPatternElementNode sliceElement,
+        IType receiverType,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // A bare slice `..` carries no sub-pattern and needs no receiver validation
+        // beyond the indexable-receiver requirement enforced by the caller.
+        if(sliceElement.Subpattern is null)
+        {
+            return;
+        }
+
+        // Suppress when the receiver already resolved to an error/unknown type.
+        if(receiverType is ErrorType or UnknownType)
+        {
+            return;
+        }
+
+        // MIST_TC_0187: a slice sub-pattern requires a sliceable receiver (Req 20.5).
+        // List<T> is indexable but NOT sliceable, so this rejects a carrying slice
+        // (e.g. `[.., var rest]`) applied to a List<T>.
+        if(!SemanticModelBuilder.IsSliceableType(receiverType))
+        {
+            diagnostics.ReportAtNode(
+                TypeCheckDiagnostics.PatternSliceRequiresSliceable, sliceElement, "TypeChecker", receiverType.DisplayName);
+            return;
+        }
+
+        // Type-check the carried sub-pattern against the receiver's slice-result type
+        // (array -> same array, span -> same span, string -> string, custom -> declared
+        // slice-result type) (Req 20.2).
+        var sliceResultType = SemanticModelBuilder.TryGetSliceResultType(receiverType, out var resolvedSliceType)
+            ? resolvedSliceType
+            : ErrorType.Instance;
+        CheckPattern(sliceElement.Subpattern, sliceResultType, model, diagnostics);
     }
 
     // ── Pattern variable collection helpers (for or/not pattern checks) ──
@@ -9042,14 +9125,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             case ListPatternPrimaryPatternNode listPattern:
                 {
-                    var elementType = scrutineeType is ArrayType arrayType
-                        ? arrayType.ElementType
+                    var elementType = SemanticModelBuilder.TryGetElementType(scrutineeType, out var resolvedElementType)
+                        ? resolvedElementType
                         : ErrorType.Instance;
 
                     if(listPattern.Elements is not null)
                     {
                         CollectPatternVariablesFromListElementList(
-                            listPattern.Elements, elementType, model, variables);
+                            listPattern.Elements, scrutineeType, elementType, model, variables);
                     }
 
                     break;
@@ -9095,20 +9178,22 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     private static void CollectPatternVariablesFromListElementList(
         ListPatternElementListNode elementList,
+        IType receiverType,
         IType elementType,
         ISemanticModel model,
         Dictionary<string, IType> variables)
     {
-        CollectPatternVariablesFromListElement(elementList.ListPatternElement, elementType, model, variables);
+        CollectPatternVariablesFromListElement(elementList.ListPatternElement, receiverType, elementType, model, variables);
 
         foreach(var element in elementList.ListPatternElements)
         {
-            CollectPatternVariablesFromListElement(element, elementType, model, variables);
+            CollectPatternVariablesFromListElement(element, receiverType, elementType, model, variables);
         }
     }
 
     private static void CollectPatternVariablesFromListElement(
         ListPatternElementNode element,
+        IType receiverType,
         IType elementType,
         ISemanticModel model,
         Dictionary<string, IType> variables)
@@ -9119,14 +9204,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 CollectPatternVariablesFromPattern(patternElement.Pattern, elementType, model, variables);
                 break;
             case SliceElementListPatternElementNode sliceElement:
-                if(sliceElement.Name.HasValue)
+                // Collect any variables the slice sub-pattern binds, typed as the
+                // receiver's slice-result type (array -> same array, span -> same span,
+                // string -> string, custom -> declared slice-result type), so a binding
+                // such as `.. var middle` on a non-array sliceable receiver is recorded
+                // with the correct type instead of always an array of the element type.
+                if(sliceElement.Subpattern is not null)
                 {
-                    var name = sliceElement.Name.Value.Lexeme;
-                    if(name != "_")
-                    {
-                        // Slice variable captures a sub-array.
-                        variables[name] = new ArrayType(elementType);
-                    }
+                    var sliceResultType = SemanticModelBuilder.TryGetSliceResultType(receiverType, out var resolvedSliceType)
+                        ? resolvedSliceType
+                        : ErrorType.Instance;
+                    CollectPatternVariablesFromPattern(
+                        sliceElement.Subpattern, sliceResultType, model, variables);
                 }
 
                 break;
@@ -9351,11 +9440,28 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     private void CheckMultiplicativeNode(MultiplicativeNode node, ISemanticModel model, DiagnosticBag diagnostics)
     {
-        CheckUnaryNode(node.Left, model, diagnostics);
+        // For the pass-through (NonRange) operand, check the inner unary as before.
+        // A genuine range expression has its bounds validated by CheckRange
+        // (Requirement 7).
+        if(node.Left.UnwrapRange() is { } left)
+        {
+            CheckUnaryNode(left, model, diagnostics);
+        }
+        else if(node.Left is RangeExpressionRangeNode leftRange)
+        {
+            CheckRange(leftRange, model, diagnostics);
+        }
 
         if(node.Right is not null)
         {
-            CheckUnaryNode(node.Right, model, diagnostics);
+            if(node.Right.UnwrapRange() is { } right)
+            {
+                CheckUnaryNode(right, model, diagnostics);
+            }
+            else if(node.Right is RangeExpressionRangeNode rightRange)
+            {
+                CheckRange(rightRange, model, diagnostics);
+            }
 
             // Route typing / error emission through overload resolution
             // (Requirements 6.1, 6.4, 6.7). Multiplicative operators
@@ -9413,6 +9519,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         diagnostics);
                     break;
                 }
+            case FromEndExpressionUnaryNode fromEnd:
+                {
+                    // Walk the operand first so its own operators / members
+                    // still get analysed, then validate the operand type.
+                    CheckUnaryNode(fromEnd.Operand, model, diagnostics);
+                    CheckFromEndExpression(fromEnd, model, diagnostics);
+                    break;
+                }
             case PostfixExpressionUnaryNode postfix:
                 CheckPostfixNode(postfix.Primary, model, diagnostics);
                 // Propagate refined type from the PostfixNode up to the
@@ -9440,6 +9554,168 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 CheckAwaitOperandType(awaitExpr, model, diagnostics);
                 break;
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Index-from-end operand validation (MIST_TC_0181 / MIST_TC_0182)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Validates the operand of an index-from-end expression (<c>^operand</c>).
+    /// The operand must be integer-compatible, in which case the expression is
+    /// accepted (Requirement 6.1). A <c>void</c>-typed operand emits
+    /// <see cref="TypeCheckDiagnostics.IndexFromEndOperandVoid"/> (MIST_TC_0182,
+    /// Requirement 6.3); any other non-integer operand emits
+    /// <see cref="TypeCheckDiagnostics.IndexFromEndOperandNotInteger"/>
+    /// (MIST_TC_0181, Requirements 6.2, 12.1), naming the operand type. Exactly
+    /// one diagnostic is emitted, located at the index-from-end expression's
+    /// source span. When the operand already resolved to an unknown or error
+    /// type (a prior error that produced its own diagnostic), the check is
+    /// suppressed to avoid cascading diagnostics — mirroring the sibling unary
+    /// operand checks in this file.
+    /// </summary>
+    private static void CheckFromEndExpression(
+        FromEndExpressionUnaryNode fromEnd,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var operandType = model.GetTypeOf(fromEnd.Operand);
+
+        // Suppress cascading diagnostics when the operand type is unresolved or
+        // already reported as an error upstream.
+        if(operandType is null or UnknownType || IsErrorType(operandType))
+        {
+            return;
+        }
+
+        // Integer-compatible operand — accept (Requirement 6.1).
+        if(IsIntLike(operandType))
+        {
+            return;
+        }
+
+        // A void-typed operand gets the dedicated diagnostic (Requirement 6.3),
+        // never the generic non-integer one.
+        if(operandType.IsVoid())
+        {
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.IndexFromEndOperandVoid, fromEnd, "TypeChecker");
+            return;
+        }
+
+        // Any other non-integer operand type (Requirements 6.2, 12.1).
+        diagnostics.ReportAtNode(TypeCheckDiagnostics.IndexFromEndOperandNotInteger, fromEnd, "TypeChecker", operandType.DisplayName);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Range bound validation (MIST_TC_0183)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Validates the bounds of a range expression (<c>start..end</c>). Each
+    /// syntactically present bound (either may be absent) is first walked so its
+    /// own nested operators and member accesses — including a from-end bound's
+    /// operand — are still analysed, then its resolved type is checked: an
+    /// integer-compatible bound (Requirement 7.1) or a <c>Standard.Index</c>
+    /// bound (Requirement 7.2) is accepted. A present bound with any other type
+    /// rejects the <em>entire</em> range with exactly one
+    /// <see cref="TypeCheckDiagnostics.RangeBoundInvalidType"/> (MIST_TC_0183,
+    /// Requirements 7.3, 12.2), naming the offending bound type and pointing at
+    /// that bound's source span. An absent bound is always valid and denotes the
+    /// start or end of the sequence (Requirement 7.4); a present-but-invalid
+    /// bound is never treated as absent (Requirement 7.5). A bound that already
+    /// resolved to an unknown or error type (a prior error that produced its own
+    /// diagnostic) is skipped to avoid cascading diagnostics, mirroring
+    /// <see cref="CheckFromEndExpression"/>.
+    /// </summary>
+    private void CheckRange(
+        RangeExpressionRangeNode range,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Walk each present bound first so nested operators / members (and a
+        // from-end bound's own operand) are still analysed.
+        if(range.Start is not null)
+        {
+            CheckUnaryNode(range.Start, model, diagnostics);
+        }
+
+        if(range.End is not null)
+        {
+            CheckUnaryNode(range.End, model, diagnostics);
+        }
+
+        // Validate the present bounds. The whole range is rejected on the first
+        // invalid present bound, so at most one MIST_TC_0183 is emitted.
+        if(!ValidateRangeBound(range.Start, model, diagnostics))
+        {
+            return;
+        }
+
+        _ = ValidateRangeBound(range.End, model, diagnostics);
+    }
+
+    /// <summary>
+    /// Validates a single range bound. Returns <c>true</c> when the bound is
+    /// absent (Requirement 7.4), integer-compatible (Requirement 7.1),
+    /// <c>Standard.Index</c> (Requirement 7.2), or already error-typed
+    /// (suppressed to avoid cascading diagnostics); returns <c>false</c> and
+    /// emits <see cref="TypeCheckDiagnostics.RangeBoundInvalidType"/>
+    /// (MIST_TC_0183) when the bound is present with an invalid type
+    /// (Requirements 7.3, 7.5, 12.2).
+    /// </summary>
+    private static bool ValidateRangeBound(
+        UnaryNode? bound,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Absent bound — always valid (Requirement 7.4).
+        if(bound is null)
+        {
+            return true;
+        }
+
+        var boundType = model.GetTypeOf(bound);
+
+        // Suppress cascading diagnostics when the bound type is unresolved or
+        // already reported as an error upstream.
+        if(boundType is null or UnknownType || IsErrorType(boundType))
+        {
+            return true;
+        }
+
+        // Integer-compatible bound (Requirement 7.1) or Standard.Index bound
+        // (Requirement 7.2) — accept.
+        if(IsIntLike(boundType) || IsStandardIndex(boundType))
+        {
+            return true;
+        }
+
+        // Any other present bound type rejects the entire range (Requirements
+        // 7.3, 7.5, 12.2), naming the offending bound type and pointing at the
+        // bound's source span.
+        diagnostics.ReportAtNode(TypeCheckDiagnostics.RangeBoundInvalidType, bound, "TypeChecker", boundType.DisplayName);
+        return false;
+    }
+
+    /// <summary>
+    /// Returns true when <paramref name="type"/> is the stdlib
+    /// <c>Standard.Index</c> struct (surfaced from <c>System.Index</c>), used to
+    /// accept an index-from-end value as a range bound (Requirement 7.2).
+    /// </summary>
+    private static bool IsStandardIndex(IType type)
+    {
+        return type is StructType { ContainingNamespace: "Standard", DisplayName: "Index" };
+    }
+
+    /// <summary>
+    /// Returns true when <paramref name="type"/> is the stdlib
+    /// <c>Standard.Range</c> struct (surfaced from <c>System.Range</c>), used to
+    /// route a range-typed element-access argument through the sliceable-receiver
+    /// validation path (Requirements 8.7, 12.4).
+    /// </summary>
+    private static bool IsStandardRange(IType type)
+    {
+        return type is StructType { ContainingNamespace: "Standard", DisplayName: "Range" };
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -10890,7 +11166,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        var unary = multiplicative.Left;
+        var unary = multiplicative.Left.UnwrapRange();
         if(unary is not PostfixExpressionUnaryNode postfixExpr)
         {
             return null;
@@ -11010,7 +11286,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        var unary = multiplicative.Left;
+        var unary = multiplicative.Left.UnwrapRange();
         if(unary is not PostfixExpressionUnaryNode postfixExpr)
         {
             return null;
@@ -11126,7 +11402,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        var unary = multiplicative.Left;
+        var unary = multiplicative.Left.UnwrapRange();
         if(unary is not PostfixExpressionUnaryNode postfixExpr)
         {
             return null;
@@ -12210,7 +12486,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+        if(multiplicative?.Left.UnwrapRange() is not PostfixExpressionUnaryNode postfixUnary)
         {
             return null;
         }
@@ -13523,6 +13799,31 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
     }
 
+    /// <summary>
+    /// Validates an element-access <c>receiver[argument]</c> (an
+    /// <see cref="IndexSuffixPostfixSuffixNode"/>), branching on the argument's
+    /// Compile_Time_Type:
+    /// <list type="bullet">
+    /// <item>a <c>Standard.Index</c> argument (e.g. from <c>^k</c>) requires an
+    /// indexable receiver (<see cref="SemanticModelBuilder.IsIndexableType"/>),
+    /// otherwise <see cref="TypeCheckDiagnostics.IndexAccessRequiresIndexable"/>
+    /// (MIST_TC_0184) is emitted naming the receiver type (Req 8.6, 12.3);</item>
+    /// <item>a <c>Standard.Range</c> argument (e.g. from <c>a..b</c>) requires a
+    /// sliceable receiver (<see cref="SemanticModelBuilder.IsSliceableType"/>),
+    /// otherwise <see cref="TypeCheckDiagnostics.RangeAccessRequiresSliceable"/>
+    /// (MIST_TC_0185) is emitted naming the receiver type (Req 8.7, 12.4);</item>
+    /// <item>an ordinary integer argument or a matching custom indexer keeps its
+    /// existing validation (<see cref="TypeCheckDiagnostics.IndexerParameterTypeMismatch"/>
+    /// and the index-refinement checks below), unchanged.</item>
+    /// </list>
+    /// The <c>Index</c>/<c>Range</c> branches short-circuit the integer/custom-indexer
+    /// path (an <c>Index</c>/<c>Range</c> value is deliberately not <c>int</c>-like).
+    /// An argument or receiver type that resolved to an unknown or error type (a prior
+    /// error that produced its own diagnostic) is suppressed to avoid cascading
+    /// diagnostics, mirroring <see cref="CheckFromEndExpression"/> and
+    /// <see cref="CheckRange"/>. The diagnostic is reported at the element-access span
+    /// (Req 12.3, 12.4).
+    /// </summary>
     private void CheckIndexSuffix(
         IndexSuffixPostfixSuffixNode indexSuffix,
         IType? targetType,
@@ -13533,6 +13834,42 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         CheckExpression(indexSuffix.Index, model, diagnostics);
 
         var indexType = model.GetTypeOf(indexSuffix.Index);
+
+        // Branch on the argument's resolved type (ranges-and-indices, Req 8.6, 8.7,
+        // 12.3, 12.4). A Standard.Index / Standard.Range argument follows a dedicated
+        // receiver-validation path that short-circuits the ordinary integer /
+        // custom-indexer validation below. Suppress when the argument type is
+        // unresolved or already reported as an error upstream.
+        if(indexType is not null and not UnknownType && !IsErrorType(indexType))
+        {
+            if(IsStandardIndex(indexType))
+            {
+                // Index-from-end (or direct Index) access requires a countable,
+                // indexable receiver (Req 8.6, 12.3).
+                if(targetType is not null and not UnknownType && !IsErrorType(targetType)
+                    && !SemanticModelBuilder.IsIndexableType(targetType))
+                {
+                    diagnostics.ReportAtNode(
+                        TypeCheckDiagnostics.IndexAccessRequiresIndexable, indexSuffix, "TypeChecker", targetType.DisplayName);
+                }
+
+                return;
+            }
+
+            if(IsStandardRange(indexType))
+            {
+                // Range slicing requires a sliceable receiver (Req 8.7, 12.4).
+                if(targetType is not null and not UnknownType && !IsErrorType(targetType)
+                    && !SemanticModelBuilder.IsSliceableType(targetType))
+                {
+                    diagnostics.ReportAtNode(
+                        TypeCheckDiagnostics.RangeAccessRequiresSliceable, indexSuffix, "TypeChecker", targetType.DisplayName);
+                }
+
+                return;
+            }
+        }
+
         var hasCustomIndexer = false;
 
         // If the target type has a custom indexer (e.g., Dictionary<TKey, TValue>),

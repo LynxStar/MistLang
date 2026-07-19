@@ -78,6 +78,7 @@ public class Program
         Attributes.Program.RunDemo();
         FullAccessibilityModel.Program.RunDemo();
         Variadics.Program.RunDemo();
+        RangesAndIndices.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

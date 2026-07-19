@@ -116,12 +116,12 @@ public static class TypeCheckDiagnostics
         PipelineStage.Analysis,
         "Property '{0}' does not exist on type '{1}'");
 
-    /// <summary>A list pattern is applied to a scrutinee that is not an array type.</summary>
-    public static readonly DiagnosticDescriptor PatternListRequiresArray = new(
+    /// <summary>A list pattern is applied to a scrutinee that is not a countable, indexable receiver.</summary>
+    public static readonly DiagnosticDescriptor PatternListRequiresIndexable = new(
         new DiagnosticId("MIST_TC_0054"),
         DiagnosticSeverity.Error,
         PipelineStage.Analysis,
-        "A list pattern requires the scrutinee to be an array type, but found '{0}'");
+        "A list pattern requires a countable, indexable receiver, but found '{0}'");
 
     /// <summary>
     /// A list pattern has more fixed elements than the array could contain.
@@ -1679,4 +1679,71 @@ public static class TypeCheckDiagnostics
         DiagnosticSeverity.Warning,
         PipelineStage.Analysis,
         "'{0}' is a new protected member declared in a sealed type; protected members in sealed types are unnecessary because the type cannot be inherited");
+
+    // ── Ranges-and-indices diagnostics ───────────────────────────────────
+
+    /// <summary>
+    /// The index-from-end operator '^' is applied to an operand whose type is not
+    /// an integer.
+    /// </summary>
+    public static readonly DiagnosticDescriptor IndexFromEndOperandNotInteger = new(
+        new DiagnosticId("MIST_TC_0181"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "The index-from-end operator '^' requires an integer operand, but the operand has type '{0}'");
+
+    /// <summary>
+    /// The index-from-end operator '^' is applied to a <c>void</c>-typed expression.
+    /// </summary>
+    public static readonly DiagnosticDescriptor IndexFromEndOperandVoid = new(
+        new DiagnosticId("MIST_TC_0182"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "A void-typed expression cannot be used as the operand of the index-from-end operator '^'");
+
+    /// <summary>
+    /// A range bound is neither an integer nor an <c>Index</c>.
+    /// </summary>
+    public static readonly DiagnosticDescriptor RangeBoundInvalidType = new(
+        new DiagnosticId("MIST_TC_0183"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "A range bound must be an integer or an 'Index', but the bound has type '{0}'");
+
+    /// <summary>
+    /// Index-from-end access is applied to a receiver that is not a countable,
+    /// indexable type.
+    /// </summary>
+    public static readonly DiagnosticDescriptor IndexAccessRequiresIndexable = new(
+        new DiagnosticId("MIST_TC_0184"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Index-from-end access requires a countable, indexable receiver, but the receiver has type '{0}'");
+
+    /// <summary>
+    /// Range slicing is applied to a receiver that is not a sliceable type.
+    /// </summary>
+    public static readonly DiagnosticDescriptor RangeAccessRequiresSliceable = new(
+        new DiagnosticId("MIST_TC_0185"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Range slicing requires a sliceable receiver, but the receiver has type '{0}'");
+
+    /// <summary>
+    /// A list pattern contains more than one slice pattern.
+    /// </summary>
+    public static readonly DiagnosticDescriptor PatternListMultipleSlices = new(
+        new DiagnosticId("MIST_TC_0186"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "A list pattern may contain at most one slice pattern");
+
+    /// <summary>
+    /// A slice subpattern is applied to a receiver that is not a sliceable type.
+    /// </summary>
+    public static readonly DiagnosticDescriptor PatternSliceRequiresSliceable = new(
+        new DiagnosticId("MIST_TC_0187"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "A slice subpattern requires a sliceable receiver, but the receiver has type '{0}'");
 }

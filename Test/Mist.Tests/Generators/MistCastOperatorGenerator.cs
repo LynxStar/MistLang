@@ -239,7 +239,7 @@ public static class MistCastOperatorGenerator
     /// </summary>
     public static ExpressionNode WrapCastExpression(CastExpressionUnaryNode castExpr)
     {
-        var mult = new MultiplicativeNode { Left = castExpr };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = castExpr } };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };

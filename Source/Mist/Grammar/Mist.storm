@@ -549,7 +549,12 @@ rule Relational
                               | GREATER_THAN_OR_EQUAL) right:Additive)*         as RelationalComparison
     ;
 rule Additive   = left:Multiplicative (operator:(PLUS | MINUS) right:Multiplicative)*;
-rule Multiplicative = left:Unary (operator:(STAR | SLASH | MODULO) right:Unary)*;
+rule Multiplicative = left:Range (operator:(STAR | SLASH | MODULO) right:Range)*;
+
+rule Range
+    = start:Unary? DOTDOT end:Unary?   as RangeExpression
+    | operand:Unary                    as NonRange
+    ;
 
 @memo
 rule Unary
@@ -569,6 +574,7 @@ rule Unary
     | AWAIT operand:Unary                                                         as AwaitExpression
     | EXCLAMATION operand:Unary    as LogicalNot
     | MINUS operand:Unary          as Negate
+    | CARET operand:Unary          as FromEndExpression
     ;
 
 @memo
@@ -740,5 +746,5 @@ rule ListPatternElementList = ListPatternElement (COMMA ListPatternElement)*;
 
 rule ListPatternElement
     = pattern:Pattern                          as PatternElement
-    | DOTDOT name:(IDENTIFIER | DISCARD)?      as SliceElement
+    | DOTDOT subpattern:Pattern?               as SliceElement
     ;

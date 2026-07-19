@@ -47,6 +47,8 @@ internal static class CSharpTypeMap
         ["Standard.IEnumerable"] = "System.Collections.Generic.IEnumerable",
         ["Standard.Span"] = "System.Span",
         ["Standard.ReadOnlySpan"] = "System.ReadOnlySpan",
+        ["Standard.Index"] = "System.Index",
+        ["Standard.Range"] = "System.Range",
 
         // ── Legacy Mist-primitive keyword lexemes (test compat) ──────────
         // Kept so that tests that build a semantic model without loading

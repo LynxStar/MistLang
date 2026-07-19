@@ -1,0 +1,10 @@
+var numbers = [10, 20, 30, 40, 50];
+
+// `^1` counts from the end: it is the last element (offset Length - 1).
+var last = numbers[^1];
+
+// `^2` is the second-to-last element.
+var secondToLast = numbers[^2];
+
+Console.WriteLine($"last={last}");
+Console.WriteLine($"secondToLast={secondToLast}");

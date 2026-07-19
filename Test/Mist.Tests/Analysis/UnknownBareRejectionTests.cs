@@ -12,7 +12,7 @@
 //     `PatternUndefinedProperty` diagnostic.
 //   * `MIST_TC_0066` — bare-unknown operator (Req 13.2). Reallocated
 //     from the design-document-proposed `MIST_TC_0054`, already in
-//     use by `PatternListRequiresArray`.
+//     use by `PatternListRequiresIndexable`.
 // See the `BareUnknownMemberAccess` / `BareUnknownOperator`
 // allocation comments in `TypeCheckerAnalyzer.cs`.
 //
@@ -58,7 +58,7 @@ public class UnknownBareRejectionTests
     /// Diagnostic code emitted when an operator is applied to an
     /// operand of <c>UnknownType</c> (Req 13.2). Reallocated from the
     /// design-document-proposed <c>MIST_TC_0054</c>, already owned by
-    /// <c>PatternListRequiresArray</c>.
+    /// <c>PatternListRequiresIndexable</c>.
     /// </summary>
     private const string BareUnknownOperatorDiagnosticId = "MIST_TC_0066";
 

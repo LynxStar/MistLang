@@ -1,0 +1,25 @@
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var numbers = [10, 20, 30, 40, 50];
+
+        // Slicing to a zero-length range produces an empty array.
+        var empty = numbers[0..0];
+
+        // The empty list pattern `[]` matches only a zero-length receiver.
+        if (empty is [])
+        {
+            Console.WriteLine("empty matched");
+        }
+
+        if (numbers is [])
+        {
+            Console.WriteLine("unreachable");
+        }
+        else
+        {
+            Console.WriteLine("numbers is not empty");
+        }
+    }
+}

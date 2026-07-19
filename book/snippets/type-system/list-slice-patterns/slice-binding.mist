@@ -1,0 +1,18 @@
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var numbers = [10, 20, 30, 40, 50];
+
+        // `.. var middle` binds the contiguous middle sub-sequence. The element
+        // patterns before and after the slice bind from the start and from the
+        // end. Slicing an array yields a new array, so `middle` is an int[].
+        if (numbers is [var first, .. var middle, var last])
+        {
+            Console.WriteLine($"first={first}");
+            Console.WriteLine($"last={last}");
+            Console.WriteLine($"middleLength={middle.Length}");
+            Console.WriteLine($"middleFirst={middle[0]}");
+        }
+    }
+}

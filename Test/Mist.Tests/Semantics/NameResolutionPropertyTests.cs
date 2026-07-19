@@ -84,7 +84,7 @@ public class NameResolutionPropertyTests
             Suffix = ImmutableArray<PostfixSuffixNode>.Empty,
         };
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = unary } };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
@@ -109,7 +109,7 @@ public class NameResolutionPropertyTests
             Suffix = ImmutableArray<PostfixSuffixNode>.Empty,
         };
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = unary } };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };

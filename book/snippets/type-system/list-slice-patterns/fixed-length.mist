@@ -1,0 +1,24 @@
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var triple = [1, 2, 3];
+
+        // A fixed-length list pattern matches only when the receiver length
+        // equals the element count and every element pattern matches.
+        if (triple is [1, 2, 3])
+        {
+            Console.WriteLine("matched exactly [1, 2, 3]");
+        }
+
+        var pair = [1, 2];
+        if (pair is [1, 2, 3])
+        {
+            Console.WriteLine("unreachable");
+        }
+        else
+        {
+            Console.WriteLine("length mismatch: no match");
+        }
+    }
+}

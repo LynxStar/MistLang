@@ -68,3 +68,4 @@ DisposableDropInterop = { path = "../DisposableDropInterop" }
 Attributes = { path = "../Attributes" }
 FullAccessibilityModel = { path = "../FullAccessibilityModel" }
 Variadics = { path = "../Variadics" }
+RangesAndIndices = { path = "../RangesAndIndices" }

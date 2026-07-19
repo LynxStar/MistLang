@@ -18,6 +18,7 @@
 - [Control Flow](basics/control-flow.md)
 - [Methods](basics/functions.md)
 - [Arrays](basics/array-literals.md)
+- [Indexes and Ranges](basics/indexes-and-ranges.md)
 - [Tuples](basics/tuples.md)
 
 # Object Model
@@ -44,6 +45,7 @@
 - [Optional Types](type-system/optional-types.md)
 - [Newtypes](type-system/newtypes.md)
 - [Pattern Matching](type-system/pattern-matching.md)
+- [List and Slice Patterns](type-system/list-slice-patterns.md)
 - [Switch Expressions](type-system/switch-expressions.md)
 - [Cast Operators](type-system/cast-operators.md)
 - [The As Operator](type-system/as-operator.md)

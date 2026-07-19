@@ -184,8 +184,8 @@ public class VoidEqualityMismatchPropertyTests
     /// </summary>
     private static ExpressionNode MakeEqualityExpression(UnaryNode left, UnaryNode right, string op)
     {
-        var leftMult = new MultiplicativeNode { Left = left };
-        var rightMult = new MultiplicativeNode { Left = right };
+        var leftMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = left } };
+        var rightMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = right } };
         var leftAdd = new AdditiveNode { Left = leftMult };
         var rightAdd = new AdditiveNode { Left = rightMult };
         var leftRel = new RelationalComparisonRelationalNode { Left = leftAdd };

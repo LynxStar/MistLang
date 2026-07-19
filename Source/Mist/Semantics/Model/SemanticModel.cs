@@ -261,7 +261,7 @@ public sealed class SemanticModel : ISemanticModel
             return null;
         }
 
-        var unary = multiplicative.Left;
+        var unary = multiplicative.Left.UnwrapRange();
         if(unary is not PostfixExpressionUnaryNode postfixExpr)
         {
             return null;

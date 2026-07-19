@@ -52,7 +52,7 @@ internal static class WellKnownTypes
 
     /// <summary>
     /// All primitive types that have a keyword alias (the ones the
-    /// <see cref="Construction.TypeReferenceResolver"/> maps from syntax).
+    /// <see cref="Construction.ScopeResolver"/> maps from syntax).
     /// </summary>
     public static readonly IReadOnlyList<WellKnownType> PrimitiveTypes =
     [

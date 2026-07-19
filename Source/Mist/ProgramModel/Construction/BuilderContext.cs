@@ -19,7 +19,7 @@ internal sealed class BuilderContext
         ProgramModel = programModel;
         Diagnostics = diagnostics;
         AmbientProvider = ambientProvider;
-        TypeResolver = new TypeReferenceResolver(this);
+        Resolver = new ScopeResolver(this);
     }
 
     public Scope GlobalScope { get; }
@@ -31,10 +31,10 @@ internal sealed class BuilderContext
     public IAmbientTypeProvider AmbientProvider { get; }
 
     /// <summary>
-    /// The shared type reference resolver for this compilation. Resolves AST type
-    /// syntax into <see cref="Contracts.Types.IMistType"/> via scope-based lookup.
+    /// The shared scope resolver for this compilation. Resolves names and AST type
+    /// syntax into types, variables, or other symbols via scope-based lookup.
     /// </summary>
-    public TypeReferenceResolver TypeResolver { get; }
+    public ScopeResolver Resolver { get; }
 
     /// <summary>
     /// Extension block AST nodes collected during Phase 1.

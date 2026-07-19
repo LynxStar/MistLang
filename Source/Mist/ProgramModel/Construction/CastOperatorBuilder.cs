@@ -12,13 +12,13 @@ namespace Mist.ProgramModel.Construction;
 internal sealed class CastOperatorBuilder
 {
     private readonly BuilderContext context;
-    private readonly TypeReferenceResolver typeResolver;
+    private readonly ScopeResolver scopeResolver;
     private readonly DelegateResolver delegateResolver;
 
-    public CastOperatorBuilder(BuilderContext context, TypeReferenceResolver typeResolver, DelegateResolver delegateResolver)
+    public CastOperatorBuilder(BuilderContext context, ScopeResolver scopeResolver, DelegateResolver delegateResolver)
     {
         this.context = context;
-        this.typeResolver = typeResolver;
+        this.scopeResolver = scopeResolver;
         this.delegateResolver = delegateResolver;
     }
 
@@ -29,7 +29,7 @@ internal sealed class CastOperatorBuilder
     {
         var common = delegateResolver.ResolveDelegate(castOpDecl, typeDef.Scope, typeDef, "cast operator");
         var isImplicit = castOpDecl.CastKind is ImplicitCastCastOperatorKindNode;
-        var targetType = typeResolver.Resolve(castOpDecl.TargetType, typeDef.Scope);
+        var targetType = scopeResolver.Resolve(castOpDecl.TargetType, typeDef.Scope);
 
         if(!common.Modifiers.IsStatic)
         {

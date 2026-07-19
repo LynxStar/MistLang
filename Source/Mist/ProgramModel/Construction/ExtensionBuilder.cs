@@ -12,21 +12,21 @@ namespace Mist.ProgramModel.Construction;
 internal sealed class ExtensionBuilder
 {
     private readonly BuilderContext context;
-    private readonly TypeReferenceResolver typeResolver;
+    private readonly ScopeResolver scopeResolver;
     private readonly MethodBuilder methodBuilder;
     private readonly PropertyBuilder propertyBuilder;
     private readonly ConstraintResolver constraintResolver;
 
-    public ExtensionBuilder(BuilderContext context, TypeReferenceResolver typeResolver)
+    public ExtensionBuilder(BuilderContext context, ScopeResolver scopeResolver)
     {
         this.context = context;
-        this.typeResolver = typeResolver;
-        constraintResolver = new ConstraintResolver(context, typeResolver);
-        var parameterBuilder = new ParameterBuilder(typeResolver);
-        var delegateResolver = new DelegateResolver(context, parameterBuilder, typeResolver);
+        this.scopeResolver = scopeResolver;
+        constraintResolver = new ConstraintResolver(context, scopeResolver);
+        var parameterBuilder = new ParameterBuilder(scopeResolver);
+        var delegateResolver = new DelegateResolver(context, parameterBuilder, scopeResolver);
         var accessorBuilder = new AccessorBuilder(context);
-        methodBuilder = new MethodBuilder(typeResolver, delegateResolver, constraintResolver);
-        propertyBuilder = new PropertyBuilder(context, typeResolver, accessorBuilder);
+        methodBuilder = new MethodBuilder(scopeResolver, delegateResolver, constraintResolver);
+        propertyBuilder = new PropertyBuilder(context, scopeResolver, accessorBuilder);
     }
 
     /// <summary>
@@ -66,7 +66,7 @@ internal sealed class ExtensionBuilder
         }
 
         // Resolve the receiver type reference.
-        var receiverType = typeResolver.Resolve(ast.ReceiverType, extensionScope);
+        var receiverType = scopeResolver.Resolve(ast.ReceiverType, extensionScope);
         extensionBlock.ResolvedReceiverType = receiverType;
 
         // Resolve constraints on extension-level type parameters.

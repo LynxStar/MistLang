@@ -11,12 +11,12 @@ namespace Mist.ProgramModel.Construction;
 internal sealed class ConformanceBuilder
 {
     private readonly BuilderContext context;
-    private readonly TypeReferenceResolver typeResolver;
+    private readonly ScopeResolver scopeResolver;
 
-    public ConformanceBuilder(BuilderContext context, TypeReferenceResolver typeResolver)
+    public ConformanceBuilder(BuilderContext context, ScopeResolver scopeResolver)
     {
         this.context = context;
-        this.typeResolver = typeResolver;
+        this.scopeResolver = scopeResolver;
     }
 
     /// <summary>
@@ -35,7 +35,7 @@ internal sealed class ConformanceBuilder
         var decl = pending.Declaration;
 
         // Resolve the conforming type.
-        var conformingType = typeResolver.ResolveNamedType(decl.TypeName.Lexeme, pending.Scope, decl);
+        var conformingType = scopeResolver.ResolveNamedType(decl.TypeName.Lexeme, pending.Scope, decl);
 
         // Resolve the abstract type, accounting for arity if type args are present.
         var abstractName = decl.AbstractName.Lexeme;
@@ -47,13 +47,13 @@ internal sealed class ConformanceBuilder
             var commas = new string(',', arity - 1);
             var arityName = $"{abstractName}<{commas}>";
 
-            var definition = typeResolver.ResolveNamedType(arityName, pending.Scope, decl);
-            var typeArgs = typeResolver.ResolveTypeArguments(typeArgList, pending.Scope);
+            var definition = scopeResolver.ResolveNamedType(arityName, pending.Scope, decl);
+            var typeArgs = scopeResolver.ResolveTypeArguments(typeArgList, pending.Scope);
             abstractType = context.ProgramModel.TypeInterner.GetOrCreateConstructedType(definition, typeArgs);
         }
         else
         {
-            abstractType = typeResolver.ResolveNamedType(abstractName, pending.Scope, decl);
+            abstractType = scopeResolver.ResolveNamedType(abstractName, pending.Scope, decl);
         }
 
         // Collect member mappings.

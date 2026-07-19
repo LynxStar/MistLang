@@ -10,16 +10,16 @@ namespace Mist.ProgramModel.Construction;
 /// </summary>
 internal sealed class MethodBuilder
 {
-    private readonly TypeReferenceResolver typeResolver;
+    private readonly ScopeResolver scopeResolver;
     private readonly DelegateResolver delegateResolver;
     private readonly ConstraintResolver constraintResolver;
 
     public MethodBuilder(
-        TypeReferenceResolver typeResolver,
+        ScopeResolver scopeResolver,
         DelegateResolver delegateResolver,
         ConstraintResolver constraintResolver)
     {
-        this.typeResolver = typeResolver;
+        this.scopeResolver = scopeResolver;
         this.delegateResolver = delegateResolver;
         this.constraintResolver = constraintResolver;
     }
@@ -46,7 +46,7 @@ internal sealed class MethodBuilder
         }
 
         var common = delegateResolver.ResolveFullDelegate(methodDecl, methodScope, host, name);
-        var returnType = typeResolver.Resolve(methodDecl.ReturnType, methodScope);
+        var returnType = scopeResolver.Resolve(methodDecl.ReturnType, methodScope);
         var returnOwnership = MemberTypeBuilder.ResolveOwnership(methodDecl.ReturnOwnership);
 
         var resolvedMethod = new Method(name, returnType, common.Parameters, common.Modifiers)

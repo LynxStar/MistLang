@@ -12,13 +12,13 @@ namespace Mist.ProgramModel.Construction;
 internal sealed class OperatorBuilder
 {
     private readonly BuilderContext context;
-    private readonly TypeReferenceResolver typeResolver;
+    private readonly ScopeResolver scopeResolver;
     private readonly DelegateResolver delegateResolver;
 
-    public OperatorBuilder(BuilderContext context, TypeReferenceResolver typeResolver, DelegateResolver delegateResolver)
+    public OperatorBuilder(BuilderContext context, ScopeResolver scopeResolver, DelegateResolver delegateResolver)
     {
         this.context = context;
-        this.typeResolver = typeResolver;
+        this.scopeResolver = scopeResolver;
         this.delegateResolver = delegateResolver;
     }
 
@@ -29,7 +29,7 @@ internal sealed class OperatorBuilder
     {
         var common = delegateResolver.ResolveDelegate(opDecl, memberType.Scope, memberType, "operator");
         var kind = MapOperatorSymbol(opDecl.Symbol);
-        var returnType = typeResolver.Resolve(opDecl.ReturnType, memberType.Scope);
+        var returnType = scopeResolver.Resolve(opDecl.ReturnType, memberType.Scope);
 
         if(!common.Modifiers.IsStatic)
         {

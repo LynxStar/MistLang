@@ -13,12 +13,12 @@ namespace Mist.ProgramModel.Construction;
 internal sealed class BaseTypeResolver
 {
     private readonly BuilderContext context;
-    private readonly TypeReferenceResolver typeResolver;
+    private readonly ScopeResolver scopeResolver;
 
-    public BaseTypeResolver(BuilderContext context, TypeReferenceResolver typeResolver)
+    public BaseTypeResolver(BuilderContext context, ScopeResolver scopeResolver)
     {
         this.context = context;
-        this.typeResolver = typeResolver;
+        this.scopeResolver = scopeResolver;
     }
 
     /// <summary>
@@ -155,16 +155,16 @@ internal sealed class BaseTypeResolver
             var commas = new string(',', arity - 1);
             var arityName = $"{name}<{commas}>";
 
-            var definition = typeResolver.ResolveNamedType(arityName, typeDef.Scope, baseTypeRef);
+            var definition = scopeResolver.ResolveNamedType(arityName, typeDef.Scope, baseTypeRef);
             if(definition is ErrorType)
             {
                 return ErrorType.Instance;
             }
 
-            var typeArgs = typeResolver.ResolveTypeArguments(typeArgList, typeDef.Scope);
+            var typeArgs = scopeResolver.ResolveTypeArguments(typeArgList, typeDef.Scope);
             return context.ProgramModel.TypeInterner.GetOrCreateConstructedType(definition, typeArgs);
         }
 
-        return typeResolver.ResolveNamedType(name, typeDef.Scope, baseTypeRef);
+        return scopeResolver.ResolveNamedType(name, typeDef.Scope, baseTypeRef);
     }
 }

@@ -11,7 +11,7 @@ internal sealed class Scope
 {
     private readonly List<string> importedNamespaces = [];
     private readonly Dictionary<string, IMistType> localTypes = [];
-    private readonly Dictionary<string, LocalSymbol> localVariables = [];
+    private readonly Dictionary<string, LocalVariable> localVariables = [];
 
     public Scope(Scope? parent)
     {
@@ -42,6 +42,11 @@ internal sealed class Scope
     public IReadOnlyDictionary<string, IMistType> LocalTypes => localTypes;
 
     /// <summary>
+    /// Local variables and parameters directly declared in this scope.
+    /// </summary>
+    public IReadOnlyDictionary<string, LocalVariable> LocalVariables => localVariables;
+
+    /// <summary>
     /// Adds a namespace to this scope's import list.
     /// </summary>
     public void AddImportedNamespace(string namespaceName)
@@ -66,7 +71,7 @@ internal sealed class Scope
     /// error diagnostic if a variable with the same name already exists directly in
     /// this scope.
     /// </summary>
-    public void RegisterLocal(LocalSymbol local, DiagnosticBag diagnostics)
+    public void RegisterLocal(LocalVariable local, DiagnosticBag diagnostics)
     {
         if(!localVariables.TryAdd(local.Name, local))
         {
@@ -85,7 +90,7 @@ internal sealed class Scope
     /// Looks up a local variable or parameter by name, walking the parent chain.
     /// Returns null if no local with that name is in scope.
     /// </summary>
-    public LocalSymbol? LookupLocal(string name)
+    public LocalVariable? LookupLocal(string name)
     {
         for(var scope = this; scope is not null; scope = scope.Parent)
         {

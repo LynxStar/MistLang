@@ -16,12 +16,12 @@ namespace Mist.ProgramModel.Construction;
 internal sealed class ConstraintResolver
 {
     private readonly BuilderContext context;
-    private readonly TypeReferenceResolver typeResolver;
+    private readonly ScopeResolver scopeResolver;
 
-    public ConstraintResolver(BuilderContext context, TypeReferenceResolver typeResolver)
+    public ConstraintResolver(BuilderContext context, ScopeResolver scopeResolver)
     {
         this.context = context;
-        this.typeResolver = typeResolver;
+        this.scopeResolver = scopeResolver;
     }
 
     /// <summary>
@@ -207,12 +207,12 @@ internal sealed class ConstraintResolver
 
         var paramTypes = new List<IMistType>
         {
-            typeResolver.Resolve(ctor.ParamTypes.TypeReference, scope)
+            scopeResolver.Resolve(ctor.ParamTypes.TypeReference, scope)
         };
 
         foreach(var typeRef in ctor.ParamTypes.TypeReferences)
         {
-            paramTypes.Add(typeResolver.Resolve(typeRef, scope));
+            paramTypes.Add(scopeResolver.Resolve(typeRef, scope));
         }
 
         return new ConstructorConstraint(paramTypes);
@@ -223,7 +223,7 @@ internal sealed class ConstraintResolver
     /// </summary>
     private TypeConstraint ResolveTypeConstraint(TypeConstraintConstraintNode typeNode, Scope scope)
     {
-        var resolved = typeResolver.Resolve(typeNode.Type, scope);
+        var resolved = scopeResolver.Resolve(typeNode.Type, scope);
         return new TypeConstraint(resolved);
     }
 

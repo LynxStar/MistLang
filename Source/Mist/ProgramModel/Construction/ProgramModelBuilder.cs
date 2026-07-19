@@ -69,11 +69,11 @@ public sealed class ProgramModelBuilder
         ambientProvider.BuildAndRegister(programModel);
 
         // Phase 2a: Resolve member signatures on all registered types.
-        var concreteTypeBuilder = new ConcreteTypeBuilder(context, context.TypeResolver);
-        var abstractTypeBuilder = new AbstractTypeBuilder(context, context.TypeResolver);
-        var enumTypeBuilder = new EnumTypeBuilder(context, context.TypeResolver);
-        var newtypeBuilder = new NewtypeBuilder(context, context.TypeResolver);
-        var typeAliasBuilder = new TypeAliasBuilder(context, context.TypeResolver);
+        var concreteTypeBuilder = new ConcreteTypeBuilder(context, context.Resolver);
+        var abstractTypeBuilder = new AbstractTypeBuilder(context, context.Resolver);
+        var enumTypeBuilder = new EnumTypeBuilder(context, context.Resolver);
+        var newtypeBuilder = new NewtypeBuilder(context, context.Resolver);
+        var typeAliasBuilder = new TypeAliasBuilder(context, context.Resolver);
 
         var sourceTypes = programModel
             .TypesByFQN
@@ -105,11 +105,11 @@ public sealed class ProgramModelBuilder
         }
 
         // Phase 2b: Resolve extension blocks (after all types are fully resolved).
-        var extensionBuilder = new ExtensionBuilder(context, context.TypeResolver);
+        var extensionBuilder = new ExtensionBuilder(context, context.Resolver);
         extensionBuilder.BuildAll();
 
         // Phase 2c: Resolve retroactive conformance declarations (with blocks).
-        var conformanceBuilder = new ConformanceBuilder(context, context.TypeResolver);
+        var conformanceBuilder = new ConformanceBuilder(context, context.Resolver);
         conformanceBuilder.BuildAll();
 
         // Phase 3: Bind member bodies into the resolved, AST-free bound tree.
@@ -127,7 +127,7 @@ public sealed class ProgramModelBuilder
             {
                 if(method.Body is not null)
                 {
-                    BodyBinder.BindDelegate(method, context);
+                    BodyBinder.BindDelegate(method, memberType, context);
                 }
             }
         }

@@ -1,5 +1,6 @@
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction;
 
@@ -13,6 +14,12 @@ internal sealed class BindingContext
     /// The lexical scope in effect (locals, parameters, types).
     /// </summary>
     public Scope Scope { get; set; }
+
+    /// <summary>
+    /// The enclosing type whose members are in scope (for resolving sibling
+    /// method calls, field access via implicit this, etc.). Null for top-level statements.
+    /// </summary>
+    public MemberType? EnclosingType { get; set; }
 
     /// <summary>
     /// The enclosing member's declared return type, used as the target for
@@ -43,7 +50,7 @@ internal sealed class BindingContext
     }
 
     /// <summary>
-    /// RAII guard that restores <see cref="BindingContext.TargetType"/> to its
+    /// RAII guard that restores <see cref="TargetType"/> to its
     /// previous value on dispose. Struct to avoid allocation.
     /// </summary>
     internal struct TargetTypeScope : IDisposable

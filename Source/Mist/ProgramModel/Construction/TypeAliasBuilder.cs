@@ -12,13 +12,13 @@ namespace Mist.ProgramModel.Construction;
 /// </summary>
 internal sealed class TypeAliasBuilder
 {
-    private readonly TypeReferenceResolver typeResolver;
+    private readonly ScopeResolver scopeResolver;
     private readonly BuilderContext context;
 
-    public TypeAliasBuilder(BuilderContext context, TypeReferenceResolver typeResolver)
+    public TypeAliasBuilder(BuilderContext context, ScopeResolver scopeResolver)
     {
         this.context = context;
-        this.typeResolver = typeResolver;
+        this.scopeResolver = scopeResolver;
     }
 
     /// <summary>
@@ -59,7 +59,7 @@ internal sealed class TypeAliasBuilder
     /// </summary>
     private IMistType ResolvePossiblyRefined(RefinableSingleTypeExprNode node, Scope scope)
     {
-        var baseType = typeResolver.Resolve(node.Type, scope);
+        var baseType = scopeResolver.Resolve(node.Type, scope);
 
         if(node.Refinement is not null)
         {

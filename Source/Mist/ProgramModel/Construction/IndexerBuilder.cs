@@ -12,14 +12,14 @@ namespace Mist.ProgramModel.Construction;
 internal sealed class IndexerBuilder
 {
     private readonly BuilderContext context;
-    private readonly TypeReferenceResolver typeResolver;
+    private readonly ScopeResolver scopeResolver;
     private readonly AccessorBuilder accessorBuilder;
     private readonly ParameterBuilder parameterBuilder;
 
-    public IndexerBuilder(BuilderContext context, TypeReferenceResolver typeResolver, AccessorBuilder accessorBuilder, ParameterBuilder parameterBuilder)
+    public IndexerBuilder(BuilderContext context, ScopeResolver scopeResolver, AccessorBuilder accessorBuilder, ParameterBuilder parameterBuilder)
     {
         this.context = context;
-        this.typeResolver = typeResolver;
+        this.scopeResolver = scopeResolver;
         this.accessorBuilder = accessorBuilder;
         this.parameterBuilder = parameterBuilder;
     }
@@ -29,7 +29,7 @@ internal sealed class IndexerBuilder
     /// </summary>
     public void Resolve(IndexerDeclarationNode indexerDecl, MemberType memberType)
     {
-        var type = typeResolver.Resolve(indexerDecl.Type, memberType.Scope);
+        var type = scopeResolver.Resolve(indexerDecl.Type, memberType.Scope);
         var modifiers = ModifierBuilder.Build(indexerDecl, context.Diagnostics, memberType);
         var parameters = parameterBuilder.Resolve(indexerDecl.Parameters, memberType.Scope);
         var isAbstract = memberType is AbstractType;

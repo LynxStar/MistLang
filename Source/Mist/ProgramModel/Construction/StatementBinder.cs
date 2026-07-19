@@ -1,4 +1,5 @@
 using Mist.Generated;
+using Mist.ProgramModel.Construction.Expressions;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Statements;
@@ -17,6 +18,7 @@ internal static class StatementBinder
         {
             VariableDeclarationStatementStatementNode declaration => BindVariableDeclaration(declaration, ctx, context),
             ReturnStatementStatementNode returnStatement => BindReturn(returnStatement.ReturnStatement, ctx, context),
+            ExpressionStatementStatementNode exprStatement => BindExpressionStatement(exprStatement, ctx, context),
             BlockStatementStatementNode nestedBlock => BindNestedBlock(nestedBlock.BlockStatement, ctx, context),
             _ => new UnsupportedStatement(statement),
         };
@@ -25,8 +27,14 @@ internal static class StatementBinder
     private static Block BindNestedBlock(BlockNode node, BindingContext ctx, BuilderContext context)
     {
         var block = new Block(node);
-        BodyBinder.BindBody(block, new Scope(ctx.Scope), ctx.ReturnType, context);
+        BodyBinder.BindBody(block, new Scope(ctx.Scope), ctx.ReturnType, ctx.EnclosingType, context);
         return block;
+    }
+
+    private static ExpressionStatement BindExpressionStatement(ExpressionStatementStatementNode statement, BindingContext ctx, BuilderContext context)
+    {
+        var expression = ExpressionBinder.BindExpression(statement.ExpressionStatement.Expression, ctx, context);
+        return new ExpressionStatement(expression);
     }
 
     private static Statement BindVariableDeclaration(VariableDeclarationStatementStatementNode statement, BindingContext ctx, BuilderContext context)
@@ -36,7 +44,7 @@ internal static class StatementBinder
             return new UnsupportedStatement(statement);
         }
 
-        var declaredType = context.TypeResolver.Resolve(typed.Type, ctx.Scope);
+        var declaredType = context.Resolver.Resolve(typed.Type, ctx.Scope);
 
         Expression? initializer = null;
         if(typed.Initializer is not null)
@@ -47,7 +55,7 @@ internal static class StatementBinder
             }
         }
 
-        var local = new LocalSymbol(typed.Name.Lexeme, declaredType);
+        var local = new LocalVariable(typed.Name.Lexeme, declaredType);
         ctx.Scope.RegisterLocal(local, context.Diagnostics);
         return new LocalDeclarationStatement(local, initializer);
     }

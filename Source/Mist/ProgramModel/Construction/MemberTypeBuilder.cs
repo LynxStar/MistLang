@@ -12,7 +12,7 @@ internal abstract class MemberTypeBuilder
 {
     protected BuilderContext Context { get; }
 
-    protected TypeReferenceResolver TypeResolver { get; }
+    protected ScopeResolver ScopeResolver { get; }
 
     protected BaseTypeResolver BaseTypeResolver { get; }
 
@@ -30,19 +30,19 @@ internal abstract class MemberTypeBuilder
 
     protected DelegateResolver DelegateResolver { get; }
 
-    protected MemberTypeBuilder(BuilderContext context, TypeReferenceResolver typeResolver)
+    protected MemberTypeBuilder(BuilderContext context, ScopeResolver scopeResolver)
     {
         Context = context;
-        TypeResolver = typeResolver;
-        BaseTypeResolver = new BaseTypeResolver(context, typeResolver);
-        ConstraintResolver = new ConstraintResolver(context, typeResolver);
+        ScopeResolver = scopeResolver;
+        BaseTypeResolver = new BaseTypeResolver(context, scopeResolver);
+        ConstraintResolver = new ConstraintResolver(context, scopeResolver);
         var accessorBuilder = new AccessorBuilder(context);
-        ParameterBuilder = new ParameterBuilder(typeResolver);
-        DelegateResolver = new DelegateResolver(context, ParameterBuilder, typeResolver);
-        PropertyBuilder = new PropertyBuilder(context, typeResolver, accessorBuilder);
-        IndexerBuilder = new IndexerBuilder(context, typeResolver, accessorBuilder, ParameterBuilder);
-        MethodBuilder = new MethodBuilder(typeResolver, DelegateResolver, ConstraintResolver);
-        OperatorBuilder = new OperatorBuilder(context, typeResolver, DelegateResolver);
+        ParameterBuilder = new ParameterBuilder(scopeResolver);
+        DelegateResolver = new DelegateResolver(context, ParameterBuilder, scopeResolver);
+        PropertyBuilder = new PropertyBuilder(context, scopeResolver, accessorBuilder);
+        IndexerBuilder = new IndexerBuilder(context, scopeResolver, accessorBuilder, ParameterBuilder);
+        MethodBuilder = new MethodBuilder(scopeResolver, DelegateResolver, ConstraintResolver);
+        OperatorBuilder = new OperatorBuilder(context, scopeResolver, DelegateResolver);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

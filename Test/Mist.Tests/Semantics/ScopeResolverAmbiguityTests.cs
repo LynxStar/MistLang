@@ -10,12 +10,12 @@ using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 namespace Mist.Tests.Semantics;
 
 /// <summary>
-/// Unit tests for TypeReferenceResolver ambiguity detection.
+/// Unit tests for ScopeResolver ambiguity detection.
 /// Verifies that when the same type name is visible from multiple imported
 /// namespaces at the same scope level, an ambiguity diagnostic is emitted
 /// rather than silently picking the first match.
 /// </summary>
-public sealed class TypeReferenceResolverAmbiguityTests
+public sealed class ScopeResolverAmbiguityTests
 {
     /// <summary>
     /// Creates a minimal BuilderContext with the given ProgramModel.
@@ -76,7 +76,7 @@ public sealed class TypeReferenceResolverAmbiguityTests
         scope.AddImportedNamespace("NsA");
         scope.AddImportedNamespace("NsB");
 
-        var resolver = new TypeReferenceResolver(context);
+        var resolver = new ScopeResolver(context);
         var result = resolver.ResolveNamedType("Foo", scope, MakeDummyNode());
 
         // Should be ErrorType (ambiguous) and a diagnostic should be emitted.
@@ -109,7 +109,7 @@ public sealed class TypeReferenceResolverAmbiguityTests
         var scope = new Scope(context.GlobalScope) { Namespace = "MyNamespace" };
         scope.AddImportedNamespace("OtherNs");
 
-        var resolver = new TypeReferenceResolver(context);
+        var resolver = new ScopeResolver(context);
         var result = resolver.ResolveNamedType("Foo", scope, MakeDummyNode());
 
         // Should resolve to MyNamespace.Foo without any diagnostic.
@@ -140,7 +140,7 @@ public sealed class TypeReferenceResolverAmbiguityTests
         var localT = new TypeParameter("T", 0, scope, null);
         scope.AddLocalType("T", localT);
 
-        var resolver = new TypeReferenceResolver(context);
+        var resolver = new ScopeResolver(context);
         var result = resolver.ResolveNamedType("T", scope, MakeDummyNode());
 
         // Should resolve to the local type parameter, not the namespace type.
@@ -169,7 +169,7 @@ public sealed class TypeReferenceResolverAmbiguityTests
         scope.AddImportedNamespace("NsA");
         scope.AddImportedNamespace("NsB");
 
-        var resolver = new TypeReferenceResolver(context);
+        var resolver = new ScopeResolver(context);
         var result = resolver.ResolveNamedType("Foo", scope, MakeDummyNode());
 
         var diags = diagnostics.ToImmutableArray();
@@ -204,7 +204,7 @@ public sealed class TypeReferenceResolverAmbiguityTests
         var innerScope = new Scope(outerScope) { Namespace = "Consumer" };
         innerScope.AddImportedNamespace("NsA");
 
-        var resolver = new TypeReferenceResolver(context);
+        var resolver = new ScopeResolver(context);
         var result = resolver.ResolveNamedType("Foo", innerScope, MakeDummyNode());
 
         // Namespaces accumulate — both NsA and NsB are visible, so this is ambiguous.
@@ -240,7 +240,7 @@ public sealed class TypeReferenceResolverAmbiguityTests
         var fileScope = new Scope(context.GlobalScope) { Namespace = "MyApp" };
         fileScope.AddImportedNamespace("MyLib");
 
-        var resolver = new TypeReferenceResolver(context);
+        var resolver = new ScopeResolver(context);
         var result = resolver.ResolveNamedType("Foo", fileScope, MakeDummyNode());
 
         var diags = diagnostics.ToImmutableArray();
@@ -272,7 +272,7 @@ public sealed class TypeReferenceResolverAmbiguityTests
         scope.AddImportedNamespace("NsB");
         scope.AddImportedNamespace("NsC");
 
-        var resolver = new TypeReferenceResolver(context);
+        var resolver = new ScopeResolver(context);
         var result = resolver.ResolveNamedType("Foo", scope, MakeDummyNode());
 
         var diags = diagnostics.ToImmutableArray();
@@ -317,7 +317,7 @@ public sealed class TypeReferenceResolverAmbiguityTests
         scope.AddImportedNamespace("NsA");
         scope.AddImportedNamespace("NsB");
 
-        var resolver = new TypeReferenceResolver(context);
+        var resolver = new ScopeResolver(context);
         var result = resolver.ResolveNamedType("List<>", scope, MakeDummyNode());
 
         var diags = diagnostics.ToImmutableArray();
@@ -353,7 +353,7 @@ public sealed class TypeReferenceResolverAmbiguityTests
         var localT = new TypeParameter("T", 0, typeScope, null);
         typeScope.AddLocalType("T", localT);
 
-        var resolver = new TypeReferenceResolver(context);
+        var resolver = new ScopeResolver(context);
         var result = resolver.ResolveNamedType("T", typeScope, MakeDummyNode());
 
         var diags = diagnostics.ToImmutableArray();
@@ -392,12 +392,121 @@ public sealed class TypeReferenceResolverAmbiguityTests
         var innerScope = new Scope(outerScope) { Namespace = "Consumer" };
         innerScope.AddImportedNamespace("NsA");
 
-        var resolver = new TypeReferenceResolver(context);
+        var resolver = new ScopeResolver(context);
         var result = resolver.ResolveNamedType("Foo", innerScope, MakeDummyNode());
 
         // Same object found via duplicate imports — should resolve cleanly.
         var diags = diagnostics.ToImmutableArray();
         Assert.Same(sharedFoo, result);
         Assert.Empty(diags);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Lookup: Variable in inner scope shadows type in outer scope
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// A local variable declared in an inner scope shadows a type with the same
+    /// name registered in an outer scope. The lookup returns VariableResult and
+    /// never reaches the outer scope.
+    /// </summary>
+    [Fact]
+    public void Lookup_VariableInInnerScope_ShadowsTypeInOuterScope()
+    {
+        var (context, diagnostics) = CreateContext();
+
+        // Outer scope has a local type "x".
+        var outerScope = new Scope(context.GlobalScope);
+        var typeX = new ClassType("x", "Test", new Scope(null), null, null);
+        outerScope.AddLocalType("x", typeX);
+
+        // Inner scope has a local variable "x".
+        var innerScope = new Scope(outerScope);
+        var varX = new LocalVariable("x", ErrorType.Instance);
+        innerScope.RegisterLocal(varX, diagnostics);
+
+        var resolver = new ScopeResolver(context);
+        var result = resolver.Lookup("x", innerScope, MakeDummyNode());
+
+        Assert.IsType<VariableResult>(result);
+        Assert.Same(varX, ((VariableResult)result).Variable);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Lookup: Type in inner scope shadows variable in outer scope
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// A local type declared in an inner scope shadows a variable with the same
+    /// name registered in an outer scope. The lookup returns TypeResult and
+    /// never reaches the outer scope.
+    /// </summary>
+    [Fact]
+    public void Lookup_TypeInInnerScope_ShadowsVariableInOuterScope()
+    {
+        var (context, diagnostics) = CreateContext();
+
+        // Outer scope has a local variable "x".
+        var outerScope = new Scope(context.GlobalScope);
+        var varX = new LocalVariable("x", ErrorType.Instance);
+        outerScope.RegisterLocal(varX, diagnostics);
+
+        // Inner scope has a local type "x".
+        var innerScope = new Scope(outerScope);
+        var typeX = new ClassType("x", "Test", new Scope(null), null, null);
+        innerScope.AddLocalType("x", typeX);
+
+        var resolver = new ScopeResolver(context);
+        var result = resolver.Lookup("x", innerScope, MakeDummyNode());
+
+        Assert.IsType<TypeResult>(result);
+        Assert.Same(typeX, ((TypeResult)result).Type);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Lookup: Nothing in scope chain, namespace has it
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// When no local variable or local type matches in the scope chain, the lookup
+    /// falls back to namespace-based resolution and returns TypeResult.
+    /// </summary>
+    [Fact]
+    public void Lookup_NothingInScopeChain_FallsBackToNamespace()
+    {
+        var (context, _) = CreateContext();
+
+        // Register "Foo" in a namespace and import it.
+        var foo = RegisterType(context.ProgramModel, "NsA", "Foo");
+
+        var scope = new Scope(context.GlobalScope) { Namespace = "Consumer" };
+        scope.AddImportedNamespace("NsA");
+
+        var resolver = new ScopeResolver(context);
+        var result = resolver.Lookup("Foo", scope, MakeDummyNode());
+
+        Assert.IsType<TypeResult>(result);
+        Assert.Same(foo, ((TypeResult)result).Type);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Lookup: Nothing anywhere returns NotFoundResult
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// When the name is not found in any scope level or via namespace imports,
+    /// the lookup returns NotFoundResult.
+    /// </summary>
+    [Fact]
+    public void Lookup_NothingAnywhere_ReturnsNotFound()
+    {
+        var (context, _) = CreateContext();
+
+        var scope = new Scope(context.GlobalScope) { Namespace = "Consumer" };
+
+        var resolver = new ScopeResolver(context);
+        var result = resolver.Lookup("DoesNotExist", scope, MakeDummyNode());
+
+        Assert.IsType<NotFoundResult>(result);
     }
 }

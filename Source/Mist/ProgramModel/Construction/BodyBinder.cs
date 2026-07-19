@@ -1,6 +1,7 @@
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Statements;
+using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction;
 
@@ -14,15 +15,15 @@ internal static class BodyBinder
     /// Binds a delegate (method, constructor, operator, cast operator): seeds the
     /// scope with parameter aliases, then binds the body.
     /// </summary>
-    public static void BindDelegate(Method method, BuilderContext context)
+    public static void BindDelegate(Method method, MemberType enclosingType, BuilderContext context)
     {
         var bodyScope = new Scope(method.Scope);
         foreach(var parameter in method.ParametersList)
         {
-            bodyScope.RegisterLocal(new LocalSymbol(parameter.Name, parameter.Type), context.Diagnostics);
+            bodyScope.RegisterLocal(new LocalVariable(parameter.Name, parameter.Type), context.Diagnostics);
         }
 
-        BindBody(method.Body!, bodyScope, method.ReturnType, context);
+        BindBody(method.Body!, bodyScope, method.ReturnType, enclosingType, context);
     }
 
     /// <summary>
@@ -30,9 +31,9 @@ internal static class BodyBinder
     /// property/indexer accessors (whose parameters are already in scope) and
     /// indirectly by <see cref="BindDelegate"/>.
     /// </summary>
-    public static void BindBody(Block body, Scope scope, IMistType? returnType, BuilderContext context)
+    public static void BindBody(Block body, Scope scope, IMistType? returnType, MemberType? enclosingType, BuilderContext context)
     {
-        var bindingCtx = new BindingContext(scope, returnType);
+        var bindingCtx = new BindingContext(scope, returnType) { EnclosingType = enclosingType };
         var statements = new List<Statement>(body.Node.Statements.Length);
         foreach(var node in body.Node.Statements)
         {

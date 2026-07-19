@@ -11,7 +11,7 @@ namespace Mist.ProgramModel.Construction;
 /// Resolves AST type reference nodes into <see cref="IMistType"/> by performing
 /// scope-based name lookup against the program model.
 /// </summary>
-internal sealed class TypeReferenceResolver
+internal sealed class ScopeResolver
 {
     /// <summary>
     /// The prefix shared by every reserved positional tuple accessor
@@ -21,7 +21,7 @@ internal sealed class TypeReferenceResolver
 
     private readonly BuilderContext context;
 
-    public TypeReferenceResolver(BuilderContext context)
+    public ScopeResolver(BuilderContext context)
     {
         this.context = context;
     }
@@ -368,31 +368,92 @@ internal sealed class TypeReferenceResolver
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Looks up a type name by walking the scope chain.
-    /// Resolution follows C# semantics with a priority order:
-    /// 1. Local types (type parameters, nested types) — cascade with shadowing.
-    /// 2. Own namespace — if found in the scope's own namespace, shadows imports.
-    /// 3. Imports — accumulate from ALL scope levels into a flat pool; ambiguity
-    ///    is reported if multiple distinct types match across the combined imports.
-    /// 4. FQN fallback — if the name contains a dot and nothing above matched,
-    ///    try splitting at the last dot into namespace + type for a direct lookup.
+    /// Resolves a name to whatever it is — variable, type, or not found.
+    /// Walks the scope chain checking localVariables and localTypes at each level,
+    /// then falls back to namespace-based resolution.
     /// </summary>
-    public IMistType ResolveNamedType(string name, Scope scope, Storm.Runtime.SyntaxNode locationNode)
+    public LookupResult Lookup(string name, Scope scope, Storm.Runtime.SyntaxNode locationNode)
     {
-        // Tier 1: Walk up looking for a local type (shadowing applies).
         var current = scope;
         while(current is not null)
         {
+            var candidates = new List<LookupResult>();
+
+            if(current.LocalVariables.TryGetValue(name, out var local))
+            {
+                candidates.Add(new VariableResult(local));
+            }
+
             if(current.LocalTypes.TryGetValue(name, out var localType))
             {
-                return localType;
+                candidates.Add(new TypeResult(localType));
+            }
+
+            if(candidates.Count == 1)
+            {
+                return candidates[0];
+            }
+
+            if(candidates.Count > 1)
+            {
+                return new AmbiguousResult(candidates);
             }
 
             current = current.Parent;
         }
 
+        // Scope chain exhausted — try namespace-based resolution.
+        var namespaceType = ResolveByNamespace(name, scope, locationNode);
+        if(namespaceType is not null)
+        {
+            return new TypeResult(namespaceType);
+        }
+
+        return new NotFoundResult();
+    }
+
+    /// <summary>
+    /// Looks up a type name by walking the scope chain. Delegates to <see cref="Lookup"/>
+    /// and filters to types only. Emits diagnostics for wrong-kind or not-found.
+    /// </summary>
+    public IMistType ResolveNamedType(string name, Scope scope, Storm.Runtime.SyntaxNode locationNode)
+    {
+        var result = Lookup(name, scope, locationNode);
+
+        switch(result)
+        {
+            case TypeResult typeResult:
+                return typeResult.Type;
+
+            case AmbiguousResult:
+                context.Diagnostics.ReportAtNode(
+                    ProgramModelDiagnostics.AmbiguousType, locationNode, null,
+                    name, "<scope>", "<scope>");
+                return ErrorType.Instance;
+
+            case VariableResult:
+                context.Diagnostics.ReportAtNode(
+                    ProgramModelDiagnostics.UnresolvedType, locationNode, null, name);
+                return ErrorType.Instance;
+
+            default:
+                context.Diagnostics.ReportAtNode(
+                    ProgramModelDiagnostics.UnresolvedType, locationNode, null, name);
+                return ErrorType.Instance;
+        }
+    }
+
+    /// <summary>
+    /// Namespace-based type resolution (Tiers 2-4):
+    /// 2. Own namespace — shadows imports.
+    /// 3. Imports — flat pool with ambiguity check.
+    /// 4. FQN fallback.
+    /// Returns null if not found (caller decides whether to emit a diagnostic).
+    /// </summary>
+    private IMistType? ResolveByNamespace(string name, Scope scope, Storm.Runtime.SyntaxNode locationNode)
+    {
         // Tier 2: Check own namespace at each scope level (shadows imports).
-        current = scope;
+        var current = scope;
         while(current is not null)
         {
             if(current.Namespace is not null)
@@ -460,8 +521,7 @@ internal sealed class TypeReferenceResolver
             }
         }
 
-        context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnresolvedType, locationNode, null, name);
-        return ErrorType.Instance;
+        return null;
     }
 
     /// <summary>

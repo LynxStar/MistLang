@@ -18,13 +18,13 @@ internal sealed class DelegateResolver
 {
     private readonly BuilderContext context;
     private readonly ParameterBuilder parameterBuilder;
-    private readonly TypeReferenceResolver typeResolver;
+    private readonly ScopeResolver scopeResolver;
 
-    public DelegateResolver(BuilderContext context, ParameterBuilder parameterBuilder, TypeReferenceResolver typeResolver)
+    public DelegateResolver(BuilderContext context, ParameterBuilder parameterBuilder, ScopeResolver scopeResolver)
     {
         this.context = context;
         this.parameterBuilder = parameterBuilder;
-        this.typeResolver = typeResolver;
+        this.scopeResolver = scopeResolver;
     }
 
     /// <summary>
@@ -86,7 +86,7 @@ internal sealed class DelegateResolver
                     break;
 
                 case ContextWithClauseWithClauseNode contextClause:
-                    var resolvedType = typeResolver.Resolve(contextClause.Type, scope);
+                    var resolvedType = scopeResolver.Resolve(contextClause.Type, scope);
                     contextBindings.Add(new ContextBinding(resolvedType, contextClause.Name.Lexeme));
                     break;
 

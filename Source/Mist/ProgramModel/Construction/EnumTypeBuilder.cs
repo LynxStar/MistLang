@@ -13,12 +13,12 @@ namespace Mist.ProgramModel.Construction;
 internal sealed class EnumTypeBuilder
 {
     private readonly BuilderContext context;
-    private readonly TypeReferenceResolver typeResolver;
+    private readonly ScopeResolver scopeResolver;
 
-    public EnumTypeBuilder(BuilderContext context, TypeReferenceResolver typeResolver)
+    public EnumTypeBuilder(BuilderContext context, ScopeResolver scopeResolver)
     {
         this.context = context;
-        this.typeResolver = typeResolver;
+        this.scopeResolver = scopeResolver;
     }
 
     /// <summary>
@@ -44,7 +44,7 @@ internal sealed class EnumTypeBuilder
     {
         if(enumDecl.Type is { } typeAnnotation)
         {
-            typeDef.UnderlyingType = typeResolver.Resolve(typeAnnotation, typeDef.Scope);
+            typeDef.UnderlyingType = scopeResolver.Resolve(typeAnnotation, typeDef.Scope);
         }
     }
 

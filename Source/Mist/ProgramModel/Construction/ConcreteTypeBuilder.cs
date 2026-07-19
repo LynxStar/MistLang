@@ -16,11 +16,11 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
     private readonly ConstructorBuilder constructorBuilder;
     private readonly CastOperatorBuilder castOperatorBuilder;
 
-    public ConcreteTypeBuilder(BuilderContext context, TypeReferenceResolver typeResolver)
-        : base(context, typeResolver)
+    public ConcreteTypeBuilder(BuilderContext context, ScopeResolver scopeResolver)
+        : base(context, scopeResolver)
     {
         constructorBuilder = new ConstructorBuilder(context, DelegateResolver);
-        castOperatorBuilder = new CastOperatorBuilder(context, typeResolver, DelegateResolver);
+        castOperatorBuilder = new CastOperatorBuilder(context, scopeResolver, DelegateResolver);
     }
 
     /// <summary>
@@ -122,7 +122,7 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
     private void ResolveField(FieldDeclarationNode fieldDecl, ConcreteType typeDef)
     {
         var name = fieldDecl.Name.Lexeme;
-        var type = TypeResolver.Resolve(fieldDecl.Type, typeDef.Scope);
+        var type = ScopeResolver.Resolve(fieldDecl.Type, typeDef.Scope);
         var ownership = ResolveOwnership(fieldDecl.OwnershipSpecifier);
         var modifiers = ModifierBuilder.Build(fieldDecl, Context.Diagnostics, typeDef);
 
@@ -172,7 +172,7 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
                 case DefaultTypeBindingDefaultFieldInitializerNode typeBinding:
                     var bindingName = typeBinding.FieldName.Lexeme;
                     var nestedEntries = ResolveNestedOverrides(typeBinding);
-                    var boundType = TypeResolver.Resolve(typeBinding.TypeName, typeDef.Scope);
+                    var boundType = ScopeResolver.Resolve(typeBinding.TypeName, typeDef.Scope);
                     entries.Add(new DefaultBindingEntry(bindingName, boundType, nestedEntries, typeBinding));
                     break;
             }

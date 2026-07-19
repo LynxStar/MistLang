@@ -13,13 +13,13 @@ namespace Mist.ProgramModel.Construction;
 internal sealed class PropertyBuilder
 {
     private readonly BuilderContext context;
-    private readonly TypeReferenceResolver typeResolver;
+    private readonly ScopeResolver scopeResolver;
     private readonly AccessorBuilder accessorBuilder;
 
-    public PropertyBuilder(BuilderContext context, TypeReferenceResolver typeResolver, AccessorBuilder accessorBuilder)
+    public PropertyBuilder(BuilderContext context, ScopeResolver scopeResolver, AccessorBuilder accessorBuilder)
     {
         this.context = context;
-        this.typeResolver = typeResolver;
+        this.scopeResolver = scopeResolver;
         this.accessorBuilder = accessorBuilder;
     }
 
@@ -43,7 +43,7 @@ internal sealed class PropertyBuilder
     private void ResolveExpressionBodiedProperty(ExpressionBodiedPropertyPropertyDeclarationNode exprProp, IMethodHost host)
     {
         var name = exprProp.Name.Lexeme;
-        var type = typeResolver.Resolve(exprProp.Type, host.Scope);
+        var type = scopeResolver.Resolve(exprProp.Type, host.Scope);
         var modifiers = ModifierBuilder.Build(exprProp, context.Diagnostics, host as MistType);
 
         if(modifiers.IsAsync)
@@ -68,7 +68,7 @@ internal sealed class PropertyBuilder
     private void ResolveBlockProperty(BlockPropertyPropertyDeclarationNode blockProp, IMethodHost host)
     {
         var name = blockProp.Name.Lexeme;
-        var type = typeResolver.Resolve(blockProp.Type, host.Scope);
+        var type = scopeResolver.Resolve(blockProp.Type, host.Scope);
         var modifiers = ModifierBuilder.Build(blockProp, context.Diagnostics, host as MistType);
         var isAbstract = host.IsAbstract;
         var isExtension = host is ExtensionBlock;

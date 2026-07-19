@@ -9,11 +9,11 @@ namespace Mist.ProgramModel.Construction;
 /// </summary>
 internal sealed class ParameterBuilder
 {
-    private readonly TypeReferenceResolver typeResolver;
+    private readonly ScopeResolver scopeResolver;
 
-    public ParameterBuilder(TypeReferenceResolver typeResolver)
+    public ParameterBuilder(ScopeResolver scopeResolver)
     {
-        this.typeResolver = typeResolver;
+        this.scopeResolver = scopeResolver;
     }
 
     public List<Parameter> Resolve(ParameterListNode? paramList, Scope scope)
@@ -36,7 +36,7 @@ internal sealed class ParameterBuilder
     private Parameter ResolveParameter(ParameterNode param, Scope scope)
     {
         var name = param.Name.Lexeme;
-        var type = typeResolver.Resolve(param.Type, scope);
+        var type = scopeResolver.Resolve(param.Type, scope);
 
         // Source-side modifier population (ref/readonly/ownership specifier, the struct-vs-class
         // by-value/by-ref derivation, and the redundant/invalid-combination diagnostics) is handled

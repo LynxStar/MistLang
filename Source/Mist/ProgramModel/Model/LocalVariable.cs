@@ -11,7 +11,7 @@ namespace Mist.ProgramModel.Model;
 /// Ownership tier, ref-kind, and readonly-status will be added when the
 /// corresponding binding features land.
 /// </remarks>
-internal sealed class LocalSymbol(string name, IMistType type)
+internal sealed class LocalVariable(string name, IMistType type)
 {
     public string Name { get; } = name;
 

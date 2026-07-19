@@ -12,8 +12,8 @@ internal sealed class AbstractTypeBuilder : MemberTypeBuilder
 {
     private readonly TypeSlotBuilder typeSlotBuilder;
 
-    public AbstractTypeBuilder(BuilderContext context, TypeReferenceResolver typeResolver)
-        : base(context, typeResolver)
+    public AbstractTypeBuilder(BuilderContext context, ScopeResolver scopeResolver)
+        : base(context, scopeResolver)
     {
         typeSlotBuilder = new TypeSlotBuilder(context, ConstraintResolver);
     }

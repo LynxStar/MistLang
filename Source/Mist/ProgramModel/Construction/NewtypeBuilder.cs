@@ -9,12 +9,12 @@ namespace Mist.ProgramModel.Construction;
 internal sealed class NewtypeBuilder
 {
     private readonly BuilderContext context;
-    private readonly TypeReferenceResolver typeResolver;
+    private readonly ScopeResolver scopeResolver;
 
-    public NewtypeBuilder(BuilderContext context, TypeReferenceResolver typeResolver)
+    public NewtypeBuilder(BuilderContext context, ScopeResolver scopeResolver)
     {
         this.context = context;
-        this.typeResolver = typeResolver;
+        this.scopeResolver = scopeResolver;
     }
 
     /// <summary>
@@ -26,6 +26,6 @@ internal sealed class NewtypeBuilder
         var modifiers = ModifierBuilder.Build(decl, context.Diagnostics, typeDef.DeclaringType);
 
         typeDef.Modifiers = modifiers;
-        typeDef.SourceType = typeResolver.Resolve(decl.SourceType, typeDef.Scope);
+        typeDef.SourceType = scopeResolver.Resolve(decl.SourceType, typeDef.Scope);
     }
 }

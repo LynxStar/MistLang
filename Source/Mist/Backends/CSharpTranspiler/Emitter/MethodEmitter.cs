@@ -14,14 +14,13 @@ internal static class MethodEmitter
         var parameters = BuildParameters(method);
 
         writer.WriteLine($"{modifiers}{returnType} {method.Name}({parameters})");
-        writer.OpenBrace();
-
-        if(method.Body is not null)
+        using(writer.Block())
         {
-            BodyEmitter.EmitBlock(method.Body, writer);
+            if(method.Body is not null)
+            {
+                BodyEmitter.EmitBlock(method.Body, writer);
+            }
         }
-
-        writer.CloseBrace();
     }
 
     private static string BuildModifiers(Method method)

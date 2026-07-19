@@ -75,21 +75,26 @@ internal sealed class CSharpWriter
     }
 
     /// <summary>
-    /// Writes an opening brace on its own line and increases indentation.
+    /// Opens a braced block and returns a disposable that closes it on dispose.
+    /// Usage: <c>using (writer.Block()) { ... }</c>
     /// </summary>
-    public void OpenBrace()
+    public BlockScope Block()
     {
         WriteLine("{");
         Indent();
+        return new BlockScope(this);
     }
 
     /// <summary>
-    /// Decreases indentation and writes a closing brace on its own line.
+    /// Disposable that closes a braced block when disposed.
     /// </summary>
-    public void CloseBrace()
+    internal readonly struct BlockScope(CSharpWriter writer) : IDisposable
     {
-        Dedent();
-        WriteLine("}");
+        public void Dispose()
+        {
+            writer.Dedent();
+            writer.WriteLine("}");
+        }
     }
 
     /// <summary>

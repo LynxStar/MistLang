@@ -110,11 +110,10 @@ public sealed class BodyBindingIntegrationTests : IDisposable
     }
 
     [Fact]
-    public void UnsupportedConstruct_BindsToPlaceholder_WithoutCrashing()
+    public void BinaryOperator_BindsToBinaryExpression()
     {
-        // Binary operators are not part of the walking-skeleton slice. The binder
-        // must degrade to an UnresolvedExpression placeholder rather than throwing,
-        // so Phase 3 stays safe over arbitrary source programs.
+        // Binary operators are now handled by the operator binder. The binder
+        // produces a BinaryExpression wrapping the two operands.
         var source = """
             namespace TestProject;
 
@@ -132,7 +131,10 @@ public sealed class BodyBindingIntegrationTests : IDisposable
         Assert.NotNull(method.Body);
 
         var returnStatement = Assert.IsType<ReturnStatement>(method.Body!.Statements[^1]);
-        _ = Assert.IsType<UnresolvedExpression>(returnStatement.Value);
+        var binary = Assert.IsType<BinaryExpression>(returnStatement.Value);
+        Assert.Equal(BinaryOperatorKind.Add, binary.OperatorKind);
+        Assert.IsType<LocalReferenceExpression>(binary.Left);
+        Assert.IsType<LocalReferenceExpression>(binary.Right);
     }
 
     [Fact]

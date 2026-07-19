@@ -1,0 +1,510 @@
+# V2 Emitter Sample Progression
+#
+# Samples ordered by incremental feature buildup (not strict git chronology).
+# Each entry lists new features required beyond all preceding samples.
+# AllFeatures is excluded (it's a meta-sample that calls all others).
+#
+# Status: done | in-progress | pending
+# The "new features" list is the incremental delta over everything above.
+
+samples:
+
+  # ─── Tier 1: Minimal output ────────────────────────────────────────────────
+
+  - name: Simpliest
+    status: done
+    description: Static method calls, string literals, Console.WriteLine
+    new_features: []
+
+  # ─── Tier 2: Expressions & Control Flow ────────────────────────────────────
+
+  - name: Primitives
+    status: pending
+    description: All primitive types, typed locals, basic arithmetic
+    new_features:
+      - integer literals (all widths + suffixes)
+      - bool literals (true, false)
+      - float/double literals
+      - char literals
+      - binary operators (arithmetic: +, -, *, /, %)
+      - comparison operators (>, <, >=, <=, ==, !=)
+      - typed local declarations (all primitive types)
+      - assignment statements (x = expr)
+      - return with value
+
+  - name: VoidType
+    status: pending
+    description: Void as a first-class type, methods returning void explicitly
+    new_features:
+      - void return type handling
+
+  - name: NestedScoping
+    status: pending
+    description: Nested blocks, variable shadowing, scope lifetimes
+    new_features:
+      - nested block statements
+      - variable shadowing across scopes
+      - if/else statements
+      - logical operators (&&, ||, !)
+      - unary operators (!, -)
+
+  - name: ReadonlyLocals
+    status: pending
+    description: Readonly local variable inference
+    new_features:
+      - var type inference (InferredVariableDeclaration)
+      - readonly local inference
+
+  # ─── Tier 3: Loops & Arrays ────────────────────────────────────────────────
+
+  - name: ArrayLiterals
+    status: pending
+    description: Array literal syntax and basic array usage
+    new_features:
+      - array literal expressions [a, b, c]
+      - array creation (new T[size])
+      - array indexing (read and write)
+      - foreach loop (array iteration)
+
+  - name: HelloMist
+    status: pending
+    description: Kitchen-sink early sample - all basic features together
+    new_features:
+      - while loop
+      - for loop
+      - break statement
+      - string interpolation ($"...")
+      - hex literals (0xFF)
+      - class instantiation (new T(args))
+      - struct declaration and instantiation
+      - instance method calls (obj.Method())
+      - fields (read/write)
+      - constructors
+      - recursive method calls
+
+  # ─── Tier 4: Object Model ──────────────────────────────────────────────────
+
+  - name: Classes
+    status: pending
+    description: Class features beyond HelloMist basics
+    new_features: []
+    notes: Mostly covered by HelloMist, validates the same features
+
+  - name: Inheritance
+    status: pending
+    description: Class inheritance, base constructors, subtype assignability
+    new_features:
+      - class inheritance (class Dog : Animal)
+      - base constructor calls (base(args))
+      - subtype assignability (pass derived to base parameter)
+      - multi-level inheritance chains
+
+  - name: Properties
+    status: pending
+    description: Auto-properties, block accessors, indexers
+    new_features:
+      - auto-properties (get/set)
+      - block-body accessors
+      - expression-bodied properties
+      - field keyword
+      - init accessors
+      - static properties
+      - indexers (this[T])
+      - accessor modifiers (private set)
+
+  - name: Overloading
+    status: pending
+    description: Method overloading resolution
+    new_features:
+      - overload resolution (multiple methods, different params)
+
+  - name: CastOperators
+    status: pending
+    description: Implicit and explicit cast operators
+    new_features:
+      - cast operator declarations
+      - implicit/explicit conversions
+
+  # ─── Tier 5: Type System ───────────────────────────────────────────────────
+
+  - name: Enums
+    status: pending
+    description: Enum declarations and member access
+    new_features:
+      - enum declarations
+      - enum member access
+      - underlying type annotations
+
+  - name: Generics
+    status: pending
+    description: Generic type parameters on classes
+    new_features:
+      - generic type parameters
+      - constructed types (List<int>)
+
+  - name: GenericConstraints
+    status: pending
+    description: Where clauses on generic type parameters
+    new_features:
+      - generic constraints (where T : Trait)
+
+  - name: Tuples
+    status: pending
+    description: Tuple types, literals, destructuring
+    new_features:
+      - tuple type declarations
+      - tuple literals
+      - tuple destructuring
+      - named tuple elements
+
+  - name: TypeUnions
+    status: pending
+    description: Union types (A | B)
+    new_features:
+      - union type declarations
+      - union type narrowing
+
+  - name: TypeAliases
+    status: pending
+    description: Type alias declarations
+    new_features:
+      - type alias (type X = Y)
+
+  - name: UnknownType
+    status: pending
+    description: Gradual typing with unknown
+    new_features:
+      - unknown type
+      - gradual typing semantics
+
+  - name: OptionalTypes
+    status: pending
+    description: Optional/nullable types with T?
+    new_features:
+      - optional type (T?)
+      - null literal
+      - null checks
+
+  # ─── Tier 6: Abstracts & Polymorphism ──────────────────────────────────────
+
+  - name: Interfaces
+    status: pending
+    description: Abstract type declarations, conformance
+    new_features:
+      - abstract type declarations
+      - conformance (with blocks)
+      - abstract method dispatch
+
+  - name: GenericTraits
+    status: pending
+    description: Traits with generic type parameters
+    new_features:
+      - generic abstract types
+
+  - name: AssociatedTypes
+    status: pending
+    description: Associated type slots on abstracts
+    new_features:
+      - associated type declarations
+      - associated type resolution
+
+  - name: AbstractTypes
+    status: pending
+    description: Full abstract type feature set
+    new_features: []
+    notes: Composite of Interfaces + GenericTraits + AssociatedTypes
+
+  # ─── Tier 7: Extensions & Namespaces ───────────────────────────────────────
+
+  - name: ExtensionMethods
+    status: pending
+    description: Extension methods on types
+    new_features:
+      - extension blocks
+      - extension method dispatch
+
+  - name: Namespaces
+    status: pending
+    description: Multi-file projects, using declarations
+    new_features:
+      - multi-file compilation
+      - using declarations mapping to C# namespaces
+      - inferred namespace from project root
+
+  - name: GlobalUsings
+    status: pending
+    description: Global using directives in mist.toml
+    new_features:
+      - global usings (mist.toml config)
+
+  - name: TopLevelStatements
+    status: pending
+    description: Top-level statements (no explicit Main)
+    new_features:
+      - top-level statement programs
+      - implicit entry point generation
+
+  # ─── Tier 8: Pattern Matching & Advanced Expressions ───────────────────────
+
+  - name: SwitchExpressions
+    status: pending
+    description: Pattern matching via switch expressions
+    new_features:
+      - switch expressions
+      - type patterns
+      - constant patterns
+
+  - name: TuplePatternMatching
+    status: pending
+    description: Pattern matching on tuples
+    new_features:
+      - tuple patterns in switch/match
+
+  - name: AsOperator
+    status: pending
+    description: Safe cast with as operator
+    new_features:
+      - as operator (safe downcast)
+
+  - name: TargetTypedNew
+    status: pending
+    description: Target-typed new expressions
+    new_features:
+      - target-typed new (omitting type name)
+
+  # ─── Tier 9: Functions & Iterators ─────────────────────────────────────────
+
+  - name: FirstClassFunctions
+    status: pending
+    description: Functions as values, lambdas
+    new_features:
+      - lambda expressions
+      - function types (Func<>, Action<>)
+      - first-class function passing
+
+  - name: ArityOverloads
+    status: pending
+    description: Overloading on type parameter arity
+    new_features:
+      - arity-based overload resolution
+
+  - name: DelegateFuncConversion
+    status: pending
+    description: Delegate to Func/Action conversion
+    new_features:
+      - delegate type conversion
+
+  - name: Iterators
+    status: pending
+    description: Iterator/yield support
+    new_features:
+      - yield return
+      - iterator methods
+      - IEnumerable emission
+
+  - name: TypeArgumentInference
+    status: pending
+    description: Inferring generic type arguments from usage
+    new_features:
+      - type argument inference at call sites
+
+  # ─── Tier 10: CLR Interop ──────────────────────────────────────────────────
+
+  - name: AmbientTypes
+    status: pending
+    description: CLR types projected from assemblies
+    new_features:
+      - ambient type resolution from CLR assemblies
+      - calling .NET BCL methods beyond Console
+
+  - name: AssemblyTypeProvider
+    status: pending
+    description: Full CLR assembly projection
+    new_features: []
+    notes: Extends AmbientTypes with real assembly loading
+
+  - name: ClrRefInterop
+    status: pending
+    description: CLR ref struct interop
+    new_features:
+      - CLR ref struct projection
+
+  - name: CSharpInteropV2
+    status: pending
+    description: V2 C# interop patterns
+    new_features: []
+    notes: Integration test for ambient provider v2
+
+  # ─── Tier 11: Ownership & Drop ─────────────────────────────────────────────
+
+  - name: OwnershipSystem
+    status: pending
+    description: Ownership tiers (owned, borrowed, unrestricted)
+    new_features:
+      - ownership annotations
+      - ownership tier enforcement
+
+  - name: DeepOwnershipTypes
+    status: pending
+    description: Transitive ownership through type graphs
+    new_features:
+      - transitive ownership analysis
+
+  - name: DropSemantics
+    status: pending
+    description: Deterministic drop semantics
+    new_features:
+      - Drop method synthesis
+      - drop ordering guarantees
+
+  - name: AsyncDropChaining
+    status: pending
+    description: Async drop chains
+    new_features:
+      - async Drop methods
+
+  - name: Ownership
+    status: pending
+    description: Full ownership system demo
+    new_features: []
+    notes: Composite of OwnershipSystem + DeepOwnershipTypes + Drop
+
+  - name: DisposableDropInterop
+    status: pending
+    description: IDisposable interop with Drop
+    new_features:
+      - IDisposable bridging
+
+  - name: SubstructuralFieldDiscipline
+    status: pending
+    description: Field-level ownership tracking
+    new_features:
+      - per-field ownership state tracking
+
+  # ─── Tier 12: Refinement & Dependent Types ─────────────────────────────────
+
+  - name: RefinementTypes
+    status: pending
+    description: Refinement type annotations
+    new_features:
+      - refinement types (where constraints on values)
+
+  - name: DependentTypes
+    status: pending
+    description: Dependent types (value-level type parameters)
+    new_features:
+      - dependent type parameters
+      - lifted types
+
+  - name: AdhocRefinementConstraints
+    status: pending
+    description: Adhoc where clauses on parameters
+    new_features:
+      - adhoc refinement predicates
+
+  - name: RefinementComparison
+    status: pending
+    description: Refinement-aware comparison operations
+    new_features: []
+    notes: Extends RefinementTypes
+
+  - name: DependentTypeRefinementConstraints
+    status: pending
+    description: Combining dependent types with refinements
+    new_features: []
+    notes: Composite
+
+  - name: ArrayBoundsFlowAnalysis
+    status: pending
+    description: Static array bounds checking
+    new_features:
+      - array bounds flow analysis
+
+  # ─── Tier 13: Advanced Features ────────────────────────────────────────────
+
+  - name: RefParameters
+    status: pending
+    description: Ref and in parameter passing
+    new_features:
+      - ref parameters
+      - in parameters
+
+  - name: RefStructs
+    status: pending
+    description: Ref structs (stack-only)
+    new_features:
+      - ref struct declarations
+
+  - name: StackOnlyTypes
+    status: pending
+    description: Stack-only type enforcement
+    new_features:
+      - stack-only constraints
+
+  - name: StructuredConcurrency
+    status: pending
+    description: Structured concurrency with async/await
+    new_features:
+      - async methods
+      - await expressions
+      - structured concurrency primitives
+
+  - name: StructuredContext
+    status: pending
+    description: With-clause context bindings
+    new_features:
+      - with clause on methods
+      - context bindings
+
+  - name: StructInheritance
+    status: pending
+    description: Struct inheritance (Mist-specific)
+    new_features:
+      - struct inheritance
+
+  - name: AnonymousTypes
+    status: pending
+    description: Anonymous type expressions
+    new_features:
+      - anonymous type literals
+
+  - name: Newtypes
+    status: pending
+    description: Newtype wrapper declarations
+    new_features:
+      - newtype declarations
+
+  - name: RegexLiterals
+    status: pending
+    description: Regex type and literal syntax
+    new_features:
+      - regex type
+      - regex literal syntax
+
+  - name: VoidValueLiteral
+    status: pending
+    description: Void as a value, void coalescing
+    new_features:
+      - void literal expression
+      - void coalescing operator (??)
+
+  - name: Attributes
+    status: pending
+    description: Attribute declarations and application
+    new_features:
+      - attribute declarations
+      - attribute application ([Attr])
+
+  - name: DefiniteAssignment
+    status: pending
+    description: Definite assignment analysis
+    new_features:
+      - definite assignment enforcement
+
+  - name: FullAccessibilityModel
+    status: pending
+    description: Protected, internal, sealed
+    new_features:
+      - protected accessibility
+      - internal accessibility
+      - sealed modifier

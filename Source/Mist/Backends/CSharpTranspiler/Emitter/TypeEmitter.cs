@@ -27,19 +27,18 @@ internal static class TypeEmitter
         var accessibility = type.Modifiers.Accessibility == Accessibility.Public ? "public " : "";
 
         writer.WriteLine($"{accessibility}{typeKeyword} {type.Name}");
-        writer.OpenBrace();
-
-        for(var i = 0; i < type.MethodsList.Count; i++)
+        using(writer.Block())
         {
-            if(i > 0)
+            for(var i = 0; i < type.MethodsList.Count; i++)
             {
-                writer.WriteBlankLine();
+                if(i > 0)
+                {
+                    writer.WriteBlankLine();
+                }
+
+                MethodEmitter.Emit(type.MethodsList[i], writer);
             }
-
-            MethodEmitter.Emit(type.MethodsList[i], writer);
         }
-
-        writer.CloseBrace();
 
         return writer.ToString();
     }

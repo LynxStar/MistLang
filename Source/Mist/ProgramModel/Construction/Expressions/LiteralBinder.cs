@@ -4,7 +4,7 @@ using Mist.ProgramModel.Model.Expressions;
 namespace Mist.ProgramModel.Construction.Expressions;
 
 /// <summary>
-/// Binds literal expressions (integer, string, and future: bool, float, char).
+/// Binds literal expressions (integer, string, bool, float, char, hex).
 /// </summary>
 internal static class LiteralBinder
 {
@@ -12,6 +12,56 @@ internal static class LiteralBinder
     {
         var (value, wellKnown) = ParseIntegerLiteral(node.IntegerLiteral.Lexeme);
         var type = context.Resolver.LookupWellKnown(wellKnown);
+        return new LiteralExpression(node, value, type);
+    }
+
+    internal static Expression BindHexLiteral(HexLiteralExpressionPrimaryNode node, BuilderContext context)
+    {
+        var lexeme = node.HexLiteral.Lexeme;
+        var hexStr = lexeme.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? lexeme[2..] : lexeme;
+        var value = long.TryParse(hexStr, System.Globalization.NumberStyles.HexNumber, null, out var parsed) ? parsed : 0L;
+        var type = context.Resolver.LookupWellKnown(WellKnownTypes.Int32);
+        return new LiteralExpression(node, value, type);
+    }
+
+    internal static Expression BindFloatLiteral(FloatLiteralExpressionPrimaryNode node, BuilderContext context)
+    {
+        var lexeme = node.FloatLiteral.Lexeme;
+        var upper = lexeme.ToUpperInvariant();
+
+        if(upper.EndsWith("M", StringComparison.Ordinal))
+        {
+            var digits = lexeme[..^1];
+            var value = decimal.TryParse(digits, out var parsed) ? parsed : 0m;
+            var type = context.Resolver.LookupWellKnown(WellKnownTypes.Decimal);
+            return new LiteralExpression(node, value, type);
+        }
+
+        if(upper.EndsWith("F", StringComparison.Ordinal))
+        {
+            var digits = lexeme[..^1];
+            var value = float.TryParse(digits, out var parsed) ? parsed : 0f;
+            var type = context.Resolver.LookupWellKnown(WellKnownTypes.Single);
+            return new LiteralExpression(node, value, type);
+        }
+
+        // Default: double
+        var dValue = double.TryParse(lexeme.TrimEnd('d', 'D'), out var dParsed) ? dParsed : 0.0;
+        var dType = context.Resolver.LookupWellKnown(WellKnownTypes.Double);
+        return new LiteralExpression(node, dValue, dType);
+    }
+
+    internal static Expression BindCharLiteral(CharLiteralExpressionPrimaryNode node, BuilderContext context)
+    {
+        var lexeme = node.CharLiteral.Lexeme;
+        var value = lexeme.Length >= 3 ? lexeme[1] : '\0';
+        var type = context.Resolver.LookupWellKnown(WellKnownTypes.Char);
+        return new LiteralExpression(node, value, type);
+    }
+
+    internal static Expression BindBoolLiteral(Storm.Runtime.SyntaxNode node, bool value, BuilderContext context)
+    {
+        var type = context.Resolver.LookupWellKnown(WellKnownTypes.Boolean);
         return new LiteralExpression(node, value, type);
     }
 

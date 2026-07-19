@@ -39,6 +39,12 @@ internal static class PostfixBinder
                     return BindInvocation(suffix, memberExpr, methodCall.Arguments, ctx, context);
                 }
 
+            case IndexSuffixPostfixSuffixNode indexSuffix:
+                {
+                    var index = ExpressionBinder.BindExpression(indexSuffix.Index, ctx, context);
+                    return new ElementAccessExpression(suffix, receiver, index, receiver.Type);
+                }
+
             default:
                 return new UnresolvedExpression(suffix);
         }

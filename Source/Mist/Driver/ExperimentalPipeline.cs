@@ -1,4 +1,5 @@
 using Mist.Backends.CSharpTranspiler.AmbientProvider;
+using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Common.Diagnostics;
 using Mist.Driver.Contracts;
 using Mist.ProgramModel.Construction;
@@ -66,11 +67,7 @@ public sealed class ExperimentalPipeline : ICompilationPipeline
     /// </summary>
     private static CompilerResult Emit(IProgramModel programModel, PipelineInput input, DiagnosticBag diagnostics)
     {
-        // TODO: Invoke new emitter that consumes IProgramModel
-        _ = programModel;
-        _ = input;
-        _ = diagnostics;
-
-        return new CompilerResult(false, null, diagnostics.ToImmutableArray());
+        var emitter = new CSharpEmitterV2(programModel, input.Options, diagnostics);
+        return emitter.Emit();
     }
 }

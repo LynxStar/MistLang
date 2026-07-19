@@ -235,6 +235,7 @@ internal static class CSharpTypeMap
 
             TupleType t => EmitTupleTypeName(t, isValueContext),
             TypeParameterType tp => tp.Name,
+            ErrorType => "object", // Graceful fallback for unresolved types during emission.
 
             // Standard.Task<T> — maps to System.Threading.Tasks.Task<T> or non-generic Task.
             // Task<Void> always emits as non-generic "Task".

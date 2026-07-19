@@ -1,27 +1,6 @@
 namespace Standard;
 
-// Action type alias family: sugar for the void-return case of Func.
-// Action          == Func<void>
-// Action<T1>      == Func<T1, void>
-// Action<T1..T16> == Func<T1, ..., T16, void>
-//
-// These use the existing type-alias mechanism. The semantic model builder
-// resolves Action<int> -> Func<int, void> transparently.
-
-public type Action = Func<void>;
-public type Action<T1> = Func<T1, void>;
-public type Action<T1, T2> = Func<T1, T2, void>;
-public type Action<T1, T2, T3> = Func<T1, T2, T3, void>;
-public type Action<T1, T2, T3, T4> = Func<T1, T2, T3, T4, void>;
-public type Action<T1, T2, T3, T4, T5> = Func<T1, T2, T3, T4, T5, void>;
-public type Action<T1, T2, T3, T4, T5, T6> = Func<T1, T2, T3, T4, T5, T6, void>;
-public type Action<T1, T2, T3, T4, T5, T6, T7> = Func<T1, T2, T3, T4, T5, T6, T7, void>;
-public type Action<T1, T2, T3, T4, T5, T6, T7, T8> = Func<T1, T2, T3, T4, T5, T6, T7, T8, void>;
-public type Action<T1, T2, T3, T4, T5, T6, T7, T8, T9> = Func<T1, T2, T3, T4, T5, T6, T7, T8, T9, void>;
-public type Action<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> = Func<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, void>;
-public type Action<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11> = Func<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, void>;
-public type Action<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12> = Func<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, void>;
-public type Action<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13> = Func<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, void>;
-public type Action<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14> = Func<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, void>;
-public type Action<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15> = Func<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, void>;
-public type Action<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16> = Func<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, void>;
+// Action spreads the pack into Func's type-argument list, fixing the result to void.
+// Action<int, string> desugars to Func<int, string, void>.
+// The empty pack (TArgs = []) covers the no-argument case: Action = Func<void>.
+public type Action<params TArgs> = Func<TArgs..., void>;

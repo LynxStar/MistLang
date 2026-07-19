@@ -49,6 +49,7 @@
 - [The As Operator](type-system/as-operator.md)
 - [Refinement Types](type-system/refinement-types.md)
 - [Dependent Types](type-system/dependent-types.md)
+- [Variadics](type-system/variadics.md)
 - [Definite Assignment](type-system/definite-assignment.md)
 
 # Advanced Features

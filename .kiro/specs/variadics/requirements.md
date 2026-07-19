@@ -312,7 +312,7 @@ using Standard;
 
 namespace Variadics;
 
-abstract IShape
+public abstract IShape
 {
     int Area();
 }
@@ -383,7 +383,7 @@ public struct ShapePair<Type[2]:TShapes> where TShapes : IShape
 }
 
 // PROOF: a variadic abstract type (Mist's interface-like construct) declared with a pack.
-abstract ICountable<params TArgs>
+public abstract ICountable<params TArgs>
 {
     int Count();
 }

@@ -156,6 +156,9 @@ public sealed class CSharpEmitter
             files[path] = content;
         }
 
+        // Validate variadic constructions against CLR arity ceilings (Requirement 16).
+        VariadicMonomorphizer.ValidateArityCeiling(model, diagnostics);
+
         return files;
     }
 

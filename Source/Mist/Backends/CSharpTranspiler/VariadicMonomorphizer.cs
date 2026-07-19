@@ -1,4 +1,5 @@
 using System.Text;
+using Mist.Common.Diagnostics;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 using Mist.Semantics.Model.Types;
@@ -428,5 +429,91 @@ internal static class VariadicMonomorphizer
             AbstractType at => at.TypeParameters,
             _ => Array.Empty<IType>(),
         };
+    }
+
+    /// <summary>
+    /// Maximum number of input parameter types supported by <c>System.Func</c> and
+    /// <c>System.Action</c> in the CLR. <c>System.Func</c> supports up to 16 inputs
+    /// plus 1 return type (17 type parameters total); <c>System.Action</c> supports
+    /// up to 16 inputs.
+    /// </summary>
+    private const int FuncActionInputCeiling = 16;
+
+    /// <summary>
+    /// Validates all variadic constructions against the target CLR type capacity and
+    /// emits <see cref="VariadicsDiagnostics.ArityCeilingExceeded"/> (MIST_VAR_0010)
+    /// for any construction that exceeds:
+    /// <list type="bullet">
+    ///   <item><c>System.Func</c> / <c>System.Action</c>: over 16 input parameter types.</item>
+    /// </list>
+    /// <c>System.ValueTuple</c> over 7 elements is represented via nesting and does NOT
+    /// trigger the diagnostic (Requirement 16.3).
+    /// <para>
+    /// Requirements: 16.1, 16.2, 16.4, 16.5.
+    /// </para>
+    /// </summary>
+    public static void ValidateArityCeiling(ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach(var symbol in model.AllSymbols)
+        {
+            CheckTypeForArityCeiling(symbol.DeclaredType, diagnostics, seen);
+
+            if(symbol is Symbol sym)
+            {
+                CheckTypeForArityCeiling(sym.EffectiveReturnType, diagnostics, seen);
+                foreach(var param in sym.Parameters)
+                {
+                    CheckTypeForArityCeiling(param.DeclaredType, diagnostics, seen);
+                }
+            }
+        }
+    }
+
+    private static void CheckTypeForArityCeiling(IType? type, DiagnosticBag diagnostics, HashSet<string> seen)
+    {
+        if(type is null)
+        {
+            return;
+        }
+
+        if(type is ConstructedType ct)
+        {
+            // Check if this is a Standard.Func construction that exceeds the ceiling.
+            if(ct.GenericDefinition is ClassType { DisplayName: "Func", ContainingNamespace: "Standard", IsBackendBacked: true })
+            {
+                // Func<TArgs..., TResult>: the last type argument is the return type.
+                // The input parameter count is typeArgs.Count - 1.
+                var inputCount = ct.TypeArguments.Count - 1;
+
+                // For Action (Func with void return), the input count is the same calculation:
+                // Action<T1, ..., TN> resolves to Func<T1, ..., TN, void> which has N inputs.
+                if(inputCount > FuncActionInputCeiling)
+                {
+                    var key = $"FuncCeiling:{inputCount}";
+                    if(seen.Add(key))
+                    {
+                        var isAction = ct.TypeArguments[ct.TypeArguments.Count - 1].IsVoid();
+                        var familyName = isAction ? "System.Action" : "System.Func";
+                        diagnostics.Report(
+                            VariadicsDiagnostics.ArityCeilingExceeded,
+                            default,
+                            string.Empty,
+                            $"{familyName} with {inputCount} input parameter types exceeds the CLR limit of {FuncActionInputCeiling}");
+                    }
+                }
+            }
+
+            // Recurse into type arguments.
+            foreach(var arg in ct.TypeArguments)
+            {
+                CheckTypeForArityCeiling(arg, diagnostics, seen);
+            }
+        }
+        else if(type is ArrayType arrType)
+        {
+            CheckTypeForArityCeiling(arrType.ElementType, diagnostics, seen);
+        }
     }
 }

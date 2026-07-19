@@ -112,7 +112,7 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 | `void` return | ✅ | |
 | Expression-bodied methods (`=>`) | 🔲 | |
 | Method overloading | 🔲 | |
-| `params` arrays | 🔲 | |
+| `params` arrays | ✅ | Homogeneous value-level `params T[]` support |
 | Optional parameters (default values) | 🔲 | |
 | Named arguments | 🔲 | |
 | `ref` parameters | 🔲 | |
@@ -758,7 +758,7 @@ Features introduced by Mist that don't map directly to a single C# feature. Thes
 | Type Declarations | 6 | 9 | 0 |
 | Members — Fields | 3 | 3 | 1 |
 | Members — Properties | 10 | 1 | 0 |
-| Members — Methods | 6 | 11 | 0 |
+| Members — Methods | 7 | 10 | 0 |
 | Members — Constructors | 3 | 2 | 0 |
 | Members — Other | 1 | 4 | 0 |
 | Access Modifiers | 3 | 11 | 2 |

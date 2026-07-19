@@ -91,6 +91,14 @@
     "17.8 Write property test for pack-bearing declaration kinds (classic pipeline)": {
       "status": "passed",
       "lastRunTimestamp": 1784431948552
+    },
+    "19.4 Write property test for unbounded front end and backend ceiling (classic pipeline)": {
+      "status": "passed",
+      "lastRunTimestamp": 1784474250064
+    },
+    "19.5 Write property test for empty-pack coherence (classic pipeline)": {
+      "status": "passed",
+      "lastRunTimestamp": 1784475124281
     }
   },
   "executionHistory": {
@@ -1176,6 +1184,21 @@
         "executionId": "99d94ace-3c35-4455-b8f2-1f4d9c0e7744",
         "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
         "timestamp": 1784424946889
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784469895032
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784469935152
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784470076723
       }
     ],
     "16.1 Implement whole-pack constraints elementwise": [
@@ -1346,6 +1369,21 @@
         "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
         "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
         "timestamp": 1784433594279
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784469895084
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784470869566
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784470950157
       }
     ],
     "19.3 Implement the backend arity-ceiling diagnostic": [
@@ -1353,6 +1391,21 @@
         "executionId": "d56090e7-978d-4483-b3d9-fbdbee313f77",
         "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
         "timestamp": 1784383059531
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784469895164
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784470954156
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784472388869
       }
     ],
     "20.1 Rewrite `Func.mist` to a single variadic declaration": [
@@ -1360,6 +1413,21 @@
         "executionId": "d56090e7-978d-4483-b3d9-fbdbee313f77",
         "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
         "timestamp": 1784383059570
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784469895213
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784470955797
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784472389000
       }
     ],
     "20.2 Rewrite `Action.mist` to a single variadic alias": [
@@ -1367,6 +1435,21 @@
         "executionId": "d56090e7-978d-4483-b3d9-fbdbee313f77",
         "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
         "timestamp": 1784383059615
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784469895260
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784472396377
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784472569190
       }
     ],
     "20.3 Write in-process integration test for Func/Action across arities (classic pipeline)": [
@@ -1374,6 +1457,21 @@
         "executionId": "d56090e7-978d-4483-b3d9-fbdbee313f77",
         "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
         "timestamp": 1784383059653
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784469895337
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784472585514
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784473143820
       }
     ],
     "21. Checkpoint - classic backend and bootstrap boundary": [
@@ -1381,6 +1479,21 @@
         "executionId": "d56090e7-978d-4483-b3d9-fbdbee313f77",
         "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
         "timestamp": 1784383059693
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784469895382
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784473158182
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784473305543
       }
     ],
     "22.1 Create the Variadics sample project": [
@@ -1388,6 +1501,21 @@
         "executionId": "d56090e7-978d-4483-b3d9-fbdbee313f77",
         "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
         "timestamp": 1784383059734
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784469895421
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784473310484
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784473387190
       }
     ],
     "22.2 Wire Variadics into the AllFeatures full-suite sample": [
@@ -1395,6 +1523,21 @@
         "executionId": "d56090e7-978d-4483-b3d9-fbdbee313f77",
         "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
         "timestamp": 1784383059786
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784469895468
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784473391004
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784473467102
       }
     ],
     "22.3 Verify the sample compiles cleanly in-process through the classic pipeline": [
@@ -1402,6 +1545,21 @@
         "executionId": "d56090e7-978d-4483-b3d9-fbdbee313f77",
         "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
         "timestamp": 1784383059821
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784469895533
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784473470947
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784473761918
       }
     ],
     "23.1 Add the classic type-checker rejection test for the Requirement 21 Negative Proof Code": [
@@ -1409,6 +1567,21 @@
         "executionId": "d56090e7-978d-4483-b3d9-fbdbee313f77",
         "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
         "timestamp": 1784383059858
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784469895575
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784470091082
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784470862377
       }
     ],
     "24.1 Add the variadics book chapter": [
@@ -1416,6 +1589,21 @@
         "executionId": "d56090e7-978d-4483-b3d9-fbdbee313f77",
         "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
         "timestamp": 1784383059903
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784469895619
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784473472914
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784473760220
       }
     ],
     "25.1 Update `CSHARP_FEATURES.md`": [
@@ -1423,6 +1611,21 @@
         "executionId": "d56090e7-978d-4483-b3d9-fbdbee313f77",
         "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
         "timestamp": 1784383059947
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784469895662
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784473472968
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784473759456
       }
     ],
     "26. Final checkpoint - Ensure all tests pass": [
@@ -1430,6 +1633,21 @@
         "executionId": "d56090e7-978d-4483-b3d9-fbdbee313f77",
         "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
         "timestamp": 1784383059987
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784469895710
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784475175313
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784477223510
       }
     ],
     "9. Classic semantic model: pack type parameters, arity, and type identity": [
@@ -1743,6 +1961,84 @@
         "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
         "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
         "timestamp": 1784431974582
+      }
+    ],
+    "23. Negative proof - spread destination enforcement (locked gate, classic pipeline)": [
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784470862441
+      }
+    ],
+    "19. Classic backend: monomorphization, Func/Action + ValueTuple mapping, and the arity ceiling": [
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784472388919
+      }
+    ],
+    "20. Func / Action bootstrap rewrite (classic pipeline)": [
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784473143941
+      }
+    ],
+    "25. Feature coverage documentation update": [
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784473759535
+      }
+    ],
+    "24. Book documentation": [
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784473760273
+      }
+    ],
+    "22. Sample application (classic pipeline)": [
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784473761990
+      }
+    ],
+    "19.4 Write property test for unbounded front end and backend ceiling (classic pipeline)": [
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784473773700
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784475167184
+      }
+    ],
+    "19.5 Write property test for empty-pack coherence (classic pipeline)": [
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784473774498
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784475168900
+      }
+    ],
+    "19.6 Write unit tests for the arity ceiling and ValueTuple nesting (classic pipeline)": [
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784473775849
+      },
+      {
+        "executionId": "9ddd24b4-d294-4752-91b3-ee1b2a71ca62",
+        "chatSessionId": "sess_67d1132f-2304-4dbe-a29c-8d928d9f5317",
+        "timestamp": 1784475168939
       }
     ]
   }

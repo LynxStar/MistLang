@@ -95,6 +95,13 @@ internal sealed class CarrierStructRegistry
     /// </summary>
     public string? Register(DependentValueArgument depArg)
     {
+        // Pack dependent arguments carry a Type[] value (the ordered element types) and do not
+        // need carrier structs — they are handled by the monomorphization path.
+        if(depArg.IsPack)
+        {
+            return null;
+        }
+
         var keyword = CSharpTypeMap.GetKeyword(depArg.ValueType);
         if(!KeywordToCapitalized.TryGetValue(keyword, out var capitalized))
         {
@@ -122,6 +129,12 @@ internal sealed class CarrierStructRegistry
     /// </summary>
     public static string? GetStructName(DependentValueArgument depArg)
     {
+        // Pack dependent arguments carry a Type[] value and have no carrier struct.
+        if(depArg.IsPack)
+        {
+            return null;
+        }
+
         var keyword = CSharpTypeMap.GetKeyword(depArg.ValueType);
         if(!KeywordToCapitalized.TryGetValue(keyword, out var capitalized))
         {

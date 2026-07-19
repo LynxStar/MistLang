@@ -13337,6 +13337,91 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
+    /// Attempts to resolve a member name as a spread-generated projection (<c>Stem + 1-based index</c>).
+    /// When the type is a <see cref="ConstructedType"/> with a bound pack (via <see cref="DependentValueArgument.PackElementTypes"/>),
+    /// the projection resolves to the concrete element type at the corresponding index. When accessed
+    /// inside the generic definition itself (no constructed context), the projection resolves to the
+    /// symbolic pack type parameter — enabling constrained member access on pack elements (e.g.,
+    /// <c>Shape1.Area()</c> where the whole pack is constrained to <c>IShape</c>).
+    /// Returns null if the name does not match any spread-member projection pattern.
+    /// </summary>
+    private static IType? TryResolveSpreadProjection(
+        string memberName,
+        IList<SemanticSpreadMember> spreadMembers,
+        ConstructedType? originalConstructedType,
+        IReadOnlyList<IType>? constructedTypeParams)
+    {
+        foreach(var spread in spreadMembers)
+        {
+            var stem = spread.Stem;
+
+            // Check if memberName starts with the stem and is followed by digits.
+            if(!memberName.StartsWith(stem, StringComparison.Ordinal) || memberName.Length <= stem.Length)
+            {
+                continue;
+            }
+
+            var indexPart = memberName[stem.Length..];
+            if(!int.TryParse(indexPart, out var oneBasedIndex) || oneBasedIndex < 1)
+            {
+                continue;
+            }
+
+            var zeroBasedIndex = oneBasedIndex - 1;
+
+            // If we have a ConstructedType with DependentArguments, resolve the concrete
+            // element type from the bound pack.
+            if(originalConstructedType?.DependentArguments is not null && constructedTypeParams is not null)
+            {
+                // Find the pack's ordinal in the type parameter list.
+                var packOrdinal = -1;
+                for(var i = 0; i < constructedTypeParams.Count; i++)
+                {
+                    if(constructedTypeParams[i] is TypeParameterType tp && tp.Name == spread.Pack.Name)
+                    {
+                        packOrdinal = i;
+                        break;
+                    }
+                }
+
+                if(packOrdinal >= 0
+                    && packOrdinal < originalConstructedType.DependentArguments.Count
+                    && originalConstructedType.DependentArguments[packOrdinal] is { IsPack: true } depArg
+                    && depArg.PackElementTypes is not null)
+                {
+                    if(zeroBasedIndex < depArg.PackElementTypes.Count)
+                    {
+                        return depArg.PackElementTypes[zeroBasedIndex];
+                    }
+
+                    // Index out of range for the bound pack — not a valid projection.
+                    return null;
+                }
+            }
+
+            // No constructed context (inside the generic definition body): resolve to the
+            // symbolic pack type parameter so that constrained member access works (e.g.,
+            // Shape1.Area() where TShapes : IShape). For a fixed-size pack (Type[N]:),
+            // only accept indices within range.
+            if(spread.Pack.PackFixedArity is int fixedArity)
+            {
+                if(zeroBasedIndex < fixedArity)
+                {
+                    return spread.Pack;
+                }
+
+                return null;
+            }
+
+            // Unknown-length pack without constructed context: resolve to the pack
+            // type parameter (allows constrained member access on elements).
+            return spread.Pack;
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Reserves the spread-member stem namespace across a declaring type's members and
     /// reports <c>MIST_VAR_0007</c> on a collision (Requirements 10.2 / 10.3). The spread
     /// owns the aggregate name <c>S</c> and every projection name <c>S{i}</c>, so a collision
@@ -18262,6 +18347,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 return declaredType;
             }
+
+            // Variadic fallback: when the definition has a pack type parameter, it
+            // accepts any arity >= its minimum fixed slots. The binding rule will
+            // later assign the extra arguments to the pack. This allows the single
+            // variadic `Func<params TArgs, TResult>` to satisfy lookups at any arity.
+            if(HasPackTypeParameter(declaredType))
+            {
+                var fixedCount = GetFixedTypeParameterCount(declaredType);
+                if(typeArgumentCount >= fixedCount)
+                {
+                    return declaredType;
+                }
+            }
         }
 
         throw new StdlibMissingException(
@@ -18282,6 +18380,68 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             AbstractType it => it.TypeParameters.Count,
             _ => 0,
         };
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when the type has at least one type parameter that is a pack
+    /// (<see cref="TypeParameterType.IsPack"/>). Used by the arity-aware stdlib lookup to
+    /// fall back to a variadic definition when no exact-arity match is found.
+    /// </summary>
+    private static bool HasPackTypeParameter(IType type)
+    {
+        var typeParams = type switch
+        {
+            ClassType ct => ct.TypeParameters,
+            StructType st => st.TypeParameters,
+            AbstractType at => at.TypeParameters,
+            _ => null,
+        };
+
+        if(typeParams is null)
+        {
+            return false;
+        }
+
+        foreach(var tp in typeParams)
+        {
+            if(tp is TypeParameterType { IsPack: true })
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Returns the number of non-pack (fixed scalar) type parameters on a type.
+    /// A variadic type accepts any use-site arity >= this count; the pack absorbs the rest.
+    /// </summary>
+    private static int GetFixedTypeParameterCount(IType type)
+    {
+        var typeParams = type switch
+        {
+            ClassType ct => ct.TypeParameters,
+            StructType st => st.TypeParameters,
+            AbstractType at => at.TypeParameters,
+            _ => null,
+        };
+
+        if(typeParams is null)
+        {
+            return 0;
+        }
+
+        var count = 0;
+        foreach(var tp in typeParams)
+        {
+            if(tp is not TypeParameterType { IsPack: true })
+            {
+                count++;
+            }
+        }
+
+        return count;
     }
 
     /// <summary>
@@ -19736,6 +19896,30 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // use-site shape error, recovered as an error type so analysis continues.
                 canonicalArgs[i] = binding.Elements.Count == 1 ? binding.Elements[0] : ErrorType.Instance;
             }
+        }
+
+        // For intrinsic types like Standard.Func, store type arguments in the flat expanded form
+        // [elem1, ..., elemN, fixedSlots...] so that existing consumers (lambda inference, backend
+        // emission, Func invocation) that iterate TypeArguments positionally continue to work. The
+        // pack's DependentArguments still carry the grouped Type[] for identity comparison.
+        var isFuncFamily = family is ClassType { IsBackendBacked: true, DisplayName: "Func", ContainingNamespace: "Standard" };
+        if(isFuncFamily && anyPack)
+        {
+            var flatArgs = new List<IType>();
+            for(var i = 0; i < typeParams.Count; i++)
+            {
+                var binding = result.Slots[i];
+                if(binding.IsPack)
+                {
+                    flatArgs.AddRange(binding.Elements);
+                }
+                else
+                {
+                    flatArgs.Add(binding.Elements.Count == 1 ? binding.Elements[0] : ErrorType.Instance);
+                }
+            }
+
+            return new ConstructedType(family, flatArgs.ToArray(), dependentArgs);
         }
 
         return new ConstructedType(family, canonicalArgs, anyPack ? dependentArgs : null);
@@ -24303,6 +24487,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 symbolTable.RegisterUsageSite(identifier, inheritedSymbol);
                             }
                         }
+                        // Variadics: spread-generated member projections as bare identifiers.
+                        // When inside a type body, Shape1/Shape2 etc. resolve to projections
+                        // of spread-generated members on the enclosing type.
+                        else if(!isStatic && TryResolveSpreadProjectionIdentifier(enclosingType, name, out var projectionType))
+                        {
+                            result = projectionType;
+                        }
                         else
                         {
                             diagnostics.Add(MakeDiagnosticWithLocation(
@@ -24649,6 +24840,100 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
+    /// Attempts to resolve a bare identifier as a spread-generated member projection
+    /// on the enclosing type. Used for within-body access like <c>Shape1.Area()</c> in a
+    /// struct that declares <c>public TShapes... Shape;</c>. Returns false if the name
+    /// does not match any projection pattern on the enclosing type's spread members.
+    /// </summary>
+    private static bool TryResolveSpreadProjectionIdentifier(
+        IType? enclosingType,
+        string name,
+        out IType projectionType)
+    {
+        projectionType = ErrorType.Instance;
+
+        var spreadMembers = enclosingType switch
+        {
+            ClassType ct => ct.SpreadMembers,
+            StructType st => st.SpreadMembers,
+            AbstractType at => at.SpreadMembers,
+            _ => null,
+        };
+
+        if(spreadMembers is null or { Count: 0 })
+        {
+            return false;
+        }
+
+        var resolved = TryResolveSpreadProjection(name, spreadMembers, originalConstructedType: null, constructedTypeParams: null);
+        if(resolved is not null)
+        {
+            projectionType = resolved;
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Expands a <see cref="TupleType"/> that contains a symbolic pack type parameter into a
+    /// concrete tuple with the pack's bound element types. Used after member lookup substitution
+    /// when the member type is the aggregate tuple <c>(TArgs...)</c> and the concrete pack
+    /// binding is available from the <paramref name="originalConstructedType"/>'s DependentArguments.
+    /// Returns the type unchanged if it's not an expandable pack-bearing tuple.
+    /// </summary>
+    private static IType ExpandPackInTupleIfNeeded(
+        IType memberType,
+        ConstructedType? originalConstructedType,
+        IReadOnlyList<IType>? constructedTypeParams)
+    {
+        if(memberType is not TupleType tupleType || originalConstructedType?.DependentArguments is null || constructedTypeParams is null)
+        {
+            return memberType;
+        }
+
+        // Check if the tuple contains a pack element that can be expanded.
+        var expanded = false;
+        var expandedElements = new List<IType>();
+
+        foreach(var element in tupleType.ElementTypes)
+        {
+            if(element is TypeParameterType { IsPack: true } packElement)
+            {
+                // Find the pack's ordinal in the type parameter list.
+                var packOrdinal = -1;
+                for(var i = 0; i < constructedTypeParams.Count; i++)
+                {
+                    if(constructedTypeParams[i] is TypeParameterType tp && tp.Name == packElement.Name)
+                    {
+                        packOrdinal = i;
+                        break;
+                    }
+                }
+
+                if(packOrdinal >= 0
+                    && packOrdinal < originalConstructedType.DependentArguments.Count
+                    && originalConstructedType.DependentArguments[packOrdinal] is { IsPack: true } depArg
+                    && depArg.PackElementTypes is not null)
+                {
+                    expandedElements.AddRange(depArg.PackElementTypes);
+                    expanded = true;
+                    continue;
+                }
+            }
+
+            expandedElements.Add(element);
+        }
+
+        if(expanded)
+        {
+            return new TupleType(expandedElements.ToArray());
+        }
+
+        return memberType;
+    }
+
+    /// <summary>
     /// Returns the member scope of the base type of <paramref name="type"/> (for a
     /// class or struct), unwrapping a <see cref="ConstructedType"/> base to its
     /// generic definition. Returns <see langword="null"/> when there is no inheritable
@@ -24896,8 +25181,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // then substitute type parameters with type arguments.
         IReadOnlyList<IType>? constructedTypeParams = null;
         IReadOnlyList<IType>? constructedTypeArgs = null;
+        ConstructedType? originalConstructedType = null;
         if(targetType is ConstructedType constructedTarget)
         {
+            originalConstructedType = constructedTarget;
             constructedTypeParams = constructedTarget.GenericDefinition switch
             {
                 ClassType ct2 => ct2.TypeParameters,
@@ -25151,7 +25438,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     if(m.Name == memberName)
                     {
                         var memberType = m.DeclaredType ?? ErrorType.Instance;
-                        return SubstituteMemberTypeIfNeeded(memberType, constructedTypeParams, constructedTypeArgs);
+                        memberType = SubstituteMemberTypeIfNeeded(memberType, constructedTypeParams, constructedTypeArgs);
+                        memberType = ExpandPackInTupleIfNeeded(memberType, originalConstructedType, constructedTypeParams);
+                        return memberType;
                     }
                 }
 
@@ -25239,6 +25528,32 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if(structDefaultResult is not null)
                 {
                     return SubstituteMemberTypeIfNeeded(structDefaultResult, constructedTypeParams, constructedTypeArgs);
+                }
+            }
+        }
+
+        // ── Variadics: spread-generated member projection resolution ────────
+        // When a member is not found in the regular scope but the target type carries
+        // spread members, check if the member name matches a projection pattern (stem + digit).
+        // For a ConstructedType, the pack's DependentArguments carry the concrete element types.
+        // For the generic definition itself (within the class body), projections resolve to the
+        // symbolic pack element type (useful for ShapePair.TotalArea() accessing Shape1, Shape2).
+        {
+            var spreadMembers = targetType switch
+            {
+                ClassType ct3 => ct3.SpreadMembers,
+                StructType st3 => st3.SpreadMembers,
+                AbstractType at3 => at3.SpreadMembers,
+                _ => null,
+            };
+
+            if(spreadMembers is { Count: > 0 })
+            {
+                var projectionType = TryResolveSpreadProjection(
+                    memberName, spreadMembers, originalConstructedType, constructedTypeParams);
+                if(projectionType is not null)
+                {
+                    return projectionType;
                 }
             }
         }

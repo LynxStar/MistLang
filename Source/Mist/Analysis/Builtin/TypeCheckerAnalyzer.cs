@@ -1546,6 +1546,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // Constraint satisfaction for the type argument is checked at instantiation sites.
                 _ = initiallyAssigned.Add(member.Name);
             }
+            else if(member.DeclaredType is TupleType tupleField
+                && tupleField.ElementTypes.Any(e => e is TypeParameterType { IsPack: true }))
+            {
+                // Spread-generated aggregate fields whose type is a value-pack tuple (TArgs...)
+                // are assigned via zip assignment (Item... = values...) which is not tracked by
+                // the simple forward dataflow. Treat them as pre-assigned since the constructor's
+                // zip assignment logic handles them (the type checker validates the zip separately).
+                _ = initiallyAssigned.Add(member.Name);
+            }
         }
 
         // If all fields are already assigned, nothing to check.
@@ -9694,7 +9703,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     break;
 
                 case InvocationSuffixPostfixSuffixNode invocation:
-                    CheckInvocationArguments(invocation, currentType, model, diagnostics);
+                    CheckInvocationArguments(invocation, currentType, node, model, diagnostics);
                     currentType = model.GetTypeOf(suffix);
                     targetIsTypeName = false;
                     break;
@@ -11612,6 +11621,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private void CheckInvocationArguments(
         InvocationSuffixPostfixSuffixNode invocation,
         IType? targetType,
+        PostfixNode containingPostfix,
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
@@ -11635,7 +11645,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             if(TryGetSoleValueSpreadArgument(invocation.Arguments, out var spreadPostfix))
             {
-                var destinationSlots = ResolveInvocationDestinationSlots(invocation, targetType, model);
+                var destinationSlots = ResolveInvocationDestinationSlots(invocation, targetType, containingPostfix, model);
                 CheckDecomposedValueSpread(spreadPostfix, destinationSlots, model, diagnostics);
             }
 
@@ -11761,10 +11771,26 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        // The Func type arguments are [P1, P2, ..., PN, TReturn].
-        // Parameter count is typeArgs.Count - 1.
-        var typeArgs = funcType.TypeArguments;
-        var expectedParamCount = typeArgs.Count - 1;
+        // Determine the Func parameter types. For a variadic Func<params TArgs, TResult>,
+        // the parameter types live in the pack's DependentValueArgument.PackElementTypes.
+        // For the legacy per-arity Func<T1, ..., TN, TResult>, the parameter types are
+        // TypeArguments[0..^1].
+        IReadOnlyList<IType> paramTypes;
+        if(funcType.DependentArguments is not null
+            && funcType.DependentArguments.Count > 0
+            && funcType.DependentArguments[0] is { PackElementTypes: { } packElements })
+        {
+            // Variadic form: pack element types are the parameter types.
+            paramTypes = packElements;
+        }
+        else
+        {
+            // Legacy per-arity form: all type arguments except the last are parameter types.
+            var typeArgs = funcType.TypeArguments;
+            paramTypes = typeArgs.Take(typeArgs.Count - 1).ToList();
+        }
+
+        var expectedParamCount = paramTypes.Count;
 
         // Collect actual argument types.
         var argTypes = CollectArgumentTypes(invocation.Arguments, model);
@@ -11781,7 +11807,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         for(var i = 0; i < actualArgCount; i++)
         {
             var argType = argTypes[i];
-            var paramType = typeArgs[i];
+            var paramType = paramTypes[i];
 
             // Skip error types to avoid cascading diagnostics.
             if(IsErrorType(argType) || IsErrorType(paramType))
@@ -14922,6 +14948,29 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         if(argTypes.Count != paramTypes.Count)
         {
+            // Variadics: a value-pack parameter (params TArgs values) has declared type
+            // TupleType([pack]). When the created type is a ConstructedType with DependentArguments
+            // that bind the pack to N concrete types, the constructor accepts N arguments at that
+            // parameter position. Check if the argument count matches after expansion.
+            if(createdType is ConstructedType ctForPack && ctForPack.DependentArguments is not null)
+            {
+                var expandedParamTypes = TryExpandVariadicConstructorParams(
+                    paramTypes, ctForPack, GetTypeParameters(ctForPack.GenericDefinition));
+                if(expandedParamTypes is not null && expandedParamTypes.Count == argTypes.Count)
+                {
+                    // Use the expanded param types for comparison instead.
+                    for(var i = 0; i < argTypes.Count; i++)
+                    {
+                        if(!IsAssignable(argTypes[i], expandedParamTypes[i]))
+                        {
+                            return false;
+                        }
+                    }
+
+                    return true;
+                }
+            }
+
             return false;
         }
 
@@ -14982,6 +15031,67 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     // ═══════════════════════════════════════════════════════════════════════
     // Access modifier enforcement (MIST_TC_0014, MIST_TC_0015, MIST_TC_0016)
     // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Expands a variadic constructor's parameter list by replacing any value-pack
+    /// TupleType parameter (whose single element is a pack TypeParameterType) with
+    /// the concrete element types from the ConstructedType's DependentArguments.
+    /// Returns null if no expansion is possible (no pack parameters found or no
+    /// DependentArguments available).
+    /// </summary>
+    private static IReadOnlyList<IType>? TryExpandVariadicConstructorParams(
+        List<IType> paramTypes,
+        ConstructedType constructedType,
+        IReadOnlyList<IType>? typeParams)
+    {
+        if(typeParams is null || constructedType.DependentArguments is null)
+        {
+            return null;
+        }
+
+        var expanded = new List<IType>();
+        var anyExpanded = false;
+
+        foreach(var paramType in paramTypes)
+        {
+            if(paramType is TupleType tupleParam
+                && tupleParam.ElementTypes.Count == 1
+                && tupleParam.ElementTypes[0] is TypeParameterType { IsPack: true } packParam)
+            {
+                // Find the pack's ordinal in the type parameter list.
+                var packOrdinal = -1;
+                for(var i = 0; i < typeParams.Count; i++)
+                {
+                    if(typeParams[i] is TypeParameterType tp && tp.Name == packParam.Name)
+                    {
+                        packOrdinal = i;
+                        break;
+                    }
+                }
+
+                if(packOrdinal >= 0
+                    && packOrdinal < constructedType.DependentArguments.Count
+                    && constructedType.DependentArguments[packOrdinal] is { IsPack: true } depArg
+                    && depArg.PackElementTypes is not null)
+                {
+                    expanded.AddRange(depArg.PackElementTypes);
+                    anyExpanded = true;
+                    continue;
+                }
+            }
+
+            // Non-pack parameter: substitute type parameters with type arguments.
+            var substituted = paramType;
+            if(typeParams.Count > 0)
+            {
+                substituted = SubstituteType(paramType, typeParams, constructedType.TypeArguments);
+            }
+
+            expanded.Add(substituted);
+        }
+
+        return anyExpanded ? expanded : null;
+    }
 
     /// <summary>
     /// Determines whether the target of a postfix expression is a type name
@@ -18675,6 +18785,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static IReadOnlyList<IType>? ResolveInvocationDestinationSlots(
         InvocationSuffixPostfixSuffixNode invocation,
         IType? targetType,
+        PostfixNode containingPostfix,
         ISemanticModel model)
     {
         if(targetType is ConstructedType funcCt && SemanticModelBuilder.IsFuncType(funcCt))
@@ -18691,6 +18802,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if(invokedSymbol is { Kind: SymbolKind.Method })
         {
             return ParameterSignature.Extract(invokedSymbol, model);
+        }
+
+        // Fallback: for direct method calls (e.g., `Sum3(args...)`) where the symbol is
+        // registered on the PostfixNode's Target identifier rather than the InvocationSuffix,
+        // look up the method symbol from the target node. This handles method-level packs
+        // spreading into fixed-arity destinations (Requirement 21, MIST_VAR_0011).
+        var targetSymbol = model.GetDeclaredSymbol(containingPostfix.Target);
+        if(targetSymbol is { Kind: SymbolKind.Method })
+        {
+            return ParameterSignature.Extract(targetSymbol, model);
         }
 
         return null;
@@ -19260,10 +19381,26 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             if(substitutedAbs is ConstructedType substitutedCt)
             {
+                // Variadics: when the source is a variadic ConstructedType, propagate its
+                // DependentArguments to the substituted abstract so that pack-based
+                // abstract implementations (e.g., Tup<params TArgs> : ICountable<TArgs...>)
+                // correctly match their target at a concrete arity.
+                if(substitutedCt.DependentArguments is null
+                    && source is ConstructedType sourceCtForPack
+                    && sourceCtForPack.DependentArguments is not null
+                    && ReferenceEquals(substitutedCt.GenericDefinition, targetConstructedAbstract.GenericDefinition))
+                {
+                    substitutedCt = new ConstructedType(
+                        substitutedCt.GenericDefinition,
+                        substitutedCt.TypeArguments,
+                        sourceCtForPack.DependentArguments);
+                }
+
                 if(IsAssignable(substitutedCt, targetConstructedAbstract))
                 {
                     return true;
                 }
+
                 // Transitively check the abstract's own inherited abstracts.
                 if(ImplementsConstructedAbstract(substitutedCt, targetConstructedAbstract))
                 {

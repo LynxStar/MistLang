@@ -503,7 +503,7 @@ final checkpoint.
       paired positions) and otherwise raises `MIST_VAR_0006`
     - **Validates: Requirements 8.5, 8.6, 8.7**
 
-- [ ] 15. Checkpoint - classic type-checker core boundary
+- [x] 15. Checkpoint - classic type-checker core boundary
   - Ensure all tests pass, ask the user if questions arise.
 
 - [x] 16. Classic type checker: constraints, generic-body forwarding, and narrowing
@@ -608,7 +608,7 @@ final checkpoint.
 - [x] 18. Checkpoint - classic type-checker complete
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 19. Classic backend: monomorphization, Func/Action + ValueTuple mapping, and the arity ceiling
+- [x] 19. Classic backend: monomorphization, Func/Action + ValueTuple mapping, and the arity ceiling
   - [x] 19.1 Implement per-arity monomorphization and CLR mapping
     - In `Source/Mist/Backends/CSharpTranspiler/` (`CSharpEmitter.cs`, `CSharpTypeMap.cs`,
       `IntrinsicTypeMap.cs`), expand spreads to concrete width per used arity; map
@@ -617,67 +617,67 @@ final checkpoint.
       7 elements; map spread-generated members to `Item1..ItemN`
     - _Requirements: 15.1, 16.3, 16.5_
 
-  - [ ] 19.2 Emit value-level `params T[]` as a C# params array
+  - [x] 19.2 Emit value-level `params T[]` as a C# params array
     - Emit a Value_Level_Params parameter as a C# `params T[]` array parameter so the callee receives
       a real array
     - _Requirements: 13.6_
 
-  - [ ] 19.3 Implement the backend arity-ceiling diagnostic
+  - [x] 19.3 Implement the backend arity-ceiling diagnostic
     - Emit `MIST_VAR_0010` when a construction exceeds target CLR capacity (`System.Func`/
       `System.Action` over 16 inputs, or a non-nestable `System.ValueTuple` over 7), identifying the
       construction and exceeded capacity; impose no front-end limit and emit the C# shape when the
       construction fits
     - _Requirements: 16.1, 16.2, 16.4, 16.5_
 
-  - [ ]* 19.4 Write property test for unbounded front end and backend ceiling (classic pipeline)
+  - [x]* 19.4 Write property test for unbounded front end and backend ceiling (classic pipeline)
     - **Property 14: Unbounded front end, backend ceiling**
     - Generate packs of any element count; assert grammar/semantic-model/type-checker never reject on
       length and only the backend emits `MIST_VAR_0010` (Func/Action over 16, non-nestable ValueTuple
       over 7), while a nestable ValueTuple over 7 is represented by nesting
     - **Validates: Requirements 16.1, 16.2, 16.3, 16.4, 16.5**
 
-  - [ ]* 19.5 Write property test for empty-pack coherence (classic pipeline)
+  - [x]* 19.5 Write property test for empty-pack coherence (classic pipeline)
     - **Property 13: Empty-pack coherence**
     - Assert an empty pack yields an arity-0 construction, zero spread slots, zero generated members,
       the zero-argument callable `Func<TResult>`, and vacuous whole-pack-constraint satisfaction (no
       `MIST_VAR_0009`), verified end-to-end through the classic pipeline
     - **Validates: Requirements 4.3, 6.8, 10.6, 11.4, 15.4**
 
-  - [ ]* 19.6 Write unit tests for the arity ceiling and ValueTuple nesting (classic pipeline)
+  - [x]* 19.6 Write unit tests for the arity ceiling and ValueTuple nesting (classic pipeline)
     - Cover a 17-input `Func` (`MIST_VAR_0010`), an 8-element value pack nested into `ValueTuple`, and
       a boundary 16-input `Func` that emits cleanly
     - _Requirements: 16.2, 16.3_
 
-- [ ] 20. Func / Action bootstrap rewrite (classic pipeline)
-  - [ ] 20.1 Rewrite `Func.mist` to a single variadic declaration
+- [x] 20. Func / Action bootstrap rewrite (classic pipeline)
+  - [x] 20.1 Rewrite `Func.mist` to a single variadic declaration
     - Replace the 17 hand-written classes in `Source/Standard/Bootstrap/Func.mist` with one
       `intrinsic public class Func<params TArgs, TResult> { }` (trailing slot is the return type; the
       pack absorbs the parameter types)
     - _Requirements: 15.1_
 
-  - [ ] 20.2 Rewrite `Action.mist` to a single variadic alias
+  - [x] 20.2 Rewrite `Action.mist` to a single variadic alias
     - Replace the 17 hand-written aliases in `Source/Standard/Bootstrap/Action.mist` with one
       `type Action<params TArgs> = Func<TArgs..., void>;`
     - _Requirements: 15.2_
 
-  - [ ] 20.3 Write in-process integration test for Func/Action across arities (classic pipeline)
+  - [x] 20.3 Write in-process integration test for Func/Action across arities (classic pipeline)
     - Compile in-process via the shared classic `CompilerDriver` and assert `Func<int, string>` binds
       `TArgs = [int]` / `TResult = string`, `Func<string>` binds `TArgs = []`, `Action<int, string>`
       resolves to `Func<int, string, void>`, and invocation type-checks and emits at each arity
       including the empty pack (no process spawn)
     - _Requirements: 15.3, 15.4, 15.5, 15.6, 15.7, 15.8_
 
-- [ ] 21. Checkpoint - classic backend and bootstrap boundary
+- [x] 21. Checkpoint - classic backend and bootstrap boundary
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 22. Sample application (classic pipeline)
-  - [ ] 22.1 Create the Variadics sample project
+- [x] 22. Sample application (classic pipeline)
+  - [x] 22.1 Create the Variadics sample project
     - Add `samples/Variadics/Program.mist` containing the Requirement 18 Proof Code verbatim
       (ASCII-only, Mist array-literal syntax, Allman braces) and `samples/Variadics/mist.toml` with
       `name = "Variadics"`
     - _Requirements: 18.1, 18.2, 18.3, 18.4, 18.7_
 
-  - [ ] 22.2 Wire Variadics into the AllFeatures full-suite sample
+  - [x] 22.2 Wire Variadics into the AllFeatures full-suite sample
     - Add a `Variadics = { path = "../Variadics" }` reference entry to `samples/AllFeatures/mist.toml`
       and a `Variadics.Program.RunDemo();` call in `samples/AllFeatures/Program.mist`, following the
       existing AllFeatures integration convention; update `samples/__baselines__/AllFeatures.out` with
@@ -686,13 +686,13 @@ final checkpoint.
       transitively by the existing AllFeatures baseline test
     - _Requirements: 18.5_
 
-  - [ ] 22.3 Verify the sample compiles cleanly in-process through the classic pipeline
+  - [x] 22.3 Verify the sample compiles cleanly in-process through the classic pipeline
     - Using the shared classic `CompilerDriver`, compile `samples/Variadics` in-process and assert
       zero errors and zero warnings (per the zero-warnings policy); do not spawn a process to run it
     - _Requirements: 18.6_
 
-- [ ] 23. Negative proof - spread destination enforcement (locked gate, classic pipeline)
-  - [ ] 23.1 Add the classic type-checker rejection test for the Requirement 21 Negative Proof Code
+- [x] 23. Negative proof - spread destination enforcement (locked gate, classic pipeline)
+  - [x] 23.1 Add the classic type-checker rejection test for the Requirement 21 Negative Proof Code
     - Add a test fixture containing the Requirement 21 Negative Proof Code verbatim (the
       `ForwardSumBad<params TArgs>` / `Sum3(args...)` case); compile in-process via the shared classic
       `CompilerDriver` and assert compilation fails with `MIST_VAR_0011` reported on `Sum3(args...)`;
@@ -700,8 +700,8 @@ final checkpoint.
     - Keep this fixture out of the runnable sample at `samples/Variadics/Program.mist`
     - _Requirements: 21.1, 21.2, 21.3_
 
-- [ ] 24. Book documentation
-  - [ ] 24.1 Add the variadics book chapter
+- [x] 24. Book documentation
+  - [x] 24.1 Add the variadics book chapter
     - Add a variadics chapter under `book/src/type-system/` covering the `params`/`Type[]:` spellings
       and the pack-as-dependent-type keystone, the binding rule (leading/middle/trailing), order- and
       arity-sensitive identity, position semantics and the capability ladder, the value side
@@ -712,13 +712,13 @@ final checkpoint.
       the chapter from `book/src/SUMMARY.md`
     - _Requirements: 19.1, 19.2, 19.3, 19.4_
 
-- [ ] 25. Feature coverage documentation update
-  - [ ] 25.1 Update `CSHARP_FEATURES.md`
+- [x] 25. Feature coverage documentation update
+  - [x] 25.1 Update `CSHARP_FEATURES.md`
     - Change the `params arrays` row from unimplemented to implemented with a note describing
       homogeneous value-level `params T[]` support, and update the `Summary` table counts
     - _Requirements: 20.1, 20.2_
 
-- [ ] 26. Final checkpoint - Ensure all tests pass
+- [x] 26. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

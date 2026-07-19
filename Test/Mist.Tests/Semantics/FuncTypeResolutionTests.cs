@@ -423,10 +423,11 @@ public sealed class FuncTypeResolutionTests
     }
 
     [Fact]
-    public void FuncType_DifferentArities_HaveDifferentGenericDefinitions()
+    public void FuncType_DifferentArities_ShareSameVariadicGenericDefinition()
     {
-        // func<bool> (arity 1) and func<int, string> (arity 2) should have
-        // different generic definitions (different Func class declarations).
+        // With the variadic Func<params TArgs, TResult>, func<bool> (TArgs=[], TResult=bool)
+        // and func<int, string> (TArgs=[int], TResult=string) share the same GenericDefinition
+        // (the single variadic Func class). They are distinguished by their DependentArguments.
         const string source = """
             namespace TestProject;
             public class TestClass
@@ -447,8 +448,11 @@ public sealed class FuncTypeResolutionTests
         var type1 = Assert.IsType<ConstructedType>(arity1Field!.DeclaredType);
         var type2 = Assert.IsType<ConstructedType>(arity2Field!.DeclaredType);
 
-        // Different arities → different generic definitions.
-        Assert.NotSame(type1.GenericDefinition, type2.GenericDefinition);
+        // With the variadic Func, all arities share the same GenericDefinition.
+        Assert.Same(type1.GenericDefinition, type2.GenericDefinition);
+
+        // They are still distinct types (different type arguments).
+        Assert.NotEqual(type1.TypeArguments.Count, type2.TypeArguments.Count);
     }
 
     [Fact]

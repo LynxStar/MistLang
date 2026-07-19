@@ -2313,10 +2313,13 @@ public sealed class MistPrettyPrinter
 
     /// <summary>
     /// Emits a single base type reference (name with optional type arguments).
+    /// Variadics: a trailing <c>...</c> is emitted for the base-type-list pack spread
+    /// (<c>: TArgs...</c>), preserving the spread suffix so the form round-trips.
     /// </summary>
     private string EmitBaseTypeRef(BaseTypeRefNode baseTypeRef)
     {
-        return baseTypeRef.Name.Lexeme + EmitTypeArgumentList(baseTypeRef.TypeArgs);
+        var spread = baseTypeRef.Spread is not null ? "..." : "";
+        return baseTypeRef.Name.Lexeme + EmitTypeArgumentList(baseTypeRef.TypeArgs) + spread;
     }
 
     /// <summary>

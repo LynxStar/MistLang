@@ -63,6 +63,16 @@ internal abstract class MemberType : MistType, IMemberType, IMethodHost, IHasAtt
 
     public List<Operator> OperatorsList { get; } = [];
 
+    /// <summary>
+    /// The spread-generated member families declared on this type (Requirement 10), one
+    /// per member-declaring spread such as <c>public TArgs... Item;</c>. Each records the
+    /// stem, pack, aggregate <c>(TArgs...)</c> type, member kind, and accessibility so the
+    /// element projections <c>Stem1 .. StemN</c> can be materialized when the pack binds.
+    /// The aggregate member itself is a real <see cref="Field"/>/<see cref="Property"/> in
+    /// the corresponding member list, named by the stem.
+    /// </summary>
+    public List<SpreadMember> SpreadMembersList { get; } = [];
+
     IReadOnlyList<ITypeParameter> IMemberType.TypeParameters => TypeParametersList;
 
     IReadOnlyList<IMistType> IMemberType.BaseAbstractTypes => BaseAbstractTypes;

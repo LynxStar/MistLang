@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 
@@ -14,12 +15,18 @@ internal sealed class PropertyBuilder
     private readonly BuilderContext context;
     private readonly TypeReferenceResolver typeResolver;
     private readonly AccessorBuilder accessorBuilder;
+    private readonly SpreadMemberBuilder spreadMemberBuilder;
 
-    public PropertyBuilder(BuilderContext context, TypeReferenceResolver typeResolver, AccessorBuilder accessorBuilder)
+    public PropertyBuilder(
+        BuilderContext context,
+        TypeReferenceResolver typeResolver,
+        AccessorBuilder accessorBuilder,
+        SpreadMemberBuilder spreadMemberBuilder)
     {
         this.context = context;
         this.typeResolver = typeResolver;
         this.accessorBuilder = accessorBuilder;
+        this.spreadMemberBuilder = spreadMemberBuilder;
     }
 
     /// <summary>
@@ -42,8 +49,13 @@ internal sealed class PropertyBuilder
     private void ResolveExpressionBodiedProperty(ExpressionBodiedPropertyPropertyDeclarationNode exprProp, IMethodHost host)
     {
         var name = exprProp.Name.Lexeme;
-        var type = typeResolver.Resolve(exprProp.Type, host.Scope);
         var modifiers = ModifierBuilder.Build(exprProp, context.Diagnostics, host as MistType);
+        var type = ResolvePropertyType(exprProp.Type, name, host, modifiers, exprProp);
+        if(type is null)
+        {
+            // Malformed spread member (empty stem or non-pack operand); already diagnosed.
+            return;
+        }
 
         if(modifiers.IsAsync)
         {
@@ -67,8 +79,14 @@ internal sealed class PropertyBuilder
     private void ResolveBlockProperty(BlockPropertyPropertyDeclarationNode blockProp, IMethodHost host)
     {
         var name = blockProp.Name.Lexeme;
-        var type = typeResolver.Resolve(blockProp.Type, host.Scope);
         var modifiers = ModifierBuilder.Build(blockProp, context.Diagnostics, host as MistType);
+        var type = ResolvePropertyType(blockProp.Type, name, host, modifiers, blockProp);
+        if(type is null)
+        {
+            // Malformed spread member (empty stem or non-pack operand); already diagnosed.
+            return;
+        }
+
         var isAbstract = host.IsAbstract;
         var isExtension = host is ExtensionBlock;
 
@@ -140,5 +158,35 @@ internal sealed class PropertyBuilder
         }
 
         host.PropertiesList.Add(property);
+    }
+
+    /// <summary>
+    /// Resolves a property's declared type, handling the spread-generated member case.
+    /// When the declared type is a pack spread (<c>public TArgs... Slot { get; }</c>), this
+    /// resolves the aggregate value-pack tuple <c>(TArgs...)</c> and records the
+    /// spread-generated member family on the host, so the aggregate <c>Slot</c> is built as
+    /// an ordinary property here while its element projections <c>Slot1 .. SlotN</c> are
+    /// materialized when the pack binds. Returns <c>null</c> when the spread is malformed —
+    /// an empty stem (<c>MIST_VAR_0008</c>) or a non-pack operand, both already diagnosed —
+    /// so the caller skips the member. A non-spread type resolves as usual (an unresolved
+    /// type yields <see cref="ErrorType"/>, which is non-null, preserving normal handling).
+    /// Spread members only surface on member-bearing types, so an extension-block host
+    /// falls through to ordinary resolution.
+    /// </summary>
+    private IMistType? ResolvePropertyType(
+        TypeReferenceNode typeRef,
+        string stem,
+        IMethodHost host,
+        MemberModifiers modifiers,
+        Storm.Runtime.SyntaxNode declarationNode)
+    {
+        if(host is MemberType memberHost && SpreadMemberBuilder.TryGetMemberSpread(typeRef, out var spread))
+        {
+            var aggregate = spreadMemberBuilder.ResolveAggregateAndRecord(
+                spread, stem, memberHost, SpreadMemberKind.Property, modifiers, OwnershipKind.Unrestricted, declarationNode);
+            return aggregate is ErrorType ? null : aggregate;
+        }
+
+        return typeResolver.Resolve(typeRef, host.Scope);
     }
 }

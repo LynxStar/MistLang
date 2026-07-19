@@ -25,8 +25,9 @@ internal sealed class ExtensionBuilder
         var parameterBuilder = new ParameterBuilder(typeResolver);
         var delegateResolver = new DelegateResolver(context, parameterBuilder, typeResolver);
         var accessorBuilder = new AccessorBuilder(context);
-        methodBuilder = new MethodBuilder(typeResolver, delegateResolver, constraintResolver);
-        propertyBuilder = new PropertyBuilder(context, typeResolver, accessorBuilder);
+        var spreadMemberBuilder = new SpreadMemberBuilder(context, typeResolver);
+        methodBuilder = new MethodBuilder(typeResolver, delegateResolver, constraintResolver, context.Diagnostics);
+        propertyBuilder = new PropertyBuilder(context, typeResolver, accessorBuilder, spreadMemberBuilder);
     }
 
     /// <summary>

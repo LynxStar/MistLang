@@ -11,19 +11,19 @@ The keystone of the design is that a type-parameter pack is not a new kind of en
 
 The motivating proof point is collapsing the `Func`/`Action` bootstrap: the 17 hand-written `Func` classes plus 17 `Action` aliases (34 declarations) in `Source/Standard/Bootstrap/Func.mist` and `Source/Standard/Bootstrap/Action.mist` become one declaration each.
 
-These requirements are derived from and consistent with the approved design document (`design.md`). Where a behavior maps to a diagnostic, the requirement references the design's dedicated `MIST_VAR_*` range so requirements and design remain traceable. All code examples in this document use ASCII-only characters and Mist array-literal syntax (`[a, b, c]`).
+These requirements are derived from and consistent with the approved design document (`design.md`). The feature is implemented in both of the compiler's pipelines -- the default classic (semantics) pipeline and the program-model pipeline. Where a behavior maps to a diagnostic, the requirement references the design's dedicated `MIST_VAR_*` range so requirements and design remain traceable. All code examples in this document use ASCII-only characters and Mist array-literal syntax (`[a, b, c]`).
 
 ## Glossary
 
 ### Components
 
-- **Compiler**: The Mist compiler pipeline as a whole, spanning lexing, parsing, program-model construction, analysis, and C# emission.
+- **Compiler**: The Mist compiler as a whole. It comprises a shared front end (lexing, parsing, and standard-library load) followed by one of two pipelines behind that front end: the Classic pipeline (`Source/Mist/Driver/ClassicPipeline.cs`), which performs semantic-model construction, analysis, and C# emission, and is the default and the only path that type-checks and emits today; and the ProgramModel pipeline (`Source/Mist/Driver/ExperimentalPipeline.cs`), which performs program-model construction, analysis, and emission, and is the migration target (its analysis and emission stages are not yet complete). Variadics is realized in both pipelines.
 - **Grammar**: The Storm grammar definition (`Source/Mist/Grammar/Mist.storm`) that defines Mist syntax.
 - **Parser**: The Storm-generated parser that produces an abstract syntax tree from a token stream.
 - **Pretty_Printer**: The `MistPrettyPrinter` component that formats a Mist AST back into valid Mist source text.
-- **Program_Model_Builder**: The program-model construction stage (`ProgramModelBuilder`) that builds the program model (types, type parameters, parameters, constructed types) from the AST.
-- **Type_Checker**: The `TypeCheckerAnalyzer` analysis stage that validates type rules against the program model.
-- **Backend**: The C# transpiler stage (`CSharpTranspilerBackend`) that emits C# source from the fully resolved program model.
+- **Program_Model_Builder**: The model-construction role that builds the resolved type model (types, type parameters, parameters, constructed types) from the AST. It is realized as `SemanticModelBuilder` (producing the `Mist.Semantics` model) in the Classic pipeline and as `ProgramModelBuilder` (producing the program model) in the ProgramModel pipeline; requirements attributed to Program_Model_Builder apply to whichever construction stage is active.
+- **Type_Checker**: The `TypeCheckerAnalyzer` analysis stage that validates type rules over the resolved type model, which in the Classic (emitting) pipeline is the `Mist.Semantics` model and in the ProgramModel pipeline is the program model.
+- **Backend**: The C# transpiler stage (`CSharpTranspiler` / `CSharpTranspilerBackend`) that emits C# source from the fully resolved model, which in the Classic pipeline -- the only emitting path today -- is the `Mist.Semantics` model.
 - **TextMate_Grammar**: The VS Code syntax highlighting grammar at `Editor/mist-syntax-highlighting/syntaxes/mist.tmLanguage.json`.
 - **Standard_Library**: The built-in Mist library at `Source/Standard/`.
 

@@ -17941,6 +17941,25 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return false;
             }
 
+            // A pack slot binds a comptime Type[] value (the [int, string] in Foo<[int, string]>).
+            // Two constructed variadic types are equal only when their pack slots bind equal Type[]
+            // values, so identity is order-sensitive and arity-sensitive (Requirements 5.1-5.4). A
+            // pack's Type[] value is never equal to a scalar dependent value.
+            if(argA.PackElementTypes is not null || argB.PackElementTypes is not null)
+            {
+                if(argA.PackElementTypes is null || argB.PackElementTypes is null)
+                {
+                    return false;
+                }
+
+                if(!PackElementTypesEqual(argA.PackElementTypes, argB.PackElementTypes))
+                {
+                    return false;
+                }
+
+                continue;
+            }
+
             if(!Equals(argA.Value, argB.Value))
             {
                 return false;
@@ -17948,6 +17967,268 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Order- and arity-sensitive elementwise equality for two comptime <c>Type[]</c> values bound
+    /// to type-parameter pack slots (Requirement 5.2). Two values are equal exactly when they have
+    /// the same length and, at every index, their element types are equal under
+    /// <see cref="TypesEqual"/> — the same type-equality relation used for ordinary type arguments.
+    /// Order therefore matters (Requirement 5.3) and a differing length is a distinct pack arity
+    /// (Requirement 5.4), so <c>[int, string]</c>, <c>[string, int]</c>, <c>[int, string, bool]</c>,
+    /// and the empty <c>[]</c> are pairwise distinct.
+    /// </summary>
+    private static bool PackElementTypesEqual(IReadOnlyList<IType> a, IReadOnlyList<IType> b)
+    {
+        if(a.Count != b.Count)
+        {
+            return false;
+        }
+
+        for(var i = 0; i < a.Count; i++)
+        {
+            if(!TypesEqual(a[i], b[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // ── Variadics: the shared flat-to-bracketed binding rule (Requirement 4, 7.4, 7.6) ──
+    //
+    // Given a declared slot list with at most one unbracketed (params) pack and a use-site
+    // argument list, BindPackSlots binds the fixed scalar and bracketed Type[]: slots one-to-one
+    // inward from both ends and assigns the remaining contiguous middle (possibly empty) to the
+    // single unbracketed pack. It is the classic-track counterpart of the ProgramModel PackBinder
+    // and is kind-driven so the same algorithm serves both the type-argument side (folding a flat
+    // list such as Foo<int, string> into the canonical bracketed form Foo<[int, string]>) and the
+    // value-parameter side (collecting the contiguous middle arguments into the value pack tuple
+    // (TArgs...)). SemanticModelBuilder invokes it while constructing variadic types, and reports
+    // a too-short argument list as MIST_VAR_0005.
+
+    /// <summary>
+    /// The binding role of one declared slot. Fixed scalar slots and bracketed <c>Type[]:</c>
+    /// packs each consume exactly one use-site argument (binding inward from both ends); the
+    /// single unbracketed <c>params</c> pack absorbs the contiguous middle.
+    /// </summary>
+    internal enum PackBindingSlotKind
+    {
+        /// <summary>An ordinary scalar slot (a regular non-pack type parameter, or a fixed value
+        /// parameter). Consumes exactly one use-site argument.</summary>
+        Fixed,
+
+        /// <summary>An explicit <c>Type[]:</c> pack supplied in brackets at the use site. Consumes
+        /// exactly one use-site argument (a bracketed group).</summary>
+        BracketedPack,
+
+        /// <summary>The list's single bracket-free <c>params</c> pack. Absorbs the contiguous
+        /// middle arguments (possibly zero).</summary>
+        UnbracketedPack,
+    }
+
+    /// <summary>
+    /// A resolved use-site argument: either a single scalar type (for example the <c>int</c> in
+    /// <c>Foo&lt;int, string&gt;</c>) or a bracketed group (for example the <c>[int, string]</c>
+    /// in <c>Foo&lt;[int, string]&gt;</c>, including the empty group <c>[]</c>).
+    /// </summary>
+    internal readonly struct PackUseSiteArgument
+    {
+        private PackUseSiteArgument(bool isBracketedGroup, IReadOnlyList<IType> types)
+        {
+            IsBracketedGroup = isBracketedGroup;
+            Types = types;
+        }
+
+        /// <summary>True when this argument was written as a bracketed group <c>[...]</c>.</summary>
+        public bool IsBracketedGroup { get; }
+
+        /// <summary>The argument's element types: a single element for a scalar, or the group's
+        /// ordered elements (possibly zero) for a bracketed group.</summary>
+        public IReadOnlyList<IType> Types { get; }
+
+        /// <summary>Creates a scalar argument carrying a single type.</summary>
+        public static PackUseSiteArgument Scalar(IType type)
+        {
+            return new PackUseSiteArgument(isBracketedGroup: false, new[] { type });
+        }
+
+        /// <summary>Creates a bracketed-group argument carrying the group's ordered element types.</summary>
+        public static PackUseSiteArgument Group(IReadOnlyList<IType> types)
+        {
+            return new PackUseSiteArgument(isBracketedGroup: true, types);
+        }
+    }
+
+    /// <summary>
+    /// The binding of one declared slot: an ordered element list plus whether the slot is a pack.
+    /// A fixed slot carries a single scalar element; a pack slot carries the ordered pack elements
+    /// (which the caller lifts into a comptime <c>Type[]</c> value).
+    /// </summary>
+    internal readonly struct PackSlotBinding
+    {
+        public PackSlotBinding(bool isPack, IReadOnlyList<IType> elements)
+        {
+            IsPack = isPack;
+            Elements = elements;
+        }
+
+        /// <summary>True when this slot is a pack (bracketed or unbracketed); false for a fixed
+        /// scalar slot.</summary>
+        public bool IsPack { get; }
+
+        /// <summary>The ordered element types bound to this slot. For a fixed slot this is a
+        /// single scalar type; for a pack slot it is the ordered pack elements (possibly empty).</summary>
+        public IReadOnlyList<IType> Elements { get; }
+    }
+
+    /// <summary>Whether <see cref="BindPackSlots"/> produced a binding or rejected the argument
+    /// list as too short (reported by the caller as <c>MIST_VAR_0005</c>).</summary>
+    internal enum PackBindingStatus
+    {
+        /// <summary>Every slot was bound.</summary>
+        Bound,
+
+        /// <summary>The flat argument list was too short to fill the fixed and bracketed slots.</summary>
+        TooFewArguments,
+    }
+
+    /// <summary>The outcome of the binding rule: a status and, when bound, one
+    /// <see cref="PackSlotBinding"/> per declared slot in declaration order.</summary>
+    internal readonly struct PackBindingOutcome
+    {
+        private PackBindingOutcome(PackBindingStatus status, IReadOnlyList<PackSlotBinding> slots)
+        {
+            Status = status;
+            Slots = slots;
+        }
+
+        public PackBindingStatus Status { get; }
+
+        public IReadOnlyList<PackSlotBinding> Slots { get; }
+
+        public static PackBindingOutcome Bound(IReadOnlyList<PackSlotBinding> slots)
+        {
+            return new PackBindingOutcome(PackBindingStatus.Bound, slots);
+        }
+
+        public static PackBindingOutcome TooFew()
+        {
+            return new PackBindingOutcome(PackBindingStatus.TooFewArguments, Array.Empty<PackSlotBinding>());
+        }
+    }
+
+    /// <summary>
+    /// The shared flat-to-bracketed binding rule (Requirement 4 and the design's
+    /// "Value-Parameter Arity and the Shared Binding Rule"). Given a declared slot list with at
+    /// most one <see cref="PackBindingSlotKind.UnbracketedPack"/> and a use-site argument list,
+    /// binds fixed scalar and bracketed pack slots one-to-one inward from both ends and assigns
+    /// the remaining contiguous middle arguments (possibly zero) to the single unbracketed pack,
+    /// so the pack may appear leading, middle, or trailing and may absorb an empty middle
+    /// (Requirements 4.1, 4.2, 4.3). Returns <see cref="PackBindingStatus.TooFewArguments"/> when
+    /// the flat list is shorter than the number of fixed and bracketed slots (the minimum required
+    /// while the pack absorbs zero arguments), which the caller reports as <c>MIST_VAR_0005</c>
+    /// (Requirements 4.6, 7.6).
+    /// <para>
+    /// The rule is kind-driven and free of any model dependency beyond <see cref="IType"/>, so the
+    /// same algorithm serves both the type side (fixed scalar slots, bracketed <c>Type[]:</c>
+    /// packs, and the single <c>params</c> pack of a type-parameter list) and the value side (fixed
+    /// value parameters and the single value pack <c>params TArgs args</c>, whose contiguous middle
+    /// collects into <c>(TArgs...)</c>). It is the classic-track counterpart of the ProgramModel
+    /// <c>PackBinder</c>; a caller lifts each pack slot's element list into a comptime
+    /// <c>Type[]</c>, so the flat and bracketed forms of the same pack denote the same type
+    /// (Requirement 4.4).
+    /// </para>
+    /// </summary>
+    internal static PackBindingOutcome BindPackSlots(
+        IReadOnlyList<PackBindingSlotKind> slots,
+        IReadOnlyList<PackUseSiteArgument> arguments)
+    {
+        // The variadic sink is the list's first (and, when well-formed, only) unbracketed pack;
+        // a surplus unbracketed pack is already reported as MIST_VAR_0001 during model
+        // construction, so the binder may rely on there being zero or one.
+        var packIndex = -1;
+        for(var i = 0; i < slots.Count; i++)
+        {
+            if(slots[i] == PackBindingSlotKind.UnbracketedPack)
+            {
+                packIndex = i;
+                break;
+            }
+        }
+
+        var leadingCount = packIndex >= 0 ? packIndex : slots.Count;
+        var trailingCount = packIndex >= 0 ? slots.Count - packIndex - 1 : 0;
+
+        // Requirement 4.6 / 7.6: a flat argument list that cannot fill every fixed and bracketed
+        // slot (with the pack empty) is too short to bind.
+        var minimumRequired = leadingCount + trailingCount;
+        if(arguments.Count < minimumRequired)
+        {
+            return PackBindingOutcome.TooFew();
+        }
+
+        var bindings = new PackSlotBinding[slots.Count];
+
+        // Leading fixed/bracketed slots take the leading arguments one-to-one, in order.
+        for(var i = 0; i < leadingCount; i++)
+        {
+            bindings[i] = BindArityOnePackSlot(slots[i], arguments[i]);
+        }
+
+        // Trailing fixed/bracketed slots take the trailing arguments one-to-one, in order.
+        for(var j = 0; j < trailingCount; j++)
+        {
+            var slotIndex = packIndex + 1 + j;
+            var argumentIndex = arguments.Count - trailingCount + j;
+            bindings[slotIndex] = BindArityOnePackSlot(slots[slotIndex], arguments[argumentIndex]);
+        }
+
+        // The single unbracketed pack absorbs the contiguous middle (possibly empty).
+        if(packIndex >= 0)
+        {
+            var middleElements = CollectPackElements(arguments, leadingCount, arguments.Count - trailingCount);
+            bindings[packIndex] = new PackSlotBinding(isPack: true, middleElements);
+        }
+
+        return PackBindingOutcome.Bound(bindings);
+    }
+
+    /// <summary>
+    /// Binds a single arity-1 slot (fixed scalar or bracketed pack) to its one use-site argument.
+    /// A fixed slot carries the argument's element(s) verbatim (a well-formed fixed argument is a
+    /// single scalar); a bracketed pack slot is marked as a pack whose elements are the group's
+    /// element types.
+    /// </summary>
+    private static PackSlotBinding BindArityOnePackSlot(PackBindingSlotKind slot, PackUseSiteArgument argument)
+    {
+        var isPack = slot != PackBindingSlotKind.Fixed;
+        return new PackSlotBinding(isPack, argument.Types);
+    }
+
+    /// <summary>
+    /// Collects the ordered element types the unbracketed pack binds from its contiguous middle
+    /// run <c>[start, end)</c>. A middle that is exactly one bracketed group is the pack's explicit
+    /// bracketed spelling, so its element types are used directly; otherwise the flat scalar middle
+    /// arguments contribute their types in order. Both spellings therefore produce the same ordered
+    /// element list, so the flat and bracketed forms denote the same type (Requirement 4.4).
+    /// </summary>
+    private static IReadOnlyList<IType> CollectPackElements(
+        IReadOnlyList<PackUseSiteArgument> arguments, int start, int end)
+    {
+        if(end - start == 1 && arguments[start].IsBracketedGroup)
+        {
+            return arguments[start].Types;
+        }
+
+        var elements = new List<IType>(Math.Max(0, end - start));
+        for(var i = start; i < end; i++)
+        {
+            elements.AddRange(arguments[i].Types);
+        }
+
+        return elements;
     }
 
     // ─── Covariant unknown widening (unknown-type feature, Task 23) ──────

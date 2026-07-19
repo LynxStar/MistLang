@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 
@@ -57,6 +58,11 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
         {
             ResolveMember(member, typeDef);
         }
+
+        // Requirement 10.2 / 10.3: reserve the stem namespace and report MIST_VAR_0007 on a
+        // stem/member collision. Runs after all members are resolved so the full member set
+        // (including the spread aggregates just added) is visible.
+        SpreadMemberBuilder.ValidateStems(typeDef, body.TypeBody.Members);
     }
 
     /// <summary>
@@ -121,9 +127,29 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
     private void ResolveField(FieldDeclarationNode fieldDecl, ConcreteType typeDef)
     {
         var name = fieldDecl.Name.Lexeme;
-        var type = TypeResolver.Resolve(fieldDecl.Type, typeDef.Scope);
         var ownership = ResolveOwnership(fieldDecl.OwnershipSpecifier);
         var modifiers = ModifierBuilder.Build(fieldDecl, Context.Diagnostics, typeDef);
+
+        IMistType type;
+        if(SpreadMemberBuilder.TryGetMemberSpread(fieldDecl.Type, out var spread))
+        {
+            // Variadics: `public TArgs... Item;` declares a spread-generated member family
+            // (Requirement 10), not an ordinary field. The aggregate member `Item` has the
+            // value-pack tuple type (TArgs...); its element projections Item1..ItemN are
+            // recorded on the type and materialized when the pack binds. The aggregate is
+            // built below as a normal field of the aggregate type.
+            type = SpreadMemberBuilder.ResolveAggregateAndRecord(
+                spread, name, typeDef, SpreadMemberKind.Field, modifiers, ownership, fieldDecl);
+            if(type is ErrorType)
+            {
+                // Empty stem (MIST_VAR_0008) or non-pack operand: skip the malformed member.
+                return;
+            }
+        }
+        else
+        {
+            type = TypeResolver.Resolve(fieldDecl.Type, typeDef.Scope);
+        }
 
         var initializer = fieldDecl.Initializer is { } initExpr ? new Expression(initExpr) : null;
 

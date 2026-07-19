@@ -389,6 +389,11 @@ internal sealed class ScopeResolver
                 candidates.Add(new TypeResult(localType));
             }
 
+            if(current.LocalMethods.TryGetValue(name, out var methods))
+            {
+                candidates.Add(new MethodGroupResult(methods));
+            }
+
             if(candidates.Count == 1)
             {
                 return candidates[0];

@@ -12,6 +12,7 @@ internal sealed class Scope
     private readonly List<string> importedNamespaces = [];
     private readonly Dictionary<string, IMistType> localTypes = [];
     private readonly Dictionary<string, LocalVariable> localVariables = [];
+    private readonly Dictionary<string, List<Method>> localMethods = [];
 
     public Scope(Scope? parent)
     {
@@ -47,6 +48,11 @@ internal sealed class Scope
     public IReadOnlyDictionary<string, LocalVariable> LocalVariables => localVariables;
 
     /// <summary>
+    /// Methods directly declared in this scope (grouped by name for overloads).
+    /// </summary>
+    public IReadOnlyDictionary<string, List<Method>> LocalMethods => localMethods;
+
+    /// <summary>
     /// Adds a namespace to this scope's import list.
     /// </summary>
     public void AddImportedNamespace(string namespaceName)
@@ -64,6 +70,21 @@ internal sealed class Scope
     public void AddLocalType(string name, IMistType typeDef)
     {
         localTypes[name] = typeDef;
+    }
+
+    /// <summary>
+    /// Registers a method in this scope. Multiple methods with the same name
+    /// are collected as a method group (overloads).
+    /// </summary>
+    public void AddMethod(Method method)
+    {
+        if(!localMethods.TryGetValue(method.Name, out var group))
+        {
+            group = [];
+            localMethods[method.Name] = group;
+        }
+
+        group.Add(method);
     }
 
     /// <summary>

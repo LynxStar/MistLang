@@ -19,6 +19,12 @@ internal sealed record VariableResult(LocalVariable Variable) : LookupResult;
 internal sealed record TypeResult(IMistType Type) : LookupResult;
 
 /// <summary>
+/// The name resolved to one or more methods (a method group).
+/// Overload resolution is deferred to the invocation site.
+/// </summary>
+internal sealed record MethodGroupResult(IReadOnlyList<Method> Methods) : LookupResult;
+
+/// <summary>
 /// The name resolved to multiple candidates at the same scope level.
 /// </summary>
 internal sealed record AmbiguousResult(IReadOnlyList<LookupResult> Candidates) : LookupResult;

@@ -67,5 +67,6 @@ internal sealed class MethodBuilder
         resolvedMethod.DeclaredThisTier = common.DeclaredThisTier;
 
         host.MethodsList.Add(resolvedMethod);
+        host.Scope.AddMethod(resolvedMethod);
     }
 }

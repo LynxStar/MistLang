@@ -363,23 +363,24 @@ public sealed class AttributeEmissionRoundTripPropertyTests : IDisposable
         var sourcePath = Path.Combine(iterDir, "Program.mist");
         File.WriteAllText(sourcePath, mistSource);
 
-        var outDir = Path.Combine(iterDir, "out");
-
         var options = new CompilerOptions(
             ProjectFolder: iterDir,
             SourcePaths: ImmutableArray.Create(sourcePath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: outDir,
+            OutputDirectory: Path.Combine(iterDir, "out"),
             BinDirectory: Path.Combine(iterDir, "bin"),
             ProjectName: $"TestNs{index}",
             NamespaceRoot: $"TestNs{index}",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,
-            OutputType: ProjectOutputType.Library);
+            OutputType: ProjectOutputType.Library,
+            EmitToDisk: false);
 
         var result = SharedDriver.Compile(options);
 
-        // Check for front-end errors only (not MIST_CS_ERROR from Roslyn).
-        // The emitter writes .cs files before Roslyn runs, so we can inspect them.
+        // Check for front-end errors only. With EmitToDisk:false the emitter
+        // produces the C# in memory (result.EmittedFiles) and the downstream
+        // Roslyn build never runs, so MIST_CS_ERROR cannot appear — but the
+        // filter is kept for parity with the on-disk path.
         var frontendErrors = result.Diagnostics
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .Where(d => d.Id.Value != "MIST_CS_ERROR")
@@ -392,23 +393,17 @@ public sealed class AttributeEmissionRoundTripPropertyTests : IDisposable
             return (null, $"Front-end compilation failed:\n{diagnosticText}");
         }
 
-        // Read emitted .cs files from the output directory
-        if(!Directory.Exists(outDir))
-        {
-            return (null, "Output directory does not exist after compilation");
-        }
-
-        var csFiles = Directory.GetFiles(outDir, "*.cs", SearchOption.AllDirectories);
-        if(csFiles.Length == 0)
+        // Inspect the in-memory emitted C# instead of reading it back from disk.
+        var emittedFiles = result.EmittedFiles;
+        if(emittedFiles is null || emittedFiles.Count == 0)
         {
             return (null, "No .cs files emitted");
         }
 
-        // Read all C# files and concatenate
         var allContent = new StringBuilder();
-        foreach(var csFile in csFiles)
+        foreach(var content in emittedFiles.Values)
         {
-            _ = allContent.AppendLine(File.ReadAllText(csFile));
+            _ = allContent.AppendLine(content);
         }
 
         return (allContent.ToString(), null);

@@ -338,7 +338,8 @@ public sealed class ProjectReferencePropertyTests
                     BinDirectory: Path.Combine(rootDir, "bin"),
                     ProjectName: "Root",
                     NamespaceRoot: "Root",
-                    EnabledAnalyzerIds: ImmutableArray<string>.Empty);
+                    EnabledAnalyzerIds: ImmutableArray<string>.Empty,
+                    EmitToDisk: false);
 
                 _ = driver.Compile(options);
 
@@ -424,7 +425,8 @@ public sealed class ProjectReferencePropertyTests
                     BinDirectory: Path.Combine(rootDir, "bin"),
                     ProjectName: "Root",
                     NamespaceRoot: "Root",
-                    EnabledAnalyzerIds: ImmutableArray<string>.Empty);
+                    EnabledAnalyzerIds: ImmutableArray<string>.Empty,
+                    EmitToDisk: false);
 
                 _ = driver.Compile(options);
 

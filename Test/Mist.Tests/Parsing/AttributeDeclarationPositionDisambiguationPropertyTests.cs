@@ -200,7 +200,8 @@ public sealed class AttributeDeclarationPositionDisambiguationPropertyTests : ID
                 BinDirectory: Path.Combine(iterDir, "bin"),
                 ProjectName: "TestDisambiguation",
                 NamespaceRoot: "TestDisambiguation",
-                EnabledAnalyzerIds: ImmutableArray<string>.Empty);
+                EnabledAnalyzerIds: ImmutableArray<string>.Empty,
+                EmitToDisk: false);
 
             var result = SharedDriver.Compile(options);
 

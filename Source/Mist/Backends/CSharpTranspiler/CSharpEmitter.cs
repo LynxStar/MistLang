@@ -149,6 +149,13 @@ public sealed class CSharpEmitter
             files["MistContext.g.cs"] = MistContextGenerator.GenerateMistContextFile();
         }
 
+        // Emit per-arity monomorphized definitions for variadic types/methods.
+        var variadicFiles = VariadicMonomorphizer.EmitMonomorphizedDefinitions(model);
+        foreach(var (path, content) in variadicFiles)
+        {
+            files[path] = content;
+        }
+
         return files;
     }
 
@@ -7285,11 +7292,16 @@ internal sealed class CSharpSourceWriter
         var symbol = model.GetDeclaredSymbol(param) as Symbol;
         if(symbol is not null)
         {
+            // Emit params prefix for value-level params T[] (Requirement 13.6).
+            var paramsPrefix = symbol.HasFlattenedCallConvention && symbol.DeclaredType is ArrayType
+                ? "params "
+                : "";
+
             return symbol.RefKind switch
             {
                 RefKind.Ref => $"{attrPrefix}ref {type} {name}",
                 RefKind.RefReadonly => $"{attrPrefix}ref readonly {type} {name}",
-                _ => $"{attrPrefix}{type} {name}",
+                _ => $"{attrPrefix}{paramsPrefix}{type} {name}",
             };
         }
 

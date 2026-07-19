@@ -472,98 +472,98 @@ final checkpoint.
       guard-narrowing recovery
     - _Requirements: 6.3, 6.4, 6.6, 6.7_
 
-- [ ] 14. Classic type checker: value-side spread, tuple decomposition, and zip
-  - [~] 14.1 Implement value-side spread as general tuple decomposition
+- [x] 14. Classic type checker: value-side spread, tuple decomposition, and zip
+  - [x] 14.1 Implement value-side spread as general tuple decomposition
     - In `TypeCheckerAnalyzer.cs`, decompose any tuple value `x...` into argument slots (empty ->
       zero), well-typed iff the ordered element types are positionally assignable to the target slots,
       else `MIST_VAR_0011`; treat `args...` as the pack-originated case; allow re-spread of
       spread-generated members (`Item...`)
     - _Requirements: 7.5, 8.2, 8.3, 8.4, 10.9_
 
-  - [~] 14.2 Implement zip parallel expansion
+  - [x] 14.2 Implement zip parallel expansion
     - Expand two operands element by element into N paired positions only when proven equal length
       (same origin or otherwise established); emit `MIST_VAR_0006` otherwise
     - _Requirements: 8.5, 8.6, 8.7_
 
-  - [ ]* 14.3 Write property test for spread width (classic pipeline)
+  - [x]* 14.3 Write property test for spread width (classic pipeline)
     - **Property 5: Spread width equals source length**
     - Generate a `Type[]` of length N and a tuple of N elements; assert spreading yields exactly N
       ordered type slots / argument slots and an empty operand yields zero
     - **Validates: Requirements 6.8, 8**
 
-  - [ ]* 14.4 Write property test for tuple-decomposition well-typedness (classic pipeline)
+  - [x]* 14.4 Write property test for tuple-decomposition well-typedness (classic pipeline)
     - **Property 11: Tuple-decomposition well-typedness**
     - Generate a tuple value and a target slot list; assert `x...` is well-typed iff element types are
       positionally assignable, else `MIST_VAR_0011`, for every tuple whether or not pack-originated
     - **Validates: Requirements 7.5, 8.4**
 
-  - [ ]* 14.5 Write property test for zip length proof (classic pipeline)
+  - [x]* 14.5 Write property test for zip length proof (classic pipeline)
     - **Property 12: Zip requires provably-equal length**
     - Generate two spread operands; assert a zip is accepted iff proven equal length (yielding N
       paired positions) and otherwise raises `MIST_VAR_0006`
     - **Validates: Requirements 8.5, 8.6, 8.7**
 
-- [~] 15. Checkpoint - classic type-checker core boundary
+- [ ] 15. Checkpoint - classic type-checker core boundary
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 16. Classic type checker: constraints, generic-body forwarding, and narrowing
-  - [~] 16.1 Implement whole-pack constraints elementwise
+- [x] 16. Classic type checker: constraints, generic-body forwarding, and narrowing
+  - [x] 16.1 Implement whole-pack constraints elementwise
     - In `TypeCheckerAnalyzer.cs` (with `Model/Types/TypeParameterConstraints.cs`), require every
       element type to satisfy a `where TArgs : C` bound, permit constrained members on each element
       and each `args[i]`, emit `MIST_VAR_0009` per failing element (treated as an error type so
       analysis continues), and treat an empty pack as vacuously satisfying the constraint
     - _Requirements: 11.1, 11.2, 11.3, 11.4_
 
-  - [~] 16.2 Implement generic-body open-generic checking and provable forwarding
+  - [x] 16.2 Implement generic-body open-generic checking and provable forwarding
     - Check a variadic body once for every instantiation the signature permits; accept `args...`
       forwarding only into a destination provably `(TArgs...)`-compatible for every `TArgs` (another
       `params TArgs` / `(TArgs...)` parameter or a `Func<TArgs..., R>` value); emit `MIST_VAR_0011`
       when forwarding a symbolic pack into a fixed-arity destination
     - _Requirements: 12.2, 12.3, 12.6, 12.7, 12.8_
 
-  - [~] 16.3 Implement value-pack narrowing that recovers forwarding
+  - [x] 16.3 Implement value-pack narrowing that recovers forwarding
     - Narrow `args` to a concrete tuple type `T` inside an `args is T x` branch so that spreading
       `x...` into a matching destination is well-typed there; emit `MIST_VAR_0011` for a wrong-shape
       forward within such a branch; support different shapes in different branches
     - _Requirements: 12.9, 6.7_
 
-  - [ ]* 16.4 Write property test for whole-pack constraint enforcement (classic pipeline)
+  - [x]* 16.4 Write property test for whole-pack constraint enforcement (classic pipeline)
     - **Property 16: Whole-pack constraint enforcement**
     - Generate a pack with constraint C and a non-empty binding; assert well-typed iff every element
       satisfies C (constrained members usable on each element and `args[i]`), else `MIST_VAR_0009` per
       failing element
     - **Validates: Requirements 11.1, 11.2, 11.3**
 
-  - [ ]* 16.5 Write property test for generic destination enforcement (classic pipeline)
+  - [x]* 16.5 Write property test for generic destination enforcement (classic pipeline)
     - **Property 19: Spread respects destination typing (generic enforcement)**
     - Assert a symbolic `args...` is accepted iff the destination provably accepts `(TArgs...)` for
       every `TArgs`, and rejected with `MIST_VAR_0011` for a fixed-arity destination (for example
       `Sum3(int, int, int)`) even though it would succeed for one instantiation
     - **Validates: Requirements 8.4, 12.6**
 
-  - [ ]* 16.6 Write property test for narrowing recovery (classic pipeline)
+  - [x]* 16.6 Write property test for narrowing recovery (classic pipeline)
     - **Property 20: Narrowing recovers provable forwarding**
     - Assert that inside `args is T x` the pack narrows to `T` so `x...` into a matching destination is
       well-typed, that different-shape branches enable their own forwarding, and that a mismatched
       forward inside a branch is still `MIST_VAR_0011`
     - **Validates: Requirements 6.7, 12.9**
 
-- [ ] 17. Classic type checker: inference, value-level params, Func invocation, and variadic abstract types
-  - [~] 17.1 Extend positional unification for pack inference
+- [x] 17. Classic type checker: inference, value-level params, Func invocation, and variadic abstract types
+  - [x] 17.1 Extend positional unification for pack inference
     - In `Source/Mist/Analysis/Builtin/TypeArgumentInferenceEngine.cs` (with `InferenceContext.cs` /
       `InferenceResult.cs`), infer a sole pack as the ordered static types of the value arguments;
       solve fixed scalar type parameters and the pack together via the binding rule; bind from
       explicit bracketed type arguments when supplied; infer the empty pack for zero arguments
     - _Requirements: 14.1, 14.2, 14.3, 14.4_
 
-  - [~] 17.2 Implement value-level `params T[]` collection semantics
+  - [x] 17.2 Implement value-level `params T[]` collection semantics
     - In `TypeCheckerAnalyzer.cs` / `OverloadResolver.cs`, collect trailing arguments assignable to
       `T` in source order into a single `T[]` and bind it; bind a non-null length-0 `T[]` for zero
       trailing arguments; reject a non-assignable trailing argument as an ordinary type error and
       leave the parameter unbound
     - _Requirements: 13.2, 13.3, 13.7_
 
-  - [~] 17.3 Generalize `Func` invocation to a single rule
+  - [x] 17.3 Generalize `Func` invocation to a single rule
     - In `TypeCheckerAnalyzer.cs`, replace per-arity `Func` invocation recognition with one rule:
       invoking a constructed `Func<params TArgs, TResult>` is well-typed with result type `TResult`
       iff the argument list has the same length as `TArgs` and each argument is assignable to the
@@ -571,33 +571,33 @@ final checkpoint.
       including the empty pack
     - _Requirements: 15.3, 15.4, 15.5, 15.6, 15.7, 15.8_
 
-  - [~] 17.4 Implement variadic abstract type implementation checking
+  - [x] 17.4 Implement variadic abstract type implementation checking
     - Permit implementing a variadic abstract type either at a concrete arity (variadic member slots
       monomorphize to that arity) or generically by spreading the implementer's own pack into the
       base-type list, reusing the base-type-list spread
     - _Requirements: 22.2_
 
-  - [ ]* 17.5 Write property test for inference agreement (classic pipeline)
+  - [x]* 17.5 Write property test for inference agreement (classic pipeline)
     - **Property 7: Inference agrees with the explicit form**
     - Generate a variadic method and value arguments; assert inferring the pack (with any fixed type
       parameters) yields the same instantiation as the explicit bracketed form
     - **Validates: Requirements 14.1, 14.2, 14.3, 14.4**
 
-  - [ ]* 17.6 Write property test for value-level params collection (classic pipeline)
+  - [x]* 17.6 Write property test for value-level params collection (classic pipeline)
     - **Property 18: Homogeneous value-level params collection**
     - Generate invocations of a `params T[]` method; assert trailing arguments assignable to `T` are
       collected left-to-right into a single `T[]` (empty -> non-null length-0), and a non-assignable
       trailing argument is rejected with the parameter left unbound
     - **Validates: Requirements 13.2, 13.3, 13.7**
 
-  - [ ]* 17.7 Write property test for Func invocation generalization (classic pipeline)
+  - [x]* 17.7 Write property test for Func invocation generalization (classic pipeline)
     - **Property 15: Func invocation generalization**
     - Generate a constructed `Func<params TArgs, TResult>` and an argument list; assert the invocation
       is well-typed with result `TResult` iff length matches `TArgs` and each argument is assignable,
       at every arity including the empty pack
     - **Validates: Requirements 15.6, 15.7, 15.8**
 
-  - [ ]* 17.8 Write property test for pack-bearing declaration kinds (classic pipeline)
+  - [x]* 17.8 Write property test for pack-bearing declaration kinds (classic pipeline)
     - **Property 21: Packs are accepted on every declaration kind**
     - Generate pack type-parameter lists on `class`, `struct`, `abstract` type, type alias, newtype,
       and method lists; assert each is accepted under the same pack rules, and that a variadic
@@ -605,11 +605,11 @@ final checkpoint.
       (base-type-list spread). Cover the variadic newtype here (it is not part of the runnable sample)
     - **Validates: Requirements 22.1, 22.2**
 
-- [~] 18. Checkpoint - classic type-checker complete
+- [x] 18. Checkpoint - classic type-checker complete
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 19. Classic backend: monomorphization, Func/Action + ValueTuple mapping, and the arity ceiling
-  - [~] 19.1 Implement per-arity monomorphization and CLR mapping
+  - [x] 19.1 Implement per-arity monomorphization and CLR mapping
     - In `Source/Mist/Backends/CSharpTranspiler/` (`CSharpEmitter.cs`, `CSharpTypeMap.cs`,
       `IntrinsicTypeMap.cs`), expand spreads to concrete width per used arity; map
       `Func<params TArgs, TResult>` to the matching `System.Func<...>` (empty pack ->
@@ -617,12 +617,12 @@ final checkpoint.
       7 elements; map spread-generated members to `Item1..ItemN`
     - _Requirements: 15.1, 16.3, 16.5_
 
-  - [~] 19.2 Emit value-level `params T[]` as a C# params array
+  - [ ] 19.2 Emit value-level `params T[]` as a C# params array
     - Emit a Value_Level_Params parameter as a C# `params T[]` array parameter so the callee receives
       a real array
     - _Requirements: 13.6_
 
-  - [~] 19.3 Implement the backend arity-ceiling diagnostic
+  - [ ] 19.3 Implement the backend arity-ceiling diagnostic
     - Emit `MIST_VAR_0010` when a construction exceeds target CLR capacity (`System.Func`/
       `System.Action` over 16 inputs, or a non-nestable `System.ValueTuple` over 7), identifying the
       construction and exceeded capacity; impose no front-end limit and emit the C# shape when the
@@ -649,35 +649,35 @@ final checkpoint.
     - _Requirements: 16.2, 16.3_
 
 - [ ] 20. Func / Action bootstrap rewrite (classic pipeline)
-  - [~] 20.1 Rewrite `Func.mist` to a single variadic declaration
+  - [ ] 20.1 Rewrite `Func.mist` to a single variadic declaration
     - Replace the 17 hand-written classes in `Source/Standard/Bootstrap/Func.mist` with one
       `intrinsic public class Func<params TArgs, TResult> { }` (trailing slot is the return type; the
       pack absorbs the parameter types)
     - _Requirements: 15.1_
 
-  - [~] 20.2 Rewrite `Action.mist` to a single variadic alias
+  - [ ] 20.2 Rewrite `Action.mist` to a single variadic alias
     - Replace the 17 hand-written aliases in `Source/Standard/Bootstrap/Action.mist` with one
       `type Action<params TArgs> = Func<TArgs..., void>;`
     - _Requirements: 15.2_
 
-  - [~] 20.3 Write in-process integration test for Func/Action across arities (classic pipeline)
+  - [ ] 20.3 Write in-process integration test for Func/Action across arities (classic pipeline)
     - Compile in-process via the shared classic `CompilerDriver` and assert `Func<int, string>` binds
       `TArgs = [int]` / `TResult = string`, `Func<string>` binds `TArgs = []`, `Action<int, string>`
       resolves to `Func<int, string, void>`, and invocation type-checks and emits at each arity
       including the empty pack (no process spawn)
     - _Requirements: 15.3, 15.4, 15.5, 15.6, 15.7, 15.8_
 
-- [~] 21. Checkpoint - classic backend and bootstrap boundary
+- [ ] 21. Checkpoint - classic backend and bootstrap boundary
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 22. Sample application (classic pipeline)
-  - [~] 22.1 Create the Variadics sample project
+  - [ ] 22.1 Create the Variadics sample project
     - Add `samples/Variadics/Program.mist` containing the Requirement 18 Proof Code verbatim
       (ASCII-only, Mist array-literal syntax, Allman braces) and `samples/Variadics/mist.toml` with
       `name = "Variadics"`
     - _Requirements: 18.1, 18.2, 18.3, 18.4, 18.7_
 
-  - [~] 22.2 Wire Variadics into the AllFeatures full-suite sample
+  - [ ] 22.2 Wire Variadics into the AllFeatures full-suite sample
     - Add a `Variadics = { path = "../Variadics" }` reference entry to `samples/AllFeatures/mist.toml`
       and a `Variadics.Program.RunDemo();` call in `samples/AllFeatures/Program.mist`, following the
       existing AllFeatures integration convention; update `samples/__baselines__/AllFeatures.out` with
@@ -686,13 +686,13 @@ final checkpoint.
       transitively by the existing AllFeatures baseline test
     - _Requirements: 18.5_
 
-  - [~] 22.3 Verify the sample compiles cleanly in-process through the classic pipeline
+  - [ ] 22.3 Verify the sample compiles cleanly in-process through the classic pipeline
     - Using the shared classic `CompilerDriver`, compile `samples/Variadics` in-process and assert
       zero errors and zero warnings (per the zero-warnings policy); do not spawn a process to run it
     - _Requirements: 18.6_
 
 - [ ] 23. Negative proof - spread destination enforcement (locked gate, classic pipeline)
-  - [~] 23.1 Add the classic type-checker rejection test for the Requirement 21 Negative Proof Code
+  - [ ] 23.1 Add the classic type-checker rejection test for the Requirement 21 Negative Proof Code
     - Add a test fixture containing the Requirement 21 Negative Proof Code verbatim (the
       `ForwardSumBad<params TArgs>` / `Sum3(args...)` case); compile in-process via the shared classic
       `CompilerDriver` and assert compilation fails with `MIST_VAR_0011` reported on `Sum3(args...)`;
@@ -701,7 +701,7 @@ final checkpoint.
     - _Requirements: 21.1, 21.2, 21.3_
 
 - [ ] 24. Book documentation
-  - [~] 24.1 Add the variadics book chapter
+  - [ ] 24.1 Add the variadics book chapter
     - Add a variadics chapter under `book/src/type-system/` covering the `params`/`Type[]:` spellings
       and the pack-as-dependent-type keystone, the binding rule (leading/middle/trailing), order- and
       arity-sensitive identity, position semantics and the capability ladder, the value side
@@ -713,12 +713,12 @@ final checkpoint.
     - _Requirements: 19.1, 19.2, 19.3, 19.4_
 
 - [ ] 25. Feature coverage documentation update
-  - [~] 25.1 Update `CSHARP_FEATURES.md`
+  - [ ] 25.1 Update `CSHARP_FEATURES.md`
     - Change the `params arrays` row from unimplemented to implemented with a note describing
       homogeneous value-level `params T[]` support, and update the `Summary` table counts
     - _Requirements: 20.1, 20.2_
 
-- [~] 26. Final checkpoint - Ensure all tests pass
+- [ ] 26. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

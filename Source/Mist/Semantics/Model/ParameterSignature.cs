@@ -324,7 +324,7 @@ public static class ParameterSignature
     /// handling MethodDeclarationNode, ConstructorDeclarationNode,
     /// OperatorDeclarationNode, and CastOperatorDeclarationNode.
     /// </summary>
-    private static ParameterListNode? GetParameterList(Storm.Runtime.SyntaxNode declaringNode)
+    internal static ParameterListNode? GetParameterList(Storm.Runtime.SyntaxNode declaringNode)
     {
         return declaringNode switch
         {

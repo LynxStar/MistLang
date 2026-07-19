@@ -3480,7 +3480,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         {
                             if(baseTypeParams[i] is TypeParameterType baseTP2)
                             {
-                                CheckConstraintSatisfaction(baseTypeArgs[i], baseTP2, declaringNode, genericName, model, diagnostics);
+                                // Requirement 11: whole-pack constraint — check each element independently.
+                                if(baseTP2.IsPack
+                                    && baseConstructed.DependentArguments is not null
+                                    && i < baseConstructed.DependentArguments.Count
+                                    && baseConstructed.DependentArguments[i] is { PackElementTypes: { } packElements })
+                                {
+                                    CheckPackConstraintSatisfaction(packElements, baseTP2, declaringNode, model, diagnostics);
+                                }
+                                else
+                                {
+                                    CheckConstraintSatisfaction(baseTypeArgs[i], baseTP2, declaringNode, genericName, model, diagnostics);
+                                }
                             }
                         }
                     }
@@ -3528,7 +3539,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     {
                         if(absTypeParams[i] is TypeParameterType absTP2)
                         {
-                            CheckConstraintSatisfaction(absTypeArgs[i], absTP2, declaringNode, genericName, model, diagnostics);
+                            // Requirement 11: whole-pack constraint — check each element independently.
+                            if(absTP2.IsPack
+                                && absConstructed.DependentArguments is not null
+                                && i < absConstructed.DependentArguments.Count
+                                && absConstructed.DependentArguments[i] is { PackElementTypes: { } packElements })
+                            {
+                                CheckPackConstraintSatisfaction(packElements, absTP2, declaringNode, model, diagnostics);
+                            }
+                            else
+                            {
+                                CheckConstraintSatisfaction(absTypeArgs[i], absTP2, declaringNode, genericName, model, diagnostics);
+                            }
                         }
                     }
                 }
@@ -6996,6 +7018,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             var lhsType = model.GetTypeOf(assignment.Target);
             var rhsType = model.GetTypeOf(assignment.Value);
+
+            // ── variadics feature (task 14.2): zip parallel expansion (Requirements 8.5-8.7) ──
+            // A zip is the parallel two-operand value spread `left... = right...`. It is its
+            // own chokepoint: permitted only when the operands are proven equal length (same
+            // pack origin, or two concrete tuples of equal count), otherwise MIST_VAR_0006.
+            // Handled before the ordinary tuple-to-tuple assignability check so a zip is never
+            // mis-reported as a scalar assignment.
+            if(TryCheckZipAssignment(assignment, model, diagnostics))
+            {
+                return;
+            }
 
             // ── first-class-functions: method group ambiguity check (MIST_TC_0121) ──
             // When the LHS type is a Func type and the RHS is a bare identifier
@@ -11190,6 +11223,23 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             CheckArgumentListExpressions(methodCall.Arguments, model, diagnostics);
         }
 
+        // ── variadics value-side spread (task 14.1): general tuple decomposition ──
+        // A value-spread argument `x...` decomposes the tuple value into ordered
+        // argument slots. When it is the sole argument, check the tuple's element
+        // types positionally against the callee's parameter slots (MIST_VAR_0011);
+        // regardless of shape, a spread argument is handled here so the ordinary
+        // 1:1 argument-type check never mis-reports it as a single argument.
+        if(methodCall.Arguments is not null && ArgumentListContainsValueSpread(methodCall.Arguments))
+        {
+            if(TryGetSoleValueSpreadArgument(methodCall.Arguments, out var spreadPostfix))
+            {
+                var destinationSlots = ResolveMethodCallDestinationSlots(methodCall, targetType, model);
+                CheckDecomposedValueSpread(spreadPostfix, destinationSlots, model, diagnostics);
+            }
+
+            return;
+        }
+
         // ── Flow narrowing: apply narrowed types to argument expressions ──
         // When a narrowed variable is passed as a method argument, temporarily
         // override its type in the semantic model so that the static
@@ -11572,6 +11622,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if(invocation.Arguments is not null)
         {
             CheckArgumentListExpressions(invocation.Arguments, model, diagnostics);
+        }
+
+        // ── variadics value-side spread (task 14.1): general tuple decomposition ──
+        // A value-spread argument `x...` decomposes the tuple value into ordered
+        // argument slots. When it is the sole argument, check the tuple's element
+        // types positionally against the destination parameter slots (a Func value's
+        // parameter list or the invoked method's parameters), emitting MIST_VAR_0011
+        // on a slot-count or slot-type mismatch. A spread argument is handled here so
+        // the ordinary invocation-argument checks never mis-count it as one argument.
+        if(invocation.Arguments is not null && ArgumentListContainsValueSpread(invocation.Arguments))
+        {
+            if(TryGetSoleValueSpreadArgument(invocation.Arguments, out var spreadPostfix))
+            {
+                var destinationSlots = ResolveInvocationDestinationSlots(invocation, targetType, model);
+                CheckDecomposedValueSpread(spreadPostfix, destinationSlots, model, diagnostics);
+            }
+
+            return;
         }
 
         // ── first-class-functions: Func-typed invocation validation ──
@@ -12333,8 +12401,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Collect argument nodes for ref-argument detection.
         var argNodes = CollectArgumentNodes(argList);
 
-        // Check each argument against the corresponding parameter.
-        var count = Math.Min(argExprs.Count, paramSymbols.Length);
+        // Variadics value-level params (Requirements 13.2, 13.3, 13.7):
+        // Detect if the last parameter is a `params T[]` so trailing arguments
+        // are checked against the element type T rather than the array type T[].
+        IType? valueLevelParamsElementType = null;
+        var fixedParamCount = paramSymbols.Length;
+        if(paramSymbols.Length > 0
+            && paramSymbols[^1] is Symbol lastParamSym
+            && lastParamSym.HasFlattenedCallConvention
+            && lastParamSym.DeclaredType is ArrayType lastArrayType)
+        {
+            valueLevelParamsElementType = lastArrayType.ElementType;
+            fixedParamCount = paramSymbols.Length - 1;
+        }
+
+        // Check fixed (non-params) arguments against corresponding parameters.
+        var count = valueLevelParamsElementType is not null
+            ? Math.Min(argExprs.Count, fixedParamCount)
+            : Math.Min(argExprs.Count, paramSymbols.Length);
         for(var i = 0; i < count; i++)
         {
             var argType = model.GetTypeOf(argExprs[i]);
@@ -12343,10 +12427,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if(argType is not null && paramType is not null)
             {
                 // ── ref-parameters feature: exact type match (MIST_REF_0007) ──
-                // When the argument is a ref argument, require exact type identity
-                // (no implicit conversions, no subtype substitution).
-                // Only check if the argument passed the assignable storage location
-                // check (no cascading with MIST_REF_0001).
                 if(i < argNodes.Count && argNodes[i] is RefArgumentArgumentNode refArgNode)
                 {
                     if(IsAssignableStorageLocation(refArgNode.Expression, model, out _)
@@ -12359,8 +12439,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
 
                 // ── MIST2007: Ref struct abstract argument restriction (Requirements 3.11, 3.12) ──
-                // A ref struct value cannot be passed as an argument to an abstract-typed parameter
-                // because that would require boxing (heap allocation).
                 if(IsRefStructType(argType) && IsAbstractTargetType(paramType))
                 {
                     diagnostics.ReportAtNode(TypeCheckDiagnostics.RefStructToAbstract, argExprs[i], "TypeChecker");
@@ -12368,16 +12446,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
 
                 // ── refinement-types feature: compile-time enforcement ──
-                // When the parameter is a RefinementType, check the argument
-                // against the refinement predicate (Requirement 5.3).
                 if(TryCheckRefinementAssignment(argType, paramType, argExprs[i], diagnostics, model))
                 {
                     continue;
                 }
 
-                // ── regex-type feature: string literal shorthand (Requirements 6.5, 6.8, 6.9, 6.10) ──
-                // When the parameter is regex and the argument is string, apply
-                // the string→regex conversion rules.
+                // ── regex-type feature: string literal shorthand ──
                 if(TryCheckStringToRegexAssignment(argType, paramType, argExprs[i], diagnostics, model))
                 {
                     continue;
@@ -12385,30 +12459,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                 if(!IsAssignable(argType, paramType))
                 {
-                    // unknown-type feature (Req 4.2, 4.4): emit a targeted
-                    // diagnostic for void→unknown or unknown→non-unknown
-                    // before falling back to the generic MIST_TC_0002.
                     if(TryEmitUnknownAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics))
                     {
-                        // Targeted unknown diagnostic emitted; skip generic.
                     }
-                    // type-unions feature (Req 6.3, 6.4): emit a targeted
-                    // diagnostic for union-specific failures.
                     else if(TryEmitUnionAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics))
                     {
-                        // Targeted union diagnostic emitted; skip generic.
                     }
-                    // enums feature (Req 7.3): emit a targeted diagnostic
-                    // for reverse conversion (underlying type → enum).
                     else if(TryEmitEnumAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
                     {
-                        // Targeted enum diagnostic emitted; skip generic.
                     }
-                    // stack-only-types feature (R7.7): emit a targeted diagnostic
-                    // for span-to-span mismatch (kind or element type).
                     else if(TryEmitSpanInteropMismatchDiagnostic(argType, paramType, argExprs[i], diagnostics))
                     {
-                        // Targeted span mismatch diagnostic emitted; skip generic.
                     }
                     else
                     {
@@ -12417,8 +12478,23 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
                 else
                 {
-                    // Resolve and record any implicit cast operator on the argument.
                     _ = TryResolveImplicitCast(argType, paramType, argExprs[i], model, diagnostics);
+                }
+            }
+        }
+
+        // Variadics value-level params: check trailing arguments against element type T.
+        // Requirement 13.2: collect trailing args assignable to T.
+        // Requirement 13.3: zero trailing args is valid (empty array).
+        // Requirement 13.7: non-assignable trailing arg emits type error.
+        if(valueLevelParamsElementType is not null)
+        {
+            for(var i = fixedParamCount; i < argExprs.Count; i++)
+            {
+                var argType = model.GetTypeOf(argExprs[i]);
+                if(argType is not null && !IsAssignable(argType, valueLevelParamsElementType))
+                {
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.ExpressionBodyTypeMismatch, argExprs[i], "TypeChecker");
                 }
             }
         }
@@ -12494,8 +12570,36 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Collect argument nodes for ref-argument detection.
         var argNodes = CollectArgumentNodes(argList);
 
-        // Check each argument against the corresponding parameter, applying substitution.
-        var count = Math.Min(argExprs.Count, paramSymbols.Length);
+        // Variadics value-level params (Requirements 13.2, 13.3, 13.7):
+        // Detect if the last parameter is a `params T[]` so trailing arguments
+        // are checked against the element type T rather than the array type T[].
+        IType? valueLevelParamsElementType = null;
+        var fixedParamCount = paramSymbols.Length;
+        if(paramSymbols.Length > 0
+            && paramSymbols[^1] is Symbol lastParamSymSub
+            && lastParamSymSub.HasFlattenedCallConvention
+            && lastParamSymSub.DeclaredType is ArrayType lastArrayTypeSub)
+        {
+            valueLevelParamsElementType = lastArrayTypeSub.ElementType;
+
+            // Apply substitutions to the element type.
+            if(enclosingTypeParams is not null && enclosingTypeArgs is not null)
+            {
+                valueLevelParamsElementType = SubstituteType(valueLevelParamsElementType, enclosingTypeParams, enclosingTypeArgs);
+            }
+
+            if(methodTypeParams is not null && methodTypeArgs is not null)
+            {
+                valueLevelParamsElementType = SubstituteType(valueLevelParamsElementType, methodTypeParams, methodTypeArgs);
+            }
+
+            fixedParamCount = paramSymbols.Length - 1;
+        }
+
+        // Check fixed (non-params) arguments against corresponding parameters, applying substitution.
+        var count = valueLevelParamsElementType is not null
+            ? Math.Min(argExprs.Count, fixedParamCount)
+            : Math.Min(argExprs.Count, paramSymbols.Length);
         for(var i = 0; i < count; i++)
         {
             var argType = model.GetTypeOf(argExprs[i]);
@@ -12516,10 +12620,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
 
                 // ── ref-parameters feature: exact type match (MIST_REF_0007) ──
-                // When the argument is a ref argument, require exact type identity
-                // (no implicit conversions, no subtype substitution).
-                // Only check if the argument passed the assignable storage location
-                // check (no cascading with MIST_REF_0001).
                 if(i < argNodes.Count && argNodes[i] is RefArgumentArgumentNode refArgNode)
                 {
                     if(IsAssignableStorageLocation(refArgNode.Expression, model, out _)
@@ -12532,8 +12632,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
 
                 // ── MIST2007: Ref struct abstract argument restriction (Requirements 3.11, 3.12) ──
-                // A ref struct value cannot be passed as an argument to an abstract-typed parameter
-                // because that would require boxing (heap allocation).
                 if(IsRefStructType(argType) && IsAbstractTargetType(paramType))
                 {
                     diagnostics.ReportAtNode(TypeCheckDiagnostics.RefStructToAbstract, argExprs[i], "TypeChecker");
@@ -12541,16 +12639,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
 
                 // ── refinement-types feature: compile-time enforcement ──
-                // When the parameter is a RefinementType, check the argument
-                // against the refinement predicate (Requirement 5.3).
                 if(TryCheckRefinementAssignment(argType, paramType, argExprs[i], diagnostics, model))
                 {
                     continue;
                 }
 
-                // ── regex-type feature: string literal shorthand (Requirements 6.5, 6.8, 6.9, 6.10) ──
-                // When the parameter is regex and the argument is string, apply
-                // the string→regex conversion rules.
+                // ── regex-type feature: string literal shorthand ──
                 if(TryCheckStringToRegexAssignment(argType, paramType, argExprs[i], diagnostics, model))
                 {
                     continue;
@@ -12558,30 +12652,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                 if(!IsAssignable(argType, paramType))
                 {
-                    // unknown-type feature (Req 4.2, 4.4): emit a targeted
-                    // diagnostic for void→unknown or unknown→non-unknown
-                    // before falling back to the generic MIST_TC_0002.
                     if(TryEmitUnknownAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics))
                     {
-                        // Targeted unknown diagnostic emitted; skip generic.
                     }
-                    // type-unions feature (Req 6.3, 6.4): emit a targeted
-                    // diagnostic for union-specific failures.
                     else if(TryEmitUnionAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics))
                     {
-                        // Targeted union diagnostic emitted; skip generic.
                     }
-                    // enums feature (Req 7.3): emit a targeted diagnostic
-                    // for reverse conversion (underlying type → enum).
                     else if(TryEmitEnumAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
                     {
-                        // Targeted enum diagnostic emitted; skip generic.
                     }
-                    // stack-only-types feature (R7.7): emit a targeted diagnostic
-                    // for span-to-span mismatch (kind or element type).
                     else if(TryEmitSpanInteropMismatchDiagnostic(argType, paramType, argExprs[i], diagnostics))
                     {
-                        // Targeted span mismatch diagnostic emitted; skip generic.
                     }
                     else
                     {
@@ -12590,8 +12671,20 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
                 else
                 {
-                    // Resolve and record any implicit cast operator on the argument.
                     _ = TryResolveImplicitCast(argType, paramType, argExprs[i], model, diagnostics);
+                }
+            }
+        }
+
+        // Variadics value-level params: check trailing arguments against element type T.
+        if(valueLevelParamsElementType is not null)
+        {
+            for(var i = fixedParamCount; i < argExprs.Count; i++)
+            {
+                var argType = model.GetTypeOf(argExprs[i]);
+                if(argType is not null && !IsAssignable(argType, valueLevelParamsElementType))
+                {
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.ExpressionBodyTypeMismatch, argExprs[i], "TypeChecker");
                 }
             }
         }
@@ -14008,7 +14101,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 {
                     if(typeParams[i] is TypeParameterType tp5848)
                     {
-                        CheckConstraintSatisfaction(typeArgs[i], tp5848, objectCreation, genericName, model, diagnostics);
+                        // Requirement 11: whole-pack constraint — check each element independently.
+                        if(tp5848.IsPack
+                            && constructedForConstraints.DependentArguments is not null
+                            && i < constructedForConstraints.DependentArguments.Count
+                            && constructedForConstraints.DependentArguments[i] is { PackElementTypes: { } packElements })
+                        {
+                            CheckPackConstraintSatisfaction(packElements, tp5848, objectCreation, model, diagnostics);
+                        }
+                        else
+                        {
+                            CheckConstraintSatisfaction(typeArgs[i], tp5848, objectCreation, genericName, model, diagnostics);
+                        }
                     }
                 }
             }
@@ -14160,7 +14264,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 {
                     if(typeParams[i] is TypeParameterType tp)
                     {
-                        CheckConstraintSatisfaction(typeArgs[i], tp, objectCreation, genericName, model, diagnostics);
+                        // Requirement 11: whole-pack constraint — check each element independently.
+                        if(tp.IsPack
+                            && constructedForConstraints.DependentArguments is not null
+                            && i < constructedForConstraints.DependentArguments.Count
+                            && constructedForConstraints.DependentArguments[i] is { PackElementTypes: { } packElements })
+                        {
+                            CheckPackConstraintSatisfaction(packElements, tp, objectCreation, model, diagnostics);
+                        }
+                        else
+                        {
+                            CheckConstraintSatisfaction(typeArgs[i], tp, objectCreation, genericName, model, diagnostics);
+                        }
                     }
                 }
             }
@@ -18231,6 +18346,577 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         return elements;
     }
 
+    // ─── Value-side spread: general tuple decomposition (variadics, task 14.1) ──
+    //
+    // The value-side `...` operator decomposes a tuple value into ordered argument
+    // slots (Requirements 8.2, 8.3): every tuple value decomposes, with `args...`
+    // simply the case where the tuple originated from a pack, and a spread-generated
+    // aggregate `Item...` is re-spread as the tuple value it names (Requirement 10.9).
+    // A decomposition is well-typed if and only if the tuple's ordered element types
+    // are positionally assignable to the destination slots, else MIST_VAR_0011
+    // (Requirements 7.5, 8.4). Only tuples whose element types are concretely known
+    // are decided here; a symbolic value pack in an open generic body (its element
+    // types not yet bound) is left to the generic-enforcement task, and binding a
+    // flat argument list that mixes fixed arguments with a spread is left to the
+    // call-site binder task — a spread argument is nonetheless intercepted so it is
+    // never mis-reported by the ordinary one-to-one argument-type check.
+
+    /// <summary>
+    /// Whether a value-side spread decomposition is well-typed against its
+    /// destination slots, or the way it is ill-typed (Requirements 8.4, 7.5).
+    /// </summary>
+    internal enum ValueSpreadDecompositionStatus
+    {
+        /// <summary>The tuple's ordered element types are positionally assignable to
+        /// the destination slots (an empty tuple against zero slots is well-typed).</summary>
+        WellTyped,
+
+        /// <summary>The tuple's element count differs from the destination slot count.</summary>
+        SlotCountMismatch,
+
+        /// <summary>An element type is not assignable to its corresponding slot type;
+        /// the offending 0-based position is returned via the mismatch index.</summary>
+        SlotTypeMismatch,
+    }
+
+    /// <summary>
+    /// The pure decomposition well-typedness rule (Requirements 8.2, 8.4, 7.5): a
+    /// tuple decomposed into <paramref name="destinationSlots"/> is well-typed iff its
+    /// ordered <paramref name="tupleElements"/> match the slots one-to-one in count and
+    /// each element is assignable to the slot at the same position. An empty tuple
+    /// against zero slots is well-typed (Requirement 8.2). Error types on either side
+    /// are skipped to suppress cascading diagnostics. This is a pure function over the
+    /// element and slot type lists so it can be exercised directly in-process.
+    /// </summary>
+    internal static ValueSpreadDecompositionStatus CheckValueSpreadDecomposition(
+        IReadOnlyList<IType> tupleElements,
+        IReadOnlyList<IType> destinationSlots,
+        ISemanticModel? model,
+        out int mismatchIndex)
+    {
+        mismatchIndex = -1;
+
+        if(tupleElements.Count != destinationSlots.Count)
+        {
+            return ValueSpreadDecompositionStatus.SlotCountMismatch;
+        }
+
+        for(var i = 0; i < tupleElements.Count; i++)
+        {
+            var element = tupleElements[i];
+            var slot = destinationSlots[i];
+
+            if(IsErrorType(element) || IsErrorType(slot))
+            {
+                continue;
+            }
+
+            if(!IsAssignable(element, slot, model))
+            {
+                mismatchIndex = i;
+                return ValueSpreadDecompositionStatus.SlotTypeMismatch;
+            }
+        }
+
+        return ValueSpreadDecompositionStatus.WellTyped;
+    }
+
+    /// <summary>
+    /// Checks a sole value-spread argument <c>x...</c> against the resolved destination
+    /// slots and reports <c>MIST_VAR_0011</c> on a count or positional-assignability
+    /// mismatch (Requirements 8.4, 7.5). A symbolic value pack (<c>args...</c>) or
+    /// spread-generated aggregate (<c>Item...</c>) whose single element is an unbound
+    /// pack is checked for provable forwarding (Requirements 12.6, 12.7, 12.8): the
+    /// destination must provably accept <c>(TArgs...)</c> for every <c>TArgs</c> (another
+    /// <c>params TArgs</c> / <c>(TArgs...)</c> parameter, or a <c>Func&lt;TArgs..., R&gt;</c>
+    /// value), otherwise <c>MIST_VAR_0011</c> is emitted. An unresolved destination (for
+    /// example an overloaded callee) is deferred to the call-site binder. No diagnostic
+    /// is emitted in the deferred cases.
+    /// </summary>
+    private static void CheckDecomposedValueSpread(
+        PostfixNode spreadPostfix,
+        IReadOnlyList<IType>? destinationSlots,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // The value spread is a no-op on the operand's type, so the postfix node's
+        // recorded type is the tuple value being decomposed.
+        if(model.GetTypeOf(spreadPostfix) is not TupleType tuple)
+        {
+            return;
+        }
+
+        if(TupleContainsSymbolicPack(tuple))
+        {
+            // Generic-body provable forwarding (Requirements 12.6, 12.7, 12.8):
+            // A symbolic pack spread `args...` is accepted only when the destination
+            // provably accepts `(TArgs...)` for every `TArgs`. If the destination is
+            // unresolved (null), defer -- the call-site binder will handle it.
+            if(destinationSlots is null)
+            {
+                return;
+            }
+
+            if(!IsDestinationProvablyPackCompatible(tuple, destinationSlots))
+            {
+                diagnostics.ReportAtNode(
+                    VariadicsDiagnostics.SpreadDestinationMismatch, spreadPostfix, "TypeChecker",
+                    "a symbolic value pack cannot be spread into a fixed-arity destination that is not provably (TArgs...)-compatible for every instantiation");
+            }
+
+            return;
+        }
+
+        if(destinationSlots is null)
+        {
+            return;
+        }
+
+        var status = CheckValueSpreadDecomposition(tuple.ElementTypes, destinationSlots, model, out var mismatchIndex);
+        switch(status)
+        {
+            case ValueSpreadDecompositionStatus.SlotCountMismatch:
+                diagnostics.ReportAtNode(
+                    VariadicsDiagnostics.SpreadDestinationMismatch, spreadPostfix, "TypeChecker",
+                    $"the tuple has {tuple.ElementTypes.Count} element(s) but the call site expects {destinationSlots.Count} slot(s)");
+                break;
+
+            case ValueSpreadDecompositionStatus.SlotTypeMismatch:
+                diagnostics.ReportAtNode(
+                    VariadicsDiagnostics.SpreadDestinationMismatch, spreadPostfix, "TypeChecker",
+                    $"element {mismatchIndex + 1} of type '{tuple.ElementTypes[mismatchIndex].DisplayName}' is not assignable to the target slot type '{destinationSlots[mismatchIndex].DisplayName}'");
+                break;
+        }
+    }
+
+    /// <summary>
+    /// True when the tuple carries an unbound type-parameter pack as one of its
+    /// elements -- the classic representation of a value pack <c>(TArgs...)</c> or a
+    /// spread-generated aggregate while the pack is symbolic. Decomposition of such a
+    /// tuple is deferred (its element types are not yet concretely known).
+    /// </summary>
+    private static bool TupleContainsSymbolicPack(TupleType tuple)
+    {
+        foreach(var element in tuple.ElementTypes)
+        {
+            if(element is TypeParameterType { IsPack: true })
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Determines whether the destination slots are provably <c>(TArgs...)</c>-compatible
+    /// for every instantiation of the pack in the source <paramref name="sourceTuple"/>
+    /// (Requirements 12.7, 12.8). A destination is provably compatible iff:
+    /// <list type="number">
+    /// <item><description>
+    /// The destination is a single slot whose type is a <see cref="TupleType"/> wrapping
+    /// exactly the same pack type parameter(s) — indicating another <c>params TArgs</c>
+    /// or <c>(TArgs...)</c> parameter.
+    /// </description></item>
+    /// <item><description>
+    /// The destination slots themselves contain only the same pack type parameter as a
+    /// direct element — indicating a <c>Func&lt;TArgs..., R&gt;</c> value whose parameter
+    /// slots are the spread of the same pack.
+    /// </description></item>
+    /// </list>
+    /// In all other cases (fixed-arity callee, different pack, scalar parameters) the
+    /// destination is NOT provably compatible and <c>MIST_VAR_0011</c> should be emitted.
+    /// </summary>
+    private static bool IsDestinationProvablyPackCompatible(
+        TupleType sourceTuple,
+        IReadOnlyList<IType> destinationSlots)
+    {
+        // Collect the symbolic pack(s) from the source tuple.
+        var sourcePacks = new List<TypeParameterType>();
+        foreach(var element in sourceTuple.ElementTypes)
+        {
+            if(element is TypeParameterType { IsPack: true } pack)
+            {
+                sourcePacks.Add(pack);
+            }
+        }
+
+        if(sourcePacks.Count == 0)
+        {
+            return false;
+        }
+
+        // Case 1: The destination has exactly one slot that is a TupleType wrapping the
+        // same pack(s) — the callee declares `params TArgs` or `(TArgs...)`.
+        if(destinationSlots.Count == 1 && destinationSlots[0] is TupleType destTuple)
+        {
+            if(TupleContainsSameSymbolicPacks(destTuple, sourcePacks))
+            {
+                return true;
+            }
+        }
+
+        // Case 2: The destination slots directly contain the same pack type parameter(s)
+        // as elements — the callee is a Func<TArgs..., R> value whose parameter slots
+        // are the spread of the same pack.
+        if(destinationSlots.Count == sourcePacks.Count)
+        {
+            var allMatch = true;
+            for(var i = 0; i < destinationSlots.Count; i++)
+            {
+                if(destinationSlots[i] is not TypeParameterType { IsPack: true } destPack
+                    || !ReferenceEquals(destPack, sourcePacks[i]))
+                {
+                    allMatch = false;
+                    break;
+                }
+            }
+
+            if(allMatch)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// True when <paramref name="destTuple"/> wraps exactly the same symbolic pack type
+    /// parameters as <paramref name="sourcePacks"/>, in the same order. This covers the
+    /// case where the destination parameter is <c>params TArgs</c> or <c>(TArgs...)</c>
+    /// and hence its type is a single-element tuple wrapping the pack.
+    /// </summary>
+    private static bool TupleContainsSameSymbolicPacks(
+        TupleType destTuple,
+        List<TypeParameterType> sourcePacks)
+    {
+        if(destTuple.ElementTypes.Count != sourcePacks.Count)
+        {
+            return false;
+        }
+
+        for(var i = 0; i < destTuple.ElementTypes.Count; i++)
+        {
+            if(destTuple.ElementTypes[i] is not TypeParameterType { IsPack: true } destPack
+                || !ReferenceEquals(destPack, sourcePacks[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// True when any argument expression in <paramref name="argList"/> is a value-side
+    /// spread <c>x...</c> (a postfix chain whose final suffix is the spread operator).
+    /// </summary>
+    private static bool ArgumentListContainsValueSpread(ArgumentListNode argList)
+    {
+        foreach(var expr in argList.GetAllExpressions())
+        {
+            if(TryGetValueSpreadPostfix(expr, out _))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// True when <paramref name="argList"/> has exactly one argument and it is a
+    /// value-side spread <c>x...</c>, yielding the spread's postfix node.
+    /// </summary>
+    private static bool TryGetSoleValueSpreadArgument(ArgumentListNode argList, out PostfixNode spreadPostfix)
+    {
+        spreadPostfix = null!;
+
+        var expressions = argList.GetAllExpressions();
+        if(expressions.Length != 1)
+        {
+            return false;
+        }
+
+        return TryGetValueSpreadPostfix(expressions[0], out spreadPostfix);
+    }
+
+    /// <summary>
+    /// Extracts the postfix chain of a value-side spread expression <c>x...</c> -- a
+    /// simple postfix whose final suffix is the spread operator (<c>...</c>).
+    /// Returns false for any other expression shape.
+    /// </summary>
+    private static bool TryGetValueSpreadPostfix(ExpressionNode expr, out PostfixNode spreadPostfix)
+    {
+        spreadPostfix = null!;
+
+        var postfix = TryExtractPostfixNode(expr);
+        if(postfix is null || postfix.Suffix.Length == 0)
+        {
+            return false;
+        }
+
+        if(postfix.Suffix[^1] is not SpreadSuffixPostfixSuffixNode)
+        {
+            return false;
+        }
+
+        spreadPostfix = postfix;
+        return true;
+    }
+
+    /// <summary>
+    /// Resolves the destination parameter slots for a value spread in an invocation
+    /// <c>expr(x...)</c>: the parameter list of a <c>Func</c> value or delegate being
+    /// invoked, or the invoked method's parameters. Returns null when the destination
+    /// cannot be resolved (deferred to the call-site binder).
+    /// </summary>
+    private static IReadOnlyList<IType>? ResolveInvocationDestinationSlots(
+        InvocationSuffixPostfixSuffixNode invocation,
+        IType? targetType,
+        ISemanticModel model)
+    {
+        if(targetType is ConstructedType funcCt && SemanticModelBuilder.IsFuncType(funcCt))
+        {
+            return FuncParameterSlots(funcCt);
+        }
+
+        if(targetType is DelegateType delegateType)
+        {
+            return FuncParameterSlots(delegateType.FuncSignature);
+        }
+
+        var invokedSymbol = model.GetDeclaredSymbol(invocation);
+        if(invokedSymbol is { Kind: SymbolKind.Method })
+        {
+            return ParameterSignature.Extract(invokedSymbol, model);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Resolves the destination parameter slots for a value spread in a method call
+    /// <c>receiver.M(x...)</c>. When the callee resolves to a single method the
+    /// decomposition is checked against its parameters; an overloaded callee (choosing
+    /// which overload a decomposition binds to) is deferred to the call-site binder and
+    /// yields null.
+    /// </summary>
+    private static IReadOnlyList<IType>? ResolveMethodCallDestinationSlots(
+        MethodCallSuffixPostfixSuffixNode methodCall,
+        IType? targetType,
+        ISemanticModel model)
+    {
+        var candidates = CollectMethodOverloads(targetType, methodCall.Name.Lexeme);
+        if(candidates.Count == 1)
+        {
+            return ParameterSignature.Extract(candidates[0], model);
+        }
+
+        if(candidates.Count == 0)
+        {
+            var methodSymbol = model.GetDeclaredSymbol(methodCall);
+            if(methodSymbol is { Kind: SymbolKind.Method })
+            {
+                return ParameterSignature.Extract(methodSymbol, model);
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The parameter slots of a constructed <c>Func&lt;P1, ..., PN, TResult&gt;</c> value:
+    /// its type arguments except the trailing result type (an empty list for the
+    /// zero-parameter <c>Func&lt;TResult&gt;</c>).
+    /// </summary>
+    private static IReadOnlyList<IType> FuncParameterSlots(ConstructedType funcType)
+    {
+        var typeArgs = funcType.TypeArguments;
+        var count = typeArgs.Count - 1;
+        if(count <= 0)
+        {
+            return Array.Empty<IType>();
+        }
+
+        var slots = new IType[count];
+        for(var i = 0; i < count; i++)
+        {
+            slots[i] = typeArgs[i];
+        }
+
+        return slots;
+    }
+
+    // ─── Zip: parallel two-operand spread (variadics, task 14.2) ──
+    //
+    // A zip is the parallel spread of two operands on an assignment,
+    // canonically `left... = right...` where BOTH sides carry the value-side
+    // `...` suffix (for example a variadic constructor's `Item... = args...`,
+    // pairing a value pack into its spread-generated aggregate). It expands the
+    // operands element by element into N paired positions, where N is the common
+    // length, so each left-hand slot receives exactly one right-hand value
+    // (Requirement 8.5). It is permitted ONLY when the two operands are proven to
+    // have equal length -- either because they originate from the SAME pack (both
+    // are the tuple `(P...)` of one pack `P`, hence the same symbolic length N for
+    // every instantiation) or because equal length is otherwise established (two
+    // concrete tuples of equal element count) (Requirement 8.6). A zip between
+    // operands not proven equal length emits MIST_VAR_0006 (Requirement 8.7).
+
+    /// <summary>
+    /// Whether the two operands of a zip are proven to have equal length
+    /// (Requirements 8.5, 8.6, 8.7).
+    /// </summary>
+    internal enum ZipLengthProofStatus
+    {
+        /// <summary>The operands are proven to have equal length: either the same
+        /// pack origin, or two concrete tuples of equal element count.</summary>
+        ProvenEqual,
+
+        /// <summary>The operands are NOT proven to have equal length (different pack
+        /// origin, a symbolic pack against an unrelated operand, or two concrete
+        /// tuples of differing count) -- the zip is rejected with MIST_VAR_0006.</summary>
+        NotProven,
+
+        /// <summary>The length proof does not apply here (an operand carries an error
+        /// type, or an operand is not tuple-shaped) -- the zip is deferred and no
+        /// diagnostic is emitted.</summary>
+        NotApplicable,
+    }
+
+    /// <summary>
+    /// The pure zip length-proof rule (Requirements 8.5, 8.6, 8.7): two spread
+    /// operands may be zipped iff their lengths are proven equal. Two fully concrete
+    /// tuples are proven equal exactly when their element counts match. When at least
+    /// one operand's length is symbolic, equality is proven only when BOTH operands
+    /// are the sole-element tuple <c>(P...)</c> of the SAME pack <c>P</c> (same
+    /// origin, hence the same length N for every instantiation). Any other case with
+    /// symbolic content is not proven. This is a pure function over the two operand
+    /// types so it can be exercised directly in-process (task 14.5).
+    /// </summary>
+    internal static ZipLengthProofStatus CheckZipLengthProof(IType leftOperand, IType rightOperand)
+    {
+        if(IsErrorType(leftOperand) || IsErrorType(rightOperand))
+        {
+            return ZipLengthProofStatus.NotApplicable;
+        }
+
+        if(leftOperand is not TupleType leftTuple || rightOperand is not TupleType rightTuple)
+        {
+            return ZipLengthProofStatus.NotApplicable;
+        }
+
+        var leftSymbolic = TupleContainsSymbolicPack(leftTuple);
+        var rightSymbolic = TupleContainsSymbolicPack(rightTuple);
+
+        // Both operands fully concrete: equal length is proven exactly by equal count.
+        if(!leftSymbolic && !rightSymbolic)
+        {
+            return leftTuple.ElementTypes.Count == rightTuple.ElementTypes.Count
+                ? ZipLengthProofStatus.ProvenEqual
+                : ZipLengthProofStatus.NotProven;
+        }
+
+        // At least one operand's length is symbolic: equal length is proven only when
+        // both operands are the SAME pack `(P...)` (same origin, same length N).
+        var leftPack = TryGetSolePackOfTuple(leftTuple);
+        var rightPack = TryGetSolePackOfTuple(rightTuple);
+        if(leftPack is not null && rightPack is not null && SamePackOrigin(leftPack, rightPack))
+        {
+            return ZipLengthProofStatus.ProvenEqual;
+        }
+
+        return ZipLengthProofStatus.NotProven;
+    }
+
+    /// <summary>
+    /// When <paramref name="tuple"/> is the sole-element tuple <c>(P...)</c> of a
+    /// symbolic type-parameter pack <c>P</c> (the classic representation of a value
+    /// pack or a spread-generated aggregate while the pack is symbolic), returns that
+    /// pack; otherwise null.
+    /// </summary>
+    private static TypeParameterType? TryGetSolePackOfTuple(TupleType tuple)
+    {
+        if(tuple.ElementTypes.Count == 1 && tuple.ElementTypes[0] is TypeParameterType { IsPack: true } pack)
+        {
+            return pack;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// True when two symbolic packs are the SAME pack origin -- reference-identical,
+    /// or the same pack parameter (same name, ordinal, and fixed arity). Two operands
+    /// that spread the same pack therefore have the same length N for every
+    /// instantiation, which is what makes their zip provably equal-length.
+    /// </summary>
+    private static bool SamePackOrigin(TypeParameterType left, TypeParameterType right)
+    {
+        if(ReferenceEquals(left, right))
+        {
+            return true;
+        }
+
+        return string.Equals(left.Name, right.Name, StringComparison.Ordinal)
+            && left.Ordinal == right.Ordinal
+            && left.PackFixedArity == right.PackFixedArity;
+    }
+
+    /// <summary>
+    /// Intercepts a zip <c>left... = right...</c> on an assignment: when BOTH the
+    /// target and the value are value-side spreads, this is the parallel two-operand
+    /// spread (Requirement 8.5), which is its own chokepoint. It is permitted only
+    /// when the two operands are proven equal length (Requirement 8.6); otherwise
+    /// <c>MIST_VAR_0006</c> is emitted (Requirement 8.7). Returns true when the
+    /// assignment is recognized as a zip (handled here, so the ordinary tuple-to-tuple
+    /// assignability check must not also run over it), false otherwise.
+    /// </summary>
+    private static bool TryCheckZipAssignment(
+        AssignmentNode assignment,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // A zip is a plain `=` assignment; compound operators are not zips.
+        if(assignment.Operator is { } op && op.Kind != (int)TokenKind.EQUAL)
+        {
+            return false;
+        }
+
+        // Both operands must be value-side spreads: `left... = right...`.
+        var leftPostfix = TryExtractPostfixFromLogicalOr(assignment.Target.Left);
+        if(leftPostfix is null
+            || leftPostfix.Suffix.Length == 0
+            || leftPostfix.Suffix[^1] is not SpreadSuffixPostfixSuffixNode)
+        {
+            return false;
+        }
+
+        if(!TryGetValueSpreadPostfix(assignment.Value, out var rightPostfix))
+        {
+            return false;
+        }
+
+        // The spread suffix is a no-op on the operand's type, so each postfix node's
+        // recorded type is the tuple value being spread (Requirements 8.2, 8.5).
+        if(model.GetTypeOf(leftPostfix) is not { } leftOperand
+            || model.GetTypeOf(rightPostfix) is not { } rightOperand)
+        {
+            // Recognized as a zip but its operand types are unresolved: defer without a
+            // diagnostic (the ordinary assignability check must still not run over it).
+            return true;
+        }
+
+        if(CheckZipLengthProof(leftOperand, rightOperand) == ZipLengthProofStatus.NotProven)
+        {
+            // Requirement 8.7: a zip between operands not proven equal length.
+            diagnostics.ReportAtNode(VariadicsDiagnostics.ZipLengthNotProven, assignment, "TypeChecker");
+        }
+
+        return true;
+    }
+
     // ─── Covariant unknown widening (unknown-type feature, Task 23) ──────
     //
     // Req 8.1–8.3: `Foo<A_1, …, A_n>` is assignable to `Foo<B_1, …, B_n>`
@@ -20904,6 +21590,206 @@ node, model, diagnostics);
                 }; diagnostics.ReportAtNode(TypeCheckDiagnostics.ConstraintSubstructuralViolation, node, "TypeChecker");
             }
         }
+    }
+
+    /// <summary>
+    /// Verifies that every element of a bound type-parameter pack satisfies the
+    /// constraints declared on the pack's type parameter (whole-pack constraint,
+    /// applied elementwise). Each failing element emits <c>MIST_VAR_0009</c> and
+    /// is treated as an error type so downstream analysis continues.
+    /// An empty pack vacuously satisfies the constraint (Requirement 11.4).
+    /// </summary>
+    /// <param name="packElementTypes">The ordered element types bound to the pack.</param>
+    /// <param name="typeParameter">The pack type parameter with constraints to check.</param>
+    /// <param name="node">The syntax node for diagnostic location reporting.</param>
+    /// <param name="model">The semantic model.</param>
+    /// <param name="diagnostics">The diagnostic bag to emit errors into.</param>
+    internal static void CheckPackConstraintSatisfaction(
+        IReadOnlyList<IType> packElementTypes,
+        TypeParameterType typeParameter,
+        SyntaxNode node,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Requirement 11.4: empty pack vacuously satisfies any constraint.
+        if(packElementTypes.Count == 0)
+        {
+            return;
+        }
+
+        var constraints = typeParameter.Constraints;
+        if(constraints is null)
+        {
+            return; // Unconstrained pack — nothing to check.
+        }
+
+        // Requirement 11.1: check each element independently against the constraint.
+        for(var i = 0; i < packElementTypes.Count; i++)
+        {
+            var element = packElementTypes[i];
+
+            // Suppress cascading errors for error types.
+            if(IsErrorType(element))
+            {
+                continue;
+            }
+
+            if(!SatisfiesConstraints(element, constraints, model))
+            {
+                // Requirement 11.3: emit MIST_VAR_0009 per failing element.
+                var constraintName = DescribeConstraints(constraints);
+                diagnostics.ReportAtNode(
+                    VariadicsDiagnostics.PackElementConstraintNotSatisfied,
+                    node, "TypeChecker", element.DisplayName, constraintName);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when a type satisfies all constraints in the given set.
+    /// Used by <see cref="CheckPackConstraintSatisfaction"/> for elementwise checks.
+    /// </summary>
+    private static bool SatisfiesConstraints(IType type, TypeParameterConstraints constraints, ISemanticModel model)
+    {
+        // Unwrap type aliases.
+        if(type is TypeAliasType alias)
+        {
+            type = alias.UnderlyingType;
+        }
+
+        // class constraint
+        if(constraints.HasClassConstraint && type.Kind == TypeKind.Struct)
+        {
+            return false;
+        }
+
+        // struct constraint
+        if(constraints.HasStructConstraint && type.Kind != TypeKind.Struct)
+        {
+            return false;
+        }
+
+        // base class constraint
+        if(constraints.BaseClassConstraint is not null && !DerivesFromClass(type, constraints.BaseClassConstraint))
+        {
+            return false;
+        }
+
+        // abstract constraints (interfaces)
+        foreach(var abs in constraints.AbstractConstraints)
+        {
+            if(!ImplementsAbstractConstraint(type, abs, model))
+            {
+                return false;
+            }
+        }
+
+        // readonly constraint
+        if(constraints.HasReadonlyConstraint && !IsTypeReadonly(type))
+        {
+            return false;
+        }
+
+        // mutable constraint
+        if(constraints.HasMutableConstraint && IsTypeReadonly(type))
+        {
+            return false;
+        }
+
+        // owned constraint
+        if(constraints.HasOwnedConstraint && !IsTypeOwned(type))
+        {
+            return false;
+        }
+
+        // default constraint
+        if(constraints.HasDefaultConstraint && !IsTypeDefaultable(type))
+        {
+            return false;
+        }
+
+        // substructural constraint
+        var requiredDiscipline = GetConstraintDiscipline(constraints);
+        if(requiredDiscipline != SubstructuralDiscipline.None)
+        {
+            var argDiscipline = GetArgumentDiscipline(type);
+            if(!SatisfiesSubstructuralConstraint(argDiscipline, requiredDiscipline))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Produces a human-readable description of the constraints for diagnostic messages.
+    /// </summary>
+    private static string DescribeConstraints(TypeParameterConstraints constraints)
+    {
+        var parts = new List<string>();
+
+        if(constraints.HasClassConstraint)
+        {
+            parts.Add("class");
+        }
+
+        if(constraints.HasStructConstraint)
+        {
+            parts.Add("struct");
+        }
+
+        if(constraints.BaseClassConstraint is not null)
+        {
+            parts.Add(constraints.BaseClassConstraint.DisplayName);
+        }
+
+        foreach(var abs in constraints.AbstractConstraints)
+        {
+            parts.Add(abs.DisplayName);
+        }
+
+        if(constraints.ConstructorConstraints.Count > 0)
+        {
+            parts.Add("new()");
+        }
+
+        if(constraints.HasReadonlyConstraint)
+        {
+            parts.Add("readonly");
+        }
+
+        if(constraints.HasMutableConstraint)
+        {
+            parts.Add("mutable");
+        }
+
+        if(constraints.HasOwnedConstraint)
+        {
+            parts.Add("owned");
+        }
+
+        if(constraints.HasDefaultConstraint)
+        {
+            parts.Add("default");
+        }
+
+        if(constraints.HasLinearConstraint)
+        {
+            parts.Add("linear");
+        }
+
+        if(constraints.HasAffineConstraint)
+        {
+            parts.Add("affine");
+        }
+
+        if(constraints.HasRelevantConstraint)
+        {
+            parts.Add("relevant");
+        }
+
+        return parts.Count > 0 ? string.Join(", ", parts) : "constraint";
     }
 
     /// <summary>

@@ -51,6 +51,46 @@
     "12.3 Write property test for flat/bracketed equivalence (classic pipeline)": {
       "status": "passed",
       "lastRunTimestamp": 1784398084577
+    },
+    "14.3 Write property test for spread width (classic pipeline)": {
+      "status": "passed",
+      "lastRunTimestamp": 1784424249938
+    },
+    "14.4 Write property test for tuple-decomposition well-typedness (classic pipeline)": {
+      "status": "passed",
+      "lastRunTimestamp": 1784424251708
+    },
+    "14.5 Write property test for zip length proof (classic pipeline)": {
+      "status": "passed",
+      "lastRunTimestamp": 1784424251824
+    },
+    "16.4 Write property test for whole-pack constraint enforcement (classic pipeline)": {
+      "status": "passed",
+      "lastRunTimestamp": 1784428624686
+    },
+    "16.5 Write property test for generic destination enforcement (classic pipeline)": {
+      "status": "passed",
+      "lastRunTimestamp": 1784428627810
+    },
+    "16.6 Write property test for narrowing recovery (classic pipeline)": {
+      "status": "passed",
+      "lastRunTimestamp": 1784428631945
+    },
+    "17.5 Write property test for inference agreement (classic pipeline)": {
+      "status": "passed",
+      "lastRunTimestamp": 1784431939126
+    },
+    "17.6 Write property test for value-level params collection (classic pipeline)": {
+      "status": "passed",
+      "lastRunTimestamp": 1784431942112
+    },
+    "17.7 Write property test for Func invocation generalization (classic pipeline)": {
+      "status": "passed",
+      "lastRunTimestamp": 1784431945608
+    },
+    "17.8 Write property test for pack-bearing declaration kinds (classic pipeline)": {
+      "status": "passed",
+      "lastRunTimestamp": 1784431948552
     }
   },
   "executionHistory": {
@@ -1092,6 +1132,16 @@
         "executionId": "d56090e7-978d-4483-b3d9-fbdbee313f77",
         "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
         "timestamp": 1784383058973
+      },
+      {
+        "executionId": "4c835b92-ae97-4741-bd79-59e807ef33c9",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784420815679
+      },
+      {
+        "executionId": "4c835b92-ae97-4741-bd79-59e807ef33c9",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784422526600
       }
     ],
     "14.2 Implement zip parallel expansion": [
@@ -1099,6 +1149,16 @@
         "executionId": "d56090e7-978d-4483-b3d9-fbdbee313f77",
         "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
         "timestamp": 1784383059012
+      },
+      {
+        "executionId": "4c835b92-ae97-4741-bd79-59e807ef33c9",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784422552298
+      },
+      {
+        "executionId": "4c835b92-ae97-4741-bd79-59e807ef33c9",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784423523225
       }
     ],
     "15. Checkpoint - classic type-checker core boundary": [
@@ -1106,6 +1166,16 @@
         "executionId": "d56090e7-978d-4483-b3d9-fbdbee313f77",
         "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
         "timestamp": 1784383059060
+      },
+      {
+        "executionId": "99d94ace-3c35-4455-b8f2-1f4d9c0e7744",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784424941793
+      },
+      {
+        "executionId": "99d94ace-3c35-4455-b8f2-1f4d9c0e7744",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784424946889
       }
     ],
     "16.1 Implement whole-pack constraints elementwise": [
@@ -1113,6 +1183,16 @@
         "executionId": "d56090e7-978d-4483-b3d9-fbdbee313f77",
         "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
         "timestamp": 1784383059108
+      },
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784424980317
+      },
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784426178074
       }
     ],
     "16.2 Implement generic-body open-generic checking and provable forwarding": [
@@ -1120,6 +1200,16 @@
         "executionId": "d56090e7-978d-4483-b3d9-fbdbee313f77",
         "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
         "timestamp": 1784383059160
+      },
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784426182094
+      },
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784427483495
       }
     ],
     "16.3 Implement value-pack narrowing that recovers forwarding": [
@@ -1127,6 +1217,16 @@
         "executionId": "d56090e7-978d-4483-b3d9-fbdbee313f77",
         "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
         "timestamp": 1784383059200
+      },
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784427493431
+      },
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784428018939
       }
     ],
     "17.1 Extend positional unification for pack inference": [
@@ -1134,6 +1234,16 @@
         "executionId": "d56090e7-978d-4483-b3d9-fbdbee313f77",
         "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
         "timestamp": 1784383059241
+      },
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784428719007
+      },
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784429466014
       }
     ],
     "17.2 Implement value-level `params T[]` collection semantics": [
@@ -1141,6 +1251,16 @@
         "executionId": "d56090e7-978d-4483-b3d9-fbdbee313f77",
         "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
         "timestamp": 1784383059283
+      },
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784429473825
+      },
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784430356801
       }
     ],
     "17.3 Generalize `Func` invocation to a single rule": [
@@ -1148,6 +1268,16 @@
         "executionId": "d56090e7-978d-4483-b3d9-fbdbee313f77",
         "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
         "timestamp": 1784383059322
+      },
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784430362909
+      },
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784430768514
       }
     ],
     "17.4 Implement variadic abstract type implementation checking": [
@@ -1155,6 +1285,16 @@
         "executionId": "d56090e7-978d-4483-b3d9-fbdbee313f77",
         "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
         "timestamp": 1784383059376
+      },
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784430776062
+      },
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784431405558
       }
     ],
     "18. Checkpoint - classic type-checker complete": [
@@ -1162,6 +1302,16 @@
         "executionId": "d56090e7-978d-4483-b3d9-fbdbee313f77",
         "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
         "timestamp": 1784383059409
+      },
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784431981834
+      },
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784431986246
       }
     ],
     "19.1 Implement per-arity monomorphization and CLR mapping": [
@@ -1169,6 +1319,16 @@
         "executionId": "d56090e7-978d-4483-b3d9-fbdbee313f77",
         "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
         "timestamp": 1784383059450
+      },
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784431993078
+      },
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784433070020
       }
     ],
     "19.2 Emit value-level `params T[]` as a C# params array": [
@@ -1176,6 +1336,16 @@
         "executionId": "d56090e7-978d-4483-b3d9-fbdbee313f77",
         "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
         "timestamp": 1784383059493
+      },
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784433077056
+      },
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784433594279
       }
     ],
     "19.3 Implement the backend arity-ceiling diagnostic": [
@@ -1432,6 +1602,147 @@
         "executionId": "d56090e7-978d-4483-b3d9-fbdbee313f77",
         "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
         "timestamp": 1784419984015
+      }
+    ],
+    "14. Classic type checker: value-side spread, tuple decomposition, and zip": [
+      {
+        "executionId": "4c835b92-ae97-4741-bd79-59e807ef33c9",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784423523336
+      }
+    ],
+    "14.3 Write property test for spread width (classic pipeline)": [
+      {
+        "executionId": "4c835b92-ae97-4741-bd79-59e807ef33c9",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784423532437
+      },
+      {
+        "executionId": "4c835b92-ae97-4741-bd79-59e807ef33c9",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784424575680
+      }
+    ],
+    "14.4 Write property test for tuple-decomposition well-typedness (classic pipeline)": [
+      {
+        "executionId": "4c835b92-ae97-4741-bd79-59e807ef33c9",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784423533907
+      },
+      {
+        "executionId": "4c835b92-ae97-4741-bd79-59e807ef33c9",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784424577871
+      }
+    ],
+    "14.5 Write property test for zip length proof (classic pipeline)": [
+      {
+        "executionId": "4c835b92-ae97-4741-bd79-59e807ef33c9",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784423534141
+      },
+      {
+        "executionId": "4c835b92-ae97-4741-bd79-59e807ef33c9",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784424577942
+      }
+    ],
+    "16. Classic type checker: constraints, generic-body forwarding, and narrowing": [
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784428019005
+      }
+    ],
+    "16.4 Write property test for whole-pack constraint enforcement (classic pipeline)": [
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784428024793
+      },
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784428710298
+      }
+    ],
+    "16.5 Write property test for generic destination enforcement (classic pipeline)": [
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784428025728
+      },
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784428711985
+      }
+    ],
+    "16.6 Write property test for narrowing recovery (classic pipeline)": [
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784428026884
+      },
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784428712027
+      }
+    ],
+    "17. Classic type checker: inference, value-level params, Func invocation, and variadic abstract types": [
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784431405665
+      }
+    ],
+    "17.5 Write property test for inference agreement (classic pipeline)": [
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784431411312
+      },
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784431972451
+      }
+    ],
+    "17.6 Write property test for value-level params collection (classic pipeline)": [
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784431413049
+      },
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784431973942
+      }
+    ],
+    "17.7 Write property test for Func invocation generalization (classic pipeline)": [
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784431413075
+      },
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784431973978
+      }
+    ],
+    "17.8 Write property test for pack-bearing declaration kinds (classic pipeline)": [
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784431414988
+      },
+      {
+        "executionId": "620e4965-5d7f-4fdd-8529-08e1e1eafbe1",
+        "chatSessionId": "sess_d22516ae-2702-435c-9216-690edf447e12",
+        "timestamp": 1784431974582
       }
     ]
   }

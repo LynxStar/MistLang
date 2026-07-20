@@ -8,17 +8,15 @@
 // well-typed IFF every element independently satisfies C (constrained members usable on each
 // element and on `args[i]`), otherwise MIST_VAR_0009 is emitted per failing element.
 //
-// The property generates random bindings of concrete struct/class types against a struct
-// constraint (the simplest constraint axis: structs satisfy, classes violate), compiles end-
-// to-end through the classic pipeline (lex/parse -> stdlib semantic model ->
-// TypeCheckerAnalyzer), and asserts the MIST_VAR_0009 count matches the number of violating
-// elements. The struct constraint is chosen because it can be oracle-decided purely from the
-// declaration keyword (struct vs class) without needing to resolve abstract-type
+// Coverage is split by cost. A handful of representative bindings ([Theory]) compile end-to-
+// end through the classic pipeline (lex/parse -> stdlib semantic model -> TypeCheckerAnalyzer)
+// to prove the pipeline wires the elementwise check in and reports MIST_VAR_0009 once per
+// violating element. The wide, position-independent coverage -- every struct/class pattern of
+// length 1..6 -- is a property over the internal static CheckPackConstraintSatisfaction rule,
+// driven directly on hand-built TypeParameterTypes with no compile, so high iteration counts
+// cost almost nothing. The struct constraint is chosen because it can be oracle-decided purely
+// from the declaration keyword (struct vs class) without resolving abstract-type
 // implementations, making the independent oracle trivially correct.
-//
-// Additionally, the internal static CheckPackConstraintSatisfaction is driven directly with
-// a hand-built TypeParameterType carrying a struct constraint to confirm the pure rule agrees
-// with the end-to-end result.
 //
 // All tests run entirely in-process with ZERO external process spawns.
 
@@ -81,9 +79,26 @@ public sealed class VariadicsWholePackConstraintPropertyTests
     // element. **Validates: Requirements 11.1, 11.2, 11.3**
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Property(Arbitrary = new[] { typeof(VariadicsWholePackConstraintPropertyTests) }, MaxTest = 150)]
-    public bool WholePackConstraint_EmitsDiagnosticPerViolatingElement(WholePackConstraintScenario scenario)
+    // End-to-end integration: a handful of representative bindings proving the classic
+    // pipeline wires the elementwise constraint check in and emits MIST_VAR_0009 once per
+    // violating (class) element. The wide, position-independent coverage lives in the pure-
+    // rule property below, which exercises the same 1..6-element struct/class patterns
+    // without paying for a full compile. Patterns: 'S' = struct (satisfies), 'C' = class
+    // (violates).
+    [Theory]
+    [InlineData("S")]       // single struct: accepted
+    [InlineData("C")]       // single class: one violation
+    [InlineData("SSS")]     // all struct: accepted
+    [InlineData("CCC")]     // all class: three violations
+    [InlineData("SCS")]     // violation in the middle
+    [InlineData("CSSSSC")]  // violations at both ends of a length-6 binding
+    public void WholePackConstraint_EmitsDiagnosticPerViolatingElement(string pattern)
     {
+        var elements = pattern
+            .Select(c => c == 'S' ? ConstraintElementKind.Struct : ConstraintElementKind.Class)
+            .ToList();
+        var scenario = new WholePackConstraintScenario(elements);
+
         // Build Mist source: each element is a uniquely-named struct or class.
         var source = BuildSource(scenario);
         var diagnostics = AnalyzeClassic(source);
@@ -98,8 +113,6 @@ public sealed class VariadicsWholePackConstraintPropertyTests
         var wellTyped = actualCount == 0;
         var allSatisfy = expectedCount == 0;
         Assert.Equal(allSatisfy, wellTyped);
-
-        return true;
     }
 
     // ═══════════════════════════════════════════════════════════════════════

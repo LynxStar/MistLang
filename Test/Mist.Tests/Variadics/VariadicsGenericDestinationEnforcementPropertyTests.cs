@@ -18,9 +18,6 @@
 // TypeCheckerAnalyzer.Analyze. ZERO external process spawns.
 
 using System.Collections.Immutable;
-using FsCheck;
-using FsCheck.Fluent;
-using FsCheck.Xunit;
 using Mist.Analysis.Builtin;
 using Mist.Common.Diagnostics;
 using Mist.Common.Source;
@@ -65,9 +62,11 @@ public sealed record GenericDestinationScenario(DestinationKind Kind, int FixedA
 }
 
 /// <summary>
-/// Property test for <b>Property 19 (Spread respects destination typing)</b> over the classic
-/// pipeline. Generates variadic methods that forward <c>args...</c> into provably-compatible or
-/// fixed-arity destinations and asserts:
+/// Boundary tests for <b>Property 19 (Spread respects destination typing)</b> over the classic
+/// pipeline. The destination domain is small and fully enumerable -- two provably-compatible
+/// kinds (<c>params TArgs</c>, <c>(TArgs...)</c>) plus fixed-arity destinations of 1..5
+/// parameters -- so it is covered exhaustively by <see cref="TheoryAttribute"/> cases rather
+/// than by sampling the same seven scenarios 150 times. Asserts:
 /// <list type="bullet">
 ///   <item>Accepted (no MIST_VAR_0011) for <c>params TArgs</c> or <c>(TArgs...)</c> destinations.</item>
 ///   <item>Rejected (exactly one MIST_VAR_0011) for fixed-arity destinations.</item>
@@ -84,9 +83,17 @@ public sealed class VariadicsGenericDestinationEnforcementPropertyTests
     // **Validates: Requirements 8.4, 12.6**
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Property(Arbitrary = new[] { typeof(VariadicsGenericDestinationEnforcementPropertyTests) }, MaxTest = 150)]
-    public bool GenericDestination_AcceptedIffProvablyCompatible(GenericDestinationScenario scenario)
+    [Theory]
+    [InlineData(DestinationKind.ParamsTArgs, 0)]
+    [InlineData(DestinationKind.TupleTArgs, 0)]
+    [InlineData(DestinationKind.FixedArity, 1)]
+    [InlineData(DestinationKind.FixedArity, 2)]
+    [InlineData(DestinationKind.FixedArity, 3)]
+    [InlineData(DestinationKind.FixedArity, 4)]
+    [InlineData(DestinationKind.FixedArity, 5)]
+    public void GenericDestination_AcceptedIffProvablyCompatible(DestinationKind kind, int fixedArityCount)
     {
+        var scenario = new GenericDestinationScenario(kind, fixedArityCount);
         var source = BuildSource(scenario);
         var diagnostics = AnalyzeClassic(source);
 
@@ -102,27 +109,6 @@ public sealed class VariadicsGenericDestinationEnforcementPropertyTests
             // Provably compatible destination: no MIST_VAR_0011.
             Assert.Equal(0, mismatchCount);
         }
-
-        return true;
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Generator
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>Arbitrary registration for the property above.</summary>
-    public static Arbitrary<GenericDestinationScenario> GenericDestinationScenarios()
-    {
-        return GenScenario().ToArbitrary();
-    }
-
-    private static Gen<GenericDestinationScenario> GenScenario()
-    {
-        return Gen.OneOf(
-            Gen.Constant(new GenericDestinationScenario(DestinationKind.ParamsTArgs, 0)),
-            Gen.Constant(new GenericDestinationScenario(DestinationKind.TupleTArgs, 0)),
-            from count in Gen.Choose(1, 5)
-            select new GenericDestinationScenario(DestinationKind.FixedArity, count));
     }
 
     // ═══════════════════════════════════════════════════════════════════════

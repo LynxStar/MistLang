@@ -18,9 +18,6 @@
 // All tests run entirely in-process with ZERO external process spawns.
 
 using System.Collections.Immutable;
-using FsCheck;
-using FsCheck.Fluent;
-using FsCheck.Xunit;
 using Mist.Analysis.Builtin;
 using Mist.Common.Diagnostics;
 using Mist.Common.Source;
@@ -35,43 +32,14 @@ using Mist.Tests.Helpers;
 namespace Mist.Tests.Variadics;
 
 /// <summary>
-/// Which empty-pack scenario is being exercised.
-/// </summary>
-public enum EmptyPackAxis
-{
-    /// <summary>Binding rule accepts an empty pack: Func&lt;TResult&gt; binds TArgs=[] (Req 4.3, 15.4).</summary>
-    FuncZeroArgCallable,
-
-    /// <summary>Spread of an empty pack produces zero slots (Req 6.8).</summary>
-    SpreadZeroSlots,
-
-    /// <summary>Spread-generated members: empty pack yields zero projections (Req 10.6).</summary>
-    GeneratedMembersZero,
-
-    /// <summary>Whole-pack constraint is vacuously satisfied for empty pack (Req 11.4).</summary>
-    VacuousConstraint,
-
-    /// <summary>Binding rule accepts an empty middle pack (Req 4.3).</summary>
-    BindingRuleEmptyMiddle,
-}
-
-/// <summary>
-/// A generated empty-pack coherence scenario: one of the empty-pack axes combined with
-/// a randomly chosen result type.
-/// </summary>
-public sealed record EmptyPackCoherenceScenario(EmptyPackAxis Axis, string ResultType)
-{
-    public override string ToString()
-    {
-        return $"axis={Axis}, result={ResultType}";
-    }
-}
-
-/// <summary>
-/// Property test for <b>Property 13 (Empty-pack coherence)</b> over the classic pipeline.
-/// Generates empty-pack scenarios across all axes and asserts:
+/// Coherence tests for <b>Property 13 (Empty-pack coherence)</b> over the classic pipeline.
+/// Each empty-pack axis is verified deterministically: the two axes whose behavior depends on
+/// the result type (the zero-arg callable <c>func&lt;TResult&gt;</c> and the empty middle pack)
+/// are <see cref="TheoryAttribute"/> cases over int/string/bool, while the type-independent
+/// axes (zero spread slots, zero generated members, vacuous constraint) are single
+/// <see cref="FactAttribute"/> cases. This replaces an earlier [Property] that dispatched on an
+/// (axis x result-type) scenario and re-ran the same nine meaningful cases 150 times.
 /// <list type="bullet">
-///   <item>Zero errors and zero MIST_VAR_0009 diagnostics in every scenario.</item>
 ///   <item>The binding rule accepts an empty pack (Req 4.3).</item>
 ///   <item>Spread of an empty pack produces zero slots (Req 6.8).</item>
 ///   <item>Zero generated members for an empty pack (Req 10.6).</item>
@@ -83,25 +51,6 @@ public sealed record EmptyPackCoherenceScenario(EmptyPackAxis Axis, string Resul
 public sealed class VariadicsEmptyPackCoherencePropertyTests
 {
     private const string ConstraintDiagId = "MIST_VAR_0009";
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Property 13: empty-pack coherence verified end-to-end.
-    // **Validates: Requirements 4.3, 6.8, 10.6, 11.4, 15.4**
-    // ═══════════════════════════════════════════════════════════════════════
-
-    [Property(Arbitrary = new[] { typeof(VariadicsEmptyPackCoherencePropertyTests) }, MaxTest = 150)]
-    public bool EmptyPack_IsCoherentAcrossAllAxes(EmptyPackCoherenceScenario scenario)
-    {
-        return scenario.Axis switch
-        {
-            EmptyPackAxis.FuncZeroArgCallable => VerifyFuncZeroArgCallable(scenario.ResultType),
-            EmptyPackAxis.SpreadZeroSlots => VerifySpreadZeroSlots(),
-            EmptyPackAxis.GeneratedMembersZero => VerifyGeneratedMembersZero(scenario.ResultType),
-            EmptyPackAxis.VacuousConstraint => VerifyVacuousConstraint(),
-            EmptyPackAxis.BindingRuleEmptyMiddle => VerifyBindingRuleEmptyMiddle(scenario.ResultType),
-            _ => throw new ArgumentOutOfRangeException(nameof(scenario)),
-        };
-    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Axis: Func<TResult> compiles (Req 4.3, 15.4)
@@ -277,12 +226,16 @@ public sealed class VariadicsEmptyPackCoherencePropertyTests
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Func&lt;string&gt; compiles: empty pack = zero-arg callable (Req 4.3, 15.4).
+    /// func&lt;TResult&gt; compiles for each result type: empty pack = zero-arg callable
+    /// (Req 4.3, 15.4).
     /// </summary>
-    [Fact]
-    public void EmptyPack_FuncZeroArgCallable_CompilesCleanly()
+    [Theory]
+    [InlineData("int")]
+    [InlineData("string")]
+    [InlineData("bool")]
+    public void EmptyPack_FuncZeroArgCallable_CompilesCleanly(string resultType)
     {
-        Assert.True(VerifyFuncZeroArgCallable("string"));
+        Assert.True(VerifyFuncZeroArgCallable(resultType));
     }
 
     /// <summary>
@@ -313,36 +266,16 @@ public sealed class VariadicsEmptyPackCoherencePropertyTests
     }
 
     /// <summary>
-    /// The binding rule accepts an empty pack in a middle position (Req 4.3).
+    /// The binding rule accepts an empty pack in a middle position for each result type
+    /// (Req 4.3).
     /// </summary>
-    [Fact]
-    public void EmptyPack_BindingRuleAcceptsEmptyMiddlePack()
+    [Theory]
+    [InlineData("int")]
+    [InlineData("string")]
+    [InlineData("bool")]
+    public void EmptyPack_BindingRuleAcceptsEmptyMiddlePack(string resultType)
     {
-        Assert.True(VerifyBindingRuleEmptyMiddle("int"));
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Generator
-    // ═══════════════════════════════════════════════════════════════════════
-
-    private static readonly string[] ResultTypes = ["int", "string", "bool"];
-
-    public static Arbitrary<EmptyPackCoherenceScenario> EmptyPackCoherenceScenarios()
-    {
-        return GenScenario().ToArbitrary();
-    }
-
-    private static Gen<EmptyPackCoherenceScenario> GenScenario()
-    {
-        return
-            from axis in Gen.Elements(
-                EmptyPackAxis.FuncZeroArgCallable,
-                EmptyPackAxis.SpreadZeroSlots,
-                EmptyPackAxis.GeneratedMembersZero,
-                EmptyPackAxis.VacuousConstraint,
-                EmptyPackAxis.BindingRuleEmptyMiddle)
-            from resultType in Gen.Elements(ResultTypes)
-            select new EmptyPackCoherenceScenario(axis, resultType);
+        Assert.True(VerifyBindingRuleEmptyMiddle(resultType));
     }
 
     // ═══════════════════════════════════════════════════════════════════════

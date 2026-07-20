@@ -1,7 +1,5 @@
 # Variadics
 
-> **Note:** The code examples in this chapter use inline code blocks because the full variadics emission pipeline is still maturing. They will be converted to compiled snippets (following the Book Snippet Policy) once the complete emission pipeline is stable.
-
 Variadics let you write a single generic declaration that works across any number of type arguments. Where ordinary generics fix the arity at the declaration site ("this takes exactly two type parameters"), a variadic type parameter stands for an ordered list of types whose length varies per use site. The canonical payoff is expressing the entire `Func` / `Action` callable family as one declaration rather than 17.
 
 ## The Keystone: A Pack Is a Dependent Type Parameter over `Type[]`
@@ -20,10 +18,18 @@ A variadic family is therefore a type-level function from `Type[]` values to typ
 
 Both spellings declare the same parameter:
 
+{{#tabs }}
+{{#tab name="Mist" }}
 ```mist
-class Foo<params TArgs> { }      // bracket-free construction sugar
-class Foo<Type[]:TArgs> { }      // canonical explicit dependent form
+{{#include ../../snippets/type-system/variadics/declaration-syntax.mist}}
 ```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/variadics/declaration-syntax.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
 
 The `params` spelling grants bracket-free construction at the use site. The explicit `Type[]:` form requires the caller to pass arguments in brackets.
 
@@ -119,12 +125,18 @@ if (TArgs is Type[3] fixed) {
 
 The value counterpart of a type pack is a tuple. Declaring `params TArgs args` gives `args` the type `(TArgs...)` -- a `ValueTuple` whose elements match the pack.
 
+{{#tabs }}
+{{#tab name="Mist" }}
 ```mist
-int CountThenCall<params TArgs>(params TArgs args) {
-    var n = TArgs.Length;      // .Length in expression position
-    return Sink(args...);      // spread into argument slots
-}
+{{#include ../../snippets/type-system/variadics/value-side.mist}}
 ```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/variadics/value-side.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
 
 Key distinctions:
 
@@ -148,11 +160,18 @@ Foo(5, a, b, c, true)
 
 Spreading a value pack forwards it into argument slots:
 
+{{#tabs }}
+{{#tab name="Mist" }}
 ```mist
-TResult Apply<params TArgs, TResult>(Func<TArgs..., TResult> f, params TArgs args) {
-    return f(args...);   // forwards into f's parameter list
-}
+{{#include ../../snippets/type-system/variadics/forwarding.mist}}
 ```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/variadics/forwarding.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
 
 This is well-typed because `f`'s parameter list IS the pack `TArgs`, so the spread provably matches for every instantiation.
 
@@ -182,63 +201,59 @@ int Categorize<params TArgs>(params TArgs args) {
 
 The `...` operator is not pack-specific. It decomposes any tuple:
 
+{{#tabs }}
+{{#tab name="Mist" }}
 ```mist
-var pair = (10, 20);
-var result = Add2(pair...);   // well-typed if Add2 takes (int, int)
+{{#include ../../snippets/type-system/variadics/tuple-decomposition.mist}}
 ```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/variadics/tuple-decomposition.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
 
 ## Spread-Generated Members
 
 A spread in a member-declaring position generates an indexed family of members:
 
+{{#tabs }}
+{{#tab name="Mist" }}
 ```mist
-public class Bundle<params TArgs> {
-    public TArgs... Item;   // aggregate Item : (TArgs...) + projections Item1..ItemN
-}
+{{#include ../../snippets/type-system/variadics/spread-members.mist}}
 ```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/variadics/spread-members.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
 
 This surfaces:
 
 - `bundle.Item` -- the whole `(TArgs...)` tuple (the aggregate).
 - `bundle.Item1` through `bundle.ItemN` -- individual elements (1-based projections).
 
-The declaration's accessibility and member kind (field or property) apply to both the aggregate and its projections:
-
-```mist
-public class ReadOnlyRow<params TArgs> {
-    public TArgs... Slot { get; }   // property projections Slot1..SlotN
-}
-```
-
-A zip constructor populates spread members in parallel:
-
-```mist
-public Bundle(params TArgs values) {
-    Item... = values...;   // zip: each Item{k} = values element k
-}
-```
-
-Re-spreading the generated members feeds them into a function:
-
-```mist
-public TResult Map<TResult>(Func<TArgs..., TResult> f) {
-    return f(Item...);   // re-spread the aggregate
-}
-```
+The declaration's accessibility and member kind (field or property) apply to both the aggregate and its projections. A zip constructor (`Item... = values...`) populates spread members in parallel. Re-spreading the generated members (`Item...`) feeds them into a function.
 
 ## Whole-Pack Constraints
 
 A whole-pack constraint applies elementwise to every element:
 
+{{#tabs }}
+{{#tab name="Mist" }}
 ```mist
-public struct ShapePair<Type[2]:TShapes> where TShapes : IShape {
-    public TShapes... Shape;
-
-    public int TotalArea() {
-        return Shape1.Area() + Shape2.Area();   // IShape.Area() is callable
-    }
-}
+{{#include ../../snippets/type-system/variadics/whole-pack-constraint.mist}}
 ```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/variadics/whole-pack-constraint.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
 
 Every element type must satisfy the constraint. An empty pack vacuously satisfies it.
 
@@ -246,13 +261,18 @@ Every element type must satisfy the constraint. An empty pack vacuously satisfie
 
 The homogeneous sibling of a type pack is C#-style `params`:
 
+{{#tabs }}
+{{#tab name="Mist" }}
 ```mist
-void Log(params string[] parts) {
-    // parts is a real string[]
-}
-
-Log("a", "b");   // flat call site
+{{#include ../../snippets/type-system/variadics/value-level-params.mist}}
 ```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/variadics/value-level-params.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
 
 This is the same `params` keyword, but targeting a homogeneous array (`T[]`) rather than a heterogeneous tuple. The callee receives a real array; the call site is flat.
 
@@ -262,30 +282,40 @@ At most one `params` is allowed per value-parameter list, whether it targets a t
 
 The compiler infers a type pack from value arguments:
 
+{{#tabs }}
+{{#tab name="Mist" }}
 ```mist
-int Describe<params TArgs>(params TArgs args) {
-    return TArgs.Length;
-}
-
-Describe(1, "x", true);         // infers TArgs=[int, string, bool]
-Describe<[int, string, bool]>(); // explicit form always available
+{{#include ../../snippets/type-system/variadics/inference.mist}}
 ```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/variadics/inference.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
 
 Inference solves fixed scalar type parameters alongside the pack using the same binding rule.
 
-## The `Func` / `Action` Rewrite
+## Notable Variadic Types
 
-The motivating payoff: 34 hand-written declarations collapse to two:
+The standard library uses variadics for types that naturally span multiple arities.
+
+### `Func` and `Action`
+
+`Func` is variadic over its input parameters, with a fixed return type in the trailing slot:
 
 ```mist
-// One declaration covers all arities
 intrinsic public class Func<params TArgs, TResult> { }
+```
 
-// Action spreads the pack into Func, fixing the result to void
+`Action` is a type alias that spreads its pack into `Func` with a `void` return:
+
+```mist
 type Action<params TArgs> = Func<TArgs..., void>;
 ```
 
-Usage reads exactly as before:
+Usage:
 
 ```mist
 Func<int, int, bool> isLess;      // TArgs=[int, int], TResult=bool
@@ -293,42 +323,26 @@ Func<string> getName;             // TArgs=[], TResult=string
 Action<int, string> log;          // resolves to Func<int, string, void>
 ```
 
-Invocation uses a single generalized rule: a `Func<params TArgs, TResult>` value is well-typed to invoke when the argument list matches `TArgs` elementwise, and the result type is `TResult`. No per-arity recognition is retained.
+A `Func<params TArgs, TResult>` value is well-typed to invoke when the argument list matches `TArgs` elementwise and the result type is `TResult`.
 
 ## Declaration Kinds
 
 A pack type-parameter list is permitted on every generic-capable declaration kind:
 
+{{#tabs }}
+{{#tab name="Mist" }}
 ```mist
-class Bundle<params TArgs> { }                            // variadic class
-struct Pair<Type[2]:TArgs> where TArgs : IShape { }       // variadic struct
-abstract IApplier<params TArgs, TResult> { }              // variadic abstract type
-type Action<params TArgs> = Func<TArgs..., void>;         // variadic alias
-type Row<params TArgs> = new (TArgs...);                  // variadic newtype
-int Method<params TArgs>(params TArgs args) { }           // method-level pack
+{{#include ../../snippets/type-system/variadics/declaration-kinds.mist}}
 ```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/variadics/declaration-kinds.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
 
 The same rules apply uniformly: binding, arity-in-slots, and one `params` per list.
-
-### Variadic Abstract Types
-
-A variadic abstract type can be implemented at a concrete arity or generically:
-
-```mist
-abstract ICountable<params TArgs> {
-    int Count();
-}
-
-// Concrete arity: ICountable<int, string> requires Count() returning int
-class Fixed : ICountable<int, string> {
-    public int Count() { return 2; }
-}
-
-// Generic: spreads the implementer's own pack into the base-type list
-class Tup<params TArgs> : ICountable<TArgs...> {
-    public int Count() { return TArgs.Length; }
-}
-```
 
 ## Backend Arity Ceiling
 

@@ -1,0 +1,2 @@
+public class Foo<params TArgs> { }
+public class Bar<Type[]:TArgs> { }

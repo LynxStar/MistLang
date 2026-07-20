@@ -1,0 +1,5 @@
+public class Bundle<params TArgs> { }
+public struct Pair<params TArgs> { }
+abstract IApplier<params TArgs, TResult> { }
+type Action<params TArgs> = Func<TArgs..., void>;
+type Row<params TArgs> = new (TArgs...);

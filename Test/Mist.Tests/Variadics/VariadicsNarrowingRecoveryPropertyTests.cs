@@ -19,9 +19,6 @@
 // TypeCheckerAnalyzer.Analyze. ZERO external process spawns.
 
 using System.Collections.Immutable;
-using FsCheck;
-using FsCheck.Fluent;
-using FsCheck.Xunit;
 using Mist.Analysis.Builtin;
 using Mist.Common.Diagnostics;
 using Mist.Common.Source;
@@ -71,8 +68,9 @@ public sealed record NarrowingRecoveryScenario(NarrowingScenarioKind Kind, int N
 }
 
 /// <summary>
-/// Property test for <b>Property 20 (Narrowing recovers provable forwarding)</b> over the
-/// classic pipeline. Generates <c>args is T x</c> patterns and asserts:
+/// Boundary tests for <b>Property 20 (Narrowing recovers provable forwarding)</b> over the
+/// classic pipeline. Exercises <c>args is T x</c> patterns across the small, fully enumerable
+/// shape domain (arities 2..5) and asserts:
 /// <list type="bullet">
 ///   <item>Matching forward: spreading <c>x...</c> into a destination matching T is accepted.</item>
 ///   <item>Mismatched forward: spreading <c>x...</c> into a wrong-shape destination emits MIST_VAR_0011.</item>
@@ -90,9 +88,12 @@ public sealed class VariadicsNarrowingRecoveryPropertyTests
     // **Validates: Requirements 6.7, 12.9**
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Property(Arbitrary = new[] { typeof(VariadicsNarrowingRecoveryPropertyTests) }, MaxTest = 150)]
-    public bool NarrowingRecovery_ForwardAcceptedIffShapeMatches(NarrowingRecoveryScenario scenario)
+    [Theory]
+    [MemberData(nameof(Scenarios))]
+    public void NarrowingRecovery_ForwardAcceptedIffShapeMatches(
+        NarrowingScenarioKind kind, int narrowedArity, int destinationArity)
     {
+        var scenario = new NarrowingRecoveryScenario(kind, narrowedArity, destinationArity);
         var source = BuildSource(scenario);
         var diagnostics = AnalyzeClassic(source);
 
@@ -108,35 +109,48 @@ public sealed class VariadicsNarrowingRecoveryPropertyTests
             // Matching forward or multi-branch matching: no MIST_VAR_0011.
             Assert.Equal(0, mismatchCount);
         }
-
-        return true;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Generator
+    // Scenario enumeration -- the shape domain (arities 2..5 across three scenario
+    // kinds) is small and fully enumerable, so every distinct scenario is exercised
+    // exactly once rather than sampled repeatedly.
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>Arbitrary registration for the property above.</summary>
-    public static Arbitrary<NarrowingRecoveryScenario> NarrowingRecoveryScenarios()
+    public static IEnumerable<object[]> Scenarios()
     {
-        return GenScenario().ToArbitrary();
-    }
+        // Matching forward: narrowed arity == destination arity (2..5).
+        for(var arity = 2; arity <= 5; arity++)
+        {
+            yield return new object[] { NarrowingScenarioKind.MatchingForward, arity, arity };
+        }
 
-    private static Gen<NarrowingRecoveryScenario> GenScenario()
-    {
-        return Gen.OneOf(
-            // Matching forward: narrowed arity == destination arity (2..5).
-            from arity in Gen.Choose(2, 5)
-            select new NarrowingRecoveryScenario(NarrowingScenarioKind.MatchingForward, arity, arity),
-            // Mismatched forward: narrowed arity != destination arity.
-            from narrowed in Gen.Choose(2, 5)
-            from destOffset in Gen.Choose(1, 3)
-            let dest = narrowed + destOffset
-            select new NarrowingRecoveryScenario(NarrowingScenarioKind.MismatchedForward, narrowed, dest),
-            // Multi-branch matching: two different shapes, each forwarding into its own sink.
-            from arity1 in Gen.Choose(2, 4)
-            from arity2 in Gen.Choose(2, 4).Where(a2 => a2 != arity1)
-            select new NarrowingRecoveryScenario(NarrowingScenarioKind.MultiBranchMatching, arity1, arity2));
+        // Mismatched forward: narrowed arity != destination arity (offset 1..3).
+        for(var narrowed = 2; narrowed <= 5; narrowed++)
+        {
+            for(var destOffset = 1; destOffset <= 3; destOffset++)
+            {
+                yield return new object[]
+                {
+                    NarrowingScenarioKind.MismatchedForward, narrowed, narrowed + destOffset,
+                };
+            }
+        }
+
+        // Multi-branch matching: two different shapes (2..4), each forwarding into its own sink.
+        for(var arity1 = 2; arity1 <= 4; arity1++)
+        {
+            for(var arity2 = 2; arity2 <= 4; arity2++)
+            {
+                if(arity1 != arity2)
+                {
+                    yield return new object[]
+                    {
+                        NarrowingScenarioKind.MultiBranchMatching, arity1, arity2,
+                    };
+                }
+            }
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════

@@ -18,9 +18,6 @@
 //
 // All tests run entirely in-process with ZERO external process spawns.
 
-using FsCheck;
-using FsCheck.Fluent;
-using FsCheck.Xunit;
 using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Tests.Helpers;
@@ -28,23 +25,12 @@ using Mist.Tests.Helpers;
 namespace Mist.Tests.Variadics;
 
 /// <summary>
-/// A generated arity ceiling scenario specifying the number of input parameters for a
-/// <c>Func</c> construction. The oracle knows whether <c>MIST_VAR_0010</c> should fire.
-/// </summary>
-public sealed record ArityCeilingScenario(int InputCount)
-{
-    /// <summary>Func/Action ceiling is 16 inputs; over 16 emits MIST_VAR_0010.</summary>
-    public bool ExpectsBackendDiagnostic => InputCount > 16;
-
-    public override string ToString()
-    {
-        return $"Func inputs={InputCount}, expectMIST_VAR_0010={ExpectsBackendDiagnostic}";
-    }
-}
-
-/// <summary>
-/// Property test for <b>Property 14 (Unbounded front end, backend ceiling)</b> over the
-/// classic pipeline. Generates <c>Func</c> constructions at various arities and asserts:
+/// Boundary tests for <b>Property 14 (Unbounded front end, backend ceiling)</b> over the
+/// classic pipeline. The arity ceiling has exactly three equivalence classes -- below the
+/// ceiling, above the ceiling, and the ValueTuple nesting boundary -- so the behavior is
+/// characterized deterministically by <see cref="TheoryAttribute"/> cases at the boundary
+/// arities rather than by sampling the same small 0..20 integer domain many times.
+/// Asserts:
 /// <list type="bullet">
 ///   <item>No front-end (grammar/semantic-model/type-checker) diagnostic rejects on length.</item>
 ///   <item><c>MIST_VAR_0010</c> is emitted only by the backend, only for arities over 16.</item>
@@ -57,79 +43,23 @@ public sealed class VariadicsArityCeilingPropertyTests
     private const string ArityCeilingDiagnosticId = "MIST_VAR_0010";
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Property 14: Func/Action arity ceiling -- MIST_VAR_0010 only for >16 inputs.
-    // **Validates: Requirements 16.1, 16.2, 16.4, 16.5**
-    // ═══════════════════════════════════════════════════════════════════════
-
-    [Property(Arbitrary = new[] { typeof(VariadicsArityCeilingPropertyTests) }, MaxTest = 100)]
-    public bool FuncArityCeiling_EmittedOnlyWhenOver16Inputs(ArityCeilingScenario scenario)
-    {
-        var source = BuildFuncSource(scenario.InputCount);
-        var result = VariadicsCompilerFixture.Compile(source, globalUsings: "Standard");
-        var diagnostics = result.Diagnostics;
-
-        // Front-end stages (parsing, semantic model, analysis) must NOT reject on length.
-        var frontEndErrors = diagnostics
-            .Where(d => d.Severity == DiagnosticSeverity.Error)
-            .Where(d => d.Stage is PipelineStage.Lexing or PipelineStage.Parsing
-                or PipelineStage.SemanticModelConstruction or PipelineStage.Analysis)
-            .Where(d => d.Id.Value == ArityCeilingDiagnosticId)
-            .ToList();
-
-        Assert.Empty(frontEndErrors);
-
-        // The arity ceiling diagnostic should come only from the backend.
-        var backendCeilingDiags = diagnostics
-            .Where(d => d.Id.Value == ArityCeilingDiagnosticId)
-            .ToList();
-
-        if(scenario.ExpectsBackendDiagnostic)
-        {
-            // Over 16 inputs: MIST_VAR_0010 must be emitted from the backend.
-            Assert.NotEmpty(backendCeilingDiags);
-            Assert.All(backendCeilingDiags, d => Assert.Equal(PipelineStage.Backend, d.Stage));
-        }
-        else
-        {
-            // 16 or fewer inputs: no MIST_VAR_0010 at all.
-            Assert.Empty(backendCeilingDiags);
-        }
-
-        return true;
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Property 14: ValueTuple nesting -- arity >7 does NOT emit MIST_VAR_0010.
-    // **Validates: Requirements 16.3**
-    // ═══════════════════════════════════════════════════════════════════════
-
-    [Property(Arbitrary = new[] { typeof(VariadicsArityCeilingPropertyTests) }, MaxTest = 100)]
-    public bool ValueTupleNesting_NeverEmitsArityCeilingDiagnostic(ArityCeilingScenario scenario)
-    {
-        // ValueTuple packs (used as value packs) should nest rather than reject.
-        var source = BuildValueTupleSource(scenario.InputCount);
-        var result = VariadicsCompilerFixture.Compile(source, globalUsings: "Standard");
-        var diagnostics = result.Diagnostics;
-
-        // MIST_VAR_0010 should NEVER appear for ValueTuple constructions (they nest).
-        var ceilingDiags = diagnostics
-            .Where(d => d.Id.Value == ArityCeilingDiagnosticId)
-            .ToList();
-
-        Assert.Empty(ceilingDiags);
-
-        return true;
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
     // Property 14: BuildValueTupleTypeName produces nesting at arity >7.
     // **Validates: Requirements 16.3**
+    //
+    // BuildValueTupleTypeName is a pure function of arity, so it is characterized
+    // deterministically at the nesting boundary rather than by random sampling.
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Property(Arbitrary = new[] { typeof(VariadicsArityCeilingPropertyTests) }, MaxTest = 100)]
-    public bool BuildValueTupleTypeName_NestsAtArity8Plus(ArityCeilingScenario scenario)
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(5)]
+    [InlineData(7)]
+    [InlineData(8)]
+    [InlineData(15)]
+    [InlineData(20)]
+    public void BuildValueTupleTypeName_NestsAtArity8Plus(int arity)
     {
-        var arity = scenario.InputCount;
         var typeName = VariadicMonomorphizer.BuildValueTupleTypeName(arity);
 
         if(arity == 0)
@@ -151,12 +81,10 @@ public sealed class VariadicsArityCeilingPropertyTests
             // Arity 8+: must contain nested ValueTuple (nesting indicator).
             Assert.Contains("System.ValueTuple<", typeName[(typeName.IndexOf('<') + 1)..]);
         }
-
-        return true;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Deterministic boundary tests (supplement to the property tests above)
+    // Deterministic boundary tests for the Func/Action arity ceiling.
     // ═══════════════════════════════════════════════════════════════════════
 
     [Theory]
@@ -215,29 +143,6 @@ public sealed class VariadicsArityCeilingPropertyTests
             .ToList();
 
         Assert.Empty(ceilingDiags);
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Generator
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Generates arity ceiling scenarios with input counts spanning the interesting
-    /// boundary values: 0, 1, 5, 7, 8, 15, 16, 17, 20.
-    /// </summary>
-    public static Arbitrary<ArityCeilingScenario> ArityCeilingScenarios()
-    {
-        return GenScenario().ToArbitrary();
-    }
-
-    private static Gen<ArityCeilingScenario> GenScenario()
-    {
-        // Mix boundary values (deterministic coverage) with random values (exploration).
-        var boundaryValues = Gen.Elements(0, 1, 5, 7, 8, 15, 16, 17, 20);
-        var randomValues = Gen.Choose(0, 20);
-
-        return Gen.OneOf(boundaryValues, randomValues)
-            .Select(n => new ArityCeilingScenario(n));
     }
 
     // ═══════════════════════════════════════════════════════════════════════

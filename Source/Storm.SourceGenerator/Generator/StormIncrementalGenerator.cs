@@ -18,6 +18,14 @@ namespace Storm.SourceGenerator.Generator;
 [Generator(LanguageNames.CSharp)]
 public sealed class StormIncrementalGenerator : IIncrementalGenerator
 {
+    // Migration control point for the storm-anonymous-groups feature. While Mist compiler
+    // consumers are migrated from the old flat-field AST API to the new Group_Struct API,
+    // the AstEmitter emits [Obsolete] shim properties so the build stays green while the
+    // resulting CS0618 warnings track the remaining work. Task 27 flips this single constant
+    // to false to remove the shims, at which point any remaining old-API usage becomes a
+    // hard compile error. This is a compile-time constant by design, not a build/analyzer option.
+    private const bool EmitObsoleteShims = true;
+
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // Register for additional files matching *.storm
@@ -209,10 +217,13 @@ public sealed class StormIncrementalGenerator : IIncrementalGenerator
         // it emits no diagnostics. Returns MemoizationPlan.Empty when nothing qualifies.
         var memoizationPlan = MemoizationAnalysisPass.Run(loweringResult.Grammar);
 
-        // Step 6: Emit
+        // Step 6: Emit.
+        // EmitObsoleteShims is threaded in explicitly here as the single migration control
+        // point (see the constant on this class); Task 27 flips it to false to drop the shims.
         var emissionContext = new EmissionContext(
             consumerNamespace, grammarName, loweringResult.Grammar, memoizationPlan,
-            traitBuildResult.Traits, traitBuildResult.RuleTraitBindings);
+            traitBuildResult.Traits, traitBuildResult.RuleTraitBindings,
+            emitObsoleteShims: EmitObsoleteShims);
 
         // Emit runtime types
         var runtimeSource = AstEmitter.EmitRuntimeTypes();

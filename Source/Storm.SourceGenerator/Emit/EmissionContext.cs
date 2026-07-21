@@ -48,13 +48,20 @@ public sealed class EmissionContext
     /// </summary>
     public IReadOnlyDictionary<string, IReadOnlyList<TraitIR>> RuleTraitBindings { get; }
 
+    /// <summary>
+    /// When true, the AstEmitter emits [Obsolete] shim properties that forward
+    /// to the new Group_Struct data. This enables incremental migration.
+    /// </summary>
+    public bool EmitObsoleteShims { get; }
+
     public EmissionContext(
         string consumerNamespace,
         string grammarName,
         GrammarIR grammar,
         MemoizationPlan? memoization = null,
         IReadOnlyList<TraitIR>? traits = null,
-        IReadOnlyDictionary<string, IReadOnlyList<TraitIR>>? ruleTraitBindings = null)
+        IReadOnlyDictionary<string, IReadOnlyList<TraitIR>>? ruleTraitBindings = null,
+        bool emitObsoleteShims = true)
     {
         ConsumerNamespace = consumerNamespace;
         GrammarName = grammarName;
@@ -63,5 +70,6 @@ public sealed class EmissionContext
         Traits = traits ?? Array.Empty<TraitIR>();
         RuleTraitBindings = ruleTraitBindings
             ?? new Dictionary<string, IReadOnlyList<TraitIR>>();
+        EmitObsoleteShims = emitObsoleteShims;
     }
 }

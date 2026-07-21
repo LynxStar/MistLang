@@ -10,7 +10,7 @@ namespace Storm.SourceGenerator.Emit;
 /// Generates one type per rule: sealed record for single-alternative rules,
 /// abstract record + sealed subtypes for rules with named alternatives.
 /// </summary>
-public static class AstEmitter
+public static partial class AstEmitter
 {
     /// <summary>
     /// Generates the Storm.Runtime types source file (Token, TokenChannel,

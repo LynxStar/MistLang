@@ -483,7 +483,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
 
         switch(node)
         {
-            case AssignmentNode assignment when assignment.Value is not null:
+            case AssignmentNode assignment when assignment.Group0?.Value is not null:
                 CheckContextBoundAssignment(assignment, contextBoundNames, diagnostics);
                 break;
 

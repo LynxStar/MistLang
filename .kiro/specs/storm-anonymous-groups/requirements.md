@@ -46,9 +46,9 @@ The chosen strategy uses `[Obsolete]`-attributed shim properties that forward to
 
 #### Acceptance Criteria
 
-1. WHEN the AST_Emitter processes a rule alternative that contains an anonymous group `(...)`, THE AST_Emitter SHALL emit a `public struct {RuleName}NodeGroup{N}` type in the same namespace as the rule's node class, where `N` is the Group_Index of that anonymous group within the alternative.
+1. WHEN the AST_Emitter processes a rule alternative that contains an anonymous group `(...)` holding two or more value-bearing elements, THE AST_Emitter SHALL emit a `public struct {RuleName}NodeGroup{N}` type in the same namespace as the rule's node class, where `N` is the Group_Index of that anonymous group within the alternative. A value-bearing element is a labelled element or an unlabelled rule reference; bare fixed tokens (unlabelled token references such as `COMMA`, `DOT`, `EQ`) are structural — consumed by the parser but not stored — and are not counted. A labelled token-only alternation such as `operator:(PLUS | MINUS)` counts as one value-bearing element.
 
-2. THE Group_Struct SHALL contain one field per `label:Expression` declared directly inside the anonymous group, with the same type derivation rules used for labelled fields on ordinary node classes (rule references become `{Rule}Node`, token references become `Token`, and repetition or optional modifiers are applied accordingly).
+2. THE Group_Struct SHALL contain one field per value-bearing element declared directly inside the anonymous group — each labelled element (named from its label) and each unlabelled rule reference (named from the referenced rule) — with the same type derivation rules used for labelled fields on ordinary node classes (rule references become `{Rule}Node`, token references and labelled token-only alternations become `Token`, and repetition or optional modifiers are applied accordingly). Bare fixed tokens produce no field.
 
 3. WHEN a rule alternative contains multiple anonymous groups at the same nesting level, THE AST_Emitter SHALL assign each a distinct Group_Index in left-to-right source order starting from zero.
 
@@ -156,7 +156,7 @@ The chosen strategy uses `[Obsolete]`-attributed shim properties that forward to
 
 #### Acceptance Criteria
 
-1. WHEN a rule alternative contains no anonymous groups that require a Group_Struct (i.e., all anonymous groups are Pure_Token_Alternations or there are no anonymous groups at all), THE AST_Emitter SHALL produce the same node class as it does today.
+1. WHEN a rule alternative contains no anonymous groups that require a Group_Struct (i.e., every anonymous group holds fewer than two value-bearing elements — including single value-bearing groups such as `(COMMA rest:Expression)*` and token-only groups such as `(DOT IDENT)*` — or there are no anonymous groups at all), THE AST_Emitter SHALL produce the same node class as it does today.
 
 2. WHEN the Parser_Emitter processes a rule that contains no anonymous groups requiring Group_Struct construction, THE Parser_Emitter SHALL produce the same parser method as it does today.
 

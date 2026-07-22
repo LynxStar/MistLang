@@ -50,9 +50,13 @@ flowchart TD
 
 ### 1. Anonymous Group Detection (AstEmitter)
 
-An **anonymous group** is identified in the IR as a `SequenceIR` node that:
-- Is the direct `Inner` of a `ZeroOrMoreIR`, `OneOrMoreIR`, or `OptionalIR`; OR appears as a bare `SequenceIR` at the top level of an alternative's expression
-- Contains at least one `FieldLabelIR` referencing an expression within it
+An **anonymous group** is projected as a Group_Struct when it is a `SequenceIR` that:
+- Is the direct `Inner` of a `ZeroOrMoreIR`, `OneOrMoreIR`, or `OptionalIR`, AND
+- Holds **two or more value-bearing elements** (the "capture-count" rule).
+
+A **value-bearing element** is a labelled element (a `FieldLabelIR` references it) or an unlabelled `RuleRefIR`. Bare fixed tokens (unlabelled `TokenRefIR` such as `COMMA`, `DOT`, `EQ`) are **structural**: consumed by the parser, not stored, and not counted. A labelled token alternation such as `operator:(PLUS | MINUS)` counts as one value-bearing element (it collapses to a single `Token`).
+
+A struct is required precisely when two or more correlated values must be stored per occurrence. A group with **one** value-bearing element keeps its existing single promotion (`ImmutableArray<T>` / `T?` / `T`); a group with **zero** value-bearing elements keeps the existing lone-token promotion (`ImmutableArray<Token>`). These sub-two groups are not intercepted, which is why single-operator chains like `(QUESTION_QUESTION right:LogicalOr)*` (a fixed `??` token plus one operand) keep their list property while variable-operator chains like `(operator:(PLUS | MINUS) right:Multiplicative)*` project a struct that pairs each operator with its operand.
 
 The detection algorithm walks the alternative's expression tree and collects groups:
 
@@ -71,13 +75,13 @@ void WalkForGroups(ExpressionIR expr, IReadOnlyList<FieldLabelIR> labels,
 {
     switch (expr)
     {
-        case ZeroOrMoreIR { Inner: SequenceIR seq } when HasLabelsInside(seq, labels):
+        case ZeroOrMoreIR { Inner: SequenceIR seq } when CountValueBearing(seq, labels) >= 2:
             groups.Add(new(seq, Modifier.ZeroOrMore, index++, GetLabelsInside(seq, labels)));
             break;
-        case OneOrMoreIR { Inner: SequenceIR seq } when HasLabelsInside(seq, labels):
+        case OneOrMoreIR { Inner: SequenceIR seq } when CountValueBearing(seq, labels) >= 2:
             groups.Add(new(seq, Modifier.OneOrMore, index++, GetLabelsInside(seq, labels)));
             break;
-        case OptionalIR { Inner: SequenceIR seq } when HasLabelsInside(seq, labels):
+        case OptionalIR { Inner: SequenceIR seq } when CountValueBearing(seq, labels) >= 2:
             groups.Add(new(seq, Modifier.Optional, index++, GetLabelsInside(seq, labels)));
             break;
         case SequenceIR seq:
@@ -91,29 +95,27 @@ void WalkForGroups(ExpressionIR expr, IReadOnlyList<FieldLabelIR> labels,
 
 **Key invariant**: Group_Index is assigned by a single left-to-right walk of the alternative's expression tree. The first anonymous group encountered is `Group0`, the second `Group1`, etc.
 
-### 2. Pure_Token_Alternation Detection
+### 2. Pure_Token_Alternation (nested, field-level)
 
-Before emitting a Group_Struct, the emitter checks whether the anonymous group's body qualifies for the Pure_Token_Alternation optimisation:
+Under the capture-count rule, a whole group that is nothing but a single token alternation carries one value-bearing element, so it is never projected as a struct — it keeps its existing single promotion (`Token` / `Token?` / `ImmutableArray<Token>`). The Pure_Token_Alternation optimisation therefore applies **per field inside a struct**: a labelled token-only alternation such as `operator:(PLUS | MINUS)` inside `(operator:(PLUS | MINUS) right:Multiplicative)*` collapses to a single `Token` field rather than a nested discriminated struct. The check is invoked with the single labelled element wrapped in a one-element list:
 
 ```csharp
-bool IsPureTokenAlternation(SequenceIR seq, IReadOnlyList<FieldLabelIR> labelsInGroup)
+bool IsPureTokenAlternation(IReadOnlyList<FieldLabelIR> labelsInGroup)
 {
-    // A pure-token alternation is when the group contains exactly one labeled field
-    // whose expression is an AlternationIR where ALL alternatives are TokenRefIR.
+    // The labelled element (passed as a one-element list) is a token-only alternation:
+    // its expression is an AlternationIR whose alternatives are all TokenRefIR.
     if (labelsInGroup.Count != 1)
         return false;
 
-    var labelExpr = labelsInGroup[0].Expression;
-    if (labelExpr is not AlternationIR alt)
+    if (labelsInGroup[0].Expression is not AlternationIR alt)
         return false;
 
     return alt.Alternatives.All(a => a is TokenRefIR);
 }
 ```
 
-When this optimisation applies:
-- No struct is emitted for the group
-- The labelled field is promoted directly to the parent node as `Token`, `Token?`, or `ImmutableArray<Token>` depending on the modifier
+When this optimisation applies to a labelled struct field:
+- The field is typed `Token` (no nested discriminated struct is generated)
 - The parser emitter uses existing token-matching logic unchanged
 
 ### 3. Group_Struct Emission (AstEmitter)
@@ -356,7 +358,7 @@ The project enforces a zero-warnings policy (see workspace rule `zero-warnings-p
 
 ### Property 1: Group struct emission for anonymous groups
 
-*For any* grammar rule alternative containing a `SequenceIR` with `FieldLabelIR` entries nested inside a `ZeroOrMoreIR`, `OneOrMoreIR`, or `OptionalIR`, the AstEmitter output SHALL contain a `public struct {RuleName}NodeGroup{N}` declaration with one field per label.
+*For any* grammar rule alternative containing a `SequenceIR` with two or more value-bearing elements (labelled elements or unlabelled `RuleRefIR`s) nested inside a `ZeroOrMoreIR`, `OneOrMoreIR`, or `OptionalIR`, the AstEmitter output SHALL contain a `public struct {RuleName}NodeGroup{N}` declaration with one field per value-bearing element in source order. Bare fixed tokens (unlabelled `TokenRefIR`) are structural and contribute no field.
 
 **Validates: Requirements 1.1, 1.2**
 
@@ -383,7 +385,7 @@ The project enforces a zero-warnings policy (see workspace rule `zero-warnings-p
 
 ### Property 5: Pure_Token_Alternation collapses to Token
 
-*For any* anonymous group whose body is an `AlternationIR` where all alternatives are `TokenRefIR`, the AstEmitter SHALL NOT emit a Group_Struct, and the parent property SHALL be `Token`, `Token?`, or `ImmutableArray<Token>` per the modifier.
+*For any* anonymous group whose body is a single labelled token-only `AlternationIR` (one value-bearing element), the AstEmitter SHALL NOT emit a Group_Struct, and the parent property SHALL be `Token`, `Token?`, or `ImmutableArray<Token>` per the modifier. *For any* labelled token-only `AlternationIR` appearing as one element of a struct-projected group (two or more value-bearing elements), the corresponding struct field SHALL be typed `Token`.
 
 **Validates: Requirements 2.1, 2.2**
 
@@ -395,7 +397,7 @@ The project enforces a zero-warnings policy (see workspace rule `zero-warnings-p
 
 ### Property 7: Backward compatibility for non-group rules
 
-*For any* grammar rule that contains no anonymous groups requiring Group_Struct emission, the AstEmitter and ParserEmitter output SHALL be identical to the output produced before this change.
+*For any* grammar rule whose anonymous groups all hold fewer than two value-bearing elements — including single value-bearing groups such as `(COMMA rest:Expression)*` (existing `ImmutableArray<T>` / `T?` promotion) and token-only groups such as `(DOT IDENT)*` (existing `ImmutableArray<Token>` lone-token promotion) — as well as rules with no anonymous groups at all, the AstEmitter and ParserEmitter output SHALL be identical to the output produced before this change.
 
 **Validates: Requirements 6.1, 6.2**
 
@@ -421,11 +423,11 @@ The design does not introduce new diagnostic error conditions on the grammar aut
 
 | Scenario | Handling |
 |----------|----------|
-| Anonymous group with zero labels | Not treated as an anonymous group — no struct emitted. Falls through to existing unlabeled-property logic. |
+| Group with fewer than two value-bearing elements | Not projected as a struct. One value-bearing element keeps the existing single promotion (`ImmutableArray<T>` / `T?` / `T`); zero value-bearing elements keep the existing lone-token promotion (`ImmutableArray<Token>`). |
 | Nested groups (group inside group) | Inner group becomes a nested struct inside the outer. Group_Index resets within each nesting level. |
-| Mixed labeled/unlabeled elements in a group | Only labeled elements become struct fields. Unlabeled tokens (like keywords) are consumed by the parser but not stored. |
+| Unlabelled elements in a group | Unlabelled rule references are value-bearing and become struct fields named after the rule (e.g. `PrimaryNode Primary`). Bare fixed tokens (`COMMA`, `DOT`, keywords) are structural — consumed by the parser but not stored. |
 | Empty repetition (`*` with zero matches) | The `ImmutableArray` is empty (`.Empty`). Shim scalars return `default`/`default!`. |
-| Pure_Token_Alternation with a single token | Still qualifies (vacuously all alternatives are token refs). Collapses to `Token`. |
+| Pure_Token_Alternation with a single token | A labelled token-only alternation (even a single alternative) collapses to a `Token` field. |
 
 ## Testing Strategy
 

@@ -745,9 +745,10 @@ public sealed class DropAnalyzer : IAnalyzer
         ProcessExpression(expr, state, model, diagnostics, isDropMethod);
 
         // Detect `target = source;` where source is a droppable variable → move source.
-        if(expr.AsAssignmentOrNull() is { Value: not null } assignment &&
-            assignment.Value.AsAssignmentOrNull() is { } rhs &&
-            rhs.Value is null)
+        if(expr.AsAssignmentOrNull() is { } assignment &&
+            assignment.Group0?.Value is { } assignmentValue &&
+            assignmentValue.AsAssignmentOrNull() is { } rhs &&
+            rhs.Group0?.Value is null)
         {
             var sourceSymbol = TryResolveIdentifierSymbol(rhs.Target, model);
             if(sourceSymbol is not null && IsTrackedDroppable(sourceSymbol, state))
@@ -1098,7 +1099,7 @@ public sealed class DropAnalyzer : IAnalyzer
                     : null;
 
             case AssignmentNode assignment:
-                return assignment.Value is not null
+                return assignment.Group0?.Value is not null
                     ? null
                     : TryResolveIdentifierSymbol(assignment.Target, model);
 

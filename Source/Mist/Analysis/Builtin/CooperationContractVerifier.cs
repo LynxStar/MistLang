@@ -203,12 +203,12 @@ public sealed class CooperationContractVerifier
     /// </summary>
     private static void CollectFieldAssignments(SyntaxNode node, ISemanticModel model, List<FieldAssignment> results)
     {
-        if(node is AssignmentNode assignment && assignment.Value is not null)
+        if(node is AssignmentNode assignment && assignment.Group0?.Value is { } assignmentValue)
         {
             var fieldSymbol = TryResolveThisFieldTarget(assignment.Target, model);
             if(fieldSymbol is not null)
             {
-                results.Add(new FieldAssignment(fieldSymbol, assignment.Value, assignment));
+                results.Add(new FieldAssignment(fieldSymbol, assignmentValue, assignment));
             }
         }
 
@@ -238,7 +238,7 @@ public sealed class CooperationContractVerifier
 
         if(target is AssignmentNode assignment)
         {
-            if(assignment.Value is not null)
+            if(assignment.Group0?.Value is not null)
             {
                 return null;
             }
@@ -331,7 +331,7 @@ public sealed class CooperationContractVerifier
 
         if(source is AssignmentNode assignment)
         {
-            return assignment.Value is null && IsStaticOrGlobalRead(assignment.Target, model);
+            return assignment.Group0?.Value is null && IsStaticOrGlobalRead(assignment.Target, model);
         }
 
         if(source is PostfixNode postfix)
@@ -560,7 +560,7 @@ public sealed class CooperationContractVerifier
                 return expr.AsAssignmentOrNull() is { } exprAssignment ? RenderExpression(exprAssignment) : "";
 
             case AssignmentNode assignment:
-                return assignment.Value is null ? RenderExpression(assignment.Target) : "";
+                return assignment.Group0?.Value is null ? RenderExpression(assignment.Target) : "";
 
             case IdentifierExpressionPrimaryNode identifier:
                 return identifier.Name.Lexeme;

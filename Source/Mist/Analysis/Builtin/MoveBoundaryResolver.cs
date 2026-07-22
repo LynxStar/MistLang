@@ -429,7 +429,7 @@ public sealed class MoveBoundaryResolver
 
         if(node is AssignmentNode assignment)
         {
-            if(assignment.Value is not null)
+            if(assignment.Group0?.Value is not null)
             {
                 return null;
             }

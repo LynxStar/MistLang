@@ -7017,7 +7017,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
 
             // Only resolve constraints if the constraint clause is present.
-            if(slotDecl.Constraints is null)
+            var slotConstraints = slotDecl.Group0?.Constraints;
+            if(slotConstraints is null)
             {
                 continue;
             }
@@ -7026,7 +7027,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 ?? GetSourceTextFromOrigin(declaringNode);
 
             var resolvedConstraints = ResolveAssociatedTypeSlotConstraintList(
-                slotDecl.Constraints, symbol, declaringNode, symbolTable, asts, compilation, diagnostics, sourceText);
+                slotConstraints, symbol, declaringNode, symbolTable, asts, compilation, diagnostics, sourceText);
 
             slotType.Constraints = resolvedConstraints;
         }
@@ -7729,7 +7730,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             TypeAliasDeclarationNode aliasDecl when symbol is Symbol aliasSymbol => (aliasDecl.Constraints, aliasSymbol.TypeParameters),
             ConstructorDeclarationNode ctorDecl => ((ImmutableArray<WhereClauseNode> Clauses, IReadOnlyList<IType> TypeParams))(ctorDecl.Constraints, Array.Empty<IType>()),
             IndexerDeclarationNode indexerDecl2 => ((ImmutableArray<WhereClauseNode> Clauses, IReadOnlyList<IType> TypeParams))(indexerDecl2.Constraints, Array.Empty<IType>()),
-            AssociatedTypeSlotDeclarationNode slotDecl when symbol is Symbol slotSymbol && slotDecl.Constraints is not null => (slotDecl.SlotWhereConstraints, slotSymbol.TypeParameters),
+            AssociatedTypeSlotDeclarationNode slotDecl when symbol is Symbol slotSymbol && slotDecl.Group0?.Constraints is not null => (slotDecl.Group0.Value.SlotWhereConstraints, slotSymbol.TypeParameters),
             AssociatedTypeSlotDeclarationNode when symbol is Symbol slotSymbol2 => (ImmutableArray<WhereClauseNode>.Empty, slotSymbol2.TypeParameters),
             _ => ((ImmutableArray<WhereClauseNode> Clauses, IReadOnlyList<IType> TypeParams))(ImmutableArray<WhereClauseNode>.Empty, Array.Empty<IType>()),
         };
@@ -12697,7 +12698,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return null; // Lambda form — not a simple literal.
         }
 
-        if(assignment.Value is not null)
+        if(assignment.Group0?.Value is not null)
         {
             return null; // It's an assignment, not a simple literal.
         }
@@ -12721,7 +12722,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         var equality = logicalAnd?.Left;
-        if(equality?.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        if(equality is not null && !equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -12732,19 +12733,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return null;
         }
 
-        if(relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
+        if(!relCmp.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var additive = relCmp.Left;
-        if(additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive?.Left;
-        if(multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        if(multiplicative is not null && !multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -16304,9 +16305,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         CollectFromRelational(node.Left, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
 
-        if(node.Right is not null && !ReferenceEquals(node.Right, node.Left))
+        // Group0 is the flat n-ary operand list; visit every operand so pattern
+        // variables in a multi-term chain are all collected, not just the last.
+        foreach(var group in node.Group0)
         {
-            CollectFromRelational(node.Right, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+            CollectFromRelational(group.Right, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
         }
     }
 
@@ -18871,7 +18874,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return false; // Lambda form — not a discarded async invocation.
         }
 
-        if(assignment.Value is not null)
+        if(assignment.Group0?.Value is not null)
         {
             return false; // It's an assignment, not a discarded expression.
         }
@@ -18889,7 +18892,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         var equality = logicalAnd.Left;
-        if(equality.Right is not null)
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return false;
         }
@@ -18900,19 +18903,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return false;
         }
 
-        if(relComp.Right is not null)
+        if(!relComp.Group0.IsDefaultOrEmpty)
         {
             return false;
         }
 
         var additive = relComp.Left;
-        if(additive.Right is not null)
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return false;
         }
 
         var multiplicative = additive.Left;
-        if(multiplicative.Right is not null)
+        if(!multiplicative.Group0.IsDefaultOrEmpty)
         {
             return false;
         }
@@ -21637,7 +21640,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var targetType = ResolveVoidCoalescing(assignment.Target, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
-        if(assignment.Value is not null)
+        var assignedValue = assignment.Group0?.Value;
+        if(assignedValue is not null)
         {
             // This is an assignment expression: target = value.
             // The RHS is now a full ExpressionNode (widened to reach lambdas), so
@@ -21646,7 +21650,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // assignment target's resolved type.
             var previousTargetNewTarget = targetTypedNewTargetType;
             targetTypedNewTargetType = targetType;
-            _ = ResolveExpression(assignment.Value, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            _ = ResolveExpression(assignedValue, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
             targetTypedNewTargetType = previousTargetNewTarget;
             expressionTypes[assignment] = targetType;
             return targetType;
@@ -21793,9 +21797,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        var rightOperand = node.Right is not null && !ReferenceEquals(node.Right, node.Left)
-            ? node.Right
-            : null;
+        // Group0 is the flat n-ary operand list; the last element carries this
+        // chain's final right operand, preserving the former last-wins shim read
+        // that drives the void-target check below.
+        var rightOperand = !node.Group0.IsDefaultOrEmpty ? node.Group0[^1].Right : null;
 
         // Target-type-aware void resolution for equality operands: when either
         // operand is a bare `void` keyword literal (e.g. `void == void`), there
@@ -21817,9 +21822,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var leftType = ResolveRelational(node.Left, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
-            if(rightOperand is not null)
+            if(!node.Group0.IsDefaultOrEmpty)
             {
-                _ = ResolveRelational(rightOperand, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                // Resolve every operand so each relational sub-expression is typed
+                // for the type checker's own Group0 iteration.
+                foreach(var group in node.Group0)
+                {
+                    _ = ResolveRelational(group.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                }
+
                 var result = ResolvePrimitiveByKeyword("bool", fileScope, symbolTable);
                 expressionTypes[node] = result;
                 return result;
@@ -21849,17 +21860,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static bool IsBareVoidTypeLiteral(RelationalNode? relational)
     {
-        if(relational is not RelationalComparisonRelationalNode { Right: null } cmp)
+        if(relational is not RelationalComparisonRelationalNode cmp || !cmp.Group0.IsDefaultOrEmpty)
         {
             return false;
         }
 
-        if(cmp.Left is not AdditiveNode { Right: null } additive)
+        if(cmp.Left is not AdditiveNode additive || !additive.Group0.IsDefaultOrEmpty)
         {
             return false;
         }
 
-        if(additive.Left is not MultiplicativeNode { Right: null } multiplicative)
+        if(additive.Left is not MultiplicativeNode multiplicative || !multiplicative.Group0.IsDefaultOrEmpty)
         {
             return false;
         }
@@ -21895,9 +21906,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     var leftType = ResolveAdditive(cmp.Left, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
-                    if(cmp.Right is not null && !ReferenceEquals(cmp.Right, cmp.Left))
+                    if(!cmp.Group0.IsDefaultOrEmpty)
                     {
-                        _ = ResolveAdditive(cmp.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                        // Resolve every operand so each additive sub-expression is
+                        // typed for the type checker's own Group0 iteration.
+                        foreach(var group in cmp.Group0)
+                        {
+                            _ = ResolveAdditive(group.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                        }
+
                         var result = ResolvePrimitiveByKeyword("bool", fileScope, symbolTable);
                         expressionTypes[node] = result;
                         return result;
@@ -22417,9 +22434,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var leftType = ResolveMultiplicative(node.Left, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
-        if(node.Right is not null && !ReferenceEquals(node.Right, node.Left))
+        if(!node.Group0.IsDefaultOrEmpty)
         {
-            var rightType = ResolveMultiplicative(node.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            // Group0 is the flat n-ary operand list; resolve every operand so each
+            // multiplicative sub-expression is typed for the type checker's own
+            // Group0 iteration. The node's result type preserves the former
+            // last-wins shim behavior: it combines the left operand with the last
+            // right operand (Group0[^1]).
+            var rightType = leftType;
+            foreach(var group in node.Group0)
+            {
+                rightType = ResolveMultiplicative(group.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            }
 
             // String concatenation: if either operand is string, result is string.
             // After Task 50, StringType has been deleted. String is now either
@@ -22456,9 +22482,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var leftType = ResolveRange(node.Left, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
-        if(node.Right is not null && !ReferenceEquals(node.Right, node.Left))
+        if(!node.Group0.IsDefaultOrEmpty)
         {
-            var rightType = ResolveRange(node.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            // Group0 is the flat n-ary operand list; resolve every operand so each
+            // range sub-expression is typed for the type checker's own Group0
+            // iteration. The node's result type preserves the former last-wins shim
+            // behavior: it combines the left operand with the last right operand
+            // (Group0[^1]).
+            var rightType = leftType;
+            foreach(var group in node.Group0)
+            {
+                rightType = ResolveRange(group.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            }
+
             var result = GetCommonNumericType(leftType, rightType);
             expressionTypes[node] = result;
             return result;

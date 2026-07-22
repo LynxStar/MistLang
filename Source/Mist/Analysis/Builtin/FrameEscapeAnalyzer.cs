@@ -204,7 +204,7 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         if(expression is ExpressionNode exprNode)
         {
             var assignment = exprNode.AsAssignmentOrNull();
-            if(assignment?.Value is not null)
+            if(assignment?.Group0?.Value is not null)
             {
                 AnalyzeAssignment(assignment, state, model, diagnostics);
             }
@@ -217,12 +217,13 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if(assignment.Value is null)
+        var assignedValue = assignment.Group0?.Value;
+        if(assignedValue is null)
         {
             return;
         }
 
-        var rhsAssignment = assignment.Value.AsAssignmentOrNull();
+        var rhsAssignment = assignedValue.AsAssignmentOrNull();
         if(rhsAssignment is null)
         {
             return;
@@ -400,10 +401,10 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         Dictionary<ISymbol, StackBacking> state,
         ISemanticModel model)
     {
-        if(assignment.Value is not null)
+        if(assignment.Group0?.Value is { } assignedValue)
         {
             // Chained assignment: recurse into the value.
-            var innerAssignment = assignment.Value.AsAssignmentOrNull();
+            var innerAssignment = assignedValue.AsAssignmentOrNull();
             if(innerAssignment is not null)
             {
                 return DetermineAssignmentValueBacking(innerAssignment, state, model);
@@ -568,7 +569,7 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
 
         if(node is AssignmentNode assignNode)
         {
-            if(assignNode.Value is not null)
+            if(assignNode.Group0?.Value is not null)
             {
                 return null;
             }

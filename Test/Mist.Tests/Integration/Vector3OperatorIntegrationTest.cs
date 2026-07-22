@@ -104,9 +104,9 @@ public class Vector3OperatorIntegrationTest
         {
             var node = stack.Pop();
             if(node is AdditiveNode add
-                && add.Right is not null
-                && !ReferenceEquals(add.Right, add.Left)
-                && add.Operator.Lexeme is not null)
+                && add.Group0.Length > 0
+                && !ReferenceEquals(add.Group0[^1].Right, add.Left)
+                && add.Group0[^1].Operator.Lexeme is not null)
             {
                 yield return add;
             }
@@ -192,7 +192,7 @@ public class Vector3OperatorIntegrationTest
             // Locate the AdditiveNode for `v1 + v2` (the only `+` in the
             // program). Multiple matches would mean the fixture drifted.
             var addNode = FindAdditiveOperatorNodes(ast).Single();
-            Assert.Equal("+", addNode.Operator.Lexeme);
+            Assert.Equal("+", addNode.Group0[^1].Operator.Lexeme);
 
             // Locate the user-declared Vector3 type and its operator+ symbol.
             // Both are needed to state the expected resolution outcome.
@@ -210,7 +210,7 @@ public class Vector3OperatorIntegrationTest
             // local-symbol lookup populated during semantic model build. If
             // this fails we are testing the wrong thing.
             Assert.Same(vectorType, model.GetTypeOf(addNode.Left));
-            Assert.Same(vectorType, model.GetTypeOf(addNode.Right));
+            Assert.Same(vectorType, model.GetTypeOf(addNode.Group0[^1].Right));
 
             // Act — invoke the operator-resolution helper directly. Task
             // 16's nuance: do NOT run full Analyze, because the existing
@@ -222,7 +222,7 @@ public class Vector3OperatorIntegrationTest
             TypeCheckerAnalyzer.ResolveBinaryOperator(
                 op: "+",
                 left: addNode.Left,
-                right: addNode.Right,
+                right: addNode.Group0[^1].Right,
                 surrounding: addNode,
                 noApplicableDescriptor: TypeCheckDiagnostics.OperatorNotApplicableArithmetic,
                 model: model,

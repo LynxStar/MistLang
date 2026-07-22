@@ -95,9 +95,9 @@ public class ResolveBinaryOperatorTests
         {
             var node = stack.Pop();
             if(node is AdditiveNode add
-                && add.Right is not null
-                && !ReferenceEquals(add.Right, add.Left)
-                && add.Operator.Lexeme is not null)
+                && add.Group0.Length > 0
+                && !ReferenceEquals(add.Group0[^1].Right, add.Left)
+                && add.Group0[^1].Operator.Lexeme is not null)
             {
                 yield return add;
             }
@@ -148,7 +148,7 @@ public class ResolveBinaryOperatorTests
 
         // Locate the AdditiveNode for `x + y` (the only `+` in the program).
         var addNode = FindAdditiveOperatorNodes(ast).Single();
-        Assert.Equal("+", addNode.Operator.Lexeme);
+        Assert.Equal("+", addNode.Group0[^1].Operator.Lexeme);
 
         // Locate the user-declared Vector3 type and its operator symbol — used
         // both to seed the assertions and to sanity-check the fixture.
@@ -166,14 +166,14 @@ public class ResolveBinaryOperatorTests
         // semantic model's Pass 2 expression-type pass. If this fails we would
         // be testing the wrong thing.
         Assert.Same(vectorType, model.GetTypeOf(addNode.Left));
-        Assert.Same(vectorType, model.GetTypeOf(addNode.Right));
+        Assert.Same(vectorType, model.GetTypeOf(addNode.Group0[^1].Right));
 
         // Act — call the helper under test.
         var diagnostics = new DiagnosticBag();
         TypeCheckerAnalyzer.ResolveBinaryOperator(
             op: "+",
             left: addNode.Left,
-            right: addNode.Right,
+            right: addNode.Group0[^1].Right,
             surrounding: addNode,
             noApplicableDescriptor: TypeCheckDiagnostics.OperatorNotApplicableArithmetic,
             model: model,
@@ -239,7 +239,7 @@ public class ResolveBinaryOperatorTests
         TypeCheckerAnalyzer.ResolveBinaryOperator(
             op: "+",
             left: addNode.Left,
-            right: addNode.Right,
+            right: addNode.Group0[^1].Right,
             surrounding: addNode,
             noApplicableDescriptor: TypeCheckDiagnostics.OperatorNotApplicableArithmetic,
             model: model,
@@ -319,14 +319,14 @@ public class ResolveBinaryOperatorTests
 
         // The operand types at the call site are A and B in order.
         Assert.Same(aType, model.GetTypeOf(addNode.Left));
-        Assert.Same(bType, model.GetTypeOf(addNode.Right));
+        Assert.Same(bType, model.GetTypeOf(addNode.Group0[^1].Right));
 
         // Act.
         var diagnostics = new DiagnosticBag();
         TypeCheckerAnalyzer.ResolveBinaryOperator(
             op: "+",
             left: addNode.Left,
-            right: addNode.Right,
+            right: addNode.Group0[^1].Right,
             surrounding: addNode,
             noApplicableDescriptor: TypeCheckDiagnostics.OperatorNotApplicableArithmetic,
             model: model,

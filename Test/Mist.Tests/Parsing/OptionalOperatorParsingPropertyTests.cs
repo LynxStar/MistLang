@@ -254,7 +254,7 @@ public class OptionalOperatorParsingPropertyTests
         // Value set (no `=` was parsed), confirming ?? was consumed entirely
         // within the VoidCoalescing level.
         Assert.True(
-            assignment.Value is null || ReferenceEquals(assignment.Value, assignment),
+            assignment.Group0?.Value is null || ReferenceEquals(assignment.Group0?.Value, assignment),
             "Assignment should not have a separate Value — ?? should be consumed at VoidCoalescing level");
     }
 

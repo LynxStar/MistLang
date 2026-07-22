@@ -239,9 +239,9 @@ public sealed class ThisTierInferencePass
                     ScanNodeForFieldAccesses(assignment.Target, memberScope, model, result, callsOnThis, isAssignmentTarget: true);
                 }
 
-                if(assignment.Value is not null)
+                if(assignment.Group0?.Value is { } assignedValue)
                 {
-                    ScanNodeForFieldAccesses(assignment.Value, memberScope, model, result, callsOnThis, isAssignmentTarget: false);
+                    ScanNodeForFieldAccesses(assignedValue, memberScope, model, result, callsOnThis, isAssignmentTarget: false);
                 }
 
                 return;
@@ -483,11 +483,11 @@ public sealed class ThisTierInferencePass
         List<ISymbol> callsOnThis)
     {
         // Check if the assignment target is this.ownedField → write → Borrowed.
-        if(assignment.Value is not null && IsOwnedFieldOnThis(assignment.Target, memberScope, model))
+        if(assignment.Group0?.Value is not null && IsOwnedFieldOnThis(assignment.Target, memberScope, model))
         {
             tier = MaxTier(tier, ThisTier.Borrowed);
         }
-        else if(assignment.Value is not null)
+        else if(assignment.Group0?.Value is not null)
         {
             // The target itself may contain owned-field reads (e.g., x = this.field.prop)
             ScanNode(assignment.Target, memberScope, model, ref tier, callsOnThis, isAssignmentTarget: true);
@@ -501,9 +501,9 @@ public sealed class ThisTierInferencePass
         }
 
         // The value side is always a read context.
-        if(assignment.Value is not null)
+        if(assignment.Group0?.Value is { } assignedValue)
         {
-            ScanNode(assignment.Value, memberScope, model, ref tier, callsOnThis, isAssignmentTarget: false);
+            ScanNode(assignedValue, memberScope, model, ref tier, callsOnThis, isAssignmentTarget: false);
         }
     }
 

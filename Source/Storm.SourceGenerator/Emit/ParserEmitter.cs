@@ -415,8 +415,13 @@ public static class ParserEmitter
             labelMap[label.Expression] = label.Label;
         }
 
+        // Detect struct-projected `*`/`+` anonymous groups so their loop bodies build a
+        // group struct per iteration instead of overwriting scalar node properties (the
+        // last-wins bug; Tasks 7.1-7.5).
+        var groupContext = BuildGroupParseContext(alt, typeName);
+
         var assignedProps = new List<(string PropName, string LocalVar)>();
-        EmitFullExprParse(writer, context, alt.Expression, labelMap, assignedProps, true, okVar);
+        EmitFullExprParse(writer, context, alt.Expression, labelMap, assignedProps, true, okVar, groupContext);
 
         writer.WriteBlock($"if ({okVar} && !_hasError)", () =>
         {
@@ -459,7 +464,7 @@ public static class ParserEmitter
         var prefixAssignedProps = new List<(string PropName, string LocalVar)>();
         foreach(var prefixElem in inlineBlock.PrefixElements)
         {
-            EmitFullExprParse(writer, context, prefixElem, prefixLabelMap, prefixAssignedProps, true, "_inlineOk");
+            EmitFullExprParse(writer, context, prefixElem, prefixLabelMap, prefixAssignedProps, true, "_inlineOk", GroupParseContext.Empty);
         }
 
         // After successful prefix parse: predict arm based on next token(s)
@@ -654,7 +659,7 @@ public static class ParserEmitter
         // Parse tail elements
         writer.WriteLine("var _tailOk = true;");
         var tailAssignedProps = new List<(string PropName, string LocalVar)>();
-        EmitFullExprParse(writer, context, arm.TailExpression, tailLabelMap, tailAssignedProps, true, "_tailOk");
+        EmitFullExprParse(writer, context, arm.TailExpression, tailLabelMap, tailAssignedProps, true, "_tailOk", GroupParseContext.Empty);
 
         // On successful tail parse: construct inner rule node, then wrap in arm node
         writer.WriteBlock("if (_tailOk && !_hasError)", () =>
@@ -692,7 +697,7 @@ public static class ParserEmitter
         CodeWriter writer, EmissionContext context, ExpressionIR expr,
         Dictionary<ExpressionIR, string> labelMap,
         List<(string PropName, string LocalVar)> assignedProps,
-        bool withCheck, string? okVar)
+        bool withCheck, string? okVar, GroupParseContext groupContext)
     {
         if(labelMap.TryGetValue(expr, out var label))
         {
@@ -708,7 +713,7 @@ public static class ParserEmitter
             case SequenceIR seq:
                 foreach(var elem in seq.Elements)
                 {
-                    EmitFullExprParse(writer, context, elem, labelMap, assignedProps, withCheck, okVar);
+                    EmitFullExprParse(writer, context, elem, labelMap, assignedProps, withCheck, okVar, groupContext);
                 }
 
                 break;
@@ -848,6 +853,15 @@ public static class ParserEmitter
 
             case ZeroOrMoreIR star:
                 {
+                    // Struct-projected `*` group: build a {Rule}NodeGroup{N} value per
+                    // iteration and accumulate it into an ImmutableArray, instead of
+                    // overwriting scalar node properties each iteration (Tasks 7.1-7.5).
+                    if(star.Inner is SequenceIR starGroupSeq && groupContext.TryGet(starGroupSeq, out var starGroupPlan))
+                    {
+                        EmitStructGroupLoop(writer, context, starGroupPlan, assignedProps, withCheck, okVar);
+                        break;
+                    }
+
                     // Unlabeled zero-or-more that may contain labeled sub-expressions.
                     // Pre-declare variables for labeled sub-expressions so they're
                     // accessible after the loop for node property assignment.
@@ -1007,6 +1021,15 @@ public static class ParserEmitter
 
             case OneOrMoreIR plus:
                 {
+                    // Struct-projected `+` group: same per-iteration struct construction
+                    // as the `*` case, but the alternative fails if the group never
+                    // matched (Tasks 7.1-7.5).
+                    if(plus.Inner is SequenceIR plusGroupSeq && groupContext.TryGet(plusGroupSeq, out var plusGroupPlan))
+                    {
+                        EmitStructGroupLoop(writer, context, plusGroupPlan, assignedProps, withCheck, okVar);
+                        break;
+                    }
+
                     // Unlabeled one-or-more that may contain labeled sub-expressions.
                     // Same as ZeroOrMoreIR but requires at least one successful iteration.
                     var innerLabeled = new List<(string Label, ExpressionIR Expr)>();
@@ -1116,6 +1139,268 @@ public static class ParserEmitter
 
             default:
                 break;
+        }
+    }
+
+    // ── Anonymous group struct construction (`*`/`+`, Tasks 7.1-7.5) ──
+
+    /// <summary>
+    /// Builds the parser-side view of the struct-projected <c>*</c>/<c>+</c> anonymous
+    /// groups in an alternative. Each such group's inner sequence is mapped (by
+    /// reference identity) to the group's <c>{Rule}NodeGroup{N}</c> struct name, its
+    /// parent-node <c>Group{N}</c> property name, and the ordered field descriptors
+    /// shared with <see cref="AstEmitter"/> -- so the emitted loop constructs a struct
+    /// whose field names, order, and types match the emitted struct exactly. Only
+    /// <c>*</c>/<c>+</c> groups are included here; <c>?</c> and no-modifier struct groups
+    /// keep their existing parser behaviour (a later wave).
+    /// </summary>
+    private static GroupParseContext BuildGroupParseContext(RuleAlternativeIR alt, string nodeTypeName)
+    {
+        Dictionary<SequenceIR, StructGroupPlan>? plans = null;
+        foreach(var group in AstEmitter.DetectAnonymousGroups(alt))
+        {
+            if(group.Modifier is not (GroupModifier.ZeroOrMore or GroupModifier.OneOrMore))
+            {
+                continue;
+            }
+
+            var structName = nodeTypeName + "Group" + group.GroupIndex;
+            var propertyName = "Group" + group.GroupIndex;
+            var fields = AstEmitter.GetGroupStructFields(structName, group.Sequence, group.Labels);
+            plans ??= new Dictionary<SequenceIR, StructGroupPlan>();
+            plans[group.Sequence] = new StructGroupPlan(structName, propertyName, group.GroupIndex, group.Modifier, fields);
+        }
+
+        return plans == null ? GroupParseContext.Empty : new GroupParseContext(plans);
+    }
+
+    /// <summary>
+    /// Emits the parse loop for a <c>*</c>/<c>+</c> anonymous group that projects a
+    /// group struct. Each iteration saves parser state, parses every value-bearing
+    /// field into a local, and -- when the iteration succeeded and consumed input --
+    /// constructs a <c>{Rule}NodeGroup{N}</c> value and appends it to an
+    /// <c>ImmutableArray.CreateBuilder</c> accumulator. A failed or no-progress
+    /// iteration restores the saved state and breaks, preserving the existing
+    /// backtracking semantics. After the loop the finalised <c>ImmutableArray</c> is
+    /// registered as the node's <c>Group{N}</c> property; a <c>+</c> group that never
+    /// matched fails the alternative. The old scalar node-property assignments (the
+    /// last-wins writes) are not emitted (Task 7.5).
+    /// </summary>
+    private static void EmitStructGroupLoop(
+        CodeWriter writer, EmissionContext context, StructGroupPlan plan,
+        List<(string PropName, string LocalVar)> assignedProps, bool withCheck, string? okVar)
+    {
+        var idx = plan.GroupIndex;
+        var listVar = "_group" + idx;
+        var builderVar = listVar + "_b";
+        var okFlag = "_g" + idx + "Ok";
+
+        writer.WriteLine($"var {builderVar} = ImmutableArray.CreateBuilder<{plan.StructName}>();");
+        writer.WriteBlock("while (!_hasError)", () =>
+        {
+            writer.WriteLine($"var _g{idx}Saved = _pos;");
+            writer.WriteLine($"var _g{idx}SavedError = _hasError;");
+            writer.WriteLine($"var _g{idx}SavedDiagCount = _diagnostics?.Count ?? 0;");
+            writer.WriteLine($"var {okFlag} = true;");
+
+            var fieldLocals = new List<(GroupStructFieldDescriptor Field, string Local)>();
+            foreach(var field in plan.Fields)
+            {
+                var fieldLocal = EmitStructGroupField(writer, context, field, idx, okFlag);
+                fieldLocals.Add((field, fieldLocal));
+            }
+
+            writer.WriteBlock($"if (!{okFlag} || _hasError || _pos == _g{idx}Saved)", () =>
+            {
+                writer.WriteLine($"_hasError = _g{idx}SavedError;");
+                writer.WriteLine($"_pos = _g{idx}Saved;");
+                writer.WriteLine($"_diagnostics?.TruncateTo(_g{idx}SavedDiagCount);");
+                writer.WriteLine("break;");
+            });
+
+            writer.WriteLine($"{builderVar}.Add(new {plan.StructName} {{ {BuildStructInitializer(fieldLocals)} }});");
+        });
+
+        writer.WriteLine($"var {listVar} = {builderVar}.ToImmutable();");
+
+        // A one-or-more group must match at least once.
+        if(plan.Modifier == GroupModifier.OneOrMore && withCheck && okVar != null)
+        {
+            writer.WriteBlock($"if ({builderVar}.Count == 0)", () => writer.WriteLine($"{okVar} = false;"));
+        }
+
+        assignedProps.Add((plan.PropertyName, listVar));
+    }
+
+    /// <summary>
+    /// Parses one value-bearing field of a struct group into a local variable and
+    /// returns that variable's name for use in the struct initializer. A pure-token
+    /// alternation matches any one of its alternative tokens; a single token reference
+    /// matches that token; a rule reference calls the rule's parse method. A field that
+    /// fails to match clears <paramref name="okFlag"/>, driving the loop's restore and
+    /// break. Token fields yield a <c>Token?</c> local (dereferenced with <c>.Value</c>
+    /// in the initializer); rule-ref fields yield a <c>{Rule}Node?</c> local used
+    /// directly (the ok-guard guarantees non-null before the struct is built).
+    /// </summary>
+    private static string EmitStructGroupField(
+        CodeWriter writer, EmissionContext context, GroupStructFieldDescriptor field, int groupIndex, string okFlag)
+    {
+        var local = "_g" + groupIndex + "_" + LowerFirst(field.FieldName);
+        switch(field.Kind)
+        {
+            case GroupFieldKind.PureTokenAlternation:
+                {
+                    var alternation = (AlternationIR)field.Element;
+                    var matchExpr = string.Join(
+                        " ?? ",
+                        alternation.Alternatives.Select(alternative => MatchExprForAlternative(context, alternative)));
+                    writer.WriteLine($"var {local} = {okFlag} ? ({matchExpr}) : (Token?)null;");
+                    writer.WriteBlock($"if ({local} == null)", () => writer.WriteLine($"{okFlag} = false;"));
+                    break;
+                }
+
+            case GroupFieldKind.Token:
+                {
+                    var tokenRef = (TokenRefIR)field.Element;
+                    var kind = TokenKindRef(tokenRef.Token.Name);
+                    writer.WriteLine($"var {local} = {okFlag} ? Match((int){kind}) : (Token?)null;");
+                    writer.WriteBlock($"if ({local} == null)", () => writer.WriteLine($"{okFlag} = false;"));
+                    break;
+                }
+
+            case GroupFieldKind.RuleRef:
+                {
+                    var ruleRef = (RuleRefIR)field.Element;
+                    writer.WriteLine($"var {local} = {okFlag} ? _Parse{ruleRef.Rule.Name}() : null;");
+                    writer.WriteBlock($"if ({local} == null)", () => writer.WriteLine($"{okFlag} = false;"));
+                    break;
+                }
+
+            default:
+                {
+                    // Nested groups and mixed-alternation/optional/repetition fields are
+                    // out of scope for the `*`/`+` wave and do not occur in the Mist
+                    // grammar's struct groups. Emit an inert placeholder so the emitter
+                    // never crashes on an unexpected shape.
+                    writer.WriteLine($"// Unsupported struct-group field kind '{field.Kind}' for {field.FieldName}");
+                    writer.WriteLine($"object? {local} = null;");
+                    break;
+                }
+        }
+
+        return local;
+    }
+
+    /// <summary>
+    /// Builds the object-initializer body (<c>Field1 = ..., Field2 = ...</c>) for a
+    /// group struct. Token-typed fields are dereferenced with <c>.Value</c> (the loop's
+    /// ok-guard guarantees they matched before this runs); rule-ref fields use their
+    /// local directly.
+    /// </summary>
+    private static string BuildStructInitializer(List<(GroupStructFieldDescriptor Field, string Local)> fieldLocals)
+    {
+        var assignments = new List<string>();
+        foreach(var (field, local) in fieldLocals)
+        {
+            var valueExpr = field.Kind is GroupFieldKind.PureTokenAlternation or GroupFieldKind.Token
+                ? local + ".Value"
+                : local;
+            assignments.Add($"{field.FieldName} = {valueExpr}");
+        }
+
+        return string.Join(", ", assignments);
+    }
+
+    /// <summary>
+    /// Returns the <c>Match((int)TokenKind.X)</c> expression for a single alternative of
+    /// a pure-token alternation (a token reference or a string literal resolving to a
+    /// token).
+    /// </summary>
+    private static string MatchExprForAlternative(EmissionContext context, ExpressionIR alternative)
+    {
+        switch(alternative)
+        {
+            case TokenRefIR tokenRef:
+                return $"Match((int){TokenKindRef(tokenRef.Token.Name)})";
+            case StringLiteralIR lit:
+                {
+                    var token = FindTokenForLiteral(context, lit.Value);
+                    return token != null
+                        ? $"Match((int){TokenKindRef(token.Name)})"
+                        : "(Token?)null";
+                }
+
+            default:
+                return "(Token?)null";
+        }
+    }
+
+    /// <summary>
+    /// Lowercases the first character of a name, producing a local-variable-friendly
+    /// form of a PascalCase struct field name (e.g. <c>Operator</c> -> <c>operator</c>,
+    /// used as <c>_g0_operator</c>).
+    /// </summary>
+    private static string LowerFirst(string name)
+    {
+        if(string.IsNullOrEmpty(name))
+        {
+            return name;
+        }
+
+        return char.ToLowerInvariant(name[0]) + name.Substring(1);
+    }
+
+    /// <summary>
+    /// Parser-side view of the struct-projected <c>*</c>/<c>+</c> anonymous groups in
+    /// the alternative currently being emitted, keyed by each group's inner sequence
+    /// (reference identity). Empty for callers (inline blocks, arm tails) that carry no
+    /// struct-projected groups, leaving their emission unchanged.
+    /// </summary>
+    private sealed class GroupParseContext
+    {
+        public static readonly GroupParseContext Empty = new(new Dictionary<SequenceIR, StructGroupPlan>());
+
+        private readonly Dictionary<SequenceIR, StructGroupPlan> plansBySequence;
+
+        public GroupParseContext(Dictionary<SequenceIR, StructGroupPlan> plansBySequence)
+        {
+            this.plansBySequence = plansBySequence;
+        }
+
+        public bool TryGet(SequenceIR sequence, out StructGroupPlan plan)
+        {
+            if(plansBySequence.TryGetValue(sequence, out var found))
+            {
+                plan = found;
+                return true;
+            }
+
+            plan = null!;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Everything the parser needs to construct one struct-projected group: the
+    /// generated struct type name, the parent-node property name (<c>Group{N}</c>), the
+    /// zero-based group index (for unique local-variable names), the group's modifier,
+    /// and the ordered field descriptors shared with <see cref="AstEmitter"/>.
+    /// </summary>
+    private sealed class StructGroupPlan
+    {
+        public string StructName { get; }
+        public string PropertyName { get; }
+        public int GroupIndex { get; }
+        public GroupModifier Modifier { get; }
+        public IReadOnlyList<GroupStructFieldDescriptor> Fields { get; }
+
+        public StructGroupPlan(string structName, string propertyName, int groupIndex, GroupModifier modifier, IReadOnlyList<GroupStructFieldDescriptor> fields)
+        {
+            StructName = structName;
+            PropertyName = propertyName;
+            GroupIndex = groupIndex;
+            Modifier = modifier;
+            Fields = fields;
         }
     }
 

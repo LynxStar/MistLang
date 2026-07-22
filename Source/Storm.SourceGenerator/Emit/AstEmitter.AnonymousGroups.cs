@@ -30,6 +30,66 @@ internal readonly record struct AnonymousGroupInfo(
     int GroupIndex,
     IReadOnlyList<FieldLabelIR> Labels);
 
+/// <summary>
+/// Classifies how one value-bearing field of an anonymous group struct is parsed.
+/// Shared between the AST emitter (which declares the struct field) and the parser
+/// emitter (which parses the element and assigns it into the constructed struct), so
+/// both sides agree on how each field is produced.
+/// </summary>
+internal enum GroupFieldKind
+{
+    /// <summary>
+    /// A labelled token-only alternation (e.g. <c>operator:(PLUS | MINUS)</c>) that
+    /// collapses to a single <c>Token</c> field. The parser matches any one of the
+    /// alternative tokens.
+    /// </summary>
+    PureTokenAlternation,
+
+    /// <summary>
+    /// A labelled single token reference typed <c>Token</c>. The parser matches that
+    /// one token.
+    /// </summary>
+    Token,
+
+    /// <summary>
+    /// A rule reference (labelled or unlabelled) typed <c>{Rule}Node</c>. The parser
+    /// calls the rule's parse method.
+    /// </summary>
+    RuleRef,
+
+    /// <summary>
+    /// A nested anonymous group projected as a nested struct field. Not constructed by
+    /// the wave-4 parser (which handles only <c>*</c>/<c>+</c> struct groups).
+    /// </summary>
+    NestedGroup,
+
+    /// <summary>
+    /// Any other labelled element (mixed alternation, optional, repetition) typed via
+    /// the generic field derivation. Not constructed by the wave-4 parser.
+    /// </summary>
+    Other,
+}
+
+/// <summary>
+/// Describes one ordered value-bearing field of an anonymous group struct. Shared
+/// between the AST emitter's struct definition (<see cref="AstEmitter.BuildGroupStruct"/>,
+/// which emits <c>public {FieldType} {FieldName};</c>) and the parser emitter (which
+/// parses <see cref="Element"/> and assigns the result to <c>{FieldName}</c> in the
+/// constructed struct). Consuming one ordered descriptor from both sides keeps the
+/// struct definition and its construction from ever diverging on field names, order,
+/// or types. Bare fixed tokens are structural and produce no descriptor.
+/// </summary>
+internal readonly record struct GroupStructFieldDescriptor(
+    string FieldName,
+    string FieldType,
+    bool IsNodeType,
+    ExpressionIR Element,
+    FieldLabelIR? Label,
+    GroupFieldKind Kind,
+    SequenceIR? NestedSequence,
+    string? NestedStructName,
+    GroupModifier NestedModifier);
+
 public static partial class AstEmitter
 {
     /// <summary>
@@ -370,12 +430,11 @@ public static partial class AstEmitter
     }
 
     /// <summary>
-    /// Builds a group struct model by walking the group's inner sequence in source
-    /// order. Labelled elements become public fields whose types follow the same
-    /// derivation rules as ordinary labelled node fields (Task 3.2). A nested
-    /// repetition/optional wrapping a labelled sequence becomes a nested group struct
-    /// plus a field of that nested type (Task 3.5). Unlabelled tokens/rules are
-    /// consumed by the parser but not stored.
+    /// Builds a group struct model by walking the shared field descriptors
+    /// (<see cref="GetGroupStructFields"/>) in source order. Each descriptor becomes a
+    /// public field; a nested-group descriptor also emits its nested struct. Because
+    /// the parser emitter consumes the same descriptors, the emitted struct and its
+    /// construction cannot diverge on field names, order, or types.
     /// </summary>
     private static GroupStructModel BuildGroupStruct(
         string structName,
@@ -383,63 +442,130 @@ public static partial class AstEmitter
         IReadOnlyList<FieldLabelIR> groupLabels)
     {
         var model = new GroupStructModel(structName);
-        var usedFieldNames = new HashSet<string>();
-        var nestedIndex = 0;
-        foreach(var element in sequence.Elements)
+        foreach(var descriptor in GetGroupStructFields(structName, sequence, groupLabels))
         {
-            AddGroupStructField(model, element, groupLabels, usedFieldNames, ref nestedIndex);
+            if(descriptor.Kind == GroupFieldKind.NestedGroup)
+            {
+                model.NestedStructs.Add(BuildGroupStruct(descriptor.NestedStructName!, descriptor.NestedSequence!, groupLabels));
+            }
+
+            model.Fields.Add(new GroupStructField(descriptor.FieldName, descriptor.FieldType, descriptor.IsNodeType));
         }
 
         return model;
     }
 
     /// <summary>
-    /// Adds one field (or nested group struct) to <paramref name="model"/> for a
-    /// single value-bearing element of the group's inner sequence. Labelled elements
-    /// become fields named from the label; unlabelled rule references become fields
-    /// named from the referenced rule; a nested repetition/optional wrapping a
-    /// labelled sequence becomes a nested group struct plus a field of that nested
-    /// type. Bare fixed tokens and unlabelled alternations are structural -- consumed
-    /// by the parser but not stored -- so they add no field.
+    /// Computes the ordered value-bearing fields of an anonymous group struct by
+    /// walking the group's inner sequence in source order. Labelled elements become
+    /// fields named from the label; unlabelled rule references become fields named
+    /// from the referenced rule; a nested repetition/optional wrapping a labelled
+    /// sequence becomes a nested group struct field. Bare fixed tokens and unlabelled
+    /// alternations are structural -- consumed by the parser but not stored -- so they
+    /// produce no descriptor. Field names use the same <see cref="PascalCase"/> +
+    /// <see cref="EnsureUnique"/> allocation, types use the same
+    /// <see cref="FieldTypeForLabeledElement"/> derivation, and nested groups use the
+    /// same <c>{outerStruct}Group{M}</c> indexing that the struct definition uses.
+    /// Both <see cref="BuildGroupStruct"/> and the parser emitter consume this list so
+    /// the struct and its construction stay in lockstep (Tasks 3.2, 3.5, 7.1-7.3).
     /// </summary>
-    private static void AddGroupStructField(
-        GroupStructModel model,
-        ExpressionIR element,
-        IReadOnlyList<FieldLabelIR> groupLabels,
-        HashSet<string> usedFieldNames,
-        ref int nestedIndex)
+    internal static IReadOnlyList<GroupStructFieldDescriptor> GetGroupStructFields(
+        string structName,
+        SequenceIR sequence,
+        IReadOnlyList<FieldLabelIR> groupLabels)
     {
-        switch(element)
+        var descriptors = new List<GroupStructFieldDescriptor>();
+        var usedFieldNames = new HashSet<string>();
+        var nestedIndex = 0;
+        foreach(var element in sequence.Elements)
         {
-            case ZeroOrMoreIR { Inner: SequenceIR zeroOrMoreSeq } when HasLabelsInside(zeroOrMoreSeq, groupLabels):
-                AddNestedGroup(model, zeroOrMoreSeq, GroupModifier.ZeroOrMore, groupLabels, usedFieldNames, ref nestedIndex);
-                return;
+            var nested = TryGetNestedGroup(element, groupLabels);
+            if(nested != null)
+            {
+                var currentIndex = nestedIndex;
+                nestedIndex++;
+                var nestedStructName = structName + "Group" + currentIndex;
+                var nestedFieldName = EnsureUnique("Group" + currentIndex, usedFieldNames);
+                var nestedFieldType = nested.Value.Modifier switch
+                {
+                    GroupModifier.ZeroOrMore => $"ImmutableArray<{nestedStructName}>",
+                    GroupModifier.OneOrMore => $"ImmutableArray<{nestedStructName}>",
+                    GroupModifier.Optional => $"{nestedStructName}?",
+                    _ => nestedStructName,
+                };
+                descriptors.Add(new GroupStructFieldDescriptor(
+                    nestedFieldName, nestedFieldType, false, element, null,
+                    GroupFieldKind.NestedGroup, nested.Value.Sequence, nestedStructName, nested.Value.Modifier));
+                continue;
+            }
 
-            case OneOrMoreIR { Inner: SequenceIR oneOrMoreSeq } when HasLabelsInside(oneOrMoreSeq, groupLabels):
-                AddNestedGroup(model, oneOrMoreSeq, GroupModifier.OneOrMore, groupLabels, usedFieldNames, ref nestedIndex);
-                return;
+            var label = FindLabel(element, groupLabels);
+            if(label != null)
+            {
+                var fieldName = EnsureUnique(PascalCase(label.Label), usedFieldNames);
+                var fieldType = FieldTypeForLabeledElement(element, label, fieldName);
+                descriptors.Add(new GroupStructFieldDescriptor(
+                    fieldName, fieldType, IsScalarNodeType(fieldType), element, label,
+                    ClassifyLabeledElement(element, label), null, null, default));
+                continue;
+            }
 
-            case OptionalIR { Inner: SequenceIR optionalSeq } when HasLabelsInside(optionalSeq, groupLabels):
-                AddNestedGroup(model, optionalSeq, GroupModifier.Optional, groupLabels, usedFieldNames, ref nestedIndex);
-                return;
+            // Unlabelled rule references are value-bearing (capture-count rule): store
+            // the referenced node as a field named after the rule.
+            if(element is RuleRefIR ruleRef)
+            {
+                var ruleFieldName = EnsureUnique(PascalCase(ruleRef.Rule.Name), usedFieldNames);
+                descriptors.Add(new GroupStructFieldDescriptor(
+                    ruleFieldName, ruleRef.Rule.Name + "Node", true, element, null,
+                    GroupFieldKind.RuleRef, null, null, default));
+            }
         }
 
-        var label = FindLabel(element, groupLabels);
-        if(label != null)
+        return descriptors;
+    }
+
+    /// <summary>
+    /// Returns the inner sequence and modifier when an element is a nested anonymous
+    /// group (a repetition/optional wrapping a labelled sequence), or null otherwise.
+    /// Mirrors the nested-group cases of the former <c>AddGroupStructField</c> walk.
+    /// </summary>
+    private static (SequenceIR Sequence, GroupModifier Modifier)? TryGetNestedGroup(
+        ExpressionIR element,
+        IReadOnlyList<FieldLabelIR> groupLabels)
+    {
+        return element switch
         {
-            var fieldName = EnsureUnique(PascalCase(label.Label), usedFieldNames);
-            var fieldType = FieldTypeForLabeledElement(element, label, fieldName);
-            model.Fields.Add(new GroupStructField(fieldName, fieldType, IsScalarNodeType(fieldType)));
-            return;
+            ZeroOrMoreIR { Inner: SequenceIR zeroOrMoreSeq } when HasLabelsInside(zeroOrMoreSeq, groupLabels)
+                => (zeroOrMoreSeq, GroupModifier.ZeroOrMore),
+            OneOrMoreIR { Inner: SequenceIR oneOrMoreSeq } when HasLabelsInside(oneOrMoreSeq, groupLabels)
+                => (oneOrMoreSeq, GroupModifier.OneOrMore),
+            OptionalIR { Inner: SequenceIR optionalSeq } when HasLabelsInside(optionalSeq, groupLabels)
+                => (optionalSeq, GroupModifier.Optional),
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Classifies a labelled group element for the parser: a token-only alternation
+    /// collapses to <see cref="GroupFieldKind.PureTokenAlternation"/>, a single token
+    /// reference to <see cref="GroupFieldKind.Token"/>, a rule reference to
+    /// <see cref="GroupFieldKind.RuleRef"/>, and everything else (mixed alternation,
+    /// optional, repetition) to <see cref="GroupFieldKind.Other"/>. The token/mixed
+    /// distinction mirrors <see cref="FieldTypeForLabeledElement"/>.
+    /// </summary>
+    private static GroupFieldKind ClassifyLabeledElement(ExpressionIR element, FieldLabelIR label)
+    {
+        if(element is AlternationIR && IsPureTokenAlternation(new List<FieldLabelIR> { label }))
+        {
+            return GroupFieldKind.PureTokenAlternation;
         }
 
-        // Unlabelled rule references are value-bearing (capture-count rule): store the
-        // referenced node as a field named after the rule.
-        if(element is RuleRefIR ruleRef)
+        return element switch
         {
-            var fieldName = EnsureUnique(PascalCase(ruleRef.Rule.Name), usedFieldNames);
-            model.Fields.Add(new GroupStructField(fieldName, ruleRef.Rule.Name + "Node", true));
-        }
+            TokenRefIR => GroupFieldKind.Token,
+            RuleRefIR => GroupFieldKind.RuleRef,
+            _ => GroupFieldKind.Other,
+        };
     }
 
     /// <summary>
@@ -468,38 +594,6 @@ public static partial class AstEmitter
         return typeName.EndsWith("Node", System.StringComparison.Ordinal)
             && !typeName.Contains("<")
             && typeName != "SyntaxNode";
-    }
-
-    /// <summary>
-    /// Emits a nested group struct (named <c>{outerStruct}Group{M}</c>) inside the
-    /// current struct and adds a field of that nested type, typed by the nested
-    /// group's modifier (Task 3.5).
-    /// </summary>
-    private static void AddNestedGroup(
-        GroupStructModel model,
-        SequenceIR nestedSeq,
-        GroupModifier modifier,
-        IReadOnlyList<FieldLabelIR> groupLabels,
-        HashSet<string> usedFieldNames,
-        ref int nestedIndex)
-    {
-        var currentIndex = nestedIndex;
-        nestedIndex++;
-        var nestedStructName = model.StructName + "Group" + currentIndex;
-        model.NestedStructs.Add(BuildGroupStruct(nestedStructName, nestedSeq, groupLabels));
-
-        var fieldName = EnsureUnique("Group" + currentIndex, usedFieldNames);
-        var fieldType = modifier switch
-        {
-            GroupModifier.ZeroOrMore => $"ImmutableArray<{nestedStructName}>",
-            GroupModifier.OneOrMore => $"ImmutableArray<{nestedStructName}>",
-            GroupModifier.Optional => $"{nestedStructName}?",
-            _ => nestedStructName,
-        };
-
-        // A nested-group field is a struct value, not a scalar node; Children() does
-        // not yield it directly (deep per-group iteration is handled separately).
-        model.Fields.Add(new GroupStructField(fieldName, fieldType, false));
     }
 
     /// <summary>

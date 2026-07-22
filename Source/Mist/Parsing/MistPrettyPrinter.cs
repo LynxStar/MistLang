@@ -778,10 +778,12 @@ public sealed class MistPrettyPrinter
         var name = slotDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(slotDecl.TypeParams);
 
-        if(slotDecl.Constraints is not null)
+        // The constraint clause is a ?-group: Group0 is present only when a `: constraints`
+        // clause was written; its Constraints/SlotWhereConstraints hold the group fields.
+        if(slotDecl.Group0 is { } group && group.Constraints is not null)
         {
-            var constraints = EmitConstraintList(slotDecl.Constraints);
-            var whereClauses = EmitConstraintClauses(slotDecl.SlotWhereConstraints);
+            var constraints = EmitConstraintList(group.Constraints);
+            var whereClauses = EmitConstraintClauses(group.SlotWhereConstraints);
             AppendLine($"{modifiers}type {name}{typeParams} : {constraints}{whereClauses};");
         }
         else
@@ -1594,9 +1596,11 @@ public sealed class MistPrettyPrinter
     {
         var target = EmitVoidCoalescing(assignment.Target);
 
-        if(assignment.Value is not null && !ReferenceEquals(GetAssignmentValueTarget(assignment.Value), assignment.Target))
+        // Assignment projects a ?-group: Group0 is present only when a value was assigned.
+        if(assignment.Group0 is { } group && group.Value is not null
+            && !ReferenceEquals(GetAssignmentValueTarget(group.Value), assignment.Target))
         {
-            var value = EmitExpression(assignment.Value);
+            var value = EmitExpression(group.Value);
             return $"{target} = {value}";
         }
 
@@ -1658,16 +1662,18 @@ public sealed class MistPrettyPrinter
 
     private string EmitEquality(EqualityNode equality)
     {
-        var left = EmitRelational(equality.Left);
+        // Equality is a flat n-ary *-group: reproduce every operator/operand in order
+        // (a == b == c is one node with Left=a, Group0=[{==,b},{==,c}]).
+        var result = EmitRelational(equality.Left);
 
-        if(equality.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        foreach(var group in equality.Group0)
         {
-            var op = equality.Operator.Lexeme;
-            var right = EmitRelational(equality.Right);
-            return $"{left} {op} {right}";
+            var op = group.Operator.Lexeme;
+            var right = EmitRelational(group.Right);
+            result = $"{result} {op} {right}";
         }
 
-        return left;
+        return result;
     }
 
     private string EmitRelational(RelationalNode relational)
@@ -1676,16 +1682,17 @@ public sealed class MistPrettyPrinter
         {
             case RelationalComparisonRelationalNode cmp:
                 {
-                    var left = EmitAdditive(cmp.Left);
+                    // Flat n-ary *-group: emit each comparison operator/operand in order.
+                    var result = EmitAdditive(cmp.Left);
 
-                    if(cmp.Right is not null && !ReferenceEquals(cmp.Right, cmp.Left))
+                    foreach(var group in cmp.Group0)
                     {
-                        var op = cmp.Operator.Lexeme;
-                        var right = EmitAdditive(cmp.Right);
-                        return $"{left} {op} {right}";
+                        var op = group.Operator.Lexeme;
+                        var right = EmitAdditive(group.Right);
+                        result = $"{result} {op} {right}";
                     }
 
-                    return left;
+                    return result;
                 }
 
             case IsExpressionRelationalNode isExpr:
@@ -1937,30 +1944,33 @@ public sealed class MistPrettyPrinter
 
     private string EmitAdditive(AdditiveNode additive)
     {
-        var left = EmitMultiplicative(additive.Left);
+        // Flat n-ary *-group: emit each additive operator/operand in order so
+        // a + b + c reproduces all operands rather than collapsing to a + c.
+        var result = EmitMultiplicative(additive.Left);
 
-        if(additive.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        foreach(var group in additive.Group0)
         {
-            var op = additive.Operator.Lexeme;
-            var right = EmitMultiplicative(additive.Right);
-            return $"{left} {op} {right}";
+            var op = group.Operator.Lexeme;
+            var right = EmitMultiplicative(group.Right);
+            result = $"{result} {op} {right}";
         }
 
-        return left;
+        return result;
     }
 
     private string EmitMultiplicative(MultiplicativeNode multiplicative)
     {
-        var left = EmitRange(multiplicative.Left);
+        // Flat n-ary *-group: emit each multiplicative operator/operand in order.
+        var result = EmitRange(multiplicative.Left);
 
-        if(multiplicative.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        foreach(var group in multiplicative.Group0)
         {
-            var op = multiplicative.Operator.Lexeme;
-            var right = EmitRange(multiplicative.Right);
-            return $"{left} {op} {right}";
+            var op = group.Operator.Lexeme;
+            var right = EmitRange(group.Right);
+            result = $"{result} {op} {right}";
         }
 
-        return left;
+        return result;
     }
 
     private string EmitRange(RangeNode range)

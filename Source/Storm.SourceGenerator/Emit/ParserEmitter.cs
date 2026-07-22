@@ -699,6 +699,20 @@ public static class ParserEmitter
         List<(string PropName, string LocalVar)> assignedProps,
         bool withCheck, string? okVar, GroupParseContext groupContext)
     {
+        // Struct-projected `?` and no-modifier anonymous groups (Tasks 8.1, 8.2). This
+        // is checked before the label branch so that a *labelled* optional group (e.g.
+        // `constraintClause:(COLON constraints:ConstraintList slotWhereConstraints:WhereClause*)?`)
+        // is still struct-projected into `Group{N}` -- with its own group-level label
+        // forwarded from the group's first rule-ref field -- rather than falling into
+        // the flat-field optional path, which would assign the now get-only [Obsolete]
+        // shim properties and fail to compile. `*`/`+` groups continue to be handled by
+        // the repetition cases below via EmitStructGroupLoop.
+        if(TryGetScalarOrOptionalGroup(expr, groupContext, out var scalarOrOptionalPlan))
+        {
+            EmitStructGroupScalarOrOptional(writer, context, scalarOrOptionalPlan, labelMap, expr, assignedProps, withCheck, okVar);
+            return;
+        }
+
         if(labelMap.TryGetValue(expr, out var label))
         {
             var propName = PascalCase(label);
@@ -1145,30 +1159,29 @@ public static class ParserEmitter
     // ── Anonymous group struct construction (`*`/`+`, Tasks 7.1-7.5) ──
 
     /// <summary>
-    /// Builds the parser-side view of the struct-projected <c>*</c>/<c>+</c> anonymous
-    /// groups in an alternative. Each such group's inner sequence is mapped (by
-    /// reference identity) to the group's <c>{Rule}NodeGroup{N}</c> struct name, its
-    /// parent-node <c>Group{N}</c> property name, and the ordered field descriptors
-    /// shared with <see cref="AstEmitter"/> -- so the emitted loop constructs a struct
-    /// whose field names, order, and types match the emitted struct exactly. Only
-    /// <c>*</c>/<c>+</c> groups are included here; <c>?</c> and no-modifier struct groups
-    /// keep their existing parser behaviour (a later wave).
+    /// Builds the parser-side view of every struct-projected anonymous group in an
+    /// alternative. Each group's inner sequence is mapped (by reference identity) to
+    /// the group's <c>{Rule}NodeGroup{N}</c> struct name, its parent-node
+    /// <c>Group{N}</c> property name, the group's modifier and inner sequence, and the
+    /// ordered field descriptors shared with <see cref="AstEmitter"/> -- so the emitted
+    /// code constructs a struct whose field names, order, and types match the emitted
+    /// struct exactly. Every modifier is included: <c>*</c>/<c>+</c> groups build a
+    /// list (Tasks 7.1-7.5), <c>?</c> groups build a nullable local (Task 8.1), and a
+    /// no-modifier group builds a scalar (Task 8.2). Groups with fewer than two
+    /// value-bearing elements are never returned by
+    /// <see cref="AstEmitter.DetectAnonymousGroups"/>, so their parser emission is
+    /// unchanged.
     /// </summary>
     private static GroupParseContext BuildGroupParseContext(RuleAlternativeIR alt, string nodeTypeName)
     {
         Dictionary<SequenceIR, StructGroupPlan>? plans = null;
         foreach(var group in AstEmitter.DetectAnonymousGroups(alt))
         {
-            if(group.Modifier is not (GroupModifier.ZeroOrMore or GroupModifier.OneOrMore))
-            {
-                continue;
-            }
-
             var structName = nodeTypeName + "Group" + group.GroupIndex;
             var propertyName = "Group" + group.GroupIndex;
             var fields = AstEmitter.GetGroupStructFields(structName, group.Sequence, group.Labels);
             plans ??= new Dictionary<SequenceIR, StructGroupPlan>();
-            plans[group.Sequence] = new StructGroupPlan(structName, propertyName, group.GroupIndex, group.Modifier, fields);
+            plans[group.Sequence] = new StructGroupPlan(structName, propertyName, group.GroupIndex, group.Modifier, group.Sequence, fields);
         }
 
         return plans == null ? GroupParseContext.Empty : new GroupParseContext(plans);
@@ -1203,12 +1216,7 @@ public static class ParserEmitter
             writer.WriteLine($"var _g{idx}SavedDiagCount = _diagnostics?.Count ?? 0;");
             writer.WriteLine($"var {okFlag} = true;");
 
-            var fieldLocals = new List<(GroupStructFieldDescriptor Field, string Local)>();
-            foreach(var field in plan.Fields)
-            {
-                var fieldLocal = EmitStructGroupField(writer, context, field, idx, okFlag);
-                fieldLocals.Add((field, fieldLocal));
-            }
+            var fieldLocals = EmitStructGroupFields(writer, context, plan, idx, okFlag);
 
             writer.WriteBlock($"if (!{okFlag} || _hasError || _pos == _g{idx}Saved)", () =>
             {
@@ -1230,6 +1238,286 @@ public static class ParserEmitter
         }
 
         assignedProps.Add((plan.PropertyName, listVar));
+    }
+
+    // ── Anonymous group struct construction (`?`/bare, Tasks 8.1-8.2) ─
+
+    /// <summary>
+    /// Returns the struct-group plan when <paramref name="expr"/> is a struct-projected
+    /// <c>?</c> optional group (an <see cref="OptionalIR"/> wrapping the group sequence)
+    /// or a no-modifier bare group (the group sequence itself), so the caller can emit
+    /// nullable-local (<c>?</c>) or scalar (bare) struct construction. <c>*</c>/<c>+</c>
+    /// groups are deliberately excluded here: they are handled by the repetition cases
+    /// via <see cref="EmitStructGroupLoop"/>. The modifier guard prevents a group of one
+    /// kind from ever being consumed by the wrong emitter.
+    /// </summary>
+    private static bool TryGetScalarOrOptionalGroup(ExpressionIR expr, GroupParseContext groupContext, out StructGroupPlan plan)
+    {
+        if(expr is OptionalIR opt && opt.Inner is SequenceIR optSeq
+            && groupContext.TryGet(optSeq, out var optPlan) && optPlan.Modifier == GroupModifier.Optional)
+        {
+            plan = optPlan;
+            return true;
+        }
+
+        if(expr is SequenceIR bareSeq
+            && groupContext.TryGet(bareSeq, out var barePlan) && barePlan.Modifier == GroupModifier.None)
+        {
+            plan = barePlan;
+            return true;
+        }
+
+        plan = null!;
+        return false;
+    }
+
+    /// <summary>
+    /// Emits struct construction for a <c>?</c> optional group (Task 8.1) or a
+    /// no-modifier bare group (Task 8.2). Both paths parse the group's value-bearing
+    /// fields into locals via the shared descriptors and assign a <c>{Rule}NodeGroup{N}</c>
+    /// value to the parent's <c>Group{N}</c> property, replacing the old flat scalar
+    /// assignments that now target get-only <c>[Obsolete]</c> shims. When the whole
+    /// group carries a label (e.g. <c>constraintClause:(...)?</c>), the AST emitter also
+    /// promotes that label to a scalar property beside <c>Group{N}</c>; it is forwarded
+    /// here from the group's first rule-ref field so it is populated and the generated
+    /// code compiles.
+    /// </summary>
+    private static void EmitStructGroupScalarOrOptional(
+        CodeWriter writer, EmissionContext context, StructGroupPlan plan,
+        Dictionary<ExpressionIR, string> labelMap, ExpressionIR groupExpr,
+        List<(string PropName, string LocalVar)> assignedProps, bool withCheck, string? okVar)
+    {
+        var idx = plan.GroupIndex;
+        var localVar = "_group" + idx;
+
+        // A label on the whole group projects an extra scalar property on the parent
+        // node beside Group{N} (the AST emitter's label-on-optional promotion, which
+        // uses the group's first rule-ref field). Forward it so the property is
+        // populated and the code compiles.
+        string? groupLabelProp = null;
+        string? groupLabelLocal = null;
+        string? groupLabelType = null;
+        if(labelMap.TryGetValue(groupExpr, out var groupLabel) && TryFirstRuleRefFieldType(plan, out var ruleRefType))
+        {
+            groupLabelProp = PascalCase(groupLabel);
+            groupLabelLocal = "_" + groupLabelProp;
+            groupLabelType = ruleRefType;
+        }
+
+        if(plan.Modifier == GroupModifier.Optional)
+        {
+            EmitOptionalStructGroup(writer, context, plan, idx, localVar, groupLabelLocal, groupLabelType, withCheck, okVar);
+        }
+        else
+        {
+            EmitBareStructGroup(writer, context, plan, idx, localVar, groupLabelLocal, groupLabelType, okVar);
+        }
+
+        assignedProps.Add((plan.PropertyName, localVar));
+        if(groupLabelProp != null)
+        {
+            assignedProps.Add((groupLabelProp, groupLabelLocal!));
+        }
+    }
+
+    /// <summary>
+    /// Emits the nullable-local pattern for a <c>?</c> struct group: declare a
+    /// <c>{Rule}NodeGroup{N}? _group{N} = null;</c>, save parser state, and -- only when
+    /// the alternative has not already failed -- attempt the group. On a full match the
+    /// struct is constructed and assigned to the local (and the group-level label
+    /// forwarded); on any field failure the saved state is restored and the local stays
+    /// null. An absent optional group never fails the enclosing rule.
+    /// </summary>
+    private static void EmitOptionalStructGroup(
+        CodeWriter writer, EmissionContext context, StructGroupPlan plan, int idx,
+        string localVar, string? groupLabelLocal, string? groupLabelType, bool withCheck, string? okVar)
+    {
+        writer.WriteLine($"{plan.StructName}? {localVar} = null;");
+        if(groupLabelLocal != null)
+        {
+            writer.WriteLine($"{groupLabelType}? {groupLabelLocal} = null;");
+        }
+
+        writer.WriteLine($"var _g{idx}Saved = _pos;");
+        writer.WriteLine($"var _g{idx}SavedError = _hasError;");
+        writer.WriteLine($"var _g{idx}SavedDiagCount = _diagnostics?.Count ?? 0;");
+
+        if(withCheck && okVar != null)
+        {
+            writer.WriteBlock($"if ({okVar})", () => EmitOptionalStructGroupBody(writer, context, plan, idx, localVar, groupLabelLocal));
+        }
+        else
+        {
+            EmitOptionalStructGroupBody(writer, context, plan, idx, localVar, groupLabelLocal);
+        }
+    }
+
+    /// <summary>
+    /// Emits the body of a <c>?</c> struct group: parse the value-bearing fields, and on
+    /// success construct the struct (and forward the group-level label); on failure
+    /// restore the saved parser state so the optional group reads as absent.
+    /// </summary>
+    private static void EmitOptionalStructGroupBody(
+        CodeWriter writer, EmissionContext context, StructGroupPlan plan, int idx, string localVar, string? groupLabelLocal)
+    {
+        var okFlag = "_g" + idx + "Ok";
+        writer.WriteLine($"var {okFlag} = true;");
+        var fieldLocals = EmitStructGroupFields(writer, context, plan, idx, okFlag);
+
+        writer.WriteBlock($"if ({okFlag} && !_hasError)", () =>
+        {
+            writer.WriteLine($"{localVar} = new {plan.StructName} {{ {BuildStructInitializer(fieldLocals)} }};");
+            if(groupLabelLocal != null)
+            {
+                writer.WriteLine($"{groupLabelLocal} = {FirstRuleRefLocal(fieldLocals)};");
+            }
+        });
+
+        writer.WriteBlock($"if (!{okFlag} || _hasError)", () =>
+        {
+            writer.WriteLine($"_pos = _g{idx}Saved;");
+            writer.WriteLine($"_hasError = _g{idx}SavedError;");
+            writer.WriteLine($"_diagnostics?.TruncateTo(_g{idx}SavedDiagCount);");
+        });
+    }
+
+    /// <summary>
+    /// Emits scalar struct construction for a no-modifier bare group (Task 8.2). A bare
+    /// group is required, so a field mismatch fails the alternative through the shared ok
+    /// flag, exactly like an inline required element. No Mist rule currently projects a
+    /// bare struct group (a parenthesised group with no modifier is not reported by
+    /// <see cref="AstEmitter.DetectAnonymousGroups"/>), so this path is exercised only if
+    /// such a group is added later.
+    /// </summary>
+    private static void EmitBareStructGroup(
+        CodeWriter writer, EmissionContext context, StructGroupPlan plan, int idx,
+        string localVar, string? groupLabelLocal, string? groupLabelType, string? okVar)
+    {
+        string okFlag;
+        if(okVar != null)
+        {
+            okFlag = okVar;
+        }
+        else
+        {
+            okFlag = "_g" + idx + "Ok";
+            writer.WriteLine($"var {okFlag} = true;");
+        }
+
+        var fieldLocals = EmitStructGroupFields(writer, context, plan, idx, okFlag);
+        writer.WriteLine($"var {localVar} = new {plan.StructName} {{ {BuildStructInitializer(fieldLocals)} }};");
+        if(groupLabelLocal != null)
+        {
+            writer.WriteLine($"{groupLabelType} {groupLabelLocal} = {FirstRuleRefLocal(fieldLocals)};");
+        }
+    }
+
+    /// <summary>
+    /// Emits the per-occurrence field parsing for a struct-projected group by walking the
+    /// group's inner sequence in source order. A structural element (a bare fixed token
+    /// with no descriptor, such as the leading <c>COLON</c> in
+    /// <c>(COLON constraints:ConstraintList ...)</c>) is matched and discarded in place;
+    /// each value-bearing element is parsed into a local via
+    /// <see cref="EmitStructGroupField"/>. Value-bearing elements are matched to their
+    /// descriptors by reference in order, so structural tokens interleaved between fields
+    /// are consumed at the right position. Returns the ordered (descriptor, local) pairs
+    /// for the struct initializer. Shared by the <c>*</c>/<c>+</c> loop and the
+    /// <c>?</c>/bare emitters so the field walk cannot diverge.
+    /// </summary>
+    private static List<(GroupStructFieldDescriptor Field, string Local)> EmitStructGroupFields(
+        CodeWriter writer, EmissionContext context, StructGroupPlan plan, int groupIndex, string okFlag)
+    {
+        var fieldLocals = new List<(GroupStructFieldDescriptor Field, string Local)>();
+        var descriptorIndex = 0;
+        foreach(var element in plan.Sequence.Elements)
+        {
+            if(descriptorIndex < plan.Fields.Count && ReferenceEquals(plan.Fields[descriptorIndex].Element, element))
+            {
+                var descriptor = plan.Fields[descriptorIndex];
+                descriptorIndex++;
+                var fieldLocal = EmitStructGroupField(writer, context, descriptor, groupIndex, okFlag);
+                fieldLocals.Add((descriptor, fieldLocal));
+            }
+            else
+            {
+                EmitConsumeStructuralElement(writer, context, element, okFlag);
+            }
+        }
+
+        return fieldLocals;
+    }
+
+    /// <summary>
+    /// Consumes a structural (non-value-bearing) element of a group sequence -- a bare
+    /// fixed token or string literal that the grammar matches but does not store.
+    /// Mirrors the structural-token handling used elsewhere in the emitter: a mismatch
+    /// clears <paramref name="okFlag"/>, otherwise the token is eaten. An element with no
+    /// single guard token (e.g. an unlabelled alternation) carries no stored value and is
+    /// skipped, matching the existing behaviour for such shapes.
+    /// </summary>
+    private static void EmitConsumeStructuralElement(CodeWriter writer, EmissionContext context, ExpressionIR element, string okFlag)
+    {
+        string? kind = null;
+        switch(element)
+        {
+            case TokenRefIR tokenRef:
+                kind = TokenKindRef(tokenRef.Token.Name);
+                break;
+            case StringLiteralIR lit:
+                var token = FindTokenForLiteral(context, lit.Value);
+                if(token != null)
+                {
+                    kind = TokenKindRef(token.Name);
+                }
+
+                break;
+            default:
+                break;
+        }
+
+        if(kind == null)
+        {
+            return;
+        }
+
+        writer.WriteLine($"if ({okFlag} && Peek() != (int){kind}) {okFlag} = false;");
+        writer.WriteLine($"if ({okFlag}) Eat();");
+    }
+
+    /// <summary>
+    /// Returns the C# type of the group's first rule-ref field (e.g.
+    /// <c>ConstraintListNode</c>), used to type a forwarded group-level label property.
+    /// </summary>
+    private static bool TryFirstRuleRefFieldType(StructGroupPlan plan, out string ruleNodeType)
+    {
+        foreach(var field in plan.Fields)
+        {
+            if(field.Kind == GroupFieldKind.RuleRef)
+            {
+                ruleNodeType = field.FieldType;
+                return true;
+            }
+        }
+
+        ruleNodeType = null!;
+        return false;
+    }
+
+    /// <summary>
+    /// Returns the local-variable name of the group's first rule-ref field, used to
+    /// forward a group-level label property. Only called when the group has such a field.
+    /// </summary>
+    private static string FirstRuleRefLocal(List<(GroupStructFieldDescriptor Field, string Local)> fieldLocals)
+    {
+        foreach(var (field, local) in fieldLocals)
+        {
+            if(field.Kind == GroupFieldKind.RuleRef)
+            {
+                return local;
+            }
+        }
+
+        return "null";
     }
 
     /// <summary>
@@ -1276,19 +1564,81 @@ public static class ParserEmitter
                     break;
                 }
 
+            case GroupFieldKind.Other:
+                {
+                    EmitOtherStructGroupField(writer, field, local, okFlag);
+                    break;
+                }
+
             default:
                 {
-                    // Nested groups and mixed-alternation/optional/repetition fields are
-                    // out of scope for the `*`/`+` wave and do not occur in the Mist
-                    // grammar's struct groups. Emit an inert placeholder so the emitter
-                    // never crashes on an unexpected shape.
+                    // Nested groups do not occur in the Mist grammar's struct groups.
+                    // Emit a default of the declared field type so struct construction
+                    // still compiles if such a shape is ever added.
                     writer.WriteLine($"// Unsupported struct-group field kind '{field.Kind}' for {field.FieldName}");
-                    writer.WriteLine($"object? {local} = null;");
+                    writer.WriteLine($"{field.FieldType} {local} = default;");
                     break;
                 }
         }
 
         return local;
+    }
+
+    /// <summary>
+    /// Parses a struct-group field classified as <see cref="GroupFieldKind.Other"/>. The
+    /// only such field in the Mist grammar is a labelled repetition of a rule reference
+    /// (e.g. <c>slotWhereConstraints:WhereClause*</c> inside
+    /// <c>constraintClause:(COLON constraints:ConstraintList slotWhereConstraints:WhereClause*)?</c>),
+    /// which the AST types as <c>ImmutableArray&lt;{Rule}Node&gt;</c>. It is parsed with a
+    /// progress-guarded accumulation loop matching the standalone repetition emitter: a
+    /// <c>*</c> never fails; a <c>+</c> requires at least one element and clears
+    /// <paramref name="okFlag"/> when empty. Any other Other-shaped element (none occur in
+    /// the Mist grammar) receives a default of its declared field type so the struct
+    /// initializer still compiles.
+    /// </summary>
+    private static void EmitOtherStructGroupField(
+        CodeWriter writer, GroupStructFieldDescriptor field, string local, string okFlag)
+    {
+        var inner = field.Element switch
+        {
+            ZeroOrMoreIR zeroOrMore => zeroOrMore.Inner,
+            OneOrMoreIR oneOrMore => oneOrMore.Inner,
+            _ => null,
+        };
+        var requiresOne = field.Element is OneOrMoreIR;
+
+        if(inner is RuleRefIR ruleRef)
+        {
+            var builderVar = local + "_b";
+            var savedVar = local + "Saved";
+            writer.WriteLine($"var {builderVar} = ImmutableArray.CreateBuilder<{ruleRef.Rule.Name}Node>();");
+            writer.WriteBlock($"while (!_hasError && {okFlag})", () =>
+            {
+                writer.WriteLine($"var {savedVar} = _pos;");
+                writer.WriteLine($"var {savedVar}Error = _hasError;");
+                writer.WriteLine($"var {savedVar}DiagCount = _diagnostics?.Count ?? 0;");
+                writer.WriteLine($"var {local}Item = _Parse{ruleRef.Rule.Name}();");
+                writer.WriteBlock($"if ({local}Item == null || _pos == {savedVar})", () =>
+                {
+                    writer.WriteLine($"_hasError = {savedVar}Error;");
+                    writer.WriteLine($"_pos = {savedVar};");
+                    writer.WriteLine($"_diagnostics?.TruncateTo({savedVar}DiagCount);");
+                    writer.WriteLine("break;");
+                });
+                writer.WriteLine($"{builderVar}.Add({local}Item);");
+            });
+            writer.WriteLine($"var {local} = {builderVar}.ToImmutable();");
+            if(requiresOne)
+            {
+                writer.WriteBlock($"if ({builderVar}.Count == 0)", () => writer.WriteLine($"{okFlag} = false;"));
+            }
+
+            return;
+        }
+
+        // No other Other-shaped field occurs in the Mist grammar; a default of the
+        // declared field type keeps construction valid if one is added later.
+        writer.WriteLine($"{field.FieldType} {local} = default;");
     }
 
     /// <summary>
@@ -1384,7 +1734,9 @@ public static class ParserEmitter
     /// Everything the parser needs to construct one struct-projected group: the
     /// generated struct type name, the parent-node property name (<c>Group{N}</c>), the
     /// zero-based group index (for unique local-variable names), the group's modifier,
-    /// and the ordered field descriptors shared with <see cref="AstEmitter"/>.
+    /// the group's inner sequence (walked to consume structural tokens between the
+    /// value-bearing fields), and the ordered field descriptors shared with
+    /// <see cref="AstEmitter"/>.
     /// </summary>
     private sealed class StructGroupPlan
     {
@@ -1392,14 +1744,16 @@ public static class ParserEmitter
         public string PropertyName { get; }
         public int GroupIndex { get; }
         public GroupModifier Modifier { get; }
+        public SequenceIR Sequence { get; }
         public IReadOnlyList<GroupStructFieldDescriptor> Fields { get; }
 
-        public StructGroupPlan(string structName, string propertyName, int groupIndex, GroupModifier modifier, IReadOnlyList<GroupStructFieldDescriptor> fields)
+        public StructGroupPlan(string structName, string propertyName, int groupIndex, GroupModifier modifier, SequenceIR sequence, IReadOnlyList<GroupStructFieldDescriptor> fields)
         {
             StructName = structName;
             PropertyName = propertyName;
             GroupIndex = groupIndex;
             Modifier = modifier;
+            Sequence = sequence;
             Fields = fields;
         }
     }

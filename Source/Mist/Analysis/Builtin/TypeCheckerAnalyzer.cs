@@ -1876,7 +1876,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var assignment = assignExpr.Assignment;
-        if(assignment.Value is null)
+        var assignedValue = assignment.Group0?.Value;
+        if(assignedValue is null)
         {
             // No assignment value — this is just an expression (e.g., method call).
             // Check the target for reads.
@@ -1886,7 +1887,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // This is an assignment: target = value (or target ??= value).
         // Only ??= is a read-then-write (it reads the target to check for void).
-        var isVoidCoalescingAssign = assignment.Operator is { } op
+        var isVoidCoalescingAssign = assignment.Group0?.Operator is { } op
             && op.Kind == (int)TokenKind.QUESTION_QUESTION_EQUAL;
 
         // Extract the assignment target (field or local).
@@ -1909,7 +1910,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Check the RHS value for reads.
-        AnalyzeExpressionForReads(assignment.Value, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+        AnalyzeExpressionForReads(assignedValue, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
 
         // Record the write.
         if(fieldName is not null)
@@ -2052,10 +2053,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // If this is an assignment expression (nested), handle it recursively.
-        if(assignment.Value is not null)
+        var assignedValue = assignment.Group0?.Value;
+        if(assignedValue is not null)
         {
             // Nested assignment: check RHS for reads, then the target.
-            AnalyzeExpressionForReads(assignment.Value, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+            AnalyzeExpressionForReads(assignedValue, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
             return;
         }
 
@@ -2142,9 +2144,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         AnalyzeRelationalForReads(equality.Left, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
 
-        if(equality.Right is not null)
+        // Group0 is the flat n-ary operand list; visit every operand so reads in a
+        // multi-term chain (a == b == c) are all analyzed, not just the last one.
+        foreach(var group in equality.Group0)
         {
-            AnalyzeRelationalForReads(equality.Right, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+            AnalyzeRelationalForReads(group.Right, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
         }
     }
 
@@ -2164,9 +2168,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             case RelationalComparisonRelationalNode cmp:
                 AnalyzeAdditiveForReads(cmp.Left, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
-                if(cmp.Right is not null)
+                foreach(var group in cmp.Group0)
                 {
-                    AnalyzeAdditiveForReads(cmp.Right, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                    AnalyzeAdditiveForReads(group.Right, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
                 }
 
                 break;
@@ -2192,9 +2196,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         HashSet<string>? allNonDefaultableFields)
     {
         AnalyzeMultiplicativeForReads(additive.Left, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
-        if(additive.Right is not null)
+        foreach(var group in additive.Group0)
         {
-            AnalyzeMultiplicativeForReads(additive.Right, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+            AnalyzeMultiplicativeForReads(group.Right, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
         }
     }
 
@@ -2217,9 +2221,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             AnalyzeUnaryForReads(left, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
         }
 
-        if(multiplicative.Right is not null && multiplicative.Right.UnwrapRange() is { } right)
+        foreach(var group in multiplicative.Group0)
         {
-            AnalyzeUnaryForReads(right, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+            if(group.Right.UnwrapRange() is { } right)
+            {
+                AnalyzeUnaryForReads(right, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+            }
         }
     }
 
@@ -2468,7 +2475,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static bool IsBarThisExpression(ExpressionNode expr)
     {
         var assignment = expr.AsAssignmentOrNull();
-        if(assignment is null || assignment.Value is not null)
+        if(assignment is null || assignment.Group0?.Value is not null)
         {
             return false;
         }
@@ -2491,7 +2498,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var equality = logicalAnd.Left;
-        if(equality.Right is not null)
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return false;
         }
@@ -2501,19 +2508,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return false;
         }
 
-        if(relational.Right is not null)
+        if(!relational.Group0.IsDefaultOrEmpty)
         {
             return false;
         }
 
         var additive = relational.Left;
-        if(additive.Right is not null)
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return false;
         }
 
         var multiplicative = additive.Left;
-        if(multiplicative.Right is not null)
+        if(!multiplicative.Group0.IsDefaultOrEmpty)
         {
             return false;
         }
@@ -2574,7 +2581,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var equality = logicalAnd.Left;
-        if(equality.Right is not null)
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -2584,19 +2591,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(relational.Right is not null)
+        if(!relational.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var additive = relational.Left;
-        if(additive.Right is not null)
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive.Left;
-        if(multiplicative.Right is not null)
+        if(!multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -2677,7 +2684,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var equality = logicalAnd.Left;
-        if(equality.Right is not null)
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -2687,19 +2694,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(relational.Right is not null)
+        if(!relational.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var additive = relational.Left;
-        if(additive.Right is not null)
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive.Left;
-        if(multiplicative.Right is not null)
+        if(!multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -2757,7 +2764,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var equality = logicalAnd.Left;
-        if(equality.Right is not null)
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -2767,19 +2774,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(relational.Right is not null)
+        if(!relational.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var additive = relational.Left;
-        if(additive.Right is not null)
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive.Left;
-        if(multiplicative.Right is not null)
+        if(!multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -4843,7 +4850,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return result; // Lambda form is not a narrowing condition.
         }
 
-        if(assignment.Value is not null)
+        if(assignment.Group0?.Value is not null)
         {
             return result; // Not a simple condition.
         }
@@ -4889,7 +4896,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return result;
         }
 
-        if(equality.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return result;
         }
@@ -4902,7 +4909,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         switch(relational)
         {
-            case RelationalComparisonRelationalNode cmp when cmp.Right is not null:
+            case RelationalComparisonRelationalNode cmp when !cmp.Group0.IsDefaultOrEmpty:
                 {
                     // Simple comparison: x >= N, x <= N, x > N, x < N
                     TryNarrowFromComparison(cmp, model, result);
@@ -4947,14 +4954,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return;
         }
 
-        // Extract the operator and constant value from the comparison.
-        var op = cmp.Operator.Lexeme;
+        // Extract the operator and constant value from the comparison. The caller
+        // gates on a non-empty Group0, so the last element carries this comparison's
+        // operator and right operand (preserving the former last-wins shim reads).
+        var op = cmp.Group0[^1].Operator.Lexeme;
         if(op is null)
         {
             return;
         }
 
-        var constantValue = TryExtractLongFromAdditiveNode(cmp.Right);
+        var constantValue = TryExtractLongFromAdditiveNode(cmp.Group0[^1].Right);
         if(!constantValue.HasValue)
         {
             return;
@@ -5216,13 +5225,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static string? TryExtractSimpleIdentifierName(AdditiveNode additive)
     {
-        if(additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        if(additive is not null && !additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive?.Left;
-        if(multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        if(multiplicative is not null && !multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -5256,13 +5265,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(additive.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive.Left;
-        if(multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        if(multiplicative is not null && !multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -5313,7 +5322,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null; // Lambda form is not a narrowed identifier.
         }
 
-        if(assignment.Value is not null)
+        if(assignment.Group0?.Value is not null)
         {
             return null;
         }
@@ -5331,7 +5340,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var equality = logicalAnd?.Left;
-        if(equality?.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        if(equality is not null && !equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -5341,19 +5350,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
+        if(!relCmp.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var additive = relCmp.Left;
-        if(additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        if(additive is not null && !additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive?.Left;
-        if(multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        if(multiplicative is not null && !multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -5427,7 +5436,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null; // Lambda form is not a simple identifier reference.
         }
 
-        if(assignment.Value is not null || assignment.Operator is not null)
+        if(assignment.Group0?.Value is not null || assignment.Group0?.Operator is not null)
         {
             return null;
         }
@@ -5478,7 +5487,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var equality = logicalAnd?.Left;
-        if(equality?.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        if(equality is not null && !equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -5488,19 +5497,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
+        if(!relCmp.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var additive = relCmp.Left;
-        if(additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        if(additive is not null && !additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive?.Left;
-        if(multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        if(multiplicative is not null && !multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -5692,7 +5701,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null; // Lambda form is not a simple identifier.
         }
 
-        if(assignment.Value is not null)
+        if(assignment.Group0?.Value is not null)
         {
             return null;
         }
@@ -5710,7 +5719,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var equality = logicalAnd?.Left;
-        if(equality?.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        if(equality is not null && !equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -5720,19 +5729,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
+        if(!relCmp.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var additive = relCmp.Left;
-        if(additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        if(additive is not null && !additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive?.Left;
-        if(multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        if(multiplicative is not null && !multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -5880,7 +5889,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null; // Lambda form is not a literal integer.
         }
 
-        if(assignment.Value is not null)
+        if(assignment.Group0?.Value is not null)
         {
             return null;
         }
@@ -5913,7 +5922,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(equality.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -5923,7 +5932,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
+        if(!relCmp.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -5945,7 +5954,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null; // Lambda form is not a for-loop condition.
         }
 
-        if(assignment.Value is not null)
+        if(assignment.Group0?.Value is not null)
         {
             return null;
         }
@@ -5978,7 +5987,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(equality.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -5988,7 +5997,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(cmp.Right is null || ReferenceEquals(cmp.Right, cmp.Left))
+        if(cmp.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -6000,8 +6009,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        // Determine the operator.
-        var op = cmp.Operator.Lexeme;
+        // Determine the operator. The Group0 guard above ensures a comparison is
+        // present; its last element carries this loop condition's operator and right
+        // operand (preserving the former last-wins shim reads).
+        var op = cmp.Group0[^1].Operator.Lexeme;
         ConditionRelOp relOp;
         if(op == "<")
         {
@@ -6018,14 +6029,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Try to extract the upper bound value from the RHS.
         // Case a: literal integer
-        var literalValue = TryExtractLongFromAdditiveNode(cmp.Right);
+        var literalValue = TryExtractLongFromAdditiveNode(cmp.Group0[^1].Right);
         if(literalValue.HasValue)
         {
             return new ConditionConstraint(relOp, literalValue.Value);
         }
 
         // Case b: identifier.Length on an ArrayType
-        var symbolicBound = TryExtractArrayLengthBound(cmp.Right, relOp, model);
+        var symbolicBound = TryExtractArrayLengthBound(cmp.Group0[^1].Right, relOp, model);
         if(symbolicBound is not null)
         {
             return symbolicBound;
@@ -6041,13 +6052,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static ConditionConstraint? TryExtractArrayLengthBound(AdditiveNode additive, ConditionRelOp relOp, ISemanticModel model)
     {
         // Navigate: Additive → Multiplicative → Unary → Postfix
-        if(additive.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive.Left;
-        if(multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        if(multiplicative is not null && !multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -6174,7 +6185,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static bool HasReassignmentInNode(SyntaxNode node, string varName)
     {
         // Check if this node is an assignment expression targeting the variable.
-        if(node is AssignmentNode assignment && assignment.Value is not null)
+        if(node is AssignmentNode assignment && assignment.Group0?.Value is not null)
         {
             var targetName = TryExtractIdentifierFromLogicalOr(assignment.Target.Left);
             if(targetName is not null && string.Equals(targetName, varName, StringComparison.Ordinal))
@@ -6969,7 +6980,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Nested assignments (e.g., `a = b = c`) always go through this
         // same method, so the flag is naturally re-established for each
         // inner assignment target as the recursion walks inward.
-        var targetIsLhs = assignment.Value is not null;
+        var assignedValue = assignment.Group0?.Value;
+        var targetIsLhs = assignedValue is not null;
         var previousAssignmentLhs = analyzingAssignmentLhs;
         if(targetIsLhs)
         {
@@ -6985,11 +6997,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             analyzingAssignmentLhs = previousAssignmentLhs;
         }
 
-        if(assignment.Value is not null)
+        if(assignedValue is not null)
         {
             // ── optional-types feature: void-coalescing assignment (??=) ──
             // When the operator is ??=, apply special validation and flow narrowing.
-            if(assignment.Operator is { } op && op.Kind == (int)TokenKind.QUESTION_QUESTION_EQUAL)
+            if(assignment.Group0?.Operator is { } op && op.Kind == (int)TokenKind.QUESTION_QUESTION_EQUAL)
             {
                 CheckVoidCoalescingAssignment(assignment, model, diagnostics);
                 return;
@@ -7020,7 +7032,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // The RHS is now a full ExpressionNode (widened to reach lambdas); only the
             // assignment form can carry a bare 'default' literal.
             var lhsTypeForDefault = model.GetTypeOf(assignment.Target);
-            var rhsAssignment = assignment.Value.AsAssignmentOrNull();
+            var rhsAssignment = assignedValue.AsAssignmentOrNull();
             if(rhsAssignment is not null)
             {
                 TryInferDefaultLiteralTypeFromAssignment(rhsAssignment, lhsTypeForDefault, model);
@@ -7028,11 +7040,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             // This is an assignment: target = value.
             assignmentNestingDepth++;
-            CheckExpression(assignment.Value, model, diagnostics);
+            CheckExpression(assignedValue, model, diagnostics);
             assignmentNestingDepth--;
 
             var lhsType = model.GetTypeOf(assignment.Target);
-            var rhsType = model.GetTypeOf(assignment.Value);
+            var rhsType = model.GetTypeOf(assignedValue);
 
             // ── variadics feature (task 14.2): zip parallel expansion (Requirements 8.5-8.7) ──
             // A zip is the parallel two-operand value spread `left... = right...`. It is its
@@ -7050,7 +7062,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // (method group), check for ambiguous overloads.
             if(lhsType is not null && SemanticModelBuilder.IsFuncType(lhsType))
             {
-                var rhsPostfix = TryExtractPostfixNode(assignment.Value);
+                var rhsPostfix = TryExtractPostfixNode(assignedValue);
                 if(rhsPostfix is not null)
                 {
                     CheckMethodGroupAmbiguity(rhsPostfix, lhsType, model, diagnostics);
@@ -7068,11 +7080,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // When the target is a RefinementType, check the assignment
                 // against the refinement predicate before the generic
                 // assignability check.
-                if(!TryCheckRefinementAssignment(effectiveRhsType, lhsType, assignment.Value, diagnostics, model)
+                if(!TryCheckRefinementAssignment(effectiveRhsType, lhsType, assignedValue, diagnostics, model)
                     // ── regex-type feature: string literal shorthand (Requirements 6.5, 6.8, 6.9) ──
                     // When the target is regex and the source is string, apply
                     // the string→regex conversion rules.
-                    && !TryCheckStringToRegexAssignment(rhsType, lhsType, assignment.Value, diagnostics, model))
+                    && !TryCheckStringToRegexAssignment(rhsType, lhsType, assignedValue, diagnostics, model))
                 {
                     CheckAssignability(rhsType, lhsType, assignment, diagnostics, model);
                 }
@@ -7345,13 +7357,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Step 2: Check if the RHS is a ref parameter or ref local.
         // The RHS is assignment.Value which is now a full ExpressionNode. A simple ref
         // identifier reference only occurs in the assignment form; a lambda RHS is not one.
-        var rhsAssignment = assignment.Value!.AsAssignmentOrNull();
+        var rhsAssignment = assignment.Group0?.Value?.AsAssignmentOrNull();
         if(rhsAssignment is null)
         {
             return; // Lambda-form RHS — not a simple ref identifier.
         }
 
-        if(rhsAssignment.Value is not null)
+        if(rhsAssignment.Group0?.Value is not null)
         {
             return; // Chained assignment — not a simple ref identifier.
         }
@@ -7495,7 +7507,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var equality = logicalAnd.Left;
-        if(equality.Right is not null)
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -7505,19 +7517,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(relationalComparison.Right is not null)
+        if(!relationalComparison.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var additive = relationalComparison.Left;
-        if(additive.Right is not null)
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive.Left;
-        if(multiplicative.Right is not null)
+        if(!multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -7554,7 +7566,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var relational = equality.Left;
-        if(equality.Right is not null)
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -7565,19 +7577,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var additive = relationalComparison.Left;
-        if(relationalComparison.Right is not null)
+        if(!relationalComparison.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive.Left;
-        if(additive.Right is not null)
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var unary = multiplicative.Left.UnwrapRange();
-        if(multiplicative.Right is not null)
+        if(!multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -7763,9 +7775,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return;
         }
 
+        // The optional operator+value project into the nullable Group0 struct; this
+        // method is only reached for a present ??= assignment, so the value is set.
+        if(assignment.Group0?.Value is not { } assignedValue)
+        {
+            return;
+        }
+
         // Check the RHS expression. The RHS is now a full ExpressionNode (widened to
         // reach lambdas); route through the expression-level entry point.
-        CheckExpression(assignment.Value, model, diagnostics);
+        CheckExpression(assignedValue, model, diagnostics);
 
         // ── MIST_TC_0043: Left operand must be a mutable variable ──
         var targetVarName = TryExtractIdentifierFromLogicalOr(assignment.Target.Left);
@@ -7815,10 +7834,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             : new UnionType(nonVoidConstituents.ToImmutableArray());
 
         // ── MIST_TC_0044: Right operand must be assignable to T ──
-        var rhsType = model.GetTypeOf(assignment.Value);
+        var rhsType = model.GetTypeOf(assignedValue);
         if(rhsType is not null && !IsAssignable(rhsType, nonVoidPortion, model))
         {
-            diagnostics.ReportAtNode(TypeCheckDiagnostics.AmbiguousImplicitCast, assignment.Value, "TypeChecker");
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.AmbiguousImplicitCast, assignedValue, "TypeChecker");
         }
 
         // ── Flow narrowing: after ??=, the variable's type is T (not T | void) ──
@@ -7889,9 +7908,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         CheckRelationalNode(node.Left, model, diagnostics);
 
-        if(node.Right is not null)
+        // Group0 is the flat n-ary operand list. Fold it left-associatively
+        // (a == b == c => (a == b) == c): after the first comparison the node
+        // carries the running result type, which becomes the next left operand.
+        var currentLeft = (SyntaxNode)node.Left;
+        foreach(var group in node.Group0)
         {
-            CheckRelationalNode(node.Right, model, diagnostics);
+            CheckRelationalNode(group.Right, model, diagnostics);
 
             // Void unit-type equality is a first-class language feature
             // (void-unit-type spec § Requirement 9). Two VoidType operands
@@ -7900,12 +7923,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // type. Short-circuit before delegating to overload resolution
             // so `Void.Void == Void.Void` and `Void.Void != Void.Void`
             // remain well-typed.
-            var lhsType = model.GetTypeOf(node.Left);
-            var rhsType = model.GetTypeOf(node.Right);
+            var lhsType = model.GetTypeOf(currentLeft);
+            var rhsType = model.GetTypeOf(group.Right);
             if(lhsType is not null && lhsType.IsVoid() && rhsType is not null && rhsType.IsVoid())
             {
                 model.SetTypeOf(node, LegacyPrimitiveTypes.Bool);
-                return;
+                currentLeft = node;
+                continue;
             }
 
             // ── anonymous-types feature: equality operator validation ──
@@ -7923,22 +7947,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     diagnostics.ReportAtNode(TypeCheckDiagnostics.AnonEqualityMismatch, node, "TypeChecker");
                 }
 
-                return;
+                currentLeft = node;
+                continue;
             }
 
             // Route typing / error emission through overload resolution
             // (Requirements 6.1, 6.4). Equality operators on stdlib types
             // (Int32, Boolean, String, …) are declared as static operator
             // members; user types may also declare == / !=.
-            var op = node.Operator.Lexeme ?? "==";
+            var op = group.Operator.Lexeme ?? "==";
             ResolveBinaryOperator(
                 op,
-                node.Left,
-                node.Right,
+                currentLeft,
+                group.Right,
                 node,
                 TypeCheckDiagnostics.OperatorNotApplicableComparison,
                 model,
                 diagnostics);
+            currentLeft = node;
         }
     }
 
@@ -7950,24 +7976,27 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 {
                     CheckAdditiveNode(cmp.Left, model, diagnostics);
 
-                    if(cmp.Right is not null)
+                    var currentLeft = (SyntaxNode)cmp.Left;
+                    foreach(var group in cmp.Group0)
                     {
-                        CheckAdditiveNode(cmp.Right, model, diagnostics);
+                        CheckAdditiveNode(group.Right, model, diagnostics);
 
                         // Route typing / error emission through overload resolution
                         // (Requirements 6.1, 6.4). Relational operators (<, >, <=, >=)
                         // are declared on each numeric stdlib type and Char; the old
                         // NumericTypes / IsNumeric special case is removed
-                        // (Requirement 6.7).
-                        var op = cmp.Operator.Lexeme ?? "<";
+                        // (Requirement 6.7). Each Group0 element carries its own
+                        // operator, so a chain (a < b < c) folds left-associatively.
+                        var op = group.Operator.Lexeme ?? "<";
                         ResolveBinaryOperator(
                             op,
-                            cmp.Left,
-                            cmp.Right,
+                            currentLeft,
+                            group.Right,
                             cmp,
                             TypeCheckDiagnostics.OperatorNotApplicableRelational,
                             model,
                             diagnostics);
+                        currentLeft = cmp;
                     }
 
                     break;
@@ -9418,23 +9447,28 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         CheckMultiplicativeNode(node.Left, model, diagnostics);
 
-        if(node.Right is not null)
+        // Group0 pairs each operator with its own operand, so a mixed chain
+        // (10 + 3 - 5) folds left-associatively instead of collapsing to the last
+        // operator; the node carries the running result type after the first step.
+        var currentLeft = (SyntaxNode)node.Left;
+        foreach(var group in node.Group0)
         {
-            CheckMultiplicativeNode(node.Right, model, diagnostics);
+            CheckMultiplicativeNode(group.Right, model, diagnostics);
 
             // Route typing / error emission through overload resolution
             // (Requirements 6.1, 6.4, 6.8). String concatenation flows
             // from Standard.String's operator+ declaration — the old
             // StringType-for-+ special case is removed.
-            var op = node.Operator.Lexeme ?? "+";
+            var op = group.Operator.Lexeme ?? "+";
             ResolveBinaryOperator(
                 op,
-                node.Left,
-                node.Right,
+                currentLeft,
+                group.Right,
                 node,
                 TypeCheckDiagnostics.OperatorNotApplicableArithmetic,
                 model,
                 diagnostics);
+            currentLeft = node;
         }
     }
 
@@ -9452,13 +9486,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             CheckRange(leftRange, model, diagnostics);
         }
 
-        if(node.Right is not null)
+        var currentLeft = (SyntaxNode)node.Left;
+        foreach(var group in node.Group0)
         {
-            if(node.Right.UnwrapRange() is { } right)
+            var rightNode = group.Right;
+            if(rightNode.UnwrapRange() is { } right)
             {
                 CheckUnaryNode(right, model, diagnostics);
             }
-            else if(node.Right is RangeExpressionRangeNode rightRange)
+            else if(rightNode is RangeExpressionRangeNode rightRange)
             {
                 CheckRange(rightRange, model, diagnostics);
             }
@@ -9467,15 +9503,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // (Requirements 6.1, 6.4, 6.7). Multiplicative operators
             // (*, /, %) are declared on each numeric stdlib type; the old
             // NumericTypes / IsNumeric special case is removed.
-            var op = node.Operator.Lexeme ?? "*";
+            var op = group.Operator.Lexeme ?? "*";
             ResolveBinaryOperator(
                 op,
-                node.Left,
-                node.Right,
+                currentLeft,
+                group.Right,
                 node,
                 TypeCheckDiagnostics.OperatorNotApplicableArithmetic,
                 model,
                 diagnostics);
+            currentLeft = node;
         }
     }
 
@@ -11120,7 +11157,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null; // Lambda form — not a simple postfix chain.
         }
 
-        if(assignment.Value is not null)
+        if(assignment.Group0?.Value is not null)
         {
             return null;
         }
@@ -11138,7 +11175,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var equality = logicalAnd.Left;
-        if(equality.Right is not null)
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -11149,19 +11186,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(cmp.Right is not null)
+        if(!cmp.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var additive = cmp.Left;
-        if(additive.Right is not null)
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive.Left;
-        if(multiplicative.Right is not null)
+        if(!multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -11193,7 +11230,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null; // Lambda form — not an as expression.
         }
 
-        if(assignment.Value is not null)
+        if(assignment.Group0?.Value is not null)
         {
             return null;
         }
@@ -11217,7 +11254,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var equality = logicalAnd.Left;
-        if(equality.Right is not null)
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -11240,7 +11277,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null; // Lambda form — not a bare 'default'.
         }
 
-        if(assignment.Value is not null)
+        if(assignment.Group0?.Value is not null)
         {
             return null; // Has an assignment operator — not a simple expression.
         }
@@ -11258,7 +11295,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var equality = logicalAnd.Left;
-        if(equality.Right is not null)
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -11269,19 +11306,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(cmp1.Right is not null)
+        if(!cmp1.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var additive = cmp1.Left;
-        if(additive.Right is not null)
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive.Left;
-        if(multiplicative.Right is not null)
+        if(!multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -11342,7 +11379,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // The assignment RHS is itself an AssignmentNode. If it has no further
         // assignment (Value is null), the expression is just the Target (LogicalOr).
-        if(assignment.Value is not null)
+        if(assignment.Group0?.Value is not null)
         {
             return;
         }
@@ -11374,7 +11411,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var equality = logicalAnd.Left;
-        if(equality.Right is not null)
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -11385,19 +11422,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(cmp2.Right is not null)
+        if(!cmp2.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var additive = cmp2.Left;
-        if(additive.Right is not null)
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive.Left;
-        if(multiplicative.Right is not null)
+        if(!multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -12441,7 +12478,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null; // Lambda form — not a simple postfix chain.
         }
 
-        if(assignment.Value is not null)
+        if(assignment.Group0?.Value is not null)
         {
             return null;
         }
@@ -12459,7 +12496,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var equality = logicalAnd?.Left;
-        if(equality?.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        if(equality is not null && !equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -12469,19 +12506,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
+        if(!relCmp.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var additive = relCmp.Left;
-        if(additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        if(additive is not null && !additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive?.Left;
-        if(multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        if(multiplicative is not null && !multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -19337,7 +19374,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // A zip is a plain `=` assignment; compound operators are not zips.
-        if(assignment.Operator is { } op && op.Kind != (int)TokenKind.EQUAL)
+        if(assignment.Group0?.Operator is { } op && op.Kind != (int)TokenKind.EQUAL)
         {
             return false;
         }
@@ -19351,7 +19388,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return false;
         }
 
-        if(!TryGetValueSpreadPostfix(assignment.Value, out var rightPostfix))
+        if(assignment.Group0?.Value is not { } assignedValue
+            || !TryGetValueSpreadPostfix(assignedValue, out var rightPostfix))
         {
             return false;
         }

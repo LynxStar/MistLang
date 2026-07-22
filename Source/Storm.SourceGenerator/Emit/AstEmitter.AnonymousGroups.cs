@@ -284,6 +284,31 @@ public static partial class AstEmitter
     }
 
     /// <summary>
+    /// A single <c>[Obsolete]</c> shim property emitted on the parent node during
+    /// migration. It reproduces one of the flat-field properties the pre-wave-2
+    /// emitter used to generate for an anonymous group and forwards reads to the new
+    /// <c>Group{N}</c> data. <see cref="GroupPropertyName"/> is the target group
+    /// property named in the obsolete message (e.g. <c>Group0</c>);
+    /// <see cref="Body"/> is the expression-bodied forwarding expression, minus the
+    /// trailing semicolon.
+    /// </summary>
+    private readonly struct ObsoleteShim
+    {
+        public string GroupPropertyName { get; }
+        public string PropertyName { get; }
+        public string TypeName { get; }
+        public string Body { get; }
+
+        public ObsoleteShim(string groupPropertyName, string propertyName, string typeName, string body)
+        {
+            GroupPropertyName = groupPropertyName;
+            PropertyName = propertyName;
+            TypeName = typeName;
+            Body = body;
+        }
+    }
+
+    /// <summary>
     /// Projects a single detected anonymous group onto the parent node. A detected
     /// group always holds two or more value-bearing elements, so it always builds a
     /// group struct and the parent receives a <c>Group{N}</c> property typed by the
@@ -292,13 +317,18 @@ public static partial class AstEmitter
     /// <c>operator:(PLUS | MINUS)</c> collapses to a <c>Token</c> field, Tasks
     /// 4.1-4.2); a whole group that is nothing but a single token alternation carries
     /// one value-bearing element, so it is never detected here and keeps its existing
-    /// single promotion.
+    /// single promotion. When <paramref name="emitObsoleteShims"/> is set, the old
+    /// flat-field properties that existed before the group was projected are
+    /// reconstructed as <c>[Obsolete]</c> shims that forward to the new group data
+    /// (Tasks 5.1-5.4).
     /// </summary>
     private static void AddGroupProjection(
         AnonymousGroupInfo group,
         string nodeTypeName,
         List<PropertyInfo> properties,
         List<GroupStructModel> groupStructs,
+        List<ObsoleteShim> shims,
+        bool emitObsoleteShims,
         HashSet<string> usedNames)
     {
         var structName = nodeTypeName + "Group" + group.GroupIndex;
@@ -312,6 +342,11 @@ public static partial class AstEmitter
 
         var groupPropName = EnsureUnique("Group" + group.GroupIndex, usedNames);
         properties.Add(GroupPropertyForModifier(groupPropName, structName, group.Modifier, nodeFieldNames));
+
+        if(emitObsoleteShims)
+        {
+            BuildGroupShims(group, groupPropName, shims);
+        }
     }
 
     /// <summary>
@@ -482,6 +517,138 @@ public static partial class AstEmitter
         }
 
         return null;
+    }
+
+    // ---------------------------------------------------------------
+    //  Obsolete shim reconstruction (Tasks 5.1-5.4)
+    // ---------------------------------------------------------------
+
+    /// <summary>
+    /// Reconstructs the flat-field properties the pre-wave-2 emitter produced for a
+    /// struct-projected group and records them as <c>[Obsolete]</c> shims that
+    /// forward to the new <c>Group{N}</c> data (Task 5.1). The reconstruction mirrors
+    /// the group's field walk in <see cref="AddGroupStructField"/> so shim bodies
+    /// reference the exact struct field names:
+    /// <list type="bullet">
+    ///   <item>Each labelled element (token, pure-token alternation, or rule
+    ///         reference) reproduces its old scalar property -- named
+    ///         <c>PascalCase(label)</c>, typed as the struct field's type, and
+    ///         forwarding per the group modifier (Tasks 5.2, 5.4).</item>
+    ///   <item>Each rule reference under a <c>*</c>/<c>+</c> group additionally
+    ///         reproduces the old auto-generated list property (e.g.
+    ///         <c>Multiplicatives</c>) as <c>ImmutableArray&lt;{Rule}Node&gt;</c>
+    ///         projected from the group with LINQ (Task 5.3). Lists are a repetition
+    ///         phenomenon, so <c>?</c> and no-modifier groups produce no list shim.</item>
+    /// </list>
+    /// Nested groups take a <c>Group{M}</c> struct field rather than a flat field, so
+    /// they contribute no shim.
+    /// </summary>
+    private static void BuildGroupShims(AnonymousGroupInfo group, string groupPropName, List<ObsoleteShim> shims)
+    {
+        // Mirrors BuildGroupStruct's field-name allocation so the forwarding bodies
+        // reference the same struct field names.
+        var usedFieldNames = new HashSet<string>();
+
+        // Keeps the reconstructed shim property names distinct from one another.
+        var usedShimNames = new HashSet<string>();
+
+        var isList = group.Modifier is GroupModifier.ZeroOrMore or GroupModifier.OneOrMore;
+
+        foreach(var element in group.Sequence.Elements)
+        {
+            if(IsNestedGroupElement(element, group.Labels))
+            {
+                continue;
+            }
+
+            var label = FindLabel(element, group.Labels);
+            if(label != null)
+            {
+                var fieldName = EnsureUnique(PascalCase(label.Label), usedFieldNames);
+                var fieldType = FieldTypeForLabeledElement(element, label, fieldName);
+                var scalarName = EnsureUnique(fieldName, usedShimNames);
+                shims.Add(new ObsoleteShim(
+                    groupPropName,
+                    scalarName,
+                    fieldType,
+                    ScalarShimBody(groupPropName, fieldName, fieldType, group.Modifier)));
+
+                if(isList && element is RuleRefIR labeledRuleRef)
+                {
+                    AddListShim(shims, usedShimNames, groupPropName, fieldName, labeledRuleRef.Rule.Name);
+                }
+
+                continue;
+            }
+
+            if(element is RuleRefIR ruleRef)
+            {
+                var fieldName = EnsureUnique(PascalCase(ruleRef.Rule.Name), usedFieldNames);
+                if(isList)
+                {
+                    AddListShim(shims, usedShimNames, groupPropName, fieldName, ruleRef.Rule.Name);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Records the old auto-generated list shim for a rule reference:
+    /// <c>ImmutableArray&lt;{Rule}Node&gt; {Rule}s</c> projecting
+    /// <paramref name="fieldName"/> from each group element.
+    /// </summary>
+    private static void AddListShim(
+        List<ObsoleteShim> shims,
+        HashSet<string> usedShimNames,
+        string groupPropName,
+        string fieldName,
+        string ruleName)
+    {
+        var listName = EnsureUnique(PascalCase(ruleName) + "s", usedShimNames);
+        var listType = $"ImmutableArray<{ruleName}Node>";
+        shims.Add(new ObsoleteShim(
+            groupPropName,
+            listName,
+            listType,
+            $"{groupPropName}.Select(g => g.{fieldName}).ToImmutableArray()"));
+    }
+
+    /// <summary>
+    /// Builds the forwarding expression body (without the trailing semicolon) for a
+    /// scalar shim, according to the group's modifier (Tasks 5.2, 5.4). A
+    /// <c>*</c>/<c>+</c> group returns the last element's field (preserving the old
+    /// last-wins semantics); a <c>?</c> group returns the field of the optional group
+    /// or a default. A non-nullable node type defaults to <c>default!</c> to satisfy
+    /// nullable analysis; other types default to <c>default</c>.
+    /// </summary>
+    private static string ScalarShimBody(string groupPropName, string fieldName, string fieldType, GroupModifier modifier)
+    {
+        var defaultLiteral = IsScalarNodeType(fieldType) ? "default!" : "default";
+        return modifier switch
+        {
+            GroupModifier.ZeroOrMore or GroupModifier.OneOrMore
+                => $"{groupPropName}.Length > 0 ? {groupPropName}[^1].{fieldName} : {defaultLiteral}",
+            GroupModifier.Optional
+                => $"{groupPropName}?.{fieldName} ?? {defaultLiteral}",
+            _ => $"{groupPropName}.{fieldName}",
+        };
+    }
+
+    /// <summary>
+    /// Returns true when a group element is a nested anonymous group (a
+    /// repetition/optional wrapping a labelled sequence). Mirrors the nested-group
+    /// detection in <see cref="AddGroupStructField"/>, which projects such elements
+    /// as a nested <c>Group{M}</c> struct field rather than a flat field.
+    /// </summary>
+    private static bool IsNestedGroupElement(ExpressionIR element, IReadOnlyList<FieldLabelIR> groupLabels)
+    {
+        return element switch
+        {
+            ZeroOrMoreIR { Inner: SequenceIR nestedSeq } => HasLabelsInside(nestedSeq, groupLabels),
+            OneOrMoreIR { Inner: SequenceIR nestedSeq } => HasLabelsInside(nestedSeq, groupLabels),
+            OptionalIR { Inner: SequenceIR nestedSeq } => HasLabelsInside(nestedSeq, groupLabels),
+            _ => false,
+        };
     }
 
     /// <summary>

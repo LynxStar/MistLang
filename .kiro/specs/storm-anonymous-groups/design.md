@@ -428,6 +428,27 @@ The design does not introduce new diagnostic error conditions on the grammar aut
 | Unlabelled elements in a group | Unlabelled rule references are value-bearing and become struct fields named after the rule (e.g. `PrimaryNode Primary`). Bare fixed tokens (`COMMA`, `DOT`, keywords) are structural — consumed by the parser but not stored. |
 | Empty repetition (`*` with zero matches) | The `ImmutableArray` is empty (`.Empty`). Shim scalars return `default`/`default!`. |
 | Pure_Token_Alternation with a single token | A labelled token-only alternation (even a single alternative) collapses to a `Token` field. |
+| Lone pure-token alternation under a modifier | A labelled token-only alternation that is the sole value-bearing element of a `*`/`+`/`?` group (e.g. `(op:(PLUS \| MINUS))*`) is not struct-projected (one value-bearing element). It is promoted on the parent per the group modifier: `ImmutableArray<Token>` for `*`/`+`, `Token?` for `?`, and `Token` with no modifier -- named from the label. This preserves the repetition rather than flattening to a scalar `Token`. |
+
+### Known Limitations
+
+**Mixed alternation field (labelled alternation with a rule-reference alternative).**
+A labelled *mixed* alternation -- one where at least one alternative is a rule
+reference rather than a token, e.g. `choice:(A | Y)` with `Y` a rule -- is typed
+`Token` via the generic property-derivation fallback (`_ => Token` in
+`AstEmitter.GetPropertyInfo`). This discards the rule-reference alternative: the AST
+has no representation for "either a token or a node" in a single field, so faithfully
+modelling it would require a discriminated-union node type that the generator does not
+currently emit.
+
+This limitation is inert for the Mist language: the Mist grammar contains no labelled
+mixed alternation, so no generated node is affected. It applies equally to a lone
+mixed alternation group (which keeps its existing scalar promotion) and to a mixed
+alternation field inside a struct-projected group (which becomes a `Token` struct
+field). The Pure_Token_Alternation optimisation deliberately declines for a mixed
+alternation, so this fallback -- not the token collapse -- is what handles it. Fixing
+it is out of scope for this feature and is recorded here rather than resolved; a code
+comment at the fallback in `GetPropertyInfo` points back to this note.
 
 ## Testing Strategy
 

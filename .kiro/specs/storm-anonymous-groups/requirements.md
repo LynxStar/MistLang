@@ -75,7 +75,7 @@ The chosen strategy uses `[Obsolete]`-attributed shim properties that forward to
 
 3. WHEN the Pure_Token_Alternation optimisation applies and the group carries a `label:` prefix, THE parent node property SHALL use the label name (PascalCase), matching the existing field-label promotion behaviour.
 
-4. IF an anonymous group's body is an alternation where at least one alternative is not a single `TokenRefIR`, THEN the Pure_Token_Alternation optimisation SHALL NOT apply, and a Group_Struct SHALL be emitted.
+4. IF an anonymous group's body is a single alternation -- whether a Pure_Token_Alternation or a mixed alternation (at least one alternative is not a single `TokenRefIR`) -- THEN that group holds one value-bearing element under the capture-count rule (Requirement 1.1) and SHALL NOT project a Group_Struct; it retains its existing single promotion. The pure-token-versus-mixed distinction SHALL instead govern the FIELD type of a labelled alternation element WITHIN a struct-projected group of two or more value-bearing elements (Requirement 1.2), not whole-group struct emission.
 
 ---
 

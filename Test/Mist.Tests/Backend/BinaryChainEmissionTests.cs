@@ -172,6 +172,52 @@ public sealed class BinaryChainEmissionTests : IDisposable
         Assert.Contains("return a - b - c;", norm);
     }
 
+    [Fact]
+    public void AdditiveChain_MixedOperators_EmitsEachOperatorInOrder()
+    {
+        // Regression for the last-wins operator defect (storm-anonymous-groups Req 7.3):
+        // before Group0 migration the emitter applied a single scalar operator to the
+        // whole chain, so `a + b - c` emitted as `a - b - c`. Each Group0 element now
+        // carries its own operator, so both `+` and `-` survive in source order.
+        const string source = """
+            namespace TestProgram;
+
+            public class Chains
+            {
+                public int MixedAdd(int a, int b, int c)
+                {
+                    return a + b - c;
+                }
+            }
+            """;
+
+        var norm = Normalize(CompileToCSharp(source));
+
+        Assert.Contains("return a + b - c;", norm);
+    }
+
+    [Fact]
+    public void AdditiveChain_MixedLiterals_MatchesProofExpression()
+    {
+        // Mirrors the storm-anonymous-groups proof expression `10 + 3 - 5` (= 8). The
+        // last-wins defect would have emitted `10 - 3 - 5` (= 2).
+        const string source = """
+            namespace TestProgram;
+
+            public class Chains
+            {
+                public int ProofX()
+                {
+                    return 10 + 3 - 5;
+                }
+            }
+            """;
+
+        var norm = Normalize(CompileToCSharp(source));
+
+        Assert.Contains("return 10 + 3 - 5;", norm);
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // Multiplicative chains
     // ═══════════════════════════════════════════════════════════════════════
@@ -194,6 +240,49 @@ public sealed class BinaryChainEmissionTests : IDisposable
         var norm = Normalize(CompileToCSharp(source));
 
         Assert.Contains("return a * b * c;", norm);
+    }
+
+    [Fact]
+    public void MultiplicativeChain_MixedOperators_EmitsEachOperatorInOrder()
+    {
+        // Regression for the last-wins operator defect: `a * b / c` must keep both `*`
+        // and `/` in source order rather than collapsing to `a / b / c`.
+        const string source = """
+            namespace TestProgram;
+
+            public class Chains
+            {
+                public int MixedMul(int a, int b, int c)
+                {
+                    return a * b / c;
+                }
+            }
+            """;
+
+        var norm = Normalize(CompileToCSharp(source));
+
+        Assert.Contains("return a * b / c;", norm);
+    }
+
+    [Fact]
+    public void MultiplicativeChain_UniformLiterals_MatchesProofExpression()
+    {
+        // Mirrors the storm-anonymous-groups proof expression `2 * 4 * 3` (= 24).
+        const string source = """
+            namespace TestProgram;
+
+            public class Chains
+            {
+                public int ProofY()
+                {
+                    return 2 * 4 * 3;
+                }
+            }
+            """;
+
+        var norm = Normalize(CompileToCSharp(source));
+
+        Assert.Contains("return 2 * 4 * 3;", norm);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

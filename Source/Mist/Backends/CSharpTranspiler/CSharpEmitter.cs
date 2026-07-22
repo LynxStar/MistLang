@@ -1437,11 +1437,12 @@ internal sealed class CSharpSourceWriter
             ScanLogicalOrForValueReturningCalls(rightOperand, voidMethodNames, isValueContext);
         }
 
-        if(assignment.Value is not null)
+        var assignedValue = assignment.Group0?.Value;
+        if(assignedValue is not null)
         {
             // The RHS of an assignment is always in a value context. It is now a full
             // ExpressionNode (widened to reach lambdas), so scan via the expression entry.
-            ScanExpressionForValueReturningCalls(assignment.Value, voidMethodNames);
+            ScanExpressionForValueReturningCalls(assignedValue, voidMethodNames);
         }
     }
 
@@ -1466,9 +1467,9 @@ internal sealed class CSharpSourceWriter
     private void ScanEqualityForValueReturningCalls(EqualityNode node, HashSet<string> voidMethodNames, bool isValueContext)
     {
         ScanRelationalForValueReturningCalls(node.Left, voidMethodNames, isValueContext);
-        if(node.Right is not null && !ReferenceEquals(node.Right, node.Left))
+        foreach(var group in node.Group0)
         {
-            ScanRelationalForValueReturningCalls(node.Right, voidMethodNames, isValueContext);
+            ScanRelationalForValueReturningCalls(group.Right, voidMethodNames, isValueContext);
         }
     }
 
@@ -1478,9 +1479,9 @@ internal sealed class CSharpSourceWriter
         {
             case RelationalComparisonRelationalNode cmp:
                 ScanAdditiveForValueReturningCalls(cmp.Left, voidMethodNames, isValueContext);
-                if(cmp.Right is not null && !ReferenceEquals(cmp.Right, cmp.Left))
+                foreach(var group in cmp.Group0)
                 {
-                    ScanAdditiveForValueReturningCalls(cmp.Right, voidMethodNames, isValueContext);
+                    ScanAdditiveForValueReturningCalls(group.Right, voidMethodNames, isValueContext);
                 }
 
                 break;
@@ -1500,9 +1501,9 @@ internal sealed class CSharpSourceWriter
     private void ScanAdditiveForValueReturningCalls(AdditiveNode node, HashSet<string> voidMethodNames, bool isValueContext)
     {
         ScanMultiplicativeForValueReturningCalls(node.Left, voidMethodNames, isValueContext);
-        if(node.Right is not null && !ReferenceEquals(node.Right, node.Left))
+        foreach(var group in node.Group0)
         {
-            ScanMultiplicativeForValueReturningCalls(node.Right, voidMethodNames, isValueContext);
+            ScanMultiplicativeForValueReturningCalls(group.Right, voidMethodNames, isValueContext);
         }
     }
 
@@ -1516,10 +1517,12 @@ internal sealed class CSharpSourceWriter
             ScanUnaryForValueReturningCalls(left, voidMethodNames, isValueContext);
         }
 
-        if(node.Right is not null && !ReferenceEquals(node.Right, node.Left)
-            && node.Right.UnwrapRange() is { } right)
+        foreach(var group in node.Group0)
         {
-            ScanUnaryForValueReturningCalls(right, voidMethodNames, isValueContext);
+            if(group.Right.UnwrapRange() is { } right)
+            {
+                ScanUnaryForValueReturningCalls(right, voidMethodNames, isValueContext);
+            }
         }
     }
 
@@ -5481,7 +5484,8 @@ internal sealed class CSharpSourceWriter
             }
 
             // Check if this is a simple assignment (has a Value part).
-            if(assignment.Value is null)
+            var assignedValue = assignment.Group0?.Value;
+            if(assignedValue is null)
             {
                 continue;
             }
@@ -5496,7 +5500,7 @@ internal sealed class CSharpSourceWriter
             // The value should be a simple identifier matching a parameter name.
             // The RHS is now a full ExpressionNode; only the assignment form can be a
             // simple identifier reference.
-            if(assignment.Value.AsAssignmentOrNull() is not { } valueAssignment)
+            if(assignedValue.AsAssignmentOrNull() is not { } valueAssignment)
             {
                 continue;
             }
@@ -5600,7 +5604,7 @@ internal sealed class CSharpSourceWriter
         }
 
         var equality = logicalAnd.Left;
-        if(equality.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -5611,19 +5615,19 @@ internal sealed class CSharpSourceWriter
             return null;
         }
 
-        if(cmp.Right is not null && !ReferenceEquals(cmp.Right, cmp.Left))
+        if(!cmp.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var additive = cmp.Left;
-        if(additive.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive.Left;
-        if(multiplicative.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        if(!multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -7845,7 +7849,7 @@ internal sealed class CSharpSourceWriter
     private static PostfixNode? TryExtractPostfixNode(ExpressionNode expr)
     {
         var assignment = expr.AsAssignmentOrNull();
-        if(assignment is null || assignment.Value is not null)
+        if(assignment is null || assignment.Group0?.Value is not null)
         {
             return null;
         }
@@ -7863,7 +7867,7 @@ internal sealed class CSharpSourceWriter
         }
 
         var equality = logicalAnd?.Left;
-        if(equality?.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        if(equality is not null && !equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -7873,19 +7877,19 @@ internal sealed class CSharpSourceWriter
             return null;
         }
 
-        if(relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
+        if(!relCmp.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var additive = relCmp.Left;
-        if(additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
-        var multiplicative = additive?.Left;
-        if(multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        var multiplicative = additive.Left;
+        if(!multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -9798,10 +9802,10 @@ internal sealed class CSharpSourceWriter
         }
 
         // Also check if this is an assignment `target = source` where source is the variable.
-        if(node is AssignmentNode assignment && assignment.Value is not null)
+        if(node is AssignmentNode assignment && assignment.Group0?.Value is { } assignmentValue)
         {
             // `target = source` — the source (rhs) is a move if it names the variable.
-            if(assignment.Value.AsAssignmentOrNull() is { } rhs && rhs.Value is null)
+            if(assignmentValue.AsAssignmentOrNull() is { } rhs && rhs.Group0?.Value is null)
             {
                 var name = ResolveToIdentifierName(rhs.Target);
                 if(name == localName)
@@ -10220,11 +10224,14 @@ internal sealed class CSharpSourceWriter
 
     private bool ExpressionContainsAnonymousTypeEquality(Storm.Runtime.SyntaxNode node)
     {
-        if(node is EqualityNode equality && equality.Right is not null
-            && !ReferenceEquals(equality.Right, equality.Left))
+        if(node is EqualityNode equality && !equality.Group0.IsDefaultOrEmpty)
         {
+            // Only the first comparison can pair two anonymous operands; any later step
+            // compares against the bool result of the preceding comparison. This mirrors
+            // EmitEquality, which emits object.Equals only for that first pair.
+            var firstRight = equality.Group0[0].Right;
             var lhsType = model.GetTypeOf(equality.Left);
-            var rhsType = model.GetTypeOf(equality.Right);
+            var rhsType = model.GetTypeOf(firstRight);
             if(lhsType is AnonymousType && rhsType is AnonymousType)
             {
                 return true;
@@ -10364,7 +10371,7 @@ internal sealed class CSharpSourceWriter
                     : null;
 
             case AssignmentNode assignment:
-                return assignment.Value is not null
+                return assignment.Group0?.Value is not null
                     ? null
                     : ResolveToIdentifierName(assignment.Target);
 
@@ -11612,7 +11619,10 @@ internal sealed class CSharpSourceWriter
     {
         var target = EmitVoidCoalescing(assignment.Target);
 
-        if(assignment.Value is not null)
+        // The optional assignment operator+value project as the nullable Group0 struct;
+        // a present Group0 always carries a value, so Group0?.Value is the migrated read.
+        var assignedValue = assignment.Group0?.Value;
+        if(assignedValue is not null)
         {
             // Task 14.2: When the assignment target type is a two-constituent T | void union,
             // emit Void.Void as null instead of MistVoid.Instance.
@@ -11623,16 +11633,16 @@ internal sealed class CSharpSourceWriter
                 emitVoidAsNull = true;
             }
 
-            var value = EmitExpression(assignment.Value);
+            var value = EmitExpression(assignedValue);
             emitVoidAsNull = previousVoidAsNull;
 
             value = WrapWithImplicitCastIfNeeded(assignment, value);
             // Task 12.1 — emit .Clone() at resolver-marked implicit-clone sites (Req 14 AC 7).
-            value = WrapWithImplicitCloneIfNeeded(assignment.Value, value);
+            value = WrapWithImplicitCloneIfNeeded(assignedValue, value);
             // Task 31.1 — covariant unknown widening at the assignment
             // site against the target's static type.
             var targetType = model.GetTypeOf(assignment.Target);
-            var valueType = model.GetTypeOf(assignment.Value);
+            var valueType = model.GetTypeOf(assignedValue);
             var widened = TryEmitCovariantUnknownCast(valueType, targetType, value);
             if(widened is not null)
             {
@@ -11660,13 +11670,15 @@ internal sealed class CSharpSourceWriter
             return false;
         }
 
-        // Check if this is a ??= assignment by inspecting the operator token.
-        if(assignment.Operator is not { } op || op.Kind != (int)TokenKind.QUESTION_QUESTION_EQUAL)
+        // Check if this is a ??= assignment by inspecting the operator token. The
+        // optional operator+value project as the nullable Group0 struct.
+        if(assignment.Group0 is not { } group || group.Operator.Kind != (int)TokenKind.QUESTION_QUESTION_EQUAL)
         {
             return false;
         }
 
-        if(assignment.Value is null)
+        var assignedValue = group.Value;
+        if(assignedValue is null)
         {
             return false;
         }
@@ -11676,7 +11688,7 @@ internal sealed class CSharpSourceWriter
 
         // Emit the value expression. The RHS is now a full ExpressionNode (widened to
         // reach lambdas); route through the expression-level entry point.
-        var value = EmitExpression(assignment.Value);
+        var value = EmitExpression(assignedValue);
         value = WrapWithImplicitCastIfNeeded(assignment, value);
 
         // Generate: x ??= value;
@@ -11740,24 +11752,15 @@ internal sealed class CSharpSourceWriter
     {
         var result = EmitRelational(equality.Left);
 
-        // Real parsed nodes carry every trailing operand in Relationals; hand-built
-        // nodes populate Right without the operand array. Fold over all operands so a
-        // chain such as `a == b == c` keeps every operand instead of dropping the middle.
-        var operands = equality.Relationals;
-        if(operands.IsDefaultOrEmpty)
-        {
-            if(equality.Right is null || ReferenceEquals(equality.Right, equality.Left))
-            {
-                return result;
-            }
-
-            operands = ImmutableArray.Create(equality.Right);
-        }
-
-        var op = equality.Operator.Lexeme;
+        // Each Group0 element carries its OWN operator token, so a mixed chain such as
+        // `a == b != c` keeps every operator instead of collapsing to the last one (the
+        // former last-wins shim behaviour). An empty Group0 means the node is a
+        // pass-through to the left relational with no comparison applied.
         var isFirstPair = true;
-        foreach(var operandNode in operands)
+        foreach(var group in equality.Group0)
         {
+            var op = group.Operator.Lexeme;
+            var operandNode = group.Right;
             var right = EmitRelational(operandNode);
 
             // ── anonymous-types feature: structural equality (Requirement 9.2) ──
@@ -11791,12 +11794,12 @@ internal sealed class CSharpSourceWriter
         {
             case RelationalComparisonRelationalNode cmp:
                 {
-                    return EmitBinaryChain(
+                    return EmitBinaryGroupChain(
                         cmp,
                         cmp.Left,
-                        cmp.Operator.Lexeme,
-                        cmp.Additives,
-                        cmp.Right,
+                        cmp.Group0,
+                        static g => g.Operator.Lexeme,
+                        static g => g.Right,
                         EmitAdditive);
                 }
 
@@ -13340,25 +13343,59 @@ internal sealed class CSharpSourceWriter
         return EmitBinaryOperator(node, op, result, emitOperand(fallbackRight));
     }
 
+    /// <summary>
+    /// Emits a left-associative binary chain from an anonymous-group list, folding over every
+    /// (operator, operand) pair in source order. Each element of <paramref name="groups"/> carries
+    /// its OWN operator token, so a mixed-operator chain such as <c>a + b - c</c> emits every
+    /// operator faithfully. This replaces the earlier last-wins model, which read a single scalar
+    /// operator shim (<c>node.Operator</c>) and therefore rewrote every operator in a mixed chain
+    /// to the final one (emitting <c>a - b - c</c> for <c>a + b - c</c>). An empty
+    /// <paramref name="groups"/> list means the node is a pass-through to <paramref name="left"/>
+    /// with no operators applied.
+    /// </summary>
+    private string EmitBinaryGroupChain<TGroup, TOperand>(
+        Storm.Runtime.SyntaxNode node,
+        TOperand left,
+        ImmutableArray<TGroup> groups,
+        Func<TGroup, string> getOperator,
+        Func<TGroup, TOperand> getRight,
+        Func<TOperand, string> emitOperand)
+        where TOperand : Storm.Runtime.SyntaxNode
+    {
+        var result = emitOperand(left);
+
+        if(groups.IsDefaultOrEmpty)
+        {
+            return result;
+        }
+
+        foreach(var group in groups)
+        {
+            result = EmitBinaryOperator(node, getOperator(group), result, emitOperand(getRight(group)));
+        }
+
+        return result;
+    }
+
     private string EmitAdditive(AdditiveNode additive)
     {
-        return EmitBinaryChain(
+        return EmitBinaryGroupChain(
             additive,
             additive.Left,
-            additive.Operator.Lexeme,
-            additive.Multiplicatives,
-            additive.Right,
+            additive.Group0,
+            static g => g.Operator.Lexeme,
+            static g => g.Right,
             EmitMultiplicative);
     }
 
     private string EmitMultiplicative(MultiplicativeNode multiplicative)
     {
-        return EmitBinaryChain(
+        return EmitBinaryGroupChain(
             multiplicative,
             multiplicative.Left,
-            multiplicative.Operator.Lexeme,
-            multiplicative.Ranges,
-            multiplicative.Right,
+            multiplicative.Group0,
+            static g => g.Operator.Lexeme,
+            static g => g.Right,
             EmitRange);
     }
 

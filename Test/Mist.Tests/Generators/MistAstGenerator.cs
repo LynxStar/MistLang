@@ -131,7 +131,7 @@ public static class MistAstGenerator
         var rightUnary = ExtractUnary(right);
         var leftMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = leftUnary } };
         var rightMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = rightUnary } };
-        var add = new AdditiveNode { Left = leftMult, Operator = Tok(op), Right = rightMult };
+        var add = new AdditiveNode { Left = leftMult, Group0 = ImmutableArray.Create(new AdditiveNodeGroup0 { Operator = Tok(op), Right = rightMult }) };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
@@ -145,7 +145,7 @@ public static class MistAstGenerator
     {
         var leftUnary = ExtractUnary(left);
         var rightUnary = ExtractUnary(right);
-        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = leftUnary }, Operator = Tok(op), Right = new NonRangeRangeNode { Operand = rightUnary } };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = leftUnary }, Group0 = ImmutableArray.Create(new MultiplicativeNodeGroup0 { Operator = Tok(op), Right = new NonRangeRangeNode { Operand = rightUnary } }) };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
@@ -164,7 +164,7 @@ public static class MistAstGenerator
         var rightMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = rightUnary } };
         var leftAdd = new AdditiveNode { Left = leftMult };
         var rightAdd = new AdditiveNode { Left = rightMult };
-        var rel = new RelationalComparisonRelationalNode { Left = leftAdd, Operator = Tok(op), Right = rightAdd };
+        var rel = new RelationalComparisonRelationalNode { Left = leftAdd, Group0 = ImmutableArray.Create(new RelationalComparisonRelationalNodeGroup0 { Operator = Tok(op), Right = rightAdd }) };
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };

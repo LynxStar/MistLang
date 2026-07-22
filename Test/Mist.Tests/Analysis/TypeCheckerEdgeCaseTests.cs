@@ -144,8 +144,7 @@ public class TypeCheckerEdgeCaseTests
         var add = new AdditiveNode
         {
             Left = leftMult,
-            Operator = MakeToken(op),
-            Right = rightMult,
+            Group0 = ImmutableArray.Create(new AdditiveNodeGroup0 { Operator = MakeToken(op), Right = rightMult }),
         };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
@@ -167,8 +166,7 @@ public class TypeCheckerEdgeCaseTests
         var mult = new MultiplicativeNode
         {
             Left = new NonRangeRangeNode { Operand = leftUnary },
-            Operator = MakeToken(op),
-            Right = new NonRangeRangeNode { Operand = rightUnary },
+            Group0 = ImmutableArray.Create(new MultiplicativeNodeGroup0 { Operator = MakeToken(op), Right = new NonRangeRangeNode { Operand = rightUnary } }),
         };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
@@ -204,7 +202,7 @@ public class TypeCheckerEdgeCaseTests
         var assign = new AssignmentNode
         {
             Target = new VoidCoalescingNode { Left = targetLogOr },
-            Value = value,
+            Group0 = new AssignmentNodeGroup0 { Value = value },
         };
         return new AssignmentFormExpressionNode { Assignment = assign };
     }
@@ -400,8 +398,7 @@ public class TypeCheckerEdgeCaseTests
         var rel = new RelationalComparisonRelationalNode
         {
             Left = leftAdd,
-            Operator = MakeToken("<"),
-            Right = rightAdd,
+            Group0 = ImmutableArray.Create(new RelationalComparisonRelationalNodeGroup0 { Operator = MakeToken("<"), Right = rightAdd }),
         };
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };

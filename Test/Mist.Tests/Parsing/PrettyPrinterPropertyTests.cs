@@ -94,7 +94,7 @@ public class PrettyPrinterPropertyTests
     private static ExpressionNode MakeAssignmentExpression(string target, ExpressionNode value)
     {
         var targetLogOr = MakeIdentifierExpression(target).AsAssignment().Target.Left;
-        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = targetLogOr }, Value = value };
+        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = targetLogOr }, Group0 = new AssignmentNodeGroup0 { Value = value } };
         return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
@@ -125,8 +125,7 @@ public class PrettyPrinterPropertyTests
         var add = new AdditiveNode
         {
             Left = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = leftUnary } },
-            Operator = MakeToken(op),
-            Right = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = rightUnary } },
+            Group0 = ImmutableArray.Create(new AdditiveNodeGroup0 { Operator = MakeToken(op), Right = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = rightUnary } } }),
         };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
@@ -252,7 +251,7 @@ public class PrettyPrinterPropertyTests
             Assignment = new AssignmentNode
             {
                 Target = new VoidCoalescingNode { Left = targetLogOr },
-                Value = MakeIdentifierExpression("x"),
+                Group0 = new AssignmentNodeGroup0 { Value = MakeIdentifierExpression("x") },
             },
         };
 

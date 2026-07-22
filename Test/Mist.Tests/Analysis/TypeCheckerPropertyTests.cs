@@ -135,8 +135,7 @@ public class TypeCheckerPropertyTests
         var add = new AdditiveNode
         {
             Left = leftMult,
-            Operator = MakeToken(op),
-            Right = rightMult,
+            Group0 = ImmutableArray.Create(new AdditiveNodeGroup0 { Operator = MakeToken(op), Right = rightMult }),
         };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
@@ -195,8 +194,7 @@ public class TypeCheckerPropertyTests
         var rel = new RelationalComparisonRelationalNode
         {
             Left = leftAdd,
-            Operator = MakeToken(op),
-            Right = rightAdd,
+            Group0 = ImmutableArray.Create(new RelationalComparisonRelationalNodeGroup0 { Operator = MakeToken(op), Right = rightAdd }),
         };
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };

@@ -124,7 +124,7 @@ public class RefFieldStorageProhibitionTests
 
         // Build the full assignment expression: this.fieldName = rhs
         // The assignment RHS is now a full ExpressionNode (widened to reach lambdas).
-        var assignment = new AssignmentNode { Target = new VoidCoalescingNode { Left = lhsLogOr }, Value = rhsExpr };
+        var assignment = new AssignmentNode { Target = new VoidCoalescingNode { Left = lhsLogOr }, Group0 = new AssignmentNodeGroup0 { Value = rhsExpr } };
         var expr = new AssignmentFormExpressionNode { Assignment = assignment };
 
         return new ExpressionStatementStatementNode

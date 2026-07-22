@@ -121,7 +121,7 @@ public static class MistAsExpressionGenerator
         var rightUnary = new PostfixExpressionUnaryNode { Primary = rightPostfix };
         var rightMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = rightUnary } };
 
-        return new AdditiveNode { Left = leftMult, Operator = Tok("+"), Right = rightMult };
+        return new AdditiveNode { Left = leftMult, Group0 = ImmutableArray.Create(new AdditiveNodeGroup0 { Operator = Tok("+"), Right = rightMult }) };
     }
 
     /// <summary>

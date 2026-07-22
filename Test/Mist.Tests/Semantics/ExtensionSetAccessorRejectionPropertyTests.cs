@@ -179,7 +179,7 @@ public class ExtensionSetAccessorRejectionPropertyTests
             Assignment = new AssignmentNode
             {
                 Target = new VoidCoalescingNode { Left = fieldLogOr },
-                Value = new AssignmentFormExpressionNode { Assignment = valueAssign },
+                Group0 = new AssignmentNodeGroup0 { Value = new AssignmentFormExpressionNode { Assignment = valueAssign } },
             },
         };
     }

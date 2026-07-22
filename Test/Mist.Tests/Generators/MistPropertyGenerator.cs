@@ -255,7 +255,7 @@ public static class MistPropertyGenerator
             Assignment = new AssignmentNode
             {
                 Target = new VoidCoalescingNode { Left = fieldLogOr },
-                Value = valueExpr,
+                Group0 = new AssignmentNodeGroup0 { Value = valueExpr },
             },
         };
     }

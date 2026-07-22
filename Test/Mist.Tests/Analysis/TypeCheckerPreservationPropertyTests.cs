@@ -430,8 +430,7 @@ public class TypeCheckerPreservationPropertyTests
         var add = new AdditiveNode
         {
             Left = leftMult,
-            Operator = MakeToken("+"),
-            Right = rightMult,
+            Group0 = ImmutableArray.Create(new AdditiveNodeGroup0 { Operator = MakeToken("+"), Right = rightMult }),
         };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };

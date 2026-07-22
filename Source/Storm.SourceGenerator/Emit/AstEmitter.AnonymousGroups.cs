@@ -661,11 +661,8 @@ public static partial class AstEmitter
                 var fieldName = EnsureUnique(PascalCase(label.Label), usedFieldNames);
                 var fieldType = FieldTypeForLabeledElement(element, label, fieldName);
                 var scalarName = EnsureUnique(fieldName, usedShimNames);
-                shims.Add(new ObsoleteShim(
-                    groupPropName,
-                    scalarName,
-                    fieldType,
-                    ScalarShimBody(groupPropName, fieldName, fieldType, group.Modifier)));
+                var (shimType, shimBody) = ScalarShimTypeAndBody(groupPropName, fieldName, fieldType, group.Modifier);
+                shims.Add(new ObsoleteShim(groupPropName, scalarName, shimType, shimBody));
 
                 if(isList && element is RuleRefIR labeledRuleRef)
                 {
@@ -708,12 +705,49 @@ public static partial class AstEmitter
     }
 
     /// <summary>
+    /// Computes a scalar shim's declared type and forwarding body together, so a
+    /// <c>?</c> (Optional) group reproduces the pre-wave-2 emitter's optional-field
+    /// nullability exactly (see <c>CollectProperties</c>'s <c>exprsInsideOptional</c>
+    /// branch, where a <see cref="TokenRefIR"/> or an <see cref="AlternationIR"/> label
+    /// inside an optional is made <c>Token?</c> while a <see cref="RuleRefIR"/> label
+    /// stays a non-nullable <c>{Rule}Node</c>):
+    /// <list type="bullet">
+    ///   <item>A value-typed field (<c>Token</c>, from a token reference or a
+    ///         pure-token alternation label) was <c>Token?</c>. The null-conditional
+    ///         forward <c>Group{N}?.{Field}</c> is already <c>Token?</c>, so the shim
+    ///         is <c>Token? {Name} =&gt; Group{N}?.{Name};</c> with no <c>?? default</c>.</item>
+    ///   <item>A reference-typed field (<c>{Rule}Node</c>) stayed non-nullable, so it
+    ///         keeps <c>{Node} {Name} =&gt; Group{N}?.{Name} ?? default!;</c> from
+    ///         <see cref="ScalarShimBody"/>.</item>
+    /// </list>
+    /// The <c>*</c>/<c>+</c> and no-modifier shims are unchanged: the declared type is
+    /// the struct field type and the body comes from <see cref="ScalarShimBody"/>.
+    /// </summary>
+    private static (string TypeName, string Body) ScalarShimTypeAndBody(
+        string groupPropName,
+        string fieldName,
+        string fieldType,
+        GroupModifier modifier)
+    {
+        if(modifier == GroupModifier.Optional && fieldType == "Token")
+        {
+            return ("Token?", $"{groupPropName}?.{fieldName}");
+        }
+
+        return (fieldType, ScalarShimBody(groupPropName, fieldName, fieldType, modifier));
+    }
+
+    /// <summary>
     /// Builds the forwarding expression body (without the trailing semicolon) for a
     /// scalar shim, according to the group's modifier (Tasks 5.2, 5.4). A
     /// <c>*</c>/<c>+</c> group returns the last element's field (preserving the old
     /// last-wins semantics); a <c>?</c> group returns the field of the optional group
     /// or a default. A non-nullable node type defaults to <c>default!</c> to satisfy
-    /// nullable analysis; other types default to <c>default</c>.
+    /// nullable analysis; other types default to <c>default</c>. The value-typed
+    /// (<c>Token</c>) <c>?</c>-group case is intercepted earlier by
+    /// <see cref="ScalarShimTypeAndBody"/> (which emits a <c>Token?</c> shim without a
+    /// coalesce), so the Optional branch here is exercised only by reference-typed
+    /// (<c>{Rule}Node</c>) fields.
     /// </summary>
     private static string ScalarShimBody(string groupPropName, string fieldName, string fieldType, GroupModifier modifier)
     {

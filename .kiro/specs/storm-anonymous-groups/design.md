@@ -246,7 +246,10 @@ public ImmutableArray<MultiplicativeNode> Multiplicatives
 **Forwarding rules:**
 - Scalar shims on `*`/`+` groups: return from the last element (`Group0[^1].Field`) — preserves current last-wins semantics for unmigrated consumers.
 - List shims: project the relevant field from each element using LINQ `.Select(g => g.Field).ToImmutableArray()`.
-- Scalar shims on `?` groups: return `Group0?.Field ?? default`.
+- Scalar shims on `?` (Optional) groups: reproduce the pre-feature emitter's optional-field nullability exactly, split by field kind:
+  - Value-typed field (a `Token`, from a token reference or a pure-token alternation label): the old field was nullable, so the shim is `{Type}? {Name} => Group{N}?.{Name};` (no `?? default` -- the null-conditional access on the nullable group struct already yields `Token?`).
+  - Reference-typed field (`{Rule}Node`): the old field was non-nullable, so the shim stays `{Node} {Name} => Group{N}?.{Name} ?? default!;`.
+  - This mirrors `CollectProperties`' optional-field logic (the `exprsInsideOptional` branch): a `TokenRefIR`/`AlternationIR` label inside an optional becomes `Token?`, while a `RuleRefIR` label falls through to a non-nullable `{Rule}Node`. Emitting a non-nullable `Token` here breaks consumers that null-check the field (e.g. `x.Operator is not null`), producing CS0037/CS8518.
 
 ### 8. EmissionContext Extension
 

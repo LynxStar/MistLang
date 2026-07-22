@@ -24,7 +24,7 @@ public sealed class StormIncrementalGenerator : IIncrementalGenerator
     // resulting CS0618 warnings track the remaining work. Task 27 flips this single constant
     // to false to remove the shims, at which point any remaining old-API usage becomes a
     // hard compile error. This is a compile-time constant by design, not a build/analyzer option.
-    private const bool EmitObsoleteShims = true;
+    private const bool EmitObsoleteShims = false;
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {

@@ -79,6 +79,7 @@ public class Program
         FullAccessibilityModel.Program.RunDemo();
         Variadics.Program.RunDemo();
         RangesAndIndices.Program.RunDemo();
+        StormAnonymousGroups.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

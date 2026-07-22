@@ -69,3 +69,4 @@ Attributes = { path = "../Attributes" }
 FullAccessibilityModel = { path = "../FullAccessibilityModel" }
 Variadics = { path = "../Variadics" }
 RangesAndIndices = { path = "../RangesAndIndices" }
+StormAnonymousGroups = { path = "../StormAnonymousGroups" }

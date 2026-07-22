@@ -1728,4 +1728,10 @@ first=10,last=50
 middle=3:20
 startsWith10=true
 --- Ranges and Indices Done ---
+--- Storm Anonymous Groups ---
+x=8
+y=24
+z=10
+w=True
+--- Storm Anonymous Groups Done ---
 === Done! ===

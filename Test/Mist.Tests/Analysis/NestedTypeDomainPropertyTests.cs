@@ -94,11 +94,6 @@ public class NestedTypeDomainPropertyTests
             (d.Id.Value == "MIST_TC_0176" || d.Id.Value == "MIST_UNDEFINED_TYPE"));
     }
 
-    private static bool HasAnyError(ImmutableArray<Diagnostic> diagnostics)
-    {
-        return diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
-    }
-
     private static string MainClass()
     {
         return @"

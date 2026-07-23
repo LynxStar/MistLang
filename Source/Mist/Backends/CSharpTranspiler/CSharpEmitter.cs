@@ -149,6 +149,16 @@ public sealed class CSharpEmitter
             files["MistContext.g.cs"] = MistContextGenerator.GenerateMistContextFile();
         }
 
+        // Emit per-arity monomorphized definitions for variadic types/methods.
+        var variadicFiles = VariadicMonomorphizer.EmitMonomorphizedDefinitions(model, diagnostics);
+        foreach(var (path, content) in variadicFiles)
+        {
+            files[path] = content;
+        }
+
+        // Validate variadic constructions against CLR arity ceilings (Requirement 16).
+        VariadicMonomorphizer.ValidateArityCeiling(model, diagnostics);
+
         return files;
     }
 
@@ -419,6 +429,29 @@ internal sealed class CSharpSourceWriter
     /// e.g., TIn → int when emitting ITransform&lt;int, string&gt; instead of ITransform&lt;TIn, string&gt;.
     /// </summary>
     private Dictionary<string, string>? currentAbstractTypeParamSubs;
+
+    /// <summary>
+    /// Active pack-arity substitutions for a monomorphized variadic type/method being
+    /// emitted. Maps a pack type-parameter name (for example <c>"TArgs"</c>) to its concrete
+    /// arity N. When set, a size-agnostic expression-position pack operation such as
+    /// <c>PackName.Length</c> emits as the compile-time integer literal N
+    /// (task 27.4, Requirements 6.1, 6.2). Null outside a monomorphized emission context, in
+    /// which case pack expressions emit unchanged (the open-generic per-arity method bodies
+    /// are produced only via <see cref="EmitMonomorphizedMethodMembers"/>).
+    /// </summary>
+    private IReadOnlyDictionary<string, int>? currentPackArities;
+
+    /// <summary>
+    /// Lazily-computed map from a variadic method declaration node (a method whose
+    /// type-parameter list declares a pack, e.g. <c>Describe&lt;params TArgs&gt;</c>) to the
+    /// distinct per-arity pack-arity contexts observed at its call sites program-wide. Each
+    /// context maps a pack type-parameter name to its concrete arity at that call site
+    /// (for example <c>{ "TArgs": 3 }</c>, or <c>{ "A": 2, "B": 1 }</c> for a two-pack method).
+    /// Drives per-arity monomorphization of variadic method declarations (task 27.5): the
+    /// open-generic form is suppressed and one concrete C# method is emitted per context.
+    /// Null until first computed by <see cref="BuildVariadicMethodArityContexts"/>.
+    /// </summary>
+    private Dictionary<MethodDeclarationNode, List<Dictionary<string, int>>>? variadicMethodArityContexts;
 
     /// <summary>
     /// Tracks linear variables that have a conditional move in an if/else statement.
@@ -1404,11 +1437,12 @@ internal sealed class CSharpSourceWriter
             ScanLogicalOrForValueReturningCalls(rightOperand, voidMethodNames, isValueContext);
         }
 
-        if(assignment.Value is not null)
+        var assignedValue = assignment.Group0?.Value;
+        if(assignedValue is not null)
         {
             // The RHS of an assignment is always in a value context. It is now a full
             // ExpressionNode (widened to reach lambdas), so scan via the expression entry.
-            ScanExpressionForValueReturningCalls(assignment.Value, voidMethodNames);
+            ScanExpressionForValueReturningCalls(assignedValue, voidMethodNames);
         }
     }
 
@@ -1433,9 +1467,9 @@ internal sealed class CSharpSourceWriter
     private void ScanEqualityForValueReturningCalls(EqualityNode node, HashSet<string> voidMethodNames, bool isValueContext)
     {
         ScanRelationalForValueReturningCalls(node.Left, voidMethodNames, isValueContext);
-        if(node.Right is not null && !ReferenceEquals(node.Right, node.Left))
+        foreach(var group in node.Group0)
         {
-            ScanRelationalForValueReturningCalls(node.Right, voidMethodNames, isValueContext);
+            ScanRelationalForValueReturningCalls(group.Right, voidMethodNames, isValueContext);
         }
     }
 
@@ -1445,9 +1479,9 @@ internal sealed class CSharpSourceWriter
         {
             case RelationalComparisonRelationalNode cmp:
                 ScanAdditiveForValueReturningCalls(cmp.Left, voidMethodNames, isValueContext);
-                if(cmp.Right is not null && !ReferenceEquals(cmp.Right, cmp.Left))
+                foreach(var group in cmp.Group0)
                 {
-                    ScanAdditiveForValueReturningCalls(cmp.Right, voidMethodNames, isValueContext);
+                    ScanAdditiveForValueReturningCalls(group.Right, voidMethodNames, isValueContext);
                 }
 
                 break;
@@ -1467,18 +1501,28 @@ internal sealed class CSharpSourceWriter
     private void ScanAdditiveForValueReturningCalls(AdditiveNode node, HashSet<string> voidMethodNames, bool isValueContext)
     {
         ScanMultiplicativeForValueReturningCalls(node.Left, voidMethodNames, isValueContext);
-        if(node.Right is not null && !ReferenceEquals(node.Right, node.Left))
+        foreach(var group in node.Group0)
         {
-            ScanMultiplicativeForValueReturningCalls(node.Right, voidMethodNames, isValueContext);
+            ScanMultiplicativeForValueReturningCalls(group.Right, voidMethodNames, isValueContext);
         }
     }
 
     private void ScanMultiplicativeForValueReturningCalls(MultiplicativeNode node, HashSet<string> voidMethodNames, bool isValueContext)
     {
-        ScanUnaryForValueReturningCalls(node.Left, voidMethodNames, isValueContext);
-        if(node.Right is not null && !ReferenceEquals(node.Right, node.Left))
+        // Scan the pass-through (NonRange) operand's inner unary. A genuine range
+        // expression contains no value-returning calls in existing code paths; range
+        // scanning is a later range task.
+        if(node.Left.UnwrapRange() is { } left)
         {
-            ScanUnaryForValueReturningCalls(node.Right, voidMethodNames, isValueContext);
+            ScanUnaryForValueReturningCalls(left, voidMethodNames, isValueContext);
+        }
+
+        foreach(var group in node.Group0)
+        {
+            if(group.Right.UnwrapRange() is { } right)
+            {
+                ScanUnaryForValueReturningCalls(right, voidMethodNames, isValueContext);
+            }
         }
     }
 
@@ -2854,6 +2898,40 @@ internal sealed class CSharpSourceWriter
         return false;
     }
 
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="declaredType"/> is a variadic type —
+    /// its type-parameter list contains a pack (declared <c>params TArgs</c> or
+    /// <c>Type[]:TArgs</c> / <c>Type[N]:TArgs</c>). Variadic types are never emitted in
+    /// their open-generic form because a pack cannot be expressed as a single legal C#
+    /// type parameter; instead <see cref="VariadicMonomorphizer"/> emits one concrete
+    /// C# definition per observed arity (Requirements 15.1, 16.5, 22.1).
+    /// </summary>
+    private static bool IsVariadicTypeDefinition(IType? declaredType)
+    {
+        var typeParameters = declaredType switch
+        {
+            ClassType ct => ct.TypeParameters,
+            StructType st => st.TypeParameters,
+            AbstractType at => at.TypeParameters,
+            _ => null,
+        };
+
+        if(typeParameters is null)
+        {
+            return false;
+        }
+
+        foreach(var typeParameter in typeParameters)
+        {
+            if(typeParameter is TypeParameterType { IsPack: true })
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private void EmitClassDeclaration(TypeBodyDeclarationNode classDecl)
     {
         // Check if this is a Backend symbol — skip if so.
@@ -2869,6 +2947,16 @@ internal sealed class CSharpSourceWriter
         // Pure-Mist stdlib types like Optional<T> are NOT backend-backed
         // and must be emitted normally.
         if(symbol?.DeclaredType is ClassType ct && ct.IsBackendBacked)
+        {
+            return;
+        }
+
+        // Suppress the open-generic form of a variadic class. A variadic type's pack
+        // type parameter (`params TArgs`) cannot be emitted as a legal C# `<TArgs>`
+        // parameter; instead VariadicMonomorphizer emits one concrete C# class per
+        // observed arity (Bundle<T1, T2, T3>, ...), which are the sole definitions of
+        // the type (Requirements 15.1, 16.5, 22.1).
+        if(IsVariadicTypeDefinition(symbol?.DeclaredType))
         {
             return;
         }
@@ -3259,6 +3347,16 @@ internal sealed class CSharpSourceWriter
         if(abstractSymbol2?.DeclaredType is AbstractType abstractType
             && abstractType.ContainingNamespace == "Standard"
             && CSharpTypeMap.TryGetMappedName($"Standard.{abstractType.DisplayName}") is not null)
+        {
+            return;
+        }
+
+        // Suppress the open-generic form of a variadic abstract type. Its pack type
+        // parameter cannot be emitted as a legal C# `<TArgs>` parameter; instead
+        // VariadicMonomorphizer emits one concrete C# interface per observed arity
+        // (ICountable<T1, T2, T3>, ...), which are the sole definitions of the type
+        // (Requirements 15.1, 16.5, 22.1).
+        if(IsVariadicTypeDefinition(abstractSymbol2?.DeclaredType))
         {
             return;
         }
@@ -4065,6 +4163,15 @@ internal sealed class CSharpSourceWriter
             && voidSt.ContainingNamespace == "Standard")
         {
             NeedsMistVoidStruct = true;
+            return;
+        }
+
+        // Suppress the open-generic form of a variadic struct. Its pack type parameter
+        // cannot be emitted as a legal C# `<TShapes>` parameter; VariadicMonomorphizer
+        // emits one concrete C# struct per observed arity (ShapePair<T1, T2>, ...),
+        // which are the sole definitions of the type (Requirements 15.1, 16.5, 22.1).
+        if(IsVariadicTypeDefinition(symbol?.DeclaredType))
+        {
             return;
         }
 
@@ -5377,7 +5484,8 @@ internal sealed class CSharpSourceWriter
             }
 
             // Check if this is a simple assignment (has a Value part).
-            if(assignment.Value is null)
+            var assignedValue = assignment.Group0?.Value;
+            if(assignedValue is null)
             {
                 continue;
             }
@@ -5392,7 +5500,7 @@ internal sealed class CSharpSourceWriter
             // The value should be a simple identifier matching a parameter name.
             // The RHS is now a full ExpressionNode; only the assignment form can be a
             // simple identifier reference.
-            if(assignment.Value.AsAssignmentOrNull() is not { } valueAssignment)
+            if(assignedValue.AsAssignmentOrNull() is not { } valueAssignment)
             {
                 continue;
             }
@@ -5496,7 +5604,7 @@ internal sealed class CSharpSourceWriter
         }
 
         var equality = logicalAnd.Left;
-        if(equality.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -5507,24 +5615,24 @@ internal sealed class CSharpSourceWriter
             return null;
         }
 
-        if(cmp.Right is not null && !ReferenceEquals(cmp.Right, cmp.Left))
+        if(!cmp.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var additive = cmp.Left;
-        if(additive.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive.Left;
-        if(multiplicative.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        if(!multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
-        var unary = multiplicative.Left;
+        var unary = multiplicative.Left.UnwrapRange();
         if(unary is not PostfixExpressionUnaryNode postfixUnary)
         {
             return null;
@@ -5547,10 +5655,47 @@ internal sealed class CSharpSourceWriter
 
     private void EmitMethodDeclaration(MethodDeclarationNode methodDecl)
     {
+        // Task 27.5 — per-arity monomorphization of a variadic method. A method whose
+        // type-parameter list declares a pack (e.g. `Describe<params TArgs>`) cannot be
+        // emitted in its open-generic form because a pack is not a legal single C# type
+        // parameter. Instead the open-generic form is suppressed and one concrete C# method
+        // is emitted per observed call-site arity: the pack type parameter expands to
+        // positional T1..TN, the value-pack parameter emits as System.ValueTuple<...>
+        // (task 27.8), and the body is substituted at the concrete arity (size-agnostic pack
+        // operations such as `TArgs.Length` lower to the integer literal N, task 27.4). The
+        // `currentPackArities is null` guard prevents re-entry when this method recurses to
+        // emit each monomorphized instance (Requirements 12.1, 12.2, 12.3, 14.1, 14.2).
+        var variadicSymbol = model.GetDeclaredSymbol(methodDecl) as Symbol;
+        if(currentPackArities is null && IsVariadicMethodDeclaration(variadicSymbol))
+        {
+            var contexts = GetVariadicMethodArityContexts(methodDecl);
+            var emittedAnyArity = false;
+            foreach(var context in contexts)
+            {
+                if(emittedAnyArity)
+                {
+                    AppendLine();
+                }
+
+                emittedAnyArity = true;
+                currentPackArities = context;
+                EmitMethodDeclaration(methodDecl);
+            }
+
+            currentPackArities = null;
+            return;
+        }
+
         EmitAttributeLists(methodDecl.Attributes);
         var modifiers = EmitModifiers(methodDecl.Modifiers);
         var name = methodDecl.Name.Lexeme;
-        var typeParams = EmitTypeParameterList(methodDecl.TypeParams);
+
+        // When emitting a monomorphized variadic method instance (currentPackArities set),
+        // expand the pack type parameter(s) into positional T1..TN; otherwise emit the
+        // declared type-parameter list unchanged.
+        var typeParams = currentPackArities is not null && variadicSymbol is not null
+            ? EmitMonomorphizedMethodTypeParameterList(variadicSymbol)
+            : EmitTypeParameterList(methodDecl.TypeParams);
 
         // ── Implicit override detection for CLR base class virtual/abstract methods ──
         // When a Mist class inherits from a CLR base and defines a method with the same
@@ -6590,7 +6735,14 @@ internal sealed class CSharpSourceWriter
                 && !SourceContainsDependentTypeArguments(sourceText)
                 && !ContainsReadonlyKeyword(sourceText)
                 && !ContainsOwnershipKeyword(sourceText)
-                && !ContainsOptionalSuffix(sourceText))
+                && !ContainsOptionalSuffix(sourceText)
+                && !ParameterListContainsValuePack(paramList)
+                // Task 27.11 — under an active monomorphization context, a parameter type may
+                // contain a pack spread (for example `Func<TArgs..., TResult>`). The verbatim
+                // `...` is invalid C#; bypass the source-text fast path so the parameter routes
+                // through EmitTypeReference, which expands the spread to the concrete positional
+                // type parameters.
+                && !(currentPackArities is not null && sourceText.Contains("...")))
             {
                 return sourceText;
             }
@@ -7285,15 +7437,100 @@ internal sealed class CSharpSourceWriter
         var symbol = model.GetDeclaredSymbol(param) as Symbol;
         if(symbol is not null)
         {
+            // Value_Pack parameter (task 27.8, Requirements 7.1, 7.4): a `params TArgs values`
+            // parameter carries the Flattened_Call_Convention and its declared type is the
+            // single-slot value-pack tuple `(TArgs...)`. It MUST NOT emit as the invalid C#
+            // `params TArgs`; under monomorphization the pack expands to a concrete arity N, so
+            // the parameter is emitted as a `System.ValueTuple<T1..TN>` value (the flat argument
+            // list is packed into that tuple at the call site). This is distinct from a
+            // Value_Level_Params `params T[]`, whose declared type is a real ArrayType and which
+            // stays a C# `params` array (task 19.2, handled just below).
+            if(symbol.HasFlattenedCallConvention
+                && currentPackArities is not null
+                && TryGetValuePackName(symbol.DeclaredType, out var valuePackName)
+                && currentPackArities.TryGetValue(valuePackName, out var valuePackArity))
+            {
+                var valueTupleType = VariadicMonomorphizer.BuildValueTupleTypeName(valuePackArity);
+                return $"{attrPrefix}{valueTupleType} {name}";
+            }
+
+            // Emit params prefix for value-level params T[] (Requirement 13.6).
+            var paramsPrefix = symbol.HasFlattenedCallConvention && symbol.DeclaredType is ArrayType
+                ? "params "
+                : "";
+
             return symbol.RefKind switch
             {
                 RefKind.Ref => $"{attrPrefix}ref {type} {name}",
                 RefKind.RefReadonly => $"{attrPrefix}ref readonly {type} {name}",
-                _ => $"{attrPrefix}{type} {name}",
+                _ => $"{attrPrefix}{paramsPrefix}{type} {name}",
             };
         }
 
         return $"{attrPrefix}{type} {name}";
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="declaredType"/> is the single-slot value-pack
+    /// tuple <c>(TArgs...)</c> produced for a <c>params TArgs values</c> value parameter -- a
+    /// <see cref="TupleType"/> whose sole element is a pack type parameter
+    /// (<see cref="TypeParameterType.IsPack"/>). Outputs the pack's name so a monomorphized
+    /// emission can resolve its concrete arity from <see cref="currentPackArities"/> and build
+    /// the corresponding <c>System.ValueTuple&lt;T1..TN&gt;</c> parameter type (task 27.8).
+    /// Returns <c>false</c> for a Value_Level_Params (<c>params T[]</c>, an
+    /// <see cref="ArrayType"/>, which stays a C# <c>params</c> array) and for an ordinary tuple
+    /// parameter.
+    /// </summary>
+    private static bool TryGetValuePackName(IType? declaredType, out string packName)
+    {
+        if(declaredType is TupleType { ElementTypes: { Count: 1 } elementTypes }
+            && elementTypes[0] is TypeParameterType { IsPack: true } pack)
+        {
+            packName = pack.Name;
+            return true;
+        }
+
+        packName = "";
+        return false;
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when the parameter node is a Value_Pack parameter
+    /// (<c>params TArgs values</c>): its symbol carries the Flattened_Call_Convention and its
+    /// declared type is the single-slot value-pack tuple <c>(TArgs...)</c>. Used by
+    /// <see cref="EmitParameterList"/> to bypass the raw source-text fast path, because the
+    /// source spelling <c>params TArgs</c> is invalid C# and must be rewritten to a
+    /// <c>System.ValueTuple&lt;...&gt;</c> parameter by <see cref="EmitParameter"/> (task 27.8).
+    /// A Value_Level_Params (<c>params T[]</c>) is deliberately excluded: its source spelling is
+    /// already valid C# and the fast path may copy it verbatim.
+    /// </summary>
+    private bool IsValuePackParameter(ParameterNode param)
+    {
+        return model.GetDeclaredSymbol(param) is Symbol { HasFlattenedCallConvention: true } symbol
+            && TryGetValuePackName(symbol.DeclaredType, out _);
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when any parameter in <paramref name="paramList"/> is a Value_Pack
+    /// parameter (see <see cref="IsValuePackParameter"/>). When true,
+    /// <see cref="EmitParameterList"/> must not use the raw source-text fast path.
+    /// </summary>
+    private bool ParameterListContainsValuePack(ParameterListNode paramList)
+    {
+        if(IsValuePackParameter(paramList.Parameter))
+        {
+            return true;
+        }
+
+        foreach(var param in paramList.Parameters)
+        {
+            if(IsValuePackParameter(param))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private string EmitArgumentList(ArgumentListNode? argList, Symbol? calledMethod = null)
@@ -7330,6 +7567,45 @@ internal sealed class CSharpSourceWriter
         foreach(var expr in argList.GetAllExpressions())
         {
             argExprs.Add(expr);
+        }
+
+        // Task 27.3 — value-side spread expansion. A spread `operand...` in argument position
+        // must expand into concrete positional ValueTuple element accesses
+        // (`operand.Item1 .. operand.ItemN`); the verbatim `...` is never valid C#. Any argument
+        // list containing a resolvable spread therefore bypasses the source-text fast path (which
+        // would copy the `...` verbatim) and emits every argument individually, splicing the
+        // spread's N element accesses into the flat call site in order (Requirements 7.5, 8.2,
+        // 8.3, 12.3). An empty pack contributes zero arguments.
+        var spreadExpansions = new List<string>?[argExprs.Count];
+        var hasSpread = false;
+        for(var i = 0; i < argExprs.Count; i++)
+        {
+            if(TryExpandValueSideSpread(argExprs[i], out var expansion))
+            {
+                spreadExpansions[i] = expansion;
+                hasSpread = true;
+            }
+        }
+
+        if(hasSpread)
+        {
+            var emitted = new List<string>();
+            for(var i = 0; i < argExprs.Count; i++)
+            {
+                if(spreadExpansions[i] is { } expansion)
+                {
+                    emitted.AddRange(expansion);
+                    continue;
+                }
+
+                var emittedArg = EmitExpression(argExprs[i]);
+                emittedArg = WrapWithImplicitCastIfNeeded(argExprs[i], emittedArg);
+                emittedArg = WrapWithImplicitCloneIfNeeded(argExprs[i], emittedArg);
+                emittedArg = WrapWithDelegateConstructorIfNeeded(argExprs[i], emittedArg, i, calledMethod);
+                emitted.Add(emittedArg);
+            }
+
+            return string.Join(", ", emitted);
         }
 
         // Check if any argument has a resolved implicit or explicit cast operator.
@@ -7455,6 +7731,176 @@ internal sealed class CSharpSourceWriter
 
             return string.Join(", ", emitted);
         }
+    }
+
+    /// <summary>
+    /// Task 27.3 -- attempts to expand a value-side spread argument <c>operand...</c> into its
+    /// concrete positional ValueTuple element accesses. When <paramref name="argExpr"/> is a
+    /// spread (a simple postfix whose trailing suffix is <c>...</c>) whose operand is a
+    /// ValueTuple-typed value -- a monomorphized value pack <c>(TArgs...)</c>, a
+    /// spread-generated aggregate member, or a concrete tuple -- sets
+    /// <paramref name="expanded"/> to one emitted argument per element, each reading the
+    /// corresponding element via the ValueTuple accessor sequence
+    /// (<c>Item1..Item7</c>, then <c>Rest.Item1..</c>), and returns <c>true</c>. An empty pack
+    /// expands to zero arguments. Returns <c>false</c> when the expression is not a spread or
+    /// the operand's arity cannot be recovered from the semantic model (for example a symbolic
+    /// pack outside a monomorphized context), leaving the caller to emit the argument unchanged.
+    /// </summary>
+    private bool TryExpandValueSideSpread(ExpressionNode argExpr, out List<string> expanded)
+    {
+        expanded = null!;
+
+        var postfix = TryExtractPostfixNode(argExpr);
+        if(postfix is null
+            || postfix.Suffix.Length == 0
+            || postfix.Suffix[^1] is not SpreadSuffixPostfixSuffixNode)
+        {
+            return false;
+        }
+
+        // The operand type is the type of everything up to (but not including) the trailing
+        // spread suffix: the primary target when `...` is the only suffix, otherwise the type
+        // of the suffix immediately preceding the spread.
+        var operandType = postfix.Suffix.Length == 1
+            ? model.GetTypeOf(postfix.Target)
+            : model.GetTypeOf(postfix.Suffix[^2]);
+
+        var arity = ResolveValueSpreadArity(operandType);
+        if(arity is null)
+        {
+            return false;
+        }
+
+        var operandText = EmitSpreadOperand(postfix);
+        expanded = new List<string>(arity.Value);
+        for(var i = 0; i < arity.Value; i++)
+        {
+            expanded.Add($"{operandText}.{VariadicMonomorphizer.GetValueTupleAccessor(i)}");
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Resolves the number of positional arguments a value-side spread produces from its
+    /// operand type (task 27.3). A value-pack tuple <c>(TArgs...)</c> resolves its arity from
+    /// the active monomorphization context (<see cref="currentPackArities"/>), because its
+    /// element count is always 1 (the symbolic pack element); any other tuple value resolves to
+    /// its element count (general tuple decomposition). Returns <c>null</c> when the operand is
+    /// not a tuple, or is a symbolic value pack with no bound arity, in which case the spread
+    /// cannot be expanded here.
+    /// </summary>
+    private int? ResolveValueSpreadArity(IType? operandType)
+    {
+        if(operandType is null)
+        {
+            return null;
+        }
+
+        // Value-pack tuple (TArgs...): a single-slot tuple whose sole element is the pack. Its
+        // spread width is the pack's bound length from the monomorphization context, NOT its
+        // element count (which is always 1). Must be checked before the general tuple case.
+        if(TryGetValuePackName(operandType, out var packName))
+        {
+            if(currentPackArities is not null && currentPackArities.TryGetValue(packName, out var packArity))
+            {
+                return packArity;
+            }
+
+            return null;
+        }
+
+        // Any other tuple value: the spread width is the tuple's element count.
+        if(operandType is TupleType tuple)
+        {
+            return tuple.ElementTypes.Count;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Emits the operand of a value-side spread postfix (task 27.3): the primary target plus
+    /// every suffix except the trailing spread operator. For the common cases <c>args...</c>,
+    /// <c>Item...</c>, and <c>triple...</c> this is just the identifier; a qualified operand
+    /// such as <c>x.y...</c> emits its full member-access chain.
+    /// </summary>
+    private string EmitSpreadOperand(PostfixNode postfix)
+    {
+        var result = EmitPrimary(postfix.Target);
+        var receiverType = model.GetTypeOf(postfix.Target);
+        for(var i = 0; i < postfix.Suffix.Length - 1; i++)
+        {
+            var suffixPrimaryTarget = i == 0 ? postfix.Target : null;
+            result = EmitPostfixSuffix(result, postfix.Suffix[i], receiverType, suffixPrimaryTarget);
+            receiverType = model.GetTypeOf(postfix.Suffix[i]);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Unwraps <paramref name="expr"/> to its sole <see cref="PostfixNode"/> when the
+    /// expression is a simple postfix chain -- no binary operators, no assignment value, and
+    /// not the lambda form -- returning <c>null</c> otherwise. Mirrors the type checker's
+    /// extractor so the backend identifies a value-side spread operand exactly as the checker
+    /// validated it.
+    /// </summary>
+    private static PostfixNode? TryExtractPostfixNode(ExpressionNode expr)
+    {
+        var assignment = expr.AsAssignmentOrNull();
+        if(assignment is null || assignment.Group0?.Value is not null)
+        {
+            return null;
+        }
+
+        var logicalOr = assignment.Target?.Left;
+        if(logicalOr?.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
+        {
+            return null;
+        }
+
+        var logicalAnd = logicalOr?.Left;
+        if(logicalAnd?.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
+        {
+            return null;
+        }
+
+        var equality = logicalAnd?.Left;
+        if(equality is not null && !equality.Group0.IsDefaultOrEmpty)
+        {
+            return null;
+        }
+
+        if(equality?.Left is not RelationalComparisonRelationalNode relCmp)
+        {
+            return null;
+        }
+
+        if(!relCmp.Group0.IsDefaultOrEmpty)
+        {
+            return null;
+        }
+
+        var additive = relCmp.Left;
+        if(!additive.Group0.IsDefaultOrEmpty)
+        {
+            return null;
+        }
+
+        var multiplicative = additive.Left;
+        if(!multiplicative.Group0.IsDefaultOrEmpty)
+        {
+            return null;
+        }
+
+        var unary = multiplicative?.Left.UnwrapRange();
+        if(unary is not PostfixExpressionUnaryNode postfixUnary)
+        {
+            return null;
+        }
+
+        return postfixUnary.Primary;
     }
 
     /// <summary>
@@ -7687,8 +8133,89 @@ internal sealed class CSharpSourceWriter
         };
     }
 
+    /// <summary>
+    /// Task 27.11 — when <paramref name="typeRef"/> is a <c>Func</c> or <c>Action</c> delegate
+    /// type reference whose type-argument list contains a spread of a pack bound in the active
+    /// monomorphization context (<see cref="currentPackArities"/>), emits the equivalent
+    /// <c>System.Func</c> / <c>System.Action</c> with the pack spread expanded into its concrete
+    /// positional type parameters (<c>T1..TN</c>) and returns <c>true</c>. Non-spread type
+    /// arguments (for example the delegate's <c>TResult</c>) are emitted through the standard
+    /// type-argument machinery. Returns <c>false</c> for any other type reference (including a
+    /// delegate with no pack spread), leaving the caller to emit it normally. The fully-qualified
+    /// <c>System.</c> prefix is used so the emitted variadic file needs no extra <c>using</c>.
+    /// </summary>
+    private bool TryEmitPackSpreadDelegateType(TypeReferenceNode typeRef, out string emitted)
+    {
+        emitted = "";
+
+        if(typeRef.SingleTypeRefs.Length > 0
+            || typeRef.First is not NamedSingleTypeRefSingleTypeRefNode namedRef
+            || namedRef.TypeArgs is null
+            || currentPackArities is null)
+        {
+            return false;
+        }
+
+        var qualified = ExtractQualifiedName(namedRef.Name);
+        var simpleName = qualified.Contains('.')
+            ? qualified[(qualified.LastIndexOf('.') + 1)..]
+            : qualified;
+        if(simpleName is not ("Func" or "Action"))
+        {
+            return false;
+        }
+
+        var argNodes = new List<TypeArgumentNode> { namedRef.TypeArgs.TypeArgument };
+        argNodes.AddRange(namedRef.TypeArgs.TypeArguments);
+
+        var expandedArgs = new List<string>();
+        var sawSpread = false;
+        foreach(var arg in argNodes)
+        {
+            if(arg is TypeReferenceTypeArgumentTypeArgumentNode typeRefArg
+                && typeRefArg.Type.SingleTypeRefs.Length == 0
+                && typeRefArg.Type.First is SpreadSingleTypeRefSingleTypeRefNode spread
+                && currentPackArities.TryGetValue(spread.Name.IDENTIFIER.Lexeme, out var packArity))
+            {
+                for(var i = 0; i < packArity; i++)
+                {
+                    expandedArgs.Add($"T{i + 1}");
+                }
+
+                sawSpread = true;
+            }
+            else
+            {
+                expandedArgs.Add(EmitSingleTypeArgument(arg));
+            }
+        }
+
+        if(!sawSpread)
+        {
+            return false;
+        }
+
+        var delegateName = simpleName == "Action" ? "System.Action" : "System.Func";
+        emitted = expandedArgs.Count > 0
+            ? $"{delegateName}<{string.Join(", ", expandedArgs)}>"
+            : delegateName;
+        return true;
+    }
+
     private string EmitTypeReference(TypeReferenceNode typeRef, bool isValueContext = false)
     {
+        // Task 27.11 — expand a variadic pack spread inside a delegate type reference
+        // (`Func<TArgs..., TResult>` / `Action<TArgs...>`) while emitting under an active
+        // monomorphization context. The pack spread must expand to the concrete positional
+        // type parameters (T1..TN); the semantic model leaves it unexpanded — copied verbatim
+        // as `TArgs...` or collapsed to a single `object` argument — neither of which is valid
+        // C#. Only fires when a pack in the active context actually appears as a spread arg.
+        if(currentPackArities is not null
+            && TryEmitPackSpreadDelegateType(typeRef, out var packSpreadDelegate))
+        {
+            return packSpreadDelegate;
+        }
+
         // Union handling (non-empty PIPE-separated continuation list). Must run
         // before the switch because `typeRef.First` is never itself a union.
         if(typeRef.SingleTypeRefs.Length > 0)
@@ -8239,6 +8766,29 @@ internal sealed class CSharpSourceWriter
     /// so dropping them produces the correct C# with no loss of
     /// information.
     /// </summary>
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="tuple"/> is a value-pack tuple
+    /// <c>(TArgs...)</c> — a tuple whose element types include an unexpanded
+    /// type-parameter pack. Such a tuple monomorphizes to a <em>generic</em>
+    /// <c>System.ValueTuple&lt;T1..TN&gt;</c>, so an <c>is</c>-narrowing to a
+    /// concrete tuple shape must use the generic <c>System.ValueTuple&lt;...&gt;</c>
+    /// type-pattern form (which binds the narrowed local to the concrete shape)
+    /// rather than the C# tuple-deconstruction form (which binds to the
+    /// scrutinee's own generic type). See <see cref="EmitPrimaryPattern"/>.
+    /// </summary>
+    private static bool TupleContainsPack(TupleType tuple)
+    {
+        foreach(var element in tuple.ElementTypes)
+        {
+            if(element is TypeParameterType { IsPack: true })
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private string EmitTupleTypePatternType(TupleSingleTypeRefSingleTypeRefNode tupleRef)
     {
         var parts = new List<string>
@@ -9252,10 +9802,10 @@ internal sealed class CSharpSourceWriter
         }
 
         // Also check if this is an assignment `target = source` where source is the variable.
-        if(node is AssignmentNode assignment && assignment.Value is not null)
+        if(node is AssignmentNode assignment && assignment.Group0?.Value is { } assignmentValue)
         {
             // `target = source` — the source (rhs) is a move if it names the variable.
-            if(assignment.Value.AsAssignmentOrNull() is { } rhs && rhs.Value is null)
+            if(assignmentValue.AsAssignmentOrNull() is { } rhs && rhs.Group0?.Value is null)
             {
                 var name = ResolveToIdentifierName(rhs.Target);
                 if(name == localName)
@@ -9674,11 +10224,14 @@ internal sealed class CSharpSourceWriter
 
     private bool ExpressionContainsAnonymousTypeEquality(Storm.Runtime.SyntaxNode node)
     {
-        if(node is EqualityNode equality && equality.Right is not null
-            && !ReferenceEquals(equality.Right, equality.Left))
+        if(node is EqualityNode equality && !equality.Group0.IsDefaultOrEmpty)
         {
+            // Only the first comparison can pair two anonymous operands; any later step
+            // compares against the bool result of the preceding comparison. This mirrors
+            // EmitEquality, which emits object.Equals only for that first pair.
+            var firstRight = equality.Group0[0].Right;
             var lhsType = model.GetTypeOf(equality.Left);
-            var rhsType = model.GetTypeOf(equality.Right);
+            var rhsType = model.GetTypeOf(firstRight);
             if(lhsType is AnonymousType && rhsType is AnonymousType)
             {
                 return true;
@@ -9818,7 +10371,7 @@ internal sealed class CSharpSourceWriter
                     : null;
 
             case AssignmentNode assignment:
-                return assignment.Value is not null
+                return assignment.Group0?.Value is not null
                     ? null
                     : ResolveToIdentifierName(assignment.Target);
 
@@ -11066,7 +11619,10 @@ internal sealed class CSharpSourceWriter
     {
         var target = EmitVoidCoalescing(assignment.Target);
 
-        if(assignment.Value is not null)
+        // The optional assignment operator+value project as the nullable Group0 struct;
+        // a present Group0 always carries a value, so Group0?.Value is the migrated read.
+        var assignedValue = assignment.Group0?.Value;
+        if(assignedValue is not null)
         {
             // Task 14.2: When the assignment target type is a two-constituent T | void union,
             // emit Void.Void as null instead of MistVoid.Instance.
@@ -11077,16 +11633,16 @@ internal sealed class CSharpSourceWriter
                 emitVoidAsNull = true;
             }
 
-            var value = EmitExpression(assignment.Value);
+            var value = EmitExpression(assignedValue);
             emitVoidAsNull = previousVoidAsNull;
 
             value = WrapWithImplicitCastIfNeeded(assignment, value);
             // Task 12.1 — emit .Clone() at resolver-marked implicit-clone sites (Req 14 AC 7).
-            value = WrapWithImplicitCloneIfNeeded(assignment.Value, value);
+            value = WrapWithImplicitCloneIfNeeded(assignedValue, value);
             // Task 31.1 — covariant unknown widening at the assignment
             // site against the target's static type.
             var targetType = model.GetTypeOf(assignment.Target);
-            var valueType = model.GetTypeOf(assignment.Value);
+            var valueType = model.GetTypeOf(assignedValue);
             var widened = TryEmitCovariantUnknownCast(valueType, targetType, value);
             if(widened is not null)
             {
@@ -11114,13 +11670,15 @@ internal sealed class CSharpSourceWriter
             return false;
         }
 
-        // Check if this is a ??= assignment by inspecting the operator token.
-        if(assignment.Operator is not { } op || op.Kind != (int)TokenKind.QUESTION_QUESTION_EQUAL)
+        // Check if this is a ??= assignment by inspecting the operator token. The
+        // optional operator+value project as the nullable Group0 struct.
+        if(assignment.Group0 is not { } group || group.Operator.Kind != (int)TokenKind.QUESTION_QUESTION_EQUAL)
         {
             return false;
         }
 
-        if(assignment.Value is null)
+        var assignedValue = group.Value;
+        if(assignedValue is null)
         {
             return false;
         }
@@ -11130,7 +11688,7 @@ internal sealed class CSharpSourceWriter
 
         // Emit the value expression. The RHS is now a full ExpressionNode (widened to
         // reach lambdas); route through the expression-level entry point.
-        var value = EmitExpression(assignment.Value);
+        var value = EmitExpression(assignedValue);
         value = WrapWithImplicitCastIfNeeded(assignment, value);
 
         // Generate: x ??= value;
@@ -11170,56 +11728,64 @@ internal sealed class CSharpSourceWriter
 
     private string EmitLogicalOr(LogicalOrNode logicalOr)
     {
-        var left = EmitLogicalAnd(logicalOr.Left);
-
-        if(logicalOr.Right is null || ReferenceEquals(logicalOr.Right, logicalOr.Left))
-        {
-            return left;
-        }
-
-        var right = EmitLogicalAnd(logicalOr.Right);
-        return EmitBinaryOperator(logicalOr, "||", left, right);
+        return EmitBinaryChain(
+            logicalOr,
+            logicalOr.Left,
+            "||",
+            logicalOr.LogicalAnds,
+            logicalOr.Right,
+            EmitLogicalAnd);
     }
 
     private string EmitLogicalAnd(LogicalAndNode logicalAnd)
     {
-        var left = EmitEquality(logicalAnd.Left);
-
-        if(logicalAnd.Right is null || ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
-        {
-            return left;
-        }
-
-        var right = EmitEquality(logicalAnd.Right);
-        return EmitBinaryOperator(logicalAnd, "&&", left, right);
+        return EmitBinaryChain(
+            logicalAnd,
+            logicalAnd.Left,
+            "&&",
+            logicalAnd.Equalitys,
+            logicalAnd.Right,
+            EmitEquality);
     }
 
     private string EmitEquality(EqualityNode equality)
     {
-        var left = EmitRelational(equality.Left);
+        var result = EmitRelational(equality.Left);
 
-        if(equality.Right is null || ReferenceEquals(equality.Right, equality.Left))
+        // Each Group0 element carries its OWN operator token, so a mixed chain such as
+        // `a == b != c` keeps every operator instead of collapsing to the last one (the
+        // former last-wins shim behaviour). An empty Group0 means the node is a
+        // pass-through to the left relational with no comparison applied.
+        var isFirstPair = true;
+        foreach(var group in equality.Group0)
         {
-            return left;
+            var op = group.Operator.Lexeme;
+            var operandNode = group.Right;
+            var right = EmitRelational(operandNode);
+
+            // ── anonymous-types feature: structural equality (Requirement 9.2) ──
+            // C# anonymous types override Equals/GetHashCode but not operator==.
+            // Emit object.Equals(left, right) to get structural comparison. Only the
+            // first (direct) comparison can involve two anonymous operands; any later
+            // step compares against the bool result of the preceding comparison.
+            if(isFirstPair)
+            {
+                var lhsType = model.GetTypeOf(equality.Left);
+                var rhsType = model.GetTypeOf(operandNode);
+                if(lhsType is AnonymousType && rhsType is AnonymousType)
+                {
+                    var equalsCall = $"object.Equals({result}, {right})";
+                    result = op == "!=" ? $"!{equalsCall}" : equalsCall;
+                    isFirstPair = false;
+                    continue;
+                }
+            }
+
+            result = EmitBinaryOperator(equality, op, result, right);
+            isFirstPair = false;
         }
 
-        var op = equality.Operator.Lexeme;
-        var right = EmitRelational(equality.Right);
-
-        // ── anonymous-types feature: structural equality (Requirement 9.2) ──
-        // C# anonymous types override Equals/GetHashCode but not operator==.
-        // Emit object.Equals(left, right) to get structural comparison.
-        // The type checker sets the EqualityNode's type to bool when both operands
-        // are same-shape AnonymousType. Check operand types via the model.
-        var lhsType = model.GetTypeOf(equality.Left);
-        var rhsType = model.GetTypeOf(equality.Right);
-        if(lhsType is AnonymousType && rhsType is AnonymousType)
-        {
-            var equalsCall = $"object.Equals({left}, {right})";
-            return op == "!=" ? $"!{equalsCall}" : equalsCall;
-        }
-
-        return EmitBinaryOperator(equality, op, left, right);
+        return result;
     }
 
     private string EmitRelational(RelationalNode relational)
@@ -11228,16 +11794,13 @@ internal sealed class CSharpSourceWriter
         {
             case RelationalComparisonRelationalNode cmp:
                 {
-                    var left = EmitAdditive(cmp.Left);
-
-                    if(cmp.Right is null || ReferenceEquals(cmp.Right, cmp.Left))
-                    {
-                        return left;
-                    }
-
-                    var op = cmp.Operator.Lexeme;
-                    var right = EmitAdditive(cmp.Right);
-                    return EmitBinaryOperator(cmp, op, left, right);
+                    return EmitBinaryGroupChain(
+                        cmp,
+                        cmp.Left,
+                        cmp.Group0,
+                        static g => g.Operator.Lexeme,
+                        static g => g.Right,
+                        EmitAdditive);
                 }
 
             case IsExpressionRelationalNode isExpr:
@@ -12511,7 +13074,19 @@ internal sealed class CSharpSourceWriter
                     if(typePattern.Type.First is TupleSingleTypeRefSingleTypeRefNode tupleRef)
                     {
                         var name = typePattern.Name.Lexeme;
-                        if(scrutineeType is TupleType)
+
+                        // A value-pack scrutinee `(TArgs...)` monomorphizes to a
+                        // *generic* System.ValueTuple<T1..TN>, so the C# tuple
+                        // deconstruction form `(int, int, int) triple` would bind
+                        // `triple` to the scrutinee's own (generic) tuple type — its
+                        // element projections would then be typed T1..TN, not the
+                        // concrete int/string narrowed shape, and forwarding
+                        // `triple...` would fail to compile. Route value-pack
+                        // narrowing through the generic `System.ValueTuple<...>`
+                        // type-pattern form below, which binds the narrowed local to
+                        // the concrete tuple so its elements are usable at the
+                        // narrowed types (Requirements 12.9, 6.7).
+                        if(scrutineeType is TupleType concreteTuple && !TupleContainsPack(concreteTuple))
                         {
                             // Scrutinee is a concrete tuple. Emit verbatim;
                             // C# handles deconstruction and element-name
@@ -12554,7 +13129,12 @@ internal sealed class CSharpSourceWriter
                     // Bare type pattern: emit just the type (no binding name).
                     if(bareTypePattern.Type.First is TupleSingleTypeRefSingleTypeRefNode tupleRef)
                     {
-                        if(scrutineeType is TupleType)
+                        // A value-pack scrutinee `(TArgs...)` lowers to a generic
+                        // System.ValueTuple<T1..TN>, so its narrowing must use the
+                        // unambiguous `System.ValueTuple<...>` type-pattern form
+                        // rather than the tuple-deconstruction syntax (see the named
+                        // type-pattern case above; Requirements 12.9, 6.7).
+                        if(scrutineeType is TupleType concreteTuple && !TupleContainsPack(concreteTuple))
                         {
                             return EmitTypeReference(bareTypePattern.Type);
                         }
@@ -12689,6 +13269,20 @@ internal sealed class CSharpSourceWriter
         return string.Join(", ", parts);
     }
 
+    /// <summary>
+    /// Emits a single <see cref="ListPatternElementNode"/> in its C# list-pattern form.
+    /// <para>
+    /// A fixed element emits through <see cref="EmitPattern"/> (Req 22.1). A
+    /// <see cref="SliceElementListPatternElementNode"/> emits the C# slice pattern
+    /// <c>..</c> when it carries no sub-pattern (Req 22.2), or <c>.. &lt;subpattern&gt;</c>
+    /// (a single space then the sub-pattern's C# emission) when it carries one (Req 22.3).
+    /// Reading <see cref="SliceElementListPatternElementNode.Subpattern"/> reproduces
+    /// <c>.. var m</c>, <c>.. _</c>, <c>.. int[] rest</c>, <c>.. [.., 5]</c>, and
+    /// <c>.. { Length: &gt; 0 }</c>. Element order is preserved by the caller
+    /// <see cref="EmitListPatternElementList"/>, and the element is emitted in the
+    /// corresponding C# <c>is</c>/<c>switch</c> position (Req 22.4).
+    /// </para>
+    /// </summary>
     private string EmitListPatternElement(ListPatternElementNode element)
     {
         switch(element)
@@ -12697,10 +13291,9 @@ internal sealed class CSharpSourceWriter
                 return EmitPattern(patternElement.Pattern);
             case SliceElementListPatternElementNode sliceElement:
                 {
-                    // C# requires `.. var name` for slice variables (Mist uses `.. name`)
-                    if(sliceElement.Name.HasValue)
+                    if(sliceElement.Subpattern is not null)
                     {
-                        return $".. var {sliceElement.Name.Value.Lexeme}";
+                        return $".. {EmitPattern(sliceElement.Subpattern)}";
                     }
 
                     return "..";
@@ -12710,32 +13303,131 @@ internal sealed class CSharpSourceWriter
         }
     }
 
-    private string EmitAdditive(AdditiveNode additive)
+    /// <summary>
+    /// Emits a left-associative binary chain, folding over every operand in order.
+    /// The generated grammar node keeps the head operand in <paramref name="left"/> and
+    /// the trailing operands in <paramref name="operands"/> (already in left-associative
+    /// order), while retaining only a single, last operator token. Hand-constructed nodes
+    /// may instead populate a single <paramref name="fallbackRight"/> without the operand
+    /// array, so that path is preserved. Before this helper existed, each binary emitter
+    /// emitted only the head operand and the final operand, silently dropping the middle
+    /// operands of any chain of three or more operands (for example <c>a + b + c</c>
+    /// emitted as <c>a + c</c>).
+    /// </summary>
+    private string EmitBinaryChain<TOperand>(
+        Storm.Runtime.SyntaxNode node,
+        TOperand left,
+        string op,
+        ImmutableArray<TOperand> operands,
+        TOperand? fallbackRight,
+        Func<TOperand, string> emitOperand)
+        where TOperand : Storm.Runtime.SyntaxNode
     {
-        var left = EmitMultiplicative(additive.Left);
+        var result = emitOperand(left);
 
-        if(additive.Right is null || ReferenceEquals(additive.Right, additive.Left))
+        if(!operands.IsDefaultOrEmpty)
         {
-            return left;
+            foreach(var operand in operands)
+            {
+                result = EmitBinaryOperator(node, op, result, emitOperand(operand));
+            }
+
+            return result;
         }
 
-        var op = additive.Operator.Lexeme;
-        var right = EmitMultiplicative(additive.Right);
-        return EmitBinaryOperator(additive, op, left, right);
+        if(fallbackRight is null || ReferenceEquals(fallbackRight, left))
+        {
+            return result;
+        }
+
+        return EmitBinaryOperator(node, op, result, emitOperand(fallbackRight));
+    }
+
+    /// <summary>
+    /// Emits a left-associative binary chain from an anonymous-group list, folding over every
+    /// (operator, operand) pair in source order. Each element of <paramref name="groups"/> carries
+    /// its OWN operator token, so a mixed-operator chain such as <c>a + b - c</c> emits every
+    /// operator faithfully. This replaces the earlier last-wins model, which read a single scalar
+    /// operator shim (<c>node.Operator</c>) and therefore rewrote every operator in a mixed chain
+    /// to the final one (emitting <c>a - b - c</c> for <c>a + b - c</c>). An empty
+    /// <paramref name="groups"/> list means the node is a pass-through to <paramref name="left"/>
+    /// with no operators applied.
+    /// </summary>
+    private string EmitBinaryGroupChain<TGroup, TOperand>(
+        Storm.Runtime.SyntaxNode node,
+        TOperand left,
+        ImmutableArray<TGroup> groups,
+        Func<TGroup, string> getOperator,
+        Func<TGroup, TOperand> getRight,
+        Func<TOperand, string> emitOperand)
+        where TOperand : Storm.Runtime.SyntaxNode
+    {
+        var result = emitOperand(left);
+
+        if(groups.IsDefaultOrEmpty)
+        {
+            return result;
+        }
+
+        foreach(var group in groups)
+        {
+            result = EmitBinaryOperator(node, getOperator(group), result, emitOperand(getRight(group)));
+        }
+
+        return result;
+    }
+
+    private string EmitAdditive(AdditiveNode additive)
+    {
+        return EmitBinaryGroupChain(
+            additive,
+            additive.Left,
+            additive.Group0,
+            static g => g.Operator.Lexeme,
+            static g => g.Right,
+            EmitMultiplicative);
     }
 
     private string EmitMultiplicative(MultiplicativeNode multiplicative)
     {
-        var left = EmitUnary(multiplicative.Left);
+        return EmitBinaryGroupChain(
+            multiplicative,
+            multiplicative.Left,
+            multiplicative.Group0,
+            static g => g.Operator.Lexeme,
+            static g => g.Right,
+            EmitRange);
+    }
 
-        if(multiplicative.Right is null || ReferenceEquals(multiplicative.Right, multiplicative.Left))
+    /// <summary>
+    /// Emits a <see cref="RangeNode"/> operand of the multiplicative tier.
+    /// <para>
+    /// The pass-through <see cref="NonRangeRangeNode"/> form emits its inner unary
+    /// unchanged, preserving existing output for every non-range expression. A
+    /// genuine <see cref="RangeExpressionRangeNode"/> emits the C# range operator
+    /// <c>..</c> with each present bound rendered through the unary emitter and each
+    /// absent bound rendered as nothing, so all four forms (<c>a..b</c>, <c>a..</c>,
+    /// <c>..b</c>, <c>..</c>) are preserved. Because a from-end bound is a
+    /// <see cref="FromEndExpressionUnaryNode"/>, it renders as <c>^(k)</c> via the
+    /// unary emitter, so <c>1..^1</c> emits as <c>1..^(1)</c>.
+    /// </para>
+    /// </summary>
+    private string EmitRange(RangeNode range)
+    {
+        switch(range)
         {
-            return left;
-        }
+            case NonRangeRangeNode nonRange:
+                return EmitUnary(nonRange.Operand);
+            case RangeExpressionRangeNode rangeExpr:
+                {
+                    var start = rangeExpr.Start is not null ? EmitUnary(rangeExpr.Start) : string.Empty;
+                    var end = rangeExpr.End is not null ? EmitUnary(rangeExpr.End) : string.Empty;
+                    return $"{start}..{end}";
+                }
 
-        var op = multiplicative.Operator.Lexeme;
-        var right = EmitUnary(multiplicative.Right);
-        return EmitBinaryOperator(multiplicative, op, left, right);
+            default:
+                return string.Empty;
+        }
     }
 
     private string EmitUnary(UnaryNode unary)
@@ -12753,6 +13445,15 @@ internal sealed class CSharpSourceWriter
                 {
                     var operand = EmitUnary(negate.Operand);
                     return EmitUnaryOperator(negate, "-", operand);
+                }
+            case FromEndExpressionUnaryNode fromEnd:
+                {
+                    // Index-from-end `^operand` emits the C# `System.Index` from-end
+                    // expression with the operand always parenthesized, so precedence
+                    // and evaluation order are preserved regardless of the operand
+                    // shape: `^1` -> `^(1)`, `^(count + 1)` -> `^((count + 1))`.
+                    var operand = EmitUnary(fromEnd.Operand);
+                    return $"^({operand})";
                 }
             case AsyncExpressionUnaryNode asyncExpr:
                 {
@@ -13383,6 +14084,31 @@ internal sealed class CSharpSourceWriter
 
     private string EmitPostfix(PostfixNode postfix)
     {
+        // Task 27.4: a pack identifier in expression position is the compile-time Type[]
+        // value of the monomorphized instance, and `.Length` (a size-agnostic operation)
+        // reads its arity. When emitting a monomorphized variadic type/method
+        // (currentPackArities set), `PackName.Length` emits as the compile-time integer
+        // literal N -- the bound arity of that pack (Requirements 6.1, 6.2). Outside a
+        // monomorphized context (currentPackArities is null) the expression is emitted
+        // unchanged, so the open-generic per-CU path is unaffected.
+        if(currentPackArities is not null
+            && postfix.Target is IdentifierExpressionPrimaryNode packIdentifier
+            && postfix.Suffix.Length >= 1
+            && IsPackLengthSuffix(postfix.Suffix[0])
+            && currentPackArities.TryGetValue(packIdentifier.Name.Lexeme, out var packArity))
+        {
+            var arityLiteral = packArity.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+            // Any suffixes after `.Length` operate on the resulting int value, so continue
+            // the normal suffix walk from that literal (e.g. `TArgs.Length.ToString()`).
+            for(var i = 1; i < postfix.Suffix.Length; i++)
+            {
+                arityLiteral = EmitPostfixSuffix(arityLiteral, postfix.Suffix[i], receiverType: null);
+            }
+
+            return arityLiteral;
+        }
+
         // Special case: TypeLiteralExpression followed by member access or method call.
         // If the referenced type has the member (static member access like
         // string.IsNullOrWhiteSpace), emit the type name directly without typeof().
@@ -13428,7 +14154,14 @@ internal sealed class CSharpSourceWriter
         for(var i = 0; i < postfix.Suffix.Length; i++)
         {
             var suffix = postfix.Suffix[i];
-            primaryResult = EmitPostfixSuffix(primaryResult, suffix, primaryReceiverType);
+
+            // Thread the callee primary node into the first suffix so an inferred variadic
+            // call (`Describe(...)`) can confirm the invocation actually binds to a variadic
+            // method before packing its arguments (see TryEmitInferredVariadicCall). Only the
+            // first suffix invokes the primary directly; later suffixes operate on prior
+            // results, so they carry no callee node.
+            var suffixPrimaryTarget = i == 0 ? postfix.Target : null;
+            primaryResult = EmitPostfixSuffix(primaryResult, suffix, primaryReceiverType, suffixPrimaryTarget);
 
             // Update receiver type for the next suffix.
             primaryReceiverType = model.GetTypeOf(suffix);
@@ -13455,6 +14188,538 @@ internal sealed class CSharpSourceWriter
         }
 
         return primaryResult;
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="suffix"/> is the size-agnostic
+    /// <c>.Length</c> query on a pack (task 27.4). Mist surfaces <c>Length</c> as a
+    /// property, so it parses as a member access; the no-argument method-call spelling is
+    /// also accepted for robustness. Any other suffix (indexing, a real method call, etc.)
+    /// is not a length query.
+    /// </summary>
+    private static bool IsPackLengthSuffix(PostfixSuffixNode suffix)
+    {
+        return suffix switch
+        {
+            MemberAccessSuffixPostfixSuffixNode memberAccess => memberAccess.Name.Lexeme == "Length",
+            MethodCallSuffixPostfixSuffixNode methodCall =>
+                methodCall.Name.Lexeme == "Length" && methodCall.Arguments is null && methodCall.TypeArgs is null,
+            _ => false,
+        };
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="methodSymbol"/> declares a pack type parameter
+    /// (<c>params TArgs</c> or <c>Type[]:TArgs</c>). Such a method is variadic and cannot be
+    /// emitted in its open-generic form (a pack is not a single legal C# type parameter);
+    /// instead one concrete C# method is emitted per observed call-site arity (task 27.5).
+    /// </summary>
+    private static bool IsVariadicMethodDeclaration(Symbol? methodSymbol)
+    {
+        if(methodSymbol is null)
+        {
+            return false;
+        }
+
+        foreach(var typeParameter in methodSymbol.TypeParameters)
+        {
+            if(typeParameter is TypeParameterType { IsPack: true })
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Builds the C# type-parameter list for a monomorphized variadic method instance. Each
+    /// pack type parameter is expanded into its concrete arity's worth of positional type
+    /// parameters (<c>T1, T2, ..., TN</c>), numbered sequentially across every pack in the
+    /// list; non-pack parameters are preserved (a dependent scalar parameter is
+    /// <c>T</c>-prefixed to match <see cref="EmitSingleTypeParameterName"/>). For example a
+    /// single-pack method <c>Describe&lt;params TArgs&gt;</c> observed at arity 3 yields
+    /// <c>&lt;T1, T2, T3&gt;</c>, and a middle-pack method
+    /// <c>MiddleCount&lt;TFirst, params TMid, TLast&gt;</c> at pack arity 2 yields
+    /// <c>&lt;TFirst, T1, T2, TLast&gt;</c>. Numbering the packs from <c>T1</c> keeps the value
+    /// pack's <c>System.ValueTuple&lt;T1..TN&gt;</c> (task 27.8) consistent with the sole pack's
+    /// positional parameters.
+    /// </summary>
+    private string EmitMonomorphizedMethodTypeParameterList(Symbol methodSymbol)
+    {
+        var parts = new List<string>();
+        var packSlot = 0;
+        foreach(var typeParameter in methodSymbol.TypeParameters)
+        {
+            if(typeParameter is TypeParameterType { IsPack: true } pack
+                && currentPackArities is not null
+                && currentPackArities.TryGetValue(pack.Name, out var arity))
+            {
+                for(var j = 0; j < arity; j++)
+                {
+                    parts.Add($"T{++packSlot}");
+                }
+            }
+            else if(typeParameter is DependentTypeParameterType dependent)
+            {
+                parts.Add($"T{dependent.Name}");
+            }
+            else
+            {
+                parts.Add(typeParameter.DisplayName);
+            }
+        }
+
+        return parts.Count > 0 ? $"<{string.Join(", ", parts)}>" : "";
+    }
+
+    /// <summary>
+    /// Returns the distinct per-arity pack-arity contexts observed at the call sites of the
+    /// variadic method declared by <paramref name="methodDecl"/> (task 27.5). Each context maps
+    /// a pack type-parameter name to its concrete arity; one monomorphized C# method is emitted
+    /// per context. Returns an empty list when the method is never called (no observed arity),
+    /// in which case the open-generic form is simply suppressed. The full program-wide scan is
+    /// computed lazily once and cached in <see cref="variadicMethodArityContexts"/>.
+    /// </summary>
+    private List<Dictionary<string, int>> GetVariadicMethodArityContexts(MethodDeclarationNode methodDecl)
+    {
+        variadicMethodArityContexts ??= BuildVariadicMethodArityContexts();
+        return variadicMethodArityContexts.TryGetValue(methodDecl, out var contexts)
+            ? contexts
+            : new List<Dictionary<string, int>>();
+    }
+
+    /// <summary>
+    /// Per-variadic-method information needed to resolve call-site arities: the declaration
+    /// node, its symbol, the pack type-parameter names in declaration order, the value-pack
+    /// parameter's pack name (null when the method has no value pack, e.g. <c>TwoPacks</c>),
+    /// and the number of fixed (non-value-pack) value parameters.
+    /// </summary>
+    private sealed record VariadicMethodInfo(
+        MethodDeclarationNode Decl,
+        Symbol Symbol,
+        IReadOnlyList<string> PackNames,
+        string? ValuePackName,
+        int FixedValueCount);
+
+    /// <summary>
+    /// Scans the whole compilation for variadic method declarations and their call sites, and
+    /// returns, for each variadic method declaration node, the distinct per-arity pack-arity
+    /// contexts observed at its call sites (task 27.5). Two call-site forms are resolved:
+    /// a flat direct call (<c>Describe(1, "x", true)</c>), whose value-pack arity is the value
+    /// argument count minus the fixed value-parameter count (the binding rule), and an explicit
+    /// bracketed call (<c>TwoPacks&lt;[int, int], [string]&gt;()</c>), whose pack arities are the
+    /// element counts of the bracketed type arguments. Call sites that cannot be resolved to a
+    /// variadic method are ignored.
+    /// </summary>
+    private Dictionary<MethodDeclarationNode, List<Dictionary<string, int>>> BuildVariadicMethodArityContexts()
+    {
+        var result = new Dictionary<MethodDeclarationNode, List<Dictionary<string, int>>>();
+        var infoBySymbol = new Dictionary<Symbol, VariadicMethodInfo>();
+        var infoByName = new Dictionary<string, List<VariadicMethodInfo>>(StringComparer.Ordinal);
+        var seenContextKeys = new Dictionary<MethodDeclarationNode, HashSet<string>>();
+
+        void collectDeclarations(Storm.Runtime.SyntaxNode node)
+        {
+            if(node is MethodDeclarationNode methodDecl
+                && model.GetDeclaredSymbol(methodDecl) is Symbol methodSymbol
+                && IsVariadicMethodDeclaration(methodSymbol))
+            {
+                var packNames = new List<string>();
+                foreach(var typeParameter in methodSymbol.TypeParameters)
+                {
+                    if(typeParameter is TypeParameterType { IsPack: true } pack)
+                    {
+                        packNames.Add(pack.Name);
+                    }
+                }
+
+                string? valuePackName = null;
+                var valuePackCount = 0;
+                foreach(var parameter in methodSymbol.Parameters)
+                {
+                    if(parameter is Symbol { HasFlattenedCallConvention: true } parameterSymbol
+                        && TryGetValuePackName(parameterSymbol.DeclaredType, out var packName))
+                    {
+                        valuePackName = packName;
+                        valuePackCount++;
+                    }
+                }
+
+                var info = new VariadicMethodInfo(
+                    methodDecl,
+                    methodSymbol,
+                    packNames,
+                    valuePackName,
+                    methodSymbol.Parameters.Count - valuePackCount);
+
+                infoBySymbol[methodSymbol] = info;
+                if(!infoByName.TryGetValue(methodSymbol.Name, out var byName))
+                {
+                    byName = new List<VariadicMethodInfo>();
+                    infoByName[methodSymbol.Name] = byName;
+                }
+
+                byName.Add(info);
+            }
+
+            foreach(var child in node.Children())
+            {
+                if(child is not null)
+                {
+                    collectDeclarations(child);
+                }
+            }
+        }
+
+        void addContext(VariadicMethodInfo info, Dictionary<string, int> context)
+        {
+            if(context.Count == 0)
+            {
+                return;
+            }
+
+            if(!result.TryGetValue(info.Decl, out var contexts))
+            {
+                contexts = new List<Dictionary<string, int>>();
+                result[info.Decl] = contexts;
+                seenContextKeys[info.Decl] = new HashSet<string>(StringComparer.Ordinal);
+            }
+
+            var key = string.Join(
+                ",",
+                context.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => $"{kv.Key}={kv.Value}"));
+            if(seenContextKeys[info.Decl].Add(key))
+            {
+                contexts.Add(context);
+            }
+        }
+
+        void collectCalls(Storm.Runtime.SyntaxNode node)
+        {
+            // Flat direct call: Ident(args). The pack absorbs the middle value arguments, so
+            // its arity is the value argument count minus the fixed value-parameter count.
+            if(node is PostfixNode postfix
+                && postfix.Target is IdentifierExpressionPrimaryNode
+                && postfix.Suffix.Length == 1
+                && postfix.Suffix[0] is InvocationSuffixPostfixSuffixNode invocation
+                && model.GetDeclaredSymbol(postfix.Target) is Symbol calledSymbol)
+            {
+                VariadicMethodInfo? info = null;
+                if(infoBySymbol.TryGetValue(calledSymbol, out var byReference))
+                {
+                    info = byReference;
+                }
+                else if(infoByName.TryGetValue(calledSymbol.Name, out var byName) && byName.Count == 1)
+                {
+                    info = byName[0];
+                }
+
+                if(info is { ValuePackName: not null } resolved)
+                {
+                    var argumentCount = invocation.Arguments is null
+                        ? 0
+                        : 1 + invocation.Arguments.Arguments.Length;
+                    var arity = argumentCount - resolved.FixedValueCount;
+                    if(arity >= 0)
+                    {
+                        addContext(resolved, new Dictionary<string, int>(StringComparer.Ordinal)
+                        {
+                            [resolved.ValuePackName!] = arity,
+                        });
+                    }
+                }
+            }
+
+            // Explicit bracketed call: Name<[...], ...>(args). Each pack's arity is the element
+            // count of its bracketed type argument.
+            if(node is GenericInvocationExpressionPrimaryNode genericInvocation
+                && genericInvocation.TypeArgs is not null
+                && infoByName.TryGetValue(genericInvocation.Name.Lexeme, out var candidates))
+            {
+                foreach(var candidate in candidates)
+                {
+                    var context = BuildBracketedPackContext(candidate, genericInvocation.TypeArgs);
+                    if(context is not null)
+                    {
+                        addContext(candidate, context);
+                    }
+                }
+            }
+
+            foreach(var child in node.Children())
+            {
+                if(child is not null)
+                {
+                    collectCalls(child);
+                }
+            }
+        }
+
+        foreach(var ast in model.Asts)
+        {
+            collectDeclarations(ast);
+        }
+
+        if(infoBySymbol.Count == 0)
+        {
+            return result;
+        }
+
+        foreach(var ast in model.Asts)
+        {
+            collectCalls(ast);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Builds a pack-arity context for an explicit bracketed call by mapping the method's pack
+    /// type parameters positionally to the call's bracketed type arguments and counting each
+    /// bracket's elements (an empty bracket <c>[]</c> is arity 0). Returns <c>null</c> unless
+    /// every pack type parameter is matched by a bracketed type argument, so a malformed or
+    /// partially-supplied argument list contributes no monomorphized instance.
+    /// </summary>
+    private static Dictionary<string, int>? BuildBracketedPackContext(
+        VariadicMethodInfo info,
+        TypeArgumentListNode typeArgs)
+    {
+        var arguments = new List<TypeArgumentNode> { typeArgs.TypeArgument };
+        arguments.AddRange(typeArgs.TypeArguments);
+
+        var typeParameters = info.Symbol.TypeParameters;
+        var context = new Dictionary<string, int>(StringComparer.Ordinal);
+        for(var i = 0; i < typeParameters.Count && i < arguments.Count; i++)
+        {
+            if(typeParameters[i] is TypeParameterType { IsPack: true } pack
+                && arguments[i] is BracketedPackTypeArgumentTypeArgumentNode bracketed)
+            {
+                context[pack.Name] = bracketed.PackElements is null
+                    ? 0
+                    : 1 + bracketed.PackElements.TypeReferences.Length;
+            }
+        }
+
+        return context.Count == info.PackNames.Count ? context : null;
+    }
+
+    /// <summary>
+    /// Emits the user-declared method members of a monomorphized variadic type at a concrete
+    /// arity (task 27.4). Reuses the standard member-emission machinery with a pack-arity
+    /// substitution context (<see cref="currentPackArities"/>) so that size-agnostic pack
+    /// operations such as <c>PackName.Length</c> emit as compile-time integer constants. The
+    /// spread-generated members and the zip constructor are emitted directly by
+    /// <see cref="VariadicMonomorphizer"/>, so only method members are emitted here (skipping
+    /// fields, constructors, and spread stems to avoid duplicate storage).
+    /// <para>
+    /// The returned text is indented one level (inside the type body). An empty string is
+    /// returned when the type declares no method members. This writer instance must be
+    /// dedicated to a single call (its <see cref="sb"/> is read verbatim on return).
+    /// </para>
+    /// </summary>
+    public string EmitMonomorphizedMethodMembers(
+        TypeBodyDeclarationNode typeBody,
+        bool insideStructType,
+        ClassType? enclosingClassType,
+        IReadOnlyDictionary<string, int> packArities)
+    {
+        currentPackArities = packArities;
+        insideStruct = insideStructType;
+        currentClassType = enclosingClassType;
+        indentLevel = 1;
+
+        var emittedAny = false;
+        for(var i = 0; i < typeBody.Members.Length; i++)
+        {
+            // Only method members are emitted here. Constructors are replaced by the
+            // monomorphizer's zip constructor, and spread-generated field/property members
+            // (the aggregate + projections) are emitted by the monomorphizer directly.
+            if(typeBody.Members[i] is not MethodMemberMemberDeclarationNode)
+            {
+                continue;
+            }
+
+            if(emittedAny)
+            {
+                AppendLine();
+            }
+
+            EmitMemberDeclaration(typeBody.Members[i]);
+            emittedAny = true;
+        }
+
+        currentPackArities = null;
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Emits the abstract-type member declarations of a monomorphized variadic abstract type
+    /// (task 27.9, Requirement 22.2) at a concrete arity. The emitted C# interface carries the
+    /// abstract type's declared members -- abstract method signatures, default (bodied) methods,
+    /// and properties -- but NO instance fields: a C# interface cannot declare fields, and the
+    /// spread-generated aggregate/projection members belong only to the concrete class/struct
+    /// implementers. Member signatures are emitted under the pack-arity substitution context
+    /// (<see cref="currentPackArities"/>) so any pack usage in a member lowers to the concrete
+    /// arity. The returned text is indented one level (inside the interface body); an empty
+    /// string is returned when the abstract type declares no members. This writer instance must
+    /// be dedicated to a single call (its <see cref="sb"/> is read verbatim on return).
+    /// </summary>
+    public string EmitMonomorphizedInterfaceMembers(
+        TypeBodyDeclarationNode typeBody,
+        IReadOnlyDictionary<string, int> packArities)
+    {
+        currentPackArities = packArities;
+        indentLevel = 1;
+
+        var emittedAny = false;
+        foreach(var member in typeBody.Members)
+        {
+            switch(member)
+            {
+                // Abstract method signature (no body) -> `ReturnType Name(params);`.
+                case MethodMemberMemberDeclarationNode abstractMethod
+                    when abstractMethod.Method.Body is CallableNoBodyCallableBodyNode:
+                    if(emittedAny)
+                    {
+                        AppendLine();
+                    }
+
+                    EmitAbstractMethodDeclaration(abstractMethod.Method);
+                    emittedAny = true;
+                    break;
+
+                // Default (bodied) method -> a C# default interface method (DIM).
+                case MethodMemberMemberDeclarationNode defaultMethod
+                    when defaultMethod.Method.Body is CallableBlockBodyCallableBodyNode:
+                    if(emittedAny)
+                    {
+                        AppendLine();
+                    }
+
+                    EmitMethodDeclaration(defaultMethod.Method);
+                    emittedAny = true;
+                    break;
+
+                case PropertyMemberMemberDeclarationNode propertyMember:
+                    if(emittedAny)
+                    {
+                        AppendLine();
+                    }
+
+                    EmitAbstractPropertyDeclaration(propertyMember.Property);
+                    emittedAny = true;
+                    break;
+            }
+        }
+
+        currentPackArities = null;
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Builds the monomorphized base list for a variadic type at a concrete arity (task 27.9,
+    /// Requirements 22.2, 9.3), returned as a comma-separated string WITHOUT the leading
+    /// <c>" : "</c>. Each base-type reference is emitted by name with its type arguments; a
+    /// base-list spread of the type's pack (for example <c>ICountable&lt;TArgs...&gt;</c>) is
+    /// expanded into the pack's concrete positional type arguments (<c>ICountable&lt;T1, T2,
+    /// T3&gt;</c>) rather than collapsed into a single argument. Returns an empty string when the
+    /// declaration has no base list. This method reads the declaration AST because the semantic
+    /// model leaves the base-list spread unexpanded.
+    /// </summary>
+    public string EmitMonomorphizedBaseList(
+        TypeBodyDeclarationNode typeBody,
+        IReadOnlyDictionary<string, int> packArities)
+    {
+        if(typeBody.BaseList is null)
+        {
+            return "";
+        }
+
+        var previousPackArities = currentPackArities;
+        currentPackArities = packArities;
+        try
+        {
+            var parts = new List<string>
+            {
+                EmitMonomorphizedBaseTypeRef(typeBody.BaseList.First, packArities),
+            };
+            foreach(var rest in typeBody.BaseList.BaseTypeRefs)
+            {
+                parts.Add(EmitMonomorphizedBaseTypeRef(rest, packArities));
+            }
+
+            _ = parts.RemoveAll(string.IsNullOrEmpty);
+            return string.Join(", ", parts);
+        }
+        finally
+        {
+            currentPackArities = previousPackArities;
+        }
+    }
+
+    /// <summary>
+    /// Emits a single base-type reference for a monomorphized variadic type, expanding a pack
+    /// spread in its type-argument list into the pack's concrete positional type arguments
+    /// (<c>T1, T2, ..., TN</c>). Non-pack type arguments are emitted through the standard
+    /// type-argument machinery.
+    /// </summary>
+    private string EmitMonomorphizedBaseTypeRef(
+        BaseTypeRefNode baseTypeRef,
+        IReadOnlyDictionary<string, int> packArities)
+    {
+        var name = baseTypeRef.Name.Lexeme;
+        if(baseTypeRef.TypeArgs is null)
+        {
+            return name;
+        }
+
+        var args = new List<string>();
+        var allArgs = new List<TypeArgumentNode> { baseTypeRef.TypeArgs.TypeArgument };
+        allArgs.AddRange(baseTypeRef.TypeArgs.TypeArguments);
+        foreach(var arg in allArgs)
+        {
+            if(TryExpandPackSpreadTypeArgument(arg, packArities, out var expanded))
+            {
+                args.AddRange(expanded);
+            }
+            else
+            {
+                args.Add(EmitSingleTypeArgument(arg));
+            }
+        }
+
+        return args.Count > 0 ? $"{name}<{string.Join(", ", args)}>" : name;
+    }
+
+    /// <summary>
+    /// When <paramref name="arg"/> is a spread of a pack (for example <c>TArgs...</c>) whose name
+    /// is present in <paramref name="packArities"/>, sets <paramref name="expanded"/> to the
+    /// pack's concrete positional type-parameter names (<c>T1 .. TN</c>) and returns <c>true</c>.
+    /// Returns <c>false</c> for any other type argument. The positional names match the pack
+    /// expansion produced by the monomorphizer's type-parameter list, so the emitted base list
+    /// (<c>ICountable&lt;T1, T2, T3&gt;</c>) references the enclosing monomorphized type's own
+    /// pack parameters.
+    /// </summary>
+    private static bool TryExpandPackSpreadTypeArgument(
+        TypeArgumentNode arg,
+        IReadOnlyDictionary<string, int> packArities,
+        out List<string> expanded)
+    {
+        expanded = new List<string>();
+        if(arg is TypeReferenceTypeArgumentTypeArgumentNode typeRefArg
+            && typeRefArg.Type.First is SpreadSingleTypeRefSingleTypeRefNode spread
+            && packArities.TryGetValue(spread.Name.IDENTIFIER.Lexeme, out var arity))
+        {
+            for(var i = 0; i < arity; i++)
+            {
+                expanded.Add($"T{i + 1}");
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -13638,7 +14903,7 @@ internal sealed class CSharpSourceWriter
     {
     };
 
-    private string EmitPostfixSuffix(string target, PostfixSuffixNode suffix, IType? receiverType)
+    private string EmitPostfixSuffix(string target, PostfixSuffixNode suffix, IType? receiverType, Storm.Runtime.SyntaxNode? primaryTargetNode = null)
     {
         switch(suffix)
         {
@@ -13840,11 +15105,49 @@ internal sealed class CSharpSourceWriter
                 }
             case IndexSuffixPostfixSuffixNode indexSuffix:
                 {
+                    // Element access `receiver[argument]`. The argument is emitted through
+                    // the normal expression pipeline, so a from-end index `^k` renders as
+                    // `^(k)` (unary emitter) and a range `a..b` renders as `a..b`
+                    // (EmitRange), preserving present/absent and from-end bounds. Element
+                    // access is emitted in its natural C# form `{receiver}[{argument}]`
+                    // (Req 11.3, 11.4) and the C# compiler performs its built-in
+                    // Index/Range lowering.
+                    //
+                    // Native lowering covers every receiver category the type checker
+                    // accepts (SemanticModelBuilder.IsIndexableType / IsSliceableType):
+                    // arrays (new array, Req 10.5), Span<T>/ReadOnlySpan<T> (view,
+                    // Req 10.6), string (new string, Req 10.7), a System.Range indexer
+                    // (used directly), and a Countable type with an `int` Count/Length
+                    // plus a Slice(int, int) method (C# implicit range support lowers
+                    // `receiver[range]` to `receiver.Slice(offset, length)`, satisfying
+                    // Req 11.5). That last case holds even when the members are declared
+                    // on an interface, so the "slice member reachable only through an
+                    // interface" scenario the design flagged as a possible native-lowering
+                    // gap does not actually occur (verified against the C# compiler for
+                    // both concrete- and interface-typed receivers). This resolves the
+                    // design's open question (design section 6b) in favor of universal
+                    // native lowering: because C# always slices through the receiver's own
+                    // Slice member (or its Range indexer), the emitter never materializes
+                    // an explicit Slice(int, int) call with a local GetOffsetAndLength
+                    // computation -- which could not be expressed in this expression
+                    // position without re-evaluating the receiver anyway.
                     var index = EmitExpression(indexSuffix.Index);
                     return $"{target}[{index}]";
                 }
             case InvocationSuffixPostfixSuffixNode invocation:
                 {
+                    // Task 27.11 — inferred (non-bracketed) variadic method call. A plain call
+                    // to a variadic method (for example `Describe(1, "x", true)`) resolves to a
+                    // monomorphized overload whose value pack is a single System.ValueTuple
+                    // parameter (task 27.8). Pack the value-pack arguments into that tuple
+                    // (fixed parameters bind inward per the Binding_Rule) and let C# infer the
+                    // expanded type arguments from the packed tuple and any fixed arguments.
+                    // Methods with no value pack fall through to ordinary emission.
+                    if(TryEmitInferredVariadicCall(target, invocation, primaryTargetNode, out var inferredVariadicCall))
+                    {
+                        return inferredVariadicCall;
+                    }
+
                     var args = EmitArgumentList(invocation.Arguments);
                     return $"{target}({args})";
                 }
@@ -14318,6 +15621,28 @@ internal sealed class CSharpSourceWriter
 
                     var argsStr = EmitArgumentList(objCreation.Arguments);
 
+                    // Task 27.11 — a variadic type's zip constructor takes the value pack as a
+                    // single System.ValueTuple parameter (task 27.8), so a construction supplying
+                    // flat pack arguments (`new Bundle<int, string, bool>(42, "hi", true)`) must
+                    // fold them into that one tuple argument. A construction with no arguments
+                    // (`new Tup<...>()`) keeps its empty argument list.
+                    if(objCreation.Arguments is not null && IsVariadicConstructedType(exprType))
+                    {
+                        var packElements = new List<string>();
+                        foreach(var argExpr in objCreation.Arguments.GetAllExpressions())
+                        {
+                            var element = EmitExpression(argExpr);
+                            element = WrapWithImplicitCastIfNeeded(argExpr, element);
+                            element = WrapWithImplicitCloneIfNeeded(argExpr, element);
+                            packElements.Add(element);
+                        }
+
+                        if(packElements.Count > 0)
+                        {
+                            argsStr = BuildValueTupleLiteral(packElements);
+                        }
+                    }
+
                     // Call-site transformation: when constructing a type that has parameterized
                     // constructor constraints, append factory lambda arguments.
                     var constructedSymbol = model.AllSymbols
@@ -14599,9 +15924,291 @@ internal sealed class CSharpSourceWriter
                     // because the type checker would have emitted a diagnostic).
                     return "default";
                 }
+            case GenericInvocationExpressionPrimaryNode genericInvocation:
+                return EmitGenericInvocation(genericInvocation);
             default:
                 return "";
         }
+    }
+
+    /// <summary>
+    /// Emits a bare (unqualified) generic invocation <c>Name&lt;typeArgs&gt;(args)</c> written
+    /// at a use site (task 27.6). The path this fixes is the explicit bracketed pack construction
+    /// -- for example <c>Describe&lt;[int, string, bool]&gt;(1, "x", true)</c> (one pack of arity
+    /// 3) or <c>TwoPacks&lt;[int, int], [string]&gt;()</c> (two packs, arities 2 and 1) -- which
+    /// previously fell through to the empty default and emitted a malformed <c>var t = ;</c>.
+    /// Each bracketed pack type argument is expanded into its concrete element type names,
+    /// numbered positionally to match the monomorphized method declaration (task 27.5), so no
+    /// <c>&lt;[...]&gt;</c> bracket survives; the value arguments of a value-pack method are
+    /// packed into the single <c>System.ValueTuple</c> argument the monomorphized signature
+    /// expects (task 27.8). An ordinary generic invocation with no bracketed pack is emitted
+    /// through the standard type-argument and argument machinery unchanged.
+    /// </summary>
+    private string EmitGenericInvocation(GenericInvocationExpressionPrimaryNode node)
+    {
+        var name = node.Name.Lexeme;
+
+        var typeArgNodes = new List<TypeArgumentNode> { node.TypeArgs.TypeArgument };
+        typeArgNodes.AddRange(node.TypeArgs.TypeArguments);
+
+        var hasBracketedPack = typeArgNodes.Any(a => a is BracketedPackTypeArgumentTypeArgumentNode);
+        if(!hasBracketedPack)
+        {
+            // Ordinary generic invocation (no pack): emit type arguments and value arguments
+            // through the standard machinery unchanged.
+            var plainTypeArgs = EmitTypeArgumentList(node.TypeArgs);
+            var plainArgs = EmitArgumentList(node.Arguments);
+            return $"{name}{plainTypeArgs}({plainArgs})";
+        }
+
+        // Explicit bracketed pack construction: expand each bracketed pack into its concrete
+        // element type names (an empty bracket `[]` contributes nothing -- arity 0) and pass
+        // scalar type arguments through, numbered positionally to match the monomorphized
+        // declaration `Name<T1..TN, ...>`.
+        var typeArgParts = new List<string>();
+        foreach(var arg in typeArgNodes)
+        {
+            if(arg is BracketedPackTypeArgumentTypeArgumentNode bracketed)
+            {
+                if(bracketed.PackElements is not null)
+                {
+                    typeArgParts.Add(EmitTypeReference(bracketed.PackElements.TypeReference, isValueContext: true));
+                    foreach(var extra in bracketed.PackElements.TypeReferences)
+                    {
+                        typeArgParts.Add(EmitTypeReference(extra, isValueContext: true));
+                    }
+                }
+            }
+            else
+            {
+                typeArgParts.Add(EmitSingleTypeArgument(arg));
+            }
+        }
+
+        var typeArgStr = typeArgParts.Count > 0 ? $"<{string.Join(", ", typeArgParts)}>" : "";
+        var valueArgs = EmitBracketedCallArguments(name, node.Arguments);
+
+        return $"{name}{typeArgStr}({valueArgs})";
+    }
+
+    /// <summary>
+    /// Emits the value-argument list of an explicit bracketed generic invocation (task 27.6),
+    /// packing a value pack's contiguous middle arguments into the single
+    /// <c>System.ValueTuple</c> argument the monomorphized signature expects (the
+    /// Flattened_Call_Convention -- task 27.8). Fixed parameters bind positionally inward from
+    /// both ends per the Binding_Rule, and the remaining middle arguments become one ValueTuple
+    /// argument. When the target method has no value pack (for example <c>TwoPacks</c>) the
+    /// arguments are emitted flat and unchanged.
+    /// </summary>
+    private string EmitBracketedCallArguments(string methodName, ArgumentListNode? argList)
+    {
+        var valuePack = ResolveBracketedCallValuePack(methodName);
+
+        var argExprs = argList is null
+            ? new List<ExpressionNode>()
+            : argList.GetAllExpressions().ToList();
+
+        // No value pack (e.g. TwoPacks): emit the arguments flat and unchanged.
+        if(valuePack is not { HasValuePack: true } pack)
+        {
+            return EmitArgumentList(argList);
+        }
+
+        var packStart = pack.FixedBefore;
+        var packEnd = argExprs.Count - pack.FixedAfter;
+
+        // Guard against a malformed argument count (fewer arguments than the fixed slots);
+        // fall back to a flat emission rather than producing a mis-shaped tuple.
+        if(packStart < 0 || packEnd < packStart || packEnd > argExprs.Count)
+        {
+            return EmitArgumentList(argList);
+        }
+
+        var parts = new List<string>();
+        for(var i = 0; i < packStart; i++)
+        {
+            parts.Add(EmitExpression(argExprs[i]));
+        }
+
+        var packElements = new List<string>();
+        for(var i = packStart; i < packEnd; i++)
+        {
+            packElements.Add(EmitExpression(argExprs[i]));
+        }
+
+        parts.Add(BuildValueTupleLiteral(packElements));
+
+        for(var i = packEnd; i < argExprs.Count; i++)
+        {
+            parts.Add(EmitExpression(argExprs[i]));
+        }
+
+        return string.Join(", ", parts);
+    }
+
+    /// <summary>
+    /// Builds a C# expression that constructs the value-pack <c>System.ValueTuple</c> from the
+    /// already-emitted <paramref name="elements"/> (task 27.6 / 27.8). A tuple literal
+    /// (<c>(a, b, ...)</c>) is used for two or more elements (C# auto-nests past 7); a
+    /// single-element pack uses <c>System.ValueTuple.Create(a)</c> because <c>(a)</c> is a
+    /// parenthesized expression rather than a one-tuple; and an empty pack uses
+    /// <c>default(System.ValueTuple)</c>.
+    /// </summary>
+    private static string BuildValueTupleLiteral(IReadOnlyList<string> elements)
+    {
+        return elements.Count switch
+        {
+            0 => "default(System.ValueTuple)",
+            1 => $"System.ValueTuple.Create({elements[0]})",
+            _ => $"({string.Join(", ", elements)})",
+        };
+    }
+
+    /// <summary>
+    /// The value-pack shape of a variadic method call target (task 27.6): the number of fixed
+    /// value parameters before and after the single value pack, and whether the method has a
+    /// value pack at all. Used to pack a flat bracketed call's contiguous middle arguments into
+    /// the one <c>System.ValueTuple</c> argument the monomorphized signature expects.
+    /// </summary>
+    private readonly record struct BracketedCallValuePack(int FixedBefore, int FixedAfter, bool HasValuePack);
+
+    /// <summary>
+    /// Resolves the value-pack shape of the variadic method named <paramref name="methodName"/>
+    /// by scanning the semantic model for a variadic method declaration (a method whose
+    /// type-parameter list declares a pack). Returns <c>null</c> when no such method is found,
+    /// and a <see cref="BracketedCallValuePack"/> with <c>HasValuePack = false</c> when the
+    /// method has no value-pack parameter (for example <c>TwoPacks</c>).
+    /// </summary>
+    private BracketedCallValuePack? ResolveBracketedCallValuePack(string methodName)
+    {
+        var method = FindVariadicMethodByName(methodName);
+        if(method is null)
+        {
+            return null;
+        }
+
+        var valuePackIndex = -1;
+        for(var i = 0; i < method.Parameters.Count; i++)
+        {
+            if(method.Parameters[i] is Symbol { HasFlattenedCallConvention: true } parameter
+                && TryGetValuePackName(parameter.DeclaredType, out _))
+            {
+                valuePackIndex = i;
+                break;
+            }
+        }
+
+        if(valuePackIndex < 0)
+        {
+            return new BracketedCallValuePack(0, 0, HasValuePack: false);
+        }
+
+        return new BracketedCallValuePack(
+            valuePackIndex,
+            method.Parameters.Count - valuePackIndex - 1,
+            HasValuePack: true);
+    }
+
+    /// <summary>
+    /// Task 27.11 — rewrites an inferred (non-bracketed) call to a variadic method so the
+    /// value-pack arguments are packed into the single <c>System.ValueTuple</c> parameter the
+    /// monomorphized overload expects (task 27.8). When <paramref name="target"/> names a
+    /// variadic method that has a value pack, sets <paramref name="emitted"/> to
+    /// <c>Name(packedArgs)</c> — fixed parameters bind inward per the Binding_Rule and the
+    /// contiguous middle arguments become one ValueTuple — and returns <c>true</c>; C# infers
+    /// the expanded type arguments from the tuple and any fixed arguments. Returns <c>false</c>
+    /// for a qualified target, a non-variadic method, or a variadic method without a value pack,
+    /// leaving the caller to emit the call unchanged.
+    /// </summary>
+    private bool TryEmitInferredVariadicCall(
+        string target,
+        InvocationSuffixPostfixSuffixNode invocation,
+        Storm.Runtime.SyntaxNode? primaryTargetNode,
+        out string emitted)
+    {
+        emitted = "";
+
+        // A qualified target (containing '.') is a member access, never a top-level variadic
+        // method call; only a bare method name can name a variadic method here.
+        if(target.Contains('.') || FindVariadicMethodByName(target) is null)
+        {
+            return false;
+        }
+
+        // Bind the rewrite to the call's ACTUAL target symbol, not merely to a same-named
+        // variadic method somewhere in the model. In a multi-project compilation (for example
+        // the AllFeatures orchestrator), one referenced project may declare a variadic
+        // `Describe<params TArgs>` while another declares an unrelated non-variadic
+        // `Describe(Product)`. The whole-model name lookup above would match the variadic
+        // family for BOTH, wrongly packing the non-variadic call's argument into a
+        // System.ValueTuple. Confirm the callee identifier resolves to a variadic method
+        // declaration before rewriting; a non-variadic (or unresolved) callee is left to the
+        // ordinary emission path.
+        if(primaryTargetNode is null
+            || model.GetDeclaredSymbol(primaryTargetNode) is not Symbol calleeSymbol
+            || !IsVariadicMethodDeclaration(calleeSymbol))
+        {
+            return false;
+        }
+
+        // Only rewrite when the method actually has a value pack to pack; a value-pack-free
+        // variadic method (for example a pure-type-pack method) has no flat arguments to fold
+        // into a tuple and is left to the ordinary emission path.
+        if(ResolveBracketedCallValuePack(target) is not { HasValuePack: true })
+        {
+            return false;
+        }
+
+        var packedArgs = EmitBracketedCallArguments(target, invocation.Arguments);
+        emitted = $"{target}({packedArgs})";
+        return true;
+    }
+
+    /// <summary>
+    /// Task 27.11 — returns <c>true</c> when <paramref name="type"/> is a construction of a
+    /// user-defined variadic type (a <see cref="ConstructedType"/> whose generic definition
+    /// declares a pack type parameter). Such a type's zip constructor takes the value pack as a
+    /// single <c>System.ValueTuple</c> parameter, so flat construction arguments are folded into
+    /// one tuple at the call site. Backend-backed families (<c>Func</c>/<c>Action</c>) are
+    /// excluded — they map to <c>System.Func</c>/<c>System.Action</c> and are never constructed
+    /// with the zip convention.
+    /// </summary>
+    private static bool IsVariadicConstructedType(IType? type)
+    {
+        if(type is not ConstructedType ct)
+        {
+            return false;
+        }
+
+        var typeParams = ct.GenericDefinition switch
+        {
+            ClassType { IsBackendBacked: false } cls => cls.TypeParameters,
+            StructType { IsBackendBacked: false } st => st.TypeParameters,
+            _ => null,
+        };
+
+        return typeParams is not null && typeParams.Any(tp => tp is TypeParameterType { IsPack: true });
+    }
+
+    /// <summary>
+    /// Returns the first variadic method (a method whose type-parameter list declares a pack)
+    /// named <paramref name="methodName"/> in the semantic model, or <c>null</c> when none
+    /// exists. Variadic method names are unique in practice, so the first match is the call
+    /// target for an explicit bracketed invocation (task 27.6).
+    /// </summary>
+    private Symbol? FindVariadicMethodByName(string methodName)
+    {
+        foreach(var symbol in model.AllSymbols)
+        {
+            if(symbol is Symbol { Kind: SymbolKind.Method } candidate
+                && candidate.Name == methodName
+                && IsVariadicMethodDeclaration(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>

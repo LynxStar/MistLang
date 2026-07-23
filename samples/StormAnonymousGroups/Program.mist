@@ -1,0 +1,38 @@
+// StormAnonymousGroups -- proof that Storm anonymous-group projection preserves
+// every operator and operand in multi-term binary expressions (the Group0 list),
+// rather than collapsing to a last-wins scalar.
+
+using Standard;
+
+namespace StormAnonymousGroups;
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        Console.WriteLine("--- Storm Anonymous Groups ---");
+
+        // PROOF: AdditiveNode.Group0 list preserves all operators and operands
+        // PROOF: a + b - c produces two Group0 entries, not last-wins scalar
+        // PROOF: Multiplicative group projection works in the same way
+        var x = 10 + 3 - 5;
+        var y = 2 * 4 * 3;
+        var z = 1 + 2 + 3 + 4;
+
+        Console.WriteLine($"x={x}");
+        Console.WriteLine($"y={y}");
+        Console.WriteLine($"z={z}");
+
+        // Multi-term logical-or (3 operands), Requirement 8.2. LogicalOr keeps its
+        // single promotion (no struct), but a 3-operand chain still evaluates correctly.
+        var w = false || false || true;
+        Console.WriteLine($"w={w}");
+
+        Console.WriteLine("--- Storm Anonymous Groups Done ---");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

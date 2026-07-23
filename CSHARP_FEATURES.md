@@ -112,7 +112,7 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 | `void` return | ✅ | |
 | Expression-bodied methods (`=>`) | 🔲 | |
 | Method overloading | 🔲 | |
-| `params` arrays | 🔲 | |
+| `params` arrays | ✅ | Homogeneous value-level `params T[]` support |
 | Optional parameters (default values) | 🔲 | |
 | Named arguments | 🔲 | |
 | `ref` parameters | 🔲 | |
@@ -351,8 +351,8 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 | LINQ query expressions | 🔲 | |
 | `await` | 🔲 | |
 | `stackalloc` | ⛔ | Low-level, out of scope |
-| Range expressions (`..`) | 🔲 | C# 8 |
-| Index expressions (`^`) | 🔲 | C# 8 |
+| Range expressions (`..`) | ✅ | C# 8; all four bound forms (`a..b`, `a..`, `..b`, `..`); slices arrays (new array), spans (view), strings (new string); maps to `Standard.Range` (`System.Range`) |
+| Index expressions (`^`) | ✅ | C# 8; index-from-end `^k`; maps to `Standard.Index` (`System.Index`) |
 | `is` pattern matching | ✅ | C# 7+ |
 | `switch` expression | 🔲 | C# 8 |
 | Discard (`_`) | ✅ | C# 7 |
@@ -434,7 +434,8 @@ Mist introduces traits as a structural typing mechanism. Unlike interfaces (nomi
 | Property patterns | ✅ | C# 8 |
 | Relational patterns (`> 0`) | ✅ | C# 9 |
 | Logical patterns (`and`, `or`, `not`) | ✅ | C# 9 |
-| List patterns (`[1, 2, ..]`) | ✅ | C# 11 |
+| List patterns (`[1, 2, ..]`) | ✅ | C# 11; empty (`[]`), fixed-length, and slice forms over indexable receivers |
+| Slice patterns (`.. var rest`) | ✅ | C# 11; optional sub-pattern (`..`, `.. _`, `.. var name`, `.. [.., 5]`, `.. { Length: > 0 }`); at most one per list pattern |
 
 ---
 
@@ -758,7 +759,7 @@ Features introduced by Mist that don't map directly to a single C# feature. Thes
 | Type Declarations | 6 | 9 | 0 |
 | Members — Fields | 3 | 3 | 1 |
 | Members — Properties | 10 | 1 | 0 |
-| Members — Methods | 6 | 11 | 0 |
+| Members — Methods | 7 | 10 | 0 |
 | Members — Constructors | 3 | 2 | 0 |
 | Members — Other | 1 | 4 | 0 |
 | Access Modifiers | 3 | 11 | 2 |
@@ -774,13 +775,13 @@ Features introduced by Mist that don't map directly to a single C# feature. Thes
 | Expressions — Assignment | 1 | 4 | 0 |
 | Expressions — Member Access | 4 | 3 | 0 |
 | Expressions — Object Creation | 4 | 4 | 0 |
-| Expressions — Other | 6 | 10 | 2 |
+| Expressions — Other | 8 | 8 | 2 |
 | Inheritance | 3 | 8 | 0 |
 | Structural Typing — Traits | 5 | 0 | 0 |
 | Structural Typing — Matching | 5 | 0 | 0 |
 | Structural Typing — With Blocks | 4 | 0 | 0 |
 | Structural Typing — C# Lowering | 4 | 0 | 0 |
-| Pattern Matching | 7 | 1 | 0 |
+| Pattern Matching | 8 | 1 | 0 |
 | Type Unions — Syntax & Parsing | 5 | 0 | 0 |
 | Type Unions — Semantic Model | 4 | 0 | 0 |
 | Type Unions — Type Checking | 9 | 0 | 0 |

@@ -63,14 +63,15 @@ internal static class OperatorBinder
     {
         var left = BindRelational(node.Left, ctx, context);
 
-        if(IsBare(node.Relationals, node.Left, node.Right))
+        // Left-associative: fold each (operator, operand) pair, retaining all operands.
+        foreach(var group in node.Group0)
         {
-            return left;
+            var op = MapOperator(group.Operator.Lexeme);
+            var right = BindRelational(group.Right, ctx, context);
+            left = MakeBinary(node, left, op, right);
         }
 
-        var op = MapOperator(node.Operator.Lexeme);
-        var right = BindRelational(node.Right!, ctx, context);
-        return MakeBinary(node, left, op, right);
+        return left;
     }
 
     private static Expression BindRelational(RelationalNode node, BindingContext ctx, BuilderContext context)
@@ -82,42 +83,55 @@ internal static class OperatorBinder
 
         var left = BindAdditive(comparison.Left, ctx, context);
 
-        if(IsBare(comparison.Additives, comparison.Left, comparison.Right))
+        foreach(var group in comparison.Group0)
         {
-            return left;
+            var op = MapOperator(group.Operator.Lexeme);
+            var right = BindAdditive(group.Right, ctx, context);
+            left = MakeBinary(node, left, op, right);
         }
 
-        var op = MapOperator(comparison.Operator.Lexeme);
-        var right = BindAdditive(comparison.Right!, ctx, context);
-        return MakeBinary(node, left, op, right);
+        return left;
     }
 
     private static Expression BindAdditive(AdditiveNode node, BindingContext ctx, BuilderContext context)
     {
         var left = BindMultiplicative(node.Left, ctx, context);
 
-        if(IsBare(node.Multiplicatives, node.Left, node.Right))
+        foreach(var group in node.Group0)
         {
-            return left;
+            var op = MapOperator(group.Operator.Lexeme);
+            var right = BindMultiplicative(group.Right, ctx, context);
+            left = MakeBinary(node, left, op, right);
         }
 
-        var op = MapOperator(node.Operator.Lexeme);
-        var right = BindMultiplicative(node.Right!, ctx, context);
-        return MakeBinary(node, left, op, right);
+        return left;
     }
 
     private static Expression BindMultiplicative(MultiplicativeNode node, BindingContext ctx, BuilderContext context)
     {
-        var left = BindUnary(node.Left, ctx, context);
+        var left = BindRange(node.Left, ctx, context);
 
-        if(IsBare(node.Unarys, node.Left, node.Right))
+        foreach(var group in node.Group0)
         {
-            return left;
+            var op = MapOperator(group.Operator.Lexeme);
+            var right = BindRange(group.Right, ctx, context);
+            left = MakeBinary(node, left, op, right);
         }
 
-        var op = MapOperator(node.Operator.Lexeme);
-        var right = BindUnary(node.Right!, ctx, context);
-        return MakeBinary(node, left, op, right);
+        return left;
+    }
+
+    private static Expression BindRange(RangeNode node, BindingContext ctx, BuilderContext context)
+    {
+        // Walking skeleton: a non-range node passes through to Unary. An actual range
+        // expression (a..b) is not yet modeled in the ProgramModel and degrades to
+        // Unresolved, matching how other unsupported constructs are handled.
+        if(node is NonRangeRangeNode nonRange)
+        {
+            return BindUnary(nonRange.Operand, ctx, context);
+        }
+
+        return new UnresolvedExpression(node);
     }
 
     private static Expression BindUnary(UnaryNode node, BindingContext ctx, BuilderContext context)
@@ -146,7 +160,7 @@ internal static class OperatorBinder
 
     private static BinaryExpression MakeBinary(Storm.Runtime.SyntaxNode node, Expression left, BinaryOperatorKind op, Expression right)
     {
-        var resultType = InferBinaryResultType(left, op, right);
+        var resultType = InferBinaryResultType(left, op);
         return new BinaryExpression(node, left, op, right, resultType);
     }
 
@@ -154,7 +168,7 @@ internal static class OperatorBinder
     /// Infers the result type of a binary operation. Simplified: comparison/logical
     /// operators produce bool, arithmetic produces the left operand's type.
     /// </summary>
-    private static IMistType InferBinaryResultType(Expression left, BinaryOperatorKind op, Expression right)
+    private static IMistType InferBinaryResultType(Expression left, BinaryOperatorKind op)
     {
         return op switch
         {

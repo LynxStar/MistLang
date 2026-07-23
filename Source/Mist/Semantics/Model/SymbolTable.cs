@@ -117,6 +117,21 @@ public sealed class Symbol : ISymbol
     public ClrCallingConvention? ClrCallingConvention { get; internal set; }
 
     /// <summary>
+    /// True when this parameter symbol uses the variadics Flattened_Call_Convention -- a
+    /// value-side <c>params</c> parameter whose caller supplies a flat, comma-separated
+    /// argument list at the call site rather than a single packaged argument. It marks a
+    /// Value_Pack (<c>params TArgs args</c>, whose <see cref="DeclaredType"/> is the tuple
+    /// <c>(TArgs...)</c> / <c>ValueTuple&lt;TArgs&gt;</c>) and, once value-level
+    /// <c>params T[]</c> lands, the homogeneous array form. It is <c>false</c> for an
+    /// ordinary parameter, including a plainly typed tuple parameter <c>(TArgs...) args</c>
+    /// declared without <c>params</c>, which receives a single tuple argument -- the
+    /// <c>params</c> modifier is the sole marker of this convention. Mirrors the
+    /// ProgramModel track's <c>Parameter.HasFlattenedCallConvention</c>. Only meaningful for
+    /// <see cref="SymbolKind.Parameter"/> symbols; defaults to <c>false</c>.
+    /// </summary>
+    public bool HasFlattenedCallConvention { get; internal set; }
+
+    /// <summary>
     /// The ref kind of this method's return type. Applies only to method symbols.
     /// A value of <see cref="RefKind.Ref"/> means the method returns a mutable
     /// reference; <see cref="RefKind.RefReadonly"/> means it returns a readonly

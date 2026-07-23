@@ -171,9 +171,9 @@ public class LambdaReachabilityPropertyTests
             return $"[assignment RHS] expression was {stmt.Expression?.GetType().Name ?? "null"}, expected AssignmentFormExpressionNode.\nLambda: {lambdaText}\nSource:\n{source}";
         }
 
-        if(assignForm.Assignment.Value is not LambdaFormExpressionNode)
+        if(assignForm.Assignment.Group0?.Value is not LambdaFormExpressionNode)
         {
-            return $"[assignment RHS] assignment value was {assignForm.Assignment.Value?.GetType().Name ?? "null"}, expected LambdaFormExpressionNode.\nLambda: {lambdaText}\nSource:\n{source}";
+            return $"[assignment RHS] assignment value was {assignForm.Assignment.Group0?.Value?.GetType().Name ?? "null"}, expected LambdaFormExpressionNode.\nLambda: {lambdaText}\nSource:\n{source}";
         }
 
         return null;

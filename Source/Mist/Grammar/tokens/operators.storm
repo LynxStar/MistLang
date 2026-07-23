@@ -31,6 +31,8 @@ token EQUAL                 = "=";
 token LESS_THAN             = "<";
 token GREATER_THAN          = ">";
 token EXCLAMATION           = "!";
+token ELLIPSIS              = "...";
+token CARET                 = "^";
 token DOTDOT                = "..";
 token DOT                   = ".";
 token COMMA                 = ",";

@@ -1,3 +1,4 @@
+using Mist.Generated;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 using Mist.Semantics.Model.Types;
@@ -113,7 +114,21 @@ public static class OverloadResolver
 
             var paramTypes = ParameterSignature.Extract(candidate, model);
 
-            if(paramTypes.Count != argumentTypes.Count)
+            // Variadics value-level params (Requirements 13.2, 13.3, 13.7):
+            // When the last parameter is a `params T[]` (HasFlattenedCallConvention
+            // and ArrayType), the candidate is applicable for argCount in
+            // [fixedParamCount .. fixedParamCount + N] for any N >= 0. The params
+            // parameter consumes all trailing arguments.
+            var paramsElementType = TryGetValueLevelParamsElementType(candidate, model);
+            if(paramsElementType is not null)
+            {
+                var fixedParamCount = paramTypes.Count - 1;
+                if(argumentTypes.Count < fixedParamCount)
+                {
+                    continue;
+                }
+            }
+            else if(paramTypes.Count != argumentTypes.Count)
             {
                 continue;
             }
@@ -152,6 +167,15 @@ public static class OverloadResolver
                 paramTypes = substituted;
             }
 
+            // After substitution, re-derive the params element type from the
+            // (potentially substituted) last parameter type so that generic
+            // params T[] methods resolve against the concrete element type.
+            if(paramsElementType is not null && paramTypes.Count > 0
+                && paramTypes[^1] is ArrayType substitutedArrayType)
+            {
+                paramsElementType = substitutedArrayType.ElementType;
+            }
+
             // RefKind filtering: if argument ref kinds are provided, a candidate
             // is only applicable if each parameter's RefKind matches the corresponding
             // argument's RefKind. A ref parameter requires a ref argument and vice versa
@@ -178,7 +202,8 @@ public static class OverloadResolver
             }
 
             var allAssignable = true;
-            for(var i = 0; i < argumentTypes.Count; i++)
+            var fixedCount = paramsElementType is not null ? paramTypes.Count - 1 : paramTypes.Count;
+            for(var i = 0; i < fixedCount && i < argumentTypes.Count; i++)
             {
                 // For ref parameters, require exact type match (no implicit conversions).
                 // C# §12.6.4.2: For ref/out arguments, the parameter type must match
@@ -200,6 +225,26 @@ public static class OverloadResolver
                     allAssignable = false;
                     break;
                 }
+            }
+
+            // Variadics value-level params: check trailing arguments against the
+            // element type T (not the array type T[]).
+            if(allAssignable && paramsElementType is not null)
+            {
+                for(var i = fixedCount; i < argumentTypes.Count; i++)
+                {
+                    if(!TypeCheckerAnalyzer.IsAssignable(argumentTypes[i], paramsElementType))
+                    {
+                        allAssignable = false;
+                        break;
+                    }
+                }
+            }
+            else if(allAssignable && paramsElementType is null)
+            {
+                // Non-params path: check the remaining arguments 1:1 if any
+                // (only reached when fixedCount == paramTypes.Count == argumentTypes.Count,
+                // i.e., everything was already checked in the loop above).
             }
 
             if(allAssignable)
@@ -592,5 +637,61 @@ public static class OverloadResolver
         }
 
         return allAtoB && anyBnotToA;
+    }
+
+    /// <summary>
+    /// Returns the element type <c>T</c> if the candidate's last parameter is a
+    /// value-level <c>params T[]</c> (marked with <see cref="Symbol.HasFlattenedCallConvention"/>
+    /// and declared as an <see cref="ArrayType"/>). Returns <c>null</c> for non-params
+    /// candidates and for value-pack params (which use TupleType, not ArrayType).
+    /// </summary>
+    private static IType? TryGetValueLevelParamsElementType(ISymbol candidate, ISemanticModel model)
+    {
+        // Backend symbols store parameters on the Symbol instance directly.
+        if(candidate is Symbol { Parameters.Count: > 0 } backendSym)
+        {
+            var lastParam = backendSym.Parameters[^1];
+            if(lastParam is Symbol lastSym
+                && lastSym.HasFlattenedCallConvention
+                && lastSym.DeclaredType is ArrayType lastArray)
+            {
+                return lastArray.ElementType;
+            }
+
+            return null;
+        }
+
+        // AST-declared methods: resolve the last parameter from the declaring node.
+        Storm.Runtime.SyntaxNode declaringNode;
+        try { declaringNode = model.GetDeclaringNode(candidate); }
+        catch { return null; }
+
+        var paramList = ParameterSignature.GetParameterList(declaringNode);
+        if(paramList is null)
+        {
+            return null;
+        }
+
+        Symbol? lastParamSym = null;
+        foreach(var child in paramList.Children())
+        {
+            if(child is ParameterNode paramNode)
+            {
+                var sym = model.GetDeclaredSymbol(paramNode) as Symbol;
+                if(sym is not null)
+                {
+                    lastParamSym = sym;
+                }
+            }
+        }
+
+        if(lastParamSym is not null
+            && lastParamSym.HasFlattenedCallConvention
+            && lastParamSym.DeclaredType is ArrayType arrayType)
+        {
+            return arrayType.ElementType;
+        }
+
+        return null;
     }
 }

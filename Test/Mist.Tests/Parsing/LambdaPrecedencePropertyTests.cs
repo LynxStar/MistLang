@@ -197,17 +197,17 @@ public class LambdaPrecedencePropertyTests
         }
 
         // The assignment must actually carry the `=` operator (it is `f = <rhs>`).
-        if(!assignment.Operator.HasValue)
+        if(!(assignment.Group0?.Operator).HasValue)
         {
             return false.ToProperty()
                 .Label($"Top-level expression is an assignment with no operator (not an `=`).\nSource:\n{scenario.Source}");
         }
 
         // The assignment's RHS value must be the lambda form — `f = (L)`.
-        var rhsIsLambda = assignment.Value.AsLambdaOrNull() is not null;
+        var rhsIsLambda = assignment.Group0?.Value.AsLambdaOrNull() is not null;
 
         return rhsIsLambda.ToProperty()
-            .Label($"Assignment RHS is not a lambda form (lambda did not bind as the RHS value): {assignment.Value.GetType().Name}.\nSource:\n{scenario.Source}");
+            .Label($"Assignment RHS is not a lambda form (lambda did not bind as the RHS value): {assignment.Group0?.Value.GetType().Name}.\nSource:\n{scenario.Source}");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -260,8 +260,8 @@ public class LambdaPrecedencePropertyTests
         Assert.Null(top.AsLambdaOrNull());
         var assignment = top.AsAssignmentOrNull();
         Assert.NotNull(assignment);
-        Assert.True(assignment!.Operator.HasValue);
-        Assert.NotNull(assignment.Value.AsLambdaOrNull());
+        Assert.True((assignment!.Group0?.Operator).HasValue);
+        Assert.NotNull(assignment.Group0?.Value.AsLambdaOrNull());
     }
 
     [Fact]

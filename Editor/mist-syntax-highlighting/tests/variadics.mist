@@ -1,0 +1,52 @@
+// SYNTAX TEST "source.mist"
+
+// ===== params modifier in a type-parameter list (Req 17.1) =====
+
+class Bundle<params TArgs>
+//    ^^^^^^ entity.name.type.mist
+//           ^^^^^^ storage.modifier.mist
+
+// ===== params modifier in a value-parameter list (Req 17.1) =====
+
+void Log(params string[] parts)
+//   ^^^ entity.name.function.mist
+//       ^^^^^^ storage.modifier.mist
+
+// ===== params in a generic method declaration: type-side and value-side (Req 17.1) =====
+
+int Describe<params TArgs>(params TArgs args)
+//  ^^^^^^^^ entity.name.function.mist
+//           ^^^^^^ storage.modifier.mist
+//                  ^^^^^ entity.name.type.parameter.mist
+//                         ^^^^^^ storage.modifier.mist
+
+// ===== spread suffix in value / argument position (Req 17.2) =====
+
+x = args...;
+//      ^^^ keyword.operator.spread.mist
+
+// ===== spread suffix in a type-argument list (Req 17.2) =====
+
+Func<TArgs..., void> handler;
+//        ^^^ keyword.operator.spread.mist
+
+// ===== Type[]: pack domain annotation, pack name is a type parameter (Req 17.3) =====
+
+class TwoPacks<Type[]:A>
+//             ^^^^ storage.type.metatype.mist
+//                   ^ punctuation.separator.annotation.mist
+//                    ^ entity.name.type.parameter.mist
+
+// ===== Type[N]: fixed-size pack domain annotation (Req 17.3) =====
+
+struct ShapePair<Type[2]:TShapes>
+//               ^^^^ storage.type.metatype.mist
+//                    ^ constant.numeric.integer.mist
+//                       ^^^^^^^ entity.name.type.parameter.mist
+
+// ===== Bracketed Type[]: packs in a generic method declaration (Req 17.3) =====
+
+int TwoPacks<Type[]:A, Type[]:B>()
+//  ^^^^^^^^ entity.name.function.mist
+//                  ^ entity.name.type.parameter.mist
+//                            ^ entity.name.type.parameter.mist

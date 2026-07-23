@@ -25,8 +25,9 @@ internal sealed class ExtensionBuilder
         var parameterBuilder = new ParameterBuilder(scopeResolver);
         var delegateResolver = new DelegateResolver(context, parameterBuilder, scopeResolver);
         var accessorBuilder = new AccessorBuilder(context);
-        methodBuilder = new MethodBuilder(scopeResolver, delegateResolver, constraintResolver);
-        propertyBuilder = new PropertyBuilder(context, scopeResolver, accessorBuilder);
+        var spreadMemberBuilder = new SpreadMemberBuilder(context, scopeResolver);
+        methodBuilder = new MethodBuilder(scopeResolver, delegateResolver, constraintResolver, context.Diagnostics);
+        propertyBuilder = new PropertyBuilder(context, scopeResolver, accessorBuilder, spreadMemberBuilder);
     }
 
     /// <summary>

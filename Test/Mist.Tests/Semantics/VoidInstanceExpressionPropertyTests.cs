@@ -84,7 +84,7 @@ public class VoidInstanceExpressionPropertyTests
             Suffix = ImmutableArray.Create<PostfixSuffixNode>(suffix),
         };
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = unary } };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
@@ -327,7 +327,7 @@ public class VoidInstanceExpressionPropertyTests
             Suffix = ImmutableArray.Create<PostfixSuffixNode>(callSuffix),
         };
         var callUnary = new PostfixExpressionUnaryNode { Primary = callPostfix };
-        var callMult = new MultiplicativeNode { Left = callUnary };
+        var callMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = callUnary } };
         var callAdd = new AdditiveNode { Left = callMult };
         var callRel = new RelationalComparisonRelationalNode { Left = callAdd };
         var callEq = new EqualityNode { Left = callRel };

@@ -66,7 +66,7 @@ internal sealed class TypeSlotBuilder
         }
 
         // The `where` clauses constrain the slot's own type parameters.
-        constraintResolver.Resolve(slotDecl.SlotWhereConstraints, slot.TypeParametersList, slotScope);
+        constraintResolver.Resolve(slotDecl.Group0?.SlotWhereConstraints ?? default, slot.TypeParametersList, slotScope);
 
         typeDef.TypeSlotsList.Add(slot);
         typeDef.Scope.AddLocalType(name, slot);

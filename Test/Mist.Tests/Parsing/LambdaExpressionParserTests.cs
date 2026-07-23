@@ -305,8 +305,8 @@ public class LambdaExpressionParserTests
         var assignment = assignmentForm.Assignment;
 
         // It is genuinely an assignment (has the `=` operator).
-        _ = Assert.NotNull(assignment.Operator);
-        Assert.Equal("=", assignment.Operator!.Value.Lexeme);
+        _ = Assert.NotNull(assignment.Group0?.Operator);
+        Assert.Equal("=", (assignment.Group0?.Operator)!.Value.Lexeme);
 
         // The assignment target is the identifier `f`.
         var target = FindFirst<IdentifierExpressionPrimaryNode>(assignment.Target);
@@ -314,7 +314,7 @@ public class LambdaExpressionParserTests
         Assert.Equal("f", target!.Name.Lexeme);
 
         // The RHS value is the lambda itself.
-        var rhsLambdaForm = Assert.IsType<LambdaFormExpressionNode>(assignment.Value);
+        var rhsLambdaForm = Assert.IsType<LambdaFormExpressionNode>(assignment.Group0?.Value);
         var rhsLambda = Assert.IsType<ExpressionLambdaLambdaExpressionNode>(rhsLambdaForm.Lambda);
         var rhsParams = Assert.IsType<SingleImplicitParamLambdaParameterListNode>(rhsLambda.Params);
         Assert.Equal("x", rhsParams.Name.Lexeme);
@@ -416,7 +416,7 @@ public class LambdaExpressionParserTests
         // Guard is the comparison `n > 7`.
         var comparison = FindFirst<RelationalComparisonRelationalNode>(firstArm.Guard.Condition);
         Assert.NotNull(comparison);
-        Assert.Equal(">", comparison!.Operator.Lexeme);
+        Assert.Equal(">", comparison!.Group0[^1].Operator.Lexeme);
 
         // Result is `n.ToString()`.
         var resultCall = FindFirst<MethodCallSuffixPostfixSuffixNode>(firstArm.Result);

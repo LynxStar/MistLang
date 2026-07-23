@@ -148,7 +148,7 @@ public class SyncContextAutoUnwrapPropertyTests
         var callUnary = new PostfixExpressionUnaryNode { Primary = callPostfix };
 
         // Build the expression chain for: var x = AsyncMethod();
-        var mult = new MultiplicativeNode { Left = callUnary };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = callUnary } };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };

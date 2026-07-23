@@ -10,7 +10,7 @@ namespace Storm.SourceGenerator.Emit;
 /// Generates one type per rule: sealed record for single-alternative rules,
 /// abstract record + sealed subtypes for rules with named alternatives.
 /// </summary>
-public static class AstEmitter
+public static partial class AstEmitter
 {
     /// <summary>
     /// Generates the Storm.Runtime types source file (Token, TokenChannel,
@@ -209,6 +209,16 @@ public static class AstEmitter
         writer.WriteLine("using System;");
         writer.WriteLine("using System.Collections.Generic;");
         writer.WriteLine("using System.Collections.Immutable;");
+
+        // The obsolete list shims (e.g. Multiplicatives) forward through LINQ's
+        // Select/ToImmutableArray, so import System.Linq only when such a shim is
+        // actually emitted -- this keeps the generated file free of an unused using
+        // when shims are disabled or no list shim is produced.
+        if(AstFileUsesLinq(context))
+        {
+            writer.WriteLine("using System.Linq;");
+        }
+
         writer.WriteLine("using Storm.Runtime;");
         writer.WriteEmptyLine();
 
@@ -239,6 +249,38 @@ public static class AstEmitter
     }
 
     /// <summary>
+    /// Returns true when the emitted AST file will contain an obsolete list shim,
+    /// which forwards through LINQ (<c>Select(...).ToImmutableArray()</c>). A list
+    /// shim is produced only for a rule reference inside a <c>*</c>/<c>+</c>
+    /// struct-projected group, and only when shims are enabled. Used to decide
+    /// whether the generated file needs a <c>using System.Linq;</c> directive.
+    /// </summary>
+    private static bool AstFileUsesLinq(EmissionContext context)
+    {
+        if(!context.EmitObsoleteShims)
+        {
+            return false;
+        }
+
+        foreach(var rule in context.Grammar.Rules)
+        {
+            foreach(var alt in rule.Alternatives)
+            {
+                foreach(var group in DetectAnonymousGroups(alt))
+                {
+                    if(group.Modifier is GroupModifier.ZeroOrMore or GroupModifier.OneOrMore
+                        && group.Sequence.Elements.Any(element => element is RuleRefIR))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Emits the AST node type(s) for a single rule.
     /// </summary>
     private static void EmitRuleNodeTypes(CodeWriter writer, RuleIR rule, EmissionContext context)
@@ -263,7 +305,7 @@ public static class AstEmitter
     {
         var nodeTypeName = rule.Name + "Node";
         var baseType = "SyntaxNode";
-        var properties = CollectProperties(rule.Alternatives[0]);
+        var properties = CollectProperties(rule.Alternatives[0], nodeTypeName, context.EmitObsoleteShims, out var groupStructs, out var shims);
 
         // Check for trait interfaces
         var interfaces = new List<string>();
@@ -296,37 +338,19 @@ public static class AstEmitter
                 writer.WriteEmptyLine();
             }
 
-            // Children() override
-            writer.WriteBlock("public override IEnumerable<SyntaxNode> Children()", () =>
-            {
-                var hasChildren = false;
-                foreach(var prop in properties)
-                {
-                    if(prop.IsNodeType && !prop.IsList)
-                    {
-                        hasChildren = true;
-                        if(prop.IsNullable)
-                        {
-                            writer.WriteBlock($"if ({prop.Name} != null)", () => writer.WriteLine($"yield return {prop.Name};"));
-                        }
-                        else
-                        {
-                            writer.WriteLine($"yield return {prop.Name};");
-                        }
-                    }
-                    else if(prop.IsNodeType && prop.IsList)
-                    {
-                        hasChildren = true;
-                        writer.WriteBlock($"foreach (var child in {prop.Name})", () => writer.WriteLine("yield return child;"));
-                    }
-                }
+            // Obsolete migration shims (Task 5.1)
+            EmitObsoleteShimProperties(writer, shims);
 
-                if(!hasChildren)
-                {
-                    writer.WriteLine("yield break;");
-                }
-            });
+            // Children() override
+            EmitChildrenOverride(writer, properties);
         });
+
+        // Emit anonymous group structs as sibling types in the same namespace (Task 3.1).
+        foreach(var groupStruct in groupStructs)
+        {
+            writer.WriteEmptyLine();
+            EmitGroupStruct(writer, groupStruct);
+        }
     }
 
     /// <summary>
@@ -360,7 +384,7 @@ public static class AstEmitter
 
                 var altName = alt.AlternativeName ?? "Default";
                 var subtypeName = altName + rule.Name + "Node";
-                var properties = CollectProperties(alt);
+                var properties = CollectProperties(alt, subtypeName, context.EmitObsoleteShims, out var groupStructs, out var shims);
 
                 // Check for per-alternative trait interfaces
                 var interfaces = new List<string>();
@@ -381,7 +405,7 @@ public static class AstEmitter
                     ? $"{baseNodeTypeName}, {string.Join(", ", interfaces)}"
                     : baseNodeTypeName;
 
-                EmitSealedSubtype(writer, subtypeName, implementsList, properties);
+                EmitSealedSubtype(writer, subtypeName, implementsList, properties, groupStructs, shims);
             }
         }
     }
@@ -407,14 +431,18 @@ public static class AstEmitter
             new(propName, targetNodeType, false, true, false, " = default!;")
         };
 
-        EmitSealedSubtype(writer, subtypeName, baseNodeTypeName, properties);
+        // Inline arm nodes carry a single rule-ref property and never project
+        // anonymous groups, so no group structs or obsolete shims are emitted for them.
+        EmitSealedSubtype(writer, subtypeName, baseNodeTypeName, properties, new List<GroupStructModel>(), new List<ObsoleteShim>());
     }
 
 
     /// <summary>
-    /// Emits a sealed subtype class with the given properties and Children() override.
+    /// Emits a sealed subtype class with the given properties, obsolete migration
+    /// shims, and Children() override, followed by any anonymous group structs as
+    /// sibling types.
     /// </summary>
-    private static void EmitSealedSubtype(CodeWriter writer, string subtypeName, string implementsList, List<PropertyInfo> properties)
+    private static void EmitSealedSubtype(CodeWriter writer, string subtypeName, string implementsList, List<PropertyInfo> properties, List<GroupStructModel> groupStructs, List<ObsoleteShim> shims)
     {
         writer.WriteBlock($"public sealed class {subtypeName} : {implementsList}", () =>
         {
@@ -429,46 +457,189 @@ public static class AstEmitter
                 writer.WriteEmptyLine();
             }
 
-            // Children() override
-            writer.WriteBlock("public override IEnumerable<SyntaxNode> Children()", () =>
-            {
-                var hasChildren = false;
-                foreach(var prop in properties)
-                {
-                    if(prop.IsNodeType && !prop.IsList)
-                    {
-                        hasChildren = true;
-                        if(prop.IsNullable)
-                        {
-                            writer.WriteBlock($"if ({prop.Name} != null)", () => writer.WriteLine($"yield return {prop.Name};"));
-                        }
-                        else
-                        {
-                            writer.WriteLine($"yield return {prop.Name};");
-                        }
-                    }
-                    else if(prop.IsNodeType && prop.IsList)
-                    {
-                        hasChildren = true;
-                        writer.WriteBlock($"foreach (var child in {prop.Name})", () => writer.WriteLine("yield return child;"));
-                    }
-                }
+            // Obsolete migration shims (Task 5.1)
+            EmitObsoleteShimProperties(writer, shims);
 
-                if(!hasChildren)
+            // Children() override
+            EmitChildrenOverride(writer, properties);
+        });
+
+        // Emit anonymous group structs as sibling types in the same namespace (Task 3.1).
+        foreach(var groupStruct in groupStructs)
+        {
+            writer.WriteEmptyLine();
+            EmitGroupStruct(writer, groupStruct);
+        }
+    }
+
+    /// <summary>
+    /// Emits the <c>[Obsolete]</c> migration shim properties for a node class (Task
+    /// 5.1). Each shim is an expression-bodied property carrying an
+    /// <c>[Obsolete("Use Group{N}")]</c> attribute and forwarding to the new group
+    /// data. Emits nothing (and no separating blank line) when there are no shims,
+    /// so a node without struct-projected groups -- or output produced with shims
+    /// disabled -- is byte-for-byte unchanged.
+    /// </summary>
+    private static void EmitObsoleteShimProperties(CodeWriter writer, List<ObsoleteShim> shims)
+    {
+        if(shims.Count == 0)
+        {
+            return;
+        }
+
+        foreach(var shim in shims)
+        {
+            writer.WriteLine($"[Obsolete(\"Use {shim.GroupPropertyName}\")]");
+            writer.WriteLine($"public {shim.TypeName} {shim.PropertyName} => {shim.Body};");
+        }
+
+        writer.WriteEmptyLine();
+    }
+
+    /// <summary>
+    /// Emits the <c>Children()</c> override for a node class. Node-typed scalar and
+    /// nullable properties are yielded (nullable ones guarded); node-typed list
+    /// properties are iterated. Anonymous-group properties are iterated according to
+    /// their modifier, yielding each scalar node-typed field from every group struct
+    /// occurrence (the minimal group traversal for coherent output; deeper per-group
+    /// iteration is handled separately).
+    /// </summary>
+    private static void EmitChildrenOverride(CodeWriter writer, List<PropertyInfo> properties)
+    {
+        writer.WriteBlock("public override IEnumerable<SyntaxNode> Children()", () =>
+        {
+            var hasChildren = false;
+            foreach(var prop in properties)
+            {
+                if(prop.IsGroup)
                 {
-                    writer.WriteLine("yield break;");
+                    if(EmitGroupChildren(writer, prop))
+                    {
+                        hasChildren = true;
+                    }
                 }
-            });
+                else if(prop.IsNodeType && !prop.IsList)
+                {
+                    hasChildren = true;
+                    if(prop.IsNullable)
+                    {
+                        writer.WriteBlock($"if ({prop.Name} != null)", () => writer.WriteLine($"yield return {prop.Name};"));
+                    }
+                    else
+                    {
+                        writer.WriteLine($"yield return {prop.Name};");
+                    }
+                }
+                else if(prop.IsNodeType && prop.IsList)
+                {
+                    hasChildren = true;
+                    writer.WriteBlock($"foreach (var child in {prop.Name})", () => writer.WriteLine("yield return child;"));
+                }
+            }
+
+            if(!hasChildren)
+            {
+                writer.WriteLine("yield break;");
+            }
         });
     }
 
     /// <summary>
-    /// Collects the properties for an alternative's AST node type.
+    /// Emits the <c>Children()</c> iteration for one anonymous-group property, yielding
+    /// each scalar node-typed field from the group struct(s) according to the group's
+    /// modifier. Returns true when at least one yield was emitted (the group has
+    /// node-typed fields).
     /// </summary>
-    private static List<PropertyInfo> CollectProperties(RuleAlternativeIR alt)
+    private static bool EmitGroupChildren(CodeWriter writer, PropertyInfo prop)
+    {
+        var nodeFields = prop.GroupNodeFieldNames!;
+        if(nodeFields.Count == 0)
+        {
+            return false;
+        }
+
+        if(prop.IsList)
+        {
+            writer.WriteBlock($"foreach (var groupItem in {prop.Name})", () =>
+            {
+                foreach(var field in nodeFields)
+                {
+                    writer.WriteLine($"yield return groupItem.{field};");
+                }
+            });
+        }
+        else if(prop.IsNullable)
+        {
+            writer.WriteBlock($"if ({prop.Name} != null)", () =>
+            {
+                foreach(var field in nodeFields)
+                {
+                    writer.WriteLine($"yield return {prop.Name}.Value.{field};");
+                }
+            });
+        }
+        else
+        {
+            foreach(var field in nodeFields)
+            {
+                writer.WriteLine($"yield return {prop.Name}.{field};");
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Collects the properties for an alternative's AST node type and, via
+    /// <paramref name="groupStructs"/>, the anonymous group structs that must be
+    /// emitted as sibling types.
+    /// </summary>
+    /// <remarks>
+    /// Anonymous-group scoping rule (Requirement 6 / Property 7): a parenthesised
+    /// subexpression is projected as a group struct only when
+    /// <see cref="DetectAnonymousGroups"/> reports it -- that is, when a repetition or
+    /// optional wraps a sequence with two or more value-bearing elements (a labelled
+    /// element or an unlabelled rule reference; bare fixed tokens are structural and
+    /// do not count). A group with fewer than two value-bearing elements is not
+    /// detected and keeps its existing scalar/list/optional promotion, so
+    /// backward-compatibility holds in every direction:
+    /// <list type="bullet">
+    ///   <item>Two value-bearing elements such as <c>(operator:(PLUS | MINUS)
+    ///         right:Multiplicative)*</c> (the <c>Additive</c>/<c>Equality</c>
+    ///         family) are detected and produce a struct.</item>
+    ///   <item>Single value-bearing groups such as <c>(COMMA rest:Expression)*</c>,
+    ///         <c>(COMMA Param)*</c>, or <c>(EQ Expr)?</c> keep their existing list or
+    ///         optional property.</item>
+    ///   <item>Token-only groups such as <c>(DOT IDENT)*</c> have zero value-bearing
+    ///         elements and keep the existing lone-token promotion.</item>
+    ///   <item>A label on the whole group such as <c>init:(EQ Expr)?</c> points at the
+    ///         optional/repetition wrapper -- not at anything inside -- and does not
+    ///         change the count, so it keeps its existing behaviour.</item>
+    /// </list>
+    /// </remarks>
+    private static List<PropertyInfo> CollectProperties(RuleAlternativeIR alt, string nodeTypeName, bool emitObsoleteShims, out List<GroupStructModel> groupStructs, out List<ObsoleteShim> shims)
     {
         var properties = new List<PropertyInfo>();
+        groupStructs = new List<GroupStructModel>();
+        shims = new List<ObsoleteShim>();
         var usedNames = new HashSet<string>();
+
+        // Detect anonymous groups up front (committed wave-0 logic). Their labels
+        // move onto the group struct (or the collapsed pure-token property), and
+        // their repetition/optional wrapper must not also emit an auto-generated
+        // list/optional property on the parent.
+        var groups = DetectAnonymousGroups(alt);
+
+        var inGroupLabels = new HashSet<FieldLabelIR>();
+        var groupSequences = new HashSet<ExpressionIR>();
+        foreach(var group in groups)
+        {
+            _ = groupSequences.Add(group.Sequence);
+            foreach(var label in group.Labels)
+            {
+                _ = inGroupLabels.Add(label);
+            }
+        }
 
         // Build a set of TokenRefIR expressions that live inside a ZeroOrMoreIR
         // or OneOrMoreIR so we can promote labeled tokens to list properties.
@@ -482,15 +653,42 @@ public static class AstEmitter
         var exprsInsideOptional = new HashSet<ExpressionIR>();
         CollectExpressionsInsideOptional(alt.Expression, false, exprsInsideOptional);
 
-        // First, add properties from field labels
+        // Build a set of AlternationIR expressions that live inside a ZeroOrMoreIR or
+        // OneOrMoreIR. A label on a *pure-token* alternation here (the sole
+        // value-bearing element of a starred group, e.g. (op:(PLUS | MINUS))*) is not
+        // struct-projected, so it must be promoted to an ImmutableArray<Token> on the
+        // parent instead of being flattened to a scalar Token that drops the
+        // repetition. The pure-token gate is applied at the use site.
+        var alternationsInsideRepetition = new HashSet<ExpressionIR>();
+        CollectAlternationsInsideRepetition(alt.Expression, false, alternationsInsideRepetition);
+
+        // First, add properties from field labels. Labels that live inside an
+        // anonymous group are excluded here — they become fields on the group
+        // struct (or the collapsed pure-token property) instead (Task 3.4).
         foreach(var label in alt.FieldLabels)
         {
+            if(inGroupLabels.Contains(label))
+            {
+                continue;
+            }
+
             var propName = PascalCase(label.Label);
             propName = EnsureUnique(propName, usedNames);
             PropertyInfo propInfo;
             if(tokensInsideRepetition.Contains(label.Expression))
             {
                 // The labeled token is inside a * or + repetition — generate a list property
+                propInfo = new PropertyInfo(propName, "ImmutableArray<Token>", false, false, true, " = ImmutableArray<Token>.Empty;");
+            }
+            else if(alternationsInsideRepetition.Contains(label.Expression)
+                && IsPureTokenAlternation(new List<FieldLabelIR> { label }))
+            {
+                // A labeled lone pure-token alternation inside a * or + repetition, e.g.
+                // (op:(PLUS | MINUS))*. It carries one value-bearing element, so it is not
+                // struct-projected (struct-group labels are excluded above via
+                // inGroupLabels); promote it to a token list on the parent, mirroring the
+                // bare-token promotion above (design Property 5). A mixed alternation fails
+                // the pure-token gate and falls through to its existing scalar promotion.
                 propInfo = new PropertyInfo(propName, "ImmutableArray<Token>", false, false, true, " = ImmutableArray<Token>.Empty;");
             }
             else if(exprsInsideOptional.Contains(label.Expression))
@@ -511,8 +709,20 @@ public static class AstEmitter
             properties.Add(propInfo);
         }
 
-        // Then, walk the expression to find unlabeled elements
-        CollectUnlabeledProperties(alt.Expression, alt.FieldLabels, properties, usedNames);
+        // Next, project each anonymous group: either a collapsed pure-token property
+        // or a Group{N} property backed by a generated struct (Tasks 3.1-3.3, 4.1-4.2).
+        // When shims are enabled, each struct-projected group also contributes the
+        // old flat-field properties as [Obsolete] shims (Tasks 5.1-5.4).
+        foreach(var group in groups)
+        {
+            AddGroupProjection(group, nodeTypeName, properties, groupStructs, shims, emitObsoleteShims, usedNames);
+        }
+
+        // Then, walk the expression to find unlabeled elements. Skip the wrapper
+        // expressions that became anonymous groups so we don't also emit their old
+        // auto-generated list/optional property (e.g. the redundant Multiplicatives
+        // list that used to sit alongside the projected Group0).
+        CollectUnlabeledProperties(alt.Expression, alt.FieldLabels, properties, usedNames, groupSequences);
 
         return properties;
     }
@@ -601,14 +811,67 @@ public static class AstEmitter
     }
 
     /// <summary>
+    /// Recursively walks the expression tree and adds every <see cref="AlternationIR"/>
+    /// nested inside a <see cref="ZeroOrMoreIR"/> or <see cref="OneOrMoreIR"/> to the
+    /// <paramref name="result"/> set. A label on a pure-token alternation collected
+    /// here -- e.g. <c>op:(PLUS | MINUS)</c> in <c>(op:(PLUS | MINUS))*</c> -- is the
+    /// sole value-bearing element of its group (so the group is not struct-projected),
+    /// and is promoted to an <c>ImmutableArray&lt;Token&gt;</c> property on the parent
+    /// node rather than being silently flattened to a scalar <c>Token</c> that drops
+    /// the repetition (design Property 5, Requirement 2.2). The pure-token gate is
+    /// applied at the call site via <see cref="IsPureTokenAlternation"/>, so a mixed
+    /// alternation is left with its existing scalar promotion. Alternations inside a
+    /// two-or-more value-bearing group never reach this promotion: their labels are
+    /// excluded up front via <c>inGroupLabels</c> and handled by struct projection.
+    /// </summary>
+    private static void CollectAlternationsInsideRepetition(ExpressionIR expr, bool insideRep, HashSet<ExpressionIR> result)
+    {
+        if(insideRep && expr is AlternationIR)
+        {
+            _ = result.Add(expr);
+        }
+
+        switch(expr)
+        {
+            case SequenceIR seq:
+                foreach(var elem in seq.Elements)
+                {
+                    CollectAlternationsInsideRepetition(elem, insideRep, result);
+                }
+
+                break;
+            case AlternationIR alt:
+                foreach(var a in alt.Alternatives)
+                {
+                    CollectAlternationsInsideRepetition(a, insideRep, result);
+                }
+
+                break;
+            case OptionalIR opt:
+                CollectAlternationsInsideRepetition(opt.Inner, insideRep, result);
+                break;
+            case ZeroOrMoreIR zom:
+                CollectAlternationsInsideRepetition(zom.Inner, true, result);
+                break;
+            case OneOrMoreIR oom:
+                CollectAlternationsInsideRepetition(oom.Inner, true, result);
+                break;
+        }
+    }
+
+    /// <summary>
     /// Walks an expression to find elements that don't have field labels
-    /// and generates auto-named properties for them.
+    /// and generates auto-named properties for them. Repetition/optional wrappers
+    /// whose inner sequence became an anonymous group (listed in
+    /// <paramref name="groupSequences"/>) are skipped so their projected
+    /// <c>Group{N}</c> property is not shadowed by a duplicate auto-generated one.
     /// </summary>
     private static void CollectUnlabeledProperties(
         ExpressionIR expr,
         IReadOnlyList<FieldLabelIR> labels,
         List<PropertyInfo> properties,
-        HashSet<string> usedNames)
+        HashSet<string> usedNames,
+        HashSet<ExpressionIR> groupSequences)
     {
         // Skip expressions that are already covered by field labels
         if(labels.Any(l => ReferenceEquals(l.Expression, expr)))
@@ -621,7 +884,7 @@ public static class AstEmitter
             case SequenceIR seq:
                 foreach(var element in seq.Elements)
                 {
-                    CollectUnlabeledProperties(element, labels, properties, usedNames);
+                    CollectUnlabeledProperties(element, labels, properties, usedNames, groupSequences);
                 }
 
                 break;
@@ -648,6 +911,13 @@ public static class AstEmitter
                 break;
 
             case OptionalIR opt:
+                // The inner expression became an anonymous group — its Group{N}
+                // property is emitted separately; do not also auto-generate one.
+                if(groupSequences.Contains(opt.Inner))
+                {
+                    break;
+                }
+
                 // The inner expression becomes nullable
                 var optProp = GetPropertyInfoForOptional(opt.Inner, usedNames);
                 if(optProp != null && !labels.Any(l => ReferenceEquals(l.Expression, opt)))
@@ -658,6 +928,11 @@ public static class AstEmitter
                 break;
 
             case ZeroOrMoreIR zom:
+                if(groupSequences.Contains(zom.Inner))
+                {
+                    break;
+                }
+
                 var zomProp = GetPropertyInfoForList(zom.Inner, usedNames);
                 if(zomProp != null && !labels.Any(l => ReferenceEquals(l.Expression, zom)))
                 {
@@ -667,6 +942,11 @@ public static class AstEmitter
                 break;
 
             case OneOrMoreIR oom:
+                if(groupSequences.Contains(oom.Inner))
+                {
+                    break;
+                }
+
                 var oomProp = GetPropertyInfoForList(oom.Inner, usedNames);
                 if(oomProp != null && !labels.Any(l => ReferenceEquals(l.Expression, oom)))
                 {
@@ -693,6 +973,14 @@ public static class AstEmitter
             OptionalIR opt => GetPropertyInfoForOptionalInner(opt.Inner, propName),
             ZeroOrMoreIR zom => GetPropertyInfoForListInner(zom.Inner, propName),
             OneOrMoreIR oom => GetPropertyInfoForListInner(oom.Inner, propName),
+            // Known limitation (design.md, Error Handling / Edge Cases): a labelled
+            // MIXED alternation such as choice:(A | Y) -- where at least one alternative
+            // is a rule reference -- falls through to Token here, discarding the rule-ref
+            // alternative. Modelling it faithfully needs a discriminated union, which the
+            // AST has no representation for. This shape does not occur in the Mist grammar,
+            // so the fallback is left as-is. A labelled PURE-token alternation is handled
+            // before reaching this fallback (as a list inside a repetition, a Token? inside
+            // an optional, or a Token field on a struct-projected group).
             _ => new PropertyInfo(propName, "Token", false, false, false, " = default;"),
         };
     }
@@ -910,7 +1198,17 @@ public static class AstEmitter
         public bool IsList { get; }
         public string DefaultValue { get; }
 
-        public PropertyInfo(string name, string typeName, bool isNullable, bool isNodeType, bool isList, string defaultValue)
+        /// <summary>
+        /// For an anonymous-group property (a <c>Group{N}</c> backed by a generated
+        /// struct), the scalar node-typed field names on that struct that
+        /// <c>Children()</c> must yield; <c>null</c> for ordinary properties. An empty
+        /// list means the group carries no directly yieldable node fields.
+        /// </summary>
+        public IReadOnlyList<string>? GroupNodeFieldNames { get; }
+
+        public bool IsGroup => GroupNodeFieldNames != null;
+
+        public PropertyInfo(string name, string typeName, bool isNullable, bool isNodeType, bool isList, string defaultValue, IReadOnlyList<string>? groupNodeFieldNames = null)
         {
             Name = name;
             TypeName = typeName;
@@ -918,6 +1216,7 @@ public static class AstEmitter
             IsNodeType = isNodeType;
             IsList = isList;
             DefaultValue = defaultValue;
+            GroupNodeFieldNames = groupNodeFieldNames;
         }
     }
 }

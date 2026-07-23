@@ -1,0 +1,16 @@
+using Standard;
+
+public class Program
+{
+    public static TResult Apply<params TArgs, TResult>(Func<TArgs..., TResult> f, params TArgs args)
+    {
+        return f(args...);
+    }
+
+    public static void Main(string[] cmdArgs)
+    {
+        Func<int, int, int, int> add = (a, b, c) => a + b + c;
+        var result = Apply(add, 2, 3, 4);
+        Console.WriteLine($"forward={result}");
+    }
+}

@@ -63,3 +63,26 @@
   <= >=
 //^^ keyword.operator.comparison.mist
 //   ^^ keyword.operator.comparison.mist
+// ===== Index-from-end operator (keyword.operator.mist) =====
+
+^
+// <- keyword.operator.mist
+
+// ===== Range operator (keyword.operator.mist) =====
+
+  ..
+//^^ keyword.operator.mist
+
+// ===== From-end bounds within a range: ^1..^2 =====
+
+  ^1..^2
+//^ keyword.operator.mist
+// ^ constant.numeric.integer.mist
+//  ^^ keyword.operator.mist
+//    ^ keyword.operator.mist
+//     ^ constant.numeric.integer.mist
+
+// ===== Range as slice pattern inside a list pattern (Req 14.4) =====
+
+arr is [.., x]
+//      ^^ keyword.operator.mist

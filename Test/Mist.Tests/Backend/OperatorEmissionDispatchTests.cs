@@ -455,8 +455,8 @@ class Program {
         {
             var node = stack.Pop();
             if(node is AdditiveNode add
-                && add.Right is not null
-                && !ReferenceEquals(add.Right, add.Left))
+                && add.Group0.Length > 0
+                && !ReferenceEquals(add.Group0[^1].Right, add.Left))
             {
                 return add;
             }

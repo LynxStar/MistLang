@@ -219,7 +219,7 @@ public sealed class ValueTaskEmissionPropertyTests : IDisposable
             Operand = new PostfixExpressionUnaryNode { Primary = callPostfix },
         };
 
-        var mult = new MultiplicativeNode { Left = awaitExpr };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = awaitExpr } };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };

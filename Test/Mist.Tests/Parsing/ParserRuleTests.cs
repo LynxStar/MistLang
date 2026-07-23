@@ -93,10 +93,10 @@ public class ParserRuleTests
             var additive = relational.Left;
 
             // The additive node should have a PLUS operator
-            Assert.Equal((int)TokenKind.PLUS, additive.Operator.Kind);
+            Assert.Equal((int)TokenKind.PLUS, additive.Group0[^1].Operator.Kind);
             // The right side of the additive should contain the multiplicative (2 * 3)
-            var multiplicative = additive.Right;
-            Assert.Equal((int)TokenKind.STAR, multiplicative.Operator.Kind);
+            var multiplicative = additive.Group0[^1].Right;
+            Assert.Equal((int)TokenKind.STAR, multiplicative.Group0[^1].Operator.Kind);
         }
         // If Root is null (skeletal parser), the test passes gracefully.
     }
@@ -146,7 +146,7 @@ public class ParserRuleTests
             var logicalAnd = logicalOr.Left;
 
             var equality = logicalAnd.Right;
-            Assert.Equal((int)TokenKind.EQUAL_EQUAL, equality.Operator.Kind);
+            Assert.Equal((int)TokenKind.EQUAL_EQUAL, equality.Group0[^1].Operator.Kind);
         }
     }
 

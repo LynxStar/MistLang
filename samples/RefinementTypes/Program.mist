@@ -31,12 +31,12 @@ type Percentage = int >= 0 and <= 100;
 type AgeRange = int >= 3 and <= 8 | byte >= 0 and < 64;
 
 // 4. Property pattern refinement on readonly type
-public readonly class Range
+public readonly class Interval
 {
     public int Start;
     public int End;
 
-    public Range(int start, int end)
+    public Interval(int start, int end)
     {
         this.Start = start;
         this.End = end;
@@ -44,11 +44,11 @@ public readonly class Range
 
     public string Describe()
     {
-        return $"Range({Start}, {End})";
+        return $"Interval({Start}, {End})";
     }
 }
 
-type ValidRange = Range { Start: >= 0 };
+type ValidInterval = Interval { Start: >= 0 };
 
 // Subset refinement types for demonstrating assignability
 type DrinkingAge = int >= 21;
@@ -125,24 +125,24 @@ public class Program
         Console.WriteLine($"  AgeRange byteVal = 50 -> {byteVal}");
 
         // 4. Property pattern refinement on readonly type
-        Console.WriteLine("--- Property pattern refinement: ValidRange ---");
-        var r = new Range(10, 50);
-        if (r is ValidRange validR)
+        Console.WriteLine("--- Property pattern refinement: ValidInterval ---");
+        var r = new Interval(10, 50);
+        if (r is ValidInterval validR)
         {
-            Console.WriteLine($"  Range(10, 50) is ValidRange -> true");
+            Console.WriteLine($"  Interval(10, 50) is ValidInterval -> true");
         }
         else
         {
-            Console.WriteLine($"  Range(10, 50) is ValidRange -> false");
+            Console.WriteLine($"  Interval(10, 50) is ValidInterval -> false");
         }
-        var negRange = new Range(-5, 10);
-        if (negRange is ValidRange validNeg)
+        var negInterval = new Interval(-5, 10);
+        if (negInterval is ValidInterval validNeg)
         {
-            Console.WriteLine($"  Range(-5, 10) is ValidRange -> true");
+            Console.WriteLine($"  Interval(-5, 10) is ValidInterval -> true");
         }
         else
         {
-            Console.WriteLine($"  Range(-5, 10) is ValidRange -> false");
+            Console.WriteLine($"  Interval(-5, 10) is ValidInterval -> false");
         }
 
         // 5. Compile-time accepted literal assignments

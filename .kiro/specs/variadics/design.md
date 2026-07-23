@@ -660,53 +660,112 @@ new Between<int, string, bool, double>();
 
 ## Architecture
 
-The feature threads through the existing pipeline, so this section describes how each compiler stage
-participates in realizing the language model above. No stage needs a new subsystem; each extends what
-[dependent-types](../dependent-types/design.md) and
-[generics-type-arguments](../generics-type-arguments/design.md) already established. The pipeline
-diagram below shows the stages and the variadics-specific responsibility each one takes on.
+Mist compiles through a **shared front end** and then one of **two pipelines**. This split is central
+to where variadics lives, because only one of the two pipelines type-checks and emits today, so the
+feature has to be realized in both.
+
+The shared front end (`CompilerDriver`, Stages 1-3) loads sources, loads and parses the standard
+library on **every** compile, lexes, and parses. It produces ASTs and dispatches them to the selected
+pipeline for Stages 4-6:
+
+- **Classic pipeline** (`Source/Mist/Driver/ClassicPipeline.cs`) -- the **default**
+  (`CompilerOptions.Pipeline` defaults to `PipelineMode.Classic`) and the **only** pipeline that
+  type-checks and emits. Stage 4 builds the legacy semantic model (`Mist.Semantics.ISemanticModel`)
+  via `SemanticModelBuilder`; Stage 5 runs analyzers -- including `TypeCheckerAnalyzer` -- against
+  that `ISemanticModel`; Stage 6 emits C# from the same `ISemanticModel` through the `CSharpTranspiler`
+  (`CSharpEmitter` / `CSharpTranspilerBackend`). This is the path that compiles and runs the runnable
+  sample and the `Func`/`Action` stdlib bootstrap.
+- **ProgramModel pipeline** (`Source/Mist/Driver/ExperimentalPipeline.cs`) -- the migration target.
+  Stage 4 builds the `IProgramModel` via `ProgramModelBuilder`, but its analyze and emit stages are
+  unfinished stubs (the emit stage returns a failure result with no output, and the mode is documented
+  as not yet implemented). It does not compile or run any program yet.
+
+Consequently **variadics is built out in both pipelines**, each with its own pack representation and
+logic:
+
+- **Classic track** -- pack representation in the legacy `Mist.Semantics` model and
+  `SemanticModelBuilder`, pack type-checking in `TypeCheckerAnalyzer`, and pack emission in the
+  `CSharpTranspiler`. This is the track that makes the runnable sample (Requirement 18) and the
+  `Func`/`Action` bootstrap collapse (Requirement 15) actually compile and run, because Classic is the
+  default emitting path.
+- **ProgramModel track** -- the pack model, classification, `Type[]`-valued type identity, the binding
+  rule, and the type-position capability ladder in `Source/Mist/ProgramModel/`. This track is
+  deliberately **isolated** from the legacy semantic system (see the ProgramModel isolation rule under
+  Data Models) and will emit once the ProgramModel pipeline's analyze and emit stages exist.
+
+The two tracks share the grammar and pretty-printer (one surface syntax feeds both) and the
+`MIST_VAR_*` diagnostics; they diverge at Stage 4 and stay separate through emission. No stage needs a
+new subsystem; each extends what [dependent-types](../dependent-types/design.md) and
+[generics-type-arguments](../generics-type-arguments/design.md) already established.
 
 ```mermaid
 graph TD
-    A[Mist Source] --> B[Lexer]
+    A["Mist Source + stdlib"] --> B[Lexer]
     B --> C["Parser / Storm Grammar"]
-    C --> D[ProgramModel Construction]
-    D --> E[Type Checker Analyzer]
-    E --> F["C# Transpiler Backend"]
+    C --> SPLIT{"Pipeline selection"}
 
-    subgraph "Grammar surface"
-        G1[params modifier on TypeParameter]
+    SPLIT -->|"Classic (default, emits)"| D1[SemanticModelBuilder]
+    D1 --> E1["TypeCheckerAnalyzer (consumes ISemanticModel)"]
+    E1 --> F1["CSharpTranspiler (emits from ISemanticModel)"]
+
+    SPLIT -->|"ProgramModel (v2, not emitting yet)"| D2[ProgramModelBuilder]
+    D2 --> E2["analyzers (TODO stub)"]
+    E2 --> F2["emit (TODO stub, no output)"]
+
+    subgraph "Grammar surface (shared, done)"
+        G1["params modifier on TypeParameter"]
         G2["Type[] and Type[N] as dependent domains"]
-        G3["spread suffix ... in type-arg / value-arg / base / member positions"]
+        G3["spread suffix ... in type / value / base / member positions"]
         G4["params modifier on value Parameter (pack tuple or array)"]
     end
 
-    subgraph "Program model"
+    subgraph "Classic track (Mist.Semantics, emitting)"
+        S1["semantic pack type parameter + arity-in-slots"]
+        S2["binding rule + position semantics in TypeCheckerAnalyzer"]
+        S3["monomorphized Func/Action + ValueTuple emission"]
+    end
+
+    subgraph "ProgramModel track (isolated)"
         P1["TypeParameter with Domain = Type array"]
-        P2["IsPack / arity-in-slots"]
-        P3["value pack Parameter: single (TArgs...) slot via params + flat call convention"]
-    end
-
-    subgraph "Type checker"
-        T1["binding rule: flat -> bracketed"]
-        T2["position semantics + capability ladder"]
-        T3[whole-pack constraints elementwise]
-        T4[pack inference from value args]
-    end
-
-    subgraph "Backend"
-        B1[monomorphize per constructed arity]
-        B2["Func/Action + ValueTuple mapping"]
-        B3[arity-ceiling diagnostic]
+        P2["IsPack / arity-in-slots + PackBinder"]
+        P3["value pack Parameter: single (TArgs...) slot"]
     end
 
     C --> G1 & G2 & G3 & G4
-    D --> P1 & P2 & P3
-    E --> T1 & T2 & T3 & T4
-    F --> B1 & B2 & B3
+    D1 --> S1
+    E1 --> S2
+    F1 --> S3
+    D2 --> P1 & P2 & P3
 ```
 
+### Implementation Status
+
+Because this feature is being built mid-stream, the two tracks are at different stages:
+
+- **Already built (shared surface + ProgramModel track):** the grammar surface (`Mist.storm`) and the
+  pretty-printer round-trip; the `MIST_VAR_*` diagnostic descriptors; and, in
+  `Source/Mist/ProgramModel/`, the pack model and classification, constructed-type identity
+  (`TypeInterner`), the binding rule (`PackBinder`), value-side and spread-generated-member
+  construction, and the type-position capability ladder. All of this is reachable only through the
+  non-emitting ProgramModel pipeline.
+- **Pending (Classic track):** the entire classic-pipeline realization -- pack representation in the
+  legacy `Mist.Semantics` model and `SemanticModelBuilder`, pack type-checking in
+  `TypeCheckerAnalyzer`, and pack emission in the `CSharpTranspiler`. Because Classic is the default
+  emitting path, this track is what the runnable sample and the `Func`/`Action` bootstrap collapse
+  depend on to compile and run.
+- **Pending (both tracks):** the expression- and body-level semantics -- spread forwarding, tuple
+  decomposition, `is`-narrowing, zip, and whole-pack constraints applied inside method bodies --
+  require a body/expression checker in whichever pipeline is checking programs.
+
 ## Data Models
+
+Because the feature is realized in two pipelines, the pack has **two parallel representations** -- one
+in the ProgramModel type system (the isolated track) and one in the legacy `Mist.Semantics` model
+(the classic, emitting track). The two never share types; each pipeline reads only its own. Both model
+the same language semantics from the Language Model section and differ only in which type system
+carries them.
+
+### ProgramModel Representation (isolated track)
 
 The program model already represents a type parameter as a `TypeParameter` with an `Ordinal` and a
 `Domain` (the type whose values fill the slot -- `Standard.Type` for a regular parameter,
@@ -728,15 +787,76 @@ The program model already represents a type parameter as a `TypeParameter` with 
   `params T[]` is a `Parameter` of array type introduced by the same `params` modifier and carrying
   the same flat-call flag.
 
-Per the ProgramModel isolation rule, all of this lives in the program-model type system and its
-constructor; no legacy semantic types are introduced.
+**ProgramModel isolation rule.** This entire representation lives in the program-model type system and
+its constructor; the ProgramModel track introduces **no** references to `Mist.Semantics.*` types. The
+isolation rule constrains the ProgramModel track only -- it is not a prohibition on the classic track,
+which legitimately extends the legacy semantic model (next).
+
+### Legacy `Mist.Semantics` Representation (classic, emitting track)
+
+The classic pipeline builds `Mist.Semantics.ISemanticModel` via `SemanticModelBuilder`, and both
+`TypeCheckerAnalyzer` and the `CSharpTranspiler` consume that model. Variadics therefore also needs a
+pack representation in the legacy semantic model, mirroring the ProgramModel one:
+
+- **Semantic pack type parameter.** The legacy type-parameter symbol gains a pack form: a type
+  parameter whose value domain is the comptime `Type[]` (or `Type[N]`), flagged as a pack and, where
+  applicable, marked as the list's single unbracketed `params` slot. As in the ProgramModel track, the
+  ordinal, name, and constraints are otherwise unchanged.
+- **Semantic constructed variadic type.** A constructed legacy type whose pack-slot argument is a
+  comptime `Type[]` value, with identity extended by order-sensitive elementwise `Type[]` equality --
+  the same identity rule as the ProgramModel track, expressed over legacy semantic types.
+- **Semantic value pack parameter.** A legacy value parameter (`ParameterSignature`) introduced by
+  `params` that is a single slot of tuple type `(TArgs...)` (`ValueTuple<TArgs>`) carrying the
+  flattened call convention; and, for the homogeneous form, a single `params T[]` array parameter
+  carrying the same flat-call flag. Arity counts each as one slot.
+- **Arity in slots.** Identical rule: the legacy model stores the declared slot list and counts each
+  pack slot as one, deferring expansion to the type checker and backend once a concrete `Type[]` is
+  bound.
+
+The classic representation is the one that reaches emission today; the ProgramModel representation will
+reach emission once the ProgramModel pipeline's emit stage exists.
 
 ## Components and Interfaces
+
+The surface syntax (grammar and pretty-printer) is **shared** by both pipelines and is already in
+place; the pack logic is then realized separately in each track's own components. The map below ties
+each responsibility to the concrete component that carries it, and the behavioral rules further down
+apply to whichever track is checking or emitting.
+
+### Components by Track
+
+**Shared (already implemented):**
+
+- **Grammar** -- `Source/Mist/Grammar/Mist.storm` (pack declaration, spread suffix, value-level
+  `params`).
+- **Pretty-printer** -- `Source/Mist/Parsing/MistPrettyPrinter.cs` (round-trips every surface form).
+- **Diagnostics** -- the `MIST_VAR_*` descriptors.
+
+**Classic track (`Mist.Semantics`, the default emitting path -- pending):**
+
+- **Semantic model + builder** -- `Source/Mist/Semantics/Model/` (semantic types and
+  `SemanticModelBuilder.cs`): carries the legacy pack representation from Data Models.
+- **Type checker** -- `Source/Mist/Analysis/Builtin/TypeCheckerAnalyzer.cs`: binding, position
+  semantics, constraints, spread/forward/zip, inference, and `Func` invocation over the legacy model.
+- **Backend** -- `Source/Mist/Backends/CSharpTranspiler/` (`CSharpEmitter.cs`, `CSharpTypeMap.cs`,
+  `IntrinsicTypeMap.cs`): monomorphization and CLR mapping from the legacy semantic model.
+
+**ProgramModel track (`Source/Mist/ProgramModel/`, isolated -- largely built):**
+
+- **Construction** -- `Construction/TypeParameterPopulator.cs` (pack classification, arity-in-slots),
+  `Construction/TypeInterner.cs` (constructed-type identity), `Construction/PackBinder.cs` (the
+  flat-to-bracketed binding rule), `Construction/ParameterBuilder.cs` (value pack slot),
+  `Construction/MemberTypeBuilder.cs` and `Construction/SpreadMemberBuilder.cs` (spread-generated
+  members), and the `class` / `struct` / `abstract` / alias / newtype / method builders, each applying
+  the same pack rules.
+- This track reaches only the non-emitting ProgramModel pipeline until its analyze and emit stages are
+  implemented.
 
 ### Grammar Surface
 
 The grammar changes are localized to the type-parameter, type-argument, and spread surfaces, in the
-spirit of the minimal additions made for dependent types.
+spirit of the minimal additions made for dependent types. They are **shared** by both pipelines and
+are already implemented.
 
 - **`params` modifier on a type parameter.** Extend the `TypeParameter` rule (currently
   `DependentTypeParameter`, `NamedConstraintDependentTypeParameter`, `RegularTypeParameter` in
@@ -763,7 +883,11 @@ bracketed argument lists) so that parse-print-parse is stable.
 
 ### Type-Checker Rules
 
-The type checker is where packs acquire their behavior:
+The type checker is where packs acquire their behavior. The rule content is identical across the two
+tracks; only the host differs. In the ProgramModel track these rules are seeded during construction
+(notably `PackBinder` for the binding rule, already built); in the classic track they are implemented
+in `TypeCheckerAnalyzer` against the legacy `Mist.Semantics` model (pending), which is the path that
+actually type-checks programs today.
 
 - **Binding (flat to bracketed).** Given a use-site argument list and a declared slot list with at
   most one unbracketed pack, bind fixed and bracketed slots inward from both ends and assign the
@@ -796,8 +920,11 @@ The type checker is where packs acquire their behavior:
 
 ### C# Emission Strategy
 
-The backend consumes fully resolved constructed types, so by emission time every pack has a concrete
-`Type[]` value and every spread has a known length. Emission is therefore monomorphization:
+Emission happens in the **classic** `CSharpTranspiler` (`Source/Mist/Backends/CSharpTranspiler/`),
+which consumes the fully resolved legacy `Mist.Semantics` model -- it is the only emitting backend
+today. (The ProgramModel pipeline's emitter is still a stub, so the ProgramModel track does not emit
+yet.) By emission time every pack has a concrete `Type[]` value and every spread has a known length, so
+emission is monomorphization:
 
 - **Per-arity expansion.** For each distinct constructed arity actually used, expand spreads to their
   concrete width and emit the corresponding C# construct (a specific `Func`/`Action`/tuple/type
@@ -815,7 +942,8 @@ The backend consumes fully resolved constructed types, so by emission time every
 
 - **Mist core semantics: arity is unbounded.** A pack is a real dependent value with no inherent cap.
 - **The C# backend has target-imposed ceilings.** When a construction exceeds the target CLR type's
-  capacity, the C# transpiler emits a diagnostic:
+  capacity, the classic `CSharpTranspiler` (consuming the legacy `Mist.Semantics` model -- the only
+  emitting backend today) emits `MIST_VAR_0010`:
   - `System.Func` and `System.Action` cap at 16 input parameters.
   - `System.ValueTuple` caps at 7 elements before nesting. The transpiler may auto-nest ValueTuples
     to exceed that; synthesizing delegate types to exceed the `Func`/`Action` cap is a heavier

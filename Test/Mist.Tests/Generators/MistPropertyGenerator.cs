@@ -241,7 +241,7 @@ public static class MistPropertyGenerator
             Suffix = ImmutableArray<PostfixSuffixNode>.Empty,
         };
         var fieldUnary = new PostfixExpressionUnaryNode { Primary = fieldPostfix };
-        var fieldMult = new MultiplicativeNode { Left = fieldUnary };
+        var fieldMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = fieldUnary } };
         var fieldAdd = new AdditiveNode { Left = fieldMult };
         var fieldRel = new RelationalComparisonRelationalNode { Left = fieldAdd };
         var fieldEq = new EqualityNode { Left = fieldRel };
@@ -255,7 +255,7 @@ public static class MistPropertyGenerator
             Assignment = new AssignmentNode
             {
                 Target = new VoidCoalescingNode { Left = fieldLogOr },
-                Value = valueExpr,
+                Group0 = new AssignmentNodeGroup0 { Value = valueExpr },
             },
         };
     }

@@ -806,7 +806,7 @@ public sealed class RefinementPredicate
             return null; // Lambda form is not a constant integer.
         }
 
-        if(assignment.Value is not null)
+        if(assignment.Group0?.Value is not null)
         {
             return null;
         }
@@ -836,7 +836,7 @@ public sealed class RefinementPredicate
         }
 
         var equality = logicalAnd?.Left;
-        if(equality?.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        if(equality is not null && !equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -846,24 +846,24 @@ public sealed class RefinementPredicate
             return null;
         }
 
-        if(relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
+        if(!relCmp.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var additive = relCmp.Left;
-        if(additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
-        var multiplicative = additive?.Left;
-        if(multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        var multiplicative = additive.Left;
+        if(!multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
-        if(multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+        if(multiplicative.Left.UnwrapRange() is not PostfixExpressionUnaryNode postfixUnary)
         {
             return null;
         }

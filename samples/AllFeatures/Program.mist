@@ -77,6 +77,9 @@ public class Program
         DisposableDropInterop.Program.RunDemo();
         Attributes.Program.RunDemo();
         FullAccessibilityModel.Program.RunDemo();
+        Variadics.Program.RunDemo();
+        RangesAndIndices.Program.RunDemo();
+        StormAnonymousGroups.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

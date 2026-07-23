@@ -61,7 +61,9 @@ rule TypeKeywordHead = modifiers:Modifier* TYPE name:IDENTIFIER typeParams:TypeP
 rule TypeParameterList = LESS_THAN TypeParameter (COMMA TypeParameter)* GREATER_THAN;
 
 rule TypeParameter
-    = name:IDENTIFIER COLON valueType:PrimitiveType           as DependentTypeParameter
+    = PARAMS name:IDENTIFIER                                          as ParamsPackTypeParameter
+    | domainName:IDENTIFIER arrayRank:ArrayRankSuffix COLON name:IDENTIFIER  as ExplicitPackTypeParameter
+    | name:IDENTIFIER COLON valueType:PrimitiveType           as DependentTypeParameter
     | name:IDENTIFIER COLON constraintName:IDENTIFIER         as NamedConstraintDependentTypeParameter
     | name:IDENTIFIER                                          as RegularTypeParameter
     ;
@@ -76,8 +78,13 @@ rule TypeArgument
     | TRUE                            as TrueLiteralTypeArgument
     | FALSE                           as FalseLiteralTypeArgument
     | literal:CHAR_LITERAL            as CharLiteralTypeArgument
+    | LEFT_BRACKET packElements:BracketedPackList? RIGHT_BRACKET as BracketedPackTypeArgument
     | type:TypeReference              as TypeReferenceTypeArgument
     ;
+
+// A bracketed pack argument supplies a Type[] pack explicitly, e.g. `Foo<[int, string]>`
+// or the empty pack `Foo<[]>`. Elements are ordinary type references.
+rule BracketedPackList = TypeReference (COMMA TypeReference)*;
 
 // ─── Parser Rules — Constraint Clauses ───────────────────────────────────────
 
@@ -140,7 +147,14 @@ rule TypeBodyDeclaration : HasModifiers = attributes:AttributeList* modifiers:Mo
     constraints:WhereClause*
     LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
 
-rule BaseTypeRef = name:IDENTIFIER typeArgs:TypeArgumentList?;
+// A base entry is a type name with optional type arguments, plus an optional
+// trailing spread `...`. The bare spread form `: TArgs...` expands a Type[] pack
+// into one base-type entry per element (Requirement 9.3); it is kept as an
+// optional token so `Name`/`TypeArgs` stay directly on the node for the existing
+// consumers, and semantic validity (the operand must be a pack) is deferred to
+// the program model. Spreading into a base type's type arguments (`: ICountable<TArgs...>`)
+// is handled separately by the SpreadSingleTypeRef form inside the type-argument list.
+rule BaseTypeRef = name:IDENTIFIER typeArgs:TypeArgumentList? spread:ELLIPSIS?;
 
 rule BaseList = first:BaseTypeRef (COMMA rest:BaseTypeRef)*;
 
@@ -354,6 +368,7 @@ rule OperatorSymbol
 rule ParameterList = Parameter (COMMA Parameter)*;
 rule Parameter 
     = attributes:AttributeList* 
+    paramsModifier:PARAMS? 
     modifier:READONLY? 
     refModifier:REF? 
     ownershipSpecifier:OwnershipSpecifier? 
@@ -388,6 +403,7 @@ rule SingleTypeRef
     = primitiveType:PrimitiveType arrayRank:ArrayRankSuffix? optional:QUESTION?  as PrimitiveSingleTypeRef
     | VOID as VoidSingleTypeRef
     | UNKNOWN as UnknownSingleTypeRef
+    | name:QualifiedIdentifier ELLIPSIS as SpreadSingleTypeRef
     | name:QualifiedIdentifier typeArgs:TypeArgumentList? arrayRank:ArrayRankSuffix? optional:QUESTION? as NamedSingleTypeRef
     | LEFT_PARENTHESIS inner:TypeReference RIGHT_PARENTHESIS arrayRank:ArrayRankSuffix? as ParenthesizedTypeRef
     | LEFT_PARENTHESIS first:TupleTypeElement COMMA rest:TupleTypeElement (COMMA additional:TupleTypeElement)* RIGHT_PARENTHESIS as TupleSingleTypeRef
@@ -533,7 +549,12 @@ rule Relational
                               | GREATER_THAN_OR_EQUAL) right:Additive)*         as RelationalComparison
     ;
 rule Additive   = left:Multiplicative (operator:(PLUS | MINUS) right:Multiplicative)*;
-rule Multiplicative = left:Unary (operator:(STAR | SLASH | MODULO) right:Unary)*;
+rule Multiplicative = left:Range (operator:(STAR | SLASH | MODULO) right:Range)*;
+
+rule Range
+    = start:Unary? DOTDOT end:Unary?   as RangeExpression
+    | operand:Unary                    as NonRange
+    ;
 
 @memo
 rule Unary
@@ -553,6 +574,7 @@ rule Unary
     | AWAIT operand:Unary                                                         as AwaitExpression
     | EXCLAMATION operand:Unary    as LogicalNot
     | MINUS operand:Unary          as Negate
+    | CARET operand:Unary          as FromEndExpression
     ;
 
 @memo
@@ -566,6 +588,7 @@ rule PostfixSuffix
     | LEFT_BRACKET index:Expression RIGHT_BRACKET                                 as IndexSuffix
     | LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS                       as InvocationSuffix
     | SWITCH LEFT_BRACE arms:SwitchArmList? RIGHT_BRACE                           as SwitchExpressionSuffix
+    | ELLIPSIS                                                                    as SpreadSuffix
     ;
 
 rule SwitchArmList = SwitchArm (COMMA SwitchArm)* COMMA?;
@@ -611,6 +634,7 @@ rule Primary
     | DEFAULT                                                                      as DefaultLiteralExpression
     | LEFT_BRACKET RIGHT_BRACKET                                                    as EmptyArrayLiteralExpression
     | LEFT_BRACKET first:Expression (COMMA rest:Expression)* COMMA? RIGHT_BRACKET  as ArrayLiteralExpression
+    | name:IDENTIFIER typeArgs:TypeArgumentList LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS as GenericInvocationExpression
     | name:IDENTIFIER                                                              as IdentifierExpression
     | typeRef:TypeReference                                                        as TypeLiteralExpression
     ;
@@ -722,5 +746,5 @@ rule ListPatternElementList = ListPatternElement (COMMA ListPatternElement)*;
 
 rule ListPatternElement
     = pattern:Pattern                          as PatternElement
-    | DOTDOT name:(IDENTIFIER | DISCARD)?      as SliceElement
+    | DOTDOT subpattern:Pattern?               as SliceElement
     ;

@@ -21,6 +21,15 @@ public sealed class AbstractType : IType
     public IReadOnlyList<IType> TypeParameters { get; internal set; } = Array.Empty<IType>();
 
     /// <summary>
+    /// The spread-generated member families (Requirement 10) declared on this type -- one
+    /// per <c>public TArgs... Stem;</c> or <c>public TArgs... Stem { get; }</c> member
+    /// spread. Each records the aggregate member and the pack whose bound length yields the
+    /// element projections <c>Stem1 .. StemN</c>. Empty when the type declares no member
+    /// spreads.
+    /// </summary>
+    public IList<SemanticSpreadMember> SpreadMembers { get; } = new List<SemanticSpreadMember>();
+
+    /// <summary>
     /// Methods with default implementations. Key = method name.
     /// These do NOT need to be filled by implementers.
     /// </summary>

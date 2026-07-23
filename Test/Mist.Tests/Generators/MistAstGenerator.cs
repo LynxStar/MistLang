@@ -34,7 +34,7 @@ public static class MistAstGenerator
             Suffix = ImmutableArray<PostfixSuffixNode>.Empty,
         };
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = unary } };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
@@ -53,7 +53,10 @@ public static class MistAstGenerator
         var relational = (RelationalComparisonRelationalNode)equality.Left;
         var additive = relational.Left;
         var multiplicative = additive.Left;
-        return multiplicative.Left;
+
+        // Generated compound expressions always use the pass-through (NonRange) range
+        // form, so the inner unary is always present.
+        return multiplicative.Left.UnwrapRange()!;
     }
 
     // ─── Literal expressions ─────────────────────────────────────────────
@@ -126,9 +129,9 @@ public static class MistAstGenerator
     {
         var leftUnary = ExtractUnary(left);
         var rightUnary = ExtractUnary(right);
-        var leftMult = new MultiplicativeNode { Left = leftUnary };
-        var rightMult = new MultiplicativeNode { Left = rightUnary };
-        var add = new AdditiveNode { Left = leftMult, Operator = Tok(op), Right = rightMult };
+        var leftMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = leftUnary } };
+        var rightMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = rightUnary } };
+        var add = new AdditiveNode { Left = leftMult, Group0 = ImmutableArray.Create(new AdditiveNodeGroup0 { Operator = Tok(op), Right = rightMult }) };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
@@ -142,7 +145,7 @@ public static class MistAstGenerator
     {
         var leftUnary = ExtractUnary(left);
         var rightUnary = ExtractUnary(right);
-        var mult = new MultiplicativeNode { Left = leftUnary, Operator = Tok(op), Right = rightUnary };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = leftUnary }, Group0 = ImmutableArray.Create(new MultiplicativeNodeGroup0 { Operator = Tok(op), Right = new NonRangeRangeNode { Operand = rightUnary } }) };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
@@ -157,11 +160,11 @@ public static class MistAstGenerator
     {
         var leftUnary = ExtractUnary(left);
         var rightUnary = ExtractUnary(right);
-        var leftMult = new MultiplicativeNode { Left = leftUnary };
-        var rightMult = new MultiplicativeNode { Left = rightUnary };
+        var leftMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = leftUnary } };
+        var rightMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = rightUnary } };
         var leftAdd = new AdditiveNode { Left = leftMult };
         var rightAdd = new AdditiveNode { Left = rightMult };
-        var rel = new RelationalComparisonRelationalNode { Left = leftAdd, Operator = Tok(op), Right = rightAdd };
+        var rel = new RelationalComparisonRelationalNode { Left = leftAdd, Group0 = ImmutableArray.Create(new RelationalComparisonRelationalNodeGroup0 { Operator = Tok(op), Right = rightAdd }) };
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
@@ -174,8 +177,8 @@ public static class MistAstGenerator
     {
         var leftUnary = ExtractUnary(left);
         var rightUnary = ExtractUnary(right);
-        var leftMult = new MultiplicativeNode { Left = leftUnary };
-        var rightMult = new MultiplicativeNode { Left = rightUnary };
+        var leftMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = leftUnary } };
+        var rightMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = rightUnary } };
         var leftAdd = new AdditiveNode { Left = leftMult };
         var rightAdd = new AdditiveNode { Left = rightMult };
         var leftRel = new RelationalComparisonRelationalNode { Left = leftAdd };
@@ -193,8 +196,8 @@ public static class MistAstGenerator
     {
         var leftUnary = ExtractUnary(left);
         var rightUnary = ExtractUnary(right);
-        var leftMult = new MultiplicativeNode { Left = leftUnary };
-        var rightMult = new MultiplicativeNode { Left = rightUnary };
+        var leftMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = leftUnary } };
+        var rightMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = rightUnary } };
         var leftAdd = new AdditiveNode { Left = leftMult };
         var rightAdd = new AdditiveNode { Left = rightMult };
         var leftRel = new RelationalComparisonRelationalNode { Left = leftAdd };
@@ -213,7 +216,7 @@ public static class MistAstGenerator
     {
         var innerUnary = ExtractUnary(operand);
         var notUnary = new LogicalNotUnaryNode { Operand = innerUnary };
-        var mult = new MultiplicativeNode { Left = notUnary };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = notUnary } };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
@@ -228,7 +231,7 @@ public static class MistAstGenerator
     {
         var innerUnary = ExtractUnary(operand);
         var negUnary = new NegateUnaryNode { Operand = innerUnary };
-        var mult = new MultiplicativeNode { Left = negUnary };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = negUnary } };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };

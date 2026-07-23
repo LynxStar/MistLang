@@ -201,7 +201,7 @@ public sealed class SemanticModel : ISemanticModel
                 return null; // Lambda form has no refined identifier.
             }
 
-            if(assignment.Value is not null)
+            if(assignment.Group0?.Value is not null)
             {
                 return null;
             }
@@ -233,7 +233,7 @@ public sealed class SemanticModel : ISemanticModel
         }
 
         var equality = logicalAnd.Left;
-        if(equality.Right is not null)
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -244,24 +244,24 @@ public sealed class SemanticModel : ISemanticModel
             return null;
         }
 
-        if(cmp.Right is not null)
+        if(!cmp.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var additive = cmp.Left;
-        if(additive.Right is not null)
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive.Left;
-        if(multiplicative.Right is not null)
+        if(!multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
-        var unary = multiplicative.Left;
+        var unary = multiplicative.Left.UnwrapRange();
         if(unary is not PostfixExpressionUnaryNode postfixExpr)
         {
             return null;

@@ -25,6 +25,16 @@ public sealed class ConstructedType : IType
     /// Dependent value arguments, indexed by position in the type parameter list.
     /// Null entries indicate regular type arguments at that position.
     /// Null if the type has no dependent parameters.
+    /// <para>
+    /// A type-parameter pack slot in a constructed variadic type — for example the pack slot of
+    /// <c>Foo&lt;[int, string]&gt;</c> — is represented here as a <see cref="DependentValueArgument"/>
+    /// carrying the comptime, ordered <c>Type[]</c> value bound to the pack (see
+    /// <see cref="DependentValueArgument.PackElementTypes"/>). A constructed variadic type is thus
+    /// identified by the pair (family, that <c>Type[]</c> value): identity falls out of the existing
+    /// dependent-argument comparison, made order-sensitive and arity-sensitive by elementwise
+    /// <c>Type[]</c> equality so that <c>Foo&lt;[int, string]&gt;</c>, <c>Foo&lt;[string, int]&gt;</c>,
+    /// <c>Foo&lt;[int, string, bool]&gt;</c>, and the empty <c>Foo&lt;[]&gt;</c> are pairwise distinct.
+    /// </para>
     /// </summary>
     public IReadOnlyList<DependentValueArgument?>? DependentArguments { get; }
 

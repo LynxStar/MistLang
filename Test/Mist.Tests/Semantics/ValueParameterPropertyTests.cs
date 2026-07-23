@@ -175,7 +175,7 @@ public class ValueParameterPropertyTests
             Assignment = new AssignmentNode
             {
                 Target = fieldLogOr,
-                Value = valueExpr,
+                Group0 = new AssignmentNodeGroup0 { Value = valueExpr },
             },
         };
     }

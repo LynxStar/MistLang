@@ -137,19 +137,6 @@ public sealed class NestedScopingPropertyTests
             or NestedTypeAliasMemberMemberDeclarationNode);
     }
 
-    /// <summary>
-    /// Gets the modifiers from a TypeDeclarationNode (any of the five type kinds).
-    /// </summary>
-    private static ImmutableArray<ModifierNode> GetModifiersFromTypeDeclaration(TypeDeclarationNode typeDecl)
-    {
-        return typeDecl switch
-        {
-            BodyTypeTypeDeclarationNode body => body.TypeBody.Modifiers,
-            EnumTypeTypeDeclarationNode et => et.EnumDeclaration.Modifiers,
-            _ => ImmutableArray<ModifierNode>.Empty
-        };
-    }
-
     // ═══════════════════════════════════════════════════════════════════════
     // Property 1: Parser nesting universality
     //

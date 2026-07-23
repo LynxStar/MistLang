@@ -404,7 +404,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // Check if this node is an assignment to a readonly field.
-        if(node is AssignmentNode assignment && assignment.Value is not null)
+        if(node is AssignmentNode assignment && assignment.Group0?.Value is not null)
         {
             CheckReadonlyFieldAssignmentOutsideConstructor(assignment, declaringTypeScope, model, diagnostics);
         }
@@ -801,7 +801,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         {
             // Check assignments: `param.field = value` → MIST_RO_0007
             // Check assignments: `param.Prop = value` → MIST_RO_0008
-            case AssignmentNode assignment when assignment.Value is not null:
+            case AssignmentNode assignment when assignment.Group0?.Value is not null:
                 CheckReadonlyParamAssignment(assignment, readonlyParamNames, model, diagnostics);
                 break;
 
@@ -1327,7 +1327,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
 
         switch(node)
         {
-            case AssignmentNode assignment when assignment.Value is not null:
+            case AssignmentNode assignment when assignment.Group0?.Value is not null:
                 CheckAssignmentViolation(assignment, entry, model, diagnostics);
                 break;
 
@@ -2081,7 +2081,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                 CheckConstrainedTypeParamPostfix(postfix, model, diagnostics);
                 break;
 
-            case AssignmentNode assignment when assignment.Value is not null:
+            case AssignmentNode assignment when assignment.Group0?.Value is not null:
                 CheckConstrainedTypeParamAssignment(assignment, model, diagnostics);
                 break;
         }
@@ -2459,9 +2459,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         // For AssignmentNode with a value, only walk the value side — the target
         // is already handled by CheckClosedUnknownAssignment. Walking the target
         // would cause the postfix check to double-emit for the same member access.
-        if(node is AssignmentNode assignment && assignment.Value is not null)
+        if(node is AssignmentNode assignment && assignment.Group0?.Value is { } assignedValue)
         {
-            WalkNodeForClosedUnknownViolations(assignment.Value, model, diagnostics);
+            WalkNodeForClosedUnknownViolations(assignedValue, model, diagnostics);
             return;
         }
 
@@ -2503,7 +2503,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                 CheckClosedUnknownPostfix(postfix, model, diagnostics);
                 break;
 
-            case AssignmentNode assignment when assignment.Value is not null:
+            case AssignmentNode assignment when assignment.Group0?.Value is not null:
                 CheckClosedUnknownAssignment(assignment, model, diagnostics);
                 break;
         }

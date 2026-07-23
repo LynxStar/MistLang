@@ -54,7 +54,7 @@ public class TypeCheckerPreservationPropertyTests
             Suffix = ImmutableArray<PostfixSuffixNode>.Empty,
         };
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = unary } };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
@@ -425,13 +425,12 @@ public class TypeCheckerPreservationPropertyTests
         // a + b — bool + bool is not valid
         var leftUnary = ExtractUnary(MakeIdentifierExpression("a"));
         var rightUnary = ExtractUnary(MakeIdentifierExpression("b"));
-        var leftMult = new MultiplicativeNode { Left = leftUnary };
-        var rightMult = new MultiplicativeNode { Left = rightUnary };
+        var leftMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = leftUnary } };
+        var rightMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = rightUnary } };
         var add = new AdditiveNode
         {
             Left = leftMult,
-            Operator = MakeToken("+"),
-            Right = rightMult,
+            Group0 = ImmutableArray.Create(new AdditiveNodeGroup0 { Operator = MakeToken("+"), Right = rightMult }),
         };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
@@ -482,7 +481,9 @@ public class TypeCheckerPreservationPropertyTests
         var relational = (RelationalComparisonRelationalNode)equality.Left;
         var additive = relational.Left;
         var multiplicative = additive.Left;
-        return multiplicative.Left;
+
+        // Constructed expressions always use the pass-through (NonRange) range form.
+        return multiplicative.Left.UnwrapRange()!;
     }
 
     // ═══════════════════════════════════════════════════════════════════════

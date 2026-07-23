@@ -778,10 +778,12 @@ public sealed class MistPrettyPrinter
         var name = slotDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(slotDecl.TypeParams);
 
-        if(slotDecl.Constraints is not null)
+        // The constraint clause is a ?-group: Group0 is present only when a `: constraints`
+        // clause was written; its Constraints/SlotWhereConstraints hold the group fields.
+        if(slotDecl.Group0 is { } group && group.Constraints is not null)
         {
-            var constraints = EmitConstraintList(slotDecl.Constraints);
-            var whereClauses = EmitConstraintClauses(slotDecl.SlotWhereConstraints);
+            var constraints = EmitConstraintList(group.Constraints);
+            var whereClauses = EmitConstraintClauses(group.SlotWhereConstraints);
             AppendLine($"{modifiers}type {name}{typeParams} : {constraints}{whereClauses};");
         }
         else
@@ -930,7 +932,14 @@ public sealed class MistPrettyPrinter
 
     private string EmitParameter(ParameterNode param)
     {
-        var prefix = param.Modifier is not null ? "readonly " : "";
+        // Variadics: leading `params` marks a value pack (`params TArgs args`) or a
+        // homogeneous value-level params array (`params string[] parts`).
+        var prefix = param.ParamsModifier is not null ? "params " : "";
+        if(param.Modifier is not null)
+        {
+            prefix += "readonly ";
+        }
+
         if(param.RefModifier is not null)
         {
             prefix += "ref ";
@@ -1041,6 +1050,10 @@ public sealed class MistPrettyPrinter
                 return "void";
             case UnknownSingleTypeRefSingleTypeRefNode:
                 return "unknown";
+            case SpreadSingleTypeRefSingleTypeRefNode spreadRef:
+                // Variadics: a pack spread in type position, e.g. `TArgs...` in
+                // `Func<TArgs..., void>`, `public TArgs... Item;`, or `(TArgs...)`.
+                return $"{ExtractQualifiedName(spreadRef.Name)}...";
             case NamedSingleTypeRefSingleTypeRefNode namedRef:
                 {
                     var name = ExtractQualifiedName(namedRef.Name);
@@ -1583,9 +1596,11 @@ public sealed class MistPrettyPrinter
     {
         var target = EmitVoidCoalescing(assignment.Target);
 
-        if(assignment.Value is not null && !ReferenceEquals(GetAssignmentValueTarget(assignment.Value), assignment.Target))
+        // Assignment projects a ?-group: Group0 is present only when a value was assigned.
+        if(assignment.Group0 is { } group && group.Value is not null
+            && !ReferenceEquals(GetAssignmentValueTarget(group.Value), assignment.Target))
         {
-            var value = EmitExpression(assignment.Value);
+            var value = EmitExpression(group.Value);
             return $"{target} = {value}";
         }
 
@@ -1647,16 +1662,18 @@ public sealed class MistPrettyPrinter
 
     private string EmitEquality(EqualityNode equality)
     {
-        var left = EmitRelational(equality.Left);
+        // Equality is a flat n-ary *-group: reproduce every operator/operand in order
+        // (a == b == c is one node with Left=a, Group0=[{==,b},{==,c}]).
+        var result = EmitRelational(equality.Left);
 
-        if(equality.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        foreach(var group in equality.Group0)
         {
-            var op = equality.Operator.Lexeme;
-            var right = EmitRelational(equality.Right);
-            return $"{left} {op} {right}";
+            var op = group.Operator.Lexeme;
+            var right = EmitRelational(group.Right);
+            result = $"{result} {op} {right}";
         }
 
-        return left;
+        return result;
     }
 
     private string EmitRelational(RelationalNode relational)
@@ -1665,16 +1682,17 @@ public sealed class MistPrettyPrinter
         {
             case RelationalComparisonRelationalNode cmp:
                 {
-                    var left = EmitAdditive(cmp.Left);
+                    // Flat n-ary *-group: emit each comparison operator/operand in order.
+                    var result = EmitAdditive(cmp.Left);
 
-                    if(cmp.Right is not null && !ReferenceEquals(cmp.Right, cmp.Left))
+                    foreach(var group in cmp.Group0)
                     {
-                        var op = cmp.Operator.Lexeme;
-                        var right = EmitAdditive(cmp.Right);
-                        return $"{left} {op} {right}";
+                        var op = group.Operator.Lexeme;
+                        var right = EmitAdditive(group.Right);
+                        result = $"{result} {op} {right}";
                     }
 
-                    return left;
+                    return result;
                 }
 
             case IsExpressionRelationalNode isExpr:
@@ -1910,9 +1928,11 @@ public sealed class MistPrettyPrinter
                 return EmitPattern(patternElement.Pattern);
             case SliceElementListPatternElementNode sliceElement:
                 {
-                    if(sliceElement.Name.HasValue)
+                    // Print `..` for a bare slice, or `.. <subpattern>` (single space after
+                    // `..`) for a carrying slice, reading from the sub-pattern.
+                    if(sliceElement.Subpattern is not null)
                     {
-                        return $".. {sliceElement.Name.Value.Lexeme}";
+                        return $".. {EmitPattern(sliceElement.Subpattern)}";
                     }
 
                     return "..";
@@ -1924,30 +1944,55 @@ public sealed class MistPrettyPrinter
 
     private string EmitAdditive(AdditiveNode additive)
     {
-        var left = EmitMultiplicative(additive.Left);
+        // Flat n-ary *-group: emit each additive operator/operand in order so
+        // a + b + c reproduces all operands rather than collapsing to a + c.
+        var result = EmitMultiplicative(additive.Left);
 
-        if(additive.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        foreach(var group in additive.Group0)
         {
-            var op = additive.Operator.Lexeme;
-            var right = EmitMultiplicative(additive.Right);
-            return $"{left} {op} {right}";
+            var op = group.Operator.Lexeme;
+            var right = EmitMultiplicative(group.Right);
+            result = $"{result} {op} {right}";
         }
 
-        return left;
+        return result;
     }
 
     private string EmitMultiplicative(MultiplicativeNode multiplicative)
     {
-        var left = EmitUnary(multiplicative.Left);
+        // Flat n-ary *-group: emit each multiplicative operator/operand in order.
+        var result = EmitRange(multiplicative.Left);
 
-        if(multiplicative.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        foreach(var group in multiplicative.Group0)
         {
-            var op = multiplicative.Operator.Lexeme;
-            var right = EmitUnary(multiplicative.Right);
-            return $"{left} {op} {right}";
+            var op = group.Operator.Lexeme;
+            var right = EmitRange(group.Right);
+            result = $"{result} {op} {right}";
         }
 
-        return left;
+        return result;
+    }
+
+    private string EmitRange(RangeNode range)
+    {
+        switch(range)
+        {
+            case NonRangeRangeNode nonRange:
+                return EmitUnary(nonRange.Operand);
+            case RangeExpressionRangeNode rangeExpr:
+                {
+                    // Range `start..end`: emit the present bounds via the unary emitter
+                    // with an absent bound rendered as nothing and no space around `..`,
+                    // so all four forms round-trip: `a..b`, `a..`, `..b`, `..`. A from-end
+                    // bound renders through EmitUnary as `^k`, so `1..^1` prints as `1..^1`.
+                    var start = rangeExpr.Start is not null ? EmitUnary(rangeExpr.Start) : string.Empty;
+                    var end = rangeExpr.End is not null ? EmitUnary(rangeExpr.End) : string.Empty;
+                    return $"{start}..{end}";
+                }
+
+            default:
+                return string.Empty;
+        }
     }
 
     private string EmitUnary(UnaryNode unary)
@@ -1959,6 +2004,11 @@ public sealed class MistPrettyPrinter
             CastExpressionUnaryNode castExpr => $"({EmitTypeReference(castExpr.TargetType)}){EmitUnary(castExpr.Operand)}",
             LogicalNotUnaryNode logicalNot => $"!{EmitUnary(logicalNot.Operand)}",
             NegateUnaryNode negate => $"-{EmitUnary(negate.Operand)}",
+            // Index-from-end `^operand`: the `^` operator immediately followed by the
+            // operand with no space (Mist surface syntax, e.g. `^1`, `^count`). This is
+            // the pretty-printer form for round-tripping Mist source; it deliberately
+            // differs from the C# emitter, which parenthesizes the operand as `^(k)`.
+            FromEndExpressionUnaryNode fromEnd => $"^{EmitUnary(fromEnd.Operand)}",
             PostfixExpressionUnaryNode postfix => EmitPostfix(postfix.Primary),
             _ => "",
         };
@@ -2002,6 +2052,9 @@ public sealed class MistPrettyPrinter
                     var args = EmitArgumentList(invocation.Arguments);
                     return $"{target}({args})";
                 }
+            case SpreadSuffixPostfixSuffixNode:
+                // Variadics: value-side spread / zip operand, e.g. `args...`, `Item...`.
+                return $"{target}...";
             case SwitchExpressionSuffixPostfixSuffixNode switchExpr:
                 {
                     var sb = new StringBuilder();
@@ -2164,6 +2217,15 @@ public sealed class MistPrettyPrinter
 
                     return $"({string.Join(", ", parts)})";
                 }
+            case GenericInvocationExpressionPrimaryNode genInvoke:
+                {
+                    // Bare (unqualified) generic call with explicit type arguments, e.g.
+                    // `Describe<[int, string]>(1, "x")` or `TwoPacks<[int], [string]>()`.
+                    var name = genInvoke.Name.Lexeme;
+                    var typeArgs = EmitTypeArgumentList(genInvoke.TypeArgs);
+                    var args = EmitArgumentList(genInvoke.Arguments);
+                    return $"{name}{typeArgs}({args})";
+                }
             case IdentifierExpressionPrimaryNode ident:
                 return ident.Name.Lexeme;
             case FieldKeywordExpressionPrimaryNode:
@@ -2290,10 +2352,13 @@ public sealed class MistPrettyPrinter
 
     /// <summary>
     /// Emits a single base type reference (name with optional type arguments).
+    /// Variadics: a trailing <c>...</c> is emitted for the base-type-list pack spread
+    /// (<c>: TArgs...</c>), preserving the spread suffix so the form round-trips.
     /// </summary>
     private string EmitBaseTypeRef(BaseTypeRefNode baseTypeRef)
     {
-        return baseTypeRef.Name.Lexeme + EmitTypeArgumentList(baseTypeRef.TypeArgs);
+        var spread = baseTypeRef.Spread is not null ? "..." : "";
+        return baseTypeRef.Name.Lexeme + EmitTypeArgumentList(baseTypeRef.TypeArgs) + spread;
     }
 
     /// <summary>
@@ -2323,6 +2388,12 @@ public sealed class MistPrettyPrinter
     {
         return tp switch
         {
+            // Variadics: `params TArgs` (bracket-free pack sugar).
+            ParamsPackTypeParameterTypeParameterNode pack =>
+                $"params {pack.Name.Lexeme}",
+            // Variadics: explicit pack domain `Type[]:TArgs` or `Type[N]:TArgs`.
+            ExplicitPackTypeParameterTypeParameterNode explicitPack =>
+                $"{explicitPack.DomainName.Lexeme}{EmitArrayRankSuffix(explicitPack.ArrayRank)}:{explicitPack.Name.Lexeme}",
             DependentTypeParameterTypeParameterNode dep =>
                 $"{dep.Name.Lexeme}:{EmitPrimitiveType(dep.ValueType)}",
             NamedConstraintDependentTypeParameterTypeParameterNode named =>
@@ -2330,6 +2401,20 @@ public sealed class MistPrettyPrinter
             RegularTypeParameterTypeParameterNode reg =>
                 reg.Name.Lexeme,
             _ => tp.GetName().Lexeme,
+        };
+    }
+
+    /// <summary>
+    /// Emits an array rank suffix: <c>[N]</c> for a sized rank or <c>[]</c> for an unsized rank.
+    /// Used by the explicit pack domain form (<c>Type[]:TArgs</c> / <c>Type[N]:TArgs</c>).
+    /// </summary>
+    private static string EmitArrayRankSuffix(ArrayRankSuffixNode? rank)
+    {
+        return rank switch
+        {
+            SizedArrayRankArrayRankSuffixNode sized => $"[{sized.Size.Lexeme}]",
+            UnsizedArrayRankArrayRankSuffixNode => "[]",
+            _ => "",
         };
     }
 
@@ -2370,9 +2455,32 @@ public sealed class MistPrettyPrinter
             TrueLiteralTypeArgumentTypeArgumentNode => "true",
             FalseLiteralTypeArgumentTypeArgumentNode => "false",
             CharLiteralTypeArgumentTypeArgumentNode charLit => charLit.Literal.Lexeme,
+            BracketedPackTypeArgumentTypeArgumentNode bracketed => EmitBracketedPackTypeArgument(bracketed),
             TypeReferenceTypeArgumentTypeArgumentNode typeRef => EmitTypeReference(typeRef.Type),
             _ => "",
         };
+    }
+
+    /// <summary>
+    /// Emits a bracketed pack type argument, e.g. <c>[int, string]</c> or the empty pack <c>[]</c>.
+    /// </summary>
+    private string EmitBracketedPackTypeArgument(BracketedPackTypeArgumentTypeArgumentNode bracketed)
+    {
+        if(bracketed.PackElements is null)
+        {
+            return "[]";
+        }
+
+        var parts = new List<string>
+        {
+            EmitTypeReference(bracketed.PackElements.TypeReference)
+        };
+        foreach(var tr in bracketed.PackElements.TypeReferences)
+        {
+            parts.Add(EmitTypeReference(tr));
+        }
+
+        return $"[{string.Join(", ", parts)}]";
     }
 
     /// <summary>

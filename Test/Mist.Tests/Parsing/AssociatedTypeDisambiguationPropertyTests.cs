@@ -261,7 +261,7 @@ public class AssociatedTypeDisambiguationPropertyTests
             return false.ToProperty().Label($"Expected AssociatedTypeMemberMemberDeclarationNode but got {member.GetType().Name} for: {source}");
         }
 
-        var hasNullConstraints = slotMember.AssociatedType.Constraints is null;
+        var hasNullConstraints = slotMember.AssociatedType.Group0?.Constraints is null;
 
         return hasNullConstraints
             .ToProperty()

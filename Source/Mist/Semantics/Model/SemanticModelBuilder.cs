@@ -91,6 +91,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     [ThreadStatic]
     private static bool allocatingParameterArrayType;
 
+    // ── Variadics: value-pack parameter context (Requirement 6.3) ─────────
+    // Set to true while resolving the top-level type of a value-side `params`
+    // parameter, so that a lone bare pack there (`params TArgs args`) is the
+    // legal value-pack form rather than the bare-type-position error
+    // (MIST_VAR_0002). ResolveSingleTypeRef captures-and-clears it on entry, so
+    // the exemption applies only to the parameter's outermost type reference: a
+    // pack nested inside another type (e.g. `params Foo<TArgs> args`) is still a
+    // bare-type-position error. Mirrors the ProgramModel resolver's
+    // `barePackAllowed` flag.
+    [ThreadStatic]
+    private static bool resolvingValuePackParameterType;
+
     // ── Async context tracking ───────────────────────────────────────────
     // Set to true while resolving expressions inside an async method body.
     // When false (sync context), async method invocations are auto-unwrapped
@@ -741,6 +753,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Reset symbolic length ID counter for this compilation.
         nextSymbolicLengthId = 1;
         allocatingParameterArrayType = false;
+        resolvingValuePackParameterType = false;
 
         // Reset namespace scope map for this compilation.
         namespaceScopeMap = new Dictionary<string, Scope>();
@@ -2037,6 +2050,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
         }
 
+        // Extract type parameters if the newtype is generic (for example a variadic
+        // newtype `type Row<params TArgs> = new (TArgs...);`). Routing through the shared
+        // ExtractTypeParameters applies the pack rules uniformly with every other
+        // declaration kind: each pack is classified (IsPack / IsUnbracketedPack /
+        // PackFixedArity), inverse sugar promotes a lone explicit pack, and MIST_VAR_0001
+        // is emitted when the list declares more than one `params` pack.
+        var typeParams = ExtractTypeParameters(newtypeDecl.TypeParams, name, sourceText, diagnostics);
+
         // Create the symbol with a null DeclaredType — it will be set in Pass 2
         // after the source type reference is resolved and members are cloned.
         var newtypeSymbol = new Symbol(
@@ -2045,7 +2066,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             SymbolOrigin.UserCode,
             parentScope,
             declaredType: null,
-            span);
+            span)
+        {
+            // Store type parameters on the symbol for later resolution (mirrors the
+            // type-alias path).
+            TypeParameters = typeParams
+        };
 
         parentScope.AddMember(newtypeSymbol);
         symbolTable.Register(newtypeSymbol, newtypeDecl);
@@ -3901,17 +3927,43 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return Array.Empty<IType>();
         }
 
+        var nodes = new List<TypeParameterNode> { typeParamList.TypeParameter };
+        nodes.AddRange(typeParamList.TypeParameters);
+
+        // ── Variadics: determine which pack (if any) is the single unbracketed pack. ──
+        // A `params` pack is always unbracketed. A lone explicit `Type[]:` pack (the only
+        // pack in the list, with no `params` pack) is promoted to unbracketed by inverse
+        // sugar. More than one unbracketed (`params`) pack is diagnostic MIST_VAR_0001.
+        var paramsPackCount = nodes.Count(n => n is ParamsPackTypeParameterTypeParameterNode);
+        var explicitPackCount = nodes.Count(n => n is ExplicitPackTypeParameterTypeParameterNode);
+
+        if(paramsPackCount > 1)
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                VariadicsDiagnostics.MultipleParamsPacks.Id.Value,
+                DiagnosticSeverity.Error,
+                "More than one 'params' pack in a single type-parameter list; at most one is allowed.",
+                typeParamList,
+                sourceText));
+        }
+
+        // Inverse sugar: a lone explicit pack (no `params` pack, exactly one pack total)
+        // is treated as the unbracketed pack so a single-pack family never needs brackets.
+        var promoteLoneExplicit = paramsPackCount == 0 && explicitPackCount == 1;
+
         var typeParams = new List<IType>();
         var seenNames = new HashSet<string>();
-        var ordinal = 0;
-
-        // Process the first type parameter.
-        ProcessTypeParameter(typeParamList.TypeParameter, ordinal++, enclosingTypeName, seenNames, typeParams, sourceText, diagnostics);
-
-        // Process the rest of the type parameters.
-        foreach(var tp in typeParamList.TypeParameters)
+        for(var i = 0; i < nodes.Count; i++)
         {
-            ProcessTypeParameter(tp, ordinal++, enclosingTypeName, seenNames, typeParams, sourceText, diagnostics);
+            var node = nodes[i];
+            var isUnbracketedPack = node switch
+            {
+                ParamsPackTypeParameterTypeParameterNode => true,
+                ExplicitPackTypeParameterTypeParameterNode => promoteLoneExplicit,
+                _ => false,
+            };
+
+            ProcessTypeParameter(node, i, enclosingTypeName, seenNames, typeParams, isUnbracketedPack, sourceText, diagnostics);
         }
 
         return typeParams;
@@ -3928,6 +3980,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         string? enclosingTypeName,
         HashSet<string> seenNames,
         List<IType> typeParams,
+        bool isUnbracketedPack,
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
@@ -3953,6 +4006,37 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 $"Type parameter '{name}' shadows the enclosing type name.",
                 node,
                 sourceText));
+        }
+
+        // ── Variadics: type-parameter packs (params TArgs / Type[]:TArgs / Type[N]:TArgs). ──
+        // A pack is modeled as a TypeParameterType flagged IsPack; its value domain is the
+        // metatype array Type[]. The unbracketed flag (decided at the list level) records
+        // which single pack may be constructed bracket-free.
+        if(node is ParamsPackTypeParameterTypeParameterNode)
+        {
+            typeParams.Add(new TypeParameterType(name, ordinal)
+            {
+                IsPack = true,
+                IsUnbracketedPack = isUnbracketedPack,
+                PackFixedArity = null,
+            });
+            return;
+        }
+
+        if(node is ExplicitPackTypeParameterTypeParameterNode explicitPack)
+        {
+            int? fixedArity = explicitPack.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank
+                && int.TryParse(sizedRank.Size.Lexeme, out var parsedArity)
+                ? parsedArity
+                : null;
+
+            typeParams.Add(new TypeParameterType(name, ordinal)
+            {
+                IsPack = true,
+                IsUnbracketedPack = isUnbracketedPack,
+                PackFixedArity = fixedArity,
+            });
+            return;
         }
 
         // Determine whether this is a dependent type parameter or a regular one.
@@ -5370,6 +5454,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 continue;
             }
 
+            // Variadics (Requirement 9.3): a base-type spread `: TArgs...` is a spread
+            // position, not a base class. The pack expands into one base entry per element
+            // once it binds a concrete Type[] (deferred to backend monomorphization), so it
+            // contributes no base class here and must NOT be misreported as an undefined base
+            // type. The remaining entries (if any) are resolved by ResolveClassAbstractList.
+            if(IsPackSpreadBaseEntry(classDecl.BaseList.First, classType))
+            {
+                continue;
+            }
+
             var baseClassName = classDecl.BaseList.First.Name.Lexeme;
             var parentScope = symbol.ContainingScope;
 
@@ -5511,6 +5605,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
 
             var firstEntry = entries[0];
+
+            // Variadics (Requirement 9.3): a base-type spread `: TArgs...` is a spread position,
+            // not a base struct. It expands into one base entry per pack element once the pack
+            // binds a concrete Type[] (deferred to monomorphization); skip it here so it is not
+            // misreported, and let ResolveStructAbstractList's shared resolver skip it too.
+            if(IsPackSpreadBaseEntry(firstEntry, structType))
+            {
+                continue;
+            }
+
             var firstName = firstEntry.Name.Lexeme;
             if(string.IsNullOrEmpty(firstName))
             {
@@ -6420,7 +6524,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // entry was consumed as the base class. Start from the second entry.
         var startIndex = classType.BaseType is not null ? 1 : 0;
 
-        if(startIndex == 0)
+        // Variadics (Requirement 9.3): when the first entry is a base-type spread `: TArgs...`
+        // it is neither a base class (Pass1 skipped it) nor an abstract type to resolve here;
+        // leave startIndex at 0 so it flows into ResolveAbstractEntries, which skips the pack
+        // spread without a position-attributable diagnostic.
+        if(startIndex == 0 && !IsPackSpreadBaseEntry(allEntries[0], classType))
         {
             // The first name was NOT resolved as a base class. Check if it's an abstract type.
             var firstName = allEntries[0].Name.Lexeme;
@@ -6647,6 +6755,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         foreach(var entry in entries)
         {
+            // Variadics (Requirement 9.3): a base-type spread `: TArgs...` (including an
+            // implemented abstract type spread) is a spread position. It expands into one
+            // implemented-type entry per pack element once the pack binds a concrete Type[]
+            // (deferred to backend monomorphization), so it is accepted here -- contributing no
+            // concrete entry while symbolic -- and must NOT be reported as an undefined abstract.
+            if(IsPackSpreadBaseEntry(entry, declaringType))
+            {
+                continue;
+            }
+
             var name = entry.Name.Lexeme;
             if(string.IsNullOrEmpty(name))
             {
@@ -6899,7 +7017,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
 
             // Only resolve constraints if the constraint clause is present.
-            if(slotDecl.Constraints is null)
+            var slotConstraints = slotDecl.Group0?.Constraints;
+            if(slotConstraints is null)
             {
                 continue;
             }
@@ -6908,7 +7027,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 ?? GetSourceTextFromOrigin(declaringNode);
 
             var resolvedConstraints = ResolveAssociatedTypeSlotConstraintList(
-                slotDecl.Constraints, symbol, declaringNode, symbolTable, asts, compilation, diagnostics, sourceText);
+                slotConstraints, symbol, declaringNode, symbolTable, asts, compilation, diagnostics, sourceText);
 
             slotType.Constraints = resolvedConstraints;
         }
@@ -7611,7 +7730,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             TypeAliasDeclarationNode aliasDecl when symbol is Symbol aliasSymbol => (aliasDecl.Constraints, aliasSymbol.TypeParameters),
             ConstructorDeclarationNode ctorDecl => ((ImmutableArray<WhereClauseNode> Clauses, IReadOnlyList<IType> TypeParams))(ctorDecl.Constraints, Array.Empty<IType>()),
             IndexerDeclarationNode indexerDecl2 => ((ImmutableArray<WhereClauseNode> Clauses, IReadOnlyList<IType> TypeParams))(indexerDecl2.Constraints, Array.Empty<IType>()),
-            AssociatedTypeSlotDeclarationNode slotDecl when symbol is Symbol slotSymbol && slotDecl.Constraints is not null => (slotDecl.SlotWhereConstraints, slotSymbol.TypeParameters),
+            AssociatedTypeSlotDeclarationNode slotDecl when symbol is Symbol slotSymbol && slotDecl.Group0?.Constraints is not null => (slotDecl.Group0.Value.SlotWhereConstraints, slotSymbol.TypeParameters),
             AssociatedTypeSlotDeclarationNode when symbol is Symbol slotSymbol2 => (ImmutableArray<WhereClauseNode>.Empty, slotSymbol2.TypeParameters),
             _ => ((ImmutableArray<WhereClauseNode> Clauses, IReadOnlyList<IType> TypeParams))(ImmutableArray<WhereClauseNode>.Empty, Array.Empty<IType>()),
         };
@@ -12579,7 +12698,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return null; // Lambda form — not a simple literal.
         }
 
-        if(assignment.Value is not null)
+        if(assignment.Group0?.Value is not null)
         {
             return null; // It's an assignment, not a simple literal.
         }
@@ -12603,7 +12722,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         var equality = logicalAnd?.Left;
-        if(equality?.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        if(equality is not null && !equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -12614,25 +12733,25 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return null;
         }
 
-        if(relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
+        if(!relCmp.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var additive = relCmp.Left;
-        if(additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive?.Left;
-        if(multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        if(multiplicative is not null && !multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         // Unary is a discriminated union.
-        if(multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+        if(multiplicative?.Left.UnwrapRange() is not PostfixExpressionUnaryNode postfixUnary)
         {
             return null;
         }
@@ -12849,8 +12968,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                     foreach(var memberDecl in typeBodyDecl.Members)
                     {
-                        ResolveExplicitMemberTypeAnnotation(memberDecl, typeScope, typeFileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                        ResolveExplicitMemberTypeAnnotation(memberDecl, typeScope, typeFileScope, typeSymbol.DeclaredType, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                     }
+
+                    // Variadics (Requirement 10.2 / 10.3): reserve the spread-member stem
+                    // namespace and report MIST_VAR_0007 on a stem/member collision. Runs
+                    // after every member type is resolved so the full member set is visible.
+                    ValidateSpreadStems(typeBodyDecl.Members, sourceText, diagnostics);
 
                     // Recurse into nested types — pass the type's scope so outer type
                     // parameters (e.g., TValue in Array<TValue, Length>) are visible.
@@ -12938,7 +13062,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 }
                             case MethodMemberMemberDeclarationNode:
                                 // Default methods with bodies get their types resolved via ResolveExplicitMemberTypeAnnotation.
-                                ResolveExplicitMemberTypeAnnotation(member, typeScope, interfaceFileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                                ResolveExplicitMemberTypeAnnotation(member, typeScope, interfaceFileScope, typeSymbol.DeclaredType, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                                 break;
                         }
                     }
@@ -12968,6 +13092,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         MemberDeclarationNode memberDecl,
         Scope typeScope,
         Scope fileScope,
+        IType? enclosingType,
         SymbolTable symbolTable,
         IAmbientTypeResolver? ambientTypeResolver,
         SourceText? sourceText,
@@ -12983,7 +13108,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         break;
                     }
 
-                    var fieldType = ResolveTypeReference(fieldDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                    // Variadics (Requirement 10): a lone pack spread in a field's type
+                    // position -- `public TArgs... Item;` -- declares a spread-generated
+                    // member family, not an ordinary field. The aggregate field `Item`
+                    // takes the value-pack tuple type (TArgs...); its element projections
+                    // Item1..ItemN are recorded on the enclosing type and materialized when
+                    // the pack binds.
+                    var fieldType = TryGetMemberSpread(fieldDecl.Type, out var fieldSpread)
+                        ? ResolveSpreadGeneratedMember(fieldSpread, fieldDecl.Name.Lexeme, fieldSymbol, SpreadMemberKind.Field, enclosingType, fieldDecl, fileScope, sourceText, diagnostics)
+                        : ResolveTypeReference(fieldDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
                     fieldSymbol.DeclaredType = fieldType;
                     break;
                 }
@@ -13005,7 +13138,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                     break;
                                 }
 
-                                var propType = ResolveTypeReference(blockProp.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                                // Variadics (Requirement 10): a lone pack spread in a
+                                // property's type position -- `public TArgs... Slot { get; }`
+                                // -- declares a spread-generated property family. The
+                                // aggregate property `Slot` takes the value-pack tuple type
+                                // (TArgs...); projections are recorded for later
+                                // materialization.
+                                var propType = TryGetMemberSpread(blockProp.Type, out var blockSpread)
+                                    ? ResolveSpreadGeneratedMember(blockSpread, blockProp.Name.Lexeme, propSymbol, SpreadMemberKind.Property, enclosingType, blockProp, fileScope, sourceText, diagnostics)
+                                    : ResolveTypeReference(blockProp.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
                                 propSymbol.DeclaredType = propType;
 
                                 // Also update the backing field's declared type if present.
@@ -13024,7 +13165,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                     break;
                                 }
 
-                                var propType = ResolveTypeReference(exprProp.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                                var propType = TryGetMemberSpread(exprProp.Type, out var exprSpread)
+                                    ? ResolveSpreadGeneratedMember(exprSpread, exprProp.Name.Lexeme, propSymbol, SpreadMemberKind.Property, enclosingType, exprProp, fileScope, sourceText, diagnostics)
+                                    : ResolveTypeReference(exprProp.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
                                 propSymbol.DeclaredType = propType;
                                 break;
                             }
@@ -13069,6 +13212,399 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     break;
                 }
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Variadics — Spread-Generated Members (Requirement 10)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// True when a member's declared type is a lone pack spread <c>TArgs...</c> — the
+    /// surface form of a spread-generated member (<c>public TArgs... Item;</c> or
+    /// <c>public TArgs... Slot { get; }</c>). A lone member spread is a single (non-union)
+    /// type reference whose sole constituent is a
+    /// <see cref="SpreadSingleTypeRefSingleTypeRefNode"/>. Mirrors the ProgramModel track's
+    /// <c>SpreadMemberBuilder.TryGetMemberSpread</c>, and matches the lone-spread test the
+    /// value-pack tuple path (<see cref="TryResolveValuePackTupleFromParen"/>) uses.
+    /// <para>
+    /// Exposed as <c>internal</c> so tests can obtain a genuine parsed spread node for the
+    /// defensive empty-stem guard, mirroring the ProgramModel track's edge-case test.
+    /// </para>
+    /// </summary>
+    internal static bool TryGetMemberSpread(TypeReferenceNode type, out SpreadSingleTypeRefSingleTypeRefNode spread)
+    {
+        if(type.SingleTypeRefs.Length == 0 && type.First is SpreadSingleTypeRefSingleTypeRefNode loneSpread)
+        {
+            spread = loneSpread;
+            return true;
+        }
+
+        spread = null!;
+        return false;
+    }
+
+    /// <summary>
+    /// Resolves the aggregate member type <c>(TArgs...)</c> for a spread-generated member
+    /// (Requirement 10.1) and records the <see cref="SemanticSpreadMember"/> family on
+    /// <paramref name="enclosingType"/>. The aggregate is the whole value-pack tuple over
+    /// the spread operand pack; while the pack is symbolic it carries the pack as its single
+    /// element, and the element projections <c>Stem1 .. StemN</c> follow the tuple's
+    /// elements once the pack binds a concrete <c>Type[]</c> (deferred to backend
+    /// monomorphization) — so an empty pack yields the empty aggregate and zero projections
+    /// (Requirement 10.6) and a length-1 pack yields the single projection <c>Stem1</c>
+    /// (Requirement 10.7). The aggregate member (<paramref name="aggregateMember"/>) and its
+    /// projections take the declaration's accessibility and member kind
+    /// (<paramref name="kind"/>).
+    /// <para>
+    /// Returns the aggregate tuple type for the caller to assign as the aggregate member's
+    /// declared type, or <see cref="ErrorType.Instance"/> when the family is malformed: an
+    /// empty stem (<c>MIST_VAR_0008</c>, Requirements 10.4/10.5) or a spread operand that is
+    /// not a type-parameter pack. On an error no family is recorded. Mirrors the ProgramModel
+    /// track's <c>SpreadMemberBuilder.ResolveAggregateAndRecord</c> over the legacy semantic
+    /// model.
+    /// </para>
+    /// <para>
+    /// Exposed as <c>internal</c> (not <c>private</c>) so the defensive empty-stem guard
+    /// (<c>MIST_VAR_0008</c>) can be exercised directly: a nameless spread member cannot be
+    /// produced by the halt-on-first-error parser (the grammar mandates an identifier), so
+    /// the guard is not reachable through normal parsing and is verified by driving this
+    /// method with an empty stem, mirroring the ProgramModel track's edge-case test.
+    /// </para>
+    /// </summary>
+    internal static IType ResolveSpreadGeneratedMember(
+        SpreadSingleTypeRefSingleTypeRefNode spread,
+        string stem,
+        ISymbol aggregateMember,
+        SpreadMemberKind kind,
+        IType? enclosingType,
+        Storm.Runtime.SyntaxNode declarationNode,
+        Scope fileScope,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Requirement 10.4 / 10.5: a spread-generated member requires a non-empty stem. The
+        // grammar mandates an identifier, so this guards the error-recovery case where a
+        // missing name yields a synthetic empty lexeme.
+        if(string.IsNullOrEmpty(stem))
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                VariadicsDiagnostics.EmptySpreadStem.Id.Value,
+                DiagnosticSeverity.Error,
+                "A spread member declaration requires a non-empty stem.",
+                declarationNode,
+                sourceText));
+            return ErrorType.Instance;
+        }
+
+        // Resolve the spread operand to a type-parameter pack. A non-pack operand is not a
+        // spread-generated member (spread applies only to packs); leave it as an error type
+        // so downstream analysis continues. The dedicated position diagnostic is the type
+        // checker's responsibility.
+        var operandName = ExtractQualifiedName(spread.Name, sourceText);
+        var operandSymbol = fileScope.Lookup(operandName);
+        if(operandSymbol?.DeclaredType is not TypeParameterType { IsPack: true } pack)
+        {
+            return ErrorType.Instance;
+        }
+
+        // The aggregate is the whole value-pack tuple (TArgs...): a single-slot tuple over
+        // the symbolic pack, mirroring the value-pack parameter representation
+        // (ApplyValuePackParameterType). Binding expands it into one element per bound type.
+        var aggregateType = new TupleType(new IType[] { pack });
+
+        RecordSpreadMember(enclosingType, new SemanticSpreadMember(stem, pack, aggregateType, kind, aggregateMember));
+        return aggregateType;
+    }
+
+    /// <summary>
+    /// Records a resolved spread-generated member family on its declaring type. Only
+    /// member-bearing types (class, struct, abstract) carry spread members; any other
+    /// enclosing type is ignored.
+    /// </summary>
+    private static void RecordSpreadMember(IType? enclosingType, SemanticSpreadMember spreadMember)
+    {
+        switch(enclosingType)
+        {
+            case ClassType classType:
+                classType.SpreadMembers.Add(spreadMember);
+                break;
+            case StructType structType:
+                structType.SpreadMembers.Add(spreadMember);
+                break;
+            case AbstractType abstractType:
+                abstractType.SpreadMembers.Add(spreadMember);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Attempts to resolve a member name as a spread-generated projection (<c>Stem + 1-based index</c>).
+    /// When the type is a <see cref="ConstructedType"/> with a bound pack (via <see cref="DependentValueArgument.PackElementTypes"/>),
+    /// the projection resolves to the concrete element type at the corresponding index. When accessed
+    /// inside the generic definition itself (no constructed context), the projection resolves to the
+    /// symbolic pack type parameter — enabling constrained member access on pack elements (e.g.,
+    /// <c>Shape1.Area()</c> where the whole pack is constrained to <c>IShape</c>).
+    /// Returns null if the name does not match any spread-member projection pattern.
+    /// </summary>
+    private static IType? TryResolveSpreadProjection(
+        string memberName,
+        IList<SemanticSpreadMember> spreadMembers,
+        ConstructedType? originalConstructedType,
+        IReadOnlyList<IType>? constructedTypeParams)
+    {
+        foreach(var spread in spreadMembers)
+        {
+            var stem = spread.Stem;
+
+            // Check if memberName starts with the stem and is followed by digits.
+            if(!memberName.StartsWith(stem, StringComparison.Ordinal) || memberName.Length <= stem.Length)
+            {
+                continue;
+            }
+
+            var indexPart = memberName[stem.Length..];
+            if(!int.TryParse(indexPart, out var oneBasedIndex) || oneBasedIndex < 1)
+            {
+                continue;
+            }
+
+            var zeroBasedIndex = oneBasedIndex - 1;
+
+            // If we have a ConstructedType with DependentArguments, resolve the concrete
+            // element type from the bound pack.
+            if(originalConstructedType?.DependentArguments is not null && constructedTypeParams is not null)
+            {
+                // Find the pack's ordinal in the type parameter list.
+                var packOrdinal = -1;
+                for(var i = 0; i < constructedTypeParams.Count; i++)
+                {
+                    if(constructedTypeParams[i] is TypeParameterType tp && tp.Name == spread.Pack.Name)
+                    {
+                        packOrdinal = i;
+                        break;
+                    }
+                }
+
+                if(packOrdinal >= 0
+                    && packOrdinal < originalConstructedType.DependentArguments.Count
+                    && originalConstructedType.DependentArguments[packOrdinal] is { IsPack: true } depArg
+                    && depArg.PackElementTypes is not null)
+                {
+                    if(zeroBasedIndex < depArg.PackElementTypes.Count)
+                    {
+                        return depArg.PackElementTypes[zeroBasedIndex];
+                    }
+
+                    // Index out of range for the bound pack — not a valid projection.
+                    return null;
+                }
+            }
+
+            // No constructed context (inside the generic definition body): resolve to the
+            // symbolic pack type parameter so that constrained member access works (e.g.,
+            // Shape1.Area() where TShapes : IShape). For a fixed-size pack (Type[N]:),
+            // only accept indices within range.
+            if(spread.Pack.PackFixedArity is int fixedArity)
+            {
+                if(zeroBasedIndex < fixedArity)
+                {
+                    return spread.Pack;
+                }
+
+                return null;
+            }
+
+            // Unknown-length pack without constructed context: resolve to the pack
+            // type parameter (allows constrained member access on elements).
+            return spread.Pack;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Reserves the spread-member stem namespace across a declaring type's members and
+    /// reports <c>MIST_VAR_0007</c> on a collision (Requirements 10.2 / 10.3). The spread
+    /// owns the aggregate name <c>S</c> and every projection name <c>S{i}</c>, so a collision
+    /// is: a member outside the spread family whose name is the stem <c>S</c> or a projection
+    /// name <c>S{i}</c>; or two spread stems that prefix one another (their reserved
+    /// namespaces would overlap). Runs after every member type is resolved so the full member
+    /// set is visible; walks the declaration nodes purely by AST shape (a member is a spread
+    /// iff its type is a lone member spread) so the diagnostic is attributed to the offending
+    /// declaration. Mirrors the ProgramModel track's <c>SpreadMemberBuilder.ValidateStems</c>.
+    /// </summary>
+    private static void ValidateSpreadStems(
+        IReadOnlyList<MemberDeclarationNode> members,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Partition the type's named members into spread stems (with their declaration nodes
+        // for diagnostics) and the names of every other named member. A spread member's stem
+        // is its own name and belongs to its family, so it is not counted as a colliding
+        // "other member".
+        var stems = new List<(string Stem, Storm.Runtime.SyntaxNode Node)>();
+        var otherNames = new List<string>();
+
+        foreach(var member in members)
+        {
+            switch(member)
+            {
+                case FieldMemberMemberDeclarationNode fieldMember:
+                    CategorizeSpreadCandidate(fieldMember.Field.Type, fieldMember.Field.Name.Lexeme, fieldMember.Field, stems, otherNames);
+                    break;
+
+                case PropertyMemberMemberDeclarationNode propertyMember:
+                    if(TryGetPropertyTypeAndName(propertyMember.Property, out var propType, out var propName, out var propNode))
+                    {
+                        CategorizeSpreadCandidate(propType, propName, propNode, stems, otherNames);
+                    }
+
+                    break;
+
+                case MethodMemberMemberDeclarationNode methodMember:
+                    otherNames.Add(methodMember.Method.Name.Lexeme);
+                    break;
+
+                default:
+                    // Constructors, operators, cast operators, indexers, default blocks, and
+                    // nested types have no simple member name that can occupy the reserved
+                    // stem namespace.
+                    break;
+            }
+        }
+
+        for(var j = 0; j < stems.Count; j++)
+        {
+            var (stem, node) = stems[j];
+
+            // A member outside the spread family that uses the stem or an `S{i}` name.
+            if(otherNames.Exists(name => NameIsInStemNamespace(name, stem)))
+            {
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    VariadicsDiagnostics.SpreadStemCollision.Id.Value,
+                    DiagnosticSeverity.Error,
+                    $"Spread member stem '{stem}' collides with another member or spread stem.",
+                    node,
+                    sourceText));
+                continue;
+            }
+
+            // Two spread stems that prefix one another. Report on the later declaration so
+            // the conflict is flagged exactly once, mirroring the duplicate-`params` rule.
+            var prefixesEarlierStem = false;
+            for(var i = 0; i < j; i++)
+            {
+                if(StemsPrefixOneAnother(stems[i].Stem, stem))
+                {
+                    prefixesEarlierStem = true;
+                    break;
+                }
+            }
+
+            if(prefixesEarlierStem)
+            {
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    VariadicsDiagnostics.SpreadStemCollision.Id.Value,
+                    DiagnosticSeverity.Error,
+                    $"Spread member stem '{stem}' collides with another member or spread stem.",
+                    node,
+                    sourceText));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Classifies one member declaration for stem-namespace validation: a spread-typed
+    /// member contributes its stem (when non-empty; an empty stem was already rejected with
+    /// <c>MIST_VAR_0008</c> and owns no namespace), while any other member contributes its
+    /// name to the pool that stems are checked against.
+    /// </summary>
+    private static void CategorizeSpreadCandidate(
+        TypeReferenceNode type,
+        string name,
+        Storm.Runtime.SyntaxNode node,
+        List<(string Stem, Storm.Runtime.SyntaxNode Node)> stems,
+        List<string> otherNames)
+    {
+        if(TryGetMemberSpread(type, out _))
+        {
+            if(!string.IsNullOrEmpty(name))
+            {
+                stems.Add((name, node));
+            }
+        }
+        else
+        {
+            otherNames.Add(name);
+        }
+    }
+
+    /// <summary>
+    /// Extracts the declared type, name, and declaration node from either property surface
+    /// form (a block property or an expression-bodied property).
+    /// </summary>
+    private static bool TryGetPropertyTypeAndName(
+        PropertyDeclarationNode property,
+        out TypeReferenceNode type,
+        out string name,
+        out Storm.Runtime.SyntaxNode node)
+    {
+        switch(property)
+        {
+            case BlockPropertyPropertyDeclarationNode block:
+                type = block.Type;
+                name = block.Name.Lexeme;
+                node = block;
+                return true;
+            case ExpressionBodiedPropertyPropertyDeclarationNode expr:
+                type = expr.Type;
+                name = expr.Name.Lexeme;
+                node = expr;
+                return true;
+            default:
+                type = null!;
+                name = string.Empty;
+                node = property;
+                return false;
+        }
+    }
+
+    /// <summary>
+    /// True when <paramref name="name"/> falls inside the stem's reserved namespace: it is
+    /// the stem itself, or the stem followed by one or more digits (a projection name
+    /// <c>Stem{i}</c>).
+    /// </summary>
+    private static bool NameIsInStemNamespace(string name, string stem)
+    {
+        if(name == stem)
+        {
+            return true;
+        }
+
+        if(name.Length <= stem.Length || !name.StartsWith(stem, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        for(var i = stem.Length; i < name.Length; i++)
+        {
+            if(!char.IsAsciiDigit(name[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// True when one stem is a textual prefix of the other (including equality). The design
+    /// forbids two spread stems from prefixing one another because their <c>S{i}</c>
+    /// projection namespaces would overlap.
+    /// </summary>
+    private static bool StemsPrefixOneAnother(string a, string b)
+    {
+        return a.StartsWith(b, StringComparison.Ordinal) || b.StartsWith(a, StringComparison.Ordinal);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -14343,8 +14879,21 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 if(child is ParameterNode param)
                 {
+                    // Mirror RegisterParameters' value-pack exemption so a `params TArgs args`
+                    // pre-resolves to the pack (which ApplyValuePackParameterType wraps in the
+                    // tuple), not an error type; the canonical diagnostics come from Pass 2.
+                    resolvingValuePackParameterType = param.ParamsModifier is not null;
                     var paramType = ResolveTypeReference(param.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, tempDiagnostics);
-                    var paramSym = new Symbol(param.Name.Lexeme, SymbolKind.Parameter, SymbolOrigin.UserCode, typeScope, paramType, null);
+                    resolvingValuePackParameterType = false;
+
+                    // Variadics value side (Requirements 7.1, 7.7): mirror the canonical
+                    // RegisterParameters pass so the pre-resolved signature carries the value
+                    // pack's tuple type `(TArgs...)` and the Flattened_Call_Convention flag.
+                    paramType = ApplyValuePackParameterType(param, paramType, out var hasFlattenedCallConvention);
+                    var paramSym = new Symbol(param.Name.Lexeme, SymbolKind.Parameter, SymbolOrigin.UserCode, typeScope, paramType, null)
+                    {
+                        HasFlattenedCallConvention = hasFlattenedCallConvention,
+                    };
                     paramSymbols.Add(paramSym);
                 }
             }
@@ -14849,6 +15398,102 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
     }
 
+    /// <summary>
+    /// Applies the value-side <c>params</c> representation (Requirements 7.1, 7.2, 7.7, 13.1,
+    /// 13.4, 13.5) to a resolved value-parameter type. A leading <c>params</c> on a value
+    /// parameter introduces the Flattened_Call_Convention (the caller supplies a flat,
+    /// comma-separated argument list rather than a single packaged argument); which
+    /// representation the parameter takes is decided purely by its declared type:
+    /// <list type="bullet">
+    /// <item><description>
+    /// Value_Pack (<c>params TArgs args</c>) -- the declared type is a type-parameter pack
+    /// (<see cref="TypeParameterType.IsPack"/>). The parameter is given the single-slot tuple
+    /// type <c>(TArgs...)</c> (equivalently <c>ValueTuple&lt;TArgs&gt;</c>) and marked with the
+    /// Flattened_Call_Convention.
+    /// </description></item>
+    /// <item><description>
+    /// Value_Level_Params (<c>params T[] xs</c>) -- the declared type is the homogeneous array
+    /// type <c>T[]</c> (<see cref="ArrayType"/>), NOT a pack. The parameter keeps that real
+    /// array type (the callee receives a genuine <c>T[]</c>) and is marked with the
+    /// Flattened_Call_Convention. It is distinguished from a Type_Parameter_Pack purely by
+    /// position -- this <c>params</c> sits in the VALUE-parameter list, whereas a
+    /// type-parameter-list <c>params</c> is handled by <c>ExtractTypeParameters</c>.
+    /// </description></item>
+    /// </list>
+    /// Every other parameter type is returned unchanged and unflattened, including a plain
+    /// <c>(TArgs...) args</c> tuple parameter (which already resolves to the same single-slot
+    /// tuple but, lacking <c>params</c>, stays an ordinary single-tuple parameter). Because one
+    /// <see cref="ParameterNode"/> still yields one parameter symbol either way, method
+    /// value-parameter arity counts a value-side <c>params</c> as exactly one slot, mirroring
+    /// the type-parameter side. Counting toward the one-<c>params</c>-per-list rule
+    /// (Requirement 13.5) is handled by <see cref="EnforceSingleValueParams"/>, which keys on
+    /// the <c>params</c> modifier and so already includes the array form. Collecting the
+    /// trailing arguments into the array is the type checker's job and emitting the C#
+    /// <c>params T[]</c> is the backend's -- this is representation only. Mirrors the
+    /// ProgramModel track's <c>ParameterBuilder</c> value-side <c>params</c> path.
+    /// </summary>
+    private static IType ApplyValuePackParameterType(
+        ParameterNode param,
+        IType paramType,
+        out bool hasFlattenedCallConvention)
+    {
+        if(param.ParamsModifier is not null)
+        {
+            // Value_Pack: `params TArgs args` becomes the single-slot tuple `(TArgs...)`.
+            if(paramType is TypeParameterType { IsPack: true } valuePack)
+            {
+                hasFlattenedCallConvention = true;
+                return new TupleType(new IType[] { valuePack });
+            }
+
+            // Value_Level_Params: `params T[] xs` keeps its homogeneous array type `T[]`.
+            if(paramType is ArrayType)
+            {
+                hasFlattenedCallConvention = true;
+                return paramType;
+            }
+        }
+
+        hasFlattenedCallConvention = false;
+        return paramType;
+    }
+
+    /// <summary>
+    /// Resolves the value-pack tuple type <c>(TArgs...)</c> from a parenthesized lone
+    /// pack-spread type reference. Returns the single-slot <see cref="TupleType"/> over the
+    /// pack when <paramref name="parenRef"/> wraps a lone spread (<c>(TArgs...)</c>) whose
+    /// operand resolves to a type-parameter pack (<see cref="TypeParameterType.IsPack"/>),
+    /// and <c>null</c> otherwise so the caller resolves the inner type normally (a non-pack
+    /// lone spread then falls through to the ordinary -- and, for now, unsupported -- path,
+    /// exactly as before). Mirrors the ProgramModel track's
+    /// <c>TypeReferenceResolver.BuildValuePackTuple</c> (task 5.1): while the pack is symbolic
+    /// the tuple carries the single pack element, so a plain <c>(TArgs...) args</c> parameter
+    /// and a <c>params TArgs args</c> value pack share the same tuple representation; a later
+    /// stage substitutes the bound <c>Type[]</c> and expands it into one element per type.
+    /// </summary>
+    private static TupleType? TryResolveValuePackTupleFromParen(
+        ParenthesizedTypeRefSingleTypeRefNode parenRef,
+        Scope fileScope,
+        SourceText? sourceText)
+    {
+        var inner = parenRef.Inner;
+
+        // A lone (non-union) spread operand: the `TArgs...` inside `(TArgs...)`.
+        if(inner.SingleTypeRefs.Length != 0 || inner.First is not SpreadSingleTypeRefSingleTypeRefNode spread)
+        {
+            return null;
+        }
+
+        var operandName = ExtractQualifiedName(spread.Name, sourceText);
+        var operandSymbol = fileScope.Lookup(operandName);
+        if(operandSymbol?.DeclaredType is TypeParameterType { IsPack: true } pack)
+        {
+            return new TupleType(new IType[] { pack });
+        }
+
+        return null;
+    }
+
     private static void RegisterParameters(
         ParameterListNode paramList,
         Scope methodScope,
@@ -14858,6 +15503,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
+        // Variadics value side (Requirements 7.8, 7.9): a value-parameter list may declare
+        // at most one value-side `params` parameter. Enforce that once per list, before the
+        // individual parameters are registered, so the diagnostic is reported exactly once.
+        EnforceSingleValueParams(paramList, sourceText, diagnostics);
+
         // The grammar rule is: ParameterList = Parameter (COMMA Parameter)*
         // Iterate all ParameterNode children uniformly to register every parameter.
         foreach(var child in paramList.Children())
@@ -14866,6 +15516,51 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 RegisterSingleParameter(param, methodScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
             }
+        }
+    }
+
+    /// <summary>
+    /// Enforces the at-most-one value-side <c>params</c> rule (Requirements 7.8, 7.9): a
+    /// value-parameter list may declare at most one value-side <c>params</c> parameter, and a
+    /// second (or later) one is diagnostic
+    /// <see cref="VariadicsDiagnostics.MultipleParamsPacks"/> (<c>MIST_VAR_0001</c>). Both
+    /// spellings of a value-side <c>params</c> count -- a Value_Pack (<c>params TArgs args</c>,
+    /// target tuple <c>(TArgs...)</c>) and a Value_Level_Params (<c>params T[] xs</c>, target
+    /// array) -- so the count is driven by the presence of the <c>params</c> modifier on the
+    /// parameter node itself (<see cref="ParameterNode.ParamsModifier"/> is non-null for both
+    /// spellings) rather than by the resolved parameter type or call convention; this stays
+    /// correct regardless of whether an array target is yet marked with the
+    /// Flattened_Call_Convention. A plain <c>(TArgs...) args</c> tuple parameter (no
+    /// <c>params</c>) is the sanctioned way to write an additional pack and does not count.
+    /// The first <c>params</c> is the permitted bracket-free slot; the diagnostic points at
+    /// the second declaration and is reported once (not per surplus), mirroring the
+    /// type-parameter side in <see cref="ExtractTypeParameters"/> and the ProgramModel track's
+    /// value-parameter enforcement.
+    /// </summary>
+    private static void EnforceSingleValueParams(
+        ParameterListNode paramList,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var paramsParameters = new List<ParameterNode>();
+        foreach(var child in paramList.Children())
+        {
+            if(child is ParameterNode { ParamsModifier: not null } paramsParam)
+            {
+                paramsParameters.Add(paramsParam);
+            }
+        }
+
+        // The first `params` is the permitted bracket-free slot; a second (or later) one is
+        // the violation. Report once, at the second declaration (not per surplus).
+        if(paramsParameters.Count > 1)
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                VariadicsDiagnostics.MultipleParamsPacks.Id.Value,
+                DiagnosticSeverity.Error,
+                "More than one 'params' pack in a single value-parameter list; at most one is allowed.",
+                paramsParameters[1],
+                sourceText));
         }
     }
 
@@ -14879,10 +15574,23 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics)
     {
         // Signal that we're resolving a parameter type so unsized array types
-        // receive a symbolic length ID (Requirement 1.4).
+        // receive a symbolic length ID (Requirement 1.4). A value-side `params`
+        // parameter additionally permits a lone bare pack as its top-level type
+        // (`params TArgs args`), the value-pack form, without the bare-type-position
+        // error (Requirement 6.3); ResolveSingleTypeRef consumes the flag on entry.
         allocatingParameterArrayType = true;
+        resolvingValuePackParameterType = param.ParamsModifier is not null;
         var paramType = ResolveTypeReference(param.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+        resolvingValuePackParameterType = false;
         allocatingParameterArrayType = false;
+
+        // Variadics value side (Requirements 7.1, 7.2, 7.7): a leading `params` on a value
+        // parameter whose declared type is a type-parameter pack (`params TArgs args`) is a
+        // Value_Pack whose value has the tuple type `(TArgs...)`; wrap the pack in that single
+        // tuple slot and mark the Flattened_Call_Convention. A plain `(TArgs...) args` (no
+        // `params`) resolves to the same single-slot tuple but stays unmarked, so it remains
+        // an ordinary single-tuple parameter.
+        paramType = ApplyValuePackParameterType(param, paramType, out var hasFlattenedCallConvention);
         var paramName = param.Name.Lexeme;
         var paramSpan = ToMistSourceSpan(param.Name.Span);
 
@@ -14899,7 +15607,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return;
         }
 
-        var paramSymbol = new Symbol(paramName, SymbolKind.Parameter, SymbolOrigin.UserCode, methodScope, paramType, paramSpan);
+        var paramSymbol = new Symbol(paramName, SymbolKind.Parameter, SymbolOrigin.UserCode, methodScope, paramType, paramSpan)
+        {
+            HasFlattenedCallConvention = hasFlattenedCallConvention,
+        };
 
         // Handle ref modifier on the parameter.
         if(param.RefModifier is not null)
@@ -15594,9 +16305,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         CollectFromRelational(node.Left, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
 
-        if(node.Right is not null && !ReferenceEquals(node.Right, node.Left))
+        // Group0 is the flat n-ary operand list; visit every operand so pattern
+        // variables in a multi-term chain are all collected, not just the last.
+        foreach(var group in node.Group0)
         {
-            CollectFromRelational(node.Right, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+            CollectFromRelational(group.Right, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
         }
     }
 
@@ -15980,14 +16693,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             case ListPatternPrimaryPatternNode listPattern:
                 {
-                    // Determine the element type for subpattern recursion.
+                    // Determine the element type for element sub-pattern recursion.
                     var elementType = scrutineeType is ArrayType arrayType
                         ? arrayType.ElementType
                         : ErrorType.Instance;
 
                     if(listPattern.Elements is not null)
                     {
-                        CollectFromListPatternElementList(listPattern.Elements, elementType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+                        // Thread the receiver (scrutinee) type alongside the element type:
+                        // element sub-patterns bind against the element type, while a slice
+                        // sub-pattern binds against the receiver's slice-result type.
+                        CollectFromListPatternElementList(listPattern.Elements, scrutineeType, elementType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
                     }
 
                     break;
@@ -16100,6 +16816,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     private static void CollectFromListPatternElementList(
         ListPatternElementListNode elementList,
+        IType receiverType,
         IType elementType,
         Scope thenScope,
         SymbolTable symbolTable,
@@ -16109,16 +16826,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        CollectFromListPatternElement(elementList.ListPatternElement, elementType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+        CollectFromListPatternElement(elementList.ListPatternElement, receiverType, elementType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
 
         foreach(var element in elementList.ListPatternElements)
         {
-            CollectFromListPatternElement(element, elementType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+            CollectFromListPatternElement(element, receiverType, elementType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
         }
     }
 
     private static void CollectFromListPatternElement(
         ListPatternElementNode element,
+        IType receiverType,
         IType elementType,
         Scope thenScope,
         SymbolTable symbolTable,
@@ -16135,21 +16853,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 break;
 
             case SliceElementListPatternElementNode sliceElement:
-                // Slice element with an identifier (`.. rest`): register the identifier.
-                if(sliceElement.Name.HasValue)
+                // Slice element carrying a sub-pattern (`.. var rest`, `.. _`, ...):
+                // recurse so any bindings it introduces are registered, using the
+                // sub-pattern's own span. A binding sub-pattern binds to the receiver's
+                // slice-result type, so `.. var middle` on an `int[]` binds `middle : int[]`
+                // (Req 20.2). When the receiver is not sliceable, fall back to
+                // ErrorType.Instance (the type checker reports the diagnostic).
+                if(sliceElement.Subpattern is not null)
                 {
-                    var name = sliceElement.Name.Value.Lexeme;
-                    if(name != "_")
-                    {
-                        // The slice variable captures a sub-array, so its type
-                        // is the same as the scrutinee array type (not the element type).
-                        // For now, use ErrorType since we don't have the full
-                        // array type here — the type checker will validate.
-                        var varSpan = ToMistSourceSpan(sliceElement.Name.Value.Span);
-                        var varSymbol = new Symbol(name, SymbolKind.LocalVariable, SymbolOrigin.UserCode, thenScope, ErrorType.Instance, varSpan);
-                        thenScope.AddMember(varSymbol);
-                        symbolTable.Register(varSymbol, sliceElement);
-                    }
+                    var sliceType = TryGetSliceResultType(receiverType, out var sliceResultType)
+                        ? sliceResultType
+                        : ErrorType.Instance;
+                    CollectFromPattern(sliceElement.Subpattern, sliceType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
                 }
 
                 break;
@@ -17159,6 +17874,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
+        // Variadics (Requirement 6.3): the value-pack exemption applies only to the
+        // parameter's OUTERMOST type reference. Capture and clear it here so nested
+        // references (type arguments, tuple elements, ...) resolved during this call
+        // never inherit it — a pack nested inside another type is still a bare-type error.
+        var valuePackParamContext = resolvingValuePackParameterType;
+        resolvingValuePackParameterType = false;
+
         switch(singleTypeRef)
         {
             case PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef:
@@ -17218,6 +17940,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var namedSymbol = fileScope.Lookup(typeName);
                     if(namedSymbol is not null && namedSymbol.DeclaredType is TypeParameterType tpt)
                     {
+                        // ── Variadics: pack position semantics and the capability ladder ──
+                        // A pack in type position is not an ordinary type parameter: it is a
+                        // value (a comptime Type[]), so its meaning depends on position and on
+                        // what is proven about its length (Requirement 6.3-6.6). Bare use is
+                        // MIST_VAR_0002 (unless it is the value-pack form `params TArgs args`);
+                        // `TArgs[i]` is pack indexing gated by the capability ladder.
+                        if(tpt.IsPack)
+                        {
+                            return ResolvePackInTypePosition(tpt, namedRef, valuePackParamContext, sourceText, diagnostics);
+                        }
+
                         if(namedRef.TypeArgs is not null)
                         {
                             diagnostics.Add(MakeDiagnosticWithLocation(
@@ -17374,8 +18107,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             case ParenthesizedTypeRefSingleTypeRefNode parenRef:
                 {
-                    // Resolve the inner type reference (which can be any TypeReference, including unions).
-                    var inner = ResolveTypeReference(parenRef.Inner, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                    // Variadics value side (Requirement 7.7): the lone pack-spread form
+                    // `(TArgs...)` is the value-pack tuple type. Resolve it to the single-slot
+                    // tuple `(TArgs...)` over the pack so a plain `(TArgs...) args` parameter and
+                    // a `params TArgs args` value pack share the same tuple representation --
+                    // only the `params` flattened-call marker distinguishes them. Any other
+                    // parenthesized inner (a grouped scalar or union) resolves normally.
+                    var inner = TryResolveValuePackTupleFromParen(parenRef, fileScope, sourceText)
+                        ?? ResolveTypeReference(parenRef.Inner, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
                     if(parenRef.ArrayRank is SizedArrayRankArrayRankSuffixNode parenSizedRank)
                     {
                         var size = long.Parse(parenSizedRank.Size.Lexeme);
@@ -17398,31 +18137,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var elementNames = new List<string?>(elementCount);
                     var hasAnyName = false;
 
-                    elementTypes.Add(ResolveTypeReference(tupleRef.First.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics));
-                    var firstName = tupleRef.First.Name?.Lexeme;
-                    elementNames.Add(firstName);
-                    if(firstName is not null)
-                    {
-                        hasAnyName = true;
-                    }
-
-                    elementTypes.Add(ResolveTypeReference(tupleRef.Rest.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics));
-                    var restName = tupleRef.Rest.Name?.Lexeme;
-                    elementNames.Add(restName);
-                    if(restName is not null)
-                    {
-                        hasAnyName = true;
-                    }
+                    AddTupleElement(tupleRef.First, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics, elementTypes, elementNames, ref hasAnyName);
+                    AddTupleElement(tupleRef.Rest, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics, elementTypes, elementNames, ref hasAnyName);
 
                     foreach(var additional in tupleRef.TupleTypeElements)
                     {
-                        elementTypes.Add(ResolveTypeReference(additional.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics));
-                        var additionalName = additional.Name?.Lexeme;
-                        elementNames.Add(additionalName);
-                        if(additionalName is not null)
-                        {
-                            hasAnyName = true;
-                        }
+                        AddTupleElement(additional, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics, elementTypes, elementNames, ref hasAnyName);
                     }
 
                     return new TupleType(elementTypes, hasAnyName ? elementNames : null);
@@ -17632,6 +18352,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 return declaredType;
             }
+
+            // Variadic fallback: when the definition has a pack type parameter, it
+            // accepts any arity >= its minimum fixed slots. The binding rule will
+            // later assign the extra arguments to the pack. This allows the single
+            // variadic `Func<params TArgs, TResult>` to satisfy lookups at any arity.
+            if(HasPackTypeParameter(declaredType))
+            {
+                var fixedCount = GetFixedTypeParameterCount(declaredType);
+                if(typeArgumentCount >= fixedCount)
+                {
+                    return declaredType;
+                }
+            }
         }
 
         throw new StdlibMissingException(
@@ -17652,6 +18385,68 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             AbstractType it => it.TypeParameters.Count,
             _ => 0,
         };
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when the type has at least one type parameter that is a pack
+    /// (<see cref="TypeParameterType.IsPack"/>). Used by the arity-aware stdlib lookup to
+    /// fall back to a variadic definition when no exact-arity match is found.
+    /// </summary>
+    private static bool HasPackTypeParameter(IType type)
+    {
+        var typeParams = type switch
+        {
+            ClassType ct => ct.TypeParameters,
+            StructType st => st.TypeParameters,
+            AbstractType at => at.TypeParameters,
+            _ => null,
+        };
+
+        if(typeParams is null)
+        {
+            return false;
+        }
+
+        foreach(var tp in typeParams)
+        {
+            if(tp is TypeParameterType { IsPack: true })
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Returns the number of non-pack (fixed scalar) type parameters on a type.
+    /// A variadic type accepts any use-site arity >= this count; the pack absorbs the rest.
+    /// </summary>
+    private static int GetFixedTypeParameterCount(IType type)
+    {
+        var typeParams = type switch
+        {
+            ClassType ct => ct.TypeParameters,
+            StructType st => st.TypeParameters,
+            AbstractType at => at.TypeParameters,
+            _ => null,
+        };
+
+        if(typeParams is null)
+        {
+            return 0;
+        }
+
+        var count = 0;
+        foreach(var tp in typeParams)
+        {
+            if(tp is not TypeParameterType { IsPack: true })
+            {
+                count++;
+            }
+        }
+
+        return count;
     }
 
     /// <summary>
@@ -18079,7 +18874,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return false; // Lambda form — not a discarded async invocation.
         }
 
-        if(assignment.Value is not null)
+        if(assignment.Group0?.Value is not null)
         {
             return false; // It's an assignment, not a discarded expression.
         }
@@ -18097,7 +18892,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         var equality = logicalAnd.Left;
-        if(equality.Right is not null)
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return false;
         }
@@ -18108,24 +18903,24 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return false;
         }
 
-        if(relComp.Right is not null)
+        if(!relComp.Group0.IsDefaultOrEmpty)
         {
             return false;
         }
 
         var additive = relComp.Left;
-        if(additive.Right is not null)
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return false;
         }
 
         var multiplicative = additive.Left;
-        if(multiplicative.Right is not null)
+        if(!multiplicative.Group0.IsDefaultOrEmpty)
         {
             return false;
         }
 
-        var unary = multiplicative.Left;
+        var unary = multiplicative.Left.UnwrapRange();
 
         // Check if it's an async functor expression.
         if(unary is AsyncExpressionUnaryNode)
@@ -18625,6 +19420,38 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return resolvedType;
         }
 
+        // ── Variadics: flat-to-bracketed pack binding (Requirement 4). ──
+        // A variadic family construction — the definition declares a type-parameter pack, or the
+        // use site supplies a bracketed pack group `[...]` — is bound by the shared binding rule
+        // rather than the fixed one-argument-per-parameter arity check: fixed scalar and bracketed
+        // `Type[]:` slots bind inward from both ends and the single unbracketed `params` pack
+        // absorbs the contiguous middle (possibly empty), and too few arguments to fill the fixed
+        // and bracketed slots is reported as MIST_VAR_0005. Only class/struct/abstract families are
+        // bound here; alias/newtype pack substitution rides on later spread-aware resolution.
+        if(resolvedType is ClassType or StructType or AbstractType
+            && IsVariadicConstruction(typeParams, typeArgList))
+        {
+            return ResolveVariadicConstructedType(
+                resolvedType, typeName, typeParams, typeArgList,
+                fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+        }
+
+        // ── Variadics: variadic type-alias use site (completes task 12.1's deferred work). ──
+        // A variadic alias such as `type Action<params TArgs> = Func<TArgs..., void>;` is CLOSED at
+        // a use site like `Action<int, string>` by the same flat-to-bracketed binding rule: the
+        // flat arguments fold into the alias's single pack slot (`TArgs = [int, string]`), then that
+        // concrete Type[] is substituted into the alias body, expanding the body's `TArgs...` spread
+        // in place into one entry per element (Requirements 9.1, 6.8, 8.1). Without this the flat
+        // arity would be misreported as MIST_SB_0063; too few arguments to fill the fixed/bracketed
+        // slots is reported as MIST_VAR_0005 by the shared binder.
+        if(resolvedType is TypeAliasType variadicAlias
+            && IsVariadicConstruction(typeParams, typeArgList))
+        {
+            return ResolveVariadicAliasUseSite(
+                variadicAlias, typeName, typeParams, typeArgList,
+                fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+        }
+
         // Resolve each type argument, handling dependent type argument disambiguation.
         var (resolvedTypeArgs, dependentArgs) = ResolvePass2TypeArgumentListWithDependents(
             typeArgList, typeParams, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
@@ -18686,6 +19513,673 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         return new ConstructedType(resolvedType, resolvedTypeArgs, dependentArgs);
+    }
+
+    /// <summary>
+    /// Applies pack position semantics and the capability ladder (Requirement 6) to a named type
+    /// reference whose operand resolved to the type-parameter pack <paramref name="pack"/>:
+    /// <list type="bullet">
+    ///   <item><c>TArgs[i]</c> (a sized array rank) is pack indexing, gated by the capability
+    ///     ladder (see <see cref="ResolvePackIndex"/>).</item>
+    ///   <item>A lone bare pack (no rank, no <c>?</c>) in the value-pack form
+    ///     <c>params TArgs args</c> (<paramref name="valuePackParamContext"/>) resolves to the
+    ///     pack itself so <see cref="ApplyValuePackParameterType"/> can wrap it in the value-pack
+    ///     tuple <c>(TArgs...)</c>.</item>
+    ///   <item>Every other bare use -- a field/return/ordinary-parameter type, a scalar type
+    ///     argument, or a <c>TArgs[]</c> (unsized) / <c>TArgs?</c> form -- is the
+    ///     bare-type-position error <c>MIST_VAR_0002</c> (Requirement 6.3): a pack is a value, not
+    ///     a type. Recovered as an error type so downstream analysis continues.</item>
+    /// </list>
+    /// Mirrors the frozen ProgramModel resolver's <c>ResolvePackInTypePosition</c>, expressed over
+    /// the legacy <c>Mist.Semantics</c> model.
+    /// </summary>
+    private static IType ResolvePackInTypePosition(
+        TypeParameterType pack,
+        NamedSingleTypeRefSingleTypeRefNode namedRef,
+        bool valuePackParamContext,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // `TArgs[i]` -- pack indexing by a comptime integer literal, under the capability ladder.
+        if(namedRef.ArrayRank is SizedArrayRankArrayRankSuffixNode sized)
+        {
+            return ResolvePackIndex(pack, sized, namedRef, sourceText, diagnostics);
+        }
+
+        // The value-pack form `params TArgs args` names the pack to form its value tuple; return
+        // the pack itself (the caller wraps it in (TArgs...)). Only a plain bare name qualifies --
+        // a `TArgs[]` (unsized rank) or `TArgs?` still falls through to the type-position error.
+        if(valuePackParamContext && namedRef.ArrayRank is null && namedRef.Optional is null)
+        {
+            return pack;
+        }
+
+        // Requirement 6.3: a pack in bare type position is an error (a pack is a value, not a
+        // type). Recover as an error type so downstream analysis continues.
+        diagnostics.Add(MakeDiagnosticWithLocation(
+            VariadicsDiagnostics.PackInTypePosition.Id.Value,
+            DiagnosticSeverity.Error,
+            string.Format(VariadicsDiagnostics.PackInTypePosition.MessageTemplate, pack.Name),
+            namedRef,
+            sourceText));
+        return ErrorType.Instance;
+    }
+
+    /// <summary>
+    /// Resolves pack indexing <c>TArgs[i]</c> in type position under the capability ladder
+    /// (Requirement 6.4-6.6). The comptime index <c>i</c> is the sized rank's integer literal.
+    /// <list type="bullet">
+    ///   <item>An unknown-length <c>Type[]</c> pack cannot prove its length is at least
+    ///     <c>i + 1</c>, so indexing is rejected with <c>MIST_VAR_0003</c> (Requirement 6.4).</item>
+    ///   <item>A fixed-size <c>Type[N]</c> pack permits <c>0 &lt;= i &lt; N</c>, yielding the
+    ///     element type at that index (Requirement 6.5); a comptime index outside that range is
+    ///     <c>MIST_VAR_0004</c> (Requirement 6.6).</item>
+    /// </list>
+    /// While the pack is symbolic (unbound) at resolution time the concrete element type is not
+    /// yet known, so the accepted in-range case yields the <c>unknown</c> placeholder -- the valid
+    /// indexing neither emits a diagnostic nor cascades an error; the concrete element type is
+    /// substituted when the pack binds a concrete <c>Type[]</c> during backend monomorphization.
+    /// Mirrors the frozen ProgramModel resolver's <c>ResolvePackIndex</c>.
+    /// </summary>
+    private static IType ResolvePackIndex(
+        TypeParameterType pack,
+        SizedArrayRankArrayRankSuffixNode sized,
+        NamedSingleTypeRefSingleTypeRefNode locationNode,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var index = long.TryParse(sized.Size.Lexeme, out var parsed) ? parsed : 0L;
+
+        // Requirement 6.4: an unknown-length `Type[]:TArgs` pack proves no lower bound on its
+        // length, so no comptime index is provably in range.
+        if(pack.PackFixedArity is not { } length)
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                VariadicsDiagnostics.UnprovenPackIndex.Id.Value,
+                DiagnosticSeverity.Error,
+                string.Format(VariadicsDiagnostics.UnprovenPackIndex.MessageTemplate, pack.Name, index + 1),
+                locationNode,
+                sourceText));
+            return ErrorType.Instance;
+        }
+
+        // Requirement 6.6: a fixed-size `Type[N]:TArgs` pack rejects a comptime index outside
+        // 0 .. N-1 (for example `TArgs[N]` or a negative index).
+        if(index < 0 || index >= length)
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                VariadicsDiagnostics.PackIndexOutOfBounds.Id.Value,
+                DiagnosticSeverity.Error,
+                string.Format(VariadicsDiagnostics.PackIndexOutOfBounds.MessageTemplate, index, pack.Name, length),
+                locationNode,
+                sourceText));
+            return ErrorType.Instance;
+        }
+
+        // Requirement 6.5: in range. The symbolic element is represented by `unknown` here; the
+        // concrete element type is substituted at backend monomorphization.
+        return UnknownType.Instance;
+    }
+
+    /// <summary>
+    /// The type of a type-parameter pack used in EXPRESSION position (Requirement 6.1, 6.2): the
+    /// pack's comptime value domain, the metatype array <c>Type[]</c> (or <c>Type[N]</c> for a
+    /// fixed-size pack). Surfacing the pack as this array is what makes the size-agnostic
+    /// operations -- <c>.Length</c>, iteration, and spread -- resolve through the ordinary array
+    /// machinery regardless of whether the pack's length is proven, so <c>TArgs.Length</c> is an
+    /// <c>int</c> even for an unknown-length pack.
+    /// </summary>
+    private static IType PackExpressionValueType(TypeParameterType pack)
+    {
+        return pack.PackFixedArity is { } arity
+            ? new ArrayType(LegacyPrimitiveTypes.Type, arity)
+            : new ArrayType(LegacyPrimitiveTypes.Type);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Variadics — Type-side spread expansion in designated positions (Requirements
+    // 6.8, 8.1, 9.1, 9.3, 9.4). A `Type[]` spread `TArgs...` expands IN PLACE into
+    // one entry per pack element (zero for the empty pack) in a type-argument list, a
+    // base-type list (including implemented abstract types), and a tuple-type element
+    // list. A value-parameter declaration is NOT a spread position (Requirement 9.5):
+    // a value pack is declared with `params` (`params TArgs args`), not a `...` suffix.
+    //
+    // At declaration time the operand pack is symbolic (unbound), so expansion is
+    // represented by carrying the pack itself as a single placeholder entry and the
+    // N-way materialization is deferred to backend monomorphization once the pack
+    // binds a concrete `Type[]` -- exactly the deferral used by spread-generated
+    // members (Requirement 10) and the value-pack tuple `(TArgs...)`. When a concrete
+    // `Type[]` is available (for example a variadic alias closed at a use site), the
+    // shared expansion helper splices in the bound element types instead.
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// True when a single (non-union) type reference is a lone type-side spread
+    /// <c>TArgs...</c> (a <see cref="SpreadSingleTypeRefSingleTypeRefNode"/>). This is the
+    /// surface form spread in a type-argument list, a tuple-type element, or a member type
+    /// position; it mirrors <see cref="TryGetMemberSpread"/> at the single-type-ref level so
+    /// every designated type position recognizes the operand the same way.
+    /// </summary>
+    private static bool TryGetTypeRefSpread(
+        TypeReferenceNode typeRef,
+        out SpreadSingleTypeRefSingleTypeRefNode spread)
+    {
+        if(typeRef.SingleTypeRefs.Length == 0 && typeRef.First is SpreadSingleTypeRefSingleTypeRefNode loneSpread)
+        {
+            spread = loneSpread;
+            return true;
+        }
+
+        spread = null!;
+        return false;
+    }
+
+    /// <summary>
+    /// Resolves a type-side spread operand (the <c>TArgs</c> in <c>TArgs...</c>) to its
+    /// type-parameter pack, looking the name up in <paramref name="scope"/>. Returns the pack
+    /// when the operand denotes one (<see cref="TypeParameterType.IsPack"/>), or <c>null</c>
+    /// otherwise (an unresolved name is left to the surrounding name-resolution machinery, and
+    /// a resolved-but-non-pack operand is simply not a spread). Mirrors the frozen ProgramModel
+    /// resolver's <c>ResolveSpreadOperandPack</c> and the classic member-spread operand lookup.
+    /// </summary>
+    private static TypeParameterType? ResolveTypeSpreadOperandPack(
+        SpreadSingleTypeRefSingleTypeRefNode spread,
+        Scope scope,
+        SourceText? sourceText)
+    {
+        var operandName = ExtractQualifiedName(spread.Name, sourceText);
+        var operandSymbol = scope.Lookup(operandName);
+        return operandSymbol?.DeclaredType as TypeParameterType is { IsPack: true } pack ? pack : null;
+    }
+
+    /// <summary>
+    /// Expands a resolved type-side spread operand pack into the ordered list of types it
+    /// contributes to its enclosing position while the pack is symbolic (an open generic body):
+    /// the pack itself as a single placeholder entry. The N-way materialization -- one entry per
+    /// element, zero for an empty pack (Requirements 6.8, 8.1) -- is deferred to backend
+    /// monomorphization, matching spread-generated members (Requirement 10) and the value-pack
+    /// tuple; it is performed eagerly when a variadic alias is closed at a use site (see
+    /// <see cref="SubstituteAndExpandPacks"/>), where a concrete <c>Type[]</c> is available.
+    /// </summary>
+    private static IReadOnlyList<IType> ExpandTypeSpreadOperand(TypeParameterType pack)
+    {
+        return new IType[] { pack };
+    }
+
+    /// <summary>
+    /// Adds one tuple-type element to the element/name lists, expanding a type-side spread
+    /// element in place (Requirements 9.4, 6.8, 8.1). A tuple element that is a lone pack spread
+    /// <c>TArgs...</c> -- including in a tuple used as a return type -- expands into one tuple
+    /// element per pack element (zero for an empty pack); while the pack is symbolic it
+    /// contributes the pack itself as a single placeholder element, deferring the N-way
+    /// materialization to backend monomorphization exactly as the value-pack tuple
+    /// (<c>(TArgs...)</c>) and spread-generated members do. Spread-produced elements are
+    /// unnamed. Any other element resolves through <see cref="ResolveTypeReference"/> as before.
+    /// </summary>
+    private static void AddTupleElement(
+        TupleTypeElementNode element,
+        Scope fileScope,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SymbolTable symbolTable,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics,
+        List<IType> elementTypes,
+        List<string?> elementNames,
+        ref bool hasAnyName)
+    {
+        if(TryGetTypeRefSpread(element.Type, out var spread)
+            && ResolveTypeSpreadOperandPack(spread, fileScope, sourceText) is { } pack)
+        {
+            foreach(var expanded in ExpandTypeSpreadOperand(pack))
+            {
+                elementTypes.Add(expanded);
+                elementNames.Add(null);
+            }
+
+            return;
+        }
+
+        elementTypes.Add(ResolveTypeReference(element.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics));
+        var name = element.Name?.Lexeme;
+        elementNames.Add(name);
+        if(name is not null)
+        {
+            hasAnyName = true;
+        }
+    }
+
+    /// <summary>
+    /// True when a base-list entry is a type-side spread <c>: TArgs...</c>
+    /// (<see cref="BaseTypeRefNode.Spread"/> present) whose operand names a type-parameter pack
+    /// of the enclosing type (Requirement 9.3). Such an entry is a spread position: it expands
+    /// into one base-type entry per pack element once the pack binds a concrete <c>Type[]</c>
+    /// (deferred to backend monomorphization), so it is accepted here -- contributing no concrete
+    /// base entry while symbolic -- without a position-attributable diagnostic
+    /// (<c>MIST_UNDEFINED_BASE_TYPE</c> / <c>MIST_UNDEFINED_ABSTRACT</c>). An entry with a spread
+    /// suffix whose name is not a pack is left to ordinary base-type resolution.
+    /// </summary>
+    private static bool IsPackSpreadBaseEntry(BaseTypeRefNode entry, IType? enclosingType)
+    {
+        if(entry.Spread is null || enclosingType is null)
+        {
+            return false;
+        }
+
+        var name = entry.Name.Lexeme;
+        foreach(var typeParam in GetTypeParameters(enclosingType))
+        {
+            if(typeParam is TypeParameterType { IsPack: true } pack && pack.Name == name)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// True when a use-site type-argument list should be bound by the variadic flat-to-bracketed
+    /// binding rule: the definition declares a type-parameter pack, or the use site supplies a
+    /// bracketed pack group (<c>[...]</c>), which only a pack slot accepts.
+    /// </summary>
+    private static bool IsVariadicConstruction(IReadOnlyList<IType> typeParams, TypeArgumentListNode typeArgList)
+    {
+        foreach(var param in typeParams)
+        {
+            if(param is TypeParameterType { IsPack: true })
+            {
+                return true;
+            }
+        }
+
+        return HasBracketedPackArgument(typeArgList);
+    }
+
+    /// <summary>
+    /// True when any use-site type argument is a bracketed pack group (<c>[...]</c>, including the
+    /// empty group <c>[]</c>).
+    /// </summary>
+    private static bool HasBracketedPackArgument(TypeArgumentListNode typeArgList)
+    {
+        if(typeArgList.TypeArgument is BracketedPackTypeArgumentTypeArgumentNode)
+        {
+            return true;
+        }
+
+        foreach(var arg in typeArgList.TypeArguments)
+        {
+            if(arg is BracketedPackTypeArgumentTypeArgumentNode)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Binds a variadic family's use-site type-argument list to its declared slots via the shared
+    /// <see cref="TypeCheckerAnalyzer.BindPackSlots"/> rule and builds the canonical constructed
+    /// variadic type. Fixed scalar and bracketed <c>Type[]:</c> slots bind inward from both ends
+    /// and the single unbracketed <c>params</c> pack absorbs the contiguous middle (possibly empty).
+    /// Each pack slot's ordered element list is lifted into a comptime <c>Type[]</c> value carried
+    /// on a <see cref="DependentValueArgument"/> (via <see cref="DependentValueArgument.ForPack"/>),
+    /// so the flat form (for example <c>Foo&lt;int, string&gt;</c>) and the bracketed canonical form
+    /// (<c>Foo&lt;[int, string]&gt;</c>) produce the same slot assignment and denote the same type
+    /// (Requirement 4.4). A flat list too short to fill the fixed and bracketed slots is reported as
+    /// <c>MIST_VAR_0005</c> (Requirement 4.6).
+    /// </summary>
+    private static IType ResolveVariadicConstructedType(
+        IType family,
+        string typeName,
+        IReadOnlyList<IType> typeParams,
+        TypeArgumentListNode typeArgList,
+        Scope fileScope,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SymbolTable symbolTable,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Map each declared slot to its binding kind: the single bracket-free `params` pack, a
+        // bracketed `Type[]:` pack, or an ordinary fixed scalar slot.
+        var slotKinds = new TypeCheckerAnalyzer.PackBindingSlotKind[typeParams.Count];
+        for(var i = 0; i < typeParams.Count; i++)
+        {
+            slotKinds[i] = typeParams[i] switch
+            {
+                TypeParameterType { IsPack: true, IsUnbracketedPack: true }
+                    => TypeCheckerAnalyzer.PackBindingSlotKind.UnbracketedPack,
+                TypeParameterType { IsPack: true }
+                    => TypeCheckerAnalyzer.PackBindingSlotKind.BracketedPack,
+                _ => TypeCheckerAnalyzer.PackBindingSlotKind.Fixed,
+            };
+        }
+
+        // Resolve each use-site argument into a scalar type or a bracketed group, preserving order
+        // and the flat-versus-bracketed distinction the binding rule needs.
+        var arguments = new List<TypeCheckerAnalyzer.PackUseSiteArgument>();
+        AddVariadicUseSiteArgument(typeArgList.TypeArgument, arguments, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+        foreach(var arg in typeArgList.TypeArguments)
+        {
+            AddVariadicUseSiteArgument(arg, arguments, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+        }
+
+        var result = TypeCheckerAnalyzer.BindPackSlots(slotKinds, arguments);
+        if(result.Status == TypeCheckerAnalyzer.PackBindingStatus.TooFewArguments)
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                VariadicsDiagnostics.TooFewArgumentsForBinding.Id.Value,
+                DiagnosticSeverity.Error,
+                $"Too few arguments: cannot fill the fixed and bracketed slots of '{typeName}'.",
+                typeArgList,
+                sourceText));
+            return ErrorType.Instance;
+        }
+
+        // Build the canonical type arguments and the parallel dependent arguments. A pack slot's
+        // element list is lifted into a comptime Type[] carried on a DependentValueArgument, and
+        // the slot's type-argument placeholder is the declared pack type parameter — the shape the
+        // constructed-variadic-type identity relation compares order- and arity-sensitively
+        // (Requirements 5.1-5.4).
+        var packDomain = new ArrayType(LegacyPrimitiveTypes.Type);
+        var canonicalArgs = new IType[typeParams.Count];
+        var dependentArgs = new DependentValueArgument?[typeParams.Count];
+        var anyPack = false;
+
+        for(var i = 0; i < typeParams.Count; i++)
+        {
+            var binding = result.Slots[i];
+            if(binding.IsPack)
+            {
+                canonicalArgs[i] = typeParams[i];
+                dependentArgs[i] = DependentValueArgument.ForPack(binding.Elements, packDomain);
+                anyPack = true;
+            }
+            else
+            {
+                // A well-formed fixed slot binds exactly one scalar type; anything else is a
+                // use-site shape error, recovered as an error type so analysis continues.
+                canonicalArgs[i] = binding.Elements.Count == 1 ? binding.Elements[0] : ErrorType.Instance;
+            }
+        }
+
+        // For intrinsic types like Standard.Func, store type arguments in the flat expanded form
+        // [elem1, ..., elemN, fixedSlots...] so that existing consumers (lambda inference, backend
+        // emission, Func invocation) that iterate TypeArguments positionally continue to work. The
+        // pack's DependentArguments still carry the grouped Type[] for identity comparison.
+        var isFuncFamily = family is ClassType { IsBackendBacked: true, DisplayName: "Func", ContainingNamespace: "Standard" };
+        if(isFuncFamily && anyPack)
+        {
+            var flatArgs = new List<IType>();
+            for(var i = 0; i < typeParams.Count; i++)
+            {
+                var binding = result.Slots[i];
+                if(binding.IsPack)
+                {
+                    flatArgs.AddRange(binding.Elements);
+                }
+                else
+                {
+                    flatArgs.Add(binding.Elements.Count == 1 ? binding.Elements[0] : ErrorType.Instance);
+                }
+            }
+
+            return new ConstructedType(family, flatArgs.ToArray(), dependentArgs);
+        }
+
+        return new ConstructedType(family, canonicalArgs, anyPack ? dependentArgs : null);
+    }
+
+    /// <summary>
+    /// Closes a variadic type alias at a use site (completing task 12.1's deferred alias/newtype
+    /// use-site spread expansion). The alias's flat (or bracketed) use-site type arguments are
+    /// bound to its declared slots by the shared <see cref="TypeCheckerAnalyzer.BindPackSlots"/>
+    /// rule -- so <c>Action&lt;int, string&gt;</c> for <c>type Action&lt;params TArgs&gt; =
+    /// Func&lt;TArgs..., void&gt;;</c> binds <c>TArgs = [int, string]</c> -- and the resulting
+    /// concrete <c>Type[]</c> is substituted into the alias body, expanding the body's spread
+    /// <c>TArgs...</c> in place into one entry per element (Requirements 9.1, 6.8, 8.1). Too few
+    /// arguments to fill the fixed and bracketed slots is reported as <c>MIST_VAR_0005</c>.
+    /// </summary>
+    private static IType ResolveVariadicAliasUseSite(
+        TypeAliasType alias,
+        string typeName,
+        IReadOnlyList<IType> typeParams,
+        TypeArgumentListNode typeArgList,
+        Scope fileScope,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SymbolTable symbolTable,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var slotKinds = new TypeCheckerAnalyzer.PackBindingSlotKind[typeParams.Count];
+        for(var i = 0; i < typeParams.Count; i++)
+        {
+            slotKinds[i] = typeParams[i] switch
+            {
+                TypeParameterType { IsPack: true, IsUnbracketedPack: true }
+                    => TypeCheckerAnalyzer.PackBindingSlotKind.UnbracketedPack,
+                TypeParameterType { IsPack: true }
+                    => TypeCheckerAnalyzer.PackBindingSlotKind.BracketedPack,
+                _ => TypeCheckerAnalyzer.PackBindingSlotKind.Fixed,
+            };
+        }
+
+        var arguments = new List<TypeCheckerAnalyzer.PackUseSiteArgument>();
+        AddVariadicUseSiteArgument(typeArgList.TypeArgument, arguments, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+        foreach(var arg in typeArgList.TypeArguments)
+        {
+            AddVariadicUseSiteArgument(arg, arguments, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+        }
+
+        var result = TypeCheckerAnalyzer.BindPackSlots(slotKinds, arguments);
+        if(result.Status == TypeCheckerAnalyzer.PackBindingStatus.TooFewArguments)
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                VariadicsDiagnostics.TooFewArgumentsForBinding.Id.Value,
+                DiagnosticSeverity.Error,
+                $"Too few arguments: cannot fill the fixed and bracketed slots of '{typeName}'.",
+                typeArgList,
+                sourceText));
+            return ErrorType.Instance;
+        }
+
+        // Partition the bound slots into fixed scalar bindings (a parameter name -> its single
+        // bound type) and pack bindings (a parameter name -> its ordered element list, possibly
+        // empty). Substitution replaces a bare fixed parameter with its type and flattens a pack
+        // parameter into its element list wherever the body spreads it.
+        var fixedByName = new Dictionary<string, IType>(StringComparer.Ordinal);
+        var packByName = new Dictionary<string, IReadOnlyList<IType>>(StringComparer.Ordinal);
+        for(var i = 0; i < typeParams.Count; i++)
+        {
+            var (paramName, _) = GetTypeParameterNameAndOrdinal(typeParams[i]);
+            var binding = result.Slots[i];
+            if(binding.IsPack)
+            {
+                packByName[paramName] = binding.Elements;
+            }
+            else if(binding.Elements.Count == 1)
+            {
+                fixedByName[paramName] = binding.Elements[0];
+            }
+        }
+
+        return SubstituteAndExpandPacks(alias.UnderlyingType, fixedByName, packByName);
+    }
+
+    /// <summary>
+    /// Substitutes a variadic alias's bound arguments into its body, expanding type-side pack
+    /// spreads in place (Requirements 9.1, 9.4, 6.8, 8.1). A bare fixed parameter is replaced by
+    /// its bound type; a pack parameter that appears in a constructed type's pack slot or in a
+    /// tuple element list is flattened into its bound element list (zero entries for an empty
+    /// pack). Unlike the general <see cref="SubstituteTypeInMember"/>, this preserves and rewrites
+    /// a constructed type's <see cref="ConstructedType.DependentArguments"/> so the closed pack's
+    /// concrete <c>Type[]</c> survives, and it expands tuple pack elements.
+    /// </summary>
+    private static IType SubstituteAndExpandPacks(
+        IType type,
+        IReadOnlyDictionary<string, IType> fixedByName,
+        IReadOnlyDictionary<string, IReadOnlyList<IType>> packByName)
+    {
+        switch(type)
+        {
+            case TypeParameterType tpt:
+                // A bare fixed parameter becomes its bound type. A bare pack parameter is only
+                // meaningful inside a pack element list or tuple element list (handled by the
+                // container below), so leave it unchanged here.
+                return fixedByName.TryGetValue(tpt.Name, out var boundFixed) ? boundFixed : type;
+
+            case ConstructedType ct:
+                {
+                    var newArgs = new IType[ct.TypeArguments.Count];
+                    var deps = ct.DependentArguments;
+                    DependentValueArgument?[]? newDeps = null;
+                    if(deps is not null)
+                    {
+                        newDeps = new DependentValueArgument?[ct.TypeArguments.Count];
+                    }
+
+                    for(var i = 0; i < ct.TypeArguments.Count; i++)
+                    {
+                        var dep = deps is not null && i < deps.Count ? deps[i] : null;
+                        if(dep is { PackElementTypes: { } packElements })
+                        {
+                            // A pack slot: expand its element list, flattening the bound pack, and
+                            // keep the declared pack parameter as the type-argument placeholder.
+                            var expanded = ExpandPackElementList(packElements, fixedByName, packByName);
+                            newArgs[i] = ct.TypeArguments[i];
+                            newDeps![i] = DependentValueArgument.ForPack(expanded, new ArrayType(LegacyPrimitiveTypes.Type));
+                        }
+                        else if(dep is not null)
+                        {
+                            // A scalar comptime dependent value (for example FixedBuffer<5>): unchanged.
+                            newArgs[i] = ct.TypeArguments[i];
+                            newDeps![i] = dep;
+                        }
+                        else
+                        {
+                            newArgs[i] = SubstituteAndExpandPacks(ct.TypeArguments[i], fixedByName, packByName);
+                        }
+                    }
+
+                    return new ConstructedType(ct.GenericDefinition, newArgs, newDeps);
+                }
+
+            case TupleType tuple:
+                {
+                    var elements = ExpandPackElementList(tuple.ElementTypes, fixedByName, packByName);
+                    return new TupleType(elements);
+                }
+
+            case ArrayType array:
+                {
+                    var element = SubstituteAndExpandPacks(array.ElementType, fixedByName, packByName);
+                    return ReferenceEquals(element, array.ElementType) ? type : new ArrayType(element);
+                }
+
+            case UnionType union:
+                {
+                    var constituents = new IType[union.Constituents.Count];
+                    var changed = false;
+                    for(var i = 0; i < union.Constituents.Count; i++)
+                    {
+                        constituents[i] = SubstituteAndExpandPacks(union.Constituents[i], fixedByName, packByName);
+                        changed |= !ReferenceEquals(constituents[i], union.Constituents[i]);
+                    }
+
+                    return changed ? new UnionType(constituents) : type;
+                }
+
+            default:
+                return type;
+        }
+    }
+
+    /// <summary>
+    /// Expands an ordered element list (a constructed type's pack-slot elements, or a tuple's
+    /// elements) by flattening any element that is a bound pack parameter into that pack's ordered
+    /// element list (zero entries for an empty pack), and substituting every other element. This is
+    /// the in-place type-side spread expansion (Requirements 6.8, 8.1) applied at a variadic alias
+    /// use site.
+    /// </summary>
+    private static IReadOnlyList<IType> ExpandPackElementList(
+        IReadOnlyList<IType> elements,
+        IReadOnlyDictionary<string, IType> fixedByName,
+        IReadOnlyDictionary<string, IReadOnlyList<IType>> packByName)
+    {
+        var expanded = new List<IType>(elements.Count);
+        foreach(var element in elements)
+        {
+            if(element is TypeParameterType { IsPack: true } pack
+                && packByName.TryGetValue(pack.Name, out var packElements))
+            {
+                foreach(var packElement in packElements)
+                {
+                    expanded.Add(SubstituteAndExpandPacks(packElement, fixedByName, packByName));
+                }
+            }
+            else
+            {
+                expanded.Add(SubstituteAndExpandPacks(element, fixedByName, packByName));
+            }
+        }
+
+        return expanded;
+    }
+
+    /// <summary>
+    /// Resolves a single use-site type argument into a
+    /// <see cref="TypeCheckerAnalyzer.PackUseSiteArgument"/>: a bracketed group <c>[T1, ...]</c>
+    /// (including the empty group <c>[]</c>) becomes a group of its ordered element types; any
+    /// other argument becomes a single scalar type.
+    /// </summary>
+    private static void AddVariadicUseSiteArgument(
+        TypeArgumentNode arg,
+        List<TypeCheckerAnalyzer.PackUseSiteArgument> arguments,
+        Scope fileScope,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SymbolTable symbolTable,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        if(arg is BracketedPackTypeArgumentTypeArgumentNode bracketed)
+        {
+            var elements = new List<IType>();
+            if(bracketed.PackElements is { } list)
+            {
+                elements.Add(ResolvePass2SingleTypeArg(list.TypeReference, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics));
+                foreach(var element in list.TypeReferences)
+                {
+                    elements.Add(ResolvePass2SingleTypeArg(element, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics));
+                }
+            }
+
+            arguments.Add(TypeCheckerAnalyzer.PackUseSiteArgument.Group(elements));
+            return;
+        }
+
+        if(arg is TypeReferenceTypeArgumentTypeArgumentNode typeRefArg)
+        {
+            // Variadics (Requirements 9.1, 6.8, 8.1): a type-argument that is a lone pack spread
+            // `TArgs...` expands in place into one type-argument per pack element. It is modeled as
+            // a group so the binding rule folds those elements into the pack slot: while the pack
+            // is symbolic the group carries the pack itself as a single placeholder element
+            // (deferred to backend monomorphization), and a closed pack contributes its bound
+            // element types (zero for an empty pack).
+            if(TryGetTypeRefSpread(typeRefArg.Type, out var spread)
+                && ResolveTypeSpreadOperandPack(spread, fileScope, sourceText) is { } pack)
+            {
+                arguments.Add(TypeCheckerAnalyzer.PackUseSiteArgument.Group(ExpandTypeSpreadOperand(pack)));
+                return;
+            }
+
+            var scalar = ResolvePass2SingleTypeArg(typeRefArg.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+            arguments.Add(TypeCheckerAnalyzer.PackUseSiteArgument.Scalar(scalar));
+            return;
+        }
+
+        // A literal type argument (integer/bool/char/...) is neither a valid pack element nor a
+        // scalar type operand; recover as an error type so analysis continues.
+        arguments.Add(TypeCheckerAnalyzer.PackUseSiteArgument.Scalar(ErrorType.Instance));
     }
 
     /// <summary>
@@ -20146,7 +21640,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var targetType = ResolveVoidCoalescing(assignment.Target, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
-        if(assignment.Value is not null)
+        var assignedValue = assignment.Group0?.Value;
+        if(assignedValue is not null)
         {
             // This is an assignment expression: target = value.
             // The RHS is now a full ExpressionNode (widened to reach lambdas), so
@@ -20155,7 +21650,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // assignment target's resolved type.
             var previousTargetNewTarget = targetTypedNewTargetType;
             targetTypedNewTargetType = targetType;
-            _ = ResolveExpression(assignment.Value, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            _ = ResolveExpression(assignedValue, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
             targetTypedNewTargetType = previousTargetNewTarget;
             expressionTypes[assignment] = targetType;
             return targetType;
@@ -20302,9 +21797,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        var rightOperand = node.Right is not null && !ReferenceEquals(node.Right, node.Left)
-            ? node.Right
-            : null;
+        // Group0 is the flat n-ary operand list; the last element carries this
+        // chain's final right operand, preserving the former last-wins shim read
+        // that drives the void-target check below.
+        var rightOperand = !node.Group0.IsDefaultOrEmpty ? node.Group0[^1].Right : null;
 
         // Target-type-aware void resolution for equality operands: when either
         // operand is a bare `void` keyword literal (e.g. `void == void`), there
@@ -20326,9 +21822,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var leftType = ResolveRelational(node.Left, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
-            if(rightOperand is not null)
+            if(!node.Group0.IsDefaultOrEmpty)
             {
-                _ = ResolveRelational(rightOperand, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                // Resolve every operand so each relational sub-expression is typed
+                // for the type checker's own Group0 iteration.
+                foreach(var group in node.Group0)
+                {
+                    _ = ResolveRelational(group.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                }
+
                 var result = ResolvePrimitiveByKeyword("bool", fileScope, symbolTable);
                 expressionTypes[node] = result;
                 return result;
@@ -20358,22 +21860,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static bool IsBareVoidTypeLiteral(RelationalNode? relational)
     {
-        if(relational is not RelationalComparisonRelationalNode { Right: null } cmp)
+        if(relational is not RelationalComparisonRelationalNode cmp || !cmp.Group0.IsDefaultOrEmpty)
         {
             return false;
         }
 
-        if(cmp.Left is not AdditiveNode { Right: null } additive)
+        if(cmp.Left is not AdditiveNode additive || !additive.Group0.IsDefaultOrEmpty)
         {
             return false;
         }
 
-        if(additive.Left is not MultiplicativeNode { Right: null } multiplicative)
+        if(additive.Left is not MultiplicativeNode multiplicative || !multiplicative.Group0.IsDefaultOrEmpty)
         {
             return false;
         }
 
-        if(multiplicative.Left is not PostfixExpressionUnaryNode postfix)
+        if(multiplicative.Left.UnwrapRange() is not PostfixExpressionUnaryNode postfix)
         {
             return false;
         }
@@ -20404,9 +21906,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     var leftType = ResolveAdditive(cmp.Left, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
-                    if(cmp.Right is not null && !ReferenceEquals(cmp.Right, cmp.Left))
+                    if(!cmp.Group0.IsDefaultOrEmpty)
                     {
-                        _ = ResolveAdditive(cmp.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                        // Resolve every operand so each additive sub-expression is
+                        // typed for the type checker's own Group0 iteration.
+                        foreach(var group in cmp.Group0)
+                        {
+                            _ = ResolveAdditive(group.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                        }
+
                         var result = ResolvePrimitiveByKeyword("bool", fileScope, symbolTable);
                         expressionTypes[node] = result;
                         return result;
@@ -20926,9 +22434,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var leftType = ResolveMultiplicative(node.Left, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
-        if(node.Right is not null && !ReferenceEquals(node.Right, node.Left))
+        if(!node.Group0.IsDefaultOrEmpty)
         {
-            var rightType = ResolveMultiplicative(node.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            // Group0 is the flat n-ary operand list; resolve every operand so each
+            // multiplicative sub-expression is typed for the type checker's own
+            // Group0 iteration. The node's result type preserves the former
+            // last-wins shim behavior: it combines the left operand with the last
+            // right operand (Group0[^1]).
+            var rightType = leftType;
+            foreach(var group in node.Group0)
+            {
+                rightType = ResolveMultiplicative(group.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            }
 
             // String concatenation: if either operand is string, result is string.
             // After Task 50, StringType has been deleted. String is now either
@@ -20963,11 +22480,21 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        var leftType = ResolveUnary(node.Left, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        var leftType = ResolveRange(node.Left, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
-        if(node.Right is not null && !ReferenceEquals(node.Right, node.Left))
+        if(!node.Group0.IsDefaultOrEmpty)
         {
-            var rightType = ResolveUnary(node.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            // Group0 is the flat n-ary operand list; resolve every operand so each
+            // range sub-expression is typed for the type checker's own Group0
+            // iteration. The node's result type preserves the former last-wins shim
+            // behavior: it combines the left operand with the last right operand
+            // (Group0[^1]).
+            var rightType = leftType;
+            foreach(var group in node.Group0)
+            {
+                rightType = ResolveRange(group.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            }
+
             var result = GetCommonNumericType(leftType, rightType);
             expressionTypes[node] = result;
             return result;
@@ -20975,6 +22502,60 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         expressionTypes[node] = leftType;
         return leftType;
+    }
+
+    /// <summary>
+    /// Resolves a <see cref="RangeNode"/> operand of the multiplicative tier. The
+    /// pass-through <see cref="NonRangeRangeNode"/> form adopts its inner unary's type,
+    /// preserving existing type resolution for every non-range expression.
+    /// </summary>
+    private static IType ResolveRange(
+        RangeNode node,
+        Scope currentScope,
+        Scope fileScope,
+        IType enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        switch(node)
+        {
+            case NonRangeRangeNode nonRange:
+                {
+                    var operandType = ResolveUnary(nonRange.Operand, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    expressionTypes[node] = operandType;
+                    return operandType;
+                }
+
+            case RangeExpressionRangeNode rangeExpr:
+                {
+                    // Resolve each present bound (either may be absent) so its node
+                    // receives a type, then resolve the range expression itself to
+                    // Standard.Range regardless of which bounds are present (Req 5.2).
+                    if(rangeExpr.Start is not null)
+                    {
+                        _ = ResolveUnary(rangeExpr.Start, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    }
+
+                    if(rangeExpr.End is not null)
+                    {
+                        _ = ResolveUnary(rangeExpr.End, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    }
+
+                    var result = ResolveStandardType("Range", fileScope, symbolTable);
+                    expressionTypes[node] = result;
+                    return result;
+                }
+
+            default:
+                {
+                    expressionTypes[node] = ErrorType.Instance;
+                    return ErrorType.Instance;
+                }
+        }
     }
 
     private static IType ResolveUnary(
@@ -21003,6 +22584,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var operandType = ResolveUnary(negate.Operand, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                     expressionTypes[node] = operandType;
                     return operandType;
+                }
+            case FromEndExpressionUnaryNode fromEnd:
+                {
+                    // Resolve the operand so it receives a type, then resolve the
+                    // index-from-end expression itself to Standard.Index (Req 5.1).
+                    _ = ResolveUnary(fromEnd.Operand, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    var result = ResolveStandardType("Index", fileScope, symbolTable);
+                    expressionTypes[node] = result;
+                    return result;
                 }
             case CastExpressionUnaryNode castExpr:
                 return ResolveCastExpression(castExpr, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
@@ -21897,8 +23487,33 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
             case IndexSuffixPostfixSuffixNode indexSuffix:
                 {
-                    // Resolve the index expression.
-                    _ = ResolveExpression(indexSuffix.Index, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    // Resolve the index/range argument so it receives a type, then
+                    // branch the element-access result type on the argument's type
+                    // (ranges-and-indices, Req 8.1-8.5). Ordinary integer arguments
+                    // fall through to the existing array/custom-indexer behavior below.
+                    var argType = ResolveExpression(indexSuffix.Index, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+                    // Range argument on a sliceable receiver: the slice-result type
+                    // (array -> same array, span -> same span, string -> string,
+                    // otherwise the declared Range-indexer / Slice(int,int) result
+                    // type) (Req 8.2-8.5).
+                    if(IsStandardRangeType(argType)
+                        && IsSliceableType(targetType)
+                        && TryGetSliceResultType(targetType, out var sliceResultType))
+                    {
+                        expressionTypes[suffix] = sliceResultType;
+                        return sliceResultType;
+                    }
+
+                    // Index argument on an indexable receiver: the receiver's element
+                    // type (Req 8.1).
+                    if(IsStandardIndexType(argType)
+                        && IsIndexableType(targetType)
+                        && TryGetElementType(targetType, out var indexElementType))
+                    {
+                        expressionTypes[suffix] = indexElementType;
+                        return indexElementType;
+                    }
 
                     // The result type is the element type of the array.
                     if(targetType is ArrayType arrayType)
@@ -22998,6 +24613,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 symbolTable.RegisterUsageSite(identifier, inheritedSymbol);
                             }
                         }
+                        // Variadics: spread-generated member projections as bare identifiers.
+                        // When inside a type body, Shape1/Shape2 etc. resolve to projections
+                        // of spread-generated members on the enclosing type.
+                        else if(!isStatic && TryResolveSpreadProjectionIdentifier(enclosingType, name, out var projectionType))
+                        {
+                            result = projectionType;
+                        }
                         else
                         {
                             diagnostics.Add(MakeDiagnosticWithLocation(
@@ -23012,6 +24634,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     else
                     {
                         result = symbol.DeclaredType ?? ErrorType.Instance;
+
+                        // Variadics (Requirement 6.1, 6.2): a pack identifier in expression
+                        // position is the comptime Type[] value itself, so the size-agnostic
+                        // operations -- length query (.Length), iteration, and spread -- are
+                        // available regardless of whether the pack's length is proven. Surface it
+                        // as the pack's Type[] value domain rather than the bare type parameter so
+                        // those operations resolve through the ordinary array machinery.
+                        if(result is TypeParameterType { IsPack: true } expressionPack)
+                        {
+                            result = PackExpressionValueType(expressionPack);
+                        }
 
                         // Register the usage-site identifier node → resolved symbol mapping
                         // so that downstream analyzers (e.g., OwnershipAnalyzer) can resolve
@@ -23333,6 +24966,100 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
+    /// Attempts to resolve a bare identifier as a spread-generated member projection
+    /// on the enclosing type. Used for within-body access like <c>Shape1.Area()</c> in a
+    /// struct that declares <c>public TShapes... Shape;</c>. Returns false if the name
+    /// does not match any projection pattern on the enclosing type's spread members.
+    /// </summary>
+    private static bool TryResolveSpreadProjectionIdentifier(
+        IType? enclosingType,
+        string name,
+        out IType projectionType)
+    {
+        projectionType = ErrorType.Instance;
+
+        var spreadMembers = enclosingType switch
+        {
+            ClassType ct => ct.SpreadMembers,
+            StructType st => st.SpreadMembers,
+            AbstractType at => at.SpreadMembers,
+            _ => null,
+        };
+
+        if(spreadMembers is null or { Count: 0 })
+        {
+            return false;
+        }
+
+        var resolved = TryResolveSpreadProjection(name, spreadMembers, originalConstructedType: null, constructedTypeParams: null);
+        if(resolved is not null)
+        {
+            projectionType = resolved;
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Expands a <see cref="TupleType"/> that contains a symbolic pack type parameter into a
+    /// concrete tuple with the pack's bound element types. Used after member lookup substitution
+    /// when the member type is the aggregate tuple <c>(TArgs...)</c> and the concrete pack
+    /// binding is available from the <paramref name="originalConstructedType"/>'s DependentArguments.
+    /// Returns the type unchanged if it's not an expandable pack-bearing tuple.
+    /// </summary>
+    private static IType ExpandPackInTupleIfNeeded(
+        IType memberType,
+        ConstructedType? originalConstructedType,
+        IReadOnlyList<IType>? constructedTypeParams)
+    {
+        if(memberType is not TupleType tupleType || originalConstructedType?.DependentArguments is null || constructedTypeParams is null)
+        {
+            return memberType;
+        }
+
+        // Check if the tuple contains a pack element that can be expanded.
+        var expanded = false;
+        var expandedElements = new List<IType>();
+
+        foreach(var element in tupleType.ElementTypes)
+        {
+            if(element is TypeParameterType { IsPack: true } packElement)
+            {
+                // Find the pack's ordinal in the type parameter list.
+                var packOrdinal = -1;
+                for(var i = 0; i < constructedTypeParams.Count; i++)
+                {
+                    if(constructedTypeParams[i] is TypeParameterType tp && tp.Name == packElement.Name)
+                    {
+                        packOrdinal = i;
+                        break;
+                    }
+                }
+
+                if(packOrdinal >= 0
+                    && packOrdinal < originalConstructedType.DependentArguments.Count
+                    && originalConstructedType.DependentArguments[packOrdinal] is { IsPack: true } depArg
+                    && depArg.PackElementTypes is not null)
+                {
+                    expandedElements.AddRange(depArg.PackElementTypes);
+                    expanded = true;
+                    continue;
+                }
+            }
+
+            expandedElements.Add(element);
+        }
+
+        if(expanded)
+        {
+            return new TupleType(expandedElements.ToArray());
+        }
+
+        return memberType;
+    }
+
+    /// <summary>
     /// Returns the member scope of the base type of <paramref name="type"/> (for a
     /// class or struct), unwrapping a <see cref="ConstructedType"/> base to its
     /// generic definition. Returns <see langword="null"/> when there is no inheritable
@@ -23580,8 +25307,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // then substitute type parameters with type arguments.
         IReadOnlyList<IType>? constructedTypeParams = null;
         IReadOnlyList<IType>? constructedTypeArgs = null;
+        ConstructedType? originalConstructedType = null;
         if(targetType is ConstructedType constructedTarget)
         {
+            originalConstructedType = constructedTarget;
             constructedTypeParams = constructedTarget.GenericDefinition switch
             {
                 ClassType ct2 => ct2.TypeParameters,
@@ -23835,7 +25564,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     if(m.Name == memberName)
                     {
                         var memberType = m.DeclaredType ?? ErrorType.Instance;
-                        return SubstituteMemberTypeIfNeeded(memberType, constructedTypeParams, constructedTypeArgs);
+                        memberType = SubstituteMemberTypeIfNeeded(memberType, constructedTypeParams, constructedTypeArgs);
+                        memberType = ExpandPackInTupleIfNeeded(memberType, originalConstructedType, constructedTypeParams);
+                        return memberType;
                     }
                 }
 
@@ -23923,6 +25654,32 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if(structDefaultResult is not null)
                 {
                     return SubstituteMemberTypeIfNeeded(structDefaultResult, constructedTypeParams, constructedTypeArgs);
+                }
+            }
+        }
+
+        // ── Variadics: spread-generated member projection resolution ────────
+        // When a member is not found in the regular scope but the target type carries
+        // spread members, check if the member name matches a projection pattern (stem + digit).
+        // For a ConstructedType, the pack's DependentArguments carry the concrete element types.
+        // For the generic definition itself (within the class body), projections resolve to the
+        // symbolic pack element type (useful for ShapePair.TotalArea() accessing Shape1, Shape2).
+        {
+            var spreadMembers = targetType switch
+            {
+                ClassType ct3 => ct3.SpreadMembers,
+                StructType st3 => st3.SpreadMembers,
+                AbstractType at3 => at3.SpreadMembers,
+                _ => null,
+            };
+
+            if(spreadMembers is { Count: > 0 })
+            {
+                var projectionType = TryResolveSpreadProjection(
+                    memberName, spreadMembers, originalConstructedType, constructedTypeParams);
+                if(projectionType is not null)
+                {
+                    return projectionType;
                 }
             }
         }
@@ -26320,6 +28077,29 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
+    /// Resolves a Standard Library type by its simple name (e.g. <c>"Index"</c> ->
+    /// <c>Standard.Index</c>, <c>"Range"</c> -> <c>Standard.Range</c>) directly against
+    /// the stdlib namespace, following the same bypass-all-scoping pattern as
+    /// <see cref="ResolvePrimitiveByKeyword"/>. This is the static-context equivalent of
+    /// <c>IStdlibTypeProvider.LookupStandardType</c>. Returns <see cref="UnknownType.Instance"/>
+    /// when the Standard Library is not loaded (e.g. unit tests that build a semantic model
+    /// from a minimal AST without stdlib), so those configurations continue to work.
+    /// </summary>
+    private static IType ResolveStandardType(string simpleName, Scope fileScope, SymbolTable symbolTable)
+    {
+        try
+        {
+            var globalScope = FindGlobalScope(fileScope) ?? fileScope;
+            return LookupQualifiedStdlibType(globalScope, symbolTable, "Standard." + simpleName);
+        }
+        catch(StdlibMissingException)
+        {
+            // Stdlib not loaded — no spellable Standard.Index/Standard.Range available.
+            return UnknownType.Instance;
+        }
+    }
+
+    /// <summary>
     /// Returns <c>true</c> when <paramref name="type"/> represents the
     /// Mist <c>string</c> / <c>Standard.String</c> type, regardless of
     /// whether the instance is the legacy <see cref="LegacyPrimitiveTypes.String"/>
@@ -26365,6 +28145,320 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             or "ushort" or "UInt16"
             or "byte" or "Byte"
             or "sbyte" or "SByte";
+    }
+
+    // ─── ranges-and-indices: element-access type classification (Req 8) ──────
+    // Shared type-classification predicates used by element-access result typing
+    // (this file) and, subsequently, by the type checker's receiver validation and
+    // list/slice pattern checking. Well-known indexable/sliceable shapes (arrays,
+    // spans, string, List<T>) are recognized directly; every other type is
+    // classified by introspecting its countable/indexer/Slice members, reusing the
+    // same member-lookup and substitution utilities the rest of this file uses.
+
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="type"/> is the spellable
+    /// <c>Standard.Index</c> struct that surfaces <c>System.Index</c>.
+    /// </summary>
+    private static bool IsStandardIndexType(IType type)
+    {
+        return UnwrapClassificationType(type) is StructType { DisplayName: "Index", ContainingNamespace: "Standard" };
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="type"/> is the spellable
+    /// <c>Standard.Range</c> struct that surfaces <c>System.Range</c>.
+    /// </summary>
+    private static bool IsStandardRangeType(IType type)
+    {
+        return UnwrapClassificationType(type) is StructType { DisplayName: "Range", ContainingNamespace: "Standard" };
+    }
+
+    /// <summary>
+    /// Unwraps refinement and alias wrappers to the underlying type used for
+    /// element-access classification, so a refined or aliased array/span/string
+    /// still classifies as countable/indexable/sliceable.
+    /// </summary>
+    private static IType UnwrapClassificationType(IType type)
+    {
+        while(true)
+        {
+            switch(type)
+            {
+                case RefinementType refinement:
+                    type = refinement.BaseType;
+                    break;
+                case TypeAliasType alias:
+                    type = alias.UnderlyingType;
+                    break;
+                default:
+                    return type;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="type"/> exposes an <c>int</c>-typed
+    /// <c>Length</c> or <c>Count</c>, allowing an index-from-end position to be
+    /// resolved to a concrete offset (arrays, spans, and <c>string</c> are countable
+    /// by construction).
+    /// </summary>
+    internal static bool IsCountableType(IType type)
+    {
+        var unwrapped = UnwrapClassificationType(type);
+        if(unwrapped is ArrayType or SpanType)
+        {
+            return true;
+        }
+
+        if(IsStringLikeType(unwrapped))
+        {
+            return true;
+        }
+
+        return HasIntProperty(unwrapped, "Length") || HasIntProperty(unwrapped, "Count");
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="type"/> is countable and exposes an
+    /// <c>int</c>-argument indexer: arrays, <c>Span&lt;T&gt;</c>,
+    /// <c>ReadOnlySpan&lt;T&gt;</c>, <c>string</c>, <c>List&lt;T&gt;</c>, and any
+    /// countable type carrying an integer (or <c>Index</c>) indexer.
+    /// </summary>
+    internal static bool IsIndexableType(IType type)
+    {
+        var unwrapped = UnwrapClassificationType(type);
+        if(unwrapped is ArrayType or SpanType)
+        {
+            return true;
+        }
+
+        if(IsStringLikeType(unwrapped))
+        {
+            return true;
+        }
+
+        return IsCountableType(unwrapped) && TryGetIndexerReturnType(unwrapped, wantRange: false) is not null;
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="type"/> is countable and produces a
+    /// contiguous sub-sequence through a <c>Range</c>-accepting indexer or a
+    /// <c>Slice(int, int)</c> method: arrays, <c>Span&lt;T&gt;</c>,
+    /// <c>ReadOnlySpan&lt;T&gt;</c>, <c>string</c>, plus the general countable-plus-
+    /// sliceable shape. <c>List&lt;T&gt;</c> is indexable but NOT sliceable (matching
+    /// C#), because it exposes neither a <c>Range</c> indexer nor a <c>Slice</c> method.
+    /// </summary>
+    internal static bool IsSliceableType(IType type)
+    {
+        var unwrapped = UnwrapClassificationType(type);
+        if(unwrapped is ArrayType or SpanType)
+        {
+            return true;
+        }
+
+        if(IsStringLikeType(unwrapped))
+        {
+            return true;
+        }
+
+        if(!IsCountableType(unwrapped))
+        {
+            return false;
+        }
+
+        return TryGetIndexerReturnType(unwrapped, wantRange: true) is not null
+            || TryGetSliceMethodReturnType(unwrapped) is not null;
+    }
+
+    /// <summary>
+    /// Resolves the element type produced by an index-from-end (or ordinary integer)
+    /// element access: the array/span element type directly, otherwise the declared
+    /// return type of the receiver's integer-argument indexer (the <c>string</c>
+    /// indexer yields <c>char</c>, the <c>List&lt;T&gt;</c> indexer yields <c>T</c>).
+    /// </summary>
+    internal static bool TryGetElementType(IType type, out IType elementType)
+    {
+        var unwrapped = UnwrapClassificationType(type);
+        switch(unwrapped)
+        {
+            case ArrayType arrayType:
+                elementType = arrayType.ElementType;
+                return true;
+            case SpanType spanType:
+                elementType = spanType.ElementType;
+                return true;
+        }
+
+        if(TryGetIndexerReturnType(unwrapped, wantRange: false) is { } indexerReturn)
+        {
+            elementType = indexerReturn;
+            return true;
+        }
+
+        elementType = ErrorType.Instance;
+        return false;
+    }
+
+    /// <summary>
+    /// Resolves the result type of a range (slice) element access: the same array
+    /// type for an array receiver, the same span type for a span receiver,
+    /// <c>string</c> for a <c>string</c> receiver, otherwise the declared return type
+    /// of the receiver's <c>Range</c> indexer or <c>Slice(int, int)</c> method. Array
+    /// and span results use an unknown length because a range slice length is not
+    /// statically known in general.
+    /// </summary>
+    internal static bool TryGetSliceResultType(IType type, out IType sliceResultType)
+    {
+        var unwrapped = UnwrapClassificationType(type);
+        switch(unwrapped)
+        {
+            case ArrayType arrayType:
+                sliceResultType = new ArrayType(arrayType.ElementType);
+                return true;
+            case SpanType spanType:
+                sliceResultType = new SpanType(spanType.ElementType, spanType.IsReadOnly);
+                return true;
+        }
+
+        if(IsStringLikeType(unwrapped))
+        {
+            sliceResultType = unwrapped;
+            return true;
+        }
+
+        if(TryGetIndexerReturnType(unwrapped, wantRange: true) is { } rangeIndexerReturn)
+        {
+            sliceResultType = rangeIndexerReturn;
+            return true;
+        }
+
+        if(TryGetSliceMethodReturnType(unwrapped) is { } sliceMethodReturn)
+        {
+            sliceResultType = sliceMethodReturn;
+            return true;
+        }
+
+        sliceResultType = ErrorType.Instance;
+        return false;
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="type"/> declares a property named
+    /// <paramref name="name"/> whose type is an integer. Reuses <see cref="LookupMemberSymbol"/>
+    /// so inherited members are found and <see cref="ConstructedType"/> receivers are unwrapped.
+    /// </summary>
+    private static bool HasIntProperty(IType type, string name)
+    {
+        var member = LookupMemberSymbol(type, name);
+        return member is { Kind: SymbolKind.Property, DeclaredType: { } declaredType }
+            && IsIntegerType(declaredType);
+    }
+
+    /// <summary>
+    /// Finds an indexer on <paramref name="type"/> and returns its declared return
+    /// type (with type-argument substitution applied for a <see cref="ConstructedType"/>
+    /// receiver). When <paramref name="wantRange"/> is <c>true</c> the indexer's first
+    /// parameter must be <c>Standard.Range</c>; otherwise it must be an integer or
+    /// <c>Standard.Index</c>. For the integer case, an indexer with no discoverable
+    /// CLR parameters (a Mist-declared indexer) is accepted as a fallback so existing
+    /// element-access typing is preserved. Returns <c>null</c> when no matching
+    /// indexer exists.
+    /// </summary>
+    private static IType? TryGetIndexerReturnType(IType type, bool wantRange)
+    {
+        var memberScope = TryGetClassificationMemberScope(type);
+        if(memberScope is null)
+        {
+            return null;
+        }
+
+        ISymbol? match = null;
+        ISymbol? firstIndexer = null;
+        foreach(var member in memberScope.Members)
+        {
+            if(member.Kind != SymbolKind.Indexer)
+            {
+                continue;
+            }
+
+            firstIndexer ??= member;
+            if(member is Symbol { Parameters.Count: > 0 } indexerSymbol
+                && indexerSymbol.Parameters[0].DeclaredType is { } parameterType)
+            {
+                var matches = wantRange
+                    ? IsStandardRangeType(parameterType)
+                    : IsIntegerType(parameterType) || IsStandardIndexType(parameterType);
+                if(matches)
+                {
+                    match = member;
+                    break;
+                }
+            }
+        }
+
+        // Fall back to the first indexer only for the integer/Index case: a
+        // Mist-declared indexer carries no CLR parameter symbols, so this keeps
+        // element access resolving as it does today.
+        if(match is null && !wantRange)
+        {
+            match = firstIndexer;
+        }
+
+        if(match?.DeclaredType is not { } returnType)
+        {
+            return null;
+        }
+
+        return SubstituteReturnTypeForConstructed(type, returnType);
+    }
+
+    /// <summary>
+    /// Finds a <c>Slice(int, int)</c> method on <paramref name="type"/> and returns
+    /// its declared return type (with type-argument substitution applied for a
+    /// <see cref="ConstructedType"/> receiver), or <c>null</c> when absent.
+    /// </summary>
+    private static IType? TryGetSliceMethodReturnType(IType type)
+    {
+        var member = LookupMemberSymbol(type, "Slice");
+        if(member is Symbol { Kind: SymbolKind.Method, Parameters.Count: 2 } sliceMethod
+            && sliceMethod.Parameters[0].DeclaredType is { } firstParameter && IsIntegerType(firstParameter)
+            && sliceMethod.Parameters[1].DeclaredType is { } secondParameter && IsIntegerType(secondParameter)
+            && sliceMethod.DeclaredType is { } sliceReturnType)
+        {
+            return SubstituteReturnTypeForConstructed(type, sliceReturnType);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Returns the member scope for a type used in element-access classification,
+    /// unwrapping a <see cref="ConstructedType"/> to its generic definition.
+    /// </summary>
+    private static IScope? TryGetClassificationMemberScope(IType type)
+    {
+        var lookupType = type is ConstructedType constructed ? constructed.GenericDefinition : type;
+        return GetMemberScope(lookupType);
+    }
+
+    /// <summary>
+    /// Applies type-argument substitution to <paramref name="returnType"/> when
+    /// <paramref name="type"/> is a <see cref="ConstructedType"/>, so a generic
+    /// indexer/Slice member's element or slice-result type is closed over the
+    /// receiver's type arguments (e.g. <c>List&lt;int&gt;</c> yields <c>int</c>).
+    /// </summary>
+    private static IType SubstituteReturnTypeForConstructed(IType type, IType returnType)
+    {
+        if(type is ConstructedType constructed)
+        {
+            var typeParameters = GetTypeParameters(constructed.GenericDefinition);
+            if(typeParameters.Count > 0)
+            {
+                return SubstituteTypeParameters(returnType, typeParameters, constructed.TypeArguments);
+            }
+        }
+
+        return returnType;
     }
 
     /// <summary>

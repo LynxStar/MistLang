@@ -19,12 +19,12 @@ internal static class ExpressionBinder
             return new UnresolvedExpression(expression);
         }
 
-        if(assignment.Operator is not null)
+        if(assignment.Group0 is { } assignmentOp)
         {
-            if(assignment.Operator.Value.Lexeme == "=" && assignment.Value is not null)
+            if(assignmentOp.Operator.Lexeme == "=")
             {
                 var target = OperatorBinder.BindVoidCoalescing(assignment.Target, ctx, context);
-                var value = BindExpression(assignment.Value, ctx, context);
+                var value = BindExpression(assignmentOp.Value, ctx, context);
                 return new AssignmentExpression(expression, target, value, value.Type);
             }
 

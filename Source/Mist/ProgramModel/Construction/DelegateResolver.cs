@@ -36,7 +36,11 @@ internal sealed class DelegateResolver
     {
         var modifiers = ModifierBuilder.Build(node, context.Diagnostics, host as MistType);
 
-        var parameters = parameterBuilder.Resolve(node.Parameters, scope);
+        // Pass the diagnostics bag so ParameterBuilder can enforce the
+        // one-value-side-`params`-per-list rule (Requirements 7.8, 7.9 -> MIST_VAR_0001).
+        // This one call site covers methods, constructors, and operators, all of which
+        // resolve their value-parameter list through the delegate resolver.
+        var parameters = parameterBuilder.Resolve(node.Parameters, scope, context.Diagnostics);
         var body = ResolveBody(node.Body);
 
         ValidateIntrinsicOrBody(node, host, memberName, modifiers, body);

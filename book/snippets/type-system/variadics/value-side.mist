@@ -1,0 +1,15 @@
+using Standard;
+
+public class Program
+{
+    public static int Describe<params TArgs>(params TArgs args)
+    {
+        return TArgs.Length;
+    }
+
+    public static void Main(string[] cmdArgs)
+    {
+        var arity = Describe(1, "x", true);
+        Console.WriteLine($"arity={arity}");
+    }
+}

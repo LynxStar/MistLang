@@ -156,7 +156,7 @@ public class AwaitUnwrapTypePropertyTests
         var awaitExprNode = new AwaitExpressionUnaryNode { Operand = asyncExprNode };
 
         // Build the expression chain for: var x = await async TargetMethod();
-        var mult = new MultiplicativeNode { Left = awaitExprNode };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = awaitExprNode } };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };

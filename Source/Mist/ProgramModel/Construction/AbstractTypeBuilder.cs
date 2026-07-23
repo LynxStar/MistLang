@@ -65,6 +65,10 @@ internal sealed class AbstractTypeBuilder : MemberTypeBuilder
         {
             ResolveMember(member, typeDef);
         }
+
+        // Requirement 10.2 / 10.3: reserve the stem namespace and report MIST_VAR_0007 on a
+        // stem/member collision for any property spreads declared on the abstract type.
+        SpreadMemberBuilder.ValidateStems(typeDef, body.TypeBody.Members);
     }
 
     /// <summary>

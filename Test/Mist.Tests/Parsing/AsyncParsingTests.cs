@@ -277,7 +277,7 @@ public class AsyncParsingTests
         _ = Assert.IsType<AsyncExpressionUnaryNode>(leftUnary);
 
         // The right side should exist (the + 1 part)
-        Assert.NotNull(additive.Right);
+        Assert.NotNull(additive.Group0[^1].Right);
     }
 
     [Fact]
@@ -307,7 +307,7 @@ public class AsyncParsingTests
         _ = Assert.IsType<AwaitExpressionUnaryNode>(leftUnary);
 
         // The right side should exist (the + y part)
-        Assert.NotNull(additive.Right);
+        Assert.NotNull(additive.Group0[^1].Right);
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
@@ -348,6 +348,6 @@ public class AsyncParsingTests
     private static UnaryNode? GetUnaryFromAdditiveLeft(AdditiveNode additive)
     {
         var multiplicative = additive.Left;
-        return multiplicative.Left;
+        return multiplicative.Left.UnwrapRange();
     }
 }

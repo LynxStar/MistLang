@@ -102,7 +102,7 @@ public class OptionalOperatorParsingPropertyTests
         var relational = (RelationalComparisonRelationalNode)equality.Left;
         var additive = relational.Left;
         var multiplicative = additive.Left;
-        var unary = (PostfixExpressionUnaryNode)multiplicative.Left;
+        var unary = (PostfixExpressionUnaryNode)multiplicative.Left.UnwrapRange()!;
         var postfix = unary.Primary;
 
         // The postfix node should have exactly chainLength OptionalMemberAccessSuffix nodes
@@ -254,7 +254,7 @@ public class OptionalOperatorParsingPropertyTests
         // Value set (no `=` was parsed), confirming ?? was consumed entirely
         // within the VoidCoalescing level.
         Assert.True(
-            assignment.Value is null || ReferenceEquals(assignment.Value, assignment),
+            assignment.Group0?.Value is null || ReferenceEquals(assignment.Group0?.Value, assignment),
             "Assignment should not have a separate Value — ?? should be consumed at VoidCoalescing level");
     }
 
@@ -294,7 +294,8 @@ public class OptionalOperatorParsingPropertyTests
 
     private static string GetIdentifierFromMultiplicative(MultiplicativeNode node)
     {
-        return GetIdentifierFromUnary(node.Left);
+        // These parser tests only build pass-through (NonRange) operands.
+        return GetIdentifierFromUnary(node.Left.UnwrapRange()!);
     }
 
     private static string GetIdentifierFromUnary(UnaryNode node)

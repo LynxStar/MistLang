@@ -34,6 +34,15 @@ public sealed class StructType : IType
     public IReadOnlyList<IType> TypeParameters { get; internal set; } = Array.Empty<IType>();
 
     /// <summary>
+    /// The spread-generated member families (Requirement 10) declared on this type -- one
+    /// per <c>public TArgs... Stem;</c> or <c>public TArgs... Stem { get; }</c> member
+    /// spread. Each records the aggregate member and the pack whose bound length yields the
+    /// element projections <c>Stem1 .. StemN</c>. Empty when the type declares no member
+    /// spreads.
+    /// </summary>
+    public IList<SemanticSpreadMember> SpreadMembers { get; } = new List<SemanticSpreadMember>();
+
+    /// <summary>
     /// Indicates the type has a target-language backing participating in the
     /// backend's Backing_Type_Map (i.e., a type-level <c>intrinsic</c> modifier
     /// was present on its declaration). The flag is set by the semantic model

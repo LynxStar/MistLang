@@ -1201,13 +1201,14 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         DiagnosticBag diagnostics,
         bool isLoop)
     {
-        if(assignment.Value is not null)
+        var assignedValue = assignment.Group0?.Value;
+        if(assignedValue is not null)
         {
             // This is an assignment: target = value. The RHS is now a full
             // ExpressionNode (widened to reach lambdas). A lambda RHS has no
             // move/ownership effect on the assignment, so resolve the assignment
             // form and skip when it is a lambda.
-            var rhsAssignment = assignment.Value.AsAssignmentOrNull();
+            var rhsAssignment = assignedValue.AsAssignmentOrNull();
 
             // First, check the RHS for use-after-move.
             if(rhsAssignment is not null)
@@ -1264,8 +1265,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             // OwnedFieldAssignment). The resolver emits MIST_OWN_REQUIRES_OWNED /
             // MIST_OWN_NOT_CLONABLE for a non-owned, non-clonable source, records
             // implicit-clone annotations, and consumes an owned source.
-            if(assignment.Value is not null &&
-                receiverOfFieldAssign is not null)
+            if(receiverOfFieldAssign is not null)
             {
                 var targetField = TryResolveFieldTarget(assignment.Target, model);
                 var isOwnedParent = IsOwnedVariable(receiverOfFieldAssign);
@@ -1287,7 +1287,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                     }
 
                     var resolution = resolver.Resolve(
-                        assignment.Value,
+                        assignedValue,
                         targetField?.DeclaredType,
 
                         state,
@@ -1309,7 +1309,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             // by TryResolveFieldAccessReceiver since ThisExpressionPrimaryNode is not an identifier),
             // resolve the field directly and route through the move boundary if it's an owned field.
             // This replaces the old CooperationContractVerifier's per-method provenance check.
-            if(assignment.Value is not null && receiverOfFieldAssign is null)
+            if(receiverOfFieldAssign is null)
             {
                 var thisField = TryResolveThisFieldTarget(assignment.Target, model);
                 if(thisField is Symbol thisFieldSym && thisFieldSym.IsOwnedField)
@@ -1318,12 +1318,12 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                     // Skip TypeParameterType (unsubstituted generic parameters from open generic
                     // methods/types) — these are processed during monomorphization and don't need
                     // provenance enforcement at the generic definition level.
-                    var sourceType = model.GetTypeOf(assignment.Value);
+                    var sourceType = model.GetTypeOf(assignedValue);
                     if(sourceType is not null and not ErrorType
                         and not TypeParameterType)
                     {
                         _ = resolver.Resolve(
-                            assignment.Value,
+                            assignedValue,
                             thisFieldSym.DeclaredType,
 
                             state,
@@ -1642,7 +1642,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
         // If there's a chained assignment, check it recursively. The RHS is now a
         // full ExpressionNode; a lambda RHS has no use-after-move effect here.
-        if(assignment.Value is not null && assignment.Value.AsAssignmentOrNull() is { } rhsAssignment)
+        if(assignment.Group0?.Value?.AsAssignmentOrNull() is { } rhsAssignment)
         {
             CheckAssignmentValueForUseAfterMove(rhsAssignment, state, model, diagnostics);
         }
@@ -2230,7 +2230,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
         if(node is AssignmentNode assignment)
         {
-            if(assignment.Value is not null)
+            if(assignment.Group0?.Value is not null)
             {
                 return null; // Chained assignment, not a simple identifier.
             }
@@ -2307,7 +2307,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
         if(target is AssignmentNode assignment)
         {
-            if(assignment.Value is not null)
+            if(assignment.Group0?.Value is not null)
             {
                 return null;
             }
@@ -2359,7 +2359,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// </summary>
     private static ISymbol? TryResolveAssignmentValueSymbol(AssignmentNode value, ISemanticModel model)
     {
-        if(value.Value is not null)
+        if(value.Group0?.Value is not null)
         {
             return null; // Chained assignment.
         }

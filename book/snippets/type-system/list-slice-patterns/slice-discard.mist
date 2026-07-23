@@ -1,0 +1,21 @@
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var numbers = [10, 20, 30, 40, 50];
+
+        // A bare `..` slice matches any number of remaining elements without
+        // binding them. Here it tests only the leading element.
+        if (numbers is [10, ..])
+        {
+            Console.WriteLine("starts with 10");
+        }
+
+        // A slice may also sit before trailing element patterns, which then
+        // match from the end.
+        if (numbers is [.., 50])
+        {
+            Console.WriteLine("ends with 50");
+        }
+    }
+}

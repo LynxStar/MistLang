@@ -1,0 +1,257 @@
+using Standard;
+
+namespace Variadics;
+
+public abstract IShape
+{
+    int Area();
+}
+
+public struct Circle : IShape
+{
+    public int Area()
+    {
+        return 3;
+    }
+}
+
+public struct Square : IShape
+{
+    public int Area()
+    {
+        return 4;
+    }
+}
+
+// PROOF: spread-generated members. `public TArgs... Item;` surfaces the aggregate `Item`
+//        (the whole (TArgs...) tuple) and the element projections Item1..ItemN. The
+//        constructor zips the value pack into the members; Map re-spreads them (R10.9).
+public class Bundle<params TArgs>
+{
+    public TArgs... Item;
+
+    public Bundle(params TArgs values)
+    {
+        Item... = values...;
+    }
+
+    public TResult Map<TResult>(Func<TArgs..., TResult> f)
+    {
+        return f(Item...);
+    }
+}
+
+// PROOF: spread-generated members as a property kind -- `public TArgs... Slot { get; }`
+//        generates get-only property projections Slot1..SlotN.
+public class ReadOnlyRow<params TArgs>
+{
+    public TArgs... Slot { get; }
+
+    public ReadOnlyRow(params TArgs values)
+    {
+        Slot... = values...;
+    }
+}
+
+// PROOF: fixed-size pack Type[2] + whole-pack constraint. `where TShapes : IShape` makes
+//        Area() callable on each spread-generated member (Shape1, Shape2) even though their
+//        types are the symbolic pack elements TShapes[0] and TShapes[1].
+// PROOF: a variadic STRUCT (value type) carrying a fixed-size pack and a whole-pack constraint.
+public struct ShapePair<Type[2]:TShapes> where TShapes : IShape
+{
+    public TShapes... Shape;
+
+    public ShapePair(params TShapes shapes)
+    {
+        Shape... = shapes...;
+    }
+
+    public int TotalArea()
+    {
+        return Shape1.Area() + Shape2.Area();
+    }
+}
+
+// PROOF: a variadic abstract type (Mist's interface-like construct) declared with a pack.
+abstract ICountable<params TArgs>
+{
+    int Count();
+}
+
+// PROOF: a variadic class implements the variadic abstract type by spreading its own pack
+//        into the base-type list (ICountable<TArgs...>).
+public class Tup<params TArgs> : ICountable<TArgs...>
+{
+    public int Count()
+    {
+        return TArgs.Length;
+    }
+}
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Variadics Sample ===");
+
+        // PROOF: the single Func<params TArgs, TResult> declaration covers arity 1; invoking it
+        //        is well-typed because the argument list matches TArgs=[int] and returns TResult=string.
+        Func<int, string> label = n => $"n={n}";
+        Console.WriteLine(label(5));
+
+        // PROOF: the empty pack TArgs=[] yields Func<string>, the zero-argument case.
+        Func<string> greet = () => "empty-pack";
+        Console.WriteLine(greet());
+
+        // PROOF: Action<params TArgs> = Func<TArgs..., void> spreads the pack into Func.
+        Action<int> act = n => Console.WriteLine($"act={n}");
+        act(7);
+
+        // PROOF: method-level pack with call-site inference (TArgs=[int, string, bool]);
+        //        TArgs.Length reads the arity in expression position.
+        var arity = Describe(1, "x", true);
+        Console.WriteLine($"arity={arity}");
+
+        // PROOF: explicit bracketed construction supplies the pack directly instead of inferring.
+        var explicitArity = Describe<[int, string, bool]>(1, "x", true);
+        Console.WriteLine($"explicit={explicitArity}");
+
+        // PROOF: a middle pack bound by the Binding_Rule -- first and last bind inward from the
+        //        ends, the pack absorbs the middle, so TMid=[string, string] and its length is 2.
+        var middle = MiddleCount(1, "a", "b", true);
+        Console.WriteLine($"middle={middle}");
+
+        // PROOF: two bracketed Type[]: packs disambiguated at the use site. A=[int, int], B=[string].
+        var twoPacks = TwoPacks<[int, int], [string]>();
+        Console.WriteLine($"twoPacks={twoPacks}");
+
+        // PROOF: forwarding a value pack into a Func whose parameter list IS the pack; provable for
+        //        every TArgs (a fixed-arity target would be MIST_VAR_0011, see Requirement 21).
+        Func<int, int, int, int> add = (a, b, c) => a + b + c;
+        var forward = Apply(add, 2, 3, 4);
+        Console.WriteLine($"forward={forward}");
+
+        // PROOF: value-pack narrowing. Each `is` branch proves a concrete shape, so the matching
+        //        fixed-arity forward type-checks; branches narrow to different length AND element
+        //        type; the else branch uses only the size-agnostic TArgs.Length.
+        var narrowInt = Categorize(2, 3, 4);
+        Console.WriteLine($"narrowInt={narrowInt}");
+        var narrowStr = Categorize("ab", "cd");
+        Console.WriteLine($"narrowStr={narrowStr}");
+        var narrowElse = Categorize(true);
+        Console.WriteLine($"narrowElse={narrowElse}");
+
+        // PROOF: general tuple decomposition -- `...` spreads any tuple value, not only a pack.
+        var pair = (10, 20);
+        var tupleSpread = Add2(pair...);
+        Console.WriteLine($"tupleSpread={tupleSpread}");
+
+        // PROOF: spread-generated members. Read the aggregate `Item` (the whole ValueTuple)
+        //        and the projection `Item1` (its first element) from the same instance.
+        var bundle = new Bundle<int, string, bool>(42, "hi", true);
+        var whole = bundle.Item;
+        Console.WriteLine($"bundleAgg={whole.Item1}:{whole.Item2}:{whole.Item3}");
+        Console.WriteLine($"bundleItem1={bundle.Item1}");
+
+        // PROOF: re-spread the generated members (Item...) into a Func of the same pack.
+        Func<int, string, bool, string> fmt = (a, b, c) => $"{a}-{b}-{c}";
+        var mapped = bundle.Map(fmt);
+        Console.WriteLine($"bundleMap={mapped}");
+
+        // PROOF: spread-generated members as a property kind (Slot1, Slot2 are get properties).
+        var row = new ReadOnlyRow<int, string>(7, "z");
+        Console.WriteLine($"prop={row.Slot1}:{row.Slot2}");
+
+        // PROOF: fixed-size pack + whole-pack constraint; Area() is callable on each element
+        //        because every pack element is proven to implement IShape.
+        var shapePair = new ShapePair<Circle, Square>(new Circle(), new Square());
+        Console.WriteLine($"area={shapePair.TotalArea()}");
+
+        // PROOF: a variadic abstract type implemented by a variadic class, used through the
+        //        abstract type. Count() returns the pack arity (3).
+        ICountable<int, string, bool> counter = new Tup<int, string, bool>();
+        Console.WriteLine($"abstractCount={counter.Count()}");
+
+        // PROOF: value-level params is homogeneous; xs is a real int[] and the call site is flat.
+        var sum = SumAll(1, 2, 3, 4);
+        Console.WriteLine($"sum={sum}");
+        var sumEmpty = SumAll();
+        Console.WriteLine($"sumEmpty={sumEmpty}");
+
+        Console.WriteLine("=== Variadics Done ===");
+    }
+
+    // PROOF: <params TArgs> declares a type pack; TArgs.Length is the size-agnostic arity.
+    public static int Describe<params TArgs>(params TArgs args)
+    {
+        return TArgs.Length;
+    }
+
+    // PROOF: middle pack -- TFirst and TLast bind inward from the ends, TMid absorbs the middle.
+    public static int MiddleCount<TFirst, params TMid, TLast>(TFirst first, params TMid mid, TLast last)
+    {
+        return TMid.Length;
+    }
+
+    // PROOF: two bracketed Type[]: packs; each is supplied in brackets at the use site.
+    public static int TwoPacks<Type[]:A, Type[]:B>()
+    {
+        return A.Length + B.Length;
+    }
+
+    // PROOF: args... forwards the value pack into f, whose parameter list IS TArgs, so the spread
+    //        type-checks for every TArgs, not just this call's shape.
+    public static TResult Apply<params TArgs, TResult>(Func<TArgs..., TResult> f, params TArgs args)
+    {
+        return f(args...);
+    }
+
+    // PROOF: narrowing the value pack with `is` re-enables provable fixed-arity forwarding.
+    public static int Categorize<params TArgs>(params TArgs args)
+    {
+        if (args is (int, int, int) triple)
+        {
+            return Sum3(triple...);
+        }
+        else if (args is (string, string) pair)
+        {
+            return Join(pair...).Length;
+        }
+        else
+        {
+            return TArgs.Length;
+        }
+    }
+
+    public static int Sum3(int a, int b, int c)
+    {
+        return a + b + c;
+    }
+
+    public static string Join(string a, string b)
+    {
+        return a + b;
+    }
+
+    public static int Add2(int a, int b)
+    {
+        return a + b;
+    }
+
+    // PROOF: value-level params yields a real array; foreach iterates the collected values.
+    public static int SumAll(params int[] xs)
+    {
+        var total = 0;
+        foreach (var x in xs)
+        {
+            total = total + x;
+        }
+
+        return total;
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

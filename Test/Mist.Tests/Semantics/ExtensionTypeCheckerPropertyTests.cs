@@ -125,7 +125,7 @@ public class ExtensionTypeCheckerPropertyTests
 
         var postfix = new PostfixNode { Target = literal, Suffix = ImmutableArray<PostfixSuffixNode>.Empty };
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = unary } };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
@@ -152,7 +152,7 @@ public class ExtensionTypeCheckerPropertyTests
             Suffix = ImmutableArray.Create<PostfixSuffixNode>(methodCallSuffix),
         };
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = unary } };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
@@ -179,7 +179,7 @@ public class ExtensionTypeCheckerPropertyTests
             Suffix = ImmutableArray.Create<PostfixSuffixNode>(methodCallSuffix),
         };
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = unary } };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
@@ -857,7 +857,7 @@ public class ExtensionTypeCheckerPropertyTests
         var receiverRef = new IdentifierExpressionPrimaryNode { Name = Tok(scenario.ReceiverName) };
         var receiverPostfix = new PostfixNode { Target = receiverRef, Suffix = ImmutableArray<PostfixSuffixNode>.Empty };
         var receiverUnary = new PostfixExpressionUnaryNode { Primary = receiverPostfix };
-        var receiverMult = new MultiplicativeNode { Left = receiverUnary };
+        var receiverMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = receiverUnary } };
         var receiverAdd = new AdditiveNode { Left = receiverMult };
         var receiverRel = new RelationalComparisonRelationalNode { Left = receiverAdd };
         var receiverEq = new EqualityNode { Left = receiverRel };

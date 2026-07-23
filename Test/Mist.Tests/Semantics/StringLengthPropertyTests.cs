@@ -76,7 +76,7 @@ public class StringLengthPropertyTests
             Suffix = ImmutableArray.Create<PostfixSuffixNode>(methodCallSuffix),
         };
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = unary } };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
@@ -108,7 +108,7 @@ public class StringLengthPropertyTests
             Suffix = ImmutableArray<PostfixSuffixNode>.Empty,
         };
         var argUnary = new PostfixExpressionUnaryNode { Primary = argPostfix };
-        var argMult = new MultiplicativeNode { Left = argUnary };
+        var argMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = argUnary } };
         var argAdd = new AdditiveNode { Left = argMult };
         var argRel = new RelationalComparisonRelationalNode { Left = argAdd };
         var argEq = new EqualityNode { Left = argRel };
@@ -130,7 +130,7 @@ public class StringLengthPropertyTests
             Suffix = ImmutableArray.Create<PostfixSuffixNode>(methodCallSuffix),
         };
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = unary } };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
@@ -161,7 +161,7 @@ public class StringLengthPropertyTests
             Suffix = ImmutableArray<PostfixSuffixNode>.Empty,
         };
         var argUnary = new PostfixExpressionUnaryNode { Primary = argPostfix };
-        var argMult = new MultiplicativeNode { Left = argUnary };
+        var argMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = argUnary } };
         var argAdd = new AdditiveNode { Left = argMult };
         var argRel = new RelationalComparisonRelationalNode { Left = argAdd };
         var argEq = new EqualityNode { Left = argRel };
@@ -183,7 +183,7 @@ public class StringLengthPropertyTests
             Suffix = ImmutableArray.Create<PostfixSuffixNode>(methodCallSuffix),
         };
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = unary } };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };

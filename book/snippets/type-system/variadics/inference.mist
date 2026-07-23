@@ -1,0 +1,20 @@
+using Standard;
+
+public class Program
+{
+    public static int Describe<params TArgs>(params TArgs args)
+    {
+        return TArgs.Length;
+    }
+
+    public static void Main(string[] cmdArgs)
+    {
+        // Inferred: TArgs=[int, string, bool]
+        var a = Describe(1, "x", true);
+
+        // Explicit form
+        var b = Describe<[int, string, bool]>(1, "x", true);
+
+        Console.WriteLine($"{a} {b}");
+    }
+}

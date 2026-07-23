@@ -174,7 +174,7 @@ public class AsyncFunctorOperandPropertyTests
         var asyncExprNode = new AsyncExpressionUnaryNode { Operand = operand };
 
         // Wrap in expression chain: var t = async <operand>;
-        var mult = new MultiplicativeNode { Left = asyncExprNode };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = asyncExprNode } };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };

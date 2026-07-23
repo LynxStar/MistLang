@@ -30,6 +30,15 @@ internal abstract class MemberTypeBuilder
 
     protected DelegateResolver DelegateResolver { get; }
 
+    /// <summary>
+    /// Builds spread-generated member families (Requirement 10): the aggregate
+    /// <c>(TArgs...)</c> member plus its recorded projection family, stem-namespace
+    /// reservation, and the <c>MIST_VAR_0007</c>/<c>MIST_VAR_0008</c> diagnostics. Shared
+    /// with <see cref="PropertyBuilder"/> so field spreads (resolved by the concrete
+    /// builder) and property spreads route through the same logic.
+    /// </summary>
+    protected SpreadMemberBuilder SpreadMemberBuilder { get; }
+
     protected MemberTypeBuilder(BuilderContext context, ScopeResolver scopeResolver)
     {
         Context = context;
@@ -39,9 +48,10 @@ internal abstract class MemberTypeBuilder
         var accessorBuilder = new AccessorBuilder(context);
         ParameterBuilder = new ParameterBuilder(scopeResolver);
         DelegateResolver = new DelegateResolver(context, ParameterBuilder, scopeResolver);
-        PropertyBuilder = new PropertyBuilder(context, scopeResolver, accessorBuilder);
+        SpreadMemberBuilder = new SpreadMemberBuilder(context, scopeResolver);
+        PropertyBuilder = new PropertyBuilder(context, scopeResolver, accessorBuilder, SpreadMemberBuilder);
         IndexerBuilder = new IndexerBuilder(context, scopeResolver, accessorBuilder, ParameterBuilder);
-        MethodBuilder = new MethodBuilder(scopeResolver, DelegateResolver, ConstraintResolver);
+        MethodBuilder = new MethodBuilder(scopeResolver, DelegateResolver, ConstraintResolver, context.Diagnostics);
         OperatorBuilder = new OperatorBuilder(context, scopeResolver, DelegateResolver);
     }
 

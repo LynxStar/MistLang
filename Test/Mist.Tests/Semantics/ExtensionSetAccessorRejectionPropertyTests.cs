@@ -149,7 +149,7 @@ public class ExtensionSetAccessorRejectionPropertyTests
             Suffix = ImmutableArray<PostfixSuffixNode>.Empty,
         };
         var fieldUnary = new PostfixExpressionUnaryNode { Primary = fieldPostfix };
-        var fieldMult = new MultiplicativeNode { Left = fieldUnary };
+        var fieldMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = fieldUnary } };
         var fieldAdd = new AdditiveNode { Left = fieldMult };
         var fieldRel = new RelationalComparisonRelationalNode { Left = fieldAdd };
         var fieldEq = new EqualityNode { Left = fieldRel };
@@ -166,7 +166,7 @@ public class ExtensionSetAccessorRejectionPropertyTests
             Suffix = ImmutableArray<PostfixSuffixNode>.Empty,
         };
         var valueUnary = new PostfixExpressionUnaryNode { Primary = valuePostfix };
-        var valueMult = new MultiplicativeNode { Left = valueUnary };
+        var valueMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = valueUnary } };
         var valueAdd = new AdditiveNode { Left = valueMult };
         var valueRel = new RelationalComparisonRelationalNode { Left = valueAdd };
         var valueEq = new EqualityNode { Left = valueRel };
@@ -179,7 +179,7 @@ public class ExtensionSetAccessorRejectionPropertyTests
             Assignment = new AssignmentNode
             {
                 Target = new VoidCoalescingNode { Left = fieldLogOr },
-                Value = new AssignmentFormExpressionNode { Assignment = valueAssign },
+                Group0 = new AssignmentNodeGroup0 { Value = new AssignmentFormExpressionNode { Assignment = valueAssign } },
             },
         };
     }

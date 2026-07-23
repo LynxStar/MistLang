@@ -1546,6 +1546,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // Constraint satisfaction for the type argument is checked at instantiation sites.
                 _ = initiallyAssigned.Add(member.Name);
             }
+            else if(member.DeclaredType is TupleType tupleField
+                && tupleField.ElementTypes.Any(e => e is TypeParameterType { IsPack: true }))
+            {
+                // Spread-generated aggregate fields whose type is a value-pack tuple (TArgs...)
+                // are assigned via zip assignment (Item... = values...) which is not tracked by
+                // the simple forward dataflow. Treat them as pre-assigned since the constructor's
+                // zip assignment logic handles them (the type checker validates the zip separately).
+                _ = initiallyAssigned.Add(member.Name);
+            }
         }
 
         // If all fields are already assigned, nothing to check.
@@ -1867,7 +1876,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var assignment = assignExpr.Assignment;
-        if(assignment.Value is null)
+        var assignedValue = assignment.Group0?.Value;
+        if(assignedValue is null)
         {
             // No assignment value — this is just an expression (e.g., method call).
             // Check the target for reads.
@@ -1877,7 +1887,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // This is an assignment: target = value (or target ??= value).
         // Only ??= is a read-then-write (it reads the target to check for void).
-        var isVoidCoalescingAssign = assignment.Operator is { } op
+        var isVoidCoalescingAssign = assignment.Group0?.Operator is { } op
             && op.Kind == (int)TokenKind.QUESTION_QUESTION_EQUAL;
 
         // Extract the assignment target (field or local).
@@ -1900,7 +1910,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Check the RHS value for reads.
-        AnalyzeExpressionForReads(assignment.Value, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+        AnalyzeExpressionForReads(assignedValue, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
 
         // Record the write.
         if(fieldName is not null)
@@ -2043,10 +2053,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // If this is an assignment expression (nested), handle it recursively.
-        if(assignment.Value is not null)
+        var assignedValue = assignment.Group0?.Value;
+        if(assignedValue is not null)
         {
             // Nested assignment: check RHS for reads, then the target.
-            AnalyzeExpressionForReads(assignment.Value, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+            AnalyzeExpressionForReads(assignedValue, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
             return;
         }
 
@@ -2133,9 +2144,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         AnalyzeRelationalForReads(equality.Left, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
 
-        if(equality.Right is not null)
+        // Group0 is the flat n-ary operand list; visit every operand so reads in a
+        // multi-term chain (a == b == c) are all analyzed, not just the last one.
+        foreach(var group in equality.Group0)
         {
-            AnalyzeRelationalForReads(equality.Right, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+            AnalyzeRelationalForReads(group.Right, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
         }
     }
 
@@ -2155,9 +2168,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             case RelationalComparisonRelationalNode cmp:
                 AnalyzeAdditiveForReads(cmp.Left, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
-                if(cmp.Right is not null)
+                foreach(var group in cmp.Group0)
                 {
-                    AnalyzeAdditiveForReads(cmp.Right, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                    AnalyzeAdditiveForReads(group.Right, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
                 }
 
                 break;
@@ -2183,9 +2196,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         HashSet<string>? allNonDefaultableFields)
     {
         AnalyzeMultiplicativeForReads(additive.Left, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
-        if(additive.Right is not null)
+        foreach(var group in additive.Group0)
         {
-            AnalyzeMultiplicativeForReads(additive.Right, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+            AnalyzeMultiplicativeForReads(group.Right, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
         }
     }
 
@@ -2201,10 +2214,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         List<ReadViolation> violations,
         HashSet<string>? allNonDefaultableFields)
     {
-        AnalyzeUnaryForReads(multiplicative.Left, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
-        if(multiplicative.Right is not null)
+        // A genuine range expression (UnwrapRange == null) contributes no field reads
+        // that this analysis handles; range-bound read analysis is a later range task.
+        if(multiplicative.Left.UnwrapRange() is { } left)
         {
-            AnalyzeUnaryForReads(multiplicative.Right, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+            AnalyzeUnaryForReads(left, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+        }
+
+        foreach(var group in multiplicative.Group0)
+        {
+            if(group.Right.UnwrapRange() is { } right)
+            {
+                AnalyzeUnaryForReads(right, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+            }
         }
     }
 
@@ -2453,7 +2475,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static bool IsBarThisExpression(ExpressionNode expr)
     {
         var assignment = expr.AsAssignmentOrNull();
-        if(assignment is null || assignment.Value is not null)
+        if(assignment is null || assignment.Group0?.Value is not null)
         {
             return false;
         }
@@ -2476,7 +2498,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var equality = logicalAnd.Left;
-        if(equality.Right is not null)
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return false;
         }
@@ -2486,24 +2508,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return false;
         }
 
-        if(relational.Right is not null)
+        if(!relational.Group0.IsDefaultOrEmpty)
         {
             return false;
         }
 
         var additive = relational.Left;
-        if(additive.Right is not null)
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return false;
         }
 
         var multiplicative = additive.Left;
-        if(multiplicative.Right is not null)
+        if(!multiplicative.Group0.IsDefaultOrEmpty)
         {
             return false;
         }
 
-        if(multiplicative.Left is not PostfixExpressionUnaryNode postfixExpr)
+        if(multiplicative.Left.UnwrapRange() is not PostfixExpressionUnaryNode postfixExpr)
         {
             return false;
         }
@@ -2526,7 +2548,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var assignment = expr.AsAssignmentOrNull();
         if(assignment?.Target.Left?.Left.Left.Left is RelationalComparisonRelationalNode relational)
         {
-            if(relational.Left.Left.Left is PostfixExpressionUnaryNode postfixExpr
+            if(relational.Left.Left.Left.UnwrapRange() is PostfixExpressionUnaryNode postfixExpr
                 && postfixExpr.Primary?.Target is ThisExpressionPrimaryNode thisNode)
             {
                 return thisNode;
@@ -2559,7 +2581,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var equality = logicalAnd.Left;
-        if(equality.Right is not null)
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -2569,24 +2591,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(relational.Right is not null)
+        if(!relational.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var additive = relational.Left;
-        if(additive.Right is not null)
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive.Left;
-        if(multiplicative.Right is not null)
+        if(!multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
-        if(multiplicative.Left is not PostfixExpressionUnaryNode postfixExpr)
+        if(multiplicative.Left.UnwrapRange() is not PostfixExpressionUnaryNode postfixExpr)
         {
             return null;
         }
@@ -2662,7 +2684,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var equality = logicalAnd.Left;
-        if(equality.Right is not null)
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -2672,24 +2694,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(relational.Right is not null)
+        if(!relational.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var additive = relational.Left;
-        if(additive.Right is not null)
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive.Left;
-        if(multiplicative.Right is not null)
+        if(!multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
-        if(multiplicative.Left is not PostfixExpressionUnaryNode postfixExpr)
+        if(multiplicative.Left.UnwrapRange() is not PostfixExpressionUnaryNode postfixExpr)
         {
             return null;
         }
@@ -2742,7 +2764,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var equality = logicalAnd.Left;
-        if(equality.Right is not null)
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -2752,24 +2774,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(relational.Right is not null)
+        if(!relational.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var additive = relational.Left;
-        if(additive.Right is not null)
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive.Left;
-        if(multiplicative.Right is not null)
+        if(!multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
-        if(multiplicative.Left is not PostfixExpressionUnaryNode postfixExpr)
+        if(multiplicative.Left.UnwrapRange() is not PostfixExpressionUnaryNode postfixExpr)
         {
             return null;
         }
@@ -3480,7 +3502,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         {
                             if(baseTypeParams[i] is TypeParameterType baseTP2)
                             {
-                                CheckConstraintSatisfaction(baseTypeArgs[i], baseTP2, declaringNode, genericName, model, diagnostics);
+                                // Requirement 11: whole-pack constraint — check each element independently.
+                                if(baseTP2.IsPack
+                                    && baseConstructed.DependentArguments is not null
+                                    && i < baseConstructed.DependentArguments.Count
+                                    && baseConstructed.DependentArguments[i] is { PackElementTypes: { } packElements })
+                                {
+                                    CheckPackConstraintSatisfaction(packElements, baseTP2, declaringNode, model, diagnostics);
+                                }
+                                else
+                                {
+                                    CheckConstraintSatisfaction(baseTypeArgs[i], baseTP2, declaringNode, genericName, model, diagnostics);
+                                }
                             }
                         }
                     }
@@ -3528,7 +3561,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     {
                         if(absTypeParams[i] is TypeParameterType absTP2)
                         {
-                            CheckConstraintSatisfaction(absTypeArgs[i], absTP2, declaringNode, genericName, model, diagnostics);
+                            // Requirement 11: whole-pack constraint — check each element independently.
+                            if(absTP2.IsPack
+                                && absConstructed.DependentArguments is not null
+                                && i < absConstructed.DependentArguments.Count
+                                && absConstructed.DependentArguments[i] is { PackElementTypes: { } packElements })
+                            {
+                                CheckPackConstraintSatisfaction(packElements, absTP2, declaringNode, model, diagnostics);
+                            }
+                            else
+                            {
+                                CheckConstraintSatisfaction(absTypeArgs[i], absTP2, declaringNode, genericName, model, diagnostics);
+                            }
                         }
                     }
                 }
@@ -4806,7 +4850,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return result; // Lambda form is not a narrowing condition.
         }
 
-        if(assignment.Value is not null)
+        if(assignment.Group0?.Value is not null)
         {
             return result; // Not a simple condition.
         }
@@ -4852,7 +4896,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return result;
         }
 
-        if(equality.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return result;
         }
@@ -4865,7 +4909,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         switch(relational)
         {
-            case RelationalComparisonRelationalNode cmp when cmp.Right is not null:
+            case RelationalComparisonRelationalNode cmp when !cmp.Group0.IsDefaultOrEmpty:
                 {
                     // Simple comparison: x >= N, x <= N, x > N, x < N
                     TryNarrowFromComparison(cmp, model, result);
@@ -4910,14 +4954,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return;
         }
 
-        // Extract the operator and constant value from the comparison.
-        var op = cmp.Operator.Lexeme;
+        // Extract the operator and constant value from the comparison. The caller
+        // gates on a non-empty Group0, so the last element carries this comparison's
+        // operator and right operand (preserving the former last-wins shim reads).
+        var op = cmp.Group0[^1].Operator.Lexeme;
         if(op is null)
         {
             return;
         }
 
-        var constantValue = TryExtractLongFromAdditiveNode(cmp.Right);
+        var constantValue = TryExtractLongFromAdditiveNode(cmp.Group0[^1].Right);
         if(!constantValue.HasValue)
         {
             return;
@@ -5179,18 +5225,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static string? TryExtractSimpleIdentifierName(AdditiveNode additive)
     {
-        if(additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        if(additive is not null && !additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive?.Left;
-        if(multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        if(multiplicative is not null && !multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
-        if(multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+        if(multiplicative?.Left.UnwrapRange() is not PostfixExpressionUnaryNode postfixUnary)
         {
             return null;
         }
@@ -5219,18 +5265,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(additive.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive.Left;
-        if(multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        if(multiplicative is not null && !multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
-        if(multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+        if(multiplicative?.Left.UnwrapRange() is not PostfixExpressionUnaryNode postfixUnary)
         {
             return null;
         }
@@ -5276,7 +5322,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null; // Lambda form is not a narrowed identifier.
         }
 
-        if(assignment.Value is not null)
+        if(assignment.Group0?.Value is not null)
         {
             return null;
         }
@@ -5294,7 +5340,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var equality = logicalAnd?.Left;
-        if(equality?.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        if(equality is not null && !equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -5304,24 +5350,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
+        if(!relCmp.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var additive = relCmp.Left;
-        if(additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        if(additive is not null && !additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive?.Left;
-        if(multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        if(multiplicative is not null && !multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
-        if(multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+        if(multiplicative?.Left.UnwrapRange() is not PostfixExpressionUnaryNode postfixUnary)
         {
             return null;
         }
@@ -5390,7 +5436,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null; // Lambda form is not a simple identifier reference.
         }
 
-        if(assignment.Value is not null || assignment.Operator is not null)
+        if(assignment.Group0?.Value is not null || assignment.Group0?.Operator is not null)
         {
             return null;
         }
@@ -5441,7 +5487,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var equality = logicalAnd?.Left;
-        if(equality?.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        if(equality is not null && !equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -5451,24 +5497,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
+        if(!relCmp.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var additive = relCmp.Left;
-        if(additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        if(additive is not null && !additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive?.Left;
-        if(multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        if(multiplicative is not null && !multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
-        if(multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+        if(multiplicative?.Left.UnwrapRange() is not PostfixExpressionUnaryNode postfixUnary)
         {
             return null;
         }
@@ -5655,7 +5701,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null; // Lambda form is not a simple identifier.
         }
 
-        if(assignment.Value is not null)
+        if(assignment.Group0?.Value is not null)
         {
             return null;
         }
@@ -5673,7 +5719,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var equality = logicalAnd?.Left;
-        if(equality?.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        if(equality is not null && !equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -5683,24 +5729,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
+        if(!relCmp.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var additive = relCmp.Left;
-        if(additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        if(additive is not null && !additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive?.Left;
-        if(multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        if(multiplicative is not null && !multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
-        if(multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+        if(multiplicative?.Left.UnwrapRange() is not PostfixExpressionUnaryNode postfixUnary)
         {
             return null;
         }
@@ -5843,7 +5889,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null; // Lambda form is not a literal integer.
         }
 
-        if(assignment.Value is not null)
+        if(assignment.Group0?.Value is not null)
         {
             return null;
         }
@@ -5876,7 +5922,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(equality.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -5886,7 +5932,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
+        if(!relCmp.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -5908,7 +5954,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null; // Lambda form is not a for-loop condition.
         }
 
-        if(assignment.Value is not null)
+        if(assignment.Group0?.Value is not null)
         {
             return null;
         }
@@ -5941,7 +5987,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(equality.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -5951,7 +5997,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(cmp.Right is null || ReferenceEquals(cmp.Right, cmp.Left))
+        if(cmp.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -5963,8 +6009,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        // Determine the operator.
-        var op = cmp.Operator.Lexeme;
+        // Determine the operator. The Group0 guard above ensures a comparison is
+        // present; its last element carries this loop condition's operator and right
+        // operand (preserving the former last-wins shim reads).
+        var op = cmp.Group0[^1].Operator.Lexeme;
         ConditionRelOp relOp;
         if(op == "<")
         {
@@ -5981,14 +6029,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Try to extract the upper bound value from the RHS.
         // Case a: literal integer
-        var literalValue = TryExtractLongFromAdditiveNode(cmp.Right);
+        var literalValue = TryExtractLongFromAdditiveNode(cmp.Group0[^1].Right);
         if(literalValue.HasValue)
         {
             return new ConditionConstraint(relOp, literalValue.Value);
         }
 
         // Case b: identifier.Length on an ArrayType
-        var symbolicBound = TryExtractArrayLengthBound(cmp.Right, relOp, model);
+        var symbolicBound = TryExtractArrayLengthBound(cmp.Group0[^1].Right, relOp, model);
         if(symbolicBound is not null)
         {
             return symbolicBound;
@@ -6004,18 +6052,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static ConditionConstraint? TryExtractArrayLengthBound(AdditiveNode additive, ConditionRelOp relOp, ISemanticModel model)
     {
         // Navigate: Additive → Multiplicative → Unary → Postfix
-        if(additive.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive.Left;
-        if(multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        if(multiplicative is not null && !multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
-        if(multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+        if(multiplicative?.Left.UnwrapRange() is not PostfixExpressionUnaryNode postfixUnary)
         {
             return null;
         }
@@ -6137,7 +6185,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static bool HasReassignmentInNode(SyntaxNode node, string varName)
     {
         // Check if this node is an assignment expression targeting the variable.
-        if(node is AssignmentNode assignment && assignment.Value is not null)
+        if(node is AssignmentNode assignment && assignment.Group0?.Value is not null)
         {
             var targetName = TryExtractIdentifierFromLogicalOr(assignment.Target.Left);
             if(targetName is not null && string.Equals(targetName, varName, StringComparison.Ordinal))
@@ -6932,7 +6980,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Nested assignments (e.g., `a = b = c`) always go through this
         // same method, so the flag is naturally re-established for each
         // inner assignment target as the recursion walks inward.
-        var targetIsLhs = assignment.Value is not null;
+        var assignedValue = assignment.Group0?.Value;
+        var targetIsLhs = assignedValue is not null;
         var previousAssignmentLhs = analyzingAssignmentLhs;
         if(targetIsLhs)
         {
@@ -6948,11 +6997,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             analyzingAssignmentLhs = previousAssignmentLhs;
         }
 
-        if(assignment.Value is not null)
+        if(assignedValue is not null)
         {
             // ── optional-types feature: void-coalescing assignment (??=) ──
             // When the operator is ??=, apply special validation and flow narrowing.
-            if(assignment.Operator is { } op && op.Kind == (int)TokenKind.QUESTION_QUESTION_EQUAL)
+            if(assignment.Group0?.Operator is { } op && op.Kind == (int)TokenKind.QUESTION_QUESTION_EQUAL)
             {
                 CheckVoidCoalescingAssignment(assignment, model, diagnostics);
                 return;
@@ -6983,7 +7032,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // The RHS is now a full ExpressionNode (widened to reach lambdas); only the
             // assignment form can carry a bare 'default' literal.
             var lhsTypeForDefault = model.GetTypeOf(assignment.Target);
-            var rhsAssignment = assignment.Value.AsAssignmentOrNull();
+            var rhsAssignment = assignedValue.AsAssignmentOrNull();
             if(rhsAssignment is not null)
             {
                 TryInferDefaultLiteralTypeFromAssignment(rhsAssignment, lhsTypeForDefault, model);
@@ -6991,18 +7040,29 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             // This is an assignment: target = value.
             assignmentNestingDepth++;
-            CheckExpression(assignment.Value, model, diagnostics);
+            CheckExpression(assignedValue, model, diagnostics);
             assignmentNestingDepth--;
 
             var lhsType = model.GetTypeOf(assignment.Target);
-            var rhsType = model.GetTypeOf(assignment.Value);
+            var rhsType = model.GetTypeOf(assignedValue);
+
+            // ── variadics feature (task 14.2): zip parallel expansion (Requirements 8.5-8.7) ──
+            // A zip is the parallel two-operand value spread `left... = right...`. It is its
+            // own chokepoint: permitted only when the operands are proven equal length (same
+            // pack origin, or two concrete tuples of equal count), otherwise MIST_VAR_0006.
+            // Handled before the ordinary tuple-to-tuple assignability check so a zip is never
+            // mis-reported as a scalar assignment.
+            if(TryCheckZipAssignment(assignment, model, diagnostics))
+            {
+                return;
+            }
 
             // ── first-class-functions: method group ambiguity check (MIST_TC_0121) ──
             // When the LHS type is a Func type and the RHS is a bare identifier
             // (method group), check for ambiguous overloads.
             if(lhsType is not null && SemanticModelBuilder.IsFuncType(lhsType))
             {
-                var rhsPostfix = TryExtractPostfixNode(assignment.Value);
+                var rhsPostfix = TryExtractPostfixNode(assignedValue);
                 if(rhsPostfix is not null)
                 {
                     CheckMethodGroupAmbiguity(rhsPostfix, lhsType, model, diagnostics);
@@ -7020,11 +7080,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // When the target is a RefinementType, check the assignment
                 // against the refinement predicate before the generic
                 // assignability check.
-                if(!TryCheckRefinementAssignment(effectiveRhsType, lhsType, assignment.Value, diagnostics, model)
+                if(!TryCheckRefinementAssignment(effectiveRhsType, lhsType, assignedValue, diagnostics, model)
                     // ── regex-type feature: string literal shorthand (Requirements 6.5, 6.8, 6.9) ──
                     // When the target is regex and the source is string, apply
                     // the string→regex conversion rules.
-                    && !TryCheckStringToRegexAssignment(rhsType, lhsType, assignment.Value, diagnostics, model))
+                    && !TryCheckStringToRegexAssignment(rhsType, lhsType, assignedValue, diagnostics, model))
                 {
                     CheckAssignability(rhsType, lhsType, assignment, diagnostics, model);
                 }
@@ -7297,13 +7357,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Step 2: Check if the RHS is a ref parameter or ref local.
         // The RHS is assignment.Value which is now a full ExpressionNode. A simple ref
         // identifier reference only occurs in the assignment form; a lambda RHS is not one.
-        var rhsAssignment = assignment.Value!.AsAssignmentOrNull();
+        var rhsAssignment = assignment.Group0?.Value?.AsAssignmentOrNull();
         if(rhsAssignment is null)
         {
             return; // Lambda-form RHS — not a simple ref identifier.
         }
 
-        if(rhsAssignment.Value is not null)
+        if(rhsAssignment.Group0?.Value is not null)
         {
             return; // Chained assignment — not a simple ref identifier.
         }
@@ -7447,7 +7507,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var equality = logicalAnd.Left;
-        if(equality.Right is not null)
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -7457,24 +7517,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(relationalComparison.Right is not null)
+        if(!relationalComparison.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var additive = relationalComparison.Left;
-        if(additive.Right is not null)
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive.Left;
-        if(multiplicative.Right is not null)
+        if(!multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
-        if(multiplicative.Left is not PostfixExpressionUnaryNode postfixExpr)
+        if(multiplicative.Left.UnwrapRange() is not PostfixExpressionUnaryNode postfixExpr)
         {
             return null;
         }
@@ -7506,7 +7566,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var relational = equality.Left;
-        if(equality.Right is not null)
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -7517,19 +7577,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var additive = relationalComparison.Left;
-        if(relationalComparison.Right is not null)
+        if(!relationalComparison.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive.Left;
-        if(additive.Right is not null)
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
-        var unary = multiplicative.Left;
-        if(multiplicative.Right is not null)
+        var unary = multiplicative.Left.UnwrapRange();
+        if(!multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -7715,9 +7775,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return;
         }
 
+        // The optional operator+value project into the nullable Group0 struct; this
+        // method is only reached for a present ??= assignment, so the value is set.
+        if(assignment.Group0?.Value is not { } assignedValue)
+        {
+            return;
+        }
+
         // Check the RHS expression. The RHS is now a full ExpressionNode (widened to
         // reach lambdas); route through the expression-level entry point.
-        CheckExpression(assignment.Value, model, diagnostics);
+        CheckExpression(assignedValue, model, diagnostics);
 
         // ── MIST_TC_0043: Left operand must be a mutable variable ──
         var targetVarName = TryExtractIdentifierFromLogicalOr(assignment.Target.Left);
@@ -7767,10 +7834,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             : new UnionType(nonVoidConstituents.ToImmutableArray());
 
         // ── MIST_TC_0044: Right operand must be assignable to T ──
-        var rhsType = model.GetTypeOf(assignment.Value);
+        var rhsType = model.GetTypeOf(assignedValue);
         if(rhsType is not null && !IsAssignable(rhsType, nonVoidPortion, model))
         {
-            diagnostics.ReportAtNode(TypeCheckDiagnostics.AmbiguousImplicitCast, assignment.Value, "TypeChecker");
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.AmbiguousImplicitCast, assignedValue, "TypeChecker");
         }
 
         // ── Flow narrowing: after ??=, the variable's type is T (not T | void) ──
@@ -7841,9 +7908,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         CheckRelationalNode(node.Left, model, diagnostics);
 
-        if(node.Right is not null)
+        // Group0 is the flat n-ary operand list. Fold it left-associatively
+        // (a == b == c => (a == b) == c): after the first comparison the node
+        // carries the running result type, which becomes the next left operand.
+        var currentLeft = (SyntaxNode)node.Left;
+        foreach(var group in node.Group0)
         {
-            CheckRelationalNode(node.Right, model, diagnostics);
+            CheckRelationalNode(group.Right, model, diagnostics);
 
             // Void unit-type equality is a first-class language feature
             // (void-unit-type spec § Requirement 9). Two VoidType operands
@@ -7852,12 +7923,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // type. Short-circuit before delegating to overload resolution
             // so `Void.Void == Void.Void` and `Void.Void != Void.Void`
             // remain well-typed.
-            var lhsType = model.GetTypeOf(node.Left);
-            var rhsType = model.GetTypeOf(node.Right);
+            var lhsType = model.GetTypeOf(currentLeft);
+            var rhsType = model.GetTypeOf(group.Right);
             if(lhsType is not null && lhsType.IsVoid() && rhsType is not null && rhsType.IsVoid())
             {
                 model.SetTypeOf(node, LegacyPrimitiveTypes.Bool);
-                return;
+                currentLeft = node;
+                continue;
             }
 
             // ── anonymous-types feature: equality operator validation ──
@@ -7875,22 +7947,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     diagnostics.ReportAtNode(TypeCheckDiagnostics.AnonEqualityMismatch, node, "TypeChecker");
                 }
 
-                return;
+                currentLeft = node;
+                continue;
             }
 
             // Route typing / error emission through overload resolution
             // (Requirements 6.1, 6.4). Equality operators on stdlib types
             // (Int32, Boolean, String, …) are declared as static operator
             // members; user types may also declare == / !=.
-            var op = node.Operator.Lexeme ?? "==";
+            var op = group.Operator.Lexeme ?? "==";
             ResolveBinaryOperator(
                 op,
-                node.Left,
-                node.Right,
+                currentLeft,
+                group.Right,
                 node,
                 TypeCheckDiagnostics.OperatorNotApplicableComparison,
                 model,
                 diagnostics);
+            currentLeft = node;
         }
     }
 
@@ -7902,24 +7976,27 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 {
                     CheckAdditiveNode(cmp.Left, model, diagnostics);
 
-                    if(cmp.Right is not null)
+                    var currentLeft = (SyntaxNode)cmp.Left;
+                    foreach(var group in cmp.Group0)
                     {
-                        CheckAdditiveNode(cmp.Right, model, diagnostics);
+                        CheckAdditiveNode(group.Right, model, diagnostics);
 
                         // Route typing / error emission through overload resolution
                         // (Requirements 6.1, 6.4). Relational operators (<, >, <=, >=)
                         // are declared on each numeric stdlib type and Char; the old
                         // NumericTypes / IsNumeric special case is removed
-                        // (Requirement 6.7).
-                        var op = cmp.Operator.Lexeme ?? "<";
+                        // (Requirement 6.7). Each Group0 element carries its own
+                        // operator, so a chain (a < b < c) folds left-associatively.
+                        var op = group.Operator.Lexeme ?? "<";
                         ResolveBinaryOperator(
                             op,
-                            cmp.Left,
-                            cmp.Right,
+                            currentLeft,
+                            group.Right,
                             cmp,
                             TypeCheckDiagnostics.OperatorNotApplicableRelational,
                             model,
                             diagnostics);
+                        currentLeft = cmp;
                     }
 
                     break;
@@ -8523,19 +8600,33 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             case ListPatternPrimaryPatternNode listPattern:
                 {
-                    // MIST_TC_0054: Verify scrutinee is an array type.
-                    if(scrutineeType is not ArrayType arrayType)
+                    // Suppress cascading diagnostics when the scrutinee already
+                    // resolved to an error/unknown type upstream.
+                    if(scrutineeType is ErrorType or UnknownType)
                     {
-                        diagnostics.ReportAtNode(TypeCheckDiagnostics.PatternListRequiresArray, listPattern, "TypeChecker");
                         break;
                     }
 
-                    var elementType = arrayType.ElementType;
+                    // MIST_TC_0054: a list pattern requires a countable, indexable
+                    // receiver (arrays, spans, string, List<T>, countable+int-indexer),
+                    // not just an array (Req 20.3).
+                    if(!SemanticModelBuilder.IsIndexableType(scrutineeType))
+                    {
+                        diagnostics.ReportAtNode(
+                            TypeCheckDiagnostics.PatternListRequiresIndexable, listPattern, "TypeChecker", scrutineeType.DisplayName);
+                        break;
+                    }
 
-                    // Count fixed elements and recursively validate.
+                    // Element sub-patterns are checked against the receiver's element
+                    // type (Req 20.1); a carried slice sub-pattern is validated against
+                    // the receiver's slice-result type inside the element-list check.
+                    var elementType = SemanticModelBuilder.TryGetElementType(scrutineeType, out var resolvedElementType)
+                        ? resolvedElementType
+                        : ErrorType.Instance;
+
                     if(listPattern.Elements is not null)
                     {
-                        CheckListPatternElementList(listPattern.Elements, elementType, model, diagnostics);
+                        CheckListPatternElementList(listPattern.Elements, scrutineeType, elementType, model, diagnostics);
                     }
 
                     break;
@@ -8816,13 +8907,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Validates a list pattern element list: counts fixed elements, checks for
-    /// too many elements, and recursively validates element patterns.
+    /// Validates a list pattern element list: retains the fixed-element count used by
+    /// the <see cref="TypeCheckDiagnostics.PatternListTooManyElements"/> (MIST_TC_0055)
+    /// check, enforces the at-most-one-slice rule
+    /// (<see cref="TypeCheckDiagnostics.PatternListMultipleSlices"/>, MIST_TC_0186,
+    /// Req 20.4), type-checks each fixed element sub-pattern against the receiver's
+    /// element type (Req 20.1), and validates each slice element against the receiver's
+    /// slice-result type via <see cref="CheckSliceElement"/> (Req 20.2, 20.5).
     /// </summary>
     private static void CheckListPatternElementList(
         ListPatternElementListNode elementList,
+        IType receiverType,
         IType elementType,
-
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
@@ -8830,9 +8926,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var allElements = new List<ListPatternElementNode> { elementList.ListPatternElement };
         allElements.AddRange(elementList.ListPatternElements);
 
-        // Count fixed (non-slice) elements.
+        // Count fixed (non-slice) elements and slice elements.
         var fixedCount = 0;
         var hasSlice = false;
+        var sliceCount = 0;
         foreach(var element in allElements)
         {
             if(element is PatternElementListPatternElementNode)
@@ -8842,6 +8939,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             else if(element is SliceElementListPatternElementNode)
             {
                 hasSlice = true;
+                sliceCount++;
             }
         }
 
@@ -8856,6 +8954,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // The warning is informational — the actual length check happens at runtime.
         }
 
+        // MIST_TC_0186: a list pattern may contain at most one slice pattern (Req 20.4).
+        if(sliceCount > 1)
+        {
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.PatternListMultipleSlices, elementList, "TypeChecker");
+        }
+
         // Recursively validate each element pattern.
         foreach(var element in allElements)
         {
@@ -8864,11 +8968,61 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 case PatternElementListPatternElementNode patternElement:
                     CheckPattern(patternElement.Pattern, elementType, model, diagnostics);
                     break;
-                case SliceElementListPatternElementNode:
-                    // Slice elements need no type checking.
+                case SliceElementListPatternElementNode sliceElement:
+                    CheckSliceElement(sliceElement, receiverType, model, diagnostics);
                     break;
             }
         }
+    }
+
+    /// <summary>
+    /// Validates a slice element (<c>.. subpattern?</c>) inside a list pattern. A bare
+    /// slice needs no further checking beyond the indexable-receiver requirement the
+    /// caller already enforced. A slice that carries a sub-pattern requires the
+    /// receiver to be a sliceable type (<see cref="SemanticModelBuilder.IsSliceableType"/>);
+    /// otherwise <see cref="TypeCheckDiagnostics.PatternSliceRequiresSliceable"/>
+    /// (MIST_TC_0187) is emitted naming the receiver type (Req 20.5). When the receiver
+    /// is sliceable the carried sub-pattern is type-checked against the receiver's
+    /// slice-result type (<see cref="SemanticModelBuilder.TryGetSliceResultType"/>,
+    /// Req 20.2). A receiver that already resolved to an error/unknown type is
+    /// suppressed to avoid cascading diagnostics, mirroring the sibling pattern checks.
+    /// </summary>
+    private static void CheckSliceElement(
+        SliceElementListPatternElementNode sliceElement,
+        IType receiverType,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // A bare slice `..` carries no sub-pattern and needs no receiver validation
+        // beyond the indexable-receiver requirement enforced by the caller.
+        if(sliceElement.Subpattern is null)
+        {
+            return;
+        }
+
+        // Suppress when the receiver already resolved to an error/unknown type.
+        if(receiverType is ErrorType or UnknownType)
+        {
+            return;
+        }
+
+        // MIST_TC_0187: a slice sub-pattern requires a sliceable receiver (Req 20.5).
+        // List<T> is indexable but NOT sliceable, so this rejects a carrying slice
+        // (e.g. `[.., var rest]`) applied to a List<T>.
+        if(!SemanticModelBuilder.IsSliceableType(receiverType))
+        {
+            diagnostics.ReportAtNode(
+                TypeCheckDiagnostics.PatternSliceRequiresSliceable, sliceElement, "TypeChecker", receiverType.DisplayName);
+            return;
+        }
+
+        // Type-check the carried sub-pattern against the receiver's slice-result type
+        // (array -> same array, span -> same span, string -> string, custom -> declared
+        // slice-result type) (Req 20.2).
+        var sliceResultType = SemanticModelBuilder.TryGetSliceResultType(receiverType, out var resolvedSliceType)
+            ? resolvedSliceType
+            : ErrorType.Instance;
+        CheckPattern(sliceElement.Subpattern, sliceResultType, model, diagnostics);
     }
 
     // ── Pattern variable collection helpers (for or/not pattern checks) ──
@@ -9000,14 +9154,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             case ListPatternPrimaryPatternNode listPattern:
                 {
-                    var elementType = scrutineeType is ArrayType arrayType
-                        ? arrayType.ElementType
+                    var elementType = SemanticModelBuilder.TryGetElementType(scrutineeType, out var resolvedElementType)
+                        ? resolvedElementType
                         : ErrorType.Instance;
 
                     if(listPattern.Elements is not null)
                     {
                         CollectPatternVariablesFromListElementList(
-                            listPattern.Elements, elementType, model, variables);
+                            listPattern.Elements, scrutineeType, elementType, model, variables);
                     }
 
                     break;
@@ -9053,20 +9207,22 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     private static void CollectPatternVariablesFromListElementList(
         ListPatternElementListNode elementList,
+        IType receiverType,
         IType elementType,
         ISemanticModel model,
         Dictionary<string, IType> variables)
     {
-        CollectPatternVariablesFromListElement(elementList.ListPatternElement, elementType, model, variables);
+        CollectPatternVariablesFromListElement(elementList.ListPatternElement, receiverType, elementType, model, variables);
 
         foreach(var element in elementList.ListPatternElements)
         {
-            CollectPatternVariablesFromListElement(element, elementType, model, variables);
+            CollectPatternVariablesFromListElement(element, receiverType, elementType, model, variables);
         }
     }
 
     private static void CollectPatternVariablesFromListElement(
         ListPatternElementNode element,
+        IType receiverType,
         IType elementType,
         ISemanticModel model,
         Dictionary<string, IType> variables)
@@ -9077,14 +9233,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 CollectPatternVariablesFromPattern(patternElement.Pattern, elementType, model, variables);
                 break;
             case SliceElementListPatternElementNode sliceElement:
-                if(sliceElement.Name.HasValue)
+                // Collect any variables the slice sub-pattern binds, typed as the
+                // receiver's slice-result type (array -> same array, span -> same span,
+                // string -> string, custom -> declared slice-result type), so a binding
+                // such as `.. var middle` on a non-array sliceable receiver is recorded
+                // with the correct type instead of always an array of the element type.
+                if(sliceElement.Subpattern is not null)
                 {
-                    var name = sliceElement.Name.Value.Lexeme;
-                    if(name != "_")
-                    {
-                        // Slice variable captures a sub-array.
-                        variables[name] = new ArrayType(elementType);
-                    }
+                    var sliceResultType = SemanticModelBuilder.TryGetSliceResultType(receiverType, out var resolvedSliceType)
+                        ? resolvedSliceType
+                        : ErrorType.Instance;
+                    CollectPatternVariablesFromPattern(
+                        sliceElement.Subpattern, sliceResultType, model, variables);
                 }
 
                 break;
@@ -9287,47 +9447,72 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         CheckMultiplicativeNode(node.Left, model, diagnostics);
 
-        if(node.Right is not null)
+        // Group0 pairs each operator with its own operand, so a mixed chain
+        // (10 + 3 - 5) folds left-associatively instead of collapsing to the last
+        // operator; the node carries the running result type after the first step.
+        var currentLeft = (SyntaxNode)node.Left;
+        foreach(var group in node.Group0)
         {
-            CheckMultiplicativeNode(node.Right, model, diagnostics);
+            CheckMultiplicativeNode(group.Right, model, diagnostics);
 
             // Route typing / error emission through overload resolution
             // (Requirements 6.1, 6.4, 6.8). String concatenation flows
             // from Standard.String's operator+ declaration — the old
             // StringType-for-+ special case is removed.
-            var op = node.Operator.Lexeme ?? "+";
+            var op = group.Operator.Lexeme ?? "+";
             ResolveBinaryOperator(
                 op,
-                node.Left,
-                node.Right,
+                currentLeft,
+                group.Right,
                 node,
                 TypeCheckDiagnostics.OperatorNotApplicableArithmetic,
                 model,
                 diagnostics);
+            currentLeft = node;
         }
     }
 
     private void CheckMultiplicativeNode(MultiplicativeNode node, ISemanticModel model, DiagnosticBag diagnostics)
     {
-        CheckUnaryNode(node.Left, model, diagnostics);
-
-        if(node.Right is not null)
+        // For the pass-through (NonRange) operand, check the inner unary as before.
+        // A genuine range expression has its bounds validated by CheckRange
+        // (Requirement 7).
+        if(node.Left.UnwrapRange() is { } left)
         {
-            CheckUnaryNode(node.Right, model, diagnostics);
+            CheckUnaryNode(left, model, diagnostics);
+        }
+        else if(node.Left is RangeExpressionRangeNode leftRange)
+        {
+            CheckRange(leftRange, model, diagnostics);
+        }
+
+        var currentLeft = (SyntaxNode)node.Left;
+        foreach(var group in node.Group0)
+        {
+            var rightNode = group.Right;
+            if(rightNode.UnwrapRange() is { } right)
+            {
+                CheckUnaryNode(right, model, diagnostics);
+            }
+            else if(rightNode is RangeExpressionRangeNode rightRange)
+            {
+                CheckRange(rightRange, model, diagnostics);
+            }
 
             // Route typing / error emission through overload resolution
             // (Requirements 6.1, 6.4, 6.7). Multiplicative operators
             // (*, /, %) are declared on each numeric stdlib type; the old
             // NumericTypes / IsNumeric special case is removed.
-            var op = node.Operator.Lexeme ?? "*";
+            var op = group.Operator.Lexeme ?? "*";
             ResolveBinaryOperator(
                 op,
-                node.Left,
-                node.Right,
+                currentLeft,
+                group.Right,
                 node,
                 TypeCheckDiagnostics.OperatorNotApplicableArithmetic,
                 model,
                 diagnostics);
+            currentLeft = node;
         }
     }
 
@@ -9371,6 +9556,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         diagnostics);
                     break;
                 }
+            case FromEndExpressionUnaryNode fromEnd:
+                {
+                    // Walk the operand first so its own operators / members
+                    // still get analysed, then validate the operand type.
+                    CheckUnaryNode(fromEnd.Operand, model, diagnostics);
+                    CheckFromEndExpression(fromEnd, model, diagnostics);
+                    break;
+                }
             case PostfixExpressionUnaryNode postfix:
                 CheckPostfixNode(postfix.Primary, model, diagnostics);
                 // Propagate refined type from the PostfixNode up to the
@@ -9398,6 +9591,168 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 CheckAwaitOperandType(awaitExpr, model, diagnostics);
                 break;
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Index-from-end operand validation (MIST_TC_0181 / MIST_TC_0182)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Validates the operand of an index-from-end expression (<c>^operand</c>).
+    /// The operand must be integer-compatible, in which case the expression is
+    /// accepted (Requirement 6.1). A <c>void</c>-typed operand emits
+    /// <see cref="TypeCheckDiagnostics.IndexFromEndOperandVoid"/> (MIST_TC_0182,
+    /// Requirement 6.3); any other non-integer operand emits
+    /// <see cref="TypeCheckDiagnostics.IndexFromEndOperandNotInteger"/>
+    /// (MIST_TC_0181, Requirements 6.2, 12.1), naming the operand type. Exactly
+    /// one diagnostic is emitted, located at the index-from-end expression's
+    /// source span. When the operand already resolved to an unknown or error
+    /// type (a prior error that produced its own diagnostic), the check is
+    /// suppressed to avoid cascading diagnostics — mirroring the sibling unary
+    /// operand checks in this file.
+    /// </summary>
+    private static void CheckFromEndExpression(
+        FromEndExpressionUnaryNode fromEnd,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var operandType = model.GetTypeOf(fromEnd.Operand);
+
+        // Suppress cascading diagnostics when the operand type is unresolved or
+        // already reported as an error upstream.
+        if(operandType is null or UnknownType || IsErrorType(operandType))
+        {
+            return;
+        }
+
+        // Integer-compatible operand — accept (Requirement 6.1).
+        if(IsIntLike(operandType))
+        {
+            return;
+        }
+
+        // A void-typed operand gets the dedicated diagnostic (Requirement 6.3),
+        // never the generic non-integer one.
+        if(operandType.IsVoid())
+        {
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.IndexFromEndOperandVoid, fromEnd, "TypeChecker");
+            return;
+        }
+
+        // Any other non-integer operand type (Requirements 6.2, 12.1).
+        diagnostics.ReportAtNode(TypeCheckDiagnostics.IndexFromEndOperandNotInteger, fromEnd, "TypeChecker", operandType.DisplayName);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Range bound validation (MIST_TC_0183)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Validates the bounds of a range expression (<c>start..end</c>). Each
+    /// syntactically present bound (either may be absent) is first walked so its
+    /// own nested operators and member accesses — including a from-end bound's
+    /// operand — are still analysed, then its resolved type is checked: an
+    /// integer-compatible bound (Requirement 7.1) or a <c>Standard.Index</c>
+    /// bound (Requirement 7.2) is accepted. A present bound with any other type
+    /// rejects the <em>entire</em> range with exactly one
+    /// <see cref="TypeCheckDiagnostics.RangeBoundInvalidType"/> (MIST_TC_0183,
+    /// Requirements 7.3, 12.2), naming the offending bound type and pointing at
+    /// that bound's source span. An absent bound is always valid and denotes the
+    /// start or end of the sequence (Requirement 7.4); a present-but-invalid
+    /// bound is never treated as absent (Requirement 7.5). A bound that already
+    /// resolved to an unknown or error type (a prior error that produced its own
+    /// diagnostic) is skipped to avoid cascading diagnostics, mirroring
+    /// <see cref="CheckFromEndExpression"/>.
+    /// </summary>
+    private void CheckRange(
+        RangeExpressionRangeNode range,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Walk each present bound first so nested operators / members (and a
+        // from-end bound's own operand) are still analysed.
+        if(range.Start is not null)
+        {
+            CheckUnaryNode(range.Start, model, diagnostics);
+        }
+
+        if(range.End is not null)
+        {
+            CheckUnaryNode(range.End, model, diagnostics);
+        }
+
+        // Validate the present bounds. The whole range is rejected on the first
+        // invalid present bound, so at most one MIST_TC_0183 is emitted.
+        if(!ValidateRangeBound(range.Start, model, diagnostics))
+        {
+            return;
+        }
+
+        _ = ValidateRangeBound(range.End, model, diagnostics);
+    }
+
+    /// <summary>
+    /// Validates a single range bound. Returns <c>true</c> when the bound is
+    /// absent (Requirement 7.4), integer-compatible (Requirement 7.1),
+    /// <c>Standard.Index</c> (Requirement 7.2), or already error-typed
+    /// (suppressed to avoid cascading diagnostics); returns <c>false</c> and
+    /// emits <see cref="TypeCheckDiagnostics.RangeBoundInvalidType"/>
+    /// (MIST_TC_0183) when the bound is present with an invalid type
+    /// (Requirements 7.3, 7.5, 12.2).
+    /// </summary>
+    private static bool ValidateRangeBound(
+        UnaryNode? bound,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Absent bound — always valid (Requirement 7.4).
+        if(bound is null)
+        {
+            return true;
+        }
+
+        var boundType = model.GetTypeOf(bound);
+
+        // Suppress cascading diagnostics when the bound type is unresolved or
+        // already reported as an error upstream.
+        if(boundType is null or UnknownType || IsErrorType(boundType))
+        {
+            return true;
+        }
+
+        // Integer-compatible bound (Requirement 7.1) or Standard.Index bound
+        // (Requirement 7.2) — accept.
+        if(IsIntLike(boundType) || IsStandardIndex(boundType))
+        {
+            return true;
+        }
+
+        // Any other present bound type rejects the entire range (Requirements
+        // 7.3, 7.5, 12.2), naming the offending bound type and pointing at the
+        // bound's source span.
+        diagnostics.ReportAtNode(TypeCheckDiagnostics.RangeBoundInvalidType, bound, "TypeChecker", boundType.DisplayName);
+        return false;
+    }
+
+    /// <summary>
+    /// Returns true when <paramref name="type"/> is the stdlib
+    /// <c>Standard.Index</c> struct (surfaced from <c>System.Index</c>), used to
+    /// accept an index-from-end value as a range bound (Requirement 7.2).
+    /// </summary>
+    private static bool IsStandardIndex(IType type)
+    {
+        return type is StructType { ContainingNamespace: "Standard", DisplayName: "Index" };
+    }
+
+    /// <summary>
+    /// Returns true when <paramref name="type"/> is the stdlib
+    /// <c>Standard.Range</c> struct (surfaced from <c>System.Range</c>), used to
+    /// route a range-typed element-access argument through the sliceable-receiver
+    /// validation path (Requirements 8.7, 12.4).
+    /// </summary>
+    private static bool IsStandardRange(IType type)
+    {
+        return type is StructType { ContainingNamespace: "Standard", DisplayName: "Range" };
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -9661,7 +10016,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     break;
 
                 case InvocationSuffixPostfixSuffixNode invocation:
-                    CheckInvocationArguments(invocation, currentType, model, diagnostics);
+                    CheckInvocationArguments(invocation, currentType, node, model, diagnostics);
                     currentType = model.GetTypeOf(suffix);
                     targetIsTypeName = false;
                     break;
@@ -10802,7 +11157,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null; // Lambda form — not a simple postfix chain.
         }
 
-        if(assignment.Value is not null)
+        if(assignment.Group0?.Value is not null)
         {
             return null;
         }
@@ -10820,7 +11175,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var equality = logicalAnd.Left;
-        if(equality.Right is not null)
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -10831,24 +11186,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(cmp.Right is not null)
+        if(!cmp.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var additive = cmp.Left;
-        if(additive.Right is not null)
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive.Left;
-        if(multiplicative.Right is not null)
+        if(!multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
-        var unary = multiplicative.Left;
+        var unary = multiplicative.Left.UnwrapRange();
         if(unary is not PostfixExpressionUnaryNode postfixExpr)
         {
             return null;
@@ -10875,7 +11230,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null; // Lambda form — not an as expression.
         }
 
-        if(assignment.Value is not null)
+        if(assignment.Group0?.Value is not null)
         {
             return null;
         }
@@ -10899,7 +11254,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var equality = logicalAnd.Left;
-        if(equality.Right is not null)
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -10922,7 +11277,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null; // Lambda form — not a bare 'default'.
         }
 
-        if(assignment.Value is not null)
+        if(assignment.Group0?.Value is not null)
         {
             return null; // Has an assignment operator — not a simple expression.
         }
@@ -10940,7 +11295,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var equality = logicalAnd.Left;
-        if(equality.Right is not null)
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -10951,24 +11306,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(cmp1.Right is not null)
+        if(!cmp1.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var additive = cmp1.Left;
-        if(additive.Right is not null)
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive.Left;
-        if(multiplicative.Right is not null)
+        if(!multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
-        var unary = multiplicative.Left;
+        var unary = multiplicative.Left.UnwrapRange();
         if(unary is not PostfixExpressionUnaryNode postfixExpr)
         {
             return null;
@@ -11024,7 +11379,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // The assignment RHS is itself an AssignmentNode. If it has no further
         // assignment (Value is null), the expression is just the Target (LogicalOr).
-        if(assignment.Value is not null)
+        if(assignment.Group0?.Value is not null)
         {
             return;
         }
@@ -11056,7 +11411,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var equality = logicalAnd.Left;
-        if(equality.Right is not null)
+        if(!equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -11067,24 +11422,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(cmp2.Right is not null)
+        if(!cmp2.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var additive = cmp2.Left;
-        if(additive.Right is not null)
+        if(!additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive.Left;
-        if(multiplicative.Right is not null)
+        if(!multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
-        var unary = multiplicative.Left;
+        var unary = multiplicative.Left.UnwrapRange();
         if(unary is not PostfixExpressionUnaryNode postfixExpr)
         {
             return null;
@@ -11188,6 +11543,23 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if(methodCall.Arguments is not null)
         {
             CheckArgumentListExpressions(methodCall.Arguments, model, diagnostics);
+        }
+
+        // ── variadics value-side spread (task 14.1): general tuple decomposition ──
+        // A value-spread argument `x...` decomposes the tuple value into ordered
+        // argument slots. When it is the sole argument, check the tuple's element
+        // types positionally against the callee's parameter slots (MIST_VAR_0011);
+        // regardless of shape, a spread argument is handled here so the ordinary
+        // 1:1 argument-type check never mis-reports it as a single argument.
+        if(methodCall.Arguments is not null && ArgumentListContainsValueSpread(methodCall.Arguments))
+        {
+            if(TryGetSoleValueSpreadArgument(methodCall.Arguments, out var spreadPostfix))
+            {
+                var destinationSlots = ResolveMethodCallDestinationSlots(methodCall, targetType, model);
+                CheckDecomposedValueSpread(spreadPostfix, destinationSlots, model, diagnostics);
+            }
+
+            return;
         }
 
         // ── Flow narrowing: apply narrowed types to argument expressions ──
@@ -11562,6 +11934,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private void CheckInvocationArguments(
         InvocationSuffixPostfixSuffixNode invocation,
         IType? targetType,
+        PostfixNode containingPostfix,
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
@@ -11572,6 +11945,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if(invocation.Arguments is not null)
         {
             CheckArgumentListExpressions(invocation.Arguments, model, diagnostics);
+        }
+
+        // ── variadics value-side spread (task 14.1): general tuple decomposition ──
+        // A value-spread argument `x...` decomposes the tuple value into ordered
+        // argument slots. When it is the sole argument, check the tuple's element
+        // types positionally against the destination parameter slots (a Func value's
+        // parameter list or the invoked method's parameters), emitting MIST_VAR_0011
+        // on a slot-count or slot-type mismatch. A spread argument is handled here so
+        // the ordinary invocation-argument checks never mis-count it as one argument.
+        if(invocation.Arguments is not null && ArgumentListContainsValueSpread(invocation.Arguments))
+        {
+            if(TryGetSoleValueSpreadArgument(invocation.Arguments, out var spreadPostfix))
+            {
+                var destinationSlots = ResolveInvocationDestinationSlots(invocation, targetType, containingPostfix, model);
+                CheckDecomposedValueSpread(spreadPostfix, destinationSlots, model, diagnostics);
+            }
+
+            return;
         }
 
         // ── first-class-functions: Func-typed invocation validation ──
@@ -11693,10 +12084,26 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        // The Func type arguments are [P1, P2, ..., PN, TReturn].
-        // Parameter count is typeArgs.Count - 1.
-        var typeArgs = funcType.TypeArguments;
-        var expectedParamCount = typeArgs.Count - 1;
+        // Determine the Func parameter types. For a variadic Func<params TArgs, TResult>,
+        // the parameter types live in the pack's DependentValueArgument.PackElementTypes.
+        // For the legacy per-arity Func<T1, ..., TN, TResult>, the parameter types are
+        // TypeArguments[0..^1].
+        IReadOnlyList<IType> paramTypes;
+        if(funcType.DependentArguments is not null
+            && funcType.DependentArguments.Count > 0
+            && funcType.DependentArguments[0] is { PackElementTypes: { } packElements })
+        {
+            // Variadic form: pack element types are the parameter types.
+            paramTypes = packElements;
+        }
+        else
+        {
+            // Legacy per-arity form: all type arguments except the last are parameter types.
+            var typeArgs = funcType.TypeArguments;
+            paramTypes = typeArgs.Take(typeArgs.Count - 1).ToList();
+        }
+
+        var expectedParamCount = paramTypes.Count;
 
         // Collect actual argument types.
         var argTypes = CollectArgumentTypes(invocation.Arguments, model);
@@ -11713,7 +12120,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         for(var i = 0; i < actualArgCount; i++)
         {
             var argType = argTypes[i];
-            var paramType = typeArgs[i];
+            var paramType = paramTypes[i];
 
             // Skip error types to avoid cascading diagnostics.
             if(IsErrorType(argType) || IsErrorType(paramType))
@@ -12071,7 +12478,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null; // Lambda form — not a simple postfix chain.
         }
 
-        if(assignment.Value is not null)
+        if(assignment.Group0?.Value is not null)
         {
             return null;
         }
@@ -12089,7 +12496,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var equality = logicalAnd?.Left;
-        if(equality?.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        if(equality is not null && !equality.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
@@ -12099,24 +12506,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if(relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
+        if(!relCmp.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var additive = relCmp.Left;
-        if(additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        if(additive is not null && !additive.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
         var multiplicative = additive?.Left;
-        if(multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        if(multiplicative is not null && !multiplicative.Group0.IsDefaultOrEmpty)
         {
             return null;
         }
 
-        if(multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+        if(multiplicative?.Left.UnwrapRange() is not PostfixExpressionUnaryNode postfixUnary)
         {
             return null;
         }
@@ -12333,8 +12740,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Collect argument nodes for ref-argument detection.
         var argNodes = CollectArgumentNodes(argList);
 
-        // Check each argument against the corresponding parameter.
-        var count = Math.Min(argExprs.Count, paramSymbols.Length);
+        // Variadics value-level params (Requirements 13.2, 13.3, 13.7):
+        // Detect if the last parameter is a `params T[]` so trailing arguments
+        // are checked against the element type T rather than the array type T[].
+        IType? valueLevelParamsElementType = null;
+        var fixedParamCount = paramSymbols.Length;
+        if(paramSymbols.Length > 0
+            && paramSymbols[^1] is Symbol lastParamSym
+            && lastParamSym.HasFlattenedCallConvention
+            && lastParamSym.DeclaredType is ArrayType lastArrayType)
+        {
+            valueLevelParamsElementType = lastArrayType.ElementType;
+            fixedParamCount = paramSymbols.Length - 1;
+        }
+
+        // Check fixed (non-params) arguments against corresponding parameters.
+        var count = valueLevelParamsElementType is not null
+            ? Math.Min(argExprs.Count, fixedParamCount)
+            : Math.Min(argExprs.Count, paramSymbols.Length);
         for(var i = 0; i < count; i++)
         {
             var argType = model.GetTypeOf(argExprs[i]);
@@ -12343,10 +12766,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if(argType is not null && paramType is not null)
             {
                 // ── ref-parameters feature: exact type match (MIST_REF_0007) ──
-                // When the argument is a ref argument, require exact type identity
-                // (no implicit conversions, no subtype substitution).
-                // Only check if the argument passed the assignable storage location
-                // check (no cascading with MIST_REF_0001).
                 if(i < argNodes.Count && argNodes[i] is RefArgumentArgumentNode refArgNode)
                 {
                     if(IsAssignableStorageLocation(refArgNode.Expression, model, out _)
@@ -12359,8 +12778,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
 
                 // ── MIST2007: Ref struct abstract argument restriction (Requirements 3.11, 3.12) ──
-                // A ref struct value cannot be passed as an argument to an abstract-typed parameter
-                // because that would require boxing (heap allocation).
                 if(IsRefStructType(argType) && IsAbstractTargetType(paramType))
                 {
                     diagnostics.ReportAtNode(TypeCheckDiagnostics.RefStructToAbstract, argExprs[i], "TypeChecker");
@@ -12368,16 +12785,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
 
                 // ── refinement-types feature: compile-time enforcement ──
-                // When the parameter is a RefinementType, check the argument
-                // against the refinement predicate (Requirement 5.3).
                 if(TryCheckRefinementAssignment(argType, paramType, argExprs[i], diagnostics, model))
                 {
                     continue;
                 }
 
-                // ── regex-type feature: string literal shorthand (Requirements 6.5, 6.8, 6.9, 6.10) ──
-                // When the parameter is regex and the argument is string, apply
-                // the string→regex conversion rules.
+                // ── regex-type feature: string literal shorthand ──
                 if(TryCheckStringToRegexAssignment(argType, paramType, argExprs[i], diagnostics, model))
                 {
                     continue;
@@ -12385,30 +12798,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                 if(!IsAssignable(argType, paramType))
                 {
-                    // unknown-type feature (Req 4.2, 4.4): emit a targeted
-                    // diagnostic for void→unknown or unknown→non-unknown
-                    // before falling back to the generic MIST_TC_0002.
                     if(TryEmitUnknownAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics))
                     {
-                        // Targeted unknown diagnostic emitted; skip generic.
                     }
-                    // type-unions feature (Req 6.3, 6.4): emit a targeted
-                    // diagnostic for union-specific failures.
                     else if(TryEmitUnionAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics))
                     {
-                        // Targeted union diagnostic emitted; skip generic.
                     }
-                    // enums feature (Req 7.3): emit a targeted diagnostic
-                    // for reverse conversion (underlying type → enum).
                     else if(TryEmitEnumAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
                     {
-                        // Targeted enum diagnostic emitted; skip generic.
                     }
-                    // stack-only-types feature (R7.7): emit a targeted diagnostic
-                    // for span-to-span mismatch (kind or element type).
                     else if(TryEmitSpanInteropMismatchDiagnostic(argType, paramType, argExprs[i], diagnostics))
                     {
-                        // Targeted span mismatch diagnostic emitted; skip generic.
                     }
                     else
                     {
@@ -12417,8 +12817,23 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
                 else
                 {
-                    // Resolve and record any implicit cast operator on the argument.
                     _ = TryResolveImplicitCast(argType, paramType, argExprs[i], model, diagnostics);
+                }
+            }
+        }
+
+        // Variadics value-level params: check trailing arguments against element type T.
+        // Requirement 13.2: collect trailing args assignable to T.
+        // Requirement 13.3: zero trailing args is valid (empty array).
+        // Requirement 13.7: non-assignable trailing arg emits type error.
+        if(valueLevelParamsElementType is not null)
+        {
+            for(var i = fixedParamCount; i < argExprs.Count; i++)
+            {
+                var argType = model.GetTypeOf(argExprs[i]);
+                if(argType is not null && !IsAssignable(argType, valueLevelParamsElementType))
+                {
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.ExpressionBodyTypeMismatch, argExprs[i], "TypeChecker");
                 }
             }
         }
@@ -12494,8 +12909,36 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Collect argument nodes for ref-argument detection.
         var argNodes = CollectArgumentNodes(argList);
 
-        // Check each argument against the corresponding parameter, applying substitution.
-        var count = Math.Min(argExprs.Count, paramSymbols.Length);
+        // Variadics value-level params (Requirements 13.2, 13.3, 13.7):
+        // Detect if the last parameter is a `params T[]` so trailing arguments
+        // are checked against the element type T rather than the array type T[].
+        IType? valueLevelParamsElementType = null;
+        var fixedParamCount = paramSymbols.Length;
+        if(paramSymbols.Length > 0
+            && paramSymbols[^1] is Symbol lastParamSymSub
+            && lastParamSymSub.HasFlattenedCallConvention
+            && lastParamSymSub.DeclaredType is ArrayType lastArrayTypeSub)
+        {
+            valueLevelParamsElementType = lastArrayTypeSub.ElementType;
+
+            // Apply substitutions to the element type.
+            if(enclosingTypeParams is not null && enclosingTypeArgs is not null)
+            {
+                valueLevelParamsElementType = SubstituteType(valueLevelParamsElementType, enclosingTypeParams, enclosingTypeArgs);
+            }
+
+            if(methodTypeParams is not null && methodTypeArgs is not null)
+            {
+                valueLevelParamsElementType = SubstituteType(valueLevelParamsElementType, methodTypeParams, methodTypeArgs);
+            }
+
+            fixedParamCount = paramSymbols.Length - 1;
+        }
+
+        // Check fixed (non-params) arguments against corresponding parameters, applying substitution.
+        var count = valueLevelParamsElementType is not null
+            ? Math.Min(argExprs.Count, fixedParamCount)
+            : Math.Min(argExprs.Count, paramSymbols.Length);
         for(var i = 0; i < count; i++)
         {
             var argType = model.GetTypeOf(argExprs[i]);
@@ -12516,10 +12959,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
 
                 // ── ref-parameters feature: exact type match (MIST_REF_0007) ──
-                // When the argument is a ref argument, require exact type identity
-                // (no implicit conversions, no subtype substitution).
-                // Only check if the argument passed the assignable storage location
-                // check (no cascading with MIST_REF_0001).
                 if(i < argNodes.Count && argNodes[i] is RefArgumentArgumentNode refArgNode)
                 {
                     if(IsAssignableStorageLocation(refArgNode.Expression, model, out _)
@@ -12532,8 +12971,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
 
                 // ── MIST2007: Ref struct abstract argument restriction (Requirements 3.11, 3.12) ──
-                // A ref struct value cannot be passed as an argument to an abstract-typed parameter
-                // because that would require boxing (heap allocation).
                 if(IsRefStructType(argType) && IsAbstractTargetType(paramType))
                 {
                     diagnostics.ReportAtNode(TypeCheckDiagnostics.RefStructToAbstract, argExprs[i], "TypeChecker");
@@ -12541,16 +12978,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
 
                 // ── refinement-types feature: compile-time enforcement ──
-                // When the parameter is a RefinementType, check the argument
-                // against the refinement predicate (Requirement 5.3).
                 if(TryCheckRefinementAssignment(argType, paramType, argExprs[i], diagnostics, model))
                 {
                     continue;
                 }
 
-                // ── regex-type feature: string literal shorthand (Requirements 6.5, 6.8, 6.9, 6.10) ──
-                // When the parameter is regex and the argument is string, apply
-                // the string→regex conversion rules.
+                // ── regex-type feature: string literal shorthand ──
                 if(TryCheckStringToRegexAssignment(argType, paramType, argExprs[i], diagnostics, model))
                 {
                     continue;
@@ -12558,30 +12991,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                 if(!IsAssignable(argType, paramType))
                 {
-                    // unknown-type feature (Req 4.2, 4.4): emit a targeted
-                    // diagnostic for void→unknown or unknown→non-unknown
-                    // before falling back to the generic MIST_TC_0002.
                     if(TryEmitUnknownAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics))
                     {
-                        // Targeted unknown diagnostic emitted; skip generic.
                     }
-                    // type-unions feature (Req 6.3, 6.4): emit a targeted
-                    // diagnostic for union-specific failures.
                     else if(TryEmitUnionAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics))
                     {
-                        // Targeted union diagnostic emitted; skip generic.
                     }
-                    // enums feature (Req 7.3): emit a targeted diagnostic
-                    // for reverse conversion (underlying type → enum).
                     else if(TryEmitEnumAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
                     {
-                        // Targeted enum diagnostic emitted; skip generic.
                     }
-                    // stack-only-types feature (R7.7): emit a targeted diagnostic
-                    // for span-to-span mismatch (kind or element type).
                     else if(TryEmitSpanInteropMismatchDiagnostic(argType, paramType, argExprs[i], diagnostics))
                     {
-                        // Targeted span mismatch diagnostic emitted; skip generic.
                     }
                     else
                     {
@@ -12590,8 +13010,20 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
                 else
                 {
-                    // Resolve and record any implicit cast operator on the argument.
                     _ = TryResolveImplicitCast(argType, paramType, argExprs[i], model, diagnostics);
+                }
+            }
+        }
+
+        // Variadics value-level params: check trailing arguments against element type T.
+        if(valueLevelParamsElementType is not null)
+        {
+            for(var i = fixedParamCount; i < argExprs.Count; i++)
+            {
+                var argType = model.GetTypeOf(argExprs[i]);
+                if(argType is not null && !IsAssignable(argType, valueLevelParamsElementType))
+                {
+                    diagnostics.ReportAtNode(TypeCheckDiagnostics.ExpressionBodyTypeMismatch, argExprs[i], "TypeChecker");
                 }
             }
         }
@@ -13404,6 +13836,31 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
     }
 
+    /// <summary>
+    /// Validates an element-access <c>receiver[argument]</c> (an
+    /// <see cref="IndexSuffixPostfixSuffixNode"/>), branching on the argument's
+    /// Compile_Time_Type:
+    /// <list type="bullet">
+    /// <item>a <c>Standard.Index</c> argument (e.g. from <c>^k</c>) requires an
+    /// indexable receiver (<see cref="SemanticModelBuilder.IsIndexableType"/>),
+    /// otherwise <see cref="TypeCheckDiagnostics.IndexAccessRequiresIndexable"/>
+    /// (MIST_TC_0184) is emitted naming the receiver type (Req 8.6, 12.3);</item>
+    /// <item>a <c>Standard.Range</c> argument (e.g. from <c>a..b</c>) requires a
+    /// sliceable receiver (<see cref="SemanticModelBuilder.IsSliceableType"/>),
+    /// otherwise <see cref="TypeCheckDiagnostics.RangeAccessRequiresSliceable"/>
+    /// (MIST_TC_0185) is emitted naming the receiver type (Req 8.7, 12.4);</item>
+    /// <item>an ordinary integer argument or a matching custom indexer keeps its
+    /// existing validation (<see cref="TypeCheckDiagnostics.IndexerParameterTypeMismatch"/>
+    /// and the index-refinement checks below), unchanged.</item>
+    /// </list>
+    /// The <c>Index</c>/<c>Range</c> branches short-circuit the integer/custom-indexer
+    /// path (an <c>Index</c>/<c>Range</c> value is deliberately not <c>int</c>-like).
+    /// An argument or receiver type that resolved to an unknown or error type (a prior
+    /// error that produced its own diagnostic) is suppressed to avoid cascading
+    /// diagnostics, mirroring <see cref="CheckFromEndExpression"/> and
+    /// <see cref="CheckRange"/>. The diagnostic is reported at the element-access span
+    /// (Req 12.3, 12.4).
+    /// </summary>
     private void CheckIndexSuffix(
         IndexSuffixPostfixSuffixNode indexSuffix,
         IType? targetType,
@@ -13414,6 +13871,42 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         CheckExpression(indexSuffix.Index, model, diagnostics);
 
         var indexType = model.GetTypeOf(indexSuffix.Index);
+
+        // Branch on the argument's resolved type (ranges-and-indices, Req 8.6, 8.7,
+        // 12.3, 12.4). A Standard.Index / Standard.Range argument follows a dedicated
+        // receiver-validation path that short-circuits the ordinary integer /
+        // custom-indexer validation below. Suppress when the argument type is
+        // unresolved or already reported as an error upstream.
+        if(indexType is not null and not UnknownType && !IsErrorType(indexType))
+        {
+            if(IsStandardIndex(indexType))
+            {
+                // Index-from-end (or direct Index) access requires a countable,
+                // indexable receiver (Req 8.6, 12.3).
+                if(targetType is not null and not UnknownType && !IsErrorType(targetType)
+                    && !SemanticModelBuilder.IsIndexableType(targetType))
+                {
+                    diagnostics.ReportAtNode(
+                        TypeCheckDiagnostics.IndexAccessRequiresIndexable, indexSuffix, "TypeChecker", targetType.DisplayName);
+                }
+
+                return;
+            }
+
+            if(IsStandardRange(indexType))
+            {
+                // Range slicing requires a sliceable receiver (Req 8.7, 12.4).
+                if(targetType is not null and not UnknownType && !IsErrorType(targetType)
+                    && !SemanticModelBuilder.IsSliceableType(targetType))
+                {
+                    diagnostics.ReportAtNode(
+                        TypeCheckDiagnostics.RangeAccessRequiresSliceable, indexSuffix, "TypeChecker", targetType.DisplayName);
+                }
+
+                return;
+            }
+        }
+
         var hasCustomIndexer = false;
 
         // If the target type has a custom indexer (e.g., Dictionary<TKey, TValue>),
@@ -14008,7 +14501,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 {
                     if(typeParams[i] is TypeParameterType tp5848)
                     {
-                        CheckConstraintSatisfaction(typeArgs[i], tp5848, objectCreation, genericName, model, diagnostics);
+                        // Requirement 11: whole-pack constraint — check each element independently.
+                        if(tp5848.IsPack
+                            && constructedForConstraints.DependentArguments is not null
+                            && i < constructedForConstraints.DependentArguments.Count
+                            && constructedForConstraints.DependentArguments[i] is { PackElementTypes: { } packElements })
+                        {
+                            CheckPackConstraintSatisfaction(packElements, tp5848, objectCreation, model, diagnostics);
+                        }
+                        else
+                        {
+                            CheckConstraintSatisfaction(typeArgs[i], tp5848, objectCreation, genericName, model, diagnostics);
+                        }
                     }
                 }
             }
@@ -14160,7 +14664,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 {
                     if(typeParams[i] is TypeParameterType tp)
                     {
-                        CheckConstraintSatisfaction(typeArgs[i], tp, objectCreation, genericName, model, diagnostics);
+                        // Requirement 11: whole-pack constraint — check each element independently.
+                        if(tp.IsPack
+                            && constructedForConstraints.DependentArguments is not null
+                            && i < constructedForConstraints.DependentArguments.Count
+                            && constructedForConstraints.DependentArguments[i] is { PackElementTypes: { } packElements })
+                        {
+                            CheckPackConstraintSatisfaction(packElements, tp, objectCreation, model, diagnostics);
+                        }
+                        else
+                        {
+                            CheckConstraintSatisfaction(typeArgs[i], tp, objectCreation, genericName, model, diagnostics);
+                        }
                     }
                 }
             }
@@ -14807,6 +15322,29 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         if(argTypes.Count != paramTypes.Count)
         {
+            // Variadics: a value-pack parameter (params TArgs values) has declared type
+            // TupleType([pack]). When the created type is a ConstructedType with DependentArguments
+            // that bind the pack to N concrete types, the constructor accepts N arguments at that
+            // parameter position. Check if the argument count matches after expansion.
+            if(createdType is ConstructedType ctForPack && ctForPack.DependentArguments is not null)
+            {
+                var expandedParamTypes = TryExpandVariadicConstructorParams(
+                    paramTypes, ctForPack, GetTypeParameters(ctForPack.GenericDefinition));
+                if(expandedParamTypes is not null && expandedParamTypes.Count == argTypes.Count)
+                {
+                    // Use the expanded param types for comparison instead.
+                    for(var i = 0; i < argTypes.Count; i++)
+                    {
+                        if(!IsAssignable(argTypes[i], expandedParamTypes[i]))
+                        {
+                            return false;
+                        }
+                    }
+
+                    return true;
+                }
+            }
+
             return false;
         }
 
@@ -14867,6 +15405,67 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     // ═══════════════════════════════════════════════════════════════════════
     // Access modifier enforcement (MIST_TC_0014, MIST_TC_0015, MIST_TC_0016)
     // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Expands a variadic constructor's parameter list by replacing any value-pack
+    /// TupleType parameter (whose single element is a pack TypeParameterType) with
+    /// the concrete element types from the ConstructedType's DependentArguments.
+    /// Returns null if no expansion is possible (no pack parameters found or no
+    /// DependentArguments available).
+    /// </summary>
+    private static IReadOnlyList<IType>? TryExpandVariadicConstructorParams(
+        List<IType> paramTypes,
+        ConstructedType constructedType,
+        IReadOnlyList<IType>? typeParams)
+    {
+        if(typeParams is null || constructedType.DependentArguments is null)
+        {
+            return null;
+        }
+
+        var expanded = new List<IType>();
+        var anyExpanded = false;
+
+        foreach(var paramType in paramTypes)
+        {
+            if(paramType is TupleType tupleParam
+                && tupleParam.ElementTypes.Count == 1
+                && tupleParam.ElementTypes[0] is TypeParameterType { IsPack: true } packParam)
+            {
+                // Find the pack's ordinal in the type parameter list.
+                var packOrdinal = -1;
+                for(var i = 0; i < typeParams.Count; i++)
+                {
+                    if(typeParams[i] is TypeParameterType tp && tp.Name == packParam.Name)
+                    {
+                        packOrdinal = i;
+                        break;
+                    }
+                }
+
+                if(packOrdinal >= 0
+                    && packOrdinal < constructedType.DependentArguments.Count
+                    && constructedType.DependentArguments[packOrdinal] is { IsPack: true } depArg
+                    && depArg.PackElementTypes is not null)
+                {
+                    expanded.AddRange(depArg.PackElementTypes);
+                    anyExpanded = true;
+                    continue;
+                }
+            }
+
+            // Non-pack parameter: substitute type parameters with type arguments.
+            var substituted = paramType;
+            if(typeParams.Count > 0)
+            {
+                substituted = SubstituteType(paramType, typeParams, constructedType.TypeArguments);
+            }
+
+            expanded.Add(substituted);
+        }
+
+        return anyExpanded ? expanded : null;
+    }
 
     /// <summary>
     /// Determines whether the target of a postfix expression is a type name
@@ -17941,10 +18540,874 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return false;
             }
 
+            // A pack slot binds a comptime Type[] value (the [int, string] in Foo<[int, string]>).
+            // Two constructed variadic types are equal only when their pack slots bind equal Type[]
+            // values, so identity is order-sensitive and arity-sensitive (Requirements 5.1-5.4). A
+            // pack's Type[] value is never equal to a scalar dependent value.
+            if(argA.PackElementTypes is not null || argB.PackElementTypes is not null)
+            {
+                if(argA.PackElementTypes is null || argB.PackElementTypes is null)
+                {
+                    return false;
+                }
+
+                if(!PackElementTypesEqual(argA.PackElementTypes, argB.PackElementTypes))
+                {
+                    return false;
+                }
+
+                continue;
+            }
+
             if(!Equals(argA.Value, argB.Value))
             {
                 return false;
             }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Order- and arity-sensitive elementwise equality for two comptime <c>Type[]</c> values bound
+    /// to type-parameter pack slots (Requirement 5.2). Two values are equal exactly when they have
+    /// the same length and, at every index, their element types are equal under
+    /// <see cref="TypesEqual"/> — the same type-equality relation used for ordinary type arguments.
+    /// Order therefore matters (Requirement 5.3) and a differing length is a distinct pack arity
+    /// (Requirement 5.4), so <c>[int, string]</c>, <c>[string, int]</c>, <c>[int, string, bool]</c>,
+    /// and the empty <c>[]</c> are pairwise distinct.
+    /// </summary>
+    private static bool PackElementTypesEqual(IReadOnlyList<IType> a, IReadOnlyList<IType> b)
+    {
+        if(a.Count != b.Count)
+        {
+            return false;
+        }
+
+        for(var i = 0; i < a.Count; i++)
+        {
+            if(!TypesEqual(a[i], b[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // ── Variadics: the shared flat-to-bracketed binding rule (Requirement 4, 7.4, 7.6) ──
+    //
+    // Given a declared slot list with at most one unbracketed (params) pack and a use-site
+    // argument list, BindPackSlots binds the fixed scalar and bracketed Type[]: slots one-to-one
+    // inward from both ends and assigns the remaining contiguous middle (possibly empty) to the
+    // single unbracketed pack. It is the classic-track counterpart of the ProgramModel PackBinder
+    // and is kind-driven so the same algorithm serves both the type-argument side (folding a flat
+    // list such as Foo<int, string> into the canonical bracketed form Foo<[int, string]>) and the
+    // value-parameter side (collecting the contiguous middle arguments into the value pack tuple
+    // (TArgs...)). SemanticModelBuilder invokes it while constructing variadic types, and reports
+    // a too-short argument list as MIST_VAR_0005.
+
+    /// <summary>
+    /// The binding role of one declared slot. Fixed scalar slots and bracketed <c>Type[]:</c>
+    /// packs each consume exactly one use-site argument (binding inward from both ends); the
+    /// single unbracketed <c>params</c> pack absorbs the contiguous middle.
+    /// </summary>
+    internal enum PackBindingSlotKind
+    {
+        /// <summary>An ordinary scalar slot (a regular non-pack type parameter, or a fixed value
+        /// parameter). Consumes exactly one use-site argument.</summary>
+        Fixed,
+
+        /// <summary>An explicit <c>Type[]:</c> pack supplied in brackets at the use site. Consumes
+        /// exactly one use-site argument (a bracketed group).</summary>
+        BracketedPack,
+
+        /// <summary>The list's single bracket-free <c>params</c> pack. Absorbs the contiguous
+        /// middle arguments (possibly zero).</summary>
+        UnbracketedPack,
+    }
+
+    /// <summary>
+    /// A resolved use-site argument: either a single scalar type (for example the <c>int</c> in
+    /// <c>Foo&lt;int, string&gt;</c>) or a bracketed group (for example the <c>[int, string]</c>
+    /// in <c>Foo&lt;[int, string]&gt;</c>, including the empty group <c>[]</c>).
+    /// </summary>
+    internal readonly struct PackUseSiteArgument
+    {
+        private PackUseSiteArgument(bool isBracketedGroup, IReadOnlyList<IType> types)
+        {
+            IsBracketedGroup = isBracketedGroup;
+            Types = types;
+        }
+
+        /// <summary>True when this argument was written as a bracketed group <c>[...]</c>.</summary>
+        public bool IsBracketedGroup { get; }
+
+        /// <summary>The argument's element types: a single element for a scalar, or the group's
+        /// ordered elements (possibly zero) for a bracketed group.</summary>
+        public IReadOnlyList<IType> Types { get; }
+
+        /// <summary>Creates a scalar argument carrying a single type.</summary>
+        public static PackUseSiteArgument Scalar(IType type)
+        {
+            return new PackUseSiteArgument(isBracketedGroup: false, new[] { type });
+        }
+
+        /// <summary>Creates a bracketed-group argument carrying the group's ordered element types.</summary>
+        public static PackUseSiteArgument Group(IReadOnlyList<IType> types)
+        {
+            return new PackUseSiteArgument(isBracketedGroup: true, types);
+        }
+    }
+
+    /// <summary>
+    /// The binding of one declared slot: an ordered element list plus whether the slot is a pack.
+    /// A fixed slot carries a single scalar element; a pack slot carries the ordered pack elements
+    /// (which the caller lifts into a comptime <c>Type[]</c> value).
+    /// </summary>
+    internal readonly struct PackSlotBinding
+    {
+        public PackSlotBinding(bool isPack, IReadOnlyList<IType> elements)
+        {
+            IsPack = isPack;
+            Elements = elements;
+        }
+
+        /// <summary>True when this slot is a pack (bracketed or unbracketed); false for a fixed
+        /// scalar slot.</summary>
+        public bool IsPack { get; }
+
+        /// <summary>The ordered element types bound to this slot. For a fixed slot this is a
+        /// single scalar type; for a pack slot it is the ordered pack elements (possibly empty).</summary>
+        public IReadOnlyList<IType> Elements { get; }
+    }
+
+    /// <summary>Whether <see cref="BindPackSlots"/> produced a binding or rejected the argument
+    /// list as too short (reported by the caller as <c>MIST_VAR_0005</c>).</summary>
+    internal enum PackBindingStatus
+    {
+        /// <summary>Every slot was bound.</summary>
+        Bound,
+
+        /// <summary>The flat argument list was too short to fill the fixed and bracketed slots.</summary>
+        TooFewArguments,
+    }
+
+    /// <summary>The outcome of the binding rule: a status and, when bound, one
+    /// <see cref="PackSlotBinding"/> per declared slot in declaration order.</summary>
+    internal readonly struct PackBindingOutcome
+    {
+        private PackBindingOutcome(PackBindingStatus status, IReadOnlyList<PackSlotBinding> slots)
+        {
+            Status = status;
+            Slots = slots;
+        }
+
+        public PackBindingStatus Status { get; }
+
+        public IReadOnlyList<PackSlotBinding> Slots { get; }
+
+        public static PackBindingOutcome Bound(IReadOnlyList<PackSlotBinding> slots)
+        {
+            return new PackBindingOutcome(PackBindingStatus.Bound, slots);
+        }
+
+        public static PackBindingOutcome TooFew()
+        {
+            return new PackBindingOutcome(PackBindingStatus.TooFewArguments, Array.Empty<PackSlotBinding>());
+        }
+    }
+
+    /// <summary>
+    /// The shared flat-to-bracketed binding rule (Requirement 4 and the design's
+    /// "Value-Parameter Arity and the Shared Binding Rule"). Given a declared slot list with at
+    /// most one <see cref="PackBindingSlotKind.UnbracketedPack"/> and a use-site argument list,
+    /// binds fixed scalar and bracketed pack slots one-to-one inward from both ends and assigns
+    /// the remaining contiguous middle arguments (possibly zero) to the single unbracketed pack,
+    /// so the pack may appear leading, middle, or trailing and may absorb an empty middle
+    /// (Requirements 4.1, 4.2, 4.3). Returns <see cref="PackBindingStatus.TooFewArguments"/> when
+    /// the flat list is shorter than the number of fixed and bracketed slots (the minimum required
+    /// while the pack absorbs zero arguments), which the caller reports as <c>MIST_VAR_0005</c>
+    /// (Requirements 4.6, 7.6).
+    /// <para>
+    /// The rule is kind-driven and free of any model dependency beyond <see cref="IType"/>, so the
+    /// same algorithm serves both the type side (fixed scalar slots, bracketed <c>Type[]:</c>
+    /// packs, and the single <c>params</c> pack of a type-parameter list) and the value side (fixed
+    /// value parameters and the single value pack <c>params TArgs args</c>, whose contiguous middle
+    /// collects into <c>(TArgs...)</c>). It is the classic-track counterpart of the ProgramModel
+    /// <c>PackBinder</c>; a caller lifts each pack slot's element list into a comptime
+    /// <c>Type[]</c>, so the flat and bracketed forms of the same pack denote the same type
+    /// (Requirement 4.4).
+    /// </para>
+    /// </summary>
+    internal static PackBindingOutcome BindPackSlots(
+        IReadOnlyList<PackBindingSlotKind> slots,
+        IReadOnlyList<PackUseSiteArgument> arguments)
+    {
+        // The variadic sink is the list's first (and, when well-formed, only) unbracketed pack;
+        // a surplus unbracketed pack is already reported as MIST_VAR_0001 during model
+        // construction, so the binder may rely on there being zero or one.
+        var packIndex = -1;
+        for(var i = 0; i < slots.Count; i++)
+        {
+            if(slots[i] == PackBindingSlotKind.UnbracketedPack)
+            {
+                packIndex = i;
+                break;
+            }
+        }
+
+        var leadingCount = packIndex >= 0 ? packIndex : slots.Count;
+        var trailingCount = packIndex >= 0 ? slots.Count - packIndex - 1 : 0;
+
+        // Requirement 4.6 / 7.6: a flat argument list that cannot fill every fixed and bracketed
+        // slot (with the pack empty) is too short to bind.
+        var minimumRequired = leadingCount + trailingCount;
+        if(arguments.Count < minimumRequired)
+        {
+            return PackBindingOutcome.TooFew();
+        }
+
+        var bindings = new PackSlotBinding[slots.Count];
+
+        // Leading fixed/bracketed slots take the leading arguments one-to-one, in order.
+        for(var i = 0; i < leadingCount; i++)
+        {
+            bindings[i] = BindArityOnePackSlot(slots[i], arguments[i]);
+        }
+
+        // Trailing fixed/bracketed slots take the trailing arguments one-to-one, in order.
+        for(var j = 0; j < trailingCount; j++)
+        {
+            var slotIndex = packIndex + 1 + j;
+            var argumentIndex = arguments.Count - trailingCount + j;
+            bindings[slotIndex] = BindArityOnePackSlot(slots[slotIndex], arguments[argumentIndex]);
+        }
+
+        // The single unbracketed pack absorbs the contiguous middle (possibly empty).
+        if(packIndex >= 0)
+        {
+            var middleElements = CollectPackElements(arguments, leadingCount, arguments.Count - trailingCount);
+            bindings[packIndex] = new PackSlotBinding(isPack: true, middleElements);
+        }
+
+        return PackBindingOutcome.Bound(bindings);
+    }
+
+    /// <summary>
+    /// Binds a single arity-1 slot (fixed scalar or bracketed pack) to its one use-site argument.
+    /// A fixed slot carries the argument's element(s) verbatim (a well-formed fixed argument is a
+    /// single scalar); a bracketed pack slot is marked as a pack whose elements are the group's
+    /// element types.
+    /// </summary>
+    private static PackSlotBinding BindArityOnePackSlot(PackBindingSlotKind slot, PackUseSiteArgument argument)
+    {
+        var isPack = slot != PackBindingSlotKind.Fixed;
+        return new PackSlotBinding(isPack, argument.Types);
+    }
+
+    /// <summary>
+    /// Collects the ordered element types the unbracketed pack binds from its contiguous middle
+    /// run <c>[start, end)</c>. A middle that is exactly one bracketed group is the pack's explicit
+    /// bracketed spelling, so its element types are used directly; otherwise the flat scalar middle
+    /// arguments contribute their types in order. Both spellings therefore produce the same ordered
+    /// element list, so the flat and bracketed forms denote the same type (Requirement 4.4).
+    /// </summary>
+    private static IReadOnlyList<IType> CollectPackElements(
+        IReadOnlyList<PackUseSiteArgument> arguments, int start, int end)
+    {
+        if(end - start == 1 && arguments[start].IsBracketedGroup)
+        {
+            return arguments[start].Types;
+        }
+
+        var elements = new List<IType>(Math.Max(0, end - start));
+        for(var i = start; i < end; i++)
+        {
+            elements.AddRange(arguments[i].Types);
+        }
+
+        return elements;
+    }
+
+    // ─── Value-side spread: general tuple decomposition (variadics, task 14.1) ──
+    //
+    // The value-side `...` operator decomposes a tuple value into ordered argument
+    // slots (Requirements 8.2, 8.3): every tuple value decomposes, with `args...`
+    // simply the case where the tuple originated from a pack, and a spread-generated
+    // aggregate `Item...` is re-spread as the tuple value it names (Requirement 10.9).
+    // A decomposition is well-typed if and only if the tuple's ordered element types
+    // are positionally assignable to the destination slots, else MIST_VAR_0011
+    // (Requirements 7.5, 8.4). Only tuples whose element types are concretely known
+    // are decided here; a symbolic value pack in an open generic body (its element
+    // types not yet bound) is left to the generic-enforcement task, and binding a
+    // flat argument list that mixes fixed arguments with a spread is left to the
+    // call-site binder task — a spread argument is nonetheless intercepted so it is
+    // never mis-reported by the ordinary one-to-one argument-type check.
+
+    /// <summary>
+    /// Whether a value-side spread decomposition is well-typed against its
+    /// destination slots, or the way it is ill-typed (Requirements 8.4, 7.5).
+    /// </summary>
+    internal enum ValueSpreadDecompositionStatus
+    {
+        /// <summary>The tuple's ordered element types are positionally assignable to
+        /// the destination slots (an empty tuple against zero slots is well-typed).</summary>
+        WellTyped,
+
+        /// <summary>The tuple's element count differs from the destination slot count.</summary>
+        SlotCountMismatch,
+
+        /// <summary>An element type is not assignable to its corresponding slot type;
+        /// the offending 0-based position is returned via the mismatch index.</summary>
+        SlotTypeMismatch,
+    }
+
+    /// <summary>
+    /// The pure decomposition well-typedness rule (Requirements 8.2, 8.4, 7.5): a
+    /// tuple decomposed into <paramref name="destinationSlots"/> is well-typed iff its
+    /// ordered <paramref name="tupleElements"/> match the slots one-to-one in count and
+    /// each element is assignable to the slot at the same position. An empty tuple
+    /// against zero slots is well-typed (Requirement 8.2). Error types on either side
+    /// are skipped to suppress cascading diagnostics. This is a pure function over the
+    /// element and slot type lists so it can be exercised directly in-process.
+    /// </summary>
+    internal static ValueSpreadDecompositionStatus CheckValueSpreadDecomposition(
+        IReadOnlyList<IType> tupleElements,
+        IReadOnlyList<IType> destinationSlots,
+        ISemanticModel? model,
+        out int mismatchIndex)
+    {
+        mismatchIndex = -1;
+
+        if(tupleElements.Count != destinationSlots.Count)
+        {
+            return ValueSpreadDecompositionStatus.SlotCountMismatch;
+        }
+
+        for(var i = 0; i < tupleElements.Count; i++)
+        {
+            var element = tupleElements[i];
+            var slot = destinationSlots[i];
+
+            if(IsErrorType(element) || IsErrorType(slot))
+            {
+                continue;
+            }
+
+            if(!IsAssignable(element, slot, model))
+            {
+                mismatchIndex = i;
+                return ValueSpreadDecompositionStatus.SlotTypeMismatch;
+            }
+        }
+
+        return ValueSpreadDecompositionStatus.WellTyped;
+    }
+
+    /// <summary>
+    /// Checks a sole value-spread argument <c>x...</c> against the resolved destination
+    /// slots and reports <c>MIST_VAR_0011</c> on a count or positional-assignability
+    /// mismatch (Requirements 8.4, 7.5). A symbolic value pack (<c>args...</c>) or
+    /// spread-generated aggregate (<c>Item...</c>) whose single element is an unbound
+    /// pack is checked for provable forwarding (Requirements 12.6, 12.7, 12.8): the
+    /// destination must provably accept <c>(TArgs...)</c> for every <c>TArgs</c> (another
+    /// <c>params TArgs</c> / <c>(TArgs...)</c> parameter, or a <c>Func&lt;TArgs..., R&gt;</c>
+    /// value), otherwise <c>MIST_VAR_0011</c> is emitted. An unresolved destination (for
+    /// example an overloaded callee) is deferred to the call-site binder. No diagnostic
+    /// is emitted in the deferred cases.
+    /// </summary>
+    private static void CheckDecomposedValueSpread(
+        PostfixNode spreadPostfix,
+        IReadOnlyList<IType>? destinationSlots,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // The value spread is a no-op on the operand's type, so the postfix node's
+        // recorded type is the tuple value being decomposed.
+        if(model.GetTypeOf(spreadPostfix) is not TupleType tuple)
+        {
+            return;
+        }
+
+        if(TupleContainsSymbolicPack(tuple))
+        {
+            // Generic-body provable forwarding (Requirements 12.6, 12.7, 12.8):
+            // A symbolic pack spread `args...` is accepted only when the destination
+            // provably accepts `(TArgs...)` for every `TArgs`. If the destination is
+            // unresolved (null), defer -- the call-site binder will handle it.
+            if(destinationSlots is null)
+            {
+                return;
+            }
+
+            if(!IsDestinationProvablyPackCompatible(tuple, destinationSlots))
+            {
+                diagnostics.ReportAtNode(
+                    VariadicsDiagnostics.SpreadDestinationMismatch, spreadPostfix, "TypeChecker",
+                    "a symbolic value pack cannot be spread into a fixed-arity destination that is not provably (TArgs...)-compatible for every instantiation");
+            }
+
+            return;
+        }
+
+        if(destinationSlots is null)
+        {
+            return;
+        }
+
+        var status = CheckValueSpreadDecomposition(tuple.ElementTypes, destinationSlots, model, out var mismatchIndex);
+        switch(status)
+        {
+            case ValueSpreadDecompositionStatus.SlotCountMismatch:
+                diagnostics.ReportAtNode(
+                    VariadicsDiagnostics.SpreadDestinationMismatch, spreadPostfix, "TypeChecker",
+                    $"the tuple has {tuple.ElementTypes.Count} element(s) but the call site expects {destinationSlots.Count} slot(s)");
+                break;
+
+            case ValueSpreadDecompositionStatus.SlotTypeMismatch:
+                diagnostics.ReportAtNode(
+                    VariadicsDiagnostics.SpreadDestinationMismatch, spreadPostfix, "TypeChecker",
+                    $"element {mismatchIndex + 1} of type '{tuple.ElementTypes[mismatchIndex].DisplayName}' is not assignable to the target slot type '{destinationSlots[mismatchIndex].DisplayName}'");
+                break;
+        }
+    }
+
+    /// <summary>
+    /// True when the tuple carries an unbound type-parameter pack as one of its
+    /// elements -- the classic representation of a value pack <c>(TArgs...)</c> or a
+    /// spread-generated aggregate while the pack is symbolic. Decomposition of such a
+    /// tuple is deferred (its element types are not yet concretely known).
+    /// </summary>
+    private static bool TupleContainsSymbolicPack(TupleType tuple)
+    {
+        foreach(var element in tuple.ElementTypes)
+        {
+            if(element is TypeParameterType { IsPack: true })
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Determines whether the destination slots are provably <c>(TArgs...)</c>-compatible
+    /// for every instantiation of the pack in the source <paramref name="sourceTuple"/>
+    /// (Requirements 12.7, 12.8). A destination is provably compatible iff:
+    /// <list type="number">
+    /// <item><description>
+    /// The destination is a single slot whose type is a <see cref="TupleType"/> wrapping
+    /// exactly the same pack type parameter(s) — indicating another <c>params TArgs</c>
+    /// or <c>(TArgs...)</c> parameter.
+    /// </description></item>
+    /// <item><description>
+    /// The destination slots themselves contain only the same pack type parameter as a
+    /// direct element — indicating a <c>Func&lt;TArgs..., R&gt;</c> value whose parameter
+    /// slots are the spread of the same pack.
+    /// </description></item>
+    /// </list>
+    /// In all other cases (fixed-arity callee, different pack, scalar parameters) the
+    /// destination is NOT provably compatible and <c>MIST_VAR_0011</c> should be emitted.
+    /// </summary>
+    private static bool IsDestinationProvablyPackCompatible(
+        TupleType sourceTuple,
+        IReadOnlyList<IType> destinationSlots)
+    {
+        // Collect the symbolic pack(s) from the source tuple.
+        var sourcePacks = new List<TypeParameterType>();
+        foreach(var element in sourceTuple.ElementTypes)
+        {
+            if(element is TypeParameterType { IsPack: true } pack)
+            {
+                sourcePacks.Add(pack);
+            }
+        }
+
+        if(sourcePacks.Count == 0)
+        {
+            return false;
+        }
+
+        // Case 1: The destination has exactly one slot that is a TupleType wrapping the
+        // same pack(s) — the callee declares `params TArgs` or `(TArgs...)`.
+        if(destinationSlots.Count == 1 && destinationSlots[0] is TupleType destTuple)
+        {
+            if(TupleContainsSameSymbolicPacks(destTuple, sourcePacks))
+            {
+                return true;
+            }
+        }
+
+        // Case 2: The destination slots directly contain the same pack type parameter(s)
+        // as elements — the callee is a Func<TArgs..., R> value whose parameter slots
+        // are the spread of the same pack.
+        if(destinationSlots.Count == sourcePacks.Count)
+        {
+            var allMatch = true;
+            for(var i = 0; i < destinationSlots.Count; i++)
+            {
+                if(destinationSlots[i] is not TypeParameterType { IsPack: true } destPack
+                    || !ReferenceEquals(destPack, sourcePacks[i]))
+                {
+                    allMatch = false;
+                    break;
+                }
+            }
+
+            if(allMatch)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// True when <paramref name="destTuple"/> wraps exactly the same symbolic pack type
+    /// parameters as <paramref name="sourcePacks"/>, in the same order. This covers the
+    /// case where the destination parameter is <c>params TArgs</c> or <c>(TArgs...)</c>
+    /// and hence its type is a single-element tuple wrapping the pack.
+    /// </summary>
+    private static bool TupleContainsSameSymbolicPacks(
+        TupleType destTuple,
+        List<TypeParameterType> sourcePacks)
+    {
+        if(destTuple.ElementTypes.Count != sourcePacks.Count)
+        {
+            return false;
+        }
+
+        for(var i = 0; i < destTuple.ElementTypes.Count; i++)
+        {
+            if(destTuple.ElementTypes[i] is not TypeParameterType { IsPack: true } destPack
+                || !ReferenceEquals(destPack, sourcePacks[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// True when any argument expression in <paramref name="argList"/> is a value-side
+    /// spread <c>x...</c> (a postfix chain whose final suffix is the spread operator).
+    /// </summary>
+    private static bool ArgumentListContainsValueSpread(ArgumentListNode argList)
+    {
+        foreach(var expr in argList.GetAllExpressions())
+        {
+            if(TryGetValueSpreadPostfix(expr, out _))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// True when <paramref name="argList"/> has exactly one argument and it is a
+    /// value-side spread <c>x...</c>, yielding the spread's postfix node.
+    /// </summary>
+    private static bool TryGetSoleValueSpreadArgument(ArgumentListNode argList, out PostfixNode spreadPostfix)
+    {
+        spreadPostfix = null!;
+
+        var expressions = argList.GetAllExpressions();
+        if(expressions.Length != 1)
+        {
+            return false;
+        }
+
+        return TryGetValueSpreadPostfix(expressions[0], out spreadPostfix);
+    }
+
+    /// <summary>
+    /// Extracts the postfix chain of a value-side spread expression <c>x...</c> -- a
+    /// simple postfix whose final suffix is the spread operator (<c>...</c>).
+    /// Returns false for any other expression shape.
+    /// </summary>
+    private static bool TryGetValueSpreadPostfix(ExpressionNode expr, out PostfixNode spreadPostfix)
+    {
+        spreadPostfix = null!;
+
+        var postfix = TryExtractPostfixNode(expr);
+        if(postfix is null || postfix.Suffix.Length == 0)
+        {
+            return false;
+        }
+
+        if(postfix.Suffix[^1] is not SpreadSuffixPostfixSuffixNode)
+        {
+            return false;
+        }
+
+        spreadPostfix = postfix;
+        return true;
+    }
+
+    /// <summary>
+    /// Resolves the destination parameter slots for a value spread in an invocation
+    /// <c>expr(x...)</c>: the parameter list of a <c>Func</c> value or delegate being
+    /// invoked, or the invoked method's parameters. Returns null when the destination
+    /// cannot be resolved (deferred to the call-site binder).
+    /// </summary>
+    private static IReadOnlyList<IType>? ResolveInvocationDestinationSlots(
+        InvocationSuffixPostfixSuffixNode invocation,
+        IType? targetType,
+        PostfixNode containingPostfix,
+        ISemanticModel model)
+    {
+        if(targetType is ConstructedType funcCt && SemanticModelBuilder.IsFuncType(funcCt))
+        {
+            return FuncParameterSlots(funcCt);
+        }
+
+        if(targetType is DelegateType delegateType)
+        {
+            return FuncParameterSlots(delegateType.FuncSignature);
+        }
+
+        var invokedSymbol = model.GetDeclaredSymbol(invocation);
+        if(invokedSymbol is { Kind: SymbolKind.Method })
+        {
+            return ParameterSignature.Extract(invokedSymbol, model);
+        }
+
+        // Fallback: for direct method calls (e.g., `Sum3(args...)`) where the symbol is
+        // registered on the PostfixNode's Target identifier rather than the InvocationSuffix,
+        // look up the method symbol from the target node. This handles method-level packs
+        // spreading into fixed-arity destinations (Requirement 21, MIST_VAR_0011).
+        var targetSymbol = model.GetDeclaredSymbol(containingPostfix.Target);
+        if(targetSymbol is { Kind: SymbolKind.Method })
+        {
+            return ParameterSignature.Extract(targetSymbol, model);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Resolves the destination parameter slots for a value spread in a method call
+    /// <c>receiver.M(x...)</c>. When the callee resolves to a single method the
+    /// decomposition is checked against its parameters; an overloaded callee (choosing
+    /// which overload a decomposition binds to) is deferred to the call-site binder and
+    /// yields null.
+    /// </summary>
+    private static IReadOnlyList<IType>? ResolveMethodCallDestinationSlots(
+        MethodCallSuffixPostfixSuffixNode methodCall,
+        IType? targetType,
+        ISemanticModel model)
+    {
+        var candidates = CollectMethodOverloads(targetType, methodCall.Name.Lexeme);
+        if(candidates.Count == 1)
+        {
+            return ParameterSignature.Extract(candidates[0], model);
+        }
+
+        if(candidates.Count == 0)
+        {
+            var methodSymbol = model.GetDeclaredSymbol(methodCall);
+            if(methodSymbol is { Kind: SymbolKind.Method })
+            {
+                return ParameterSignature.Extract(methodSymbol, model);
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The parameter slots of a constructed <c>Func&lt;P1, ..., PN, TResult&gt;</c> value:
+    /// its type arguments except the trailing result type (an empty list for the
+    /// zero-parameter <c>Func&lt;TResult&gt;</c>).
+    /// </summary>
+    private static IReadOnlyList<IType> FuncParameterSlots(ConstructedType funcType)
+    {
+        var typeArgs = funcType.TypeArguments;
+        var count = typeArgs.Count - 1;
+        if(count <= 0)
+        {
+            return Array.Empty<IType>();
+        }
+
+        var slots = new IType[count];
+        for(var i = 0; i < count; i++)
+        {
+            slots[i] = typeArgs[i];
+        }
+
+        return slots;
+    }
+
+    // ─── Zip: parallel two-operand spread (variadics, task 14.2) ──
+    //
+    // A zip is the parallel spread of two operands on an assignment,
+    // canonically `left... = right...` where BOTH sides carry the value-side
+    // `...` suffix (for example a variadic constructor's `Item... = args...`,
+    // pairing a value pack into its spread-generated aggregate). It expands the
+    // operands element by element into N paired positions, where N is the common
+    // length, so each left-hand slot receives exactly one right-hand value
+    // (Requirement 8.5). It is permitted ONLY when the two operands are proven to
+    // have equal length -- either because they originate from the SAME pack (both
+    // are the tuple `(P...)` of one pack `P`, hence the same symbolic length N for
+    // every instantiation) or because equal length is otherwise established (two
+    // concrete tuples of equal element count) (Requirement 8.6). A zip between
+    // operands not proven equal length emits MIST_VAR_0006 (Requirement 8.7).
+
+    /// <summary>
+    /// Whether the two operands of a zip are proven to have equal length
+    /// (Requirements 8.5, 8.6, 8.7).
+    /// </summary>
+    internal enum ZipLengthProofStatus
+    {
+        /// <summary>The operands are proven to have equal length: either the same
+        /// pack origin, or two concrete tuples of equal element count.</summary>
+        ProvenEqual,
+
+        /// <summary>The operands are NOT proven to have equal length (different pack
+        /// origin, a symbolic pack against an unrelated operand, or two concrete
+        /// tuples of differing count) -- the zip is rejected with MIST_VAR_0006.</summary>
+        NotProven,
+
+        /// <summary>The length proof does not apply here (an operand carries an error
+        /// type, or an operand is not tuple-shaped) -- the zip is deferred and no
+        /// diagnostic is emitted.</summary>
+        NotApplicable,
+    }
+
+    /// <summary>
+    /// The pure zip length-proof rule (Requirements 8.5, 8.6, 8.7): two spread
+    /// operands may be zipped iff their lengths are proven equal. Two fully concrete
+    /// tuples are proven equal exactly when their element counts match. When at least
+    /// one operand's length is symbolic, equality is proven only when BOTH operands
+    /// are the sole-element tuple <c>(P...)</c> of the SAME pack <c>P</c> (same
+    /// origin, hence the same length N for every instantiation). Any other case with
+    /// symbolic content is not proven. This is a pure function over the two operand
+    /// types so it can be exercised directly in-process (task 14.5).
+    /// </summary>
+    internal static ZipLengthProofStatus CheckZipLengthProof(IType leftOperand, IType rightOperand)
+    {
+        if(IsErrorType(leftOperand) || IsErrorType(rightOperand))
+        {
+            return ZipLengthProofStatus.NotApplicable;
+        }
+
+        if(leftOperand is not TupleType leftTuple || rightOperand is not TupleType rightTuple)
+        {
+            return ZipLengthProofStatus.NotApplicable;
+        }
+
+        var leftSymbolic = TupleContainsSymbolicPack(leftTuple);
+        var rightSymbolic = TupleContainsSymbolicPack(rightTuple);
+
+        // Both operands fully concrete: equal length is proven exactly by equal count.
+        if(!leftSymbolic && !rightSymbolic)
+        {
+            return leftTuple.ElementTypes.Count == rightTuple.ElementTypes.Count
+                ? ZipLengthProofStatus.ProvenEqual
+                : ZipLengthProofStatus.NotProven;
+        }
+
+        // At least one operand's length is symbolic: equal length is proven only when
+        // both operands are the SAME pack `(P...)` (same origin, same length N).
+        var leftPack = TryGetSolePackOfTuple(leftTuple);
+        var rightPack = TryGetSolePackOfTuple(rightTuple);
+        if(leftPack is not null && rightPack is not null && SamePackOrigin(leftPack, rightPack))
+        {
+            return ZipLengthProofStatus.ProvenEqual;
+        }
+
+        return ZipLengthProofStatus.NotProven;
+    }
+
+    /// <summary>
+    /// When <paramref name="tuple"/> is the sole-element tuple <c>(P...)</c> of a
+    /// symbolic type-parameter pack <c>P</c> (the classic representation of a value
+    /// pack or a spread-generated aggregate while the pack is symbolic), returns that
+    /// pack; otherwise null.
+    /// </summary>
+    private static TypeParameterType? TryGetSolePackOfTuple(TupleType tuple)
+    {
+        if(tuple.ElementTypes.Count == 1 && tuple.ElementTypes[0] is TypeParameterType { IsPack: true } pack)
+        {
+            return pack;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// True when two symbolic packs are the SAME pack origin -- reference-identical,
+    /// or the same pack parameter (same name, ordinal, and fixed arity). Two operands
+    /// that spread the same pack therefore have the same length N for every
+    /// instantiation, which is what makes their zip provably equal-length.
+    /// </summary>
+    private static bool SamePackOrigin(TypeParameterType left, TypeParameterType right)
+    {
+        if(ReferenceEquals(left, right))
+        {
+            return true;
+        }
+
+        return string.Equals(left.Name, right.Name, StringComparison.Ordinal)
+            && left.Ordinal == right.Ordinal
+            && left.PackFixedArity == right.PackFixedArity;
+    }
+
+    /// <summary>
+    /// Intercepts a zip <c>left... = right...</c> on an assignment: when BOTH the
+    /// target and the value are value-side spreads, this is the parallel two-operand
+    /// spread (Requirement 8.5), which is its own chokepoint. It is permitted only
+    /// when the two operands are proven equal length (Requirement 8.6); otherwise
+    /// <c>MIST_VAR_0006</c> is emitted (Requirement 8.7). Returns true when the
+    /// assignment is recognized as a zip (handled here, so the ordinary tuple-to-tuple
+    /// assignability check must not also run over it), false otherwise.
+    /// </summary>
+    private static bool TryCheckZipAssignment(
+        AssignmentNode assignment,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // A zip is a plain `=` assignment; compound operators are not zips.
+        if(assignment.Group0?.Operator is { } op && op.Kind != (int)TokenKind.EQUAL)
+        {
+            return false;
+        }
+
+        // Both operands must be value-side spreads: `left... = right...`.
+        var leftPostfix = TryExtractPostfixFromLogicalOr(assignment.Target.Left);
+        if(leftPostfix is null
+            || leftPostfix.Suffix.Length == 0
+            || leftPostfix.Suffix[^1] is not SpreadSuffixPostfixSuffixNode)
+        {
+            return false;
+        }
+
+        if(assignment.Group0?.Value is not { } assignedValue
+            || !TryGetValueSpreadPostfix(assignedValue, out var rightPostfix))
+        {
+            return false;
+        }
+
+        // The spread suffix is a no-op on the operand's type, so each postfix node's
+        // recorded type is the tuple value being spread (Requirements 8.2, 8.5).
+        if(model.GetTypeOf(leftPostfix) is not { } leftOperand
+            || model.GetTypeOf(rightPostfix) is not { } rightOperand)
+        {
+            // Recognized as a zip but its operand types are unresolved: defer without a
+            // diagnostic (the ordinary assignability check must still not run over it).
+            return true;
+        }
+
+        if(CheckZipLengthProof(leftOperand, rightOperand) == ZipLengthProofStatus.NotProven)
+        {
+            // Requirement 8.7: a zip between operands not proven equal length.
+            diagnostics.ReportAtNode(VariadicsDiagnostics.ZipLengthNotProven, assignment, "TypeChecker");
         }
 
         return true;
@@ -18293,10 +19756,26 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             if(substitutedAbs is ConstructedType substitutedCt)
             {
+                // Variadics: when the source is a variadic ConstructedType, propagate its
+                // DependentArguments to the substituted abstract so that pack-based
+                // abstract implementations (e.g., Tup<params TArgs> : ICountable<TArgs...>)
+                // correctly match their target at a concrete arity.
+                if(substitutedCt.DependentArguments is null
+                    && source is ConstructedType sourceCtForPack
+                    && sourceCtForPack.DependentArguments is not null
+                    && ReferenceEquals(substitutedCt.GenericDefinition, targetConstructedAbstract.GenericDefinition))
+                {
+                    substitutedCt = new ConstructedType(
+                        substitutedCt.GenericDefinition,
+                        substitutedCt.TypeArguments,
+                        sourceCtForPack.DependentArguments);
+                }
+
                 if(IsAssignable(substitutedCt, targetConstructedAbstract))
                 {
                     return true;
                 }
+
                 // Transitively check the abstract's own inherited abstracts.
                 if(ImplementsConstructedAbstract(substitutedCt, targetConstructedAbstract))
                 {
@@ -20623,6 +22102,206 @@ node, model, diagnostics);
                 }; diagnostics.ReportAtNode(TypeCheckDiagnostics.ConstraintSubstructuralViolation, node, "TypeChecker");
             }
         }
+    }
+
+    /// <summary>
+    /// Verifies that every element of a bound type-parameter pack satisfies the
+    /// constraints declared on the pack's type parameter (whole-pack constraint,
+    /// applied elementwise). Each failing element emits <c>MIST_VAR_0009</c> and
+    /// is treated as an error type so downstream analysis continues.
+    /// An empty pack vacuously satisfies the constraint (Requirement 11.4).
+    /// </summary>
+    /// <param name="packElementTypes">The ordered element types bound to the pack.</param>
+    /// <param name="typeParameter">The pack type parameter with constraints to check.</param>
+    /// <param name="node">The syntax node for diagnostic location reporting.</param>
+    /// <param name="model">The semantic model.</param>
+    /// <param name="diagnostics">The diagnostic bag to emit errors into.</param>
+    internal static void CheckPackConstraintSatisfaction(
+        IReadOnlyList<IType> packElementTypes,
+        TypeParameterType typeParameter,
+        SyntaxNode node,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Requirement 11.4: empty pack vacuously satisfies any constraint.
+        if(packElementTypes.Count == 0)
+        {
+            return;
+        }
+
+        var constraints = typeParameter.Constraints;
+        if(constraints is null)
+        {
+            return; // Unconstrained pack — nothing to check.
+        }
+
+        // Requirement 11.1: check each element independently against the constraint.
+        for(var i = 0; i < packElementTypes.Count; i++)
+        {
+            var element = packElementTypes[i];
+
+            // Suppress cascading errors for error types.
+            if(IsErrorType(element))
+            {
+                continue;
+            }
+
+            if(!SatisfiesConstraints(element, constraints, model))
+            {
+                // Requirement 11.3: emit MIST_VAR_0009 per failing element.
+                var constraintName = DescribeConstraints(constraints);
+                diagnostics.ReportAtNode(
+                    VariadicsDiagnostics.PackElementConstraintNotSatisfied,
+                    node, "TypeChecker", element.DisplayName, constraintName);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when a type satisfies all constraints in the given set.
+    /// Used by <see cref="CheckPackConstraintSatisfaction"/> for elementwise checks.
+    /// </summary>
+    private static bool SatisfiesConstraints(IType type, TypeParameterConstraints constraints, ISemanticModel model)
+    {
+        // Unwrap type aliases.
+        if(type is TypeAliasType alias)
+        {
+            type = alias.UnderlyingType;
+        }
+
+        // class constraint
+        if(constraints.HasClassConstraint && type.Kind == TypeKind.Struct)
+        {
+            return false;
+        }
+
+        // struct constraint
+        if(constraints.HasStructConstraint && type.Kind != TypeKind.Struct)
+        {
+            return false;
+        }
+
+        // base class constraint
+        if(constraints.BaseClassConstraint is not null && !DerivesFromClass(type, constraints.BaseClassConstraint))
+        {
+            return false;
+        }
+
+        // abstract constraints (interfaces)
+        foreach(var abs in constraints.AbstractConstraints)
+        {
+            if(!ImplementsAbstractConstraint(type, abs, model))
+            {
+                return false;
+            }
+        }
+
+        // readonly constraint
+        if(constraints.HasReadonlyConstraint && !IsTypeReadonly(type))
+        {
+            return false;
+        }
+
+        // mutable constraint
+        if(constraints.HasMutableConstraint && IsTypeReadonly(type))
+        {
+            return false;
+        }
+
+        // owned constraint
+        if(constraints.HasOwnedConstraint && !IsTypeOwned(type))
+        {
+            return false;
+        }
+
+        // default constraint
+        if(constraints.HasDefaultConstraint && !IsTypeDefaultable(type))
+        {
+            return false;
+        }
+
+        // substructural constraint
+        var requiredDiscipline = GetConstraintDiscipline(constraints);
+        if(requiredDiscipline != SubstructuralDiscipline.None)
+        {
+            var argDiscipline = GetArgumentDiscipline(type);
+            if(!SatisfiesSubstructuralConstraint(argDiscipline, requiredDiscipline))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Produces a human-readable description of the constraints for diagnostic messages.
+    /// </summary>
+    private static string DescribeConstraints(TypeParameterConstraints constraints)
+    {
+        var parts = new List<string>();
+
+        if(constraints.HasClassConstraint)
+        {
+            parts.Add("class");
+        }
+
+        if(constraints.HasStructConstraint)
+        {
+            parts.Add("struct");
+        }
+
+        if(constraints.BaseClassConstraint is not null)
+        {
+            parts.Add(constraints.BaseClassConstraint.DisplayName);
+        }
+
+        foreach(var abs in constraints.AbstractConstraints)
+        {
+            parts.Add(abs.DisplayName);
+        }
+
+        if(constraints.ConstructorConstraints.Count > 0)
+        {
+            parts.Add("new()");
+        }
+
+        if(constraints.HasReadonlyConstraint)
+        {
+            parts.Add("readonly");
+        }
+
+        if(constraints.HasMutableConstraint)
+        {
+            parts.Add("mutable");
+        }
+
+        if(constraints.HasOwnedConstraint)
+        {
+            parts.Add("owned");
+        }
+
+        if(constraints.HasDefaultConstraint)
+        {
+            parts.Add("default");
+        }
+
+        if(constraints.HasLinearConstraint)
+        {
+            parts.Add("linear");
+        }
+
+        if(constraints.HasAffineConstraint)
+        {
+            parts.Add("affine");
+        }
+
+        if(constraints.HasRelevantConstraint)
+        {
+            parts.Add("relevant");
+        }
+
+        return parts.Count > 0 ? string.Join(", ", parts) : "constraint";
     }
 
     /// <summary>

@@ -1,0 +1,15 @@
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var numbers = [10, 20, 30];
+
+        // Any pattern may appear in an element position: a relational pattern
+        // constrains the first element, `_` ignores the second, and `var third`
+        // binds the third element to a new variable.
+        if (numbers is [> 0, _, var third])
+        {
+            Console.WriteLine($"third={third}");
+        }
+    }
+}

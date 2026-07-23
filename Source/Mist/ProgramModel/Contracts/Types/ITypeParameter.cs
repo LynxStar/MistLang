@@ -1,3 +1,5 @@
+using Mist.ProgramModel.Model;
+
 namespace Mist.ProgramModel.Contracts.Types;
 
 /// <summary>
@@ -12,6 +14,22 @@ public interface ITypeParameter : IMistType
     /// type's parameter list.
     /// </summary>
     int Ordinal { get; }
+
+    /// <summary>
+    /// How this type parameter participates as a type-parameter pack, or
+    /// <see cref="TypeParameterPackKind.None"/> when it is an ordinary type
+    /// parameter. A pack's value domain is the comptime metatype array
+    /// <c>Type[]</c> (unknown length) or <c>Type[N]</c> (fixed length — see
+    /// <see cref="FixedPackLength"/>).
+    /// </summary>
+    TypeParameterPackKind PackKind { get; }
+
+    /// <summary>
+    /// For a fixed-size pack whose domain is <c>Type[N]</c>, the comptime length
+    /// <c>N</c>. Null for an unknown-length <c>Type[]</c> pack (and for a non-pack
+    /// parameter).
+    /// </summary>
+    long? FixedPackLength { get; }
 
     /// <summary>
     /// The domain of this type parameter — the type whose values can fill this slot.

@@ -28,6 +28,11 @@ internal static class AmbientProviderTestHelper
             _ = programModel.RegisterType(new ClassType(wellKnown.Name, wellKnown.Namespace, scope, null, null!));
         }
 
+        // Index/Range (ranges feature) are Standard shells needed by ambient projection
+        // but are not part of AllStandardTypes; register them explicitly.
+        _ = programModel.RegisterType(new ClassType("Index", "Standard", scope, null, null!));
+        _ = programModel.RegisterType(new ClassType("Range", "Standard", scope, null, null!));
+
         // Interfaces used for interface mapping.
         _ = programModel.RegisterType(new AbstractType(WellKnownTypes.IEnumerable.Name, WellKnownTypes.IEnumerable.Namespace, scope, null, null));
         _ = programModel.RegisterType(new AbstractType(WellKnownTypes.IEnumerator.Name, WellKnownTypes.IEnumerator.Namespace, scope, null, null));

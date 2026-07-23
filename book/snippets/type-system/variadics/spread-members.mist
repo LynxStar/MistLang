@@ -1,0 +1,30 @@
+using Standard;
+
+public class Bundle<params TArgs>
+{
+    public TArgs... Item;
+
+    public Bundle(params TArgs values)
+    {
+        Item... = values...;
+    }
+
+    public TResult Map<TResult>(Func<TArgs..., TResult> f)
+    {
+        return f(Item...);
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] cmdArgs)
+    {
+        var bundle = new Bundle<int, string, bool>(42, "hi", true);
+        Console.WriteLine($"agg={bundle.Item.Item1}:{bundle.Item.Item2}:{bundle.Item.Item3}");
+        Console.WriteLine($"item1={bundle.Item1}");
+
+        Func<int, string, bool, string> fmt = (a, b, c) => $"{a}-{b}-{c}";
+        var mapped = bundle.Map(fmt);
+        Console.WriteLine($"map={mapped}");
+    }
+}

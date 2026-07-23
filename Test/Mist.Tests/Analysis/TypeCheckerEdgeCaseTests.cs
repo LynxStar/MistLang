@@ -106,7 +106,7 @@ public class TypeCheckerEdgeCaseTests
             Suffix = ImmutableArray<PostfixSuffixNode>.Empty,
         };
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
+        var mult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = unary } };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
@@ -124,7 +124,9 @@ public class TypeCheckerEdgeCaseTests
         var relational = (RelationalComparisonRelationalNode)equality.Left;
         var additive = relational.Left;
         var multiplicative = additive.Left;
-        return multiplicative.Left;
+
+        // Constructed expressions always use the pass-through (NonRange) range form.
+        return multiplicative.Left.UnwrapRange()!;
     }
 
     /// <summary>
@@ -136,14 +138,13 @@ public class TypeCheckerEdgeCaseTests
         var leftUnary = ExtractUnary(left);
         var rightUnary = ExtractUnary(right);
 
-        var leftMult = new MultiplicativeNode { Left = leftUnary };
-        var rightMult = new MultiplicativeNode { Left = rightUnary };
+        var leftMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = leftUnary } };
+        var rightMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = rightUnary } };
 
         var add = new AdditiveNode
         {
             Left = leftMult,
-            Operator = MakeToken(op),
-            Right = rightMult,
+            Group0 = ImmutableArray.Create(new AdditiveNodeGroup0 { Operator = MakeToken(op), Right = rightMult }),
         };
         var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
@@ -164,9 +165,8 @@ public class TypeCheckerEdgeCaseTests
 
         var mult = new MultiplicativeNode
         {
-            Left = leftUnary,
-            Operator = MakeToken(op),
-            Right = rightUnary,
+            Left = new NonRangeRangeNode { Operand = leftUnary },
+            Group0 = ImmutableArray.Create(new MultiplicativeNodeGroup0 { Operator = MakeToken(op), Right = new NonRangeRangeNode { Operand = rightUnary } }),
         };
         var add = new AdditiveNode { Left = mult };
         var rel = new RelationalComparisonRelationalNode { Left = add };
@@ -192,7 +192,7 @@ public class TypeCheckerEdgeCaseTests
             Suffix = ImmutableArray<PostfixSuffixNode>.Empty,
         };
         var targetUnary = new PostfixExpressionUnaryNode { Primary = targetPostfix };
-        var targetMult = new MultiplicativeNode { Left = targetUnary };
+        var targetMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = targetUnary } };
         var targetAdd = new AdditiveNode { Left = targetMult };
         var targetRel = new RelationalComparisonRelationalNode { Left = targetAdd };
         var targetEq = new EqualityNode { Left = targetRel };
@@ -202,7 +202,7 @@ public class TypeCheckerEdgeCaseTests
         var assign = new AssignmentNode
         {
             Target = new VoidCoalescingNode { Left = targetLogOr },
-            Value = value,
+            Group0 = new AssignmentNodeGroup0 { Value = value },
         };
         return new AssignmentFormExpressionNode { Assignment = assign };
     }
@@ -390,16 +390,15 @@ public class TypeCheckerEdgeCaseTests
         var leftUnary = ExtractUnary(MakeIdentifierExpression("a"));
         var rightUnary = ExtractUnary(MakeIdentifierExpression("b"));
 
-        var leftMult = new MultiplicativeNode { Left = leftUnary };
-        var rightMult = new MultiplicativeNode { Left = rightUnary };
+        var leftMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = leftUnary } };
+        var rightMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = rightUnary } };
         var leftAdd = new AdditiveNode { Left = leftMult };
         var rightAdd = new AdditiveNode { Left = rightMult };
 
         var rel = new RelationalComparisonRelationalNode
         {
             Left = leftAdd,
-            Operator = MakeToken("<"),
-            Right = rightAdd,
+            Group0 = ImmutableArray.Create(new RelationalComparisonRelationalNodeGroup0 { Operator = MakeToken("<"), Right = rightAdd }),
         };
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
@@ -430,8 +429,8 @@ public class TypeCheckerEdgeCaseTests
         var leftUnary = ExtractUnary(MakeIdentifierExpression("a"));
         var rightUnary = ExtractUnary(MakeIdentifierExpression("b"));
 
-        var leftMult = new MultiplicativeNode { Left = leftUnary };
-        var rightMult = new MultiplicativeNode { Left = rightUnary };
+        var leftMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = leftUnary } };
+        var rightMult = new MultiplicativeNode { Left = new NonRangeRangeNode { Operand = rightUnary } };
         var leftAdd = new AdditiveNode { Left = leftMult };
         var rightAdd = new AdditiveNode { Left = rightMult };
         var leftRel = new RelationalComparisonRelationalNode { Left = leftAdd };

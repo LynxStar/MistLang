@@ -1,0 +1,40 @@
+using Standard;
+
+public abstract IShape
+{
+    int Area();
+}
+
+public struct Circle : IShape
+{
+    public int Area() { return 3; }
+}
+
+public struct Square : IShape
+{
+    public int Area() { return 4; }
+}
+
+public struct ShapePair<Type[2]:TShapes> where TShapes : IShape
+{
+    public TShapes... Shape;
+
+    public ShapePair(params TShapes shapes)
+    {
+        Shape... = shapes...;
+    }
+
+    public int TotalArea()
+    {
+        return Shape1.Area() + Shape2.Area();
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] cmdArgs)
+    {
+        var pair = new ShapePair<Circle, Square>(new Circle(), new Square());
+        Console.WriteLine($"area={pair.TotalArea()}");
+    }
+}

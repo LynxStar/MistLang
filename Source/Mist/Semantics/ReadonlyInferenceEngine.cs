@@ -338,7 +338,7 @@ public sealed class ReadonlyInferenceEngine
             // Assignment: target = value where target resolves to a field or property setter.
             // In the AST, assignments are represented as AssignmentNode with a
             // non-null Value property.
-            AssignmentNode assignment when assignment.Value is not null => IsAssignmentToFieldOrProperty(assignment, model),
+            AssignmentNode assignment when assignment.Group0?.Value is not null => IsAssignmentToFieldOrProperty(assignment, model),
             // Method calls and member access: check if the called method is readonly.
             MethodCallSuffixPostfixSuffixNode methodCall => IsNonReadonlyMethodCall(methodCall, model),
             // Member access that resolves to a property getter call.
@@ -592,19 +592,19 @@ public sealed class ReadonlyInferenceEngine
     {
         switch(node)
         {
-            case AssignmentNode assignment when assignment.Value is not null:
+            case AssignmentNode assignment when assignment.Group0?.Value is { } assignmentValue:
                 {
                     // In a constructor, assignments to own fields are permitted.
                     if(IsAssignmentToOwnField(assignment, ctorSymbol, model))
                     {
                         // The value side must still be safe.
-                        return IsConstructorNodeSafe(assignment.Value, ctorSymbol, model);
+                        return IsConstructorNodeSafe(assignmentValue, ctorSymbol, model);
                     }
                     // In a constructor, assignments to own properties (setter calls) are also permitted.
                     if(IsAssignmentToOwnProperty(assignment, ctorSymbol, model))
                     {
                         // The value side must still be safe.
-                        return IsConstructorNodeSafe(assignment.Value, ctorSymbol, model);
+                        return IsConstructorNodeSafe(assignmentValue, ctorSymbol, model);
                     }
                     // Assignment to something other than own field/property — not safe.
                     return false;

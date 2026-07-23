@@ -1,5 +1,7 @@
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Statements;
+using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
@@ -206,9 +208,9 @@ internal static class BodyEmitter
                 break;
 
             case BinaryExpression binary:
-                EmitExpression(binary.Left, writer);
+                EmitSubExpression(binary.Left, binary, writer);
                 writer.Append($" {MapBinaryOperator(binary.OperatorKind)} ");
-                EmitExpression(binary.Right, writer);
+                EmitSubExpression(binary.Right, binary, writer);
                 break;
 
             case UnaryExpression unary:
@@ -222,7 +224,7 @@ internal static class BodyEmitter
                 EmitExpression(assignment.Value, writer);
                 break;
 
-            case ElementAccessExpression elementAccess:
+            case IndexExpression elementAccess:
                 EmitExpression(elementAccess.Receiver, writer);
                 writer.Append("[");
                 EmitExpression(elementAccess.Index, writer);
@@ -277,7 +279,7 @@ internal static class BodyEmitter
         }
     }
 
-    private static string EmitLiteral(LiteralExpression literal)
+    internal static string EmitLiteral(LiteralExpression literal)
     {
         if(literal.Value is null)
         {
@@ -287,14 +289,82 @@ internal static class BodyEmitter
         return literal.Value switch
         {
             string s => $"\"{s}\"",
-            long l => l.ToString(),
+            long l => EmitIntegerLiteral(l, literal.Type),
             int i => i.ToString(),
             float f => $"{f}f",
-            double d => d.ToString(),
+            double d => EmitDoubleLiteral(d),
             decimal m => $"{m}m",
             bool b => b ? "true" : "false",
             char c => $"'{c}'",
             _ => literal.Value.ToString()!,
+        };
+    }
+
+    /// <summary>
+    /// Emits an integer literal with the appropriate type suffix based on the
+    /// expression's resolved type. Without suffixes, C# interprets bare integer
+    /// literals as <c>int</c>, which fails to compile when the target type requires
+    /// a wider or unsigned representation (e.g., <c>ulong x = 3000000000;</c>).
+    /// </summary>
+    private static string EmitIntegerLiteral(long value, IMistType type)
+    {
+        var typeName = type is MemberType mt ? mt.Name : "";
+        return typeName switch
+        {
+            "UInt64" => $"{(ulong)value}UL",
+            "Int64" => $"{value}L",
+            "UInt32" => $"{(uint)value}U",
+            _ => value.ToString(),
+        };
+    }
+
+    /// <summary>
+    /// Emits a double literal, ensuring it always contains a decimal point or
+    /// exponent so C# doesn't parse it as an integer.
+    /// </summary>
+    private static string EmitDoubleLiteral(double d)
+    {
+        var text = d.ToString("G");
+        if(!text.Contains('.') && !text.Contains('E'))
+        {
+            return text + ".0";
+        }
+
+        return text;
+    }
+
+    /// <summary>
+    /// Emits a sub-expression of a binary expression, wrapping it in parentheses when
+    /// the child has lower precedence than the parent to preserve evaluation order.
+    /// </summary>
+    private static void EmitSubExpression(Expression child, BinaryExpression parent, CSharpWriter writer)
+    {
+        if(child is BinaryExpression childBinary && GetPrecedence(childBinary.OperatorKind) < GetPrecedence(parent.OperatorKind))
+        {
+            writer.Append("(");
+            EmitExpression(child, writer);
+            writer.Append(")");
+        }
+        else
+        {
+            EmitExpression(child, writer);
+        }
+    }
+
+    private static int GetPrecedence(BinaryOperatorKind kind)
+    {
+        return kind switch
+        {
+            BinaryOperatorKind.LogicalOr => 1,
+            BinaryOperatorKind.LogicalAnd => 2,
+            BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual => 3,
+            BinaryOperatorKind.LessThan or BinaryOperatorKind.GreaterThan or
+            BinaryOperatorKind.LessThanOrEqual or BinaryOperatorKind.GreaterThanOrEqual => 4,
+            BinaryOperatorKind.Add or BinaryOperatorKind.Subtract or
+            BinaryOperatorKind.Concatenate => 5,
+            BinaryOperatorKind.Multiply or BinaryOperatorKind.Divide or
+            BinaryOperatorKind.Modulo => 6,
+            _ => 0,
         };
     }
 

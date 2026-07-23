@@ -4,9 +4,9 @@ using Storm.Runtime;
 namespace Mist.ProgramModel.Model.Expressions;
 
 /// <summary>
-/// An element access expression (<c>receiver[index]</c>).
+/// An index expression (<c>receiver[index]</c>).
 /// </summary>
-internal sealed class ElementAccessExpression(
+internal sealed class IndexExpression(
     SyntaxNode node,
     Expression receiver,
     Expression index,

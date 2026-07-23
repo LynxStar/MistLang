@@ -42,7 +42,8 @@ internal static class PostfixBinder
             case IndexSuffixPostfixSuffixNode indexSuffix:
                 {
                     var index = ExpressionBinder.BindExpression(indexSuffix.Index, ctx, context);
-                    return new ElementAccessExpression(suffix, receiver, index, receiver.Type);
+                    var resultType = ResolveIndexerType(receiver.Type);
+                    return new IndexExpression(suffix, receiver, index, resultType);
                 }
 
             default:
@@ -80,9 +81,9 @@ internal static class PostfixBinder
     }
 
     /// <summary>
-    /// Resolves the type of a member accessed on a receiver. For now, looks up methods
-    /// on the receiver's type and returns the method's return type. Falls back to the
-    /// error type for members that cannot be resolved yet.
+    /// Resolves the type of a member accessed on a receiver. Looks up methods and
+    /// properties on the receiver's type. Falls back to the error type for members
+    /// that cannot be resolved yet.
     /// </summary>
     private static IMistType ResolveMemberType(Expression receiver, string memberName)
     {
@@ -101,6 +102,41 @@ internal static class PostfixBinder
                     return method.ReturnType;
                 }
             }
+
+            foreach(var property in memberType.PropertiesList)
+            {
+                if(property.Name == memberName)
+                {
+                    return property.Type;
+                }
+            }
+        }
+
+        return ErrorType.Instance;
+    }
+
+    /// <summary>
+    /// Resolves the return type of the indexer on the receiver type.
+    /// For constructed types, looks up the indexer on the definition type and
+    /// substitutes type parameters against the constructed type's arguments.
+    /// </summary>
+    private static IMistType ResolveIndexerType(IMistType receiverType)
+    {
+        var lookupType = receiverType is ConstructedType constructed
+            ? constructed.Definition
+            : receiverType
+            ;
+
+        if(lookupType is MemberType memberType && memberType.IndexersList.Count > 0)
+        {
+            var indexer = memberType.IndexersList[0];
+
+            if(receiverType is ConstructedType ct)
+            {
+                return ct.Substitute(indexer.Type);
+            }
+
+            return indexer.Type;
         }
 
         return ErrorType.Instance;

@@ -57,7 +57,19 @@ internal static class ExpressionBinder
     {
         var elementType = ResolveElementType(node.Type, ctx, context);
         var size = BindExpression(node.Size, ctx, context);
-        return new ArrayCreationExpression(node, elementType, size, elementType);
+        var arrayType = ResolveArrayType(elementType, context);
+        return new ArrayCreationExpression(node, elementType, size, arrayType);
+    }
+
+    private static IMistType ResolveArrayType(IMistType elementType, BuilderContext context)
+    {
+        if(context.ProgramModel.TypesByFQN.TryGetValue("Standard.Array<,>", out var arrayDef))
+        {
+            return context.ProgramModel.TypeInterner.GetOrCreateConstructedType(
+                arrayDef, new IMistType[] { elementType, UnknownType.Instance });
+        }
+
+        return elementType;
     }
 
     private static IMistType ResolveElementType(ElementTypeRefNode elementTypeRef, BindingContext ctx, BuilderContext context)

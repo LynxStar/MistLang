@@ -29,6 +29,21 @@ internal sealed class ConstructedType : MistType, IConstructedType
 
     IReadOnlyList<IMistType> IConstructedType.TypeArguments => TypeArguments;
 
+    /// <summary>
+    /// Resolves a type parameter declared on this constructed type's definition to the
+    /// concrete type argument at the same ordinal position. Returns the type parameter
+    /// unchanged if it does not belong to this definition or is out of range.
+    /// </summary>
+    public IMistType Substitute(IMistType type)
+    {
+        if(type is TypeParameter tp && tp.Ordinal < TypeArguments.Count)
+        {
+            return TypeArguments[tp.Ordinal];
+        }
+
+        return type;
+    }
+
     private static string BuildName(IMistType definition, IReadOnlyList<IMistType> typeArguments)
     {
         return $"{definition.Name}<{string.Join(", ", typeArguments.Select(a => a.Name))}>";

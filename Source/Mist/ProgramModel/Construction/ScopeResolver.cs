@@ -26,10 +26,12 @@ internal sealed class ScopeResolver
     private const string ArrayDefinitionName = "Array<,>";
 
     private readonly BuilderContext context;
+    private readonly VariadicResolver variadics;
 
     public ScopeResolver(BuilderContext context)
     {
         this.context = context;
+        this.variadics = new VariadicResolver(context, this);
     }
 
     /// <summary>
@@ -171,9 +173,9 @@ internal sealed class ScopeResolver
     /// </summary>
     private IMistType ResolveParenthesized(ParenthesizedTypeRefSingleTypeRefNode parenRef, Scope scope)
     {
-        if(TryGetLoneSpread(parenRef.Inner, out var spread))
+        if(VariadicResolver.TryGetLoneSpread(parenRef.Inner, out var spread))
         {
-            return ResolveSpreadTuple(spread, scope);
+            return variadics.ResolveSpreadTuple(spread, scope);
         }
 
         return Resolve(parenRef.Inner, scope);
@@ -209,47 +211,19 @@ internal sealed class ScopeResolver
     }
 
     /// <summary>
-    /// Resolves a spread operand (the <c>TArgs</c> in <c>TArgs...</c>) to its
-    /// type-parameter pack. Returns <c>null</c> when the operand does not denote a pack:
-    /// an unresolved name (already diagnosed by name lookup) yields <c>null</c> silently,
-    /// while a resolved-but-non-pack operand is reported here before returning <c>null</c>.
-    /// Shared by the value-pack tuple form <c>(TArgs...)</c> (see
-    /// <see cref="ResolveSpreadTuple"/>) and member-declaring spreads (see
-    /// <see cref="SpreadMemberBuilder"/>), which additionally need the pack itself to
-    /// record the spread-generated member family.
+    /// Resolves a spread operand to its type-parameter pack. Delegates to <see cref="VariadicResolver"/>.
     /// </summary>
     public TypeParameter? ResolveSpreadOperandPack(SpreadSingleTypeRefSingleTypeRefNode spread, Scope scope)
     {
-        var operand = ResolveNamedType(QualifiedNameHelper.Build(spread.Name), scope, spread);
-        if(operand is ErrorType)
-        {
-            return null;
-        }
-
-        if(operand is TypeParameter { IsPack: true } pack)
-        {
-            return pack;
-        }
-
-        // A spread operand must be a pack. The dedicated pack-operand diagnostics are a
-        // later type-checker task; reporting the generic unsupported-node diagnostic here
-        // keeps an invalid `(NonPack...)` from silently resolving to a well-formed type.
-        context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownTypeRefNode, spread, null, spread.GetType().Name);
-        return null;
+        return variadics.ResolveSpreadOperandPack(spread, scope);
     }
 
     /// <summary>
-    /// Builds the value-pack tuple type <c>(TArgs...)</c> for the type-parameter pack
-    /// <paramref name="pack"/>. Both the sugared value pack <c>params TArgs args</c> and
-    /// the explicit plain tuple parameter <c>(TArgs...) args</c> resolve to this same
-    /// interned tuple; only the <c>params</c> marker recorded on the
-    /// <see cref="Parameter"/> distinguishes the flattened-call form. While the
-    /// pack is symbolic the tuple carries a single pack element; binding later
-    /// substitutes the concrete <c>Type[]</c> and expands it into one element per type.
+    /// Builds the value-pack tuple type <c>(TArgs...)</c>. Delegates to <see cref="VariadicResolver"/>.
     /// </summary>
     public TupleType BuildValuePackTuple(TypeParameter pack)
     {
-        return context.ProgramModel.TypeInterner.GetOrCreateTupleType(new IMistType[] { pack });
+        return variadics.BuildValuePackTuple(pack);
     }
 
     /// <summary>
@@ -279,14 +253,10 @@ internal sealed class ScopeResolver
         };
 
         // Variadics position semantics (Requirement 6.3-6.6). A named reference that resolved
-        // to a type-parameter pack is not an ordinary type: `TArgs[i]` is pack indexing gated
-        // by the capability ladder, and any other bare use is the type-position error — except
-        // the value-pack form `params TArgs args`, which names the pack to build its value
-        // tuple (TArgs...). This runs before the array-rank branch so a pack index is never
-        // misread as a `Standard.Array<TArgs, i>` construction.
+        // to a type-parameter pack is not an ordinary type.
         if(singleRef is NamedSingleTypeRefSingleTypeRefNode named && inner is TypeParameter { IsPack: true } pack)
         {
-            return ResolvePackInTypePosition(pack, named, barePackAllowed);
+            return variadics.ResolvePackInTypePosition(pack, named, barePackAllowed);
         }
 
         // If the type reference has an array rank suffix, wrap the inner type
@@ -299,93 +269,6 @@ internal sealed class ScopeResolver
         return inner;
     }
 
-    /// <summary>
-    /// Applies pack position semantics (Requirement 6) to a named reference whose operand
-    /// resolved to the type-parameter <paramref name="pack"/>:
-    /// <list type="bullet">
-    ///   <item><c>TArgs[i]</c> (a sized rank) is pack indexing, gated by the capability ladder
-    ///     (see <see cref="ResolvePackIndex"/>).</item>
-    ///   <item>A bare pack (no rank, no <c>?</c>) in the value-pack form
-    ///     <c>params TArgs args</c> (<paramref name="barePackAllowed"/>) resolves to the pack
-    ///     itself so the caller can build the value-pack tuple.</item>
-    ///   <item>Every other bare use — a field/return/ordinary-parameter type, a scalar type
-    ///     argument, or a <c>TArgs[]</c> / <c>TArgs?</c> form — is the bare-type-position error
-    ///     <c>MIST_VAR_0002</c> (Requirement 6.3): a pack is a value, not a type.</item>
-    /// </list>
-    /// </summary>
-    private IMistType ResolvePackInTypePosition(
-        TypeParameter pack,
-        NamedSingleTypeRefSingleTypeRefNode named,
-        bool barePackAllowed)
-    {
-        // `TArgs[i]` — pack indexing by a comptime integer literal, under the capability ladder.
-        if(named.ArrayRank is SizedArrayRankArrayRankSuffixNode sized)
-        {
-            return ResolvePackIndex(pack, sized, named);
-        }
-
-        // The value-pack form `params TArgs args` names the pack to form its value tuple; return
-        // the pack itself (the caller wraps it in (TArgs...)). Only a plain bare name qualifies —
-        // a `TArgs[]` (unsized rank) or `TArgs?` still falls through to the type-position error.
-        if(barePackAllowed && named.ArrayRank is null && named.Optional is null)
-        {
-            return pack;
-        }
-
-        // Requirement 6.3: a pack in bare type position is an error (a pack is a value, not a
-        // type). Recover as an error type so downstream analysis continues.
-        context.Diagnostics.ReportAtNode(VariadicsDiagnostics.PackInTypePosition, named, null, pack.Name);
-        return ErrorType.Instance;
-    }
-
-    /// <summary>
-    /// Resolves pack indexing <c>TArgs[i]</c> in type position under the capability ladder
-    /// (Requirement 6.4-6.6). The comptime index <c>i</c> is the sized rank's integer literal.
-    /// <list type="bullet">
-    ///   <item>An unknown-length <c>Type[]</c> pack cannot prove its length is at least
-    ///     <c>i + 1</c>, so indexing is rejected with <c>MIST_VAR_0003</c> (Requirement 6.4).</item>
-    ///   <item>A fixed-size <c>Type[N]</c> pack permits <c>0 &lt;= i &lt; N</c>, yielding the
-    ///     element type at that index (Requirement 6.5); a comptime index outside that range is
-    ///     <c>MIST_VAR_0004</c> (Requirement 6.6).</item>
-    /// </list>
-    /// <para>
-    /// While the pack is symbolic (unbound) at declaration/resolution time the concrete element
-    /// type is not yet known; the accepted in-range case therefore yields the <c>unknown</c>
-    /// placeholder so the valid indexing neither emits a diagnostic nor cascades an error. The
-    /// concrete element type is substituted when the pack binds a concrete <c>Type[]</c> during
-    /// backend monomorphization (task 14) — nothing in the program model consumes a symbolic
-    /// pack element yet, matching the existing deferral for symbolic spread-generated members.
-    /// </para>
-    /// </summary>
-    private IMistType ResolvePackIndex(
-        TypeParameter pack,
-        SizedArrayRankArrayRankSuffixNode sized,
-        Storm.Runtime.SyntaxNode locationNode)
-    {
-        var index = long.TryParse(sized.Size.Lexeme, out var parsed) ? parsed : 0L;
-
-        // Requirement 6.4: an unknown-length `Type[]:TArgs` pack proves no lower bound on its
-        // length, so no comptime index is provably in range.
-        if(pack.FixedPackLength is not { } length)
-        {
-            context.Diagnostics.ReportAtNode(
-                VariadicsDiagnostics.UnprovenPackIndex, locationNode, null, pack.Name, index + 1);
-            return ErrorType.Instance;
-        }
-
-        // Requirement 6.6: a fixed-size `Type[N]:TArgs` pack rejects a comptime index outside
-        // 0 .. N-1 (for example `TArgs[N]` or a negative index).
-        if(index < 0 || index >= length)
-        {
-            context.Diagnostics.ReportAtNode(
-                VariadicsDiagnostics.PackIndexOutOfBounds, locationNode, null, index, pack.Name, length);
-            return ErrorType.Instance;
-        }
-
-        // Requirement 6.5: in range. The symbolic element is represented by `unknown` here; the
-        // concrete element type is substituted at monomorphization (see the remarks above).
-        return UnknownType.Instance;
-    }
 
     /// <summary>
     /// Resolves a reserved keyword to its corresponding type in the Standard namespace.
@@ -459,7 +342,7 @@ internal sealed class ScopeResolver
             return ErrorType.Instance;
         }
 
-        definition ??= TryResolveVariadicFamily(baseName, scope);
+        definition ??= variadics.TryResolveVariadicFamily(baseName, scope);
         if(definition is null)
         {
             // Genuine miss: report the unresolved exact-arity name, as the direct lookup would.
@@ -467,12 +350,10 @@ internal sealed class ScopeResolver
             return ErrorType.Instance;
         }
 
-        // Route through the binding rule when the construction is variadic — either the
-        // definition declares a pack slot, or the use site supplies a bracketed pack group.
-        var slots = GetDeclaredSlots(definition);
-        if(slots is not null && (HasPackSlot(slots) || HasBracketedPackArgument(typeArgList)))
+        // Route through the binding rule when the construction is variadic.
+        if(variadics.IsVariadicConstruction(definition, typeArgList))
         {
-            return ResolveVariadicConstructedType(definition, slots, typeArgList, scope, namedRef);
+            return variadics.ResolveVariadicConstructedType(definition, typeArgList, scope, namedRef);
         }
 
         // Ordinary (non-variadic) construction: one argument per slot, interned as-is.
@@ -489,301 +370,6 @@ internal sealed class ScopeResolver
         return namedRef.Name.IDENTIFIERs.Length > 0
             ? QualifiedNameHelper.Build(namedRef.Name)
             : namedRef.Name.IDENTIFIER.Lexeme;
-    }
-
-    /// <summary>
-    /// Searches for the variadic family named <paramref name="baseName"/> (a definition with
-    /// a single bracket-free <c>params</c> pack). Because such a family is registered under
-    /// its declared slot count -- not the flat use-site argument count -- it cannot be found
-    /// by an exact-arity lookup once the flat count differs, so this locates it by simple name
-    /// across the visible namespaces instead.
-    /// <para>
-    /// Crucially, the search does <em>not</em> depend on the flat argument count: a family is
-    /// returned even when the use site supplies too few arguments to fill its fixed and
-    /// bracketed slots, so the binding rule can then diagnose that shortfall as
-    /// <c>MIST_VAR_0005</c> rather than the construction being misreported as an unresolved
-    /// type. Visibility mirrors the tiered name lookup -- local/nested types first, then own
-    /// namespaces, then imports -- and a dotted base name is searched only in its explicit
-    /// namespace. Returns <c>null</c> when no variadic family of that name is visible.
-    /// </para>
-    /// </summary>
-    private IMistType? TryResolveVariadicFamily(string baseName, Scope scope)
-    {
-        var (namespacePrefix, simpleName) = SplitQualifiedName(baseName);
-
-        // Tier 1: a variadic family visible by simple name as a local or nested type.
-        if(namespacePrefix is null)
-        {
-            for(var current = scope; current is not null; current = current.Parent)
-            {
-                foreach(var entry in current.LocalTypes)
-                {
-                    if(SimpleName(entry.Key) == simpleName && IsUnbracketedVariadicFamily(entry.Value))
-                    {
-                        return entry.Value;
-                    }
-                }
-            }
-        }
-
-        // Collect every visible variadic family of this simple name, keyed by namespace. A
-        // family is a single declaration, so at most one matches per namespace.
-        var candidatesByNamespace = new Dictionary<string, IMistType>(StringComparer.Ordinal);
-        foreach(var type in context.ProgramModel.TypesByFQN.Values)
-        {
-            if(SimpleName(type.Name) == simpleName && IsUnbracketedVariadicFamily(type))
-            {
-                _ = candidatesByNamespace.TryAdd(type.NamespaceName, type);
-            }
-        }
-
-        if(candidatesByNamespace.Count == 0)
-        {
-            return null;
-        }
-
-        // Choose by visibility priority (own namespaces before imports, or the explicit
-        // namespace prefix for a dotted base name).
-        foreach(var ns in EnumerateVisibleNamespaces(scope, namespacePrefix))
-        {
-            if(candidatesByNamespace.TryGetValue(ns, out var family))
-            {
-                return family;
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Splits a base name into its namespace prefix (everything before the last dot, or
-    /// <c>null</c> when unqualified) and its simple name (the final segment).
-    /// </summary>
-    private static (string? NamespacePrefix, string SimpleName) SplitQualifiedName(string baseName)
-    {
-        var lastDot = baseName.LastIndexOf('.');
-        return lastDot < 0
-            ? (null, baseName)
-            : (baseName[..lastDot], baseName[(lastDot + 1)..]);
-    }
-
-    /// <summary>
-    /// Strips the arity-bearing angle-bracket suffix from a registered type name, so
-    /// <c>Foo&lt;,,&gt;</c> becomes <c>Foo</c>.
-    /// </summary>
-    private static string SimpleName(string name)
-    {
-        var angle = name.IndexOf('<', StringComparison.Ordinal);
-        return angle < 0 ? name : name[..angle];
-    }
-
-    /// <summary>
-    /// Enumerates the namespaces visible from <paramref name="scope"/> in lookup priority
-    /// order: own namespaces up the scope chain first, then imported namespaces. A dotted
-    /// base name resolves only against its explicit <paramref name="namespacePrefix"/>.
-    /// Duplicates may be yielded; the first match wins, so they are harmless.
-    /// </summary>
-    private static IEnumerable<string> EnumerateVisibleNamespaces(Scope scope, string? namespacePrefix)
-    {
-        if(namespacePrefix is not null)
-        {
-            yield return namespacePrefix;
-            yield break;
-        }
-
-        for(var current = scope; current is not null; current = current.Parent)
-        {
-            if(current.Namespace is not null)
-            {
-                yield return current.Namespace;
-            }
-        }
-
-        for(var current = scope; current is not null; current = current.Parent)
-        {
-            foreach(var imported in current.ImportedNamespaces)
-            {
-                yield return imported;
-            }
-        }
-    }
-
-    /// <summary>
-    /// True when <paramref name="type"/> is a variadic family with a single bracket-free
-    /// <c>params</c> pack -- the only kind whose flat use-site arity can differ from its
-    /// declared slot count and therefore needs the family lookup.
-    /// </summary>
-    private static bool IsUnbracketedVariadicFamily(IMistType type)
-    {
-        var slots = GetDeclaredSlots(type);
-        return slots is not null && HasUnbracketedPackSlot(slots);
-    }
-
-    /// <summary>
-    /// Binds a flat (or explicitly bracketed) use-site argument list to a variadic
-    /// definition's declared slots via the shared <see cref="PackBinder"/>, then interns the
-    /// resulting constructed type. Each pack slot's ordered element list is lifted into a
-    /// comptime <c>Type[]</c> (<see cref="TypeInterner.GetOrCreateLiftedTypeArray"/>) so that
-    /// the flat form and the bracketed canonical form of the same pack denote the very same
-    /// interned type (Requirement 4.4). Too few arguments to fill the fixed and bracketed
-    /// slots is reported as <c>MIST_VAR_0005</c> (Requirement 4.6).
-    /// </summary>
-    private IMistType ResolveVariadicConstructedType(
-        IMistType definition,
-        IReadOnlyList<TypeParameter> slots,
-        TypeArgumentListNode typeArgList,
-        Scope scope,
-        Storm.Runtime.SyntaxNode locationNode)
-    {
-        var slotKinds = new List<BindingSlotKind>(slots.Count);
-        foreach(var slot in slots)
-        {
-            slotKinds.Add(ToBindingSlotKind(slot));
-        }
-
-        var arguments = BuildUseSiteArguments(typeArgList, scope);
-        var result = PackBinder.Bind(slotKinds, arguments);
-
-        if(result.Status == PackBindingStatus.TooFewArguments)
-        {
-            context.Diagnostics.ReportAtNode(
-                VariadicsDiagnostics.TooFewArgumentsForBinding, locationNode, null, definition.Name);
-            return ErrorType.Instance;
-        }
-
-        var canonicalArguments = new List<IMistType>(result.Slots.Count);
-        foreach(var binding in result.Slots)
-        {
-            if(binding.IsPack)
-            {
-                canonicalArguments.Add(
-                    context.ProgramModel.TypeInterner.GetOrCreateLiftedTypeArray(binding.Elements));
-            }
-            else
-            {
-                // A well-formed fixed slot binds exactly one scalar type; anything else is a
-                // use-site shape error, recovered as an error type so analysis continues.
-                canonicalArguments.Add(binding.Elements.Count == 1 ? binding.Elements[0] : ErrorType.Instance);
-            }
-        }
-
-        return context.ProgramModel.TypeInterner.GetOrCreateConstructedType(definition, canonicalArguments);
-    }
-
-    /// <summary>
-    /// Maps a declared type parameter to its <see cref="BindingSlotKind"/>: the single
-    /// unbracketed <c>params</c> pack, a bracketed <c>Type[]:</c> pack, or an ordinary fixed
-    /// scalar slot.
-    /// </summary>
-    private static BindingSlotKind ToBindingSlotKind(TypeParameter slot)
-    {
-        return slot.PackKind switch
-        {
-            TypeParameterPackKind.Unbracketed => BindingSlotKind.UnbracketedPack,
-            TypeParameterPackKind.Bracketed => BindingSlotKind.BracketedPack,
-            _ => BindingSlotKind.Fixed,
-        };
-    }
-
-    /// <summary>
-    /// Returns the declared type-parameter slot list for a definition that can carry a pack
-    /// (a class/struct/abstract member type, a type alias, or a newtype), or <c>null</c> for
-    /// a definition kind that declares no type parameters.
-    /// </summary>
-    private static IReadOnlyList<TypeParameter>? GetDeclaredSlots(IMistType definition)
-    {
-        return definition switch
-        {
-            MemberType member => member.TypeParametersList,
-            TypeAlias alias => alias.TypeParametersList,
-            Newtype newtype => newtype.TypeParametersList,
-            _ => null,
-        };
-    }
-
-    private static bool HasPackSlot(IReadOnlyList<TypeParameter> slots)
-    {
-        return slots.Any(s => s.IsPack);
-    }
-
-    private static bool HasUnbracketedPackSlot(IReadOnlyList<TypeParameter> slots)
-    {
-        return slots.Any(s => s.IsUnbracketedPack);
-    }
-
-    /// <summary>
-    /// True when any use-site type argument is a bracketed pack group (<c>[...]</c>, including
-    /// the empty group <c>[]</c>), which marks the construction as variadic even for a
-    /// definition whose pack slot classification is not otherwise in view.
-    /// </summary>
-    private static bool HasBracketedPackArgument(TypeArgumentListNode typeArgList)
-    {
-        if(typeArgList.TypeArgument is BracketedPackTypeArgumentTypeArgumentNode)
-        {
-            return true;
-        }
-
-        foreach(var arg in typeArgList.TypeArguments)
-        {
-            if(arg is BracketedPackTypeArgumentTypeArgumentNode)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// Resolves each use-site type argument into a <see cref="UseSiteArgument"/> — a scalar
-    /// type or a bracketed group — preserving the order and the flat-versus-bracketed
-    /// distinction the binding rule needs.
-    /// </summary>
-    private List<UseSiteArgument> BuildUseSiteArguments(TypeArgumentListNode typeArgList, Scope scope)
-    {
-        var arguments = new List<UseSiteArgument>(1 + typeArgList.TypeArguments.Length);
-
-        AddUseSiteArgument(typeArgList.TypeArgument, scope, arguments);
-
-        foreach(var arg in typeArgList.TypeArguments)
-        {
-            AddUseSiteArgument(arg, scope, arguments);
-        }
-
-        return arguments;
-    }
-
-    private void AddUseSiteArgument(TypeArgumentNode arg, Scope scope, List<UseSiteArgument> arguments)
-    {
-        if(arg is BracketedPackTypeArgumentTypeArgumentNode bracketed)
-        {
-            arguments.Add(UseSiteArgument.Group(ResolveBracketedGroup(bracketed, scope)));
-        }
-        else
-        {
-            arguments.Add(UseSiteArgument.Scalar(ResolveScalarTypeArgument(arg, scope)));
-        }
-    }
-
-    /// <summary>
-    /// Resolves the element types of a bracketed pack group <c>[T1, T2, ...]</c>. The empty
-    /// group <c>[]</c> yields zero elements (the empty pack).
-    /// </summary>
-    private List<IMistType> ResolveBracketedGroup(BracketedPackTypeArgumentTypeArgumentNode bracketed, Scope scope)
-    {
-        var elements = new List<IMistType>();
-
-        if(bracketed.PackElements is { } list)
-        {
-            elements.Add(Resolve(list.TypeReference, scope));
-
-            foreach(var element in list.TypeReferences)
-            {
-                elements.Add(Resolve(element, scope));
-            }
-        }
-
-        return elements;
     }
 
     /// <summary>
@@ -837,7 +423,7 @@ internal sealed class ScopeResolver
     /// path (see <see cref="ResolveVariadicConstructedType"/>); reaching one here means it was
     /// supplied to a non-variadic definition, which is reported as an unsupported argument.
     /// </summary>
-    private IMistType ResolveScalarTypeArgument(TypeArgumentNode arg, Scope scope)
+    internal IMistType ResolveScalarTypeArgument(TypeArgumentNode arg, Scope scope)
     {
         switch(arg)
         {
@@ -845,75 +431,30 @@ internal sealed class ScopeResolver
                 return Resolve(typeRefArg.Type, scope);
 
             case IntegerLiteralTypeArgumentTypeArgumentNode intLit:
-                return LiftIntegerLiteral(intLit.Literal.Lexeme);
+                return variadics.LiftIntegerLiteral(intLit.Literal.Lexeme);
 
             case NegatedIntegerTypeArgumentTypeArgumentNode negLit:
-                return LiftNegatedIntegerLiteral(negLit.Literal.Lexeme);
+                return variadics.LiftNegatedIntegerLiteral(negLit.Literal.Lexeme);
 
             case HexLiteralTypeArgumentTypeArgumentNode hexLit:
-                return LiftHexLiteral(hexLit.Literal.Lexeme);
+                return variadics.LiftHexLiteral(hexLit.Literal.Lexeme);
 
             case BinaryLiteralTypeArgumentTypeArgumentNode binLit:
-                return LiftBinaryLiteral(binLit.Literal.Lexeme);
+                return variadics.LiftBinaryLiteral(binLit.Literal.Lexeme);
 
             case TrueLiteralTypeArgumentTypeArgumentNode:
-                return context.ProgramModel.TypeInterner.GetOrCreateLiftedType(true, "true");
+                return variadics.LiftBoolTrue();
 
             case FalseLiteralTypeArgumentTypeArgumentNode:
-                return context.ProgramModel.TypeInterner.GetOrCreateLiftedType(false, "false");
+                return variadics.LiftBoolFalse();
 
             case CharLiteralTypeArgumentTypeArgumentNode charLit:
-                return LiftCharLiteral(charLit.Literal.Lexeme);
+                return variadics.LiftCharLiteral(charLit.Literal.Lexeme);
 
             default:
                 context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownTypeRefNode, arg, null, arg.GetType().Name);
                 return ErrorType.Instance;
         }
-    }
-
-    private IMistType LiftIntegerLiteral(string lexeme)
-    {
-        var value = long.TryParse(lexeme, out var parsed) ? parsed : 0L;
-        return context.ProgramModel.TypeInterner.GetOrCreateLiftedType(value, lexeme);
-    }
-
-    private IMistType LiftNegatedIntegerLiteral(string lexeme)
-    {
-        var value = long.TryParse(lexeme, out var parsed) ? -parsed : 0L;
-        return context.ProgramModel.TypeInterner.GetOrCreateLiftedType(value, $"-{lexeme}");
-    }
-
-    private IMistType LiftHexLiteral(string lexeme)
-    {
-        var hexStr = lexeme.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
-            ? lexeme[2..] : lexeme;
-        var value = long.TryParse(hexStr, NumberStyles.HexNumber, null, out var parsed)
-            ? parsed : 0L;
-        return context.ProgramModel.TypeInterner.GetOrCreateLiftedType(value, lexeme);
-    }
-
-    private IMistType LiftBinaryLiteral(string lexeme)
-    {
-        var binStr = lexeme.StartsWith("0b", StringComparison.OrdinalIgnoreCase)
-            ? lexeme[2..] : lexeme;
-        long value;
-        try
-        {
-            value = Convert.ToInt64(binStr, 2);
-        }
-        catch
-        {
-            value = 0L;
-        }
-
-        return context.ProgramModel.TypeInterner.GetOrCreateLiftedType(value, lexeme);
-    }
-
-    private IMistType LiftCharLiteral(string lexeme)
-    {
-        // Strip surrounding quotes to get the char value.
-        var charValue = lexeme.Length >= 3 ? lexeme[1] : '\0';
-        return context.ProgramModel.TypeInterner.GetOrCreateLiftedType(charValue, lexeme);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

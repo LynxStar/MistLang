@@ -40,6 +40,12 @@ internal class TypeParameter : MistType, ITypeParameter
     public MistType? Domain { get; internal set; }
 
     /// <summary>
+    /// True when this type parameter was declared with <c>params</c>, indicating it
+    /// holds a <c>Type[]</c> and can be spread with <c>...</c> at use sites.
+    /// </summary>
+    public bool HasParams { get; internal set; }
+
+    /// <summary>
     /// The constraints declared on this type parameter via where clauses.
     /// Populated during Phase 2 when constraints are resolved.
     /// </summary>

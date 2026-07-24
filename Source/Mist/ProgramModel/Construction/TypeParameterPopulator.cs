@@ -37,6 +37,12 @@ internal static class TypeParameterPopulator
         var name = node.GetName().Lexeme;
 
         var typeParam = new TypeParameter(name, ordinal, scope, declaringType);
+
+        if(node is ParamsPackTypeParameterTypeParameterNode)
+        {
+            typeParam.HasParams = true;
+        }
+
         target.Add(typeParam);
         scope.AddLocalType(name, typeParam);
     }

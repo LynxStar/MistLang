@@ -142,6 +142,7 @@ internal sealed class ScopeResolver
             NamedSingleTypeRefSingleTypeRefNode namedRef => ResolveNamed(namedRef, scope),
             ParenthesizedTypeRefSingleTypeRefNode parenRef => Resolve(parenRef.Inner, scope),
             TupleSingleTypeRefSingleTypeRefNode tupleRef => ResolveTuple(tupleRef, scope),
+            SpreadSingleTypeRefSingleTypeRefNode spread => ResolveSpread(spread, scope),
             _ => ReportUnsupported(singleRef),
         };
 
@@ -593,6 +594,26 @@ internal sealed class ScopeResolver
 
         return context.ProgramModel.TypeInterner.GetOrCreateConstructedType(
             arrayDef, new IMistType[] { elementType, lengthArg });
+    }
+
+    /// <summary>
+    /// Resolves a spread type reference (<c>TArgs...</c>) by looking up the named type
+    /// parameter that has <see cref="TypeParameter.HasParams"/> set. The spread resolves
+    /// to the type parameter itself — the semantics of unpacking are handled at the
+    /// use site (e.g., type alias expansion).
+    /// </summary>
+    private IMistType ResolveSpread(SpreadSingleTypeRefSingleTypeRefNode spread, Scope scope)
+    {
+        var name = spread.Name.IDENTIFIER.Lexeme;
+        var resolved = ResolveNamedType(name, scope, spread);
+
+        if(resolved is TypeParameter { HasParams: true })
+        {
+            return resolved;
+        }
+
+        context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownTypeRefNode, spread, null, name);
+        return ErrorType.Instance;
     }
 
     private IMistType ReportUnsupported(SingleTypeRefNode node)

@@ -1,6 +1,10 @@
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.Driver.Contracts;
+using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Construction.Resolution;
+using Mist.ProgramModel.Construction.Scaffolding;
+using Mist.ProgramModel.Construction.Types;
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;

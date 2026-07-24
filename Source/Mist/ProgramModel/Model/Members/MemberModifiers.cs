@@ -1,4 +1,6 @@
-namespace Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
+
+namespace Mist.ProgramModel.Model.Members;
 
 /// <summary>
 /// The set of modifiers that can be applied to any declaration.

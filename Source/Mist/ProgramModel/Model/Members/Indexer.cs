@@ -1,7 +1,7 @@
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
 
-namespace Mist.ProgramModel.Model;
+namespace Mist.ProgramModel.Model.Members;
 
 /// <summary>
 /// An indexer declared on a type.

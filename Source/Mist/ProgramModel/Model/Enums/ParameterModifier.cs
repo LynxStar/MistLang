@@ -1,4 +1,4 @@
-namespace Mist.ProgramModel.Model;
+namespace Mist.ProgramModel.Model.Enums;
 
 /// <summary>
 /// The modifiers applied to a parameter, composed from three orthogonal primitives:

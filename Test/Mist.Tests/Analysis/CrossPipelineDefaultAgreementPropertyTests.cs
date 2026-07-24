@@ -11,11 +11,11 @@ using Mist.Common.Source;
 using Mist.Driver.Contracts;
 using Mist.Lexing;
 using Mist.Parsing;
-using Mist.ProgramModel.Construction;
+using Mist.ProgramModel.Construction.Members;
 using Mist.ProgramModel.Model.Types;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
-using ExperimentalAccessibility = Mist.ProgramModel.Model.Accessibility;
+using ExperimentalAccessibility = Mist.ProgramModel.Model.Enums.Accessibility;
 using ExperimentalMistType = Mist.ProgramModel.Model.Types.MistType;
 using ProgramModelScope = Mist.ProgramModel.Model.Scope;
 

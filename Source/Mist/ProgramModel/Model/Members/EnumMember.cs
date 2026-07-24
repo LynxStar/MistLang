@@ -1,7 +1,7 @@
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Model.Expressions;
 
-namespace Mist.ProgramModel.Model;
+namespace Mist.ProgramModel.Model.Members;
 
 /// <summary>
 /// A single member (variant) of an enum type.

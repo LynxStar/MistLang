@@ -1,11 +1,11 @@
 using Mist.Generated;
-using Mist.ProgramModel.Construction.Expressions;
+using Mist.ProgramModel.Construction.Binding.Expressions;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Statements;
 
-namespace Mist.ProgramModel.Construction;
+namespace Mist.ProgramModel.Construction.Binding;
 
 /// <summary>
 /// Resolves AST statement nodes into the model's <see cref="Statement"/> hierarchy.

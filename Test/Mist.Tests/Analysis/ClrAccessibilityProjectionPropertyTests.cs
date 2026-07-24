@@ -6,7 +6,7 @@ using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Backends.CSharpTranspiler.AmbientProvider;
-using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
 using Mist.Tests.InteropFixtures;
 using Property = FsCheck.Property;
 

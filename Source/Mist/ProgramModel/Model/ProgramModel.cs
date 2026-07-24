@@ -1,5 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
-using Mist.ProgramModel.Construction;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
 

@@ -1,7 +1,7 @@
 using Mist.Generated;
 using Mist.ProgramModel.Model.Expressions;
 
-namespace Mist.ProgramModel.Construction.Expressions;
+namespace Mist.ProgramModel.Construction.Binding.Expressions;
 
 /// <summary>
 /// Binds literal expressions (integer, string, bool, float, char, hex).

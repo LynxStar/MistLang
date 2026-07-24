@@ -2,7 +2,7 @@ using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 
-namespace Mist.ProgramModel.Construction;
+namespace Mist.ProgramModel.Construction.Binding;
 
 /// <summary>
 /// Mutable state passed through the body-binding recursion. Carries the current

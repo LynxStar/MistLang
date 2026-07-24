@@ -1,7 +1,9 @@
 using Mist.Generated;
-using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Construction.Members;
+using Mist.ProgramModel.Construction.Resolution;
+using Mist.ProgramModel.Model.Enums;
 
-namespace Mist.ProgramModel.Construction;
+namespace Mist.ProgramModel.Construction.Types;
 
 /// <summary>
 /// Base class for Phase 2 builders that resolve member-bearing types (classes,

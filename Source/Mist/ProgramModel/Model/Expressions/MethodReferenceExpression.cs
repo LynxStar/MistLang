@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Members;
 using Storm.Runtime;
 
 namespace Mist.ProgramModel.Model.Expressions;

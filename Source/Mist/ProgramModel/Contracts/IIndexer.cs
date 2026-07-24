@@ -1,5 +1,5 @@
 using Mist.ProgramModel.Contracts.Types;
-using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Members;
 
 namespace Mist.ProgramModel.Contracts;
 

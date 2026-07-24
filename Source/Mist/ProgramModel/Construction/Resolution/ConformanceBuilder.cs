@@ -1,7 +1,8 @@
+using Mist.ProgramModel.Construction.Scaffolding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 
-namespace Mist.ProgramModel.Construction;
+namespace Mist.ProgramModel.Construction.Resolution;
 
 /// <summary>
 /// Phase 2c builder for retroactive conformance declarations (with blocks).

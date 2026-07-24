@@ -1,7 +1,8 @@
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Statements;
 
-namespace Mist.ProgramModel.Model;
+namespace Mist.ProgramModel.Model.Members;
 
 /// <summary>
 /// An accessor (getter or setter) on a property.

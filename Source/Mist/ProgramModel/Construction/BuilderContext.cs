@@ -1,4 +1,6 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Construction.Resolution;
+using Mist.ProgramModel.Construction.Scaffolding;
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Model;
 

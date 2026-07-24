@@ -1,9 +1,10 @@
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 
-namespace Mist.ProgramModel.Construction;
+namespace Mist.ProgramModel.Construction.Binding;
 
 /// <summary>
 /// Entry point for Phase 3 body binding. Sets up the scope (parameter aliases)

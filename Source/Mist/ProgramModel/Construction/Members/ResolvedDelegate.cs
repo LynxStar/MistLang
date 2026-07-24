@@ -1,7 +1,9 @@
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Statements;
 
-namespace Mist.ProgramModel.Construction;
+namespace Mist.ProgramModel.Construction.Members;
 
 /// <summary>
 /// Resolved output from a <see cref="IDelegateNode"/>: the 4 common pieces

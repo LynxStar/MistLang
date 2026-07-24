@@ -3,7 +3,7 @@ using Mist.Generated;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 
-namespace Mist.ProgramModel.Construction.Expressions;
+namespace Mist.ProgramModel.Construction.Binding.Expressions;
 
 /// <summary>
 /// Walks the precedence chain from VoidCoalescing down to Unary.

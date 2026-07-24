@@ -1,4 +1,4 @@
-namespace Mist.ProgramModel.Model;
+namespace Mist.ProgramModel.Model.Enums;
 
 /// <summary>
 /// The ownership classification of a storage location (field, parameter, local).

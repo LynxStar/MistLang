@@ -3,7 +3,7 @@ using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Types;
 
-namespace Mist.ProgramModel.Construction.Expressions;
+namespace Mist.ProgramModel.Construction.Binding.Expressions;
 
 /// <summary>
 /// Entry point for expression binding. Unwraps the assignment layer and dispatches

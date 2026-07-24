@@ -1,7 +1,8 @@
 using Mist.Generated;
-using Mist.ProgramModel.Construction;
+using Mist.ProgramModel.Construction.Members;
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Members;
 
 namespace Mist.ProgramModel.Model.Types;
 

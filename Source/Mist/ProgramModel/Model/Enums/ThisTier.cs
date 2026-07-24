@@ -1,4 +1,4 @@
-namespace Mist.ProgramModel.Model;
+namespace Mist.ProgramModel.Model.Enums;
 
 /// <summary>
 /// The ownership tier required on 'this' for a method to be called.

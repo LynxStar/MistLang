@@ -3,7 +3,7 @@ using Mist.Common.Source;
 using Mist.Generated;
 using Mist.ProgramModel.Model;
 
-namespace Mist.ProgramModel.Construction;
+namespace Mist.ProgramModel.Construction.Scaffolding;
 
 /// <summary>
 /// Validates namespace declarations, determines the file namespace, registers

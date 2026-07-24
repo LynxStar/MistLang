@@ -1,4 +1,4 @@
-namespace Mist.ProgramModel.Model;
+namespace Mist.ProgramModel.Model.Enums;
 
 /// <summary>
 /// The kind of operator declared on a type.

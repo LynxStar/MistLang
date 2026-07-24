@@ -1,4 +1,4 @@
-namespace Mist.ProgramModel.Model;
+namespace Mist.ProgramModel.Model.Enums;
 
 /// <summary>
 /// Enumerates the kinds of constraints that can be placed on a type parameter.

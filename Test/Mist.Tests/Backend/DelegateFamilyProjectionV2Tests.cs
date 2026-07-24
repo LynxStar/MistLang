@@ -23,9 +23,7 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
 {
     private readonly ProgramModelClass programModel;
     private readonly AmbientTypeProviderV2 provider;
-    private readonly IMistType funcArity1;
     private readonly IMistType funcArity2;
-    private readonly IMistType funcArity3;
     private readonly IMistType voidType;
 
     private IMistType? LookupType(string namespaceName, string typeName)
@@ -71,8 +69,6 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
 
         // Register the single variadic Func<params TArgs, TResult> (arity 2)
         funcArity2 = new ClassType("Func<,>", "Standard", scope, null, null);
-        funcArity1 = funcArity2; // All CLR Func arities map to the same Mist type
-        funcArity3 = funcArity2;
         voidType = new ClassType("Void", "Standard", scope, null, null);
 
         _ = programModel.RegisterType(funcArity2);

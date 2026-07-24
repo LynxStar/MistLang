@@ -1,9 +1,10 @@
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 
-namespace Mist.ProgramModel.Model;
+namespace Mist.ProgramModel.Model.Members;
 
 /// <summary>
 /// A method declared on a type.

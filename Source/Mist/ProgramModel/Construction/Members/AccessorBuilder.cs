@@ -1,10 +1,11 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
-using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Statements;
 
-namespace Mist.ProgramModel.Construction;
+namespace Mist.ProgramModel.Construction.Members;
 
 /// <summary>
 /// Shared accessor construction and validation logic used by both

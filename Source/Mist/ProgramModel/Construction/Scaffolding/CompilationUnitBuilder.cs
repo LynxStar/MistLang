@@ -1,8 +1,9 @@
 using Mist.Driver.Contracts;
 using Mist.Generated;
+using Mist.ProgramModel.Construction.Types;
 using Mist.ProgramModel.Model;
 
-namespace Mist.ProgramModel.Construction;
+namespace Mist.ProgramModel.Construction.Scaffolding;
 
 /// <summary>
 /// Processes compilation units (files) by creating the file scope and delegating

@@ -1,4 +1,6 @@
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Enums;
+using Mist.ProgramModel.Model.Members;
 
 namespace Mist.ProgramModel.Model.Types;
 

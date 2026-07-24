@@ -1,8 +1,11 @@
 using Mist.Generated;
+using Mist.ProgramModel.Construction.Resolution;
+using Mist.ProgramModel.Construction.Types;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
-namespace Mist.ProgramModel.Construction;
+namespace Mist.ProgramModel.Construction.Members;
 
 /// <summary>
 /// Resolves method declarations into <see cref="Method"/> instances.

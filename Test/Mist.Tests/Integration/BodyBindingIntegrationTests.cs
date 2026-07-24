@@ -20,6 +20,7 @@ using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Backend;
@@ -133,8 +134,8 @@ public sealed class BodyBindingIntegrationTests : IDisposable
         var returnStatement = Assert.IsType<ReturnStatement>(method.Body!.Statements[^1]);
         var binary = Assert.IsType<BinaryExpression>(returnStatement.Value);
         Assert.Equal(BinaryOperatorKind.Add, binary.OperatorKind);
-        Assert.IsType<LocalReferenceExpression>(binary.Left);
-        Assert.IsType<LocalReferenceExpression>(binary.Right);
+        _ = Assert.IsType<LocalReferenceExpression>(binary.Left);
+        _ = Assert.IsType<LocalReferenceExpression>(binary.Right);
     }
 
     [Fact]

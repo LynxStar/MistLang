@@ -1,7 +1,9 @@
 using Mist.Generated;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Members;
 
-namespace Mist.ProgramModel.Construction;
+namespace Mist.ProgramModel.Construction.Members;
 
 /// <summary>
 /// Resolves parameter lists from AST nodes into <see cref="Parameter"/> instances.

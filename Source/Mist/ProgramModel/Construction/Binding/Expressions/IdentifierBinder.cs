@@ -1,7 +1,8 @@
 using Mist.Generated;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Model.Expressions;
 
-namespace Mist.ProgramModel.Construction.Expressions;
+namespace Mist.ProgramModel.Construction.Binding.Expressions;
 
 /// <summary>
 /// Resolves identifier expressions through the unified lookup on ScopeResolver.

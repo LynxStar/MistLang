@@ -1,6 +1,6 @@
 using Mist.Generated;
 
-namespace Mist.ProgramModel.Construction;
+namespace Mist.ProgramModel.Construction.Resolution;
 
 /// <summary>
 /// Shared utility for building dot-separated qualified names from AST nodes.

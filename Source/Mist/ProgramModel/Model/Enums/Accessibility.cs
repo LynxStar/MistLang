@@ -1,4 +1,4 @@
-namespace Mist.ProgramModel.Model;
+namespace Mist.ProgramModel.Model.Enums;
 
 /// <summary>The declared accessibility of a declaration (experimental pipeline).</summary>
 public enum Accessibility

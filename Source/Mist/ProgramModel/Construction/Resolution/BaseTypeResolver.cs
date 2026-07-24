@@ -3,7 +3,7 @@ using Mist.Generated;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Types;
 
-namespace Mist.ProgramModel.Construction;
+namespace Mist.ProgramModel.Construction.Resolution;
 
 /// <summary>
 /// Resolves the base type list (inheritance and abstract implementations)

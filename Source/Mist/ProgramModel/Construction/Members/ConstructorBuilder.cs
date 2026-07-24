@@ -1,9 +1,9 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
-using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
-namespace Mist.ProgramModel.Construction;
+namespace Mist.ProgramModel.Construction.Members;
 
 /// <summary>
 /// Resolves constructor declarations into <see cref="Constructor"/> instances.

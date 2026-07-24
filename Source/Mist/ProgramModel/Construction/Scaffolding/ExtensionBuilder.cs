@@ -1,8 +1,11 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
+using Mist.ProgramModel.Construction.Members;
+using Mist.ProgramModel.Construction.Resolution;
+using Mist.ProgramModel.Construction.Types;
 using Mist.ProgramModel.Model;
 
-namespace Mist.ProgramModel.Construction;
+namespace Mist.ProgramModel.Construction.Scaffolding;
 
 /// <summary>
 /// Phase 2 builder for extension blocks. Processes all <see cref="PendingExtension"/>

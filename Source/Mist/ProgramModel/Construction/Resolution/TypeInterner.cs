@@ -3,7 +3,7 @@ using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Types;
 using Storm.Runtime;
 
-namespace Mist.ProgramModel.Construction;
+namespace Mist.ProgramModel.Construction.Resolution;
 
 /// <summary>
 /// Interns synthetic type instances (unions, constructed types) so that structurally

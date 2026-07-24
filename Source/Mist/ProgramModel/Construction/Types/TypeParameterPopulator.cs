@@ -2,7 +2,7 @@ using Mist.Generated;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 
-namespace Mist.ProgramModel.Construction;
+namespace Mist.ProgramModel.Construction.Types;
 
 /// <summary>
 /// Shared logic for creating <see cref="TypeParameter"/> instances from AST

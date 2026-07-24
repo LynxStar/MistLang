@@ -1,7 +1,7 @@
 using Mist.Generated;
 using Mist.ProgramModel.Model;
 
-namespace Mist.ProgramModel.Construction;
+namespace Mist.ProgramModel.Construction.Scaffolding;
 
 /// <summary>
 /// A stashed with-declaration waiting for Phase 2c resolution.

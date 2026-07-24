@@ -5,7 +5,7 @@ using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 
-namespace Mist.ProgramModel.Construction;
+namespace Mist.ProgramModel.Construction.Resolution;
 
 /// <summary>
 /// Resolves AST type reference nodes into <see cref="IMistType"/> by performing

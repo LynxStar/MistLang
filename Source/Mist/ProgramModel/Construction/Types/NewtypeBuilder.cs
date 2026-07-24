@@ -1,6 +1,8 @@
+using Mist.ProgramModel.Construction.Members;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Model.Types;
 
-namespace Mist.ProgramModel.Construction;
+namespace Mist.ProgramModel.Construction.Types;
 
 /// <summary>
 /// Phase 2 builder for newtypes. Resolves modifiers and the source type reference

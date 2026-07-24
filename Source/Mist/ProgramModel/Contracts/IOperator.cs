@@ -1,4 +1,4 @@
-using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
 
 namespace Mist.ProgramModel.Contracts;
 

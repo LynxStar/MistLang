@@ -2,13 +2,15 @@ using System.Collections.Immutable;
 using System.Reflection;
 using Mist.Backends.CSharpTranspiler.AmbientProvider;
 using Mist.Common.Diagnostics;
-using Mist.ProgramModel.Construction;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.InteropFixtures;
-using ParameterModifier = Mist.ProgramModel.Model.ParameterModifier;
+using ParameterModifier = Mist.ProgramModel.Model.Enums.ParameterModifier;
 using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 
 namespace Mist.Tests.Backend;

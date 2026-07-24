@@ -1,7 +1,7 @@
 using Mist.Common.Diagnostics;
 using SyntaxNode = Storm.Runtime.SyntaxNode;
 
-namespace Mist.ProgramModel.Construction;
+namespace Mist.ProgramModel.Construction.Members;
 
 /// <summary>
 /// Validates the requirements common to every intrinsic data member — fields,

@@ -1,4 +1,5 @@
-using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
+using Mist.ProgramModel.Model.Members;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 

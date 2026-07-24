@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Construction;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
@@ -428,7 +429,7 @@ public sealed class ScopeResolverAmbiguityTests
         var resolver = new ScopeResolver(context);
         var result = resolver.Lookup("x", innerScope, MakeDummyNode());
 
-        Assert.IsType<VariableResult>(result);
+        _ = Assert.IsType<VariableResult>(result);
         Assert.Same(varX, ((VariableResult)result).Variable);
     }
 
@@ -459,7 +460,7 @@ public sealed class ScopeResolverAmbiguityTests
         var resolver = new ScopeResolver(context);
         var result = resolver.Lookup("x", innerScope, MakeDummyNode());
 
-        Assert.IsType<TypeResult>(result);
+        _ = Assert.IsType<TypeResult>(result);
         Assert.Same(typeX, ((TypeResult)result).Type);
     }
 
@@ -485,7 +486,7 @@ public sealed class ScopeResolverAmbiguityTests
         var resolver = new ScopeResolver(context);
         var result = resolver.Lookup("Foo", scope, MakeDummyNode());
 
-        Assert.IsType<TypeResult>(result);
+        _ = Assert.IsType<TypeResult>(result);
         Assert.Same(foo, ((TypeResult)result).Type);
     }
 
@@ -507,6 +508,6 @@ public sealed class ScopeResolverAmbiguityTests
         var resolver = new ScopeResolver(context);
         var result = resolver.Lookup("DoesNotExist", scope, MakeDummyNode());
 
-        Assert.IsType<NotFoundResult>(result);
+        _ = Assert.IsType<NotFoundResult>(result);
     }
 }

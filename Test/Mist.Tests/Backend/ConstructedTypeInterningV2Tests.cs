@@ -5,7 +5,7 @@
 // Verify same definition + type arguments from different resolution paths produce the same reference.
 // Uses TypeInterner.GetOrCreateConstructedType directly (no process spawning).
 
-using Mist.ProgramModel.Construction;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;

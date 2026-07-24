@@ -1,9 +1,11 @@
 using Mist.Generated;
-using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Construction.Members;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
-namespace Mist.ProgramModel.Construction;
+namespace Mist.ProgramModel.Construction.Types;
 
 /// <summary>
 /// Phase 2 builder for enum types. Resolves the explicit underlying type annotation

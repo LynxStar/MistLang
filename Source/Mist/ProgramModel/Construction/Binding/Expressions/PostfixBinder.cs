@@ -3,7 +3,7 @@ using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Types;
 
-namespace Mist.ProgramModel.Construction.Expressions;
+namespace Mist.ProgramModel.Construction.Binding.Expressions;
 
 /// <summary>
 /// Handles postfix expressions: binds the primary target, then folds each

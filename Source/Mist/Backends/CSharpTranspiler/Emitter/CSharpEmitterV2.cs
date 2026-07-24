@@ -40,7 +40,8 @@ internal sealed class CSharpEmitterV2
             .TypesByFQN
             .Values
             .Where(t => t.Origin != TypeOrigin.Ambient)
-            .OfType<MemberType>()
+            .OfType<ConcreteType>()
+            .Where(t => !t.IsIntrinsic)
             ;
 
         foreach(var memberType in sourceTypes)

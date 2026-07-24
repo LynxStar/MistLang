@@ -359,21 +359,19 @@ internal sealed class TypeBuilder
     /// Creates <see cref="TypeParameter"/> instances from the AST type parameter list
     /// and registers them on the member type and in its scope.
     /// </summary>
-    private void PopulateTypeParameters(MemberType type, TypeParameterListNode? typeParams)
+    private static void PopulateTypeParameters(MemberType type, TypeParameterListNode? typeParams)
     {
-        TypeParameterPopulator.Populate(type.TypeParametersList, type.Scope, type, typeParams, context.Diagnostics);
+        TypeParameterPopulator.Populate(type.TypeParametersList, type.Scope, type, typeParams);
     }
 
     /// <summary>
     /// Creates <see cref="TypeParameter"/> instances from the AST type parameter list,
     /// adds them to the provided list, and registers them in the given scope.
     /// Works for any type that declares type parameters (member types, aliases, newtypes).
-    /// Passes the diagnostic bag so the at-most-one-Unbracketed_Pack rule (MIST_VAR_0001)
-    /// is enforced for every type-declaration kind.
     /// </summary>
-    private void PopulateTypeParameters(
+    private static void PopulateTypeParameters(
         List<TypeParameter> target, Scope scope, MistType declaringType, TypeParameterListNode? typeParams)
     {
-        TypeParameterPopulator.Populate(target, scope, declaringType, typeParams, context.Diagnostics);
+        TypeParameterPopulator.Populate(target, scope, declaringType, typeParams);
     }
 }

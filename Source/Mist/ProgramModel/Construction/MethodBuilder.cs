@@ -1,4 +1,3 @@
-using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
@@ -14,18 +13,15 @@ internal sealed class MethodBuilder
     private readonly ScopeResolver scopeResolver;
     private readonly DelegateResolver delegateResolver;
     private readonly ConstraintResolver constraintResolver;
-    private readonly DiagnosticBag diagnostics;
 
     public MethodBuilder(
         ScopeResolver scopeResolver,
         DelegateResolver delegateResolver,
-        ConstraintResolver constraintResolver,
-        DiagnosticBag diagnostics)
+        ConstraintResolver constraintResolver)
     {
         this.scopeResolver = scopeResolver;
         this.delegateResolver = delegateResolver;
         this.constraintResolver = constraintResolver;
-        this.diagnostics = diagnostics;
     }
 
     /// <summary>
@@ -46,13 +42,7 @@ internal sealed class MethodBuilder
 
         if(methodDecl.TypeParams is not null)
         {
-            // A method declares its own type-parameter pack independent of the enclosing
-            // type (Requirement 12.1); the shared populator classifies it with the same
-            // rules used for every other declaration kind. Passing the diagnostic bag
-            // enforces the at-most-one-Unbracketed_Pack rule for method type-parameter
-            // lists, emitting MIST_VAR_0001 for a second params pack (Requirements 12.4, 12.5).
-            TypeParameterPopulator.Populate(
-                method.TypeParametersList, methodScope, host as MistType, methodDecl.TypeParams, diagnostics);
+            TypeParameterPopulator.Populate(method.TypeParametersList, methodScope, host as MistType, methodDecl.TypeParams);
         }
 
         var common = delegateResolver.ResolveFullDelegate(methodDecl, methodScope, host, name);

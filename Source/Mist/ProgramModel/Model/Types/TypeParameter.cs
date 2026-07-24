@@ -40,36 +40,6 @@ internal class TypeParameter : MistType, ITypeParameter
     public MistType? Domain { get; internal set; }
 
     /// <summary>
-    /// How this type parameter participates as a type-parameter pack, or
-    /// <see cref="TypeParameterPackKind.None"/> when it is an ordinary
-    /// (regular or dependent) type parameter. A pack is sugar for a dependent
-    /// type parameter whose value domain is the comptime metatype array
-    /// <c>Type[]</c> (unknown length) or <c>Type[N]</c> (fixed length — see
-    /// <see cref="FixedPackLength"/>).
-    /// </summary>
-    public TypeParameterPackKind PackKind { get; internal set; } = TypeParameterPackKind.None;
-
-    /// <summary>
-    /// True when this type parameter is a pack (its <see cref="PackKind"/> is not
-    /// <see cref="TypeParameterPackKind.None"/>).
-    /// </summary>
-    public bool IsPack => PackKind != TypeParameterPackKind.None;
-
-    /// <summary>
-    /// True when this pack is the list's single unbracketed (<c>params</c>) slot,
-    /// constructed bracket-free at the use site. False for a bracketed pack or a
-    /// non-pack parameter.
-    /// </summary>
-    public bool IsUnbracketedPack => PackKind == TypeParameterPackKind.Unbracketed;
-
-    /// <summary>
-    /// For a fixed-size pack whose domain is <c>Type[N]</c>, the comptime length
-    /// <c>N</c>. Null for an unknown-length <c>Type[]</c> pack (and for a non-pack
-    /// parameter).
-    /// </summary>
-    public long? FixedPackLength { get; internal set; }
-
-    /// <summary>
     /// The constraints declared on this type parameter via where clauses.
     /// Populated during Phase 2 when constraints are resolved.
     /// </summary>

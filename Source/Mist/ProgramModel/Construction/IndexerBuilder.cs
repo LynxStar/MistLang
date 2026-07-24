@@ -31,10 +31,7 @@ internal sealed class IndexerBuilder
     {
         var type = scopeResolver.Resolve(indexerDecl.Type, memberType.Scope);
         var modifiers = ModifierBuilder.Build(indexerDecl, context.Diagnostics, memberType);
-        // Pass the diagnostics bag so ParameterBuilder can enforce the
-        // one-value-side-`params`-per-list rule (Requirements 7.8, 7.9 -> MIST_VAR_0001)
-        // on indexer parameter lists too.
-        var parameters = parameterBuilder.Resolve(indexerDecl.Parameters, memberType.Scope, context.Diagnostics);
+        var parameters = parameterBuilder.Resolve(indexerDecl.Parameters, memberType.Scope);
         var isAbstract = memberType is AbstractType;
 
         if(modifiers.IsAsync)

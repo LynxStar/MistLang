@@ -69,24 +69,18 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
         _ = programModel.GetOrAddNamespace("Standard");
         var scope = new Scope(null);
 
-        // Register Standard.Func definitions at arities 1-3
-        funcArity1 = new ClassType("Func<>", "Standard", scope, null, null);
+        // Register the single variadic Func<params TArgs, TResult> (arity 2)
         funcArity2 = new ClassType("Func<,>", "Standard", scope, null, null);
-        funcArity3 = new ClassType("Func<,,>", "Standard", scope, null, null);
+        funcArity1 = funcArity2; // All CLR Func arities map to the same Mist type
+        funcArity3 = funcArity2;
         voidType = new ClassType("Void", "Standard", scope, null, null);
 
-        _ = programModel.RegisterType(funcArity1);
         _ = programModel.RegisterType(funcArity2);
-        _ = programModel.RegisterType(funcArity3);
         _ = programModel.RegisterType(voidType);
 
-        // Register Standard.Action type aliases
-        var action = new ClassType("Action", "Standard", scope, null, null);
-        var actionArity1 = new ClassType("Action<>", "Standard", scope, null, null);
-        var actionArity2 = new ClassType("Action<,>", "Standard", scope, null, null);
-        _ = programModel.RegisterType(action);
-        _ = programModel.RegisterType(actionArity1);
-        _ = programModel.RegisterType(actionArity2);
+        // Register the single variadic Action<params TArgs> (arity 1)
+        var actionDef = new ClassType("Action<>", "Standard", scope, null, null);
+        _ = programModel.RegisterType(actionDef);
 
         provider = new AmbientTypeProviderV2(
             ImmutableArray<Mist.Driver.LoadedAssemblyInfo>.Empty,
@@ -102,13 +96,13 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
     [Fact]
     public void ResolveType_SystemFuncArity1_ReturnsStandardFuncDefinition()
     {
-        // System.Func`1 (Func<TResult>) → Standard.Func<> definition
+        // System.Func`1 (Func<TResult>) → Standard.Func<,> (the single variadic definition)
         var resolved = LookupType("System", "Func`1");
 
         Assert.NotNull(resolved);
         Assert.True(
-            ReferenceEquals(resolved, funcArity1),
-            "ResolveType(\"System\", \"Func`1\") should return the Standard.Func<> definition.");
+            ReferenceEquals(resolved, funcArity2),
+            "ResolveType(\"System\", \"Func`1\") should return the Standard.Func<,> definition.");
     }
 
     [Fact]
@@ -126,26 +120,26 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
     [Fact]
     public void ResolveType_SystemFuncArity3_ReturnsStandardFuncDefinition()
     {
-        // System.Func`3 (Func<T1, T2, TResult>) → Standard.Func<,,> definition
+        // System.Func`3 (Func<T1, T2, TResult>) → Standard.Func<,> (the single variadic definition)
         var resolved = LookupType("System", "Func`3");
 
         Assert.NotNull(resolved);
         Assert.True(
-            ReferenceEquals(resolved, funcArity3),
-            "ResolveType(\"System\", \"Func`3\") should return the Standard.Func<,,> definition.");
+            ReferenceEquals(resolved, funcArity2),
+            "ResolveType(\"System\", \"Func`3\") should return the Standard.Func<,> definition.");
     }
 
     [Fact]
     public void ResolveType_SystemAction_ReturnsStandardAction()
     {
-        // System.Action (non-generic) → Standard.Action (type alias for Func<void>)
+        // System.Action (non-generic) → Standard.Action<> (the single variadic definition)
         var resolved = LookupType("System", "Action");
 
         Assert.NotNull(resolved);
-        var expected = programModel.TypesByFQN["Standard.Action"];
+        var expected = programModel.TypesByFQN["Standard.Action<>"];
         Assert.True(
             ReferenceEquals(resolved, expected),
-            "ResolveType(\"System\", \"Action\") should return the Standard.Action type alias.");
+            "ResolveType(\"System\", \"Action\") should return the Standard.Action<> definition.");
     }
 
     [Fact]
@@ -164,14 +158,14 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
     [Fact]
     public void ResolveType_SystemActionArity2_ReturnsStandardActionArity2()
     {
-        // System.Action`2 (Action<T1, T2>) → Standard.Action<,>
+        // System.Action`2 (Action<T1, T2>) → Standard.Action<> (the single variadic definition)
         var resolved = LookupType("System", "Action`2");
 
         Assert.NotNull(resolved);
-        var expected = programModel.TypesByFQN["Standard.Action<,>"];
+        var expected = programModel.TypesByFQN["Standard.Action<>"];
         Assert.True(
             ReferenceEquals(resolved, expected),
-            "ResolveType(\"System\", \"Action`2\") should return Standard.Action<,>.");
+            "ResolveType(\"System\", \"Action`2\") should return Standard.Action<>.");
     }
 
     [Fact]

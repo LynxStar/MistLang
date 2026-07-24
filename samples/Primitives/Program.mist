@@ -51,6 +51,11 @@ public class Program
         return sum;
     }
 
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
     public static void RunDemo()
     {
         // 1. All primitive types and literals

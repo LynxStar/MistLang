@@ -19,19 +19,11 @@ internal sealed class ScopeResolver
     /// </summary>
     private const string PositionalAccessorPrefix = "Item";
 
-    /// <summary>
-    /// The arity-bearing simple name of the built-in array definition
-    /// (<c>Standard.Array&lt;,&gt;</c>) that backs every <c>T[]</c> surface type.
-    /// </summary>
-    private const string ArrayDefinitionName = "Array<,>";
-
     private readonly BuilderContext context;
-    private readonly VariadicResolver variadics;
 
     public ScopeResolver(BuilderContext context)
     {
         this.context = context;
-        this.variadics = new VariadicResolver(context, this);
     }
 
     /// <summary>
@@ -39,39 +31,12 @@ internal sealed class ScopeResolver
     /// </summary>
     public IMistType Resolve(TypeReferenceNode typeRef, Scope scope)
     {
-        return Resolve(typeRef, scope, barePackAllowed: false);
-    }
-
-    /// <summary>
-    /// Resolves a value parameter's declared type. Unlike
-    /// <see cref="Resolve(TypeReferenceNode, Scope)"/>, a bare pack name in the value-pack
-    /// form <c>params TArgs args</c> resolves to the pack itself — so the caller
-    /// (<see cref="ParameterBuilder"/>) can wrap it in the value-pack tuple <c>(TArgs...)</c>
-    /// — instead of being reported as a bare-type-position error
-    /// (<c>MIST_VAR_0002</c>, Requirement 6.3). Only the value-side <c>params</c> path passes
-    /// <paramref name="isParams"/> = <c>true</c>; every other type position uses the ordinary
-    /// resolve and so still rejects a bare pack. A homogeneous <c>params T[]</c> (an array of
-    /// a non-pack element) and an indexed pack <c>TArgs[i]</c> resolve identically either way.
-    /// </summary>
-    public IMistType ResolveParameterType(TypeReferenceNode typeRef, Scope scope, bool isParams)
-    {
-        return Resolve(typeRef, scope, barePackAllowed: isParams);
-    }
-
-    /// <summary>
-    /// Core type-reference resolution. <paramref name="barePackAllowed"/> permits a bare pack
-    /// name at the top level to resolve to the pack itself (the value-pack parameter case);
-    /// it is not propagated into nested resolutions (union constituents, array elements,
-    /// tuple elements), so a pack nested anywhere else is still subject to the ordinary rules.
-    /// </summary>
-    private IMistType Resolve(TypeReferenceNode typeRef, Scope scope, bool barePackAllowed)
-    {
         if(typeRef.SingleTypeRefs.Length > 0)
         {
             return ResolveUnion(typeRef, scope);
         }
 
-        return Resolve(typeRef.First, scope, barePackAllowed);
+        return Resolve(typeRef.First, scope);
     }
 
     /// <summary>
@@ -165,81 +130,9 @@ internal sealed class ScopeResolver
     }
 
     /// <summary>
-    /// Resolves a parenthesized type reference. The lone pack-spread form
-    /// <c>(TArgs...)</c> is the value-pack tuple type: it resolves to the tuple
-    /// <c>(TArgs...)</c> whose elements come from spreading the pack (see
-    /// <see cref="BuildValuePackTuple"/>). Any other parenthesized inner type resolves
-    /// to the inner type as before.
-    /// </summary>
-    private IMistType ResolveParenthesized(ParenthesizedTypeRefSingleTypeRefNode parenRef, Scope scope)
-    {
-        if(VariadicResolver.TryGetLoneSpread(parenRef.Inner, out var spread))
-        {
-            return variadics.ResolveSpreadTuple(spread, scope);
-        }
-
-        return Resolve(parenRef.Inner, scope);
-    }
-
-    /// <summary>
-    /// True when <paramref name="typeRef"/> is a single (non-union) pack-spread operand
-    /// — the <c>TArgs...</c> inside <c>(TArgs...)</c>.
-    /// </summary>
-    private static bool TryGetLoneSpread(TypeReferenceNode typeRef, out SpreadSingleTypeRefSingleTypeRefNode spread)
-    {
-        if(typeRef.SingleTypeRefs.Length == 0 && typeRef.First is SpreadSingleTypeRefSingleTypeRefNode loneSpread)
-        {
-            spread = loneSpread;
-            return true;
-        }
-
-        spread = null!;
-        return false;
-    }
-
-    /// <summary>
-    /// Resolves the value-pack tuple <c>(TArgs...)</c> from a lone spread operand. The
-    /// operand must denote a type-parameter pack; the resulting tuple's element list is
-    /// the pack itself, which "spreads" into a single symbolic element while the pack is
-    /// unbound (a later stage expands it into one tuple element per bound type once the
-    /// pack binds a concrete <c>Type[]</c>).
-    /// </summary>
-    private IMistType ResolveSpreadTuple(SpreadSingleTypeRefSingleTypeRefNode spread, Scope scope)
-    {
-        var pack = ResolveSpreadOperandPack(spread, scope);
-        return pack is null ? ErrorType.Instance : BuildValuePackTuple(pack);
-    }
-
-    /// <summary>
-    /// Resolves a spread operand to its type-parameter pack. Delegates to <see cref="VariadicResolver"/>.
-    /// </summary>
-    public TypeParameter? ResolveSpreadOperandPack(SpreadSingleTypeRefSingleTypeRefNode spread, Scope scope)
-    {
-        return variadics.ResolveSpreadOperandPack(spread, scope);
-    }
-
-    /// <summary>
-    /// Builds the value-pack tuple type <c>(TArgs...)</c>. Delegates to <see cref="VariadicResolver"/>.
-    /// </summary>
-    public TupleType BuildValuePackTuple(TypeParameter pack)
-    {
-        return variadics.BuildValuePackTuple(pack);
-    }
-
-    /// <summary>
     /// Resolves a single (non-union) type reference node.
     /// </summary>
     public IMistType Resolve(SingleTypeRefNode singleRef, Scope scope)
-    {
-        return Resolve(singleRef, scope, barePackAllowed: false);
-    }
-
-    /// <summary>
-    /// Resolves a single (non-union) type reference node. <paramref name="barePackAllowed"/>
-    /// controls the bare-pack case of the pack position semantics (see
-    /// <see cref="ResolvePackInTypePosition"/>).
-    /// </summary>
-    private IMistType Resolve(SingleTypeRefNode singleRef, Scope scope, bool barePackAllowed)
     {
         var inner = singleRef switch
         {
@@ -247,17 +140,10 @@ internal sealed class ScopeResolver
             UnknownSingleTypeRefSingleTypeRefNode => UnknownType.Instance,
             PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef => ResolveReservedAlias(primitiveRef),
             NamedSingleTypeRefSingleTypeRefNode namedRef => ResolveNamed(namedRef, scope),
-            ParenthesizedTypeRefSingleTypeRefNode parenRef => ResolveParenthesized(parenRef, scope),
+            ParenthesizedTypeRefSingleTypeRefNode parenRef => Resolve(parenRef.Inner, scope),
             TupleSingleTypeRefSingleTypeRefNode tupleRef => ResolveTuple(tupleRef, scope),
             _ => ReportUnsupported(singleRef),
         };
-
-        // Variadics position semantics (Requirement 6.3-6.6). A named reference that resolved
-        // to a type-parameter pack is not an ordinary type.
-        if(singleRef is NamedSingleTypeRefSingleTypeRefNode named && inner is TypeParameter { IsPack: true } pack)
-        {
-            return variadics.ResolvePackInTypePosition(pack, named, barePackAllowed);
-        }
 
         // If the type reference has an array rank suffix, wrap the inner type
         // in a constructed Standard.Array<TValue, Length>.
@@ -268,7 +154,6 @@ internal sealed class ScopeResolver
 
         return inner;
     }
-
 
     /// <summary>
     /// Resolves a reserved keyword to its corresponding type in the Standard namespace.
@@ -317,59 +202,34 @@ internal sealed class ScopeResolver
     /// </summary>
     private IMistType ResolveNamed(NamedSingleTypeRefSingleTypeRefNode namedRef, Scope scope)
     {
-        var baseName = BuildBaseName(namedRef);
+        var name = namedRef.Name.IDENTIFIER.Lexeme;
 
-        // A non-generic reference resolves directly through the unified three-tier lookup.
-        if(namedRef.TypeArgs is not { } typeArgList)
+        // Compute arity from type arguments so we can look up the arity-bearing name.
+        var arity = GetTypeArgumentArity(namedRef.TypeArgs);
+        var lookupName = arity > 0 ? BuildArityName(name, arity) : name;
+
+        // Build the final lookup key: qualified if dotted, simple otherwise.
+        if(namedRef.Name.IDENTIFIERs.Length > 0)
         {
-            return ResolveNamedType(baseName, scope, namedRef);
+            var qualifiedName = QualifiedNameHelper.Build(namedRef.Name);
+            lookupName = arity > 0 ? BuildArityName(qualifiedName, arity) : qualifiedName;
         }
 
-        // Generic reference. The definition is looked up first under the flat use-site
-        // argument count. A variadic family, however, is registered under its (smaller)
-        // declared slot count -- `Func<params TArgs, TResult>` registers as `Func<,>` yet is
-        // constructed at `Func<int, string, bool>` -- so an exact-arity miss falls back to
-        // searching for a variadic family of the same base name (the binding rule then folds
-        // the flat arguments into the pack). The exact lookup is silent so the expected miss
-        // does not surface a spurious unresolved-type diagnostic.
-        var arity = GetTypeArgumentArity(typeArgList);
-        var exactName = BuildArityName(baseName, arity);
-
-        var definition = ResolveNamedTypeCore(exactName, scope, namedRef, report: false);
-        if(definition is ErrorType)
+        // Single entry point: resolve the name through the unified three-tier lookup.
+        var baseType = ResolveNamedType(lookupName, scope, namedRef);
+        if(baseType is ErrorType)
         {
-            // Ambiguous across imports — already reported by the core.
             return ErrorType.Instance;
         }
 
-        definition ??= variadics.TryResolveVariadicFamily(baseName, scope);
-        if(definition is null)
+        // If type arguments are present, resolve them and wrap in a ConstructedType.
+        if(namedRef.TypeArgs is { } typeArgList)
         {
-            // Genuine miss: report the unresolved exact-arity name, as the direct lookup would.
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnresolvedType, namedRef, null, exactName);
-            return ErrorType.Instance;
+            var typeArgs = ResolveTypeArguments(typeArgList, scope);
+            return context.ProgramModel.TypeInterner.GetOrCreateConstructedType(baseType, typeArgs);
         }
 
-        // Route through the binding rule when the construction is variadic.
-        if(variadics.IsVariadicConstruction(definition, typeArgList))
-        {
-            return variadics.ResolveVariadicConstructedType(definition, typeArgList, scope, namedRef);
-        }
-
-        // Ordinary (non-variadic) construction: one argument per slot, interned as-is.
-        var typeArgs = ResolveTypeArguments(typeArgList, scope);
-        return context.ProgramModel.TypeInterner.GetOrCreateConstructedType(definition, typeArgs);
-    }
-
-    /// <summary>
-    /// Builds the base (non-arity-bearing) lookup name for a named type reference:
-    /// the qualified dotted name when present, otherwise the simple identifier.
-    /// </summary>
-    private static string BuildBaseName(NamedSingleTypeRefSingleTypeRefNode namedRef)
-    {
-        return namedRef.Name.IDENTIFIERs.Length > 0
-            ? QualifiedNameHelper.Build(namedRef.Name)
-            : namedRef.Name.IDENTIFIER.Lexeme;
+        return baseType;
     }
 
     /// <summary>
@@ -403,58 +263,104 @@ internal sealed class ScopeResolver
     /// </summary>
     public IReadOnlyList<IMistType> ResolveTypeArguments(TypeArgumentListNode typeArgList, Scope scope)
     {
-        var args = new List<IMistType>(1 + typeArgList.TypeArguments.Length)
-        {
-            ResolveScalarTypeArgument(typeArgList.TypeArgument, scope),
-        };
+        var args = new List<IMistType>();
+
+        ResolveTypeArgument(typeArgList.TypeArgument, scope, args);
 
         foreach(var arg in typeArgList.TypeArguments)
         {
-            args.Add(ResolveScalarTypeArgument(arg, scope));
+            ResolveTypeArgument(arg, scope, args);
         }
 
         return args;
     }
 
-    /// <summary>
-    /// Resolves a single non-bracketed type argument into a type: a type reference, or a
-    /// lifted comptime literal (integer, hex, binary, bool, char) for a dependent slot. A
-    /// bracketed pack group is not a scalar and is only meaningful in the variadic binding
-    /// path (see <see cref="ResolveVariadicConstructedType"/>); reaching one here means it was
-    /// supplied to a non-variadic definition, which is reported as an unsupported argument.
-    /// </summary>
-    internal IMistType ResolveScalarTypeArgument(TypeArgumentNode arg, Scope scope)
+    private void ResolveTypeArgument(TypeArgumentNode arg, Scope scope, List<IMistType> args)
     {
         switch(arg)
         {
             case TypeReferenceTypeArgumentTypeArgumentNode typeRefArg:
-                return Resolve(typeRefArg.Type, scope);
+                args.Add(Resolve(typeRefArg.Type, scope));
+                break;
 
             case IntegerLiteralTypeArgumentTypeArgumentNode intLit:
-                return variadics.LiftIntegerLiteral(intLit.Literal.Lexeme);
+                args.Add(LiftIntegerLiteral(intLit.Literal.Lexeme));
+                break;
 
             case NegatedIntegerTypeArgumentTypeArgumentNode negLit:
-                return variadics.LiftNegatedIntegerLiteral(negLit.Literal.Lexeme);
+                args.Add(LiftNegatedIntegerLiteral(negLit.Literal.Lexeme));
+                break;
 
             case HexLiteralTypeArgumentTypeArgumentNode hexLit:
-                return variadics.LiftHexLiteral(hexLit.Literal.Lexeme);
+                args.Add(LiftHexLiteral(hexLit.Literal.Lexeme));
+                break;
 
             case BinaryLiteralTypeArgumentTypeArgumentNode binLit:
-                return variadics.LiftBinaryLiteral(binLit.Literal.Lexeme);
+                args.Add(LiftBinaryLiteral(binLit.Literal.Lexeme));
+                break;
 
             case TrueLiteralTypeArgumentTypeArgumentNode:
-                return variadics.LiftBoolTrue();
+                args.Add(context.ProgramModel.TypeInterner.GetOrCreateLiftedType(true, "true"));
+                break;
 
             case FalseLiteralTypeArgumentTypeArgumentNode:
-                return variadics.LiftBoolFalse();
+                args.Add(context.ProgramModel.TypeInterner.GetOrCreateLiftedType(false, "false"));
+                break;
 
             case CharLiteralTypeArgumentTypeArgumentNode charLit:
-                return variadics.LiftCharLiteral(charLit.Literal.Lexeme);
+                args.Add(LiftCharLiteral(charLit.Literal.Lexeme));
+                break;
 
             default:
                 context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownTypeRefNode, arg, null, arg.GetType().Name);
-                return ErrorType.Instance;
+                args.Add(ErrorType.Instance);
+                break;
         }
+    }
+
+    private IMistType LiftIntegerLiteral(string lexeme)
+    {
+        var value = long.TryParse(lexeme, out var parsed) ? parsed : 0L;
+        return context.ProgramModel.TypeInterner.GetOrCreateLiftedType(value, lexeme);
+    }
+
+    private IMistType LiftNegatedIntegerLiteral(string lexeme)
+    {
+        var value = long.TryParse(lexeme, out var parsed) ? -parsed : 0L;
+        return context.ProgramModel.TypeInterner.GetOrCreateLiftedType(value, $"-{lexeme}");
+    }
+
+    private IMistType LiftHexLiteral(string lexeme)
+    {
+        var hexStr = lexeme.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+            ? lexeme[2..] : lexeme;
+        var value = long.TryParse(hexStr, NumberStyles.HexNumber, null, out var parsed)
+            ? parsed : 0L;
+        return context.ProgramModel.TypeInterner.GetOrCreateLiftedType(value, lexeme);
+    }
+
+    private IMistType LiftBinaryLiteral(string lexeme)
+    {
+        var binStr = lexeme.StartsWith("0b", StringComparison.OrdinalIgnoreCase)
+            ? lexeme[2..] : lexeme;
+        long value;
+        try
+        {
+            value = Convert.ToInt64(binStr, 2);
+        }
+        catch
+        {
+            value = 0L;
+        }
+
+        return context.ProgramModel.TypeInterner.GetOrCreateLiftedType(value, lexeme);
+    }
+
+    private IMistType LiftCharLiteral(string lexeme)
+    {
+        // Strip surrounding quotes to get the char value.
+        var charValue = lexeme.Length >= 3 ? lexeme[1] : '\0';
+        return context.ProgramModel.TypeInterner.GetOrCreateLiftedType(charValue, lexeme);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -624,117 +530,6 @@ internal sealed class ScopeResolver
     }
 
     /// <summary>
-    /// Core name-to-type lookup used by the variadic-aware type resolution path.
-    /// Resolution follows C# semantics with a priority order:
-    /// 1. Local types (type parameters, nested types) — cascade with shadowing.
-    /// 2. Own namespace — if found in the scope's own namespace, shadows imports.
-    /// 3. Imports — accumulate from ALL scope levels into a flat pool; ambiguity
-    ///    is reported if multiple distinct types match across the combined imports.
-    /// 4. FQN fallback — if the name contains a dot and nothing above matched,
-    ///    try splitting at the last dot into namespace + type for a direct lookup.
-    /// <para>
-    /// Ambiguity is always reported (it is a definite error) and yields an
-    /// <see cref="ErrorType"/>. When nothing matches, an unresolved-type diagnostic is
-    /// reported only when <paramref name="report"/> is true (returning an
-    /// <see cref="ErrorType"/>); otherwise the miss is silent and returns <c>null</c>, which
-    /// lets a caller probe speculatively — for example the variadic-family fallback in
-    /// <see cref="ResolveNamed"/>, where an exact-arity miss is expected before the family is
-    /// found under its smaller declared slot count.
-    /// </para>
-    /// </summary>
-    private IMistType? ResolveNamedTypeCore(string name, Scope scope, Storm.Runtime.SyntaxNode locationNode, bool report)
-    {
-        // Tier 1: Walk up looking for a local type (shadowing applies).
-        var current = scope;
-        while(current is not null)
-        {
-            if(current.LocalTypes.TryGetValue(name, out var localType))
-            {
-                return localType;
-            }
-
-            current = current.Parent;
-        }
-
-        // Tier 2: Check own namespace at each scope level (shadows imports).
-        current = scope;
-        while(current is not null)
-        {
-            if(current.Namespace is not null)
-            {
-                var found = LookupInNamespace(current.Namespace, name);
-                if(found is not null)
-                {
-                    return found;
-                }
-            }
-
-            current = current.Parent;
-        }
-
-        // Tier 3: Collect all imported namespaces from the entire scope chain
-        // into a flat pool. No shadowing between imports — report ambiguity if
-        // multiple distinct types match.
-        IMistType? match = null;
-        string? matchedNamespace = null;
-        string? conflictNamespace = null;
-
-        current = scope;
-        while(current is not null)
-        {
-            foreach(var imported in current.ImportedNamespaces)
-            {
-                var found = LookupInNamespace(imported, name);
-                if(found is not null)
-                {
-                    if(match is null)
-                    {
-                        match = found;
-                        matchedNamespace = imported;
-                    }
-                    else if(!ReferenceEquals(match, found))
-                    {
-                        conflictNamespace = imported;
-                    }
-                }
-            }
-
-            current = current.Parent;
-        }
-
-        if(conflictNamespace is not null)
-        {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.AmbiguousType, locationNode, null,
-                name, matchedNamespace!, conflictNamespace);
-            return ErrorType.Instance;
-        }
-
-        if(match is not null)
-        {
-            return match;
-        }
-
-        // Tier 4: FQN fallback — if the name has a dot, try it directly as a
-        // fully-qualified name in the flat dictionary.
-        if(name.Contains('.'))
-        {
-            if(context.ProgramModel.TypesByFQN.TryGetValue(name, out var fqnResult))
-            {
-                return fqnResult;
-            }
-        }
-
-        if(report)
-        {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnresolvedType, locationNode, null, name);
-            return ErrorType.Instance;
-        }
-
-        return null;
-    }
-
-    /// <summary>
     /// Looks up a type by constructing a candidate FQN from namespace + type name
     /// and checking the flat FQN dictionary.
     /// </summary>
@@ -779,7 +574,7 @@ internal sealed class ScopeResolver
     /// </summary>
     private IMistType ResolveArrayType(SingleTypeRefNode singleRef, IMistType elementType)
     {
-        var arrayDef = LookupInNamespace("Standard", ArrayDefinitionName);
+        var arrayDef = LookupInNamespace("Standard", "Array<,>");
         if(arrayDef is null)
         {
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnresolvedType, singleRef, null, "Standard.Array<,>");
@@ -798,23 +593,6 @@ internal sealed class ScopeResolver
 
         return context.ProgramModel.TypeInterner.GetOrCreateConstructedType(
             arrayDef, new IMistType[] { elementType, lengthArg });
-    }
-
-    /// <summary>
-    /// True when <paramref name="type"/> is a homogeneous array type <c>T[]</c> — a
-    /// constructed <c>Standard.Array&lt;,&gt;</c>, the same shape <see cref="ResolveArrayType"/>
-    /// produces. Used by <see cref="ParameterBuilder"/> to distinguish a Value_Level_Params
-    /// (<c>params T[] xs</c>, whose declared type is a real array) from a Value_Pack
-    /// (<c>params TArgs args</c>, whose declared type is a pack type parameter and becomes the
-    /// tuple <c>(TArgs...)</c>). The array definition reference is preserved verbatim through
-    /// interning, so a reference comparison against the canonical <c>Standard.Array&lt;,&gt;</c>
-    /// definition is exact; when that definition is not registered the lookup yields
-    /// <c>null</c> and this returns <c>false</c>.
-    /// </summary>
-    public bool IsArrayType(IMistType type)
-    {
-        return type is ConstructedType constructed
-            && ReferenceEquals(constructed.Definition, LookupInNamespace("Standard", ArrayDefinitionName));
     }
 
     private IMistType ReportUnsupported(SingleTypeRefNode node)

@@ -1,510 +1,1121 @@
 # V2 Emitter Sample Progression
 #
-# Samples ordered by incremental feature buildup (not strict git chronology).
-# Each entry lists new features required beyond all preceding samples.
-# AllFeatures is excluded (it's a meta-sample that calls all others).
+# GENERATED FILE -- do not hand-edit. Regenerate with:
+#   dotnet run --project tools/SampleFingerprint -- <repoRoot> \
+#     backlog/emitter-v2-sample-fingerprints.json "<comma,separated,done,samples>"
 #
-# Status: done | in-progress | pending
-# The "new features" list is the incremental delta over everything above.
+# HOW THE ORDER IS DERIVED
+#
+#   syntax_constructs / new_constructs are MEASURED: every .mist file in the sample is
+#   parsed with the real Mist parser and the distinct AST node kinds are collected.
+#   Operator-precedence chain nodes are excluded (Storm materializes them for every
+#   expression whether or not an operator is used); operators actually applied appear
+#   as 'op:X', and union / optional types as 'type:union' / 'type:optional'.
+#
+#   gate_tier is the compiler subsystem the sample depends on. It is the HIGHER of a
+#   curated assignment and the tier proven by the constructs the sample contains, so a
+#   sample cannot be filed early when its source says otherwise. Samples are ordered
+#   tier by tier, and within a tier by fewest new constructs.
+#
+# IMPORTANT CAVEAT
+#
+#   new_constructs measures SYNTAX ONLY. It is a lower bound on the work, never an
+#   estimate of it. new_constructs: [] means the sample introduces no new syntax, NOT
+#   that it is free -- semantic work (overload resolution, type inference, void
+#   lowering, ownership analysis) is invisible to this measurement.
+#
+#   gated_by lists the constructs that force a sample above its curated tier. A long
+#   gated_by means the sample is a kitchen sink whose name understates what it needs.
+#
+# AllFeatures is excluded (meta-sample calling all others). 75 samples, 315 distinct constructs currently covered.
 
 samples:
 
-  # ─── Tier 1: Minimal output ────────────────────────────────────────────────
+  # --- already working in v2 ---
 
   - name: Simpliest
     status: done
-    description: Static method calls, string literals, Console.WriteLine
-    new_features: []
-
-  # ─── Tier 2: Expressions & Control Flow ────────────────────────────────────
+    gate_tier: 0
+    gate: core-language
+    files: 1
+    syntax_constructs: 30
+    new_constructs: []
 
   - name: Primitives
-    status: pending
-    description: All primitive types, typed locals, basic arithmetic
-    new_features:
-      - integer literals (all widths + suffixes)
-      - bool literals (true, false)
-      - float/double literals
-      - char literals
-      - binary operators (arithmetic: +, -, *, /, %)
-      - comparison operators (>, <, >=, <=, ==, !=)
-      - typed local declarations (all primitive types)
-      - assignment statements (x = expr)
-      - return with value
+    status: done
+    gate_tier: 0
+    gate: core-language
+    files: 2
+    syntax_constructs: 93
+    new_constructs: []
 
-  - name: VoidType
-    status: pending
-    description: Void as a first-class type, methods returning void explicitly
-    new_features:
-      - void return type handling
-
-  - name: NestedScoping
-    status: pending
-    description: Nested blocks, variable shadowing, scope lifetimes
-    new_features:
-      - nested block statements
-      - variable shadowing across scopes
-      - if/else statements
-      - logical operators (&&, ||, !)
-      - unary operators (!, -)
-
-  - name: ReadonlyLocals
-    status: pending
-    description: Readonly local variable inference
-    new_features:
-      - var type inference (InferredVariableDeclaration)
-      - readonly local inference
-
-  # ─── Tier 3: Loops & Arrays ────────────────────────────────────────────────
+  # --- tier 0: core-language ---
 
   - name: ArrayLiterals
     status: pending
-    description: Array literal syntax and basic array usage
-    new_features:
-      - array literal expressions [a, b, c]
-      - array creation (new T[size])
-      - array indexing (read and write)
-      - foreach loop (array iteration)
+    gate_tier: 0
+    gate: core-language
+    files: 1
+    syntax_constructs: 58
+    new_constructs:
+      - ArrayLiteralExpressionPrimaryNode
+      - EmptyArrayLiteralExpressionPrimaryNode
 
-  - name: HelloMist
-    status: pending
-    description: Kitchen-sink early sample - all basic features together
-    new_features:
-      - while loop
-      - for loop
-      - break statement
-      - string interpolation ($"...")
-      - hex literals (0xFF)
-      - class instantiation (new T(args))
-      - struct declaration and instantiation
-      - instance method calls (obj.Method())
-      - fields (read/write)
-      - constructors
-      - recursive method calls
-
-  # ─── Tier 4: Object Model ──────────────────────────────────────────────────
-
-  - name: Classes
-    status: pending
-    description: Class features beyond HelloMist basics
-    new_features: []
-    notes: Mostly covered by HelloMist, validates the same features
-
-  - name: Inheritance
-    status: pending
-    description: Class inheritance, base constructors, subtype assignability
-    new_features:
-      - class inheritance (class Dog : Animal)
-      - base constructor calls (base(args))
-      - subtype assignability (pass derived to base parameter)
-      - multi-level inheritance chains
-
-  - name: Properties
-    status: pending
-    description: Auto-properties, block accessors, indexers
-    new_features:
-      - auto-properties (get/set)
-      - block-body accessors
-      - expression-bodied properties
-      - field keyword
-      - init accessors
-      - static properties
-      - indexers (this[T])
-      - accessor modifiers (private set)
+  # --- tier 1: object-model ---
 
   - name: Overloading
     status: pending
-    description: Method overloading resolution
-    new_features:
-      - overload resolution (multiple methods, different params)
+    gate_tier: 1
+    gate: object-model
+    files: 3
+    syntax_constructs: 57
+    new_constructs:
+      - ConstructorDeclarationNode
+      - ConstructorMemberMemberDeclarationNode
+      - FieldDeclarationNode
+      - FieldMemberMemberDeclarationNode
+      - ObjectCreationExpressionPrimaryNode
+      - ThisChainConstructorChainNode
+      - ThisExpressionPrimaryNode
 
-  - name: CastOperators
+  - name: HelloMist
     status: pending
-    description: Implicit and explicit cast operators
-    new_features:
-      - cast operator declarations
-      - implicit/explicit conversions
+    gate_tier: 1
+    gate: object-model
+    files: 4
+    syntax_constructs: 87
+    new_constructs:
+      - StructKeywordTypeKeywordNode
 
-  # ─── Tier 5: Type System ───────────────────────────────────────────────────
-
-  - name: Enums
+  - name: Classes
     status: pending
-    description: Enum declarations and member access
-    new_features:
-      - enum declarations
-      - enum member access
-      - underlying type annotations
-
-  - name: Generics
-    status: pending
-    description: Generic type parameters on classes
-    new_features:
-      - generic type parameters
-      - constructed types (List<int>)
-
-  - name: GenericConstraints
-    status: pending
-    description: Where clauses on generic type parameters
-    new_features:
-      - generic constraints (where T : Trait)
-
-  - name: Tuples
-    status: pending
-    description: Tuple types, literals, destructuring
-    new_features:
-      - tuple type declarations
-      - tuple literals
-      - tuple destructuring
-      - named tuple elements
-
-  - name: TypeUnions
-    status: pending
-    description: Union types (A | B)
-    new_features:
-      - union type declarations
-      - union type narrowing
-
-  - name: TypeAliases
-    status: pending
-    description: Type alias declarations
-    new_features:
-      - type alias (type X = Y)
-
-  - name: UnknownType
-    status: pending
-    description: Gradual typing with unknown
-    new_features:
-      - unknown type
-      - gradual typing semantics
-
-  - name: OptionalTypes
-    status: pending
-    description: Optional/nullable types with T?
-    new_features:
-      - optional type (T?)
-      - null literal
-      - null checks
-
-  # ─── Tier 6: Abstracts & Polymorphism ──────────────────────────────────────
-
-  - name: Interfaces
-    status: pending
-    description: Abstract type declarations, conformance
-    new_features:
-      - abstract type declarations
-      - conformance (with blocks)
-      - abstract method dispatch
-
-  - name: GenericTraits
-    status: pending
-    description: Traits with generic type parameters
-    new_features:
-      - generic abstract types
-
-  - name: AssociatedTypes
-    status: pending
-    description: Associated type slots on abstracts
-    new_features:
-      - associated type declarations
-      - associated type resolution
-
-  - name: AbstractTypes
-    status: pending
-    description: Full abstract type feature set
-    new_features: []
-    notes: Composite of Interfaces + GenericTraits + AssociatedTypes
-
-  # ─── Tier 7: Extensions & Namespaces ───────────────────────────────────────
-
-  - name: ExtensionMethods
-    status: pending
-    description: Extension methods on types
-    new_features:
-      - extension blocks
-      - extension method dispatch
-
-  - name: Namespaces
-    status: pending
-    description: Multi-file projects, using declarations
-    new_features:
-      - multi-file compilation
-      - using declarations mapping to C# namespaces
-      - inferred namespace from project root
+    gate_tier: 1
+    gate: object-model
+    files: 4
+    syntax_constructs: 60
+    new_constructs:
+      - NamedSingleTypeRefSingleTypeRefNode
 
   - name: GlobalUsings
     status: pending
-    description: Global using directives in mist.toml
-    new_features:
-      - global usings (mist.toml config)
+    gate_tier: 1
+    gate: object-model
+    files: 3
+    syntax_constructs: 48
+    new_constructs:
+      - TypeItemTopLevelItemNode
+    # source requires tier 1 though the name suggests tier 0
+    gated_by:
+      - ConstructorDeclarationNode
+      - ConstructorMemberMemberDeclarationNode
+      - FieldDeclarationNode
+      - FieldMemberMemberDeclarationNode
+      - ObjectCreationExpressionPrimaryNode
+      - ThisExpressionPrimaryNode
+
+  - name: Namespaces
+    status: pending
+    gate_tier: 1
+    gate: object-model
+    files: 8
+    syntax_constructs: 54
+    new_constructs:
+      - BlockNamespaceNamespaceDeclarationNode
+    # source requires tier 1 though the name suggests tier 0
+    gated_by:
+      - ConstructorDeclarationNode
+      - ConstructorMemberMemberDeclarationNode
+      - FieldDeclarationNode
+      - FieldMemberMemberDeclarationNode
+      - ObjectCreationExpressionPrimaryNode
+      - ThisExpressionPrimaryNode
 
   - name: TopLevelStatements
     status: pending
-    description: Top-level statements (no explicit Main)
-    new_features:
-      - top-level statement programs
-      - implicit entry point generation
+    gate_tier: 1
+    gate: object-model
+    files: 2
+    syntax_constructs: 71
+    new_constructs:
+      - StatementItemTopLevelItemNode
+    # source requires tier 1 though the name suggests tier 0
+    gated_by:
+      - ConstructorDeclarationNode
+      - ConstructorMemberMemberDeclarationNode
+      - FieldDeclarationNode
+      - FieldMemberMemberDeclarationNode
+      - ObjectCreationExpressionPrimaryNode
+      - StructKeywordTypeKeywordNode
+      - ThisExpressionPrimaryNode
 
-  # ─── Tier 8: Pattern Matching & Advanced Expressions ───────────────────────
-
-  - name: SwitchExpressions
+  - name: Inheritance
     status: pending
-    description: Pattern matching via switch expressions
-    new_features:
-      - switch expressions
-      - type patterns
-      - constant patterns
-
-  - name: TuplePatternMatching
-    status: pending
-    description: Pattern matching on tuples
-    new_features:
-      - tuple patterns in switch/match
-
-  - name: AsOperator
-    status: pending
-    description: Safe cast with as operator
-    new_features:
-      - as operator (safe downcast)
-
-  - name: TargetTypedNew
-    status: pending
-    description: Target-typed new expressions
-    new_features:
-      - target-typed new (omitting type name)
-
-  # ─── Tier 9: Functions & Iterators ─────────────────────────────────────────
-
-  - name: FirstClassFunctions
-    status: pending
-    description: Functions as values, lambdas
-    new_features:
-      - lambda expressions
-      - function types (Func<>, Action<>)
-      - first-class function passing
-
-  - name: ArityOverloads
-    status: pending
-    description: Overloading on type parameter arity
-    new_features:
-      - arity-based overload resolution
-
-  - name: DelegateFuncConversion
-    status: pending
-    description: Delegate to Func/Action conversion
-    new_features:
-      - delegate type conversion
-
-  - name: Iterators
-    status: pending
-    description: Iterator/yield support
-    new_features:
-      - yield return
-      - iterator methods
-      - IEnumerable emission
-
-  - name: TypeArgumentInference
-    status: pending
-    description: Inferring generic type arguments from usage
-    new_features:
-      - type argument inference at call sites
-
-  # ─── Tier 10: CLR Interop ──────────────────────────────────────────────────
-
-  - name: AmbientTypes
-    status: pending
-    description: CLR types projected from assemblies
-    new_features:
-      - ambient type resolution from CLR assemblies
-      - calling .NET BCL methods beyond Console
-
-  - name: AssemblyTypeProvider
-    status: pending
-    description: Full CLR assembly projection
-    new_features: []
-    notes: Extends AmbientTypes with real assembly loading
-
-  - name: ClrRefInterop
-    status: pending
-    description: CLR ref struct interop
-    new_features:
-      - CLR ref struct projection
-
-  - name: CSharpInteropV2
-    status: pending
-    description: V2 C# interop patterns
-    new_features: []
-    notes: Integration test for ambient provider v2
-
-  # ─── Tier 11: Ownership & Drop ─────────────────────────────────────────────
-
-  - name: OwnershipSystem
-    status: pending
-    description: Ownership tiers (owned, borrowed, unrestricted)
-    new_features:
-      - ownership annotations
-      - ownership tier enforcement
-
-  - name: DeepOwnershipTypes
-    status: pending
-    description: Transitive ownership through type graphs
-    new_features:
-      - transitive ownership analysis
-
-  - name: DropSemantics
-    status: pending
-    description: Deterministic drop semantics
-    new_features:
-      - Drop method synthesis
-      - drop ordering guarantees
-
-  - name: AsyncDropChaining
-    status: pending
-    description: Async drop chains
-    new_features:
-      - async Drop methods
-
-  - name: Ownership
-    status: pending
-    description: Full ownership system demo
-    new_features: []
-    notes: Composite of OwnershipSystem + DeepOwnershipTypes + Drop
-
-  - name: DisposableDropInterop
-    status: pending
-    description: IDisposable interop with Drop
-    new_features:
-      - IDisposable bridging
-
-  - name: SubstructuralFieldDiscipline
-    status: pending
-    description: Field-level ownership tracking
-    new_features:
-      - per-field ownership state tracking
-
-  # ─── Tier 12: Refinement & Dependent Types ─────────────────────────────────
-
-  - name: RefinementTypes
-    status: pending
-    description: Refinement type annotations
-    new_features:
-      - refinement types (where constraints on values)
-
-  - name: DependentTypes
-    status: pending
-    description: Dependent types (value-level type parameters)
-    new_features:
-      - dependent type parameters
-      - lifted types
-
-  - name: AdhocRefinementConstraints
-    status: pending
-    description: Adhoc where clauses on parameters
-    new_features:
-      - adhoc refinement predicates
-
-  - name: RefinementComparison
-    status: pending
-    description: Refinement-aware comparison operations
-    new_features: []
-    notes: Extends RefinementTypes
-
-  - name: DependentTypeRefinementConstraints
-    status: pending
-    description: Combining dependent types with refinements
-    new_features: []
-    notes: Composite
-
-  - name: ArrayBoundsFlowAnalysis
-    status: pending
-    description: Static array bounds checking
-    new_features:
-      - array bounds flow analysis
-
-  # ─── Tier 13: Advanced Features ────────────────────────────────────────────
-
-  - name: RefParameters
-    status: pending
-    description: Ref and in parameter passing
-    new_features:
-      - ref parameters
-      - in parameters
-
-  - name: RefStructs
-    status: pending
-    description: Ref structs (stack-only)
-    new_features:
-      - ref struct declarations
-
-  - name: StackOnlyTypes
-    status: pending
-    description: Stack-only type enforcement
-    new_features:
-      - stack-only constraints
-
-  - name: StructuredConcurrency
-    status: pending
-    description: Structured concurrency with async/await
-    new_features:
-      - async methods
-      - await expressions
-      - structured concurrency primitives
-
-  - name: StructuredContext
-    status: pending
-    description: With-clause context bindings
-    new_features:
-      - with clause on methods
-      - context bindings
-
-  - name: StructInheritance
-    status: pending
-    description: Struct inheritance (Mist-specific)
-    new_features:
-      - struct inheritance
-
-  - name: AnonymousTypes
-    status: pending
-    description: Anonymous type expressions
-    new_features:
-      - anonymous type literals
-
-  - name: Newtypes
-    status: pending
-    description: Newtype wrapper declarations
-    new_features:
-      - newtype declarations
-
-  - name: RegexLiterals
-    status: pending
-    description: Regex type and literal syntax
-    new_features:
-      - regex type
-      - regex literal syntax
-
-  - name: VoidValueLiteral
-    status: pending
-    description: Void as a value, void coalescing
-    new_features:
-      - void literal expression
-      - void coalescing operator (??)
-
-  - name: Attributes
-    status: pending
-    description: Attribute declarations and application
-    new_features:
-      - attribute declarations
-      - attribute application ([Attr])
-
-  - name: DefiniteAssignment
-    status: pending
-    description: Definite assignment analysis
-    new_features:
-      - definite assignment enforcement
+    gate_tier: 1
+    gate: object-model
+    files: 4
+    syntax_constructs: 53
+    new_constructs:
+      - BaseChainConstructorChainNode
+      - BaseListNode
+      - BaseTypeRefNode
 
   - name: FullAccessibilityModel
     status: pending
-    description: Protected, internal, sealed
-    new_features:
-      - protected accessibility
-      - internal accessibility
-      - sealed modifier
+    gate_tier: 1
+    gate: object-model
+    files: 7
+    syntax_constructs: 59
+    new_constructs:
+      - InternalModifierModifierNode
+      - ProtectedModifierModifierNode
+      - SealedModifierModifierNode
+
+  - name: CastOperators
+    status: pending
+    gate_tier: 1
+    gate: object-model
+    files: 1
+    syntax_constructs: 60
+    new_constructs:
+      - CastExpressionUnaryNode
+      - CastOperatorDeclarationNode
+      - CastOperatorMemberMemberDeclarationNode
+      - ExplicitCastCastOperatorKindNode
+      - ImplicitCastCastOperatorKindNode
+
+  - name: DefaultKeyword
+    status: pending
+    gate_tier: 1
+    gate: object-model
+    files: 1
+    syntax_constructs: 59
+    new_constructs:
+      - DefaultBlockDeclarationNode
+      - DefaultBlockMemberMemberDeclarationNode
+      - DefaultExpressionPrimaryNode
+      - DefaultFieldOverrideDefaultFieldInitializerNode
+      - DefaultLiteralExpressionPrimaryNode
+      - ReadonlyModifierModifierNode
+    # source requires tier 1 though the name suggests tier 0
+    gated_by:
+      - ConstructorDeclarationNode
+      - ConstructorMemberMemberDeclarationNode
+      - DefaultFieldOverrideDefaultFieldInitializerNode
+      - FieldDeclarationNode
+      - FieldMemberMemberDeclarationNode
+      - ObjectCreationExpressionPrimaryNode
+      - StructKeywordTypeKeywordNode
+      - ThisExpressionPrimaryNode
+
+  # --- tier 2: type-system ---
+
+  - name: Newtypes
+    status: pending
+    gate_tier: 2
+    gate: type-system
+    files: 1
+    syntax_constructs: 57
+    new_constructs:
+      - NewtypeDeclarationNode
+      - NewtypeTypeTypeDeclarationNode
+
+  - name: StructInheritance
+    status: pending
+    gate_tier: 2
+    gate: type-system
+    files: 1
+    syntax_constructs: 58
+    new_constructs:
+      - RegularTypeParameterTypeParameterNode
+      - TypeArgumentListNode
+      - TypeParameterListNode
+      - TypeReferenceTypeArgumentTypeArgumentNode
+    # source requires tier 2 though the name suggests tier 1
+    gated_by:
+      - RegularTypeParameterTypeParameterNode
+      - TypeArgumentListNode
+      - TypeParameterListNode
+      - TypeReferenceTypeArgumentTypeArgumentNode
+
+  - name: TargetTypedNew
+    status: pending
+    gate_tier: 2
+    gate: type-system
+    files: 1
+    syntax_constructs: 54
+    new_constructs:
+      - TargetTypedNewExpressionPrimaryNode
+
+  - name: StackOnlyTypes
+    status: pending
+    gate_tier: 2
+    gate: type-system
+    files: 1
+    syntax_constructs: 61
+    new_constructs:
+      - NamedElementTypeRefElementTypeRefNode
+      - StackallocExpressionPrimaryNode
+
+  - name: TypeArgumentInference
+    status: pending
+    gate_tier: 2
+    gate: type-system
+    files: 1
+    syntax_constructs: 60
+    new_constructs:
+      - BlockGetAccessorAccessorDeclarationNode
+      - BlockIndexerBodyIndexerBodyNode
+      - IndexerDeclarationNode
+      - IndexerMemberMemberDeclarationNode
+
+  - name: RefStructs
+    status: pending
+    gate_tier: 2
+    gate: type-system
+    files: 1
+    syntax_constructs: 68
+    new_constructs:
+      - BlockPropertyPropertyDeclarationNode
+      - PropertyMemberMemberDeclarationNode
+      - RefModifierModifierNode
+
+  - name: VoidValueLiteral
+    status: pending
+    gate_tier: 2
+    gate: type-system
+    files: 1
+    syntax_constructs: 61
+    new_constructs:
+      - NestedBodyTypeMemberMemberDeclarationNode
+      - TypeLiteralExpressionPrimaryNode
+      - "op:??"
+      - "type:optional"
+
+  - name: OptionalTypes
+    status: pending
+    gate_tier: 2
+    gate: type-system
+    files: 1
+    syntax_constructs: 57
+    new_constructs:
+      - OptionalMethodCallSuffixPostfixSuffixNode
+      - "op:??="
+
+  - name: PropertyInitializers
+    status: pending
+    gate_tier: 2
+    gate: type-system
+    files: 1
+    syntax_constructs: 69
+    new_constructs:
+      - AutoGetAccessorAccessorDeclarationNode
+      - AutoInitAccessorAccessorDeclarationNode
+      - AutoSetAccessorAccessorDeclarationNode
+      - NamedPropertyAssignmentPropertyAssignmentNode
+      - ObjectCreationExpressionNoArgsPrimaryNode
+      - PropertyAssignmentListNode
+      - PropertyInitializerBlockNode
+    # source requires tier 2 though the name suggests tier 1
+    gated_by:
+      - RegularTypeParameterTypeParameterNode
+      - TypeArgumentListNode
+      - TypeParameterListNode
+      - TypeReferenceTypeArgumentTypeArgumentNode
+
+  # --- tier 3: abstracts-and-extensions ---
+
+  - name: ExtensionMethodBinding
+    status: pending
+    gate_tier: 3
+    gate: abstracts-and-extensions
+    files: 1
+    syntax_constructs: 41
+    new_constructs: []
+
+  - name: StormAnonymousGroups
+    status: pending
+    gate_tier: 3
+    gate: abstracts-and-extensions
+    files: 1
+    syntax_constructs: 43
+    new_constructs: []
+
+  - name: GenericTypes
+    status: pending
+    gate_tier: 3
+    gate: abstracts-and-extensions
+    files: 3
+    syntax_constructs: 57
+    new_constructs:
+      - AbstractKeywordTypeKeywordNode
+      - CallableNoBodyCallableBodyNode
+    # source requires tier 3 though the name suggests tier 2
+    gated_by:
+      - AbstractKeywordTypeKeywordNode
+
+  - name: VoidType
+    status: pending
+    gate_tier: 3
+    gate: abstracts-and-extensions
+    files: 5
+    syntax_constructs: 63
+    new_constructs: []
+    # source requires tier 3 though the name suggests tier 2
+    gated_by:
+      - AbstractKeywordTypeKeywordNode
+
+  - name: ShapeAbstracts
+    status: pending
+    gate_tier: 3
+    gate: abstracts-and-extensions
+    files: 4
+    syntax_constructs: 61
+    new_constructs:
+      - ExpressionBodiedPropertyPropertyDeclarationNode
+
+  - name: AbstractTypes
+    status: pending
+    gate_tier: 3
+    gate: abstracts-and-extensions
+    files: 1
+    syntax_constructs: 62
+    new_constructs:
+      - MemberMappingNode
+      - WithDeclarationNode
+      - WithItemTopLevelItemNode
+
+  - name: NestedScoping
+    status: pending
+    gate_tier: 3
+    gate: abstracts-and-extensions
+    files: 4
+    syntax_constructs: 62
+    new_constructs:
+      - EnumDeclarationNode
+      - EnumMemberListNode
+      - EnumMemberNode
+      - NestedEnumMemberMemberDeclarationNode
+    # source requires tier 3 though the name suggests tier 1
+    gated_by:
+      - AbstractKeywordTypeKeywordNode
+      - RegularTypeParameterTypeParameterNode
+      - TypeParameterListNode
+
+  - name: ExtensionMethods
+    status: pending
+    gate_tier: 3
+    gate: abstracts-and-extensions
+    files: 5
+    syntax_constructs: 60
+    new_constructs:
+      - ExtensionBlockDeclarationNode
+      - ExtensionMethodMemberExtensionMemberDeclarationNode
+      - ExtensionPropertyMemberExtensionMemberDeclarationNode
+      - ForInitializerVarDeclarationForInitializerNode
+      - NamespaceExtensionItemNamespaceBodyItemNode
+      - UnknownSingleTypeRefSingleTypeRefNode
+
+  - name: AssociatedTypes
+    status: pending
+    gate_tier: 3
+    gate: abstracts-and-extensions
+    files: 1
+    syntax_constructs: 66
+    new_constructs:
+      - AssociatedTypeMemberMemberDeclarationNode
+      - AssociatedTypeSlotDeclarationNode
+      - ClassConstraintConstraintNode
+      - ConstraintListNode
+      - StructConstraintConstraintNode
+      - TypeConstraintConstraintNode
+
+  - name: GenericConstraints
+    status: pending
+    gate_tier: 3
+    gate: abstracts-and-extensions
+    files: 1
+    syntax_constructs: 71
+    new_constructs:
+      - ConstraintParameterTypeListNode
+      - ConstructorConstraintConstraintNode
+      - GenericConstraintClauseWhereClauseNode
+    # source requires tier 3 though the name suggests tier 2
+    gated_by:
+      - AbstractKeywordTypeKeywordNode
+
+  - name: ReadonlyContexts
+    status: pending
+    gate_tier: 3
+    gate: abstracts-and-extensions
+    files: 1
+    syntax_constructs: 76
+    new_constructs:
+      - BlockSetAccessorAccessorDeclarationNode
+      - FieldKeywordExpressionPrimaryNode
+      - MutableConstraintConstraintNode
+      - ReadonlyBlockStatementNode
+      - ReadonlyBlockStatementStatementNode
+      - ReadonlyConstraintConstraintNode
+    # source requires tier 3 though the name suggests tier 1
+    gated_by:
+      - AbstractKeywordTypeKeywordNode
+      - GenericConstraintClauseWhereClauseNode
+      - RegularTypeParameterTypeParameterNode
+      - TypeArgumentListNode
+      - TypeParameterListNode
+      - TypeReferenceTypeArgumentTypeArgumentNode
+
+  - name: Testing
+    status: pending
+    gate_tier: 3
+    gate: abstracts-and-extensions
+    files: 1
+    syntax_constructs: 39
+    new_constructs:
+      - AttributeArgumentListNode
+      - AttributeArgumentsNode
+      - AttributeListNode
+      - AttributeNode
+      - PositionalAttributeArgumentAttributeArgumentNode
+      - RegularExpressionAttributeExpressionNode
+      - UsingItemTopLevelItemNode
+
+  - name: Attributes
+    status: pending
+    gate_tier: 3
+    gate: abstracts-and-extensions
+    files: 2
+    syntax_constructs: 75
+    new_constructs:
+      - GenericTypeLiteralExpressionAttributeExpressionNode
+
+  # --- tier 4: functions-and-patterns ---
+
+  - name: Iterators
+    status: pending
+    gate_tier: 4
+    gate: functions-and-patterns
+    files: 1
+    syntax_constructs: 70
+    new_constructs:
+      - VarForeachForeachStatementNode
+
+  - name: DelegateFuncConversion
+    status: pending
+    gate_tier: 4
+    gate: functions-and-patterns
+    files: 1
+    syntax_constructs: 59
+    new_constructs:
+      - CollectionElementAssignmentPropertyAssignmentNode
+      - ExpressionLambdaLambdaExpressionNode
+      - FuncSingleTypeRefSingleTypeRefNode
+      - LambdaFormExpressionNode
+      - ParenthesizedLambdaParamsLambdaParameterListNode
+      - SingleImplicitParamLambdaParameterListNode
+
+  - name: UnknownReadonlySemantics
+    status: pending
+    gate_tier: 4
+    gate: functions-and-patterns
+    files: 1
+    syntax_constructs: 68
+    new_constructs:
+      - AndPatternNode
+      - DirectPatternUnaryPatternNode
+      - IsExpressionRelationalNode
+      - OrPatternNode
+      - PatternNode
+      - TypePatternPrimaryPatternNode
+    # source requires tier 4 though the name suggests tier 2
+    gated_by:
+      - AndPatternNode
+      - DirectPatternUnaryPatternNode
+      - OrPatternNode
+      - PatternNode
+      - TypePatternPrimaryPatternNode
+
+  - name: UnknownType
+    status: pending
+    gate_tier: 4
+    gate: functions-and-patterns
+    files: 1
+    syntax_constructs: 73
+    new_constructs: []
+    # source requires tier 4 though the name suggests tier 2
+    gated_by:
+      - AndPatternNode
+      - DirectPatternUnaryPatternNode
+      - OrPatternNode
+      - PatternNode
+      - TypePatternPrimaryPatternNode
+
+  - name: TypeUnions
+    status: pending
+    gate_tier: 4
+    gate: functions-and-patterns
+    files: 1
+    syntax_constructs: 53
+    new_constructs:
+      - "type:union"
+    # source requires tier 4 though the name suggests tier 2
+    gated_by:
+      - AndPatternNode
+      - DirectPatternUnaryPatternNode
+      - OrPatternNode
+      - PatternNode
+      - TypePatternPrimaryPatternNode
+
+  - name: AsOperator
+    status: pending
+    gate_tier: 4
+    gate: functions-and-patterns
+    files: 1
+    syntax_constructs: 65
+    new_constructs:
+      - AsExpressionRelationalNode
+
+  - name: EnumReadonlyRestriction
+    status: pending
+    gate_tier: 4
+    gate: functions-and-patterns
+    files: 1
+    syntax_constructs: 64
+    new_constructs:
+      - BareTypePatternPrimaryPatternNode
+      - EnumTypeTypeDeclarationNode
+    # source requires tier 4 though the name suggests tier 1
+    gated_by:
+      - AndPatternNode
+      - BareTypePatternPrimaryPatternNode
+      - DirectPatternUnaryPatternNode
+      - OrPatternNode
+      - PatternNode
+      - "type:union"
+
+  - name: Enums
+    status: pending
+    gate_tier: 4
+    gate: functions-and-patterns
+    files: 1
+    syntax_constructs: 76
+    new_constructs: []
+    # source requires tier 4 though the name suggests tier 1
+    gated_by:
+      - AbstractKeywordTypeKeywordNode
+      - AndPatternNode
+      - BareTypePatternPrimaryPatternNode
+      - DirectPatternUnaryPatternNode
+      - OrPatternNode
+      - PatternNode
+      - TypePatternPrimaryPatternNode
+      - "type:optional"
+      - "type:union"
+
+  - name: AnonymousTypes
+    status: pending
+    gate_tier: 4
+    gate: functions-and-patterns
+    files: 1
+    syntax_constructs: 59
+    new_constructs:
+      - AnonymousPropertyListNode
+      - AnonymousTypeExpressionPrimaryNode
+      - ExplicitAnonymousPropertyAnonymousPropertyNode
+      - ProjectedAnonymousPropertyAnonymousPropertyNode
+      - PropertyPatternPrimaryPatternNode
+      - PropertySubpatternListNode
+      - PropertySubpatternNode
+      - VarPatternPrimaryPatternNode
+    # source requires tier 4 though the name suggests tier 2
+    gated_by:
+      - AndPatternNode
+      - BareTypePatternPrimaryPatternNode
+      - DirectPatternUnaryPatternNode
+      - OrPatternNode
+      - PatternNode
+      - PropertyPatternPrimaryPatternNode
+      - PropertySubpatternListNode
+      - PropertySubpatternNode
+      - VarPatternPrimaryPatternNode
+
+  - name: RangesAndIndices
+    status: pending
+    gate_tier: 4
+    gate: functions-and-patterns
+    files: 1
+    syntax_constructs: 56
+    new_constructs:
+      - ConstantPatternPrimaryPatternNode
+      - FromEndExpressionUnaryNode
+      - IntegerConstantConstantLiteralNode
+      - ListPatternElementListNode
+      - ListPatternPrimaryPatternNode
+      - PatternElementListPatternElementNode
+      - RangeExpressionRangeNode
+      - SliceElementListPatternElementNode
+    # source requires tier 4 though the name suggests tier 0
+    gated_by:
+      - AndPatternNode
+      - ConstantPatternPrimaryPatternNode
+      - DirectPatternUnaryPatternNode
+      - ListPatternElementListNode
+      - ListPatternPrimaryPatternNode
+      - OrPatternNode
+      - PatternElementListPatternElementNode
+      - PatternNode
+      - SliceElementListPatternElementNode
+      - VarPatternPrimaryPatternNode
+
+  - name: PatternMatching
+    status: pending
+    gate_tier: 4
+    gate: functions-and-patterns
+    files: 1
+    syntax_constructs: 75
+    new_constructs:
+      - GreaterThanOrEqualRelationalPatternPrimaryPatternNode
+      - GreaterThanRelationalPatternPrimaryPatternNode
+      - LessThanOrEqualRelationalPatternPrimaryPatternNode
+      - LessThanRelationalPatternPrimaryPatternNode
+
+  - name: Tuples
+    status: pending
+    gate_tier: 4
+    gate: functions-and-patterns
+    files: 1
+    syntax_constructs: 67
+    new_constructs:
+      - NamedTupleLiteralElementTupleLiteralElementNode
+      - TupleDeconstructionElementNode
+      - TupleLiteralExpressionPrimaryNode
+      - TuplePositionalPatternPrimaryPatternNode
+      - TupleSingleTypeRefSingleTypeRefNode
+      - TupleTypeElementNode
+      - TypedTupleDeconstructionVariableDeclarationStatementNode
+      - UnnamedTupleLiteralElementTupleLiteralElementNode
+      - VarTupleDeconstructionVariableDeclarationStatementNode
+    # source requires tier 4 though the name suggests tier 2
+    gated_by:
+      - AndPatternNode
+      - BareTypePatternPrimaryPatternNode
+      - DirectPatternUnaryPatternNode
+      - OrPatternNode
+      - PatternNode
+      - TuplePositionalPatternPrimaryPatternNode
+      - TypePatternPrimaryPatternNode
+
+  - name: TuplePatternMatching
+    status: pending
+    gate_tier: 4
+    gate: functions-and-patterns
+    files: 1
+    syntax_constructs: 79
+    new_constructs:
+      - DiscardPatternPrimaryPatternNode
+      - FalseConstantConstantLiteralNode
+      - StringConstantConstantLiteralNode
+      - SwitchArmListNode
+      - SwitchArmNode
+      - SwitchExpressionSuffixPostfixSuffixNode
+      - TrueConstantConstantLiteralNode
+      - WhenGuardNode
+
+  - name: SwitchExpressions
+    status: pending
+    gate_tier: 4
+    gate: functions-and-patterns
+    files: 1
+    syntax_constructs: 80
+    new_constructs: []
+
+  - name: Variadics
+    status: pending
+    gate_tier: 4
+    gate: functions-and-patterns
+    files: 1
+    syntax_constructs: 97
+    new_constructs:
+      - BracketedPackListNode
+      - BracketedPackTypeArgumentTypeArgumentNode
+      - ExplicitPackTypeParameterTypeParameterNode
+      - GenericInvocationExpressionPrimaryNode
+      - LambdaParamListNode
+      - ParamsPackTypeParameterTypeParameterNode
+      - SizedArrayRankArrayRankSuffixNode
+      - SpreadSingleTypeRefSingleTypeRefNode
+      - SpreadSuffixPostfixSuffixNode
+      - UntypedLambdaParamLambdaParamNode
+    # source requires tier 4 though the name suggests tier 2
+    gated_by:
+      - AbstractKeywordTypeKeywordNode
+      - AndPatternNode
+      - DirectPatternUnaryPatternNode
+      - ExpressionLambdaLambdaExpressionNode
+      - LambdaFormExpressionNode
+      - LambdaParamListNode
+      - OrPatternNode
+      - ParenthesizedLambdaParamsLambdaParameterListNode
+      - PatternNode
+      - SingleImplicitParamLambdaParameterListNode
+      - TypePatternPrimaryPatternNode
+      - UntypedLambdaParamLambdaParamNode
+
+  # --- tier 5: clr-interop ---
+
+  - name: CSharpInteropV2
+    status: pending
+    gate_tier: 5
+    gate: clr-interop
+    files: 1
+    syntax_constructs: 40
+    new_constructs: []
+
+  - name: ClrRefInterop
+    status: pending
+    gate_tier: 5
+    gate: clr-interop
+    files: 1
+    syntax_constructs: 47
+    new_constructs:
+      - RefArgumentArgumentNode
+
+  - name: AssemblyTypeProvider
+    status: pending
+    gate_tier: 5
+    gate: clr-interop
+    files: 1
+    syntax_constructs: 48
+    new_constructs: []
+
+  # --- tier 6: ownership-and-drop ---
+
+  - name: ReadonlyLocals
+    status: pending
+    gate_tier: 6
+    gate: ownership-and-drop
+    files: 1
+    syntax_constructs: 59
+    new_constructs:
+      - OwnedSpecifierOwnershipSpecifierNode
+    # source requires tier 6 though the name suggests tier 0
+    gated_by:
+      - ConstructorDeclarationNode
+      - ConstructorMemberMemberDeclarationNode
+      - FieldDeclarationNode
+      - FieldMemberMemberDeclarationNode
+      - ObjectCreationExpressionPrimaryNode
+      - OwnedSpecifierOwnershipSpecifierNode
+      - ThisExpressionPrimaryNode
+      - TupleDeconstructionElementNode
+      - TupleLiteralExpressionPrimaryNode
+      - TypedTupleDeconstructionVariableDeclarationStatementNode
+      - UnnamedTupleLiteralElementTupleLiteralElementNode
+      - VarTupleDeconstructionVariableDeclarationStatementNode
+
+  # --- tier 7: refinement-and-dependent ---
+
+  - name: RefParameters
+    status: pending
+    gate_tier: 7
+    gate: refinement-and-dependent
+    files: 1
+    syntax_constructs: 65
+    new_constructs:
+      - AdhocRefinementConstraintWhereClauseNode
+      - RefSpecifierOwnershipSpecifierNode
+    # source requires tier 7 though the name suggests tier 2
+    gated_by:
+      - AdhocRefinementConstraintWhereClauseNode
+      - AndPatternNode
+      - DirectPatternUnaryPatternNode
+      - GreaterThanOrEqualRelationalPatternPrimaryPatternNode
+      - LessThanRelationalPatternPrimaryPatternNode
+
+  - name: OptionalDefaultability
+    status: pending
+    gate_tier: 7
+    gate: refinement-and-dependent
+    files: 1
+    syntax_constructs: 73
+    new_constructs:
+      - DefaultConstraintConstraintNode
+      - IntegerLiteralTypeArgumentTypeArgumentNode
+    # source requires tier 7 though the name suggests tier 2
+    gated_by:
+      - ExpressionLambdaLambdaExpressionNode
+      - IntegerLiteralTypeArgumentTypeArgumentNode
+      - LambdaFormExpressionNode
+      - SingleImplicitParamLambdaParameterListNode
+
+  - name: ArrayBoundsFlowAnalysis
+    status: pending
+    gate_tier: 7
+    gate: refinement-and-dependent
+    files: 1
+    syntax_constructs: 76
+    new_constructs:
+      - DependentTypeParameterTypeParameterNode
+
+  - name: DefiniteAssignment
+    status: pending
+    gate_tier: 7
+    gate: refinement-and-dependent
+    files: 2
+    syntax_constructs: 67
+    new_constructs:
+      - UninitializedVariableDeclarationNode
+      - UninitializedVariableStatementStatementNode
+    # source requires tier 7 though the name suggests tier 0
+    gated_by:
+      - ConstructorDeclarationNode
+      - ConstructorMemberMemberDeclarationNode
+      - ExpressionLambdaLambdaExpressionNode
+      - FieldDeclarationNode
+      - FieldMemberMemberDeclarationNode
+      - IntegerLiteralTypeArgumentTypeArgumentNode
+      - LambdaFormExpressionNode
+      - ObjectCreationExpressionPrimaryNode
+      - SingleImplicitParamLambdaParameterListNode
+      - StructKeywordTypeKeywordNode
+      - ThisExpressionPrimaryNode
+      - TypeArgumentListNode
+      - TypeReferenceTypeArgumentTypeArgumentNode
+
+  - name: Properties
+    status: pending
+    gate_tier: 7
+    gate: refinement-and-dependent
+    files: 11
+    syntax_constructs: 90
+    new_constructs:
+      - BlockInitAccessorAccessorDeclarationNode
+      - ExpressionGetAccessorAccessorDeclarationNode
+      - ExpressionSetAccessorAccessorDeclarationNode
+    # source requires tier 7 though the name suggests tier 1
+    gated_by:
+      - AbstractKeywordTypeKeywordNode
+      - AdhocRefinementConstraintWhereClauseNode
+      - AndPatternNode
+      - DirectPatternUnaryPatternNode
+      - GreaterThanOrEqualRelationalPatternPrimaryPatternNode
+      - LessThanRelationalPatternPrimaryPatternNode
+
+  - name: TypeAliases
+    status: pending
+    gate_tier: 7
+    gate: refinement-and-dependent
+    files: 1
+    syntax_constructs: 60
+    new_constructs:
+      - RefinableSingleTypeExprNode
+      - RefinableTypeExpressionNode
+      - TypeAliasDeclarationNode
+      - TypeAliasTypeTypeDeclarationNode
+    # source requires tier 7 though the name suggests tier 2
+    gated_by:
+      - RefinableSingleTypeExprNode
+      - RefinableTypeExpressionNode
+
+  - name: ArityOverloads
+    status: pending
+    gate_tier: 7
+    gate: refinement-and-dependent
+    files: 1
+    syntax_constructs: 65
+    new_constructs: []
+    # source requires tier 7 though the name suggests tier 2
+    gated_by:
+      - RefinableSingleTypeExprNode
+      - RefinableTypeExpressionNode
+
+  - name: RefinementTypes
+    status: pending
+    gate_tier: 7
+    gate: refinement-and-dependent
+    files: 1
+    syntax_constructs: 77
+    new_constructs:
+      - SimpleRefinementPredicateRefinementPredicateNode
+
+  - name: AdhocRefinementConstraints
+    status: pending
+    gate_tier: 7
+    gate: refinement-and-dependent
+    files: 1
+    syntax_constructs: 85
+    new_constructs: []
+
+  - name: DependentTypeRefinementConstraints
+    status: pending
+    gate_tier: 7
+    gate: refinement-and-dependent
+    files: 1
+    syntax_constructs: 54
+    new_constructs:
+      - NamedConstraintDependentTypeParameterTypeParameterNode
+
+  - name: RefinementComparison
+    status: pending
+    gate_tier: 7
+    gate: refinement-and-dependent
+    files: 1
+    syntax_constructs: 62
+    new_constructs:
+      - NotPatternUnaryPatternNode
+      - ParenthesizedPatternPrimaryPatternNode
+
+  - name: RegexLiterals
+    status: pending
+    gate_tier: 7
+    gate: refinement-and-dependent
+    files: 1
+    syntax_constructs: 68
+    new_constructs:
+      - RegexConstantConstantLiteralNode
+      - RegexLiteralExpressionPrimaryNode
+      - RegexTypePrimitiveTypeNode
+    # source requires tier 7 though the name suggests tier 4
+    gated_by:
+      - RefinableSingleTypeExprNode
+      - RefinableTypeExpressionNode
+      - SimpleRefinementPredicateRefinementPredicateNode
+
+  - name: DependentTypes
+    status: pending
+    gate_tier: 7
+    gate: refinement-and-dependent
+    files: 1
+    syntax_constructs: 84
+    new_constructs:
+      - CharLiteralTypeArgumentTypeArgumentNode
+      - NegatedIntegerTypeArgumentTypeArgumentNode
+      - TrueLiteralTypeArgumentTypeArgumentNode
+
+  # --- tier 8: concurrency-and-context ---
+
+  - name: StructuredConcurrency
+    status: pending
+    gate_tier: 8
+    gate: concurrency-and-context
+    files: 1
+    syntax_constructs: 46
+    new_constructs:
+      - AsyncExpressionUnaryNode
+      - AsyncModifierModifierNode
+      - AwaitExpressionUnaryNode
+
+  - name: AsyncDropChaining
+    status: pending
+    gate_tier: 8
+    gate: concurrency-and-context
+    files: 1
+    syntax_constructs: 61
+    new_constructs:
+      - BlockStatementStatementNode
+      - LinearModifierModifierNode
+      - TypedLambdaParamLambdaParamNode
+
+  - name: FirstClassFunctions
+    status: pending
+    gate_tier: 8
+    gate: concurrency-and-context
+    files: 1
+    syntax_constructs: 84
+    new_constructs:
+      - AsyncLambdaModifierLambdaModifierNode
+      - BlockLambdaLambdaExpressionNode
+      - StaticLambdaModifierLambdaModifierNode
+    # source requires tier 8 though the name suggests tier 4
+    gated_by:
+      - AsyncExpressionUnaryNode
+      - AsyncLambdaModifierLambdaModifierNode
+      - AsyncModifierModifierNode
+      - AwaitExpressionUnaryNode
+      - RefinableSingleTypeExprNode
+      - RefinableTypeExpressionNode
+
+  - name: DisposableDropInterop
+    status: pending
+    gate_tier: 8
+    gate: concurrency-and-context
+    files: 1
+    syntax_constructs: 53
+    new_constructs:
+      - WithVarBlockStatementNode
+      - WithVarBlockStatementStatementNode
+      - WithVarDeclarationStatementNode
+      - WithVarDeclarationStatementStatementNode
+    # source requires tier 8 though the name suggests tier 6
+    gated_by:
+      - WithVarBlockStatementNode
+      - WithVarBlockStatementStatementNode
+      - WithVarDeclarationStatementNode
+      - WithVarDeclarationStatementStatementNode
+
+  - name: Ownership
+    status: pending
+    gate_tier: 8
+    gate: concurrency-and-context
+    files: 1
+    syntax_constructs: 67
+    new_constructs:
+      - BorrowedSpecifierOwnershipSpecifierNode
+      - FrozenSpecifierOwnershipSpecifierNode
+      - OwnedModifierModifierNode
+      - ThisTierWithClauseWithClauseNode
+    # source requires tier 8 though the name suggests tier 6
+    gated_by:
+      - ThisTierWithClauseWithClauseNode
+
+  - name: DropSemantics
+    status: pending
+    gate_tier: 8
+    gate: concurrency-and-context
+    files: 1
+    syntax_constructs: 67
+    new_constructs:
+      - AffineModifierModifierNode
+      - LinearConstraintConstraintNode
+      - RelevantModifierModifierNode
+      - WithBlockStatementNode
+      - WithBlockStatementStatementNode
+    # source requires tier 8 though the name suggests tier 6
+    gated_by:
+      - WithBlockStatementNode
+      - WithBlockStatementStatementNode
+
+  - name: SubstructuralFieldDiscipline
+    status: pending
+    gate_tier: 8
+    gate: concurrency-and-context
+    files: 1
+    syntax_constructs: 73
+    new_constructs:
+      - AffineConstraintConstraintNode
+      - AsyncBlockExpressionUnaryNode
+      - AsyncHintBlockExpressionUnaryNode
+      - RelevantConstraintConstraintNode
+    # source requires tier 8 though the name suggests tier 6
+    gated_by:
+      - AsyncBlockExpressionUnaryNode
+      - AsyncHintBlockExpressionUnaryNode
+      - AsyncModifierModifierNode
+      - AwaitExpressionUnaryNode
+      - WithVarBlockStatementNode
+      - WithVarBlockStatementStatementNode
+
+  - name: StructuredContext
+    status: pending
+    gate_tier: 8
+    gate: concurrency-and-context
+    files: 1
+    syntax_constructs: 81
+    new_constructs:
+      - ContextWithClauseWithClauseNode
+      - WithDiscardDeclarationStatementNode
+      - WithDiscardDeclarationStatementStatementNode
+      - WithPushStatementNode
+      - WithPushStatementStatementNode
+      - WithTypedDeclarationStatementNode
+      - WithTypedDeclarationStatementStatementNode

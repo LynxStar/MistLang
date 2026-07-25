@@ -518,7 +518,6 @@ internal static class SemanticGates
         ["TopLevelStatements"] = 0,
         ["Namespaces"] = 0,
         ["GlobalUsings"] = 0,
-        ["ProjectReferences"] = 0,
 
         // ── 1: object model — classes, structs, fields, ctors, properties ──
         ["Classes"] = 1,
@@ -578,15 +577,12 @@ internal static class SemanticGates
         ["RegexLiterals"] = 4,
 
         // ── 5: CLR interop — ambient provider, real assembly projection ──
-        ["AmbientTypes"] = 5,
         ["AssemblyTypeProvider"] = 5,
         ["CSharpInteropV2"] = 5,
         ["ClrRefInterop"] = 5,
 
         // ── 6: ownership, drop, substructural discipline ──
-        ["OwnershipSystem"] = 6,
         ["Ownership"] = 6,
-        ["DeepOwnershipTypes"] = 6,
         ["DropSemantics"] = 6,
         ["DisposableDropInterop"] = 6,
         ["SubstructuralFieldDiscipline"] = 6,

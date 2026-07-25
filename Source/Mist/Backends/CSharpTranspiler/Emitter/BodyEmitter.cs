@@ -237,6 +237,28 @@ internal static class BodyEmitter
                 writer.Append("]");
                 break;
 
+            case ArrayLiteralExpression arrayLiteral:
+                // Emitted with an explicit element type rather than as a C# collection
+                // expression so the target type is never required at the use site.
+                writer.Append($"new {TypeNameEmitter.Emit(arrayLiteral.ElementType)}[]");
+                writer.Append(arrayLiteral.Elements.Count == 0 ? " { }" : " { ");
+                for(var i = 0; i < arrayLiteral.Elements.Count; i++)
+                {
+                    if(i > 0)
+                    {
+                        writer.Append(", ");
+                    }
+
+                    EmitExpression(arrayLiteral.Elements[i], writer);
+                }
+
+                if(arrayLiteral.Elements.Count > 0)
+                {
+                    writer.Append(" }");
+                }
+
+                break;
+
             case InterpolatedStringExpression interpolated:
                 writer.Append("$\"");
                 foreach(var part in interpolated.Parts)

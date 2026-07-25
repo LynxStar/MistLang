@@ -352,4 +352,20 @@ public static class ProgramModelDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
         "A variable named '{0}' is already declared in this scope.");
+
+    // ── Array literal inference ──────────────────────────────────────────
+
+    /// <summary>An empty array literal appears where no target array type supplies the element type.</summary>
+    public static readonly DiagnosticDescriptor EmptyArrayLiteralNeedsTargetType = new(
+        new DiagnosticId("MIST_PM_EMPTY_ARRAY_LITERAL_NO_TARGET"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "The element type of an empty array literal cannot be inferred. Annotate the target with an array type, for example 'int[] x = [];'.");
+
+    /// <summary>The elements of an array literal have no single common type.</summary>
+    public static readonly DiagnosticDescriptor ArrayLiteralNoCommonElementType = new(
+        new DiagnosticId("MIST_PM_ARRAY_LITERAL_NO_COMMON_TYPE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "The elements of the array literal have no common type ('{0}' and '{1}'). Annotate the target with an array type to select the element type explicitly.");
 }

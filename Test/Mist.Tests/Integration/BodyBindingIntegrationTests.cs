@@ -170,6 +170,100 @@ public sealed class BodyBindingIntegrationTests : IDisposable
         AssertNoSentinels(runDemo.Body!);
     }
 
+    [Fact]
+    public void ArrayLiteral_InfersElementTypeFromElements()
+    {
+        var source = """
+            namespace TestProject;
+
+            public class Literals
+            {
+                public void Make()
+                {
+                    var numbers = [1, 2, 3];
+                }
+            }
+            """;
+
+        var method = GetMethod(BuildProgramModel(source), "Literals", "Make");
+        Assert.NotNull(method.Body);
+        var declaration = Assert.IsType<LocalDeclarationStatement>(method.Body!.Statements[0]);
+
+        var literal = Assert.IsType<ArrayLiteralExpression>(declaration.Initializer);
+        Assert.Equal(3, literal.Elements.Count);
+        Assert.Equal("Standard.Int32", literal.ElementType.FullyQualifiedName);
+
+        // `var` adopts the literal's ARRAY type, not its element type.
+        AssertArrayOf("Standard.Int32", declaration.Local.Type);
+    }
+
+    [Fact]
+    public void EmptyArrayLiteral_TakesElementTypeFromDeclaredType()
+    {
+        var source = """
+            namespace TestProject;
+
+            public class Literals
+            {
+                public void Make()
+                {
+                    int[] empty = [];
+                }
+            }
+            """;
+
+        var method = GetMethod(BuildProgramModel(source), "Literals", "Make");
+        Assert.NotNull(method.Body);
+        var declaration = Assert.IsType<LocalDeclarationStatement>(method.Body!.Statements[0]);
+
+        // With no elements the element type can only come from the declared type.
+        var literal = Assert.IsType<ArrayLiteralExpression>(declaration.Initializer);
+        Assert.Empty(literal.Elements);
+        Assert.Equal("Standard.Int32", literal.ElementType.FullyQualifiedName);
+    }
+
+    [Fact]
+    public void NestedArrayLiteral_InfersArrayAsTheElementType()
+    {
+        var source = """
+            namespace TestProject;
+
+            public class Literals
+            {
+                public void Make()
+                {
+                    var grid = [[1, 2], [3, 4]];
+                }
+            }
+            """;
+
+        var method = GetMethod(BuildProgramModel(source), "Literals", "Make");
+        Assert.NotNull(method.Body);
+        var declaration = Assert.IsType<LocalDeclarationStatement>(method.Body!.Statements[0]);
+
+        var outer = Assert.IsType<ArrayLiteralExpression>(declaration.Initializer);
+        Assert.Equal(2, outer.Elements.Count);
+
+        // The outer element type is itself int[], which is what makes the local int[][].
+        AssertArrayOf("Standard.Int32", outer.ElementType);
+
+        var first = Assert.IsType<ArrayLiteralExpression>(outer.Elements[0]);
+        Assert.Equal("Standard.Int32", first.ElementType.FullyQualifiedName);
+
+        // Both inner literals must resolve to the SAME interned array type. That
+        // reference identity is precisely what lets the common-element-type rule
+        // accept them, so assert it rather than just comparing names.
+        var second = Assert.IsType<ArrayLiteralExpression>(outer.Elements[1]);
+        Assert.Same(first.Type, second.Type);
+    }
+
+    private static void AssertArrayOf(string expectedElementFqn, IMistType type)
+    {
+        var constructed = Assert.IsType<ConstructedType>(type);
+        Assert.Equal("Array<,>", constructed.Definition.Name);
+        Assert.Equal(expectedElementFqn, constructed.TypeArguments[0].FullyQualifiedName);
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // Harness
     // ═══════════════════════════════════════════════════════════════════════

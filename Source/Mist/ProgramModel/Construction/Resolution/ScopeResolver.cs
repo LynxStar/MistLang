@@ -569,31 +569,56 @@ internal sealed class ScopeResolver
     }
 
     /// <summary>
-    /// Wraps an element type in a <c>Standard.Array&lt;,&gt;</c> constructed type.
-    /// Sized arrays (<c>int[5]</c>) use a <see cref="LiftedType"/> for the length;
-    /// unsized arrays (<c>int[]</c>) use <see cref="UnknownType"/>.
+    /// Constructs <c>Standard.Array&lt;elementType, length&gt;</c>. A null
+    /// <paramref name="length"/> means the length is not statically known and yields
+    /// <c>Array&lt;elementType, unknown&gt;</c>; a known length is lifted into a
+    /// <see cref="LiftedType"/> so <c>ArrayBounds</c> can constrain indexing.
+    /// <para>
+    /// This is the single place an array type is built. Callers that hold array syntax
+    /// report their own diagnostic when this returns <see cref="ErrorType"/>, which
+    /// happens only when <c>Standard.Array&lt;,&gt;</c> is not registered.
+    /// </para>
+    /// </summary>
+    public IMistType ConstructArray(IMistType elementType, int? length)
+    {
+        var arrayDefinition = LookupWellKnown(WellKnownTypes.Array);
+        if(arrayDefinition is ErrorType)
+        {
+            return arrayDefinition;
+        }
+
+        // Widened to long to match LiftIntegerLiteral, which is how a length written as an
+        // explicit type argument (Array<string, 7>) is lifted. The interner keys on the
+        // boxed value, so an int box and a long box of the same number are different keys:
+        // mismatching here would make Array<string, 7> and string[7] distinct types.
+        IMistType lengthArgument = length is { } known
+            ? context.ProgramModel.TypeInterner.GetOrCreateLiftedType((long)known, known.ToString(CultureInfo.InvariantCulture))
+            : UnknownType.Instance
+            ;
+
+        return context.ProgramModel.TypeInterner.GetOrCreateConstructedType(arrayDefinition, new IMistType[] { elementType, lengthArgument });
+    }
+
+    /// <summary>
+    /// Wraps an element type in a <c>Standard.Array&lt;,&gt;</c> constructed type,
+    /// taking the length from the rank suffix: sized arrays (<c>int[5]</c>) carry the
+    /// literal length, unsized arrays (<c>int[]</c>) carry none.
     /// </summary>
     private IMistType ResolveArrayType(SingleTypeRefNode singleRef, IMistType elementType)
     {
-        var arrayDef = LookupInNamespace("Standard", "Array<,>");
-        if(arrayDef is null)
+        var rank = GetArrayRank(singleRef)!;
+        var length = rank is SizedArrayRankArrayRankSuffixNode sized
+            ? (int.TryParse(sized.Size.Lexeme, out var parsed) ? parsed : 0)
+            : (int?)null;
+
+        var arrayType = ConstructArray(elementType, length);
+        if(arrayType is ErrorType)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnresolvedType, singleRef, null, "Standard.Array<,>");
-            return ErrorType.Instance;
+            context.Diagnostics.ReportAtNode(
+                ProgramModelDiagnostics.UnresolvedType, singleRef, null, WellKnownTypes.Array.FullyQualifiedName);
         }
 
-        var rank = GetArrayRank(singleRef)!;
-        IMistType lengthArg = rank switch
-        {
-            SizedArrayRankArrayRankSuffixNode sized =>
-                context.ProgramModel.TypeInterner.GetOrCreateLiftedType(
-                    long.TryParse(sized.Size.Lexeme, out var len) ? len : 0L,
-                    sized.Size.Lexeme),
-            _ => UnknownType.Instance,
-        };
-
-        return context.ProgramModel.TypeInterner.GetOrCreateConstructedType(
-            arrayDef, new IMistType[] { elementType, lengthArg });
+        return arrayType;
     }
 
     /// <summary>

@@ -48,6 +48,8 @@ internal static class ExpressionBinder
             IdentifierExpressionPrimaryNode identifier => IdentifierBinder.BindIdentifier(identifier, ctx, context),
             ParenthesizedExpressionPrimaryNode paren => BindExpression(paren.Inner, ctx, context),
             ArrayCreationExpressionPrimaryNode arrayCreation => BindArrayCreation(arrayCreation, ctx, context),
+            ArrayLiteralExpressionPrimaryNode arrayLiteral => LiteralBinder.BindArrayLiteral(arrayLiteral, ctx, context),
+            EmptyArrayLiteralExpressionPrimaryNode emptyArrayLiteral => LiteralBinder.BindEmptyArrayLiteral(emptyArrayLiteral, ctx, context),
             InterpolatedStringExpressionPrimaryNode interpStr => BindInterpolatedString(interpStr, ctx, context),
             _ => new UnresolvedExpression(node),
         };
@@ -57,19 +59,9 @@ internal static class ExpressionBinder
     {
         var elementType = ResolveElementType(node.Type, ctx, context);
         var size = BindExpression(node.Size, ctx, context);
-        var arrayType = ResolveArrayType(elementType, context);
+        // The size is an arbitrary expression, so the length is not statically known.
+        var arrayType = context.Resolver.ConstructArray(elementType, null);
         return new ArrayCreationExpression(node, elementType, size, arrayType);
-    }
-
-    private static IMistType ResolveArrayType(IMistType elementType, BuilderContext context)
-    {
-        if(context.ProgramModel.TypesByFQN.TryGetValue("Standard.Array<,>", out var arrayDef))
-        {
-            return context.ProgramModel.TypeInterner.GetOrCreateConstructedType(
-                arrayDef, new IMistType[] { elementType, UnknownType.Instance });
-        }
-
-        return elementType;
     }
 
     private static IMistType ResolveElementType(ElementTypeRefNode elementTypeRef, BindingContext ctx, BuilderContext context)

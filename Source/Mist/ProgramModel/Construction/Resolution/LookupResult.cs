@@ -26,6 +26,17 @@ internal sealed record TypeResult(IMistType Type) : LookupResult;
 internal sealed record MethodGroupResult(IReadOnlyList<Method> Methods) : LookupResult;
 
 /// <summary>
+/// The name resolved to a namespace rather than to a member. A namespace is not a
+/// value and not a type; it is only meaningful as the receiver of a further
+/// qualification (<c>Simpliest</c> in <c>Simpliest.Program.RunDemo()</c>).
+/// </summary>
+/// <param name="NamespaceName">
+/// The fully qualified namespace name accumulated so far, so the next qualification
+/// step can probe <c>NamespaceName.Member</c> directly.
+/// </param>
+internal sealed record NamespaceResult(string NamespaceName) : LookupResult;
+
+/// <summary>
 /// The name resolved to multiple candidates at the same scope level.
 /// </summary>
 internal sealed record AmbiguousResult(IReadOnlyList<LookupResult> Candidates) : LookupResult;

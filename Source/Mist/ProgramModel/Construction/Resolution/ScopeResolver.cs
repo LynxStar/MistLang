@@ -427,7 +427,74 @@ internal sealed class ScopeResolver
             return new TypeResult(namespaceType);
         }
 
+        // Not a member of any kind — the name may still be a namespace being used to
+        // qualify one, as in `Simpliest` of `Simpliest.Program.RunDemo()`. Types shadow
+        // namespaces, so this is deliberately the last thing tried.
+        if(IsKnownNamespace(name))
+        {
+            return new NamespaceResult(name);
+        }
+
         return new NotFoundResult();
+    }
+
+    /// <summary>
+    /// Resolves one qualification step off a namespace: <c>namespaceName.memberName</c>.
+    /// A namespace can only contain types and further namespaces, so the result is a
+    /// <see cref="TypeResult"/>, a <see cref="NamespaceResult"/>, or
+    /// <see cref="NotFoundResult"/>. No diagnostic is emitted — the caller decides
+    /// whether an unresolved qualification is an error.
+    /// </summary>
+    public LookupResult LookupQualified(string namespaceName, string memberName)
+    {
+        var qualified = $"{namespaceName}.{memberName}";
+
+        if(context.ProgramModel.TypesByFQN.TryGetValue(qualified, out var type))
+        {
+            return new TypeResult(type);
+        }
+
+        if(IsKnownNamespace(qualified))
+        {
+            return new NamespaceResult(qualified);
+        }
+
+        return new NotFoundResult();
+    }
+
+    /// <summary>
+    /// Whether the given name denotes a namespace in the program model. A namespace is
+    /// known if it was registered directly, or if it is a proper prefix of one that was:
+    /// registration records leaf namespaces only, so <c>A.B.C</c> being registered is
+    /// what makes <c>A</c> and <c>A.B</c> namespaces too.
+    /// <para>
+    /// Only namespaces declared in source (including referenced projects) are visible
+    /// here. Ambient assembly-projected types register their types but not their
+    /// namespaces, so <c>System.Console</c>-style qualification is not yet resolvable.
+    /// </para>
+    /// </summary>
+    private bool IsKnownNamespace(string name)
+    {
+        if(string.IsNullOrEmpty(name))
+        {
+            return false;
+        }
+
+        if(context.ProgramModel.Namespaces.ContainsKey(name))
+        {
+            return true;
+        }
+
+        var prefix = name + ".";
+        foreach(var registered in context.ProgramModel.Namespaces.Keys)
+        {
+            if(registered.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

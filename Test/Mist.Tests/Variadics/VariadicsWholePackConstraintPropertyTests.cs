@@ -132,7 +132,7 @@ public sealed class VariadicsWholePackConstraintPropertyTests
         };
 
         // Build element types from the palette: structs are StructTypes, classes are ClassTypes.
-        var elements = scenario.Elements.Select((kind, i) => BuildElementType(kind, i)).ToArray();
+        var elements = scenario.Elements.Select(BuildElementType).ToArray();
 
         // Parse a minimal source to get a non-null SyntaxNode for diagnostic reporting.
         var dummyNode = GetDummyNode();

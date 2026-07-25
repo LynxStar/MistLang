@@ -197,6 +197,48 @@ public sealed class BodyBindingIntegrationTests : IDisposable
         AssertArrayOf("Standard.Int32", declaration.Local.Type);
     }
 
+    /// <summary>
+    /// A three-element array literal and a <c>int[3]</c> type annotation must produce the
+    /// SAME interned type instance. Both encode as
+    /// <c>Standard.Array&lt;Int32, LiftedType(3)&gt;</c>, and the interner keys type
+    /// arguments by reference identity, so this only holds if both paths lift the length
+    /// through the same call with the same Mist type and the same boxed value.
+    /// <para>
+    /// This is a regression guard on that agreement. The two paths are far apart —
+    /// <c>LiteralBinder</c> passes an element count, <c>ScopeResolver.ResolveArrayType</c>
+    /// parses a rank suffix — and they previously diverged by boxing an <c>int</c> on one
+    /// side and a <c>long</c> on the other, which silently produced two distinct types for
+    /// the same array.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void ArrayLiteral_AndSizedArrayAnnotation_ShareOneInternedType()
+    {
+        var source = """
+            namespace TestProject;
+
+            public class Literals
+            {
+                public void Make()
+                {
+                    var fromLiteral = [6, 7, 8];
+                    int[3] fromAnnotation = default;
+                }
+            }
+            """;
+
+        var method = GetMethod(BuildProgramModel(source), "Literals", "Make");
+        Assert.NotNull(method.Body);
+
+        var literalDeclaration = Assert.IsType<LocalDeclarationStatement>(method.Body!.Statements[0]);
+        var annotationDeclaration = Assert.IsType<LocalDeclarationStatement>(method.Body!.Statements[1]);
+
+        var literal = Assert.IsType<ArrayLiteralExpression>(literalDeclaration.Initializer);
+        Assert.Equal(3, literal.Elements.Count);
+
+        Assert.Same(literalDeclaration.Local.Type, annotationDeclaration.Local.Type);
+    }
+
     [Fact]
     public void EmptyArrayLiteral_TakesElementTypeFromDeclaredType()
     {

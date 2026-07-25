@@ -301,11 +301,11 @@ internal sealed class ScopeResolver
                 break;
 
             case TrueLiteralTypeArgumentTypeArgumentNode:
-                args.Add(context.ProgramModel.TypeInterner.GetOrCreateLiftedType(true, "true"));
+                args.Add(LiftBool(true));
                 break;
 
             case FalseLiteralTypeArgumentTypeArgumentNode:
-                args.Add(context.ProgramModel.TypeInterner.GetOrCreateLiftedType(false, "false"));
+                args.Add(LiftBool(false));
                 break;
 
             case CharLiteralTypeArgumentTypeArgumentNode charLit:
@@ -319,25 +319,37 @@ internal sealed class ScopeResolver
         }
     }
 
+    /// <summary>
+    /// Lifts an integral type argument as an <c>int</c>. Every integral value the
+    /// TypeArgument grammar admits sits in the int domain — dependent parameters are
+    /// constrained by refinements over int, such as <c>ZeroOrPositiveInt</c> — so the
+    /// lifted type does not vary with the literal's spelling.
+    /// </summary>
+    private IMistType LiftInt(long value)
+    {
+        return context.ProgramModel.TypeInterner.LiftLiteral(LookupWellKnown(WellKnownTypes.Int32), value);
+    }
+
+    private IMistType LiftBool(bool value)
+    {
+        return context.ProgramModel.TypeInterner.LiftLiteral(LookupWellKnown(WellKnownTypes.Boolean), value);
+    }
+
     private IMistType LiftIntegerLiteral(string lexeme)
     {
-        var value = long.TryParse(lexeme, out var parsed) ? parsed : 0L;
-        return context.ProgramModel.TypeInterner.GetOrCreateLiftedType(value, lexeme);
+        return LiftInt(long.TryParse(lexeme, out var parsed) ? parsed : 0L);
     }
 
     private IMistType LiftNegatedIntegerLiteral(string lexeme)
     {
-        var value = long.TryParse(lexeme, out var parsed) ? -parsed : 0L;
-        return context.ProgramModel.TypeInterner.GetOrCreateLiftedType(value, $"-{lexeme}");
+        return LiftInt(long.TryParse(lexeme, out var parsed) ? -parsed : 0L);
     }
 
     private IMistType LiftHexLiteral(string lexeme)
     {
         var hexStr = lexeme.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
             ? lexeme[2..] : lexeme;
-        var value = long.TryParse(hexStr, NumberStyles.HexNumber, null, out var parsed)
-            ? parsed : 0L;
-        return context.ProgramModel.TypeInterner.GetOrCreateLiftedType(value, lexeme);
+        return LiftInt(long.TryParse(hexStr, NumberStyles.HexNumber, null, out var parsed) ? parsed : 0L);
     }
 
     private IMistType LiftBinaryLiteral(string lexeme)
@@ -354,14 +366,14 @@ internal sealed class ScopeResolver
             value = 0L;
         }
 
-        return context.ProgramModel.TypeInterner.GetOrCreateLiftedType(value, lexeme);
+        return LiftInt(value);
     }
 
     private IMistType LiftCharLiteral(string lexeme)
     {
         // Strip surrounding quotes to get the char value.
         var charValue = lexeme.Length >= 3 ? lexeme[1] : '\0';
-        return context.ProgramModel.TypeInterner.GetOrCreateLiftedType(charValue, lexeme);
+        return context.ProgramModel.TypeInterner.LiftLiteral(LookupWellKnown(WellKnownTypes.Char), charValue);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -587,14 +599,9 @@ internal sealed class ScopeResolver
             return arrayDefinition;
         }
 
-        // Widened to long to match LiftIntegerLiteral, which is how a length written as an
-        // explicit type argument (Array<string, 7>) is lifted. The interner keys on the
-        // boxed value, so an int box and a long box of the same number are different keys:
-        // mismatching here would make Array<string, 7> and string[7] distinct types.
-        IMistType lengthArgument = length is { } known
-            ? context.ProgramModel.TypeInterner.GetOrCreateLiftedType((long)known, known.ToString(CultureInfo.InvariantCulture))
-            : UnknownType.Instance
-            ;
+        // Lifted through the same helper as an explicit type argument, so a length
+        // written as string[7] and one written as Array<string, 7> reach the same type.
+        var lengthArgument = length is { } known ? LiftInt(known) : UnknownType.Instance;
 
         return context.ProgramModel.TypeInterner.GetOrCreateConstructedType(arrayDefinition, new IMistType[] { elementType, lengthArgument });
     }

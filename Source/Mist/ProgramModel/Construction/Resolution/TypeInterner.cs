@@ -15,21 +15,48 @@ internal sealed class TypeInterner
     private readonly Dictionary<ConstructedTypeKey, ConstructedType> constructedTypes = [];
     private readonly Dictionary<UnionTypeKey, UnionType> unionTypes = [];
     private readonly Dictionary<TupleTypeKey, TupleType> tupleTypes = [];
-    private readonly Dictionary<object, LiftedType> liftedTypes = [];
+    private readonly Dictionary<LiftedTypeKey, LiftedType> liftedTypes = [];
 
     /// <summary>
-    /// Returns the canonical <see cref="LiftedType"/> for the given compile-time constant.
-    /// A single instance is shared across all constructed types that use the same value.
+    /// Returns the canonical <see cref="LiftedType"/> for an integral compile-time
+    /// constant of the given Mist type.
+    /// <para>
+    /// The overloads exist so a caller cannot choose the CLR box. Identity is keyed on
+    /// the boxed value, so a boxed <c>int</c> and a boxed <c>long</c> of equal numeric
+    /// value would be different keys — previously that made <c>Array&lt;string, 7&gt;</c>
+    /// and <c>string[7]</c> distinct types. Widening every integral value to
+    /// <see cref="long"/> at the signature removes the choice, and
+    /// <paramref name="type"/> is what distinguishes an <c>int</c> from a <c>byte</c>.
+    /// </para>
     /// </summary>
-    public LiftedType GetOrCreateLiftedType(object value, string displayValue)
+    public LiftedType LiftLiteral(IMistType type, long value)
     {
-        if(liftedTypes.TryGetValue(value, out var existing))
+        return GetOrCreateLifted(type, value);
+    }
+
+    /// <inheritdoc cref="LiftLiteral(IMistType, long)"/>
+    public LiftedType LiftLiteral(IMistType type, bool value)
+    {
+        return GetOrCreateLifted(type, value);
+    }
+
+    /// <inheritdoc cref="LiftLiteral(IMistType, long)"/>
+    public LiftedType LiftLiteral(IMistType type, char value)
+    {
+        return GetOrCreateLifted(type, value);
+    }
+
+    private LiftedType GetOrCreateLifted(IMistType type, object value)
+    {
+        var key = new LiftedTypeKey(type, value);
+
+        if(liftedTypes.TryGetValue(key, out var existing))
         {
             return existing;
         }
 
-        var lifted = new LiftedType(value, displayValue);
-        liftedTypes[value] = lifted;
+        var lifted = new LiftedType(type, value);
+        liftedTypes[key] = lifted;
         return lifted;
     }
 
@@ -96,6 +123,40 @@ internal sealed class TypeInterner
     public static RefinedType CreateRefinedType(IMistType baseType, SyntaxNode predicateNode)
     {
         return new RefinedType(baseType, predicateNode);
+    }
+
+    /// <summary>
+    /// Key for lifted types: the Mist type's identity plus the value. Mirrors the other
+    /// keys in using reference identity for types, and adds value equality for the
+    /// constant, so equal numbers of the same Mist type collapse regardless of spelling.
+    /// </summary>
+    private readonly struct LiftedTypeKey : IEquatable<LiftedTypeKey>
+    {
+        private readonly IMistType type;
+        private readonly object value;
+        private readonly int hashCode;
+
+        public LiftedTypeKey(IMistType type, object value)
+        {
+            this.type = type;
+            this.value = value;
+            hashCode = HashCode.Combine(RuntimeHelpers.GetHashCode(type), value);
+        }
+
+        public bool Equals(LiftedTypeKey other)
+        {
+            return ReferenceEquals(type, other.type) && value.Equals(other.value);
+        }
+
+        public override bool Equals(object? obj)
+        {
+            return obj is LiftedTypeKey other && Equals(other);
+        }
+
+        public override int GetHashCode()
+        {
+            return hashCode;
+        }
     }
 
     /// <summary>

@@ -1,3 +1,6 @@
+using System.Globalization;
+using Mist.ProgramModel.Contracts.Types;
+
 namespace Mist.ProgramModel.Model.Types;
 
 /// <summary>
@@ -6,28 +9,29 @@ namespace Mist.ProgramModel.Model.Types;
 /// (integer, boolean, char literals) used in dependent type argument positions
 /// (e.g., the <c>5</c> in <c>Buffer&lt;5&gt;</c>).
 /// <para>
-/// Interned by value: there is exactly one <see cref="LiftedType"/> per unique
-/// compile-time constant across the entire program. Multiple constructed types
-/// using the same literal share the same instance.
+/// Identity is the pair (<see cref="Type"/>, <see cref="Value"/>). The Mist type is
+/// what separates <c>255</c> as an <c>int</c> from <c>255</c> as a <c>byte</c>; the
+/// value is compared numerically, so <c>0xFF</c> and <c>255</c> lift to the same type.
 /// </para>
 /// </summary>
 internal sealed class LiftedType : MistType
 {
-    public LiftedType(object value, string displayValue)
-        : base(displayValue, "", new Scope(null), declaringType: null)
+    public LiftedType(IMistType type, object value)
+        : base(value.ToString(), "", new Scope(null), declaringType: null)
     {
+        Type = type;
         Value = value;
-        DisplayValue = displayValue;
     }
 
     /// <summary>
-    /// The compile-time constant value (boxed long, bool, or char).
+    /// The Mist type of the lifted value (e.g. <c>Standard.Int32</c> for <c>5</c>).
+    /// </summary>
+    public IMistType Type { get; }
+
+    /// <summary>
+    /// The compile-time constant value. Integral values are normalized to
+    /// <see cref="long"/>; <see cref="Type"/> carries which Mist type they belong to.
     /// </summary>
     public object Value { get; }
 
-    /// <summary>
-    /// The display representation of the value for diagnostics and name building
-    /// (e.g., "5", "-1", "true", "'x'", "0xFF").
-    /// </summary>
-    public string DisplayValue { get; }
 }

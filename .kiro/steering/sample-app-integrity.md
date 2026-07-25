@@ -9,13 +9,18 @@ inclusion: auto
 
 When implementing a new feature causes a pre-existing sample or test to fail, you MUST fix the root cause in the NEW code — never delete or modify the previously-working code in the other sample.
 
-The ONLY permitted modification to other sample apps is adding the new feature's `RunDemo()` call to `samples/AllFeatures/Program.mist` and its reference to `samples/AllFeatures/mist.toml`. No other changes to any other sample are allowed.
+The ONLY permitted modifications to other sample apps are:
+
+- Adding the new feature's `RunDemo()` call to `samples/AllFeatures/Program.mist` and its reference to `samples/AllFeatures/mist.toml`.
+- Adding a sample's `RunDemo()` call to `samples/AllFeaturesV2/Program.mist` and its reference to `samples/AllFeaturesV2/mist.toml`, when that sample starts working on the experimental pipeline. This is how v2 progress is recorded (see `testing-philosophy.md`, Tier 6).
+
+No other changes to any other sample are allowed.
 
 **Forbidden:**
 - Removing lines from other samples because the emitter broke them
 - Commenting out previously-working code in unrelated samples
 - Updating baselines to accept degraded output from other samples
-- Modifying ANY file under `samples/` other than the new feature's own directory and the AllFeatures orchestrator
+- Modifying ANY file under `samples/` other than the new feature's own directory and the two orchestrators (`AllFeatures`, `AllFeaturesV2`)
 
 **Required:**
 - Diagnose WHY the new feature broke the existing sample

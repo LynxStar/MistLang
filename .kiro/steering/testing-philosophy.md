@@ -150,27 +150,49 @@ Boundaries in the experimental pipeline:
 - Property-based generation (samples are curated, not random)
 - Duplicating coverage already proven at lower tiers (if a sample fails, the fix should be proven by a unit test, not another system test)
 
-**Example:** `PrimitivesSample_MultiFile_EmitsAndRunsCorrectly` -- compiles the full Primitives sample through the experimental pipeline, runs it, and verifies stdout matches expected output.
+**Example:** `EnumReadonlyRestriction_CompilesAndProducesExpectedOutput` -- compiles one sample standalone through the CLI and asserts on its output.
 
-**Quantity:** One per sample in the progression. Currently: Simpliest, Primitives. Will grow as samples are enabled.
+**Quantity:** Sparse, and justified per test. For the experimental pipeline, the Tier 6 orchestrator (`AllFeaturesV2`) already runs every working sample in one process, so a standalone Tier 5 test is redundant by default. Add one only when a sample needs a claim the orchestrator cannot make -- for example that it builds as its own root project rather than as a referenced one. Every Tier 5 test costs a process spawn, so the burden of proof is on adding it, not on omitting it.
 
 ---
 
 ### Tier 6: Full System
 
-**Purpose:** Prove the entire system works end-to-end on the complete language surface area.
+**Purpose:** Prove an entire pipeline works end-to-end on the language surface area it claims to support.
 
-**Scope:** The AllFeatures sample. Every language construct, every feature interaction, compiled and executed through the real CLI, stdout diffed against a stored baseline.
+**Scope:** An orchestrator sample that composes other samples by project reference, compiled and executed through the real CLI, with stdout diffed against a stored baseline. One per pipeline:
+
+| Pipeline | Sample | Baseline | Scope |
+|---|---|---|---|
+| Classic | `samples/AllFeatures` | `samples/__baselines__/AllFeatures.out` | Every implemented language construct |
+| Experimental | `samples/AllFeaturesV2` | `samples/__baselines__/AllFeaturesV2.out` | Every sample currently working on v2 |
+
+The two differ in what they claim. The classic orchestrator is a regression guard over a finished surface: it references every sample and must never shrink. The experimental orchestrator is a *progress ledger* over an unfinished one: it references only what v2 can actually compile and run today, and it grows.
 
 **Allowed infrastructure:**
 - Everything
 
 **Forbidden:**
-- More than 1 test at this tier. Ever.
+- More than 2 tests at this tier. Ever. One per pipeline, no exceptions.
+- A third orchestrator for any reason. If a new pipeline appears, it replaces one of these, or it does not get a Tier 6 test.
 
-**Example:** `AllFeatures_CompilesRunsAndMatchesBaseline`
+**Examples:** `AllFeatures_CompilesRunsAndMatchesBaseline`, `AllFeaturesV2_CompilesRunsAndMatchesBaseline`
 
-**Quantity:** Exactly 1.
+**Quantity:** Exactly 2.
+
+#### The experimental orchestrator IS the recorded progression
+
+`samples/AllFeaturesV2` is the single source of truth for which samples work on the v2 pipeline. A sample is working on v2 if and only if:
+
+1. It is listed under `[references]` in `samples/AllFeaturesV2/mist.toml`, and
+2. Its `RunDemo()` is called from `samples/AllFeaturesV2/Program.mist`, and
+3. `AllFeaturesV2_CompilesRunsAndMatchesBaseline` is green.
+
+Recording progress means adding those two lines and extending the baseline. Nothing else records it. Do not track v2 progress in a status field, a checklist, or a hand-maintained list, because none of those are executable and all of them can drift from reality.
+
+This design makes progress impossible to lose silently. Deleting a reference removes output lines, which fails the baseline diff. Breaking a previously-working sample fails the same test. A declarative `status: done` field can be wrong forever without anything noticing; a Tier 6 baseline cannot.
+
+**Corollary:** "works standalone on v2" is not the same claim as "works in composition on v2," and only the second one counts. A sample can compile and run correctly on its own while still failing inside the orchestrator, because composition additionally exercises cross-project reference loading, namespace-qualified access into referenced projects, and entry-point selection across multiple `Main` methods. Only membership in `AllFeaturesV2` proves the composed claim.
 
 ---
 
@@ -196,9 +218,13 @@ High-iteration property-based tests (FsCheck `[Property]` with 100+ iterations) 
 
 An integration test should be named after the boundary it proves, not the feature it exercises. "EmitterToRoslyn_ValidCSharp" is a good integration test. "Primitives_WorkCorrectly" is a system test wearing integration clothing.
 
-### One sample, one system test
+### Progress is recorded by composition, not by declaration
 
-Each entry in `emitter-v2-sample-progression.yaml` gets exactly one Tier 5 system test. That test exercises the full pipeline for that sample. Feature-level coverage of what that sample uses belongs at Tiers 1-3.
+Enabling a sample on the experimental pipeline is recorded by adding it to `samples/AllFeaturesV2` (reference + `RunDemo()` call + baseline lines), which the single Tier 6 experimental test then enforces. It is not recorded by adding a Tier 5 test per sample, and it is not recorded by a status field in a generated file.
+
+`backlog/emitter-v2-sample-progression.yaml` is a *planning* artifact, not a progress artifact. Its measured fingerprints answer "which sample is cheapest to attempt next"; they do not assert that anything works. Treat any `status:` field there as advisory, and treat `AllFeaturesV2` membership as authoritative when the two disagree.
+
+Feature-level coverage of what a sample uses belongs at Tiers 1-3.
 
 ### When a system test fails, the fix is proven at a lower tier
 

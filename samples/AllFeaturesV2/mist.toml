@@ -1,0 +1,6 @@
+name = "AllFeaturesV2"
+
+[references]
+Simpliest = { path = "../Simpliest" }
+Primitives = { path = "../Primitives" }
+ArrayLiterals = { path = "../ArrayLiterals" }

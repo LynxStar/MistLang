@@ -30,12 +30,9 @@
       "GateName": "core-language",
       "FileCount": 1,
       "TotalKinds": 58,
-      "NewKindCount": 2,
-      "NewKinds": [
-        "ArrayLiteralExpressionPrimaryNode",
-        "EmptyArrayLiteralExpressionPrimaryNode"
-      ],
-      "Done": false
+      "NewKindCount": 0,
+      "NewKinds": [],
+      "Done": true
     },
     {
       "Name": "Overloading",

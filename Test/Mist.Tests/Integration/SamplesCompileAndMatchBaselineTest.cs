@@ -48,6 +48,55 @@ public sealed class SamplesCompileAndMatchBaselineTest
     }
 
     /// <summary>
+    /// Tier 6 full-system test for the EXPERIMENTAL pipeline, the counterpart to
+    /// <see cref="AllFeatures_CompilesRunsAndMatchesBaseline"/>. Exactly two Tier 6
+    /// tests are permitted, one per pipeline.
+    /// <para>
+    /// <c>samples/AllFeaturesV2</c> IS the recorded v2 progression: it references
+    /// exactly those samples that work on the experimental pipeline and calls each
+    /// one's <c>RunDemo()</c>. Enabling a sample on v2 means adding it there and
+    /// extending <c>samples/__baselines__/AllFeaturesV2.out</c>. Because a removed
+    /// sample shrinks the program's output, this baseline diff makes recorded
+    /// progress impossible to lose silently.
+    /// </para>
+    /// <para>
+    /// The stored baseline was captured from the classic pipeline, which compiles and
+    /// runs this sample correctly. The baseline is therefore pipeline-independent: it
+    /// describes the output v2 must eventually produce, not what it produces today.
+    /// </para>
+    /// <para>
+    /// See <c>.kiro/steering/testing-philosophy.md</c>, Tier 6.
+    /// </para>
+    /// </summary>
+    [Fact(Skip = "Experimental pipeline cannot yet compile the AllFeaturesV2 orchestrator. "
+        + "Two gaps: (1) namespace-qualified member access such as Simpliest.Program.RunDemo() "
+        + "binds to UnresolvedExpression, emitting '/* unsupported: UnresolvedExpression */'; "
+        + "(2) no entry-point selection across the referenced projects' Main methods, since "
+        + "ExperimentalPipeline runs no analyzers. Remove this Skip once both are fixed.")]
+    public async Task AllFeaturesV2_CompilesRunsAndMatchesBaseline()
+    {
+        var repoRoot = FindRepoRoot();
+        var sampleDir = Path.Combine(repoRoot, "samples", "AllFeaturesV2");
+        var baselineFile = Path.Combine(repoRoot, "samples", "__baselines__", "AllFeaturesV2.out");
+        var cliProjectPath = Path.Combine(repoRoot, "Source", "Mist.CLI", "Mist.CLI.csproj");
+
+        Assert.True(Directory.Exists(sampleDir), $"Sample directory not found: {sampleDir}");
+        Assert.True(File.Exists(baselineFile), $"Baseline file not found: {baselineFile}");
+        Assert.True(File.Exists(cliProjectPath), $"CLI project not found: {cliProjectPath}");
+
+        var (exitCode, stdout, stderr) = await RunMistCli(cliProjectPath, sampleDir, "experimental");
+
+        Assert.True(
+            exitCode == 0,
+            $"AllFeaturesV2 failed to compile/run on the experimental pipeline (exit code {exitCode}).\nStderr:\n{stderr}");
+
+        var expected = NormalizeLineEndings(await File.ReadAllTextAsync(baselineFile));
+        var actual = NormalizeLineEndings(stdout);
+
+        Assert.Equal(expected, actual);
+    }
+
+    /// <summary>
     /// Verifies that the EnumReadonlyRestriction sample compiles and runs
     /// without errors, producing the expected output demonstrating all
     /// readonly-base enum patterns (primitive, struct, class, name-only,
@@ -160,15 +209,21 @@ public sealed class SamplesCompileAndMatchBaselineTest
             ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
     }
 
+    /// <summary>
+    /// Runs a sample through the Mist CLI. When <paramref name="pipeline"/> is null the
+    /// CLI default (classic) is used; pass "experimental" to select the v2 pipeline.
+    /// </summary>
     private static async Task<(int ExitCode, string Stdout, string Stderr)> RunMistCli(
-        string cliProjectPath, string sampleDir)
+        string cliProjectPath, string sampleDir, string? pipeline = null)
     {
+        var pipelineFlag = pipeline is null ? "" : $" --pipeline {pipeline}";
+
         var process = new Process
         {
             StartInfo = new ProcessStartInfo
             {
                 FileName = "dotnet",
-                Arguments = $"run --project \"{cliProjectPath}\" -v q -- run \"{sampleDir}\" --quiet",
+                Arguments = $"run --project \"{cliProjectPath}\" -v q -- run \"{sampleDir}\" --quiet{pipelineFlag}",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,

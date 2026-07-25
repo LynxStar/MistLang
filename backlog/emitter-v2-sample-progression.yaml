@@ -4,6 +4,10 @@
 #   dotnet run --project tools/SampleFingerprint -- <repoRoot> \
 #     backlog/emitter-v2-sample-fingerprints.json "<comma,separated,done,samples>"
 #
+# Append --reuse to reorder from the fingerprints already recorded in the JSON instead
+# of re-parsing every sample. Only valid when no .mist source has changed since the
+# last full run -- typically when the only edit is adding a sample to the done-list.
+#
 # HOW THE ORDER IS DERIVED
 #
 #   syntax_constructs / new_constructs are MEASURED: every .mist file in the sample is
@@ -49,17 +53,13 @@ samples:
     syntax_constructs: 93
     new_constructs: []
 
-  # --- tier 0: core-language ---
-
   - name: ArrayLiterals
-    status: pending
+    status: done
     gate_tier: 0
     gate: core-language
     files: 1
     syntax_constructs: 58
-    new_constructs:
-      - ArrayLiteralExpressionPrimaryNode
-      - EmptyArrayLiteralExpressionPrimaryNode
+    new_constructs: []
 
   # --- tier 1: object-model ---
 

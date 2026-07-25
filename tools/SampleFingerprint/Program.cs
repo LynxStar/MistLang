@@ -6,7 +6,10 @@
 // that each sample in the progression introduces only constructs that no earlier
 // sample used. This replaces hand-guessed feature lists with measured ones.
 //
-// Usage: dotnet run --project tools/SampleFingerprint -- <repoRoot> <outputJson>
+// Usage: dotnet run --project tools/SampleFingerprint -- <repoRoot> <outputJson> [done,samples] [--reuse]
+//
+//   --reuse  Skip re-parsing every sample and reuse the fingerprints already recorded
+//            in <outputJson> under KindsBySample. Only the ordering is recomputed.
 
 using System.Text.Json;
 using Mist.Common.Diagnostics;
@@ -15,16 +18,21 @@ using Mist.Lexing.Contracts;
 using Mist.Parsing.Contracts;
 using Storm.Runtime;
 
-var repoRoot = args.Length > 0 ? args[0] : Directory.GetCurrentDirectory();
-var outputPath = args.Length > 1
-    ? args[1]
+// Flags are stripped before positional parsing, so a flag can never be misread as the
+// positional done-list.
+var reuse = args.Contains("--reuse", StringComparer.Ordinal);
+var positional = args.Where(a => !a.StartsWith("--", StringComparison.Ordinal)).ToArray();
+
+var repoRoot = positional.Length > 0 ? positional[0] : Directory.GetCurrentDirectory();
+var outputPath = positional.Length > 1
+    ? positional[1]
     : Path.Combine(repoRoot, "backlog", "emitter-v2-sample-fingerprints.json");
 
 // Samples already working in the v2 emitter. Their constructs seed the covered set so
 // the reported deltas answer "what is the next cheapest sample" rather than
 // re-deriving the progression from nothing.
-var done = args.Length > 2 && args[2].Length > 0
-    ? args[2].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet(StringComparer.Ordinal)
+var done = positional.Length > 2 && positional[2].Length > 0
+    ? positional[2].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet(StringComparer.Ordinal)
     : new HashSet<string>(StringComparer.Ordinal);
 
 var samplesRoot = Path.Combine(repoRoot, "samples");
@@ -37,11 +45,18 @@ if(!Directory.Exists(samplesRoot))
 // A sample is a directory containing mist.toml. AllFeatures is a meta-sample that
 // calls every other sample, so it carries the union of all fingerprints and is
 // excluded from the progression.
-var excluded = new HashSet<string>(StringComparer.Ordinal) { "AllFeatures" };
+var excluded = new HashSet<string>(StringComparer.Ordinal) { "AllFeatures", "AllFeaturesV2" };
 
 var samples = new List<SampleFingerprint>();
 
-foreach(var dir in Directory.GetDirectories(samplesRoot).OrderBy(d => d, StringComparer.Ordinal))
+// Measuring means lexing and parsing every .mist file in all ~75 samples, which is by
+// far the slowest part of the run. --reuse hands the loop nothing to do and loads the
+// already-measured fingerprints from the previous report instead.
+var sampleDirs = reuse
+    ? Array.Empty<string>()
+    : Directory.GetDirectories(samplesRoot).OrderBy(d => d, StringComparer.Ordinal).ToArray();
+
+foreach(var dir in sampleDirs)
 {
     var name = Path.GetFileName(dir);
     if(name.StartsWith("__", StringComparison.Ordinal) || excluded.Contains(name))
@@ -110,6 +125,43 @@ foreach(var dir in Directory.GetDirectories(samplesRoot).OrderBy(d => d, StringC
         TotalNodes: totalNodes,
         ParseErrors: parseErrors,
         NodeKinds: nodeKinds.ToList()));
+}
+
+// ── Reuse ──────────────────────────────────────────────────────────────────
+// The ordering math is cheap; the measurement is not. When only the done-list has
+// changed and no .mist source has, the fingerprints in the previous report are still
+// valid and reordering them costs nothing.
+if(reuse)
+{
+    if(!File.Exists(outputPath))
+    {
+        Console.Error.WriteLine($"--reuse needs an existing report at {outputPath}, which does not exist.");
+        return 1;
+    }
+
+    var previous = JsonSerializer.Deserialize<Report>(File.ReadAllText(outputPath));
+    if(previous is null)
+    {
+        Console.Error.WriteLine($"--reuse could not read a report from {outputPath}.");
+        return 1;
+    }
+
+    // FileCount is recoverable from Order and parse errors from Unparseable. TotalNodes
+    // is not persisted and feeds no output, so it stays 0.
+    var priorFileCounts = previous.Order.ToDictionary(o => o.Name, o => o.FileCount, StringComparer.Ordinal);
+    var priorParseErrors = previous.Unparseable.ToDictionary(u => u.Name, u => u.ParseErrors, StringComparer.Ordinal);
+
+    foreach(var entry in previous.KindsBySample.OrderBy(p => p.Key, StringComparer.Ordinal))
+    {
+        samples.Add(new SampleFingerprint(
+            Name: entry.Key,
+            FileCount: priorFileCounts.TryGetValue(entry.Key, out var fileCount) ? fileCount : 0,
+            TotalNodes: 0,
+            ParseErrors: priorParseErrors.TryGetValue(entry.Key, out var priorErrors) ? priorErrors : [],
+            NodeKinds: entry.Value));
+    }
+
+    Console.WriteLine($"Reusing {samples.Count} measured fingerprints from {outputPath} (no samples parsed).");
 }
 
 // ── Ordering ───────────────────────────────────────────────────────────────
@@ -248,6 +300,10 @@ static string BuildYaml(
     _ = sb.AppendLine("# GENERATED FILE -- do not hand-edit. Regenerate with:");
     _ = sb.AppendLine("#   dotnet run --project tools/SampleFingerprint -- <repoRoot> \\");
     _ = sb.AppendLine("#     backlog/emitter-v2-sample-fingerprints.json \"<comma,separated,done,samples>\"");
+    _ = sb.AppendLine("#");
+    _ = sb.AppendLine("# Append --reuse to reorder from the fingerprints already recorded in the JSON instead");
+    _ = sb.AppendLine("# of re-parsing every sample. Only valid when no .mist source has changed since the");
+    _ = sb.AppendLine("# last full run -- typically when the only edit is adding a sample to the done-list.");
     _ = sb.AppendLine("#");
     _ = sb.AppendLine("# HOW THE ORDER IS DERIVED");
     _ = sb.AppendLine("#");

@@ -2238,16 +2238,15 @@ public sealed class MistPrettyPrinter
                 return "default";
             case ArrayLiteralExpressionPrimaryNode arrayLiteral:
                 {
-                    var elements = new List<string> { EmitExpression(arrayLiteral.First) };
-                    foreach(var elem in arrayLiteral.Expressions)
+                    // Prints [] when the element list is absent, which is the empty literal.
+                    var elements = new List<string>();
+                    foreach(var elem in arrayLiteral.GetElements())
                     {
                         elements.Add(EmitExpression(elem));
                     }
 
                     return $"[{string.Join(", ", elements)}]";
                 }
-            case EmptyArrayLiteralExpressionPrimaryNode:
-                return "[]";
             default:
                 return "";
         }

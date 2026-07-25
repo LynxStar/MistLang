@@ -79,51 +79,52 @@ internal static class LiteralBinder
     }
 
     /// <summary>
-    /// Binds an array literal (<c>[a, b, c]</c>). The element type comes from the target
-    /// type when the surrounding construct supplies an array type
-    /// (<c>int[] x = [1, 2];</c>), and otherwise from the common type of the elements
-    /// (<c>var x = [1, 2];</c>).
+    /// Binds an array literal, empty (<c>[]</c>) or not (<c>[a, b, c]</c>).
+    /// <para>
+    /// The element type comes from the target type when the surrounding construct
+    /// supplies an array type (<c>int[] x = [1, 2];</c>), and otherwise from the common
+    /// type of the elements (<c>var x = [1, 2];</c>). An empty literal has no elements to
+    /// infer from, which is why it is the only form that requires a target type.
+    /// </para>
     /// </summary>
     internal static Expression BindArrayLiteral(ArrayLiteralExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
     {
         var targetElementType = ArrayElementType(ctx.TargetType);
+        var elements = new List<Expression>();
 
         // Elements are bound against the target ELEMENT type, not the array target
         // itself: element `1` is an int, not an int[]. When there is no array target the
         // push clears whatever outer target was in effect, so a nested literal infers
         // from its own elements instead of inheriting an unrelated one.
-        var elements = new List<Expression>(node.Expressions.Length + 1);
-        using(ctx.PushTargetType(targetElementType))
+        if(node.Elements is { } list)
         {
-            elements.Add(ExpressionBinder.BindExpression(node.First, ctx, context));
-
-            foreach(var expression in node.Expressions)
+            using(ctx.PushTargetType(targetElementType))
             {
-                elements.Add(ExpressionBinder.BindExpression(expression, ctx, context));
+                elements.Add(ExpressionBinder.BindExpression(list.First, ctx, context));
+
+                foreach(var expression in list.Expressions)
+                {
+                    elements.Add(ExpressionBinder.BindExpression(expression, ctx, context));
+                }
             }
         }
 
-        var elementType = targetElementType ?? CommonElementType(elements, node, context);
+        var elementType = targetElementType;
 
-        // A literal's length is statically known: it is the element count.
-        var arrayType = context.Resolver.ConstructArray(elementType, elements.Count);
-        return new ArrayLiteralExpression(node, elementType, elements, arrayType);
-    }
+        if(elementType is null && elements.Count > 0)
+        {
+            elementType = CommonElementType(elements, node, context);
+        }
 
-    /// <summary>
-    /// Binds an empty array literal (<c>[]</c>). With no elements to infer from, the
-    /// element type can only come from the target type.
-    /// </summary>
-    internal static Expression BindEmptyArrayLiteral(EmptyArrayLiteralExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
-    {
-        var elementType = ArrayElementType(ctx.TargetType);
         if(elementType is null)
         {
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.EmptyArrayLiteralNeedsTargetType, node, null);
             return new UnresolvedExpression(node);
         }
 
-        return new ArrayLiteralExpression(node, elementType, [], context.Resolver.ConstructArray(elementType, 0));
+        // A literal's length is statically known: it is the element count.
+        var arrayType = context.Resolver.ConstructArray(elementType, elements.Count);
+        return new ArrayLiteralExpression(node, elementType, elements, arrayType);
     }
 
     /// <summary>

@@ -379,6 +379,11 @@ rule Parameter
 rule ArgumentList = Argument (COMMA Argument)*;
 rule Argument = REF expression:Expression as RefArgument | expression:Expression as ValueArgument;
 
+// The element list of an array literal. Lifted into its own rule so the literal can
+// make it optional with `elements:ArrayElementList?`, letting `[]` and `[a, b]` share
+// one node instead of needing a separate empty-literal alternative.
+rule ArrayElementList = first:Expression (COMMA Expression)* COMMA?;
+
 // ─── Parser Rules — Type References ─────────────────────────────────────────
 
 rule ArrayRankSuffix
@@ -632,8 +637,7 @@ rule Primary
     | LEFT_PARENTHESIS inner:Expression RIGHT_PARENTHESIS                          as ParenthesizedExpression
     | DEFAULT LEFT_PARENTHESIS type:TypeReference RIGHT_PARENTHESIS               as DefaultExpression
     | DEFAULT                                                                      as DefaultLiteralExpression
-    | LEFT_BRACKET RIGHT_BRACKET                                                    as EmptyArrayLiteralExpression
-    | LEFT_BRACKET first:Expression (COMMA rest:Expression)* COMMA? RIGHT_BRACKET  as ArrayLiteralExpression
+    | LEFT_BRACKET elements:ArrayElementList? RIGHT_BRACKET                         as ArrayLiteralExpression
     | name:IDENTIFIER typeArgs:TypeArgumentList LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS as GenericInvocationExpression
     | name:IDENTIFIER                                                              as IdentifierExpression
     | typeRef:TypeReference                                                        as TypeLiteralExpression

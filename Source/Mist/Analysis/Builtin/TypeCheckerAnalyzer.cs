@@ -10919,7 +10919,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // Type checking is handled by assignability checks at usage sites.
                 break;
 
-            case EmptyArrayLiteralExpressionPrimaryNode emptyArrayLiteral:
+            // Must precede the general array literal case below: an absent element list is
+            // the empty literal, which the grammar no longer gives a distinct node.
+            case ArrayLiteralExpressionPrimaryNode { Elements: null } emptyArrayLiteral:
                 // Empty array literal [] — when no target type is available (resolved
                 // as ErrorType by the semantic model builder), emit a diagnostic error.
                 // When assigned to a typed variable, the type is inferred from the
@@ -13740,32 +13742,45 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
+        // The empty literal [] matches its own case in CheckExpression and never reaches
+        // here, but the element list is optional on the node so this is guarded rather
+        // than assumed. Every check below compares against the first element, so the
+        // first and the remainder are kept separate.
+        var allElements = arrayLiteral.GetElements();
+        if(allElements.IsEmpty)
+        {
+            return;
+        }
+
+        var firstElement = allElements[0];
+        var remainingElements = allElements.RemoveAt(0);
+
         // Recursively type-check the first element expression.
-        CheckExpression(arrayLiteral.First, model, diagnostics);
+        CheckExpression(firstElement, model, diagnostics);
 
         // Recursively type-check each remaining element expression.
-        foreach(var elem in arrayLiteral.Expressions)
+        foreach(var elem in remainingElements)
         {
             CheckExpression(elem, model, diagnostics);
         }
 
         // Get the type of the first element.
-        var firstType = model.GetTypeOf(arrayLiteral.First);
+        var firstType = model.GetTypeOf(firstElement);
 
         // Validate the first element is not void (MIST_TC_0034).
         if(firstType is not null && !IsErrorType(firstType) && firstType.IsVoid())
         {
-            diagnostics.ReportAtNode(CommonDiagnostics.VoidArrayNotPermitted, arrayLiteral.First, "TypeChecker");
+            diagnostics.ReportAtNode(CommonDiagnostics.VoidArrayNotPermitted, firstElement, "TypeChecker");
         }
 
         // Validate the first element does not contain unknown (MIST_SB_0055).
         if(firstType is not null && !IsErrorType(firstType) && TypeContainment.IsStorageBanned(firstType))
         {
-            diagnostics.ReportAtNode(TypeCheckDiagnostics.UnknownAsArrayElement, arrayLiteral.First, "TypeChecker", firstType.DisplayName);
+            diagnostics.ReportAtNode(TypeCheckDiagnostics.UnknownAsArrayElement, firstElement, "TypeChecker", firstType.DisplayName);
         }
 
         // Validate each remaining element.
-        foreach(var elem in arrayLiteral.Expressions)
+        foreach(var elem in remainingElements)
         {
             var elemType = model.GetTypeOf(elem);
             if(elemType is null || IsErrorType(elemType))
@@ -13813,12 +13828,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 {
                     if(!IsAssignable(firstType, targetElementType, model))
                     {
-                        diagnostics.ReportAtNode(TypeCheckDiagnostics.ArrayLiteralIncompatibleTypes, arrayLiteral.First, "TypeChecker");
+                        diagnostics.ReportAtNode(TypeCheckDiagnostics.ArrayLiteralIncompatibleTypes, firstElement, "TypeChecker");
                     }
                 }
 
                 // Check remaining elements against target element type.
-                foreach(var elem in arrayLiteral.Expressions)
+                foreach(var elem in remainingElements)
                 {
                     var elemType = model.GetTypeOf(elem);
                     if(elemType is null || IsErrorType(elemType) || elemType.IsVoid()

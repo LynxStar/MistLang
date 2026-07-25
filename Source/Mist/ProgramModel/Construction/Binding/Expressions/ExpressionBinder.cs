@@ -49,7 +49,6 @@ internal static class ExpressionBinder
             ParenthesizedExpressionPrimaryNode paren => BindExpression(paren.Inner, ctx, context),
             ArrayCreationExpressionPrimaryNode arrayCreation => BindArrayCreation(arrayCreation, ctx, context),
             ArrayLiteralExpressionPrimaryNode arrayLiteral => LiteralBinder.BindArrayLiteral(arrayLiteral, ctx, context),
-            EmptyArrayLiteralExpressionPrimaryNode emptyArrayLiteral => LiteralBinder.BindEmptyArrayLiteral(emptyArrayLiteral, ctx, context),
             InterpolatedStringExpressionPrimaryNode interpStr => BindInterpolatedString(interpStr, ctx, context),
             _ => new UnresolvedExpression(node),
         };

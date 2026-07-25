@@ -24710,7 +24710,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     break;
                 }
 
-            case EmptyArrayLiteralExpressionPrimaryNode:
+            // Must precede the general array literal case below: an absent element list is
+            // the empty literal, which the grammar no longer gives a distinct node.
+            case ArrayLiteralExpressionPrimaryNode { Elements: null }:
                 {
                     // Empty array literal [] — if a target type is available (from variable
                     // declaration annotation) and is an ArrayType, use the target element type.
@@ -24725,9 +24727,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     // Resolve all element expressions and produce an ArrayType
                     // with the common element type.
-                    var elementType = ResolveExpression(arrayLiteral.First, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    var allElements = arrayLiteral.GetElements();
+                    var elementType = ResolveExpression(allElements[0], currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
-                    foreach(var elem in arrayLiteral.Expressions)
+                    foreach(var elem in allElements.RemoveAt(0))
                     {
                         var elemType = ResolveExpression(elem, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                         if(!TypesMatch(elementType, elemType))
@@ -24738,9 +24741,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         }
                     }
 
-                    // Element count = 1 (First) + rest (Expressions).
-                    var elementCount = 1 + arrayLiteral.Expressions.Length;
-                    result = new ArrayType(elementType, elementCount);
+                    result = new ArrayType(elementType, allElements.Length);
                     break;
                 }
 

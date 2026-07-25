@@ -15800,7 +15800,7 @@ internal sealed class CSharpSourceWriter
 
                     return $"({string.Join(", ", parts)})";
                 }
-            case EmptyArrayLiteralExpressionPrimaryNode:
+            case ArrayLiteralExpressionPrimaryNode { Elements: null }:
                 {
                     // Empty array literal [] — emit Array.Empty<T>() when target type is known.
                     // When no target type is available, this is a compile error (the type checker
@@ -15816,8 +15816,8 @@ internal sealed class CSharpSourceWriter
                 }
             case ArrayLiteralExpressionPrimaryNode arrayLiteral:
                 {
-                    var elements = new List<string> { EmitExpression(arrayLiteral.First) };
-                    foreach(var elem in arrayLiteral.Expressions)
+                    var elements = new List<string>();
+                    foreach(var elem in arrayLiteral.GetElements())
                     {
                         elements.Add(EmitExpression(elem));
                     }

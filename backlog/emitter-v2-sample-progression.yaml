@@ -135,7 +135,7 @@ samples:
     gate_tier: 1
     gate: object-model
     files: 2
-    syntax_constructs: 71
+    syntax_constructs: 72
     new_constructs:
       - StatementItemTopLevelItemNode
     # source requires tier 1 though the name suggests tier 0
@@ -496,7 +496,7 @@ samples:
     gate_tier: 4
     gate: functions-and-patterns
     files: 1
-    syntax_constructs: 70
+    syntax_constructs: 71
     new_constructs:
       - VarForeachForeachStatementNode
 
@@ -644,7 +644,7 @@ samples:
     gate_tier: 4
     gate: functions-and-patterns
     files: 1
-    syntax_constructs: 56
+    syntax_constructs: 57
     new_constructs:
       - ConstantPatternPrimaryPatternNode
       - FromEndExpressionUnaryNode
@@ -768,7 +768,7 @@ samples:
     gate_tier: 5
     gate: clr-interop
     files: 1
-    syntax_constructs: 40
+    syntax_constructs: 41
     new_constructs: []
 
   - name: ClrRefInterop
@@ -853,7 +853,7 @@ samples:
     gate_tier: 7
     gate: refinement-and-dependent
     files: 1
-    syntax_constructs: 76
+    syntax_constructs: 77
     new_constructs:
       - DependentTypeParameterTypeParameterNode
 
@@ -862,7 +862,7 @@ samples:
     gate_tier: 7
     gate: refinement-and-dependent
     files: 2
-    syntax_constructs: 67
+    syntax_constructs: 68
     new_constructs:
       - UninitializedVariableDeclarationNode
       - UninitializedVariableStatementStatementNode
@@ -1021,7 +1021,7 @@ samples:
     gate_tier: 8
     gate: concurrency-and-context
     files: 1
-    syntax_constructs: 84
+    syntax_constructs: 85
     new_constructs:
       - AsyncLambdaModifierLambdaModifierNode
       - BlockLambdaLambdaExpressionNode

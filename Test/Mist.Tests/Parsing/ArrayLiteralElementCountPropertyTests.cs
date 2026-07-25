@@ -191,8 +191,7 @@ public class ArrayLiteralElementCountPropertyTests
             return false.ToProperty().Label($"No ArrayLiteralExpressionPrimaryNode found in: {source}");
         }
 
-        // Total element count = 1 (First) + Expressions.Length
-        var actualCount = 1 + arrayLiteral.Expressions.Length;
+        var actualCount = arrayLiteral.GetElements().Length;
         var expectedCount = scenario.Count;
 
         return (actualCount == expectedCount)

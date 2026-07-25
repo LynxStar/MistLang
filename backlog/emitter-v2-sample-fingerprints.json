@@ -105,7 +105,7 @@
       "GateTier": 1,
       "GateName": "object-model",
       "FileCount": 2,
-      "TotalKinds": 71,
+      "TotalKinds": 72,
       "NewKindCount": 1,
       "NewKinds": [
         "StatementItemTopLevelItemNode"
@@ -485,7 +485,7 @@
       "GateTier": 4,
       "GateName": "functions-and-patterns",
       "FileCount": 1,
-      "TotalKinds": 70,
+      "TotalKinds": 71,
       "NewKindCount": 1,
       "NewKinds": [
         "VarForeachForeachStatementNode"
@@ -607,7 +607,7 @@
       "GateTier": 4,
       "GateName": "functions-and-patterns",
       "FileCount": 1,
-      "TotalKinds": 56,
+      "TotalKinds": 57,
       "NewKindCount": 8,
       "NewKinds": [
         "ConstantPatternPrimaryPatternNode",
@@ -711,7 +711,7 @@
       "GateTier": 5,
       "GateName": "clr-interop",
       "FileCount": 1,
-      "TotalKinds": 40,
+      "TotalKinds": 41,
       "NewKindCount": 0,
       "NewKinds": [],
       "Done": false
@@ -781,7 +781,7 @@
       "GateTier": 7,
       "GateName": "refinement-and-dependent",
       "FileCount": 1,
-      "TotalKinds": 76,
+      "TotalKinds": 77,
       "NewKindCount": 1,
       "NewKinds": [
         "DependentTypeParameterTypeParameterNode"
@@ -793,7 +793,7 @@
       "GateTier": 7,
       "GateName": "refinement-and-dependent",
       "FileCount": 2,
-      "TotalKinds": 67,
+      "TotalKinds": 68,
       "NewKindCount": 2,
       "NewKinds": [
         "UninitializedVariableDeclarationNode",
@@ -948,7 +948,7 @@
       "GateTier": 8,
       "GateName": "concurrency-and-context",
       "FileCount": 1,
-      "TotalKinds": 84,
+      "TotalKinds": 85,
       "NewKindCount": 3,
       "NewKinds": [
         "AsyncLambdaModifierLambdaModifierNode",
@@ -1047,6 +1047,7 @@
     "AnonymousTypeExpressionPrimaryNode",
     "ArgumentListNode",
     "ArrayCreationExpressionPrimaryNode",
+    "ArrayElementListNode",
     "ArrayLiteralExpressionPrimaryNode",
     "AsExpressionRelationalNode",
     "AssociatedTypeMemberMemberDeclarationNode",
@@ -1117,7 +1118,6 @@
     "DoubleTypePrimitiveTypeNode",
     "ElseBlockElseClauseNode",
     "ElseIfElseClauseNode",
-    "EmptyArrayLiteralExpressionPrimaryNode",
     "EnumDeclarationNode",
     "EnumMemberListNode",
     "EnumMemberNode",
@@ -1639,6 +1639,7 @@
       "AndPatternNode",
       "ArgumentListNode",
       "ArrayCreationExpressionPrimaryNode",
+      "ArrayElementListNode",
       "ArrayLiteralExpressionPrimaryNode",
       "BlockGetAccessorAccessorDeclarationNode",
       "BlockIndexerBodyIndexerBodyNode",
@@ -1714,6 +1715,7 @@
     ],
     "ArrayLiterals": [
       "ArgumentListNode",
+      "ArrayElementListNode",
       "ArrayLiteralExpressionPrimaryNode",
       "BlockNode",
       "BodyTypeTypeDeclarationNode",
@@ -1721,7 +1723,6 @@
       "CallableBlockBodyCallableBodyNode",
       "ClassKeywordTypeKeywordNode",
       "CompilationUnitNode",
-      "EmptyArrayLiteralExpressionPrimaryNode",
       "ExpressionPartInterpolatedPartNode",
       "ExpressionStatementNode",
       "ExpressionStatementStatementNode",
@@ -2099,6 +2100,7 @@
     ],
     "CSharpInteropV2": [
       "ArgumentListNode",
+      "ArrayElementListNode",
       "ArrayLiteralExpressionPrimaryNode",
       "BlockNode",
       "BodyTypeTypeDeclarationNode",
@@ -2376,6 +2378,7 @@
     "DefiniteAssignment": [
       "ArgumentListNode",
       "ArrayCreationExpressionPrimaryNode",
+      "ArrayElementListNode",
       "ArrayLiteralExpressionPrimaryNode",
       "BlockNode",
       "BodyTypeTypeDeclarationNode",
@@ -2915,6 +2918,7 @@
     ],
     "ExtensionMethodBinding": [
       "ArgumentListNode",
+      "ArrayElementListNode",
       "ArrayLiteralExpressionPrimaryNode",
       "BlockNode",
       "BodyTypeTypeDeclarationNode",
@@ -2922,7 +2926,6 @@
       "CallableBlockBodyCallableBodyNode",
       "ClassKeywordTypeKeywordNode",
       "CompilationUnitNode",
-      "EmptyArrayLiteralExpressionPrimaryNode",
       "ExpressionPartInterpolatedPartNode",
       "ExpressionStatementNode",
       "ExpressionStatementStatementNode",
@@ -3020,6 +3023,7 @@
     ],
     "FirstClassFunctions": [
       "ArgumentListNode",
+      "ArrayElementListNode",
       "ArrayLiteralExpressionPrimaryNode",
       "AsyncExpressionUnaryNode",
       "AsyncLambdaModifierLambdaModifierNode",
@@ -3494,6 +3498,7 @@
     "Iterators": [
       "ArgumentListNode",
       "ArrayCreationExpressionPrimaryNode",
+      "ArrayElementListNode",
       "ArrayLiteralExpressionPrimaryNode",
       "BaseListNode",
       "BaseTypeRefNode",
@@ -4342,6 +4347,7 @@
     "RangesAndIndices": [
       "AndPatternNode",
       "ArgumentListNode",
+      "ArrayElementListNode",
       "ArrayLiteralExpressionPrimaryNode",
       "BlockNode",
       "BodyTypeTypeDeclarationNode",
@@ -5536,6 +5542,7 @@
     ],
     "TopLevelStatements": [
       "ArgumentListNode",
+      "ArrayElementListNode",
       "ArrayLiteralExpressionPrimaryNode",
       "BlockNode",
       "BodyTypeTypeDeclarationNode",

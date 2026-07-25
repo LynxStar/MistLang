@@ -1,4 +1,3 @@
-using System.Globalization;
 using Mist.ProgramModel.Contracts.Types;
 
 namespace Mist.ProgramModel.Model.Types;
@@ -17,7 +16,7 @@ namespace Mist.ProgramModel.Model.Types;
 internal sealed class LiftedType : MistType
 {
     public LiftedType(IMistType type, object value)
-        : base(value.ToString(), "", new Scope(null), declaringType: null)
+        : base(value.ToString() ?? "", "", new Scope(null), declaringType: null)
     {
         Type = type;
         Value = value;
@@ -33,5 +32,4 @@ internal sealed class LiftedType : MistType
     /// <see cref="long"/>; <see cref="Type"/> carries which Mist type they belong to.
     /// </summary>
     public object Value { get; }
-
 }

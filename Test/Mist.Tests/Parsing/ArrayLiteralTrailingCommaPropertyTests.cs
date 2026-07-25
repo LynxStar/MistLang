@@ -226,9 +226,8 @@ public class ArrayLiteralTrailingCommaPropertyTests
         }
 
         // Verify identical element count
-        // Total element count = 1 (First) + Expressions.Length
-        var countWithout = 1 + arrayWithout.Expressions.Length;
-        var countWith = 1 + arrayWith.Expressions.Length;
+        var countWithout = arrayWithout.GetElements().Length;
+        var countWith = arrayWith.GetElements().Length;
 
         if(countWithout != countWith)
         {

@@ -368,4 +368,16 @@ public static class ProgramModelDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
         "The elements of the array literal have no common type ('{0}' and '{1}'). Annotate the target with an array type to select the element type explicitly.");
+
+    // ── Entry points ─────────────────────────────────────────────────────
+    /// <summary>
+    /// A second entry point was found in an assembly that already had one. Detected as the
+    /// duplicate is recorded, so the type named is the one that already claimed the
+    /// assembly's entry point rather than necessarily the first in source order.
+    /// </summary>
+    public static readonly DiagnosticDescriptor DuplicateEntryPoint = new(
+        new DiagnosticId("MIST_PM_DUPLICATE_ENTRY_POINT"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}' declares an entry point, but '{1}' already declares one in the same assembly. A program can have only one entry point.");
 }

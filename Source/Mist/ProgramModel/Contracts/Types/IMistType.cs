@@ -35,7 +35,9 @@ public interface IMistType
     IReadOnlyList<IMistType> NestedTypes { get; }
 
     /// <summary>
-    /// Indicates whether this type was declared in source code or projected from an assembly.
+    /// The assembly this type belongs to, and the single source of truth for where the
+    /// type came from. Never null: compiler-constructed types report
+    /// <see cref="MistAssemblyKind.Synthetic"/> rather than nothing at all.
     /// </summary>
-    TypeOrigin Origin { get; }
+    IAssembly Assembly { get; }
 }

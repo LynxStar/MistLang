@@ -58,12 +58,20 @@ internal abstract class MistType : IMistType
     public List<MistType> NestedTypes { get; } = [];
 
     /// <summary>
-    /// Indicates whether this type was declared in source code or projected from an assembly.
-    /// Defaults to <see cref="TypeOrigin.Source"/> so existing source-declared types are unaffected.
+    /// The assembly this type belongs to, overwritten when the type is registered
+    /// against a declaration boundary.
+    /// <para>
+    /// Defaults to <see cref="MistAssembly.Synthetic"/>, which is the correct answer for
+    /// every type the compiler constructs rather than reads from a declaration, and those
+    /// are exactly the types that are never registered. Registration is therefore the
+    /// only thing that changes it, and the property is never null.
+    /// </para>
     /// </summary>
-    public TypeOrigin Origin { get; internal set; } = TypeOrigin.Source;
+    public MistAssembly Assembly { get; internal set; } = MistAssembly.Synthetic;
 
     IMistType? IMistType.DeclaringType => DeclaringType;
 
     IReadOnlyList<IMistType> IMistType.NestedTypes => NestedTypes;
+
+    IAssembly IMistType.Assembly => Assembly;
 }

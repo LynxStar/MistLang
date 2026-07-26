@@ -87,4 +87,14 @@ public static class BackendDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.Driver,
         "Cannot resolve ambient type '{0}'. The assembly containing this type may not be referenced.");
+
+    /// <summary>
+    /// An executable was requested but the project declares no entry point. Reported by the
+    /// emitter, which cannot produce a runnable artifact without one. Libraries are exempt.
+    /// </summary>
+    public static readonly DiagnosticDescriptor MissingEntryPoint = new(
+        new DiagnosticId("MIST_MISSING_ENTRY_POINT"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Backend,
+        "Project '{0}' produces an executable but declares no entry point. Add a 'static void Main()' method, or set output type to library.");
 }

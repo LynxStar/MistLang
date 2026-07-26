@@ -85,6 +85,7 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
 
             case MethodMemberMemberDeclarationNode methodMember:
                 MethodBuilder.Resolve(methodMember.Method, typeDef);
+                RecordEntryPointIfPresent(methodMember.Method, typeDef);
                 break;
 
             case ConstructorMemberMemberDeclarationNode ctorMember:

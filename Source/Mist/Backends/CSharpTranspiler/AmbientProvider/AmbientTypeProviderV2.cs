@@ -4,6 +4,7 @@ using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 using ProgramModelType = Mist.ProgramModel.Model.ProgramModel;
 
@@ -52,9 +53,14 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
         var resolver = new AmbientTypeResolver(shells, wellKnownTypes, programModel.TypeInterner, diagnostics);
         ProjectTypes(shells, clrTypes, resolver);
 
-        // Merge into ProgramModel FQN dictionary.
+        // Merge into ProgramModel FQN dictionary. This loop is the single funnel for
+        // every projected shell, nested types included, so it is where they are
+        // attributed to the ambient assembly. Well-known types are absent from
+        // 'shells' -- they are Standard Library types declared in Mist source and keep
+        // the standard library assembly they were registered with.
         foreach(var (_, shell) in shells)
         {
+            shell.Assembly = MistAssembly.Ambient;
             _ = programModel.GetOrAddNamespace(shell.NamespaceName);
             _ = programModel.RegisterType(shell);
         }

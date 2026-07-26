@@ -12,4 +12,25 @@ public sealed record MistCompilation(
     ProjectOutputType OutputType = ProjectOutputType.Executable)
 {
     public string DisplayName { get; init; } = "";
+
+    /// <summary>
+    /// The referenced Mist projects that contributed units to this compilation, flattened
+    /// from the driver's resolved project graph. Excludes the project being compiled and
+    /// the standard library, both of which are identified by flags on the units themselves.
+    /// <para>
+    /// Empty when nothing is referenced, and empty for compilations assembled directly from
+    /// units rather than by the driver.
+    /// </para>
+    /// </summary>
+    public ImmutableArray<MistProject> Projects { get; init; } = ImmutableArray<MistProject>.Empty;
+
+    /// <summary>
+    /// Whether the standard library contributed units to this compilation. Recorded by the
+    /// driver rather than inferred from <see cref="CompilationUnit.IsStdlib"/> so that the
+    /// standard library, like each referenced project, is known before any unit is walked.
+    /// <para>
+    /// False for compilations assembled directly from units rather than by the driver.
+    /// </para>
+    /// </summary>
+    public bool HasStandardLibrary { get; init; }
 }

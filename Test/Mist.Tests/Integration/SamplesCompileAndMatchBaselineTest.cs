@@ -61,18 +61,14 @@ public sealed class SamplesCompileAndMatchBaselineTest
     /// </para>
     /// <para>
     /// The stored baseline was captured from the classic pipeline, which compiles and
-    /// runs this sample correctly. The baseline is therefore pipeline-independent: it
-    /// describes the output v2 must eventually produce, not what it produces today.
+    /// runs this sample correctly, so it is pipeline-independent: both pipelines are
+    /// held to the same output.
     /// </para>
     /// <para>
     /// See <c>.kiro/steering/testing-philosophy.md</c>, Tier 6.
     /// </para>
     /// </summary>
-    [Fact(Skip = "Experimental pipeline cannot yet compile the AllFeaturesV2 orchestrator. "
-        + "Two gaps: (1) namespace-qualified member access such as Simpliest.Program.RunDemo() "
-        + "binds to UnresolvedExpression, emitting '/* unsupported: UnresolvedExpression */'; "
-        + "(2) no entry-point selection across the referenced projects' Main methods, since "
-        + "ExperimentalPipeline runs no analyzers. Remove this Skip once both are fixed.")]
+    [Fact]
     public async Task AllFeaturesV2_CompilesRunsAndMatchesBaseline()
     {
         var repoRoot = FindRepoRoot();

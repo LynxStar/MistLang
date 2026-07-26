@@ -17,6 +17,18 @@ internal sealed class TypeBuilder
 {
     private readonly BuilderContext context;
 
+    /// <summary>
+    /// The assembly owning the file currently being processed. Held as state for the
+    /// duration of one <see cref="Build"/> call so every type kind, nested types
+    /// included, can be stamped from the single place they all funnel through.
+    /// <para>
+    /// Seeded with the synthetic assembly, which is only ever observable if a type were
+    /// registered outside a <see cref="Build"/> call -- there is no declaration boundary
+    /// in that case, so it is also the right answer.
+    /// </para>
+    /// </summary>
+    private MistAssembly currentAssembly = MistAssembly.Synthetic;
+
     public TypeBuilder(BuilderContext context)
     {
         this.context = context;
@@ -26,8 +38,14 @@ internal sealed class TypeBuilder
     /// Processes all type declarations in a compilation unit, including types
     /// inside block namespaces.
     /// </summary>
-    public void Build(Scope fileScope, CompilationUnitNode ast)
+    /// <param name="assembly">
+    /// The assembly owning this compilation unit, recorded on every type registered
+    /// from it.
+    /// </param>
+    public void Build(Scope fileScope, CompilationUnitNode ast, MistAssembly assembly)
     {
+        currentAssembly = assembly;
+
         foreach(var item in ast.Items)
         {
             switch(item)
@@ -221,6 +239,8 @@ internal sealed class TypeBuilder
     /// </summary>
     private void FinalizeRegistration(MistType typeDef, MistType? declaringType)
     {
+        typeDef.Assembly = currentAssembly;
+
         // Register in the flat FQN dictionary.
         if(!context.ProgramModel.RegisterType(typeDef))
         {

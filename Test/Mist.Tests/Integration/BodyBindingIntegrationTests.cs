@@ -438,14 +438,14 @@ public sealed class BodyBindingIntegrationTests : IDisposable
                 new MemberModifiers { IsStatic = true });
             consoleType.MethodsList.Add(writeLineMethod);
 
-            // Mark the Standard shells as ambient so the Phase 2a source-type build
-            // loop skips them (they carry no AST declaration to resolve), matching how
-            // the real ambient provider registers projected types.
+            // Attribute the Standard shells to the ambient assembly so the Phase 2a
+            // source-type build loop skips them (they carry no AST declaration to
+            // resolve), matching how the real ambient provider registers projected types.
             foreach(var type in programModel.TypesByFQN.Values)
             {
                 if(type is MistType { NamespaceName: "Standard" } standardType)
                 {
-                    standardType.Origin = TypeOrigin.Ambient;
+                    standardType.Assembly = MistAssembly.Ambient;
                 }
             }
         }

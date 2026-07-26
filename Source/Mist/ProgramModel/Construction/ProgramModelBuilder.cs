@@ -6,7 +6,6 @@ using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Construction.Scaffolding;
 using Mist.ProgramModel.Construction.Types;
 using Mist.ProgramModel.Contracts;
-using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 
@@ -54,6 +53,22 @@ public sealed class ProgramModelBuilder
         var context = new BuilderContext(globalScope, programModel, diagnostics, ambientProvider);
         var unitBuilder = new CompilationUnitBuilder(context);
 
+        // Phase 0: Establish the compilation's declaration boundaries before any type is
+        // registered. Referenced projects are read straight off the compilation, so each
+        // appears exactly once by construction rather than by deduplicating a scan over
+        // the units it contributed.
+        _ = programModel.AddSelfAssembly(options.ProjectName);
+
+        if(compilation.HasStandardLibrary)
+        {
+            _ = programModel.AddStandardAssembly();
+        }
+
+        foreach(var project in compilation.Projects)
+        {
+            _ = programModel.AddReferenceAssembly(project.Name, project.CanonicalTomlPath);
+        }
+
         // Process each compilation unit.
         for(var i = 0; i < asts.Length; i++)
         {
@@ -82,7 +97,7 @@ public sealed class ProgramModelBuilder
         var sourceTypes = programModel
             .TypesByFQN
             .Values
-            .Where(t => t.Origin != TypeOrigin.Ambient)
+            .Where(t => t.Assembly.HasMistSource)
             .ToList()
             ;
 

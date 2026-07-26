@@ -21,6 +21,7 @@ internal static class IdentifierBinder
             VariableResult variable => new LocalReferenceExpression(node, variable.Variable),
             TypeResult type => new TypeReferenceExpression(node, type.Type),
             MethodGroupResult group => new MethodReferenceExpression(node, group.Methods[0]),
+            NamespaceResult ns => new NamespaceReferenceExpression(node, ns.NamespaceName),
             AmbiguousResult => new UnresolvedExpression(node),
             _ => new UnresolvedExpression(node),
         };

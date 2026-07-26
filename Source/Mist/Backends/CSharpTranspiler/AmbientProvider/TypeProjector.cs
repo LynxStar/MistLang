@@ -1,4 +1,3 @@
-using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
@@ -18,8 +17,6 @@ internal static class TypeProjector
 
     /// <summary>
     /// Creates an empty type shell for a top-level CLR type.
-    /// The shell has identity (name, namespace, scope, origin) but no members
-    /// or resolved references.
     /// </summary>
     public static MistType CreateShell(Type clrType, string namespaceName)
     {
@@ -42,8 +39,6 @@ internal static class TypeProjector
             { IsValueType: true } => new StructType(mistName, namespaceName, scope, declaringType, null),
             _ => new ClassType(mistName, namespaceName, scope, declaringType, null!),
         };
-
-        shell.Origin = TypeOrigin.Ambient;
 
         if(shell is MemberType memberType)
         {

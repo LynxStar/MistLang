@@ -1,4 +1,5 @@
 using Mist.Generated;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Types;
@@ -31,11 +32,11 @@ internal static class PostfixBinder
                 return BindInvocation(suffix, receiver, invocation.Arguments, ctx, context);
 
             case MemberAccessSuffixPostfixSuffixNode memberAccess:
-                return BindMemberAccess(suffix, receiver, memberAccess.Name.Lexeme);
+                return BindMemberAccess(suffix, receiver, memberAccess.Name.Lexeme, context);
 
             case MethodCallSuffixPostfixSuffixNode methodCall:
                 {
-                    var memberExpr = BindMemberAccess(suffix, receiver, methodCall.Name.Lexeme);
+                    var memberExpr = BindMemberAccess(suffix, receiver, methodCall.Name.Lexeme, context);
                     return BindInvocation(suffix, memberExpr, methodCall.Arguments, ctx, context);
                 }
 
@@ -57,10 +58,36 @@ internal static class PostfixBinder
         return new InvocationExpression(node, receiver, bound, receiver.Type);
     }
 
-    private static MemberAccessExpression BindMemberAccess(Storm.Runtime.SyntaxNode node, Expression receiver, string memberName)
+    private static Expression BindMemberAccess(Storm.Runtime.SyntaxNode node, Expression receiver, string memberName, BuilderContext context)
     {
+        // A namespace is not a value, so `Simpliest.Program` is one qualified name
+        // rather than a member access on a receiver. Resolve the qualification instead
+        // of folding it, which also keeps the namespace sentinel from surviving into
+        // the finished tree.
+        if(receiver is NamespaceReferenceExpression namespaceRef)
+        {
+            return BindQualifiedName(node, namespaceRef, memberName, context);
+        }
+
         var memberType = ResolveMemberType(receiver, memberName);
         return new MemberAccessExpression(node, receiver, memberName, memberType);
+    }
+
+    /// <summary>
+    /// Resolves one qualification step off a namespace receiver. A namespace can only
+    /// contain types and further namespaces, so the result collapses the receiver
+    /// rather than nesting onto it.
+    /// </summary>
+    private static Expression BindQualifiedName(Storm.Runtime.SyntaxNode node, NamespaceReferenceExpression namespaceRef, string memberName, BuilderContext context)
+    {
+        var result = context.Resolver.LookupQualified(namespaceRef.NamespaceName, memberName);
+
+        return result switch
+        {
+            TypeResult type => new TypeReferenceExpression(node, type.Type),
+            NamespaceResult ns => new NamespaceReferenceExpression(node, ns.NamespaceName),
+            _ => new UnresolvedExpression(node),
+        };
     }
 
     private static IReadOnlyList<Expression> BindArguments(ArgumentListNode? argumentList, BindingContext ctx, BuilderContext context)

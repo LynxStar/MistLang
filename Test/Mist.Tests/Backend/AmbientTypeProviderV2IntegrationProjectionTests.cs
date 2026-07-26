@@ -1,11 +1,14 @@
 // ambient-type-provider-v2, Property 6: Projection inserts into ProgramModel namespace
-// ambient-type-provider-v2, Property 13: TypeOrigin.Ambient assignment
+// ambient-type-provider-v2, Property 13: ambient assembly attribution
 //
 // **Validates: Requirements 2.6, 2.8, 7.1**
 //
 // Load BCL assemblies, create AmbientTypeProviderV2, call ResolveType for known BCL types,
-// then verify projected types appear in programModel.Namespaces and carry TypeOrigin.Ambient.
-// No process spawning.
+// then verify projected types appear in programModel.Namespaces and are attributed to the
+// ambient assembly. No process spawning.
+//
+// The spec wording for Property 13 predates MistAssembly and still refers to a
+// TypeOrigin.Ambient assignment; the property is unchanged, only how it is expressed.
 
 using System.Collections.Immutable;
 using System.Reflection;
@@ -19,7 +22,7 @@ namespace Mist.Tests.Backend;
 /// <summary>
 /// Integration tests verifying that <see cref="AmbientTypeProviderV2.ResolveType"/>
 /// inserts projected types into <c>programModel.Namespaces[ns].Types[name]</c> and
-/// assigns <see cref="TypeOrigin.Ambient"/> to all projected types.
+/// attributes all projected types to the <see cref="MistAssemblyKind.Ambient"/> assembly.
 /// </summary>
 public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposable
 {
@@ -164,74 +167,75 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Property 13: TypeOrigin.Ambient assignment
+    // Property 13: ambient assembly attribution
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
-    public void ResolveType_Console_HasTypeOriginAssembly()
+    public void ResolveType_Console_HasAmbientAssembly()
     {
         // Act
         var resolved = LookupType("System", "Console");
 
         // Assert
         Assert.NotNull(resolved);
-        Assert.Equal(TypeOrigin.Ambient, resolved!.Origin);
+        Assert.Equal(MistAssemblyKind.Ambient, resolved!.Assembly.Kind);
     }
 
     [Fact]
-    public void ResolveType_MemoryStream_HasTypeOriginAssembly()
+    public void ResolveType_MemoryStream_HasAmbientAssembly()
     {
         var resolved = LookupType("System.IO", "MemoryStream");
 
         Assert.NotNull(resolved);
-        Assert.Equal(TypeOrigin.Ambient, resolved!.Origin);
+        Assert.Equal(MistAssemblyKind.Ambient, resolved!.Assembly.Kind);
     }
 
     [Fact]
-    public void ResolveType_GenericList_HasTypeOriginAssembly()
+    public void ResolveType_GenericList_HasAmbientAssembly()
     {
         var resolved = LookupType("System.Collections.Generic", "List`1");
 
         Assert.NotNull(resolved);
-        Assert.Equal(TypeOrigin.Ambient, resolved!.Origin);
+        Assert.Equal(MistAssemblyKind.Ambient, resolved!.Assembly.Kind);
     }
 
     [Fact]
-    public void ResolveType_Interface_HasTypeOriginAssembly()
+    public void ResolveType_Interface_HasAmbientAssembly()
     {
         var resolved = LookupType("System", "IDisposable");
 
         Assert.NotNull(resolved);
-        Assert.Equal(TypeOrigin.Ambient, resolved!.Origin);
+        Assert.Equal(MistAssemblyKind.Ambient, resolved!.Assembly.Kind);
     }
 
     [Fact]
-    public void ResolveType_Struct_HasTypeOriginAssembly()
+    public void ResolveType_Struct_HasAmbientAssembly()
     {
         var resolved = LookupType("System", "DateTime");
 
         Assert.NotNull(resolved);
-        Assert.Equal(TypeOrigin.Ambient, resolved!.Origin);
+        Assert.Equal(MistAssemblyKind.Ambient, resolved!.Assembly.Kind);
     }
 
     [Fact]
-    public void ResolveType_Enum_HasTypeOriginAssembly()
+    public void ResolveType_Enum_HasAmbientAssembly()
     {
         var resolved = LookupType("System", "DayOfWeek");
 
         Assert.NotNull(resolved);
-        Assert.Equal(TypeOrigin.Ambient, resolved!.Origin);
+        Assert.Equal(MistAssemblyKind.Ambient, resolved!.Assembly.Kind);
     }
 
     [Fact]
-    public void ResolveType_AliasedType_HasTypeOriginSource()
+    public void ResolveType_AliasedType_KeepsStandardAssembly()
     {
-        // Aliased types (e.g., System.String → Standard.String) retain Source origin
-        // because they return the existing Standard Library instance.
+        // Aliased types (e.g., System.String → Standard.String) return the existing
+        // Standard Library instance, so they stay attributed to the standard library
+        // rather than being re-attributed as an ambient projection.
         var resolved = LookupType("System", "String");
 
         Assert.NotNull(resolved);
-        Assert.Equal(TypeOrigin.Source, resolved!.Origin);
+        Assert.Equal(MistAssemblyKind.Standard, resolved!.Assembly.Kind);
     }
 
     [Theory]
@@ -242,12 +246,12 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
     [InlineData("System.IO", "StreamReader")]
     [InlineData("System", "DateTime")]
     [InlineData("System", "DayOfWeek")]
-    public void ResolveType_VariousTypes_AllHaveTypeOriginAssembly(string ns, string typeName)
+    public void ResolveType_VariousTypes_AllHaveAmbientAssembly(string ns, string typeName)
     {
         var resolved = LookupType(ns, typeName);
 
         Assert.NotNull(resolved);
-        Assert.Equal(TypeOrigin.Ambient, resolved!.Origin);
+        Assert.Equal(MistAssemblyKind.Ambient, resolved!.Assembly.Kind);
     }
 
     [Theory]

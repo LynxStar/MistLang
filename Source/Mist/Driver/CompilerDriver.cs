@@ -163,6 +163,7 @@ public sealed class CompilerDriver : ICompilerDriver
         // ProjectFolder without a mist.toml; in those cases we skip this
         // step entirely.
         var refUnits = ImmutableArray<CompilationUnit>.Empty;
+        var refProjects = ImmutableArray<MistProject>.Empty;
         ImmutableHashSet<string>? directReferencePaths = null;
 
         // Track the root project's global usings. When a mist.toml is parsed,
@@ -215,8 +216,17 @@ public sealed class CompilerDriver : ICompilerDriver
                     if(!resolveBag.HasErrors)
                     {
                         var refUnitBuilder = ImmutableArray.CreateBuilder<CompilationUnit>();
+                        var refProjectBuilder = ImmutableArray.CreateBuilder<MistProject>(resolved.Length);
                         foreach(var proj in resolved)
                         {
+                            // Record the project itself alongside its files, so later
+                            // stages can group units by project without inferring the
+                            // grouping back out of per-unit fields.
+                            refProjectBuilder.Add(new MistProject(
+                                proj.Configuration.NamespaceRoot,
+                                proj.ProjectFolder,
+                                proj.CanonicalTomlPath));
+
                             var projGlobalUsings = proj.Configuration.GlobalUsings.IsDefault
                                 ? ImmutableArray<string>.Empty
                                 : proj.Configuration.GlobalUsings;
@@ -243,6 +253,7 @@ public sealed class CompilerDriver : ICompilerDriver
                         }
 
                         refUnits = refUnitBuilder.ToImmutable();
+                        refProjects = refProjectBuilder.ToImmutable();
                     }
                     else
                     {
@@ -273,7 +284,11 @@ public sealed class CompilerDriver : ICompilerDriver
         combinedUnits.AddRange(refUnits);
         combinedUnits.AddRange(userUnits);
 
-        var compilation = new MistCompilation(combinedUnits.ToImmutable(), options.EntryPoint, options.OutputType);
+        var compilation = new MistCompilation(combinedUnits.ToImmutable(), options.EntryPoint, options.OutputType)
+        {
+            Projects = refProjects,
+            HasStandardLibrary = !stdlibUnits.IsEmpty,
+        };
 
         loadingStopwatch.Stop();
         var stdlibCount = compilation.Units.Count(u => u.IsStdlib);

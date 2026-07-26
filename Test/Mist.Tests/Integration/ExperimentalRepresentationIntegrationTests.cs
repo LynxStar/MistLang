@@ -463,7 +463,7 @@ public sealed class ExperimentalRepresentationIntegrationTests : IDisposable
 
         var ambientTypes = programModel.TypesByFQN.Values
             .OfType<MemberType>()
-            .Where(t => t.Origin == TypeOrigin.Ambient)
+            .Where(t => t.Assembly.Kind == MistAssemblyKind.Ambient)
             .ToList();
 
         Assert.NotEmpty(ambientTypes);
@@ -482,7 +482,7 @@ public sealed class ExperimentalRepresentationIntegrationTests : IDisposable
 
         var ambientMemberTypes = programModel.TypesByFQN.Values
             .OfType<MemberType>()
-            .Where(t => t.Origin == TypeOrigin.Ambient)
+            .Where(t => t.Assembly.Kind == MistAssemblyKind.Ambient)
             .Take(20) // Check a representative sample to keep the test fast
             .ToList();
 

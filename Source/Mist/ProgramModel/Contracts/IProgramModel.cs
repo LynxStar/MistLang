@@ -22,4 +22,16 @@ public interface IProgramModel
     /// Scoped by their declaring namespace -- only active when that namespace is imported.
     /// </summary>
     IReadOnlyList<IConformanceDeclaration> Conformances { get; }
+
+    /// <summary>
+    /// Every assembly participating in this compilation: the compiled project, each
+    /// referenced project, the standard library, and the ambient and synthetic buckets.
+    /// </summary>
+    IReadOnlyList<IAssembly> Assemblies { get; }
+
+    /// <summary>
+    /// The assembly for the project being compiled, as opposed to one it references.
+    /// Null only for a model built without a compilation to describe.
+    /// </summary>
+    IAssembly? SelfAssembly { get; }
 }

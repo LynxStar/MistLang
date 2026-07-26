@@ -38,34 +38,29 @@ public sealed class MistAssembly(
     public IMistType? EntryPoint { get; internal set; }
 
     /// <summary>
-    /// The well-known name of the standard library assembly, which also matches the
-    /// namespace every stdlib declaration lives in.
+    /// The well-known name of the standard library assembly. It coincides with the
+    /// namespace every stdlib declaration lives in, but only coincidentally -- code that
+    /// tests a namespace should not reach for this constant.
     /// </summary>
     public const string StandardName = "Standard";
-
-    /// <summary>
-    /// The name of the bucket holding all CLR-projected types.
-    /// </summary>
-    public const string AmbientName = "<ambient>";
-
-    /// <summary>
-    /// The name of the bucket holding compiler-constructed types.
-    /// </summary>
-    public const string SyntheticName = "<synthetic>";
 
     /// <summary>
     /// The assembly every CLR-projected type belongs to. Ambient types come from many
     /// physical assemblies and are pooled here because nothing currently distinguishes
     /// between them; per-assembly ambient identity is the natural extension if a rule
     /// ever needs it.
+    /// <para>
+    /// The bracketed name cannot collide with a real project or namespace. Nothing looks
+    /// assemblies up by name, so it exists only for diagnostics and <see cref="ToString"/>.
+    /// </para>
     /// </summary>
-    public static readonly MistAssembly Ambient = new(AmbientName, MistAssemblyKind.Ambient);
+    public static readonly MistAssembly Ambient = new("<ambient>", MistAssemblyKind.Ambient);
 
     /// <summary>
     /// The assembly every compiler-constructed type belongs to, and the default for any
     /// type that is never registered against a declaration boundary.
     /// </summary>
-    public static readonly MistAssembly Synthetic = new(SyntheticName, MistAssemblyKind.Synthetic);
+    public static readonly MistAssembly Synthetic = new("<synthetic>", MistAssemblyKind.Synthetic);
 
     /// <summary>
     /// Whether this assembly's types are declared in Mist source, and so are the

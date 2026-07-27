@@ -1,4 +1,6 @@
+using Mist.Common.Diagnostics;
 using Mist.Generated;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Types;
@@ -45,13 +47,72 @@ internal static class ExpressionBinder
             CharLiteralExpressionPrimaryNode charLit => LiteralBinder.BindCharLiteral(charLit, context),
             TrueLiteralExpressionPrimaryNode trueLit => LiteralBinder.BindBoolLiteral(trueLit, true, context),
             FalseLiteralExpressionPrimaryNode falseLit => LiteralBinder.BindBoolLiteral(falseLit, false, context),
+            ArrayLiteralExpressionPrimaryNode arrayLiteral => LiteralBinder.BindArrayLiteral(arrayLiteral, ctx, context),
+
             IdentifierExpressionPrimaryNode identifier => IdentifierBinder.BindIdentifier(identifier, ctx, context),
+
             ParenthesizedExpressionPrimaryNode paren => BindExpression(paren.Inner, ctx, context),
             ArrayCreationExpressionPrimaryNode arrayCreation => BindArrayCreation(arrayCreation, ctx, context),
-            ArrayLiteralExpressionPrimaryNode arrayLiteral => LiteralBinder.BindArrayLiteral(arrayLiteral, ctx, context),
             InterpolatedStringExpressionPrimaryNode interpStr => BindInterpolatedString(interpStr, ctx, context),
+            ThisExpressionPrimaryNode thisExpr => BindThis(thisExpr, ctx, context),
+            ObjectCreationExpressionPrimaryNode objectCreation => BindObjectCreation(objectCreation, ctx, context),
+
             _ => new UnresolvedExpression(node),
         };
+    }
+
+    /// <summary>
+    /// Binds <c>this</c> to the enclosing type. The grammar admits <c>this</c> in any
+    /// expression position, so both invalid placements are rejected here rather than left
+    /// for the C# backend: outside a type there is no instance to name, and inside a
+    /// static member there is none either.
+    /// </summary>
+    private static Expression BindThis(ThisExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
+    {
+        if(ctx.EnclosingType is null)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.ThisOutsideType, node, null);
+            return new ErrorExpression(node);
+        }
+
+        if(ctx.IsStaticContext)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.ThisInStaticMember, node, null);
+            return new ErrorExpression(node);
+        }
+
+        return new ThisExpression(node, ctx.EnclosingType);
+    }
+
+    /// <summary>
+    /// Binds non-generic <c>new T(...)</c> with no initializer block. The arguments are
+    /// bound but the constructor overload is not selected; see
+    /// <see cref="NewExpression"/>.
+    /// </summary>
+    private static Expression BindObjectCreation(ObjectCreationExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
+    {
+        // A property initializer block changes what the expression constructs, so binding
+        // the creation while dropping the block would silently emit a different object.
+        // Left unresolved until initializers are supported.
+        if(node.Initializer is not null)
+        {
+            return new UnresolvedExpression(node);
+        }
+
+        // Generic creation is not handled yet. The grammar hands the name and the type
+        // arguments over as separate fields, so resolving one needs the arity-bearing
+        // lookup and ConstructedType interning that ScopeResolver.ResolveNamed already
+        // does for type references.
+        if(node.TypeArgs is not null)
+        {
+            return new UnresolvedExpression(node);
+        }
+
+        var typeName = QualifiedNameHelper.Build(node.Type);
+        var type = context.Resolver.ResolveNamedType(typeName, ctx.Scope, node);
+        var arguments = ArgumentBinder.Bind(node.Arguments, ctx, context);
+
+        return new NewExpression(node, type, arguments);
     }
 
     private static Expression BindArrayCreation(ArrayCreationExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)

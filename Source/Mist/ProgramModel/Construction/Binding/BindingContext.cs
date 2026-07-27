@@ -22,6 +22,13 @@ internal sealed class BindingContext
     public MemberType? EnclosingType { get; set; }
 
     /// <summary>
+    /// Whether the enclosing member is declared static. A static member has no instance,
+    /// so <c>this</c> and implicit instance member access are invalid inside it. Operators
+    /// are always static, so this is set for their bodies too.
+    /// </summary>
+    public bool IsStaticContext { get; set; }
+
+    /// <summary>
     /// The enclosing member's declared return type, used as the target for
     /// <c>return</c> values. Null for void methods.
     /// </summary>

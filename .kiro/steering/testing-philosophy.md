@@ -222,7 +222,9 @@ An integration test should be named after the boundary it proves, not the featur
 
 Enabling a sample on the experimental pipeline is recorded by adding it to `samples/AllFeaturesV2` (reference + `RunDemo()` call + baseline lines), which the single Tier 6 experimental test then enforces. It is not recorded by adding a Tier 5 test per sample, and it is not recorded by a status field in a generated file.
 
-`backlog/emitter-v2-sample-progression.yaml` is a *planning* artifact, not a progress artifact. Its measured fingerprints answer "which sample is cheapest to attempt next"; they do not assert that anything works. Treat any `status:` field there as advisory, and treat `AllFeaturesV2` membership as authoritative when the two disagree.
+`backlog/emitter-v2-capability-progression.yaml` is a *planning* artifact, not a progress artifact. It orders the compiler capabilities the v2 emitter still needs and records which sample unlocks at each one. It does not assert that anything works. Sample status there is derived, never declared — a sample is runnable only when every capability in its dependency closure is delivered — and `AllFeaturesV2` membership remains authoritative when the two disagree.
+
+That file also carries an `untested` list per sample, recording what each sample does *not* verify despite appearing to. Those entries are the reason a green sample is never evidence that a feature is correct, only that the capabilities it happens to exercise did not regress.
 
 Feature-level coverage of what a sample uses belongs at Tiers 1-3.
 

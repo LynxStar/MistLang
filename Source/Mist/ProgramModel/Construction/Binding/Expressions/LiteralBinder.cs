@@ -119,7 +119,7 @@ internal static class LiteralBinder
         if(elementType is null)
         {
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.EmptyArrayLiteralNeedsTargetType, node, null);
-            return new UnresolvedExpression(node);
+            return new ErrorExpression(node);
         }
 
         // A literal's length is statically known: it is the element count.

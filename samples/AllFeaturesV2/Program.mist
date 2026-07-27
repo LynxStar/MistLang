@@ -22,5 +22,6 @@ public class Program
         Simpliest.Program.RunDemo();
         Primitives.Program.RunDemo();
         ArrayLiterals.Program.RunDemo();
+        Overloading.Program.RunDemo();
     }
 }

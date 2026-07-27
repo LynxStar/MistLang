@@ -107,11 +107,14 @@ node.Rest = _Rest;                     // ends up as the LAST element, or null
 - Multiple iterations — `[1, 2, 3]` yields `[1, 3, 2, 3]`. The last element is duplicated
   and out of order.
 
-**Why it has gone unnoticed:** nothing reads the scalar, and tree walkers are already
-null-tolerant because the defect is pervasive. `SampleFingerprint.Collect` has an explicit
-`if(child is not null)` guard, and `RecordSyntheticTypeFeatures` in the same tool already
-documents the artifact by name: *"Rest is a non-nullable codegen artifact and is NOT a
-valid union signal."* So the workaround is already load-bearing in tooling.
+**Why it has gone unnoticed:** nothing reads the scalar, and every tree walker in the
+repository is already null-tolerant because the defect is pervasive — a walker that
+recurses over `Children()` has to guard each child or it throws on the zero-iteration
+case. Union detection likewise cannot use `Rest` as a signal, because the scalar is a
+non-nullable codegen artifact rather than a real parse result; the PIPE-separated tail
+collection is the only trustworthy indicator. Both workarounds predate this note, which is
+why the bug survived: the tooling that would have exposed it was written around it
+instead.
 
 **Scope — every rule with a label inside a repetition:**
 

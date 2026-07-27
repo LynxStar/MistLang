@@ -64,6 +64,28 @@ internal abstract class MemberType : MistType, IMemberType, IMethodHost, IHasAtt
 
     public List<Operator> OperatorsList { get; } = [];
 
+    /// <summary>
+    /// Every delegate declared on this type, regardless of which list it is stored in.
+    /// Constructors, operators, and cast operators all derive from <see cref="Method"/>,
+    /// but are kept in separate lists because different type kinds admit different
+    /// subsets of them. This walk restores the single view of them that the grammar's
+    /// <c>Delegate</c> trait describes, so consumers that treat all delegates alike
+    /// (body binding, emission) do not have to enumerate each list by hand.
+    /// Includes bodiless delegates: filter on <see cref="Method.Body"/> if that matters.
+    /// </summary>
+    internal virtual IEnumerable<Method> EnumerateDelegates()
+    {
+        foreach(var method in MethodsList)
+        {
+            yield return method;
+        }
+
+        foreach(var op in OperatorsList)
+        {
+            yield return op;
+        }
+    }
+
     IReadOnlyList<ITypeParameter> IMemberType.TypeParameters => TypeParametersList;
 
     IReadOnlyList<IMistType> IMemberType.BaseAbstractTypes => BaseAbstractTypes;

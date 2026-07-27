@@ -1,0 +1,4209 @@
+# V2 Emitter Capability Progression
+#
+# Hand-authored. THE SOURCE OF TRUTH for what the v2 emitter still needs and in what order.
+#
+# Supersedes and replaces three deleted artifacts:
+#   - backlog/emitter-v2-sample-progression.yaml   (node-count ordering, see below)
+#   - backlog/emitter-v2-sample-fingerprints.json  (its measured input)
+#   - backlog/sample-introduction-history.yaml     (chronology, now folded into intro_order)
+# and the tool that generated the first two, tools/SampleFingerprint.
+#
+#
+# WHY THE NODE-COUNT ORDERING WAS ABANDONED
+#
+#   The old metric counted distinct syntax node kinds a sample introduced. A feature
+#   whose difficulty is *repetition of an already-covered node* is therefore invisible to
+#   it. Overload resolution is exactly that -- four `Format` methods are four
+#   MethodDeclarationNodes, and MethodDeclarationNode was covered by tier 0. The metric
+#   scores overloading at zero, necessarily, for any sample.
+#
+#   That is not a mis-estimate, it is a blind spot with a direction. Given two samples
+#   needing the same work, greedy-fewest-new-nodes prefers the one that concentrates its
+#   difficulty in the dimension the metric cannot see. It picked Overloading over
+#   HelloMist by a one-node margin, and overload resolution was then never implemented --
+#   Roslyn resolved the calls downstream and the sample went green.
+#
+#
+# THE MODEL HERE
+#
+#   CAPABILITIES are the unit of work, ordered so each builds on the ones before it. A
+#   capability is named in compiler terms ("overload-resolution-by-argument-type"), never
+#   in node-kind terms ("MethodDeclarationNode").
+#
+#   SAMPLES are acceptance tests, not tasks. A sample becomes runnable when every
+#   capability it requires is delivered. Its `threshold` is the last-ordered capability it
+#   needs -- the point at which it unlocks.
+#
+#   A capability unlocks 0..N samples. Zero is normal and expected: many capabilities are
+#   pure prerequisites that no sample bottoms out on. Making that explicit is a feature of
+#   this model. The old linear sample list could not express "these unlock together" or
+#   "this work unlocks nothing yet".
+#
+#   Sample status is DERIVED, never asserted. A sample cannot be marked done while any
+#   capability it requires is outstanding. This is what stops the Overloading failure from
+#   recurring.
+#
+#
+# CROSS-REFERENCE: backlog/program-model-body-tasks.yaml
+#
+#   A capability here is END-TO-END: its `v2_status` covers the frontend binding AND the
+#   emission together. `constructors` (order 14) is `done` on evidence citing both
+#   ConstructorEmitter.Emit and the Phase 3 body walk; `operator-overload-declarations`
+#   and `cast-operator-declarations` are `missing` but record that their bodies already
+#   bind. So this file is not emitter-only despite the name, and its SCOPE note below is
+#   explicit that it was grounded in the v2 emitter and binder both.
+#
+#   program-model-body-tasks.yaml holds the OTHER axis of the same work: organized by
+#   language construct rather than by capability, exhaustive over the grammar, flat and
+#   unordered. It answers "what does the binder still not understand?" where this file
+#   answers "what do we build next, and which sample goes green when we do?"
+#
+#   Practical rule: update that file when the binder changes. Update this one when a
+#   capability's end-to-end status or its position in the build order changes. A change
+#   that moves both needs both edited -- nothing links or reconciles them.
+#
+#   Format warning: that file and provider-tasks.yaml do NOT parse as YAML (their
+#   `- [ ] text` checklist lines are invalid). This file does. Do not write a tool that
+#   assumes all three share a format.
+#
+#
+# FIELDS
+#
+#   capabilities[].order        unique, contiguous from 1, and every entry in `requires`
+#                               must have a strictly lower order -- no forward deps
+#   capabilities[].v2_status    done | partial | missing | needs-verification | broken
+#                                 missing -- not implemented yet. NOT a bug and NOT a
+#                                 regression. v2 is a frontend under construction, so
+#                                 every capability starts here, and the emitter is
+#                                 equally silent about capabilities nobody has thought of
+#                                 yet. An absent emitter path is the expected state of
+#                                 unstarted work, so `evidence` on a missing capability
+#                                 describes where the path will go, not a defect to fix.
+#                                 broken -- a code path exists and produces output that
+#                                 does not compile. Worse than missing, because there is
+#                                 no diagnostic and no sentinel to catch it. This is the
+#                                 status that means "bug". So does a LIVE DEFECT note in
+#                                 `evidence`, which flags misbehavior in the CLASSIC
+#                                 pipeline that v2 must not reproduce.
+#   capabilities[].verified_by  how a `done` or `partial` claim is actually satisfied:
+#                                 v2-semantics      -- v2 reasons about it correctly
+#                                 roslyn-downstream -- v2 emits and Roslyn covers for it
+#                                 unexercised       -- implemented, no sample runs it
+#   capabilities[].evidence     the file or observation the status rests on
+#   capabilities[].tasks        subtasks; a capability may have 1..N
+#   capabilities[].unlocks      samples whose threshold this capability is
+#
+#   samples[].requires          DIRECT capability dependencies. The transitive closure is
+#                               implied, not spelled out. (The first 13 sample records
+#                               predate this convention and list their full closure; that is
+#                               a harmless superset, not an error.)
+#   samples[].threshold         highest-ordered capability in the CLOSURE of `requires`
+#   samples[].intro_order       when the sample first entered the repository, carried over
+#                               from the deleted chronology file. A prior and a sanity
+#                               check, never an authority -- the early numbers are an
+#                               artifact of one commit that split a monolithic sample, so
+#                               they cannot order that cluster.
+#   samples[].untested          what the sample does NOT verify despite appearing to
+#
+#   `untested` is the second anti-false-done mechanism. Every sample here has entries. A
+#   green sample means "these capabilities did not regress", never "this feature is
+#   correct".
+#
+#
+# INVARIANTS
+#
+#   These held when the file was written and are worth preserving by hand. They are stated
+#   here because there is deliberately no script enforcing them -- one existed during
+#   authoring, caught four real modelling errors, and was then removed to keep this file the
+#   only artifact. If it becomes hard to keep these straight by eye, that is the signal to
+#   bring the checker back rather than to let the invariants rot.
+#
+#   1. Capability `order` values are unique and contiguous from 1.
+#   2. Every id in a capability's `requires` exists and has a strictly LOWER order. No
+#      forward dependencies.
+#   3. Every id in a target's `requires` exists.
+#   4. A target's `threshold` is the highest-ordered capability in the TRANSITIVE CLOSURE of
+#      its `requires`, not merely the highest one listed.
+#   5. A capability's `unlocks` lists exactly the targets whose threshold it is.
+#   6. Every capability is reachable from some target, or is listed in
+#      `orphan_capabilities` with a reason.
+#   7. Every entry in `uncovered_constructs` carries a disposition.
+#
+#   Errors 1 and 4 are the ones that actually bit during authoring. Inserting a capability
+#   mid-file renumbers everything after it, and a threshold is easy to get wrong because the
+#   deciding capability is often reached indirectly rather than named in the list.
+#
+#
+# OTHER SECTIONS
+#
+#   non_sample_targets    Acceptance targets that are not samples. The stdlib is one: v2
+#                         transpiles it on every compile, and it exercises operators, cast
+#                         operators, properties and `intrinsic` that NO sample touches.
+#                         Sample-only tracking structurally cannot see those.
+#
+#   orphan_capabilities   Capabilities no target requires, each with a reason. Usually a
+#                         soundness check whose only observable is a rejection, which no
+#                         sample can contain because samples must build clean.
+#
+#   uncovered_constructs  Language constructs the grammar generates that appear in NO
+#                         sample, each with a disposition. Recording them stops the
+#                         progression from implying the sample suite is complete.
+#                         The census behind this list was taken once, by diffing the
+#                         generated AST node classes against the node kinds present across
+#                         all 75 samples. Re-taking it means re-doing that diff by hand.
+#
+#
+# SCOPE
+#
+#   All 75 samples (AllFeatures and AllFeaturesV2 excluded as orchestrators), plus the
+#   stdlib as a non-sample target, plus the 24 constructs no sample covers.
+#
+#   Grounded in reading every .mist file and mist.toml in all 75 samples, the committed
+#   out/*.cs where present, and the relevant compiler source: the v2 emitter and binder in
+#   full; and in the classic pipeline CSharpEmitter, CSharpTypeMap, UnionType, UnknownType,
+#   ArrayType, DependentTypeParameterType, AssociatedTypeSlotType, ConformanceMap,
+#   ExhaustivenessChecker, TypeCheckerAnalyzer, ReadonlyAnalyzer, ProjectConfiguration,
+#   EntryPointDiagnostics, and the stdlib Array/IEnumerable/Action declarations.
+#
+#   DEPTH CAVEAT: the 13 tier-0/tier-1 records were derived from a close reading of every
+#   file plus the emitter paths that serve them. The other 62 are one pass deep. Their
+#   capability lists are reliable; their `untested` lists are the most likely place for
+#   something to have been missed.
+
+capabilities:
+
+  # ===================================================================
+  # Layer A -- core language. Delivered.
+  # ===================================================================
+
+  - id: class-declaration
+    name: Class declaration with public accessibility
+    order: 1
+    layer: core-language
+    requires: []
+    v2_status: done
+    verified_by: v2-semantics
+    evidence: >
+      TypeEmitter.Emit writes `{accessibility}{typeKeyword} {Name}`. Accessibility
+      collapses to "public " or "" -- see non-public-type-accessibility for that gap.
+    unlocks: []
+
+  - id: methods-static-and-instance
+    name: Static and instance methods with parameters and return types
+    order: 2
+    layer: core-language
+    requires: [class-declaration]
+    v2_status: done
+    verified_by: v2-semantics
+    evidence: MethodEmitter.Emit, ParameterEmitter.Emit, MemberModifierEmitter.Emit.
+    unlocks: []
+
+  - id: statements-core
+    name: Local declarations, assignment, expression statements, return
+    order: 3
+    layer: core-language
+    requires: [methods-static-and-instance]
+    v2_status: done
+    verified_by: v2-semantics
+    evidence: >
+      BodyEmitter handles LocalDeclarationStatement, ExpressionStatement and
+      ReturnStatement (valued and bare). AssignmentExpression emits `=` only.
+    unlocks: []
+
+  - id: namespace-file-scoped
+    name: File-scoped namespace and same-namespace cross-file resolution
+    order: 4
+    layer: core-language
+    requires: [class-declaration]
+    v2_status: done
+    verified_by: v2-semantics
+    evidence: >
+      TypeEmitter emits a file-scoped namespace from MemberType.NamespaceName and derives
+      the output path from it. Primitives resolves StringUtils by simple name across two
+      files sharing one file-scoped namespace.
+    unlocks: []
+
+  - id: standard-library-binding
+    name: Standard library binding and Standard-to-BCL rewriting
+    order: 5
+    layer: core-language
+    requires: [namespace-file-scoped, statements-core]
+    v2_status: done
+    verified_by: v2-semantics
+    evidence: >
+      TypeEmitter unconditionally emits a System import. Console, Convert and String
+      intrinsics from Source/Standard/Bootstrap bind and map onto CLR types.
+    unlocks: [Simpliest]
+
+  - id: literals-primitive
+    name: Primitive literals with suffix and width handling
+    order: 6
+    layer: core-language
+    requires: [statements-core]
+    v2_status: done
+    verified_by: v2-semantics
+    evidence: >
+      BodyEmitter.EmitLiteral, plus EmitIntegerLiteral (UL/L/U suffixes keyed on the
+      resolved type) and EmitDoubleLiteral (forces a decimal point). Hex folds to decimal,
+      so 0xFF emits as 255.
+    unlocks: []
+
+  - id: string-interpolation
+    name: Interpolated strings with expression holes
+    order: 7
+    layer: core-language
+    requires: [literals-primitive]
+    v2_status: done
+    verified_by: v2-semantics
+    evidence: BodyEmitter InterpolatedStringExpression, text and hole parts.
+    unlocks: []
+
+  - id: var-type-inference
+    name: var local inference
+    order: 8
+    layer: core-language
+    requires: [statements-core]
+    v2_status: done
+    verified_by: v2-semantics
+    evidence: >
+      EmitLocalDeclaration writes the resolved type name, so inference happens in the
+      binder rather than being deferred to C# var.
+    unlocks: []
+
+  - id: operators-arithmetic-comparison-logical
+    name: Arithmetic, comparison and logical operators with precedence
+    order: 9
+    layer: core-language
+    requires: [literals-primitive]
+    v2_status: done
+    verified_by: v2-semantics
+    evidence: >
+      BodyEmitter.MapBinaryOperator, MapUnaryOperator (negate and logical-not only), and
+      EmitSubExpression which parenthesizes a lower-precedence child.
+    unlocks: []
+
+  - id: control-flow-basic
+    name: if/else-if/else, while, for, foreach, break, nested blocks
+    order: 10
+    layer: core-language
+    requires: [operators-arithmetic-comparison-logical]
+    v2_status: done
+    verified_by: v2-semantics
+    evidence: >
+      BodyEmitter cases for IfStatement (recursive else-if), WhileStatement, ForStatement,
+      ForEachStatement, BreakStatement and nested Block.
+    unlocks: []
+
+  - id: arrays-sized-index-length
+    name: Sized array creation, element access, Length
+    order: 11
+    layer: core-language
+    requires: [control-flow-basic, var-type-inference, string-interpolation,
+               standard-library-binding]
+    v2_status: done
+    verified_by: v2-semantics
+    evidence: BodyEmitter ArrayCreationExpression and IndexExpression; Length via MemberAccess.
+    unlocks: [Primitives]
+
+  - id: array-literals
+    name: Array literals including nested, trailing-comma and empty
+    order: 12
+    layer: core-language
+    requires: [arrays-sized-index-length]
+    v2_status: done
+    verified_by: v2-semantics
+    evidence: >
+      BodyEmitter ArrayLiteralExpression emits an explicit element type, so no target type
+      is needed at the use site.
+    unlocks: [ArrayLiterals]
+
+  # ===================================================================
+  # Layer B -- object model state. Delivered by 6957888b.
+  # ===================================================================
+
+  - id: instance-fields
+    name: Instance field declaration and emission
+    order: 13
+    layer: object-model
+    requires: [class-declaration]
+    v2_status: done
+    verified_by: v2-semantics
+    evidence: FieldEmitter.Emit. Field.Ownership and Field.AttributesList are dropped silently.
+    unlocks: []
+
+  - id: constructors
+    name: Constructor declaration, parameters and body
+    order: 14
+    layer: object-model
+    requires: [instance-fields]
+    v2_status: done
+    verified_by: v2-semantics
+    evidence: >
+      ConstructorEmitter.Emit, and ProgramModelBuilder phase 3 now walks ConstructorsList.
+      Before 6957888b constructor bodies were never bound at all.
+    unlocks: []
+
+  - id: this-expression
+    name: this reference in an instance member
+    order: 15
+    layer: object-model
+    requires: [constructors]
+    v2_status: partial
+    verified_by: v2-semantics
+    evidence: >
+      ExpressionBinder.BindThis rejects only a null EnclosingType, which is null solely for
+      top-level statements. So `this` in a static method binds and emits, then fails in
+      Roslyn. See static-context-checking.
+    unlocks: []
+
+  - id: implicit-instance-field-access
+    name: Bare-name field access through an implicit this
+    order: 16
+    layer: object-model
+    requires: [this-expression]
+    v2_status: partial
+    verified_by: v2-semantics
+    evidence: >
+      IdentifierBinder.FindEnclosingField, reached on NotFoundResult. Two known gaps -- the
+      fallback runs after namespace and type resolution, inverting C#'s
+      member-before-namespace precedence; and emission writes the bare name rather than a
+      qualified receiver, so correctness depends on C# resolving the simple name the same
+      way Mist did.
+    unlocks: []
+
+  - id: object-creation
+    name: Object creation with arguments
+    order: 17
+    layer: object-model
+    requires: [constructors]
+    v2_status: partial
+    verified_by: v2-semantics
+    evidence: >
+      ExpressionBinder.BindObjectCreation. Property-initializer blocks are refused to a
+      sentinel by design. node.TypeArgs is ignored entirely, so a generic construction
+      fails with a misleading "type could not be found".
+    unlocks: []
+
+  - id: constructor-chain-this
+    name: Constructor chaining to a sibling constructor
+    order: 18
+    layer: object-model
+    requires: [object-creation]
+    v2_status: done
+    verified_by: v2-semantics
+    evidence: >
+      ConstructorBuilder.ResolveChainKind plus BodyBinder.BindChainArguments, which binds
+      chain arguments in the body scope so they can see constructor parameters.
+    unlocks: []
+
+  - id: explicit-this-member-read
+    name: Reading a field through an explicit this receiver
+    order: 19
+    layer: object-model
+    requires: [implicit-instance-field-access]
+    v2_status: needs-verification
+    verified_by: unexercised
+    evidence: >
+      PostfixBinder.ResolveMemberType gained a field branch in 6957888b, so a this-qualified
+      read should resolve through MemberAccessExpression over ThisExpression. No done sample
+      reads a field that way -- Overloading and HelloMist only ever WRITE through this.
+      Classes, TopLevelStatements and DefaultKeyword all read through it.
+    tasks:
+      - Confirm a this-qualified field read binds and emits, not just as an assignment target.
+    unlocks: []
+
+  # ===================================================================
+  # Layer C -- struct and static state. First pending work.
+  #
+  # Cheapest remaining object-model work, and it unlocks the two samples that
+  # actually are "basic classes and structs".
+  # ===================================================================
+
+  - id: struct-declaration
+    name: Struct type declaration with public fields
+    order: 20
+    layer: object-model
+    requires: [instance-fields, constructors]
+    v2_status: partial
+    verified_by: roslyn-downstream
+    evidence: >
+      TypeEmitter maps StructType to the struct keyword, and the stdlib exercises it --
+      Source/Standard/Void.mist declares a struct, and emitting constructors surfaced CS8938
+      on it. No SAMPLE declares a struct in v2 yet, which is why the old progression listed
+      StructKeywordTypeKeywordNode as pending while v2 had been emitting one all along. The
+      ConstructorEmitter workaround is entangled here.
+    tasks:
+      - Narrow ConstructorEmitter.ResolveModifiers. It returns "public " for ANY
+        zero-parameter struct constructor, discarding every other modifier, so a static
+        constructor silently becomes an instance constructor. CS8938 does not apply to
+        static constructors.
+      - Decide whether v2 should transpile Standard/Void.mist at all. TypeNameEmitter
+        rewrites that type to the void keyword at every reference, so the emitted file is
+        dead code today and dropping it costs nothing.
+      - Add sample-level struct coverage so struct emission stops being stdlib-only.
+    unlocks: [HelloMist]
+
+  - id: static-fields
+    name: Static field declaration and access from static and instance context
+    order: 21
+    layer: object-model
+    requires: [implicit-instance-field-access]
+    v2_status: partial
+    verified_by: roslyn-downstream
+    evidence: >
+      FieldEmitter routes modifiers through MemberModifierEmitter, which emits static. But
+      IdentifierBinder.FindEnclosingField checks neither the field's nor the enclosing
+      method's staticness, so a static field read from a static method binds by accident
+      rather than by rule -- and an INSTANCE field read from a static method binds just as
+      happily and then fails in Roslyn.
+    tasks:
+      - Emit a qualified receiver for field references -- this for instance fields, the
+        declaring type for statics -- instead of the bare name.
+    unlocks: []
+
+  - id: static-context-checking
+    name: Reject this and instance-member access in a static member
+    order: 22
+    layer: object-model
+    requires: [static-fields]
+    v2_status: missing
+    evidence: >
+      BindingContext carries EnclosingType but not the enclosing member, so neither BindThis
+      nor FindEnclosingField can see whether it is in a static context.
+    tasks:
+      - Thread the enclosing member, or a staticness flag, through BodyBinder.BindDelegate
+        into BindingContext.
+      - Report a Mist diagnostic for a this reference in a static member.
+      - Report a Mist diagnostic for an instance field read from a static member, while
+        still allowing static fields.
+    unlocks: []
+
+  - id: member-before-namespace-precedence
+    name: Enclosing-type members resolve before namespaces and outer types
+    order: 23
+    layer: object-model
+    requires: [implicit-instance-field-access]
+    v2_status: missing
+    evidence: >
+      The field fallback fires on NotFoundResult, which is after ScopeResolver has tried
+      own-namespace types, imports, fully-qualified names and known-namespace resolution. A
+      field whose name collides with a visible type binds to the type, and because the
+      result is a TypeReferenceExpression the wrong type then propagates into any inferred
+      local downstream.
+    tasks:
+      - Move the enclosing-type field search to immediately after the scope-chain walk and
+        before ResolveByNamespace, preserving local and parameter shadowing.
+    unlocks: []
+
+  - id: ambient-math-intrinsics
+    name: Math intrinsic binding
+    order: 24
+    layer: object-model
+    requires: [standard-library-binding]
+    v2_status: needs-verification
+    verified_by: unexercised
+    evidence: >
+      Math moved from ambient types into stdlib intrinsics when the AmbientTypes sample was
+      deleted, so it should bind the way Convert.ToInt32 already does. No done v2 sample
+      calls it. Classes/Point.DistanceFromOrigin does.
+    tasks:
+      - Confirm Math.Abs on an int binds and emits under v2.
+    unlocks: []
+
+  - id: struct-as-parameter-and-return
+    name: Struct passed as a parameter and returned by value
+    order: 25
+    layer: object-model
+    requires: [struct-declaration, static-fields, explicit-this-member-read,
+               ambient-math-intrinsics, constructor-chain-this, control-flow-basic,
+               string-interpolation, var-type-inference]
+    v2_status: needs-verification
+    verified_by: unexercised
+    evidence: >
+      Classes/Color.Mix takes a struct parameter and returns a new struct. No v2 sample does
+      this yet. Nothing in the emitter looks value-type-specific, so this is expected to
+      work, but it is unverified.
+    unlocks: [Classes]
+
+  # ===================================================================
+  # Layer D -- member binding. Outstanding debt.
+  #
+  # Overloading is currently marked done in the old progression with no overload
+  # resolution behind it. This layer pays that debt.
+  # ===================================================================
+
+  - id: overload-resolution-by-argument-type
+    name: Select a method overload by argument types
+    order: 26
+    layer: member-binding
+    requires: [methods-static-and-instance, object-creation, control-flow-basic]
+    v2_status: missing
+    evidence: >
+      PostfixBinder.ResolveMemberType returns the first name match and ignores argument
+      types entirely. Emission gets away with it because Roslyn re-resolves the call
+      downstream, and in the Overloading sample every result feeds string interpolation. An
+      int-typed local initialized from a double-returning overload could still bind wrong.
+    tasks:
+      - Implement candidate collection by name, then selection by argument type.
+      - Handle the four-way Printer.Format case over int, bool, double and string.
+      - Handle static overloads differing in both arity and type -- MathHelper declares Add
+        at arity 2 and Clamp at arity 3, each in an int and a double form.
+      - Add a negative test where the wrong choice is observable. Assign the result to an
+        explicitly typed local rather than interpolating it.
+    unlocks: []
+
+  - id: constructor-overload-resolution
+    name: Select a constructor overload by argument types
+    order: 27
+    layer: member-binding
+    requires: [overload-resolution-by-argument-type, constructor-chain-this,
+               string-interpolation, var-type-inference, standard-library-binding,
+               implicit-instance-field-access]
+    v2_status: missing
+    evidence: >
+      Same root cause. Overloading/Printer declares two constructors distinguished only by
+      arity.
+    unlocks: [Overloading]
+
+  # ===================================================================
+  # Layer E -- declaration boundaries.
+  #
+  # Independent of inheritance and unlocks three samples, so it comes first.
+  # ===================================================================
+
+  - id: namespace-inferred-from-directory
+    name: Namespace inferred from directory path
+    order: 28
+    layer: declaration-boundaries
+    requires: [namespace-file-scoped]
+    v2_status: partial
+    verified_by: unexercised
+    evidence: >
+      NamespaceBuilder.ComputeInferredNamespace exists and roots at
+      ProjectConfiguration.NamespaceRoot, which defaults to the project name. Every done v2
+      sample declares a file-scoped namespace, so the inference path is unexercised.
+      Namespaces needs three segments deep via Models/Game, and GlobalUsings relies on it
+      entirely -- no file there declares a namespace at all.
+    tasks:
+      - Verify multi-segment inference from a nested directory under v2.
+    unlocks: []
+
+  - id: using-import-resolution
+    name: Explicit using imports across project namespaces
+    order: 29
+    layer: declaration-boundaries
+    requires: [namespace-inferred-from-directory, object-creation,
+               implicit-instance-field-access, string-interpolation, var-type-inference,
+               standard-library-binding]
+    v2_status: partial
+    verified_by: unexercised
+    evidence: >
+      ScopeResolver.ResolveByNamespace handles imports, but no done v2 sample imports a
+      project namespace -- only Standard. Namespaces imports both Namespaces.Models and
+      Namespaces.Models.Game, so imports must be non-hierarchical. A parent import must not
+      cover the child, and requiring the child import must not be necessary either way.
+    unlocks: []
+
+  - id: namespace-block-form
+    name: Block namespace declaration, including several per file
+    order: 30
+    layer: declaration-boundaries
+    requires: [using-import-resolution, operators-arithmetic-comparison-logical]
+    v2_status: missing
+    evidence: >
+      NamespaceBuilder.DetermineFileNamespace scans only for a file-scoped namespace node
+      and otherwise falls back to path inference, so a block-namespace file's types land in
+      the inferred namespace instead. Namespaces/BlockExample.mist declares one block
+      namespace and MixedExample.mist declares two siblings in one file.
+    tasks:
+      - Recognize block namespace declarations and scope their contents.
+      - Support two or more sibling namespaces in one file as independent scopes.
+      - Treat block namespace names as absolute. A block namespace in a file whose inferred
+        namespace shares its first segment must not have that segment doubled.
+      - Tolerate a file whose inferred namespace ends up holding zero types.
+      - Emit block namespaces as block namespaces, since output shape is the only observable
+        this capability has.
+    unlocks: [Namespaces]
+
+  - id: global-usings-from-manifest
+    name: Global usings declared in mist.toml
+    order: 31
+    layer: declaration-boundaries
+    requires: [using-import-resolution]
+    v2_status: needs-verification
+    evidence: >
+      ProjectConfiguration.GlobalUsings is parsed from the global_usings table. Whether the
+      v2 binder consumes it is unconfirmed -- not traced past the configuration record.
+    tasks:
+      - Inject manifest global usings into every file's import scope, including files that
+        themselves live in a globally-used namespace. GlobalUsings/Services/Formatter.mist
+        is in one of the two listed namespaces and resolves a type from the other.
+      - Accept an explicit using that duplicates a global using with no error AND no
+        warning. The zero-warnings policy makes a warning a failure here.
+      - Deduplicate on emission. Output is flat, so the emitter must synthesize the
+        global-using namespaces as C# usings -- the directory information that produced them
+        is gone by then.
+    unlocks: [GlobalUsings]
+
+  - id: top-level-statements
+    name: Top-level statements as an entry point
+    order: 32
+    layer: declaration-boundaries
+    requires: [namespace-file-scoped, array-literals, struct-declaration,
+               explicit-this-member-read]
+    v2_status: needs-verification
+    evidence: >
+      Not traced in the v2 pipeline. Requires a real restructuring rather than a
+      syntax-preserving emit. The committed C# hoists the statements above a BLOCK namespace
+      holding the types and injects a self-import so the statements still see those types by
+      simple name.
+    tasks:
+      - Bind a statement body at file scope, with types declared later in the same file
+        visible to it -- a forward reference.
+      - Introduce an implicit args parameter of array-of-string type.
+      - Support a valued return at file scope as an int exit code.
+      - Restructure emission so statements come first, then a block namespace, plus the
+        injected self-import.
+    unlocks: []
+
+  - id: entry-point-resolution
+    name: Entry-point selection driven by mist.toml
+    order: 33
+    layer: declaration-boundaries
+    requires: [top-level-statements]
+    v2_status: needs-verification
+    evidence: >
+      EntryPointDiagnostics defines MIST_EP_0001 through MIST_EP_0008 for the classic
+      pipeline. The TopLevelStatements sample sets the top-level entry point AND declares a
+      static Main in a second file, which must survive as an ordinary callable static
+      method.
+    tasks:
+      - Honour the top-level entry-point setting when a static Main also exists, without
+        renaming or eliding the demoted Main.
+      - If synthesizing a Mist-level entry type, do not collide with the user's own type of
+        the same name in that namespace. Disambiguation.mist already declares one.
+    unlocks: [TopLevelStatements]
+
+  # ===================================================================
+  # Layer F -- inheritance.
+  #
+  # 6957888b already emits a base chain onto types whose base list TypeEmitter drops,
+  # so this layer repairs live broken output rather than being greenfield work.
+  #
+  # NOTE: ConcreteType.BaseType is a separate property from BaseAbstractTypes. The
+  # 6957888b commit message lists BaseAbstractTypes among the dropped collections but
+  # not BaseType, which is the one a base chain actually needs.
+  # ===================================================================
+
+  - id: base-type-list
+    name: Base type list emission
+    order: 34
+    layer: inheritance
+    requires: [class-declaration]
+    v2_status: missing
+    evidence: TypeEmitter writes the accessibility, keyword and name, and no base list.
+    tasks:
+      - Emit the base type in the type declaration.
+      - Until this lands, gate ConstructorChainKind.Base behind a Mist diagnostic instead of
+        emitting a base chain against an implicit object base.
+    unlocks: []
+
+  - id: base-member-lookup
+    name: Transitive member lookup through the base chain
+    order: 35
+    layer: inheritance
+    requires: [base-type-list, implicit-instance-field-access]
+    v2_status: missing
+    evidence: >
+      IdentifierBinder.FindEnclosingField searches only the enclosing type and says so in
+      its own doc comment -- inherited fields need the base chain, which arrives with the
+      inheritance work. PostfixBinder.ResolveMemberType has the same limit.
+    tasks:
+      - Unqualified implicit-this lookup through the chain, two levels deep.
+        Inheritance/GuideDog.DescribeGuideDog calls a method declared on Animal.
+      - Qualified member lookup where the member is declared on a base -- pup.Describe() in
+        Inheritance, unit.name in FullAccessibilityModel.
+      - Inherited FIELD reads, not just methods. FullAccessibilityModel/Square reads two
+        inherited fields from Shape.
+    unlocks: []
+
+  - id: constructor-chain-base
+    name: Constructor chaining to a base constructor
+    order: 36
+    layer: inheritance
+    requires: [base-type-list, constructor-chain-this]
+    v2_status: broken
+    evidence: >
+      ConstructorEmitter emits a base chain for ChainKind.Base, but with no base list the
+      call resolves against System.Object. Argument binding itself is already implemented --
+      BodyBinder.BindChainArguments binds in the body scope precisely so chain arguments can
+      reference constructor parameters.
+    tasks:
+      - Resolve the base constructor by arity and argument type. Inheritance uses arities
+        two and three.
+      - Order base initialization before the derived body.
+    unlocks: []
+
+  - id: constructor-chain-args-referencing-parameters
+    name: Chain arguments that reference constructor parameters
+    order: 37
+    layer: inheritance
+    requires: [constructor-chain-base]
+    v2_status: done
+    verified_by: unexercised
+    evidence: >
+      This is the case that motivated deferring chain binding to phase 3, and it has never
+      run. Both done-sample chains pass literals -- HelloMist passes two int literals and
+      Overloading passes a string literal. Inheritance uses all-parameter chains,
+      FullAccessibilityModel uses one all-literal and one mixed. No sample in this set
+      passes a COMPUTED chain argument.
+    tasks:
+      - Add coverage for a parameter-referencing chain argument below Tier 6.
+    unlocks: []
+
+  - id: derived-to-base-conversion
+    name: Implicit derived-to-base reference conversion at argument positions
+    order: 38
+    layer: inheritance
+    requires: [base-member-lookup, constructor-chain-base,
+               constructor-chain-args-referencing-parameters, string-interpolation,
+               var-type-inference, standard-library-binding]
+    v2_status: missing
+    evidence: >
+      Inheritance/Program.PrintAnimalInfo takes the base type and is called with both a
+      one-level and a two-level derived instance, so the conversion must skip a level.
+    unlocks: [Inheritance]
+
+  # ===================================================================
+  # Layer G -- accessibility and struct inheritance.
+  # ===================================================================
+
+  - id: accessibility-full-model
+    name: protected, internal, and default-to-private on class and struct members
+    order: 39
+    layer: accessibility
+    requires: [instance-fields, base-member-lookup]
+    v2_status: partial
+    verified_by: v2-semantics
+    evidence: >
+      MemberModifierEmitter maps all four levels. What is missing is the DEFAULT rule --
+      FullAccessibilityModel relies on an omitted modifier resolving to private, in
+      Shape.SecretSalt and Frozen.checksum.
+    tasks:
+      - Confirm an omitted member modifier resolves to private.
+      - Permit same-type, derived-type and same-compilation non-derived access. The sample
+        only ever exercises permissive paths; the rejection cases belong in unit tests, not
+        here.
+    unlocks: []
+
+  - id: non-public-type-accessibility
+    name: Non-public type accessibility
+    order: 40
+    layer: accessibility
+    requires: [class-declaration]
+    v2_status: missing
+    evidence: >
+      TypeEmitter emits "public " for public and the empty string for everything else, so
+      every other level silently becomes C# internal. No tier-0 or tier-1 sample declares a
+      non-public type, so this is latent rather than live.
+    unlocks: []
+
+  - id: sealed-modifier
+    name: sealed on classes and structs
+    order: 41
+    layer: accessibility
+    requires: [class-declaration]
+    v2_status: missing
+    evidence: >
+      MemberModifiers.IsSealed exists and ModifierBuilder sets it, but neither
+      MemberModifierEmitter nor TypeEmitter emits it. FullAccessibilityModel declares one
+      sealed class and one sealed struct.
+    tasks:
+      - Emit sealed on type declarations.
+      - Keep the sealed-with-protected-member warning from firing on Frozen, which
+        deliberately has no protected member.
+    unlocks: []
+
+  - id: struct-inheritance
+    name: Struct inheriting from another struct
+    order: 42
+    layer: accessibility
+    requires: [struct-declaration, base-member-lookup, sealed-modifier,
+               accessibility-full-model, constructor-chain-base,
+               constructor-chain-args-referencing-parameters,
+               operators-arithmetic-comparison-logical, string-interpolation,
+               var-type-inference, standard-library-binding]
+    v2_status: missing
+    evidence: >
+      Mist-specific. Structs are inheritable, which is what makes protected and sealed
+      meaningful on struct members. FullAccessibilityModel declares a struct with a struct
+      base, a base chain, and inherited protected and internal field reads from the derived
+      struct.
+    unlocks: [FullAccessibilityModel]
+
+  # ===================================================================
+  # Layer H -- user-defined conversions.
+  # ===================================================================
+
+  - id: same-file-forward-type-references
+    name: Order-independent type resolution within a file
+    order: 43
+    layer: conversions
+    requires: [class-declaration]
+    v2_status: needs-verification
+    verified_by: unexercised
+    evidence: >
+      CastOperators/Program.mist declares six classes in one file, and Celsius names two
+      types in its operator declarations before either is declared. Requires declaration
+      collection to complete before member signatures bind. DefaultKeyword also holds six
+      types in one file but references only backwards.
+    unlocks: []
+
+  - id: cast-expression
+    name: Explicit cast expression syntax
+    order: 44
+    layer: conversions
+    requires: [same-file-forward-type-references]
+    v2_status: missing
+    evidence: BodyEmitter has no cast case, so it would fall through to the sentinel default.
+    unlocks: []
+
+  - id: cast-operator-declarations
+    name: implicit and explicit operator member declarations
+    order: 45
+    layer: conversions
+    requires: [cast-expression]
+    v2_status: missing
+    evidence: >
+      TypeEmitter has no cast operator path yet -- it walks fields, constructors and
+      methods only, so CastOperatorsList is never reached. The stdlib declares cast
+      operators in 12 files and the emitted stdlib contains none of them. Their bodies
+      DO bind: Phase 3 walks MemberType.EnumerateDelegates, which includes cast
+      operators, so the remaining work is emission alone.
+    tasks:
+      - Emit cast operator declarations.
+      - Key lookup on the declaring type, kind and target type together. Celsius declares
+        one implicit and one explicit operator with different targets, so target alone is
+        not enough; and two different classes both declare an explicit operator to the same
+        target.
+    unlocks: []
+
+  - id: user-defined-conversion-insertion
+    name: Insert a user-defined conversion at assignment and argument sites
+    order: 46
+    layer: conversions
+    requires: [cast-operator-declarations, base-type-list, constructor-chain-base,
+               constructor-chain-args-referencing-parameters,
+               operators-arithmetic-comparison-logical, string-interpolation,
+               var-type-inference, standard-library-binding,
+               implicit-instance-field-access]
+    v2_status: missing
+    evidence: >
+      Nothing in the syntax marks these. An assignment from Celsius to Fahrenheit requires
+      searching the SOURCE type for an implicit operator to the target, and an argument
+      passed to a Fahrenheit parameter requires the same search driven by the parameter
+      type. Casts must resolve against the static type only.
+    unlocks: [CastOperators]
+
+  # ===================================================================
+  # Layer I -- initialization semantics.
+  #
+  # Field initializers are ordered last but are the most urgent item in this file:
+  # FieldEmitter already has a live code path that emits uncompilable C# today.
+  # ===================================================================
+
+  - id: field-initializers
+    name: Field initializer binding and emission
+    order: 47
+    layer: initialization
+    requires: [instance-fields]
+    v2_status: broken
+    evidence: >
+      ConcreteTypeBuilder parks the initializer as an UnresolvedExpression and phase 3 never
+      binds it, but FieldEmitter has a dedicated initializer branch that routes it to
+      BodyEmitter's sentinel default. A field with an initializer therefore emits a comment
+      where an expression belongs, which is not parseable C#. Reachable by the next sample
+      that declares one -- DefaultKeyword/Settings has three. Property.Initializer has the
+      same shape and is dormant only because PropertiesList is dropped.
+    tasks:
+      - Bind field initializers in phase 3, covering Property.Initializer too.
+      - Report a Mist diagnostic when the emitter meets a sentinel expression, so this class
+        of gap stops surfacing as a Roslyn error on a generated file with no Mist source
+        location.
+    unlocks: []
+
+  - id: readonly-struct
+    name: readonly struct and readonly distribution to members
+    order: 48
+    layer: initialization
+    requires: [struct-declaration]
+    v2_status: missing
+    evidence: >
+      TypeEmitter emits no readonly on the type. Per DefaultKeyword/out/Main.cs, readonly
+      must also distribute onto the fields and methods of a readonly struct. Related hazard
+      -- MemberModifierEmitter now emits readonly for METHODS, which the deleted
+      MethodEmitter.BuildModifiers erased. That is valid on a struct method and CS0106 on a
+      class method, and the helper receives only MemberModifiers so it cannot tell the two
+      apart.
+    tasks:
+      - Emit readonly on the type declaration.
+      - Distribute readonly to the fields and methods of a readonly struct.
+      - Pass the declaring type to MemberModifierEmitter, or filter at the call site, so a
+        readonly class method does not emit an invalid modifier.
+    unlocks: []
+
+  - id: default-expression
+    name: Type-qualified and bare default expressions
+    order: 49
+    layer: initialization
+    requires: [field-initializers]
+    v2_status: missing
+    evidence: >
+      No BodyEmitter case. Mist diverges from C# here -- the default of string is the empty
+      string, and the default of a CLASS yields a live instance via a synthesized factory
+      rather than null.
+    tasks:
+      - Determine a type's default per category, with string defaulting to the empty string.
+      - Target-type a bare default from the declaration.
+    unlocks: []
+
+  - id: default-value-synthesis
+    name: Synthesized default construction and default blocks
+    order: 50
+    layer: initialization
+    requires: [default-expression, readonly-struct, explicit-this-member-read,
+               object-creation, string-interpolation, var-type-inference,
+               standard-library-binding]
+    v2_status: missing
+    evidence: >
+      From DefaultKeyword/out/Main.cs -- every class gets a parameterless constructor
+      assigning each field its type default plus a static factory; field initializers are
+      replayed into that constructor; a default block replaces field-default synthesis; and
+      when the parameterless slot is already taken the block routes through a private
+      sentinel constructor taking a dummy parameter.
+    tasks:
+      - Synthesize a parameterless constructor and a default factory per type.
+      - Replay field initializers into the synthesized constructor.
+      - Let a default block override field-default synthesis.
+      - Route through a sentinel constructor when the type already declares a parameterless
+        one, so construction and defaulting diverge correctly.
+    unlocks: [DefaultKeyword]
+
+  # ===================================================================
+  # Layer J -- generics.
+  #
+  # Ordered before properties because several property samples construct generic
+  # types, and no generic capability needs a property.
+  # ===================================================================
+
+  - id: type-parameters-and-constructed-types
+    name: Type parameter declaration and constructed-type interning
+    order: 51
+    layer: generics
+    requires: [class-declaration]
+    v2_status: missing
+    evidence: >
+      TypeEmitter has no type parameter path yet, so TypeParametersList is never read.
+      Commit c4d91013 keys lifted types on the Mist type rather than the CLR box, which is
+      the interning groundwork.
+    tasks:
+      - Emit type parameter lists on type and member declarations.
+      - Intern constructed types so one representation serves every structurally identical
+        instantiation.
+    unlocks: []
+
+  - id: generic-arity-keyed-lookup
+    name: Type lookup keyed on name and arity together
+    order: 52
+    layer: generics
+    requires: [type-parameters-and-constructed-types]
+    v2_status: missing
+    evidence: >
+      ArityOverloads declares a non-generic and a generic type sharing one simple name, plus
+      an alias occupying arity 0 of a name whose generic form is separately declared.
+    unlocks: []
+
+  - id: type-argument-substitution
+    name: Type argument substitution into member signatures
+    order: 53
+    layer: generics
+    requires: [type-parameters-and-constructed-types]
+    v2_status: missing
+    evidence: >
+      Required before a member of a constructed type can be bound -- PropertyInitializers
+      resolves a property on Box of int, which means substituting the argument before member
+      lookup.
+    unlocks: []
+
+  - id: generic-methods
+    name: Generic method declaration
+    order: 54
+    layer: generics
+    requires: [type-argument-substitution, methods-static-and-instance]
+    v2_status: missing
+    evidence: TypeArgumentInference declares generic methods on both a static and an instance member.
+    unlocks: []
+
+  - id: type-argument-inference
+    name: Type argument inference from call arguments
+    order: 55
+    layer: generics
+    requires: [generic-methods]
+    v2_status: missing
+    evidence: >
+      Unification of parameter types against argument types, including through a nested
+      constructed type, then substitution into the return type so var binds concretely.
+      Explicit type arguments must suppress inference while still checking the argument.
+    unlocks: []
+
+  - id: generic-constraints-nominal
+    name: class, struct, base-class and abstract-type constraints
+    order: 56
+    layer: generics
+    requires: [type-parameters-and-constructed-types]
+    v2_status: missing
+    evidence: >
+      GenericConstraints covers all four nominal forms plus multiple constraints on one
+      parameter, multiple where clauses, method-level constraints, propagation through
+      inheritance, and constraints on struct and abstract-type declarations.
+    unlocks: []
+
+  - id: generic-constraints-constructor
+    name: Constructor constraints including parameterized forms
+    order: 57
+    layer: generics
+    requires: [generic-constraints-nominal]
+    v2_status: missing
+    evidence: >
+      Mist allows a parameterized constructor constraint, which the classic pipeline lowers
+      to synthesized factory delegate parameters threaded through constructors and call
+      sites. C# has only the parameterless form.
+    tasks:
+      - Support the parameterless form and the parameterized forms together on one parameter.
+      - Thread the synthesized factory parameters through every construction site.
+    unlocks: []
+
+  # ===================================================================
+  # Layer K -- properties, indexers and object initializers.
+  # ===================================================================
+
+  - id: property-declarations-and-accessors
+    name: Property declaration with auto, block and expression-bodied accessors
+    order: 58
+    layer: properties
+    requires: [instance-fields, methods-static-and-instance]
+    v2_status: missing
+    evidence: >
+      TypeEmitter has no property path yet -- it walks fields, constructors and methods
+      only, so PropertiesList is never reached. The stdlib declares properties in 7 files
+      and the emitted stdlib contains none of them. Accessor bodies are not bound either:
+      accessors are not Methods, so Phase 3's delegate walk does not cover them and they
+      need their own BodyBinder.BindBody pass.
+    tasks:
+      - Emit auto-property, block-bodied accessor and expression-bodied forms.
+      - Sequence an auto-property initializer against the constructor body.
+    unlocks: []
+
+  - id: property-backing-field-and-field-keyword
+    name: Backing-field synthesis and the field contextual keyword
+    order: 59
+    layer: properties
+    requires: [property-declarations-and-accessors]
+    v2_status: missing
+    evidence: >
+      LIVE DEFECT in the classic pipeline, worth not repeating. An auto-accessor combined
+      with a hand-written accessor emits TWO backing fields, so writes never reach reads.
+      samples/Properties/out/MixedAccessors.cs emits both an auto-property and a separate
+      backing field, and running the built DLL prints a zero after a non-zero assignment.
+      There is no baseline file for Properties, so nothing catches it.
+    tasks:
+      - Use ONE shared backing slot when an auto-accessor and a hand-written accessor
+        coexist on the same property.
+      - Resolve the field keyword to that same slot.
+    unlocks: []
+
+  - id: property-accessor-accessibility-and-init
+    name: Per-accessor accessibility and the init assignability window
+    order: 60
+    layer: properties
+    requires: [property-declarations-and-accessors]
+    v2_status: missing
+    evidence: >
+      A private set enforced at call sites, and init writable only from a constructor or an
+      object initializer.
+    unlocks: []
+
+  - id: static-properties
+    name: Static properties
+    order: 61
+    layer: properties
+    requires: [property-declarations-and-accessors]
+    v2_status: missing
+    evidence: Properties declares a static computed property reading static state.
+    unlocks: []
+
+  - id: indexer-declarations
+    name: Indexer declaration with get and set accessors
+    order: 62
+    layer: properties
+    requires: [property-declarations-and-accessors]
+    v2_status: missing
+    evidence: TypeEmitter has no indexer path yet, so IndexersList is never read.
+    unlocks: []
+
+  - id: generic-indexers
+    name: Indexer on a generic type
+    order: 63
+    layer: properties
+    requires: [indexer-declarations, type-argument-substitution]
+    v2_status: missing
+    evidence: >
+      TypeArgumentInference declares a generic class with an indexer returning the type
+      parameter, invoked on a constructed receiver.
+    unlocks: [TypeArgumentInference]
+
+  - id: object-initializer-blocks
+    name: Object initializer blocks on a new expression
+    order: 64
+    layer: properties
+    requires: [property-declarations-and-accessors, object-creation]
+    v2_status: missing
+    evidence: >
+      6957888b deliberately refuses an initializer block to a sentinel, because binding the
+      creation while dropping the block would construct a different object. This is the
+      capability that lifts that refusal.
+    tasks:
+      - Resolve each initializer target as a set property, an init accessor or a field.
+      - Sequence the constructor body before the initializer assignments.
+      - Support the omitted-argument-list form and the empty block form.
+    unlocks: [PropertyInitializers]
+
+  - id: target-typed-new
+    name: Target-typed object creation with the type omitted
+    order: 65
+    layer: properties
+    requires: [object-creation]
+    v2_status: missing
+    evidence: >
+      TargetTypedNew requires a target type to flow inward from six distinct contexts --
+      an explicitly typed local, a field initializer, a return statement, a parameter at an
+      argument position, an assignment to an existing variable, and a constructed generic.
+    unlocks: [TargetTypedNew]
+
+  # ===================================================================
+  # Layer L -- nested declarations.
+  #
+  # Ordered before abstract types because AssociatedTypes fills every slot with a
+  # nested type, so nested types are the more primitive of the two.
+  # ===================================================================
+
+  - id: nested-type-declarations
+    name: Types nested inside types
+    order: 66
+    layer: nested-declarations
+    requires: [class-declaration, struct-declaration]
+    v2_status: missing
+    evidence: >
+      TypeEmitter has no nested type path yet, so NestedTypes is never read. NestedScoping
+      goes four levels deep and nests inside a generic parent, a struct and an abstract
+      type.
+    tasks:
+      - Emit nested types in place rather than hoisting them.
+      - Let a nested type see the enclosing type's type parameters through the scope chain
+        without redeclaring them.
+      - Do not emit a spurious readonly on methods of a class nested in a struct, which the
+        classic pipeline does and NestedScoping routes around.
+    unlocks: []
+
+  # ===================================================================
+  # Layer M -- abstract types and conformance.
+  #
+  # Mist unifies interfaces and traits into one abstract type. A bodiless member is a
+  # slot; a bodied member is a default.
+  # ===================================================================
+
+  - id: abstract-type-declaration
+    name: Abstract type declaration with member slots
+    order: 67
+    layer: abstract-types
+    requires: [methods-static-and-instance, type-parameters-and-constructed-types]
+    v2_status: missing
+    evidence: >
+      TypeKeyword is CLASS, STRUCT or ABSTRACT, so an abstract type is a unified type
+      declaration that emits a C# interface. TypeEmitter has no abstract-type path.
+    unlocks: []
+
+  - id: abstract-type-inheritance
+    name: Abstract type extending another abstract type
+    order: 68
+    layer: abstract-types
+    requires: [abstract-type-declaration]
+    v2_status: missing
+    evidence: ShapeAbstracts declares a resizable abstract type extending a shape abstract type.
+    unlocks: []
+
+  - id: nominal-conformance-and-slot-checking
+    name: Conformance via the base list, with slot satisfaction checking
+    order: 69
+    layer: abstract-types
+    requires: [abstract-type-declaration]
+    v2_status: missing
+    evidence: >
+      The base-list form is what GenericTypes, ShapeAbstracts, GenericConstraints,
+      AssociatedTypes and Iterators all use. Requires proving every slot is filled.
+    unlocks: [GenericConstraints, GenericTypes]
+
+  - id: abstract-type-property-slots
+    name: Property slots on an abstract type
+    order: 70
+    layer: abstract-types
+    requires: [abstract-type-declaration, property-declarations-and-accessors]
+    v2_status: missing
+    evidence: >
+      ShapeAbstracts declares a get-only slot and a get-set slot; conformance must check the
+      accessor shape, not just the name and type.
+    unlocks: [ShapeAbstracts]
+
+  - id: abstract-type-default-members
+    name: Default member implementations on an abstract type
+    order: 71
+    layer: abstract-types
+    requires: [abstract-type-declaration]
+    v2_status: missing
+    evidence: >
+      A bodied member on an abstract type is a default. The classic pipeline emits it as a
+      C# default interface method.
+    unlocks: []
+
+  - id: default-member-forwarding-stubs
+    name: Default members callable directly on a conformer
+    order: 72
+    layer: abstract-types
+    requires: [abstract-type-default-members, nominal-conformance-and-slot-checking]
+    v2_status: missing
+    evidence: >
+      Rust-style semantics. A C# default interface method is callable only through an
+      interface-typed reference, so the classic pipeline DUPLICATES the default body onto
+      every conformer that does not override it. A forwarding stub that casts to the
+      interface would recurse infinitely, because the public method on the concrete type
+      becomes the implicit implementation.
+    tasks:
+      - Duplicate the default body onto each non-overriding conformer.
+      - Suppress the duplicate when the conformer supplies its own implementation, matched
+        on name and arity.
+      - Cover defaults inherited transitively through the abstract type hierarchy.
+    unlocks: []
+
+  - id: retroactive-conformance-with-blocks
+    name: Retroactive conformance declared in a with block
+    order: 73
+    layer: abstract-types
+    requires: [nominal-conformance-and-slot-checking, abstract-type-default-members]
+    v2_status: missing
+    evidence: >
+      A with block declares that an existing type conforms, mapping its members onto slots.
+      Scoped to its declaring namespace, so it is only active when that namespace is
+      imported. Recorded in ConformanceMap keyed on the concrete and abstract type pair.
+    tasks:
+      - Record the conformance and validate every mapping against a real slot.
+      - Append the interface to the conforming type's base list at emission.
+      - Emit explicit interface members forwarding to the mapped source member.
+      - Let a mapping over a slot that has a default suppress the default stub.
+    unlocks: [AbstractTypes]
+
+  - id: associated-type-slots
+    name: Associated type slots on an abstract type
+    order: 74
+    layer: abstract-types
+    requires: [nominal-conformance-and-slot-checking, generic-constraints-nominal]
+    v2_status: missing
+    evidence: >
+      A slot declares an abstract type member that implementors fill with a nested type
+      satisfying declared constraints. Modelled as AssociatedTypeSlotType. The classic
+      pipeline LIFTS a non-parameterized slot to a synthesized type parameter with a where
+      clause on the emitted interface, and ERASES a parameterized (higher-kinded) slot to
+      its constraint interface, because C# has no higher-kinded types.
+    tasks:
+      - Resolve the slot per implementor and check the constraints, which may be a kind
+        (class or struct), one or more abstract types, or nothing at all.
+      - Resolve an enclosing type parameter appearing inside a slot constraint's arguments.
+      - Lift non-parameterized slots to type parameters; erase parameterized slots.
+    unlocks: [AssociatedTypes]
+
+  # ===================================================================
+  # Layer N -- nested namespaces.
+  # ===================================================================
+
+  - id: nested-block-namespaces
+    name: Block namespaces nested inside block namespaces
+    order: 75
+    layer: nested-declarations
+    requires: [namespace-block-form, nested-type-declarations]
+    v2_status: missing
+    evidence: >
+      NestedScoping declares nested block namespaces and repeated block namespaces with the
+      same name. The classic pipeline DOUBLES the prefix on the nested form, which the
+      sample documents and routes around.
+    unlocks: []
+
+  # ===================================================================
+  # Layer N -- unions, optionals and the unknown top type.
+  #
+  # Ordered before patterns because pattern matching's narrowing story is defined
+  # against these three.
+  # ===================================================================
+
+  - id: union-types-and-carriers
+    name: Union type canonicalization and carrier generation
+    order: 76
+    layer: unions-and-unknown
+    requires: [class-declaration]
+    v2_status: missing
+    evidence: >
+      UnionType is structural and canonicalized by sorted constituent name, so constituent
+      order does not affect identity. A general union emits a generated tag-and-payload
+      carrier struct with per-constituent implicit conversions and discriminator members,
+      deduplicated program-wide. Constituents can be unrelated value types with no common
+      base, so a runtime discriminator is required -- a subtype test cannot serve.
+    unlocks: []
+
+  - id: union-widening-at-use-sites
+    name: Widening a constituent into a union-typed slot
+    order: 77
+    layer: unions-and-unknown
+    requires: [union-types-and-carriers]
+    v2_status: missing
+    evidence: >
+      TypeUnions widens at declaration, reassignment, argument and return positions, and
+      infers a union type through var.
+    unlocks: []
+
+  - id: optional-union-representation
+    name: Optional types as a union with void
+    order: 78
+    layer: unions-and-unknown
+    requires: [union-types-and-carriers]
+    v2_status: missing
+    evidence: >
+      The optional spelling desugars to a union of the type with void, and the generic
+      spelling must unify with it. Optional unions BYPASS the carrier struct -- value types
+      emit as Nullable and reference types as the plain type with null for absence. So one
+      Mist construct has two CLR representations chosen by the constituent's kind.
+    unlocks: []
+
+  - id: optional-operators
+    name: Conditional access, coalescing and coalescing assignment
+    order: 79
+    layer: unions-and-unknown
+    requires: [optional-union-representation]
+    v2_status: missing
+    evidence: >
+      Conditional invocation must LIFT its result to an optional and coalescing must UN-lift
+      it, with short-circuit on absence, composed in one expression, plus the compound
+      coalescing assignment form.
+    unlocks: []
+
+  - id: void-unit-type
+    name: void as an inhabited unit type
+    order: 80
+    layer: unions-and-unknown
+    requires: [optional-union-representation]
+    v2_status: missing
+    evidence: >
+      void is a real type with a singleton value, doubles as the optional absence value, and
+      overlaps the type-literal rule -- one token resolves three ways from context alone. The
+      classic pipeline runs a whole-program usage analysis to decide per method whether to
+      emit void or a generated unit struct, and a void-typed parameter means "takes a unit",
+      not "takes nothing".
+    tasks:
+      - Resolve the void token to a singleton value, a type literal, or optional absence,
+        from the target type.
+      - Decide per method whether the return emits as void or as the unit struct.
+      - Support void as a type argument, a parameter type and a field type.
+    unlocks: [OptionalTypes, VoidType, VoidValueLiteral]
+
+  - id: unknown-top-type
+    name: unknown as a top type
+    order: 81
+    layer: unions-and-unknown
+    requires: [class-declaration]
+    v2_status: missing
+    evidence: >
+      A real user-facing type that every non-void type is assignable to, lowering to C#
+      object. Forbidden as the declared type of writable storage and of a new expression.
+      Pattern matching is the designated way back to a concrete type.
+    unlocks: []
+
+  - id: unknown-covariant-generic-widening
+    name: Covariant widening of a generic at unknown type-argument positions
+    order: 82
+    layer: unions-and-unknown
+    requires: [unknown-top-type, type-argument-substitution]
+    v2_status: missing
+    evidence: >
+      Covariance is keyed on the top type rather than a declared variance annotation, and
+      soundness comes from FILTERING members that write storage typed by the parameter.
+      Restricted to class generic definitions, with its own diagnostic for struct generics.
+      A constructed generic transitively closed with unknown lowers to C# dynamic, so the
+      filtering is a compile-time-only guarantee.
+    unlocks: []
+
+  - id: unknown-readonly-member-filtering
+    name: Readonly context induced by an unknown type argument
+    order: 83
+    layer: unions-and-unknown
+    requires: [unknown-covariant-generic-widening]
+    v2_status: missing
+    evidence: >
+      Member callability on such a receiver is decided by INFERRED per-member readonly-ness,
+      and only after distinguishing closed-with-unknown from an open generic construction.
+      The type's readonly context is separate from the binding's mutability, so reassignment
+      stays legal.
+    unlocks: []
+
+  # ===================================================================
+  # Layer O -- aliases and newtypes.
+  # ===================================================================
+
+  - id: type-alias-declarations
+    name: Transparent type alias declarations
+    order: 84
+    layer: aliases
+    requires: [type-parameters-and-constructed-types]
+    v2_status: missing
+    evidence: >
+      An alias introduces no nominal identity, so it is assignment-compatible in both
+      directions. Resolved before type checking, usable in every type position and as a
+      constructible name, with cycle detection and diagnostics reported against the alias
+      spelling rather than the expansion.
+    unlocks: []
+
+  - id: generic-type-aliases
+    name: Generic aliases and aliases over unions
+    order: 85
+    layer: aliases
+    requires: [type-alias-declarations]
+    v2_status: missing
+    evidence: >
+      TypeAliases aliases a union, a closed generic instantiation, and declares generic
+      aliases whose parameters substitute into the target. The stdlib's Action is a generic
+      alias over a variadic Func.
+    unlocks: [TypeAliases]
+
+  - id: newtype-declarations
+    name: Newtype declarations over a representation type
+    order: 86
+    layer: aliases
+    requires: [type-alias-declarations]
+    v2_status: missing
+    evidence: >
+      A newtype is a distinct nominal type over a representation, with NO implicit
+      conversion either way, plus a synthesized value accessor, explicit casts in both
+      directions, and constructor and member forwarding through to the representation.
+      Newtypes over a primitive, a struct and a class all behave differently.
+    unlocks: [Newtypes]
+
+  # ===================================================================
+  # Layer P -- enums.
+  #
+  # Mist enums wrap an arbitrary readonly type, not an integral one, so they are
+  # nominal wrappers with real instances and are inexpressible as a C# enum.
+  # ===================================================================
+
+  - id: enum-declaration-over-readonly-base
+    name: Enum declaration over an arbitrary readonly base type
+    order: 87
+    layer: enums
+    requires: [nested-type-declarations, instance-fields]
+    v2_status: missing
+    evidence: >
+      The base may be a primitive, a readonly struct, a readonly class or a union, and must
+      be proven deeply readonly including every union constituent. Emits as a record carrier
+      with a value parameter plus a public static readonly singleton per variant, always
+      public regardless of the enum's own accessibility.
+    unlocks: []
+
+  - id: enum-variant-value-inference
+    name: Variant value inference and declaration-time initializer evaluation
+    order: 88
+    layer: enums
+    requires: [enum-declaration-over-readonly-base]
+    v2_status: missing
+    evidence: >
+      Two different inference rules by base kind -- a string base infers the variant's own
+      name, an integral base infers the previous explicit value plus one. Default base is
+      byte filling from zero. Variant initializers that construct a base instance must be
+      evaluated at declaration time. Duplicate values must be detected.
+    unlocks: [NestedScoping]
+
+  - id: enum-conversion-operators
+    name: Enum conversions to and from the underlying type
+    order: 89
+    layer: enums
+    requires: [enum-variant-value-inference, optional-union-representation]
+    v2_status: missing
+    evidence: >
+      Enum to underlying is TOTAL and implicit; underlying to enum is PARTIAL and therefore
+      returns an optional, lowered to a per-variant equality chain. Interpolation must print
+      the variant name, which the classic pipeline does with a reference-equality lookup --
+      while the pattern form uses record structural equality on the value, so two variants
+      sharing a value would print and match inconsistently.
+    unlocks: []
+
+  # ===================================================================
+  # Layer Q -- pattern matching.
+  # ===================================================================
+
+  - id: pattern-matching-core
+    name: Type patterns with bindings
+    order: 90
+    layer: patterns
+    requires: [unknown-top-type]
+    v2_status: missing
+    evidence: >
+      A type test against a base-typed or unknown-typed operand, introducing a binding whose
+      scope reaches the then-branch and the right operand of a following conjunction.
+    unlocks: [UnknownType]
+
+  - id: constant-and-relational-patterns
+    name: Constant and relational patterns
+    order: 91
+    layer: patterns
+    requires: [pattern-matching-core]
+    v2_status: missing
+    evidence: >
+      Relational constants must be comparability-checked against the scrutinee's static
+      type. Constant patterns cover int, string, bool, char and float forms.
+    unlocks: []
+
+  - id: logical-patterns
+    name: and, or and not patterns
+    order: 92
+    layer: patterns
+    requires: [constant-and-relational-patterns]
+    v2_status: missing
+    evidence: Conjunction, disjunction, negation and parenthesized grouping of patterns.
+    unlocks: []
+
+  - id: property-patterns
+    name: Property patterns with subpattern member resolution
+    order: 93
+    layer: patterns
+    requires: [pattern-matching-core, property-declarations-and-accessors]
+    v2_status: missing
+    evidence: >
+      Subpattern names resolve as members of the scrutinee's static type, including on a
+      primitive scrutinee, with multiple binders extracted from one pattern.
+    unlocks: []
+
+  - id: discard-and-var-patterns
+    name: Discard and var patterns
+    order: 94
+    layer: patterns
+    requires: [pattern-matching-core]
+    v2_status: missing
+    evidence: >
+      Three surface forms of catch-all must all be classified as such, and a var pattern
+      binds the scrutinee for use in the arm body.
+    unlocks: []
+
+  - id: switch-expressions
+    name: Switch expressions with arm result-type unification
+    order: 95
+    layer: patterns
+    requires: [logical-patterns, discard-and-var-patterns]
+    v2_status: missing
+    evidence: >
+      A switch expression is an expression, so all arm results unify into one type, and it
+      must work in initializer and argument positions. Arm order is load-bearing for
+      relational arms.
+    unlocks: []
+
+  - id: when-guards
+    name: when guards on switch arms
+    order: 96
+    layer: patterns
+    requires: [switch-expressions]
+    v2_status: missing
+    evidence: >
+      Evaluated after the pattern, able to reference the arm's own bindings, and guarded arms
+      must NEVER count toward exhaustiveness coverage.
+    unlocks: []
+
+  - id: exhaustiveness-checking
+    name: Exhaustiveness checking per scrutinee kind
+    order: 97
+    layer: patterns
+    requires: [switch-expressions, union-types-and-carriers]
+    v2_status: missing
+    evidence: >
+      ExhaustivenessChecker has exactly three real rules -- unguarded catch-all, bool
+      true-and-false coverage, and union constituent coverage. It returns exhaustive
+      UNCONDITIONALLY for a tuple scrutinee and has NO enum rule, which is why
+      TuplePatternMatching's quadrant switch is accepted with no catch-all.
+    tasks:
+      - Implement catch-all, bool and union coverage.
+      - Decide deliberately whether tuple and enum scrutinees get real rules or a documented
+        waiver, rather than inheriting the current silent pass.
+    unlocks: []
+
+  - id: union-narrowing-through-patterns
+    name: Narrowing a union to one constituent
+    order: 98
+    layer: patterns
+    requires: [pattern-matching-core, union-types-and-carriers]
+    v2_status: missing
+    evidence: >
+      A tag test on the carrier, not a subtype test. The classic pipeline emits the
+      discriminator as the condition and HOISTS the binding to the top of the then-branch,
+      which means a narrowed binding cannot be used in the same condition -- the conjunction
+      form is inexpressible under that scheme. A pattern type that is not a constituent must
+      be reported as unreachable.
+    unlocks: [TypeUnions]
+
+  - id: enum-member-patterns
+    name: Enum members in pattern position
+    order: 99
+    layer: patterns
+    requires: [constant-and-relational-patterns, enum-declaration-over-readonly-base]
+    v2_status: missing
+    evidence: >
+      An enum member in pattern position must resolve as a VALUE, not a type reference. Mist
+      enums are not CLR enums and their members are not compile-time constants, so they
+      cannot occupy a constant-pattern slot. The classic pipeline rewrites a bare form to an
+      equality comparison and a tuple-element form to a var binding plus a synthesized guard.
+    unlocks: []
+
+  # ===================================================================
+  # Layer R -- tuples.
+  # ===================================================================
+
+  - id: tuple-types-and-literals
+    name: Structural tuple types and literals
+    order: 100
+    layer: tuples
+    requires: [class-declaration]
+    v2_status: missing
+    evidence: Positional tuple types and literals, nested to arbitrary depth.
+    unlocks: []
+
+  - id: named-tuple-elements
+    name: Named tuple elements
+    order: 101
+    layer: tuples
+    requires: [tuple-types-and-literals]
+    v2_status: missing
+    evidence: >
+      Named and positional member access on one value, with a named literal checked against
+      a declared named tuple type. Element names must NOT leak into the whole-tuple
+      binding's type.
+    unlocks: []
+
+  - id: tuple-deconstruction
+    name: Tuple deconstruction declarations
+    order: 102
+    layer: tuples
+    requires: [tuple-types-and-literals]
+    v2_status: missing
+    evidence: >
+      Var form inferring each target and typed form checking each declared target type,
+      including through an unknown element type.
+    unlocks: []
+
+  - id: tuple-patterns
+    name: Tuple positional patterns
+    order: 103
+    layer: tuples
+    requires: [tuple-types-and-literals, logical-patterns]
+    v2_status: missing
+    evidence: >
+      Disambiguated from a parenthesized single pattern at parse time. Arity checked against
+      the tuple type, each element position typed independently, recursively nestable. Whether
+      the pattern is a deconstruction or a runtime type test depends on whether the scrutinee
+      is statically a tuple.
+    unlocks: [TuplePatternMatching, Tuples]
+
+  # ===================================================================
+  # Layer S -- first-class functions.
+  # ===================================================================
+
+  - id: func-structural-function-types
+    name: Structural function types
+    order: 104
+    layer: functions
+    requires: [type-parameters-and-constructed-types]
+    v2_status: missing
+    evidence: >
+      Mist spells function types structurally with the result last, arity-generic, mapped
+      onto the CLR's Func and Action families. The stdlib declares them as a single variadic
+      type rather than an overload family.
+    unlocks: []
+
+  - id: lambda-expressions
+    name: Lambda expressions with parameter and return inference
+    order: 105
+    layer: functions
+    requires: [func-structural-function-types]
+    v2_status: missing
+    evidence: >
+      Expression-bodied and block-bodied forms, parameter types inferred from the target
+      type, return type inferred from all return paths.
+    unlocks: []
+
+  - id: lambda-closure-capture
+    name: Closure capture with mutation visible to the enclosing scope
+    order: 106
+    layer: functions
+    requires: [lambda-expressions]
+    v2_status: missing
+    evidence: FirstClassFunctions mutates a captured variable and observes it outside.
+    unlocks: []
+
+  - id: static-lambdas
+    name: Static lambdas rejecting capture
+    order: 107
+    layer: functions
+    requires: [lambda-expressions]
+    v2_status: missing
+    evidence: A capture-free lambda form whose whole point is the rejection.
+    unlocks: []
+
+  - id: method-group-conversion
+    name: Method group conversion by signature matching
+    order: 108
+    layer: functions
+    requires: [func-structural-function-types]
+    v2_status: missing
+    evidence: Arity, parameter and return compatibility checked against the target type.
+    unlocks: []
+
+  - id: delegate-func-conversion
+    name: Conversion between structural function types and named delegates
+    order: 109
+    layer: functions
+    requires: [method-group-conversion]
+    v2_status: missing
+    evidence: >
+      Two nominally distinct delegate types with identical signatures are inter-convertible
+      in Mist, in BOTH directions, plus conversion to the delegate base type. Neither C# nor
+      the CLR offers an implicit conversion, so the compiler must synthesize a wrapper.
+    unlocks: []
+
+  - id: func-type-aliases-and-currying
+    name: Aliases over function types, and nested function types
+    order: 110
+    layer: functions
+    requires: [func-structural-function-types, type-alias-declarations]
+    v2_status: missing
+    evidence: >
+      An alias over a function type usable as a target type, and a function type returning a
+      function type with chained invocation.
+    unlocks: []
+
+  # ===================================================================
+  # Layer T -- extensions.
+  #
+  # In Mist the BLOCK is the unit of receiver typing, not the method.
+  # ===================================================================
+
+  - id: extension-block-declaration
+    name: Extension block declaration and lowering
+    order: 111
+    layer: extensions
+    requires: [methods-static-and-instance]
+    v2_status: missing
+    evidence: >
+      One receiver declaration covers many members, with a synthetic receiver parameter in
+      scope for every body. Lowers to a synthesized static carrier class with a
+      this-annotated first parameter. Also supports static extension members, which must be
+      rejected if they reference the receiver.
+    unlocks: []
+
+  - id: extension-lookup-and-specificity
+    name: Extension member lookup fallback with specificity ordering
+    order: 112
+    layer: extensions
+    requires: [extension-block-declaration]
+    v2_status: missing
+    evidence: >
+      A registry keyed on the resolved receiver type, consulted only after a miss on the
+      receiver's own members, with candidates merged across blocks and ordered by
+      specificity. Visibility is a property of the CALL SITE -- gated on its import set --
+      not of the program.
+    unlocks: []
+
+  - id: universal-unknown-receiver-extensions
+    name: Universal extensions over an unknown receiver
+    order: 113
+    layer: extensions
+    requires: [extension-lookup-and-specificity, unknown-top-type]
+    v2_status: missing
+    evidence: >
+      An unknown receiver type defines the bottom of the specificity lattice and projects to
+      object. No C# analogue.
+    unlocks: []
+
+  - id: extension-properties
+    name: Extension properties
+    order: 114
+    layer: extensions
+    requires: [extension-block-declaration, property-declarations-and-accessors]
+    v2_status: missing
+    evidence: >
+      Get-only, lowering to static getter methods, which means the CALL SITE must be
+      reclassified from a property access to an invocation. Extension properties do not
+      exist in the emitted C# dialect.
+    unlocks: [ExtensionMethods]
+
+  # ===================================================================
+  # Layer U -- iterators.
+  # ===================================================================
+
+  - id: iterator-protocol-via-associated-type
+    name: Enumerable protocol declared through an associated type slot
+    order: 115
+    layer: iterators
+    requires: [associated-type-slots]
+    v2_status: missing
+    evidence: >
+      The stdlib enumerable abstract type declares an enumerator SLOT rather than relying on
+      a conventionally named method, so the element type comes from slot resolution rather
+      than duck-typed lookup. The compiler must synthesize the CLR interface members Mist
+      never declares -- the non-generic current member, reset, dispose and both enumerator
+      overloads.
+    unlocks: []
+
+  - id: foreach-over-user-enumerable
+    name: foreach over a user-defined enumerable
+    order: 116
+    layer: iterators
+    requires: [iterator-protocol-via-associated-type, control-flow-basic]
+    v2_status: missing
+    evidence: >
+      Element type inferred from the conformance, validated against an explicit element
+      annotation when present, and the concrete struct enumerator preserved in the loop so
+      iteration does not box.
+    unlocks: [Iterators]
+
+  # ===================================================================
+  # Layer V -- attributes and the project model.
+  # ===================================================================
+
+  - id: attribute-declarations-and-targets
+    name: Attribute lists on every declaration target
+    order: 117
+    layer: attributes-and-project
+    requires: [class-declaration]
+    v2_status: missing
+    evidence: >
+      TypeEmitter drops AttributesList with no diagnostic. Targets include class, struct,
+      method, field, property, indexer and parameter, with multiple lists on one declaration
+      and multiple attributes per list preserved distinctly.
+    unlocks: []
+
+  - id: attribute-arguments-and-type-literals
+    name: Attribute arguments including type literals
+    order: 118
+    layer: attributes-and-project
+    requires: [attribute-declarations-and-targets]
+    v2_status: missing
+    evidence: >
+      A dedicated argument sub-grammar exists specifically so a generic type name in
+      argument position does not parse as a relational comparison. Mist has no typeof
+      keyword, so a bare type name is recognized by classification and re-shaped at emission.
+    unlocks: []
+
+  - id: generic-attributes
+    name: Generic attribute type arguments
+    order: 119
+    layer: attributes-and-project
+    requires: [attribute-declarations-and-targets, type-parameters-and-constructed-types]
+    v2_status: missing
+    evidence: Attributes applies a generic attribute and relies on the name-suffix convention.
+    unlocks: []
+
+  - id: project-output-type-library
+    name: Library output type with entry-point relaxation
+    order: 120
+    layer: attributes-and-project
+    requires: [entry-point-resolution]
+    v2_status: missing
+    evidence: >
+      A library project requires no entry point and rejects top-level statements instead,
+      and the generated project file must carry the library output type.
+    unlocks: []
+
+  - id: nuget-package-restore
+    name: Package restore and assembly injection
+    order: 121
+    layer: attributes-and-project
+    requires: [class-declaration]
+    v2_status: missing
+    evidence: >
+      Restore must complete BEFORE type resolution, since the referenced namespaces do not
+      exist until it does, and the packages must be emitted as references in the generated
+      project file.
+    unlocks: []
+
+  - id: mist-test-command
+    name: The test command and test-project shape
+    order: 122
+    layer: attributes-and-project
+    requires: [project-output-type-library, nuget-package-restore,
+               attribute-declarations-and-targets]
+    v2_status: missing
+    evidence: >
+      The Testing sample is a test project, not an executable -- no entry point at all, so
+      running it must be refused. The test command compiles, emits a library project
+      carrying the test framework references, then shells out to the external test runner,
+      so the verdict comes from that runner rather than from Mist. Also needs the warning
+      for test-shaped attributes with no test framework package.
+    unlocks: [Testing]
+
+  # ===================================================================
+  # Layer W -- ranges and indices.
+  # ===================================================================
+
+  - id: index-and-range-expressions
+    name: From-end indices and range expressions
+    order: 123
+    layer: ranges
+    requires: [arrays-sized-index-length]
+    v2_status: missing
+    evidence: >
+      A from-end index is typed as an index rather than an integer, and a range has
+      independently omittable bounds with a from-end bound nestable inside it.
+    unlocks: []
+
+  - id: slicing-and-sliceable-classification
+    name: Slicing, with receiver indexability classification
+    order: 124
+    layer: ranges
+    requires: [index-and-range-expressions]
+    v2_status: missing
+    evidence: >
+      The result type of an element access depends on whether the argument is an index or a
+      range, and receivers must be classified as indexable or sliceable -- array, span,
+      string, a range-indexer type, or countable plus a slice member.
+    unlocks: []
+
+  - id: list-and-slice-patterns
+    name: List patterns with slice elements
+    order: 125
+    layer: ranges
+    requires: [index-and-range-expressions, logical-patterns]
+    v2_status: missing
+    evidence: >
+      Positional element subpatterns plus a slice binding the contiguous middle, which
+      imposes a minimum-length constraint derived from the pattern's own arity and slice
+      position.
+    unlocks: [PatternMatching, RangesAndIndices, SwitchExpressions]
+
+  # ===================================================================
+  # Layer X -- CLR interop.
+  # ===================================================================
+
+  - id: clr-assembly-type-projection
+    name: CLR assembly loading and type projection
+    order: 126
+    layer: clr-interop
+    requires: [type-parameters-and-constructed-types]
+    v2_status: missing
+    evidence: >
+      Metadata-only load of the reference set, CLR namespaces mapped into Mist scopes driven
+      by imports, and stdlib alias bridging so the Mist string and array types resolve back
+      to their CLR counterparts.
+    unlocks: [Attributes]
+
+  - id: clr-generic-construction-and-members
+    name: CLR generic construction and member projection
+    order: 127
+    layer: clr-interop
+    requires: [clr-assembly-type-projection, type-argument-substitution]
+    v2_status: missing
+    evidence: >
+      Instance, static, property and indexer resolution on projected types, cross-assembly
+      base-type projection with inherited lookup, and overload applicability filtered by
+      argument type rather than declaration order.
+    unlocks: [ArityOverloads]
+
+  - id: clr-byref-parameter-projection
+    name: CLR by-reference parameter projection
+    order: 128
+    layer: clr-interop
+    requires: [clr-assembly-type-projection]
+    v2_status: missing
+    evidence: >
+      Mist has neither an out nor an in modifier, so all three CLR by-ref kinds collapse to
+      one Mist ref kind and the calling convention must be retained per parameter and
+      reconstructed at emission. Direction matters -- an out parameter means the callee
+      assigns, so the caller's prior value is not live, even though the syntax matches ref.
+    unlocks: []
+
+  - id: framework-and-package-reference-resolution
+    name: Shared framework and package reference resolution
+    order: 129
+    layer: clr-interop
+    requires: [clr-assembly-type-projection, nuget-package-restore]
+    v2_status: missing
+    evidence: >
+      Shared-framework resolution from the manifest into a reference-assembly set, with the
+      target framework moniker driving restore asset selection, and both emitted into the
+      generated project file.
+    unlocks: []
+
+  - id: clr-nullable-projection
+    name: Projection of CLR nullability into optionals
+    order: 130
+    layer: clr-interop
+    requires: [clr-assembly-type-projection, optional-union-representation]
+    v2_status: missing
+    evidence: >
+      A CLR reference-type return projects to an optional, which then has to flow into
+      interpolation and member access, forcing a decision about whether narrowing is required.
+    unlocks: [AssemblyTypeProvider]
+
+  - id: clr-extension-method-discovery
+    name: CLR extension method discovery and binding
+    order: 131
+    layer: clr-interop
+    requires: [clr-assembly-type-projection, extension-lookup-and-specificity]
+    v2_status: missing
+    evidence: >
+      Eager metadata scanning per imported namespace, registered into the SAME registry as
+      Mist-native blocks. Receiver applicability must consider the interface set, not
+      nominal equality, and inference has only the receiver to unify against. A chained call
+      forces the compiler to compute the substituted intermediate return type itself,
+      because emission is a static invocation.
+    unlocks: [DelegateFuncConversion, ExtensionMethodBinding]
+
+  - id: ref-parameters-and-ref-locals
+    name: Mist-declared ref parameters, ref returns and ref locals
+    order: 132
+    layer: clr-interop
+    requires: [clr-byref-parameter-projection]
+    v2_status: missing
+    evidence: >
+      Needs an lvalue check for ref arguments, escape analysis for ref returns, and alias
+      liveness for ref locals whose referent is a field or an element. Mist omits the second
+      ref keyword C# requires at a ref-local initializer, so the emitter reinstates it.
+    tasks:
+      - Preserve the alias for a readonly ref local. The classic pipeline currently emits a
+        plain copy, silently turning an alias into a value.
+    unlocks: [ClrRefInterop]
+
+  # ===================================================================
+  # Layer Y -- the readonly discipline.
+  #
+  # In Mist readonly is a context, not only a field modifier.
+  # ===================================================================
+
+  - id: readonly-locals-and-blocks
+    name: Readonly locals and readonly blocks
+    order: 133
+    layer: readonly-discipline
+    requires: [statements-core]
+    v2_status: missing
+    evidence: >
+      A readonly local is single-assignment, composes with an ownership specifier and with
+      tuple deconstruction, and a readonly block makes every declaration inside it readonly.
+      Readonly is a property of the BINDING, not the value, so member reads and method calls
+      through it stay legal. C# has none of these; all three erase.
+    unlocks: []
+
+  - id: readonly-member-and-type-contexts
+    name: Readonly on members, types and parameters
+    order: 134
+    layer: readonly-discipline
+    requires: [property-declarations-and-accessors, instance-fields]
+    v2_status: missing
+    evidence: >
+      Readonly applies to fields, properties, indexers, methods, constructors, whole TYPES
+      and PARAMETERS. A readonly type makes every member implicitly readonly. Emission
+      differs per position -- a readonly class becomes a plain class with fields promoted, a
+      readonly method survives on a struct and must be dropped on a class, and readonly
+      parameters erase entirely.
+    unlocks: [EnumReadonlyRestriction, Enums]
+
+  - id: readonly-inference
+    name: Per-member readonly inference
+    order: 135
+    layer: readonly-discipline
+    requires: [readonly-member-and-type-contexts]
+    v2_status: missing
+    evidence: >
+      Classification of each member body as reads-only or writes-storage, with a bounded
+      fixed point because a readonly caller's status depends on its callees.
+    unlocks: []
+
+  - id: readonly-mutation-checking
+    name: Readonly context enforcement
+    order: 136
+    layer: readonly-discipline
+    requires: [readonly-inference]
+    v2_status: missing
+    evidence: >
+      A context-kind stack distinguishing method, getter, setter, indexer setter,
+      constructor and block, with constructor privilege for field assignment, a
+      backing-field exemption inside a readonly setter only, and a readonly block that
+      SUSPENDS constructor privilege for its extent.
+    unlocks: [UnknownReadonlySemantics]
+
+  - id: readonly-generic-constraints
+    name: readonly and mutable generic constraints
+    order: 137
+    layer: readonly-discipline
+    requires: [readonly-member-and-type-contexts, generic-constraints-nominal]
+    v2_status: missing
+    evidence: >
+      Constraints with no CLR encoding, so they are checked and then erased. Member access
+      through a readonly-constrained parameter is a readonly receiver.
+    unlocks: [ReadonlyContexts]
+
+  # ===================================================================
+  # Layer Z -- stack-only types.
+  # ===================================================================
+
+  - id: ref-struct-declarations
+    name: ref struct declarations
+    order: 138
+    layer: stack-only
+    requires: [struct-declaration]
+    v2_status: missing
+    evidence: >
+      Ref-struct-ness must propagate into legality checks at every position used -- field,
+      parameter, return, foreach and local -- including a ref struct field inside another.
+    unlocks: []
+
+  - id: span-projection-and-length-erasure
+    name: Span projection with length erasure
+    order: 139
+    layer: stack-only
+    requires: [ref-struct-declarations, clr-generic-construction-and-members]
+    v2_status: missing
+    evidence: >
+      The Mist length-indexed span must unify with the CLR span, erasing the length exactly
+      as the array type already does. The indexer write must bind to a ref-returning indexer
+      or the store is silently discarded, and slicing must alias the same backing memory.
+    unlocks: [CSharpInteropV2, RefStructs]
+
+  - id: stackalloc
+    name: stackalloc with element-type legality checking
+    order: 140
+    layer: stack-only
+    requires: [span-projection-and-length-erasure]
+    v2_status: missing
+    evidence: >
+      One syntax produces a mutable or a readonly span purely from the binding's declared
+      type. Element types must satisfy a stampability predicate distinct from C#'s unmanaged
+      rule, memory is zero-initialized, and the escape rule must permit passing a
+      stackalloc-backed span down while refusing to let it escape.
+    unlocks: [StackOnlyTypes]
+
+  # ===================================================================
+  # Layer AA -- refinement and dependent types.
+  #
+  # Both erase completely. The classic backend has ZERO references to either, so
+  # every guarantee here is a front-end guarantee with no runtime witness.
+  # ===================================================================
+
+  - id: refinement-type-declarations
+    name: Refinement type declarations
+    order: 141
+    layer: refinement-and-dependent
+    requires: [type-alias-declarations]
+    v2_status: missing
+    evidence: A base type plus a predicate bound under an alias, usable in every type position.
+    unlocks: []
+
+  - id: refinement-static-discharge
+    name: Static discharge of a refinement predicate
+    order: 142
+    layer: refinement-and-dependent
+    requires: [refinement-type-declarations]
+    v2_status: missing
+    evidence: >
+      Compile-time evaluation of a literal against a predicate including boundary values,
+      widening a refinement to its base, and degrading an arithmetic result to the base.
+    unlocks: []
+
+  - id: refinement-implication-engine
+    name: Predicate entailment between refinements
+    order: 143
+    layer: refinement-and-dependent
+    requires: [refinement-static-discharge]
+    v2_status: missing
+    evidence: >
+      Assignability is ENTAILMENT, not predicate equality and not alias identity. The engine
+      normalizes into relational, equality, negation and disjunction constraints and covers
+      cross-operator strictness, disjunction membership and subset, and conjunctive interval
+      containment, with the base type held fixed.
+    unlocks: [RefinementComparison]
+
+  - id: refinement-runtime-guard-insertion
+    name: Residual runtime guards for refinements
+    order: 144
+    layer: refinement-and-dependent
+    requires: [refinement-static-discharge]
+    v2_status: missing
+    evidence: >
+      Two proof modes from one construct -- static discharge where the value is known, and a
+      residual runtime guard at a parameter. Choosing wrong is either a false reject or an
+      unsound accept.
+    unlocks: [RefinementTypes]
+
+  - id: dependent-type-parameters
+    name: Values as type arguments
+    order: 145
+    layer: refinement-and-dependent
+    requires: [type-parameters-and-constructed-types]
+    v2_status: missing
+    evidence: >
+      A dependent parameter occupies an ordinal distinct from type parameters, its argument
+      participates in constructed-type IDENTITY, and it stays readable at runtime inside
+      member bodies. Domains include the integral types, bool and char, and may also be a
+      named refinement.
+    unlocks: []
+
+  - id: dependent-const-witness-encoding
+    name: Const witness encoding for dependent arguments
+    order: 146
+    layer: refinement-and-dependent
+    requires: [dependent-type-parameters]
+    v2_status: missing
+    evidence: >
+      C# has no analogue, so the encoding is invented -- a dependent parameter becomes a type
+      parameter constrained to a per-domain witness interface, each distinct value becomes a
+      const struct deduplicated program-wide, and body uses become a static member read.
+    unlocks: [DependentTypeRefinementConstraints, DependentTypes]
+
+  - id: adhoc-refinement-where-clauses
+    name: Value predicates in where clauses
+    order: 147
+    layer: refinement-and-dependent
+    requires: [refinement-implication-engine, dependent-const-witness-encoding]
+    v2_status: missing
+    evidence: >
+      One syntax with two obligations -- discharge at a use site, versus IMPLICATION between
+      two predicates when forwarding to a base or weakening in an override. The second
+      cannot be decided by evaluation. Predicate contravariance participates in override
+      compatibility, which C# has no equivalent for. Applies to type parameters, method
+      parameters, constructor parameters and indexer parameters.
+    unlocks: [AdhocRefinementConstraints, Properties, RefParameters]
+
+  - id: array-bounds-flow-analysis
+    name: Flow-sensitive array bounds discharge
+    order: 148
+    layer: refinement-and-dependent
+    requires: [refinement-implication-engine, dependent-const-witness-encoding,
+               arrays-sized-index-length]
+    v2_status: missing
+    evidence: >
+      Indexing is a call to a refined indexer, so an index is a proof obligation. The
+      interesting case is SYMBOLIC -- a loop condition against a length entails the bound
+      only because both name the same array, which value reasoning cannot establish.
+      Narrowing must be invalidated by reassignment in the loop body.
+    tasks:
+      - Do not repeat the classic pipeline's critical gap. Binding a concrete-length array
+        to an annotated local currently ERASES the known length, so an out-of-range literal
+        index compiles clean and throws at runtime. See backlog/general.md.
+    unlocks: [ArrayBoundsFlowAnalysis]
+
+  # ===================================================================
+  # Layer AB -- variadics.
+  # ===================================================================
+
+  - id: type-pack-declarations
+    name: Type pack declarations
+    order: 149
+    layer: variadics
+    requires: [type-parameters-and-constructed-types]
+    v2_status: missing
+    evidence: >
+      Packs on classes, structs, abstract types and methods, in a keyword form and in
+      bracketed open and fixed-size forms, with the pack arity readable as a compile-time
+      value in expression position.
+    unlocks: []
+
+  - id: pack-binding-and-inference
+    name: Pack binding rule and inference
+    order: 150
+    layer: variadics
+    requires: [type-pack-declarations]
+    v2_status: missing
+    evidence: >
+      Leading and trailing fixed parameters bind inward from the ends and the pack absorbs
+      the middle. Packs are inferred from a call's argument list or supplied explicitly in
+      brackets, and several independent packs in one signature must be disambiguated.
+    unlocks: []
+
+  - id: pack-spread-positions
+    name: Pack spread in type and value positions
+    order: 151
+    layer: variadics
+    requires: [pack-binding-and-inference, func-structural-function-types]
+    v2_status: missing
+    evidence: >
+      Spread into a type argument list, into a base-type list, inside a type alias including
+      with void as the result, and as a value at a call site. Requires PROVABLE-spread
+      checking -- spreading into a fixed-arity target must be rejected unless the pack's
+      shape is proven for every instantiation, not just the observed one.
+    unlocks: []
+
+  - id: spread-generated-members
+    name: Spread-generated members
+    order: 152
+    layer: variadics
+    requires: [pack-spread-positions, property-declarations-and-accessors]
+    v2_status: missing
+    evidence: >
+      A spread member declaration surfaces both an aggregate and one projection per element,
+      in field and get-only-property kinds, with whole-pack assignment in a constructor. A
+      whole-pack constraint distributes to every element so the constrained members are
+      callable on each projection.
+    unlocks: []
+
+  - id: variadic-monomorphization
+    name: Monomorphization per observed arity
+    order: 153
+    layer: variadics
+    requires: [spread-generated-members, tuple-patterns]
+    v2_status: missing
+    evidence: >
+      Discover the finite set of arities actually used across declarations, member types and
+      construction sites, then specialize to each. Pack narrowing by tuple pattern re-enables
+      fixed-arity forwarding inside a branch, and those branches must be PRUNED per
+      monomorph -- the classic pipeline copies them verbatim, leaving shape-impossible tests
+      in every arity.
+    unlocks: [Variadics]
+
+  # ===================================================================
+  # Layer AC -- ownership and drop.
+  # ===================================================================
+
+  - id: ownership-specifiers
+    name: Ownership specifiers on bindings
+    order: 154
+    layer: ownership-and-drop
+    requires: [statements-core]
+    v2_status: missing
+    evidence: >
+      Owned, borrowed, frozen and readonly-ref as part of a binding's state, forming a
+      tier-satisfaction lattice. Every tier erases at emission except readonly ref, so there
+      is NO runtime witness for any of this analysis.
+    unlocks: [ReadonlyLocals]
+
+  - id: ownership-move-checking
+    name: Per-binding ownership state machine and move checking
+    order: 155
+    layer: ownership-and-drop
+    requires: [ownership-specifiers]
+    v2_status: missing
+    evidence: >
+      A six-state machine per binding covering live, three lending states, moved and dead.
+      Move on assignment marks the source dead, use-after-move must be rejected across
+      straight-line and branching flow, lending transitions must restore when the lease ends,
+      and re-lending from a borrowed recipient must be allowed.
+    unlocks: []
+
+  - id: method-tier-visibility-filtering
+    name: Method visibility filtered by the receiver's tier
+    order: 156
+    layer: ownership-and-drop
+    requires: [ownership-move-checking]
+    v2_status: missing
+    evidence: >
+      Mutable methods are HIDDEN from an owned binding of a non-cooperating type, so
+      ownership changes which members exist rather than only which assignments are legal. The
+      owned class modifier is a cooperation contract distinct from an owned binding.
+    unlocks: []
+
+  - id: iclonable-implicit-clone
+    name: Implicit clone insertion at owned positions
+    order: 157
+    layer: ownership-and-drop
+    requires: [ownership-move-checking]
+    v2_status: missing
+    evidence: >
+      A clone is inserted at owned bindings, owned parameters and owned fields, including
+      from a lent tier without consuming the lender. Field assignment also needs provenance
+      checking -- the source must be owned.
+    tasks:
+      - Recognize an explicit clone call as owned provenance. The classic pipeline does not,
+        and emits a double clone.
+      - Insert the clone for immutable reference types too, or decide deliberately not to.
+        The classic pipeline silently omits it for strings, which looks correct only because
+        strings are immutable.
+    unlocks: []
+
+  - id: jagged-per-field-ownership
+    name: Per-field ownership with composite parent state
+    order: 158
+    layer: ownership-and-drop
+    requires: [ownership-move-checking, instance-fields]
+    v2_status: missing
+    evidence: >
+      Owned fields on a non-owned type, tracked independently, so a partial move out of one
+      field leaves siblings usable while making the PARENT unusable. A clone-read out of an
+      owned field must leave the field live.
+    unlocks: []
+
+  - id: this-tier-inference
+    name: Receiver tier inference and annotation
+    order: 159
+    layer: ownership-and-drop
+    requires: [method-tier-visibility-filtering]
+    v2_status: missing
+    evidence: >
+      Each method's receiver tier is inferred from its body's field accesses, can be
+      annotated explicitly including a consuming form, and must be checked at the call site.
+      Also covers ownership inference for var from downstream use.
+    unlocks: [Ownership]
+
+  - id: substructural-disciplines
+    name: Linear, affine and relevant disciplines
+    order: 160
+    layer: ownership-and-drop
+    requires: [ownership-move-checking]
+    v2_status: missing
+    evidence: >
+      Three disciplines with different drop-timing rules and implied ownership. Linear is
+      exactly-once, relevant drops at scope exit and permits aliasing, affine suppresses the
+      scope-exit drop entirely and fires only inside a scoped block.
+    unlocks: []
+
+  - id: drop-recognition-and-insertion
+    name: Drop recognition and insertion at scope exit
+    order: 161
+    layer: ownership-and-drop
+    requires: [substructural-disciplines]
+    v2_status: missing
+    evidence: >
+      A drop member may RETURN A VALUE, which C# disposal cannot. Drops fire in reverse
+      declaration order, are ELIDED when the binding is moved into a call or a return, and
+      chain recursively when the drop's return type is itself droppable. A container's drop
+      is synthesized from its droppable fields in declaration order. Emission nests
+      try-finally per binding to get the ordering.
+    tasks:
+      - Resolve a generic droppable field through its constraint. The classic pipeline emits
+        a dynamic dispatch, and places it AFTER the return so it is unreachable.
+    unlocks: []
+
+  - id: with-blocks-and-drop-scopes
+    name: Scoped drop blocks
+    order: 162
+    layer: ownership-and-drop
+    requires: [drop-recognition-and-insertion]
+    v2_status: missing
+    evidence: >
+      A block form introducing an anonymous drop-scope binding and a declaration form
+      draining at enclosing-scope exit. This is Mist's replacement for the C# using
+      statement, and it is where an affine binding's drop fires.
+    unlocks: [DropSemantics]
+
+  - id: disposable-drop-interop
+    name: Droppability derived from CLR disposability
+    order: 163
+    layer: ownership-and-drop
+    requires: [drop-recognition-and-insertion, clr-assembly-type-projection]
+    v2_status: missing
+    evidence: >
+      Two droppability sources with a precedence order, plus an ORIGIN-DEPENDENT asymmetry --
+      the CLR disposal interface means droppable for an imported type and nothing at all for
+      a Mist-declared one. Drop placement must be exception-safe.
+    unlocks: [DisposableDropInterop]
+
+  - id: substructural-field-containment
+    name: Discipline containment matrix for fields
+    order: 164
+    layer: ownership-and-drop
+    requires: [substructural-disciplines, generic-constraints-nominal]
+    v2_status: missing
+    evidence: >
+      Containment is a SUBSUMPTION question -- does the container's drop guarantee cover the
+      field's drop requirement. Checked at declaration time, through a constrained type
+      parameter, and through nested generic instantiations. Also classifies CLR awaitables
+      into the lattice.
+    unlocks: []
+
+  # ===================================================================
+  # Layer AD -- definite assignment and defaultability.
+  # ===================================================================
+
+  - id: definite-assignment-analysis
+    name: Flow-sensitive definite assignment
+    order: 165
+    layer: definite-assignment
+    requires: [control-flow-basic]
+    v2_status: missing
+    evidence: >
+      An assigned-or-unassigned lattice merged at join points, checked on every read
+      including through interpolation, plus a constructor-level all-fields-assigned-on-all-
+      paths verification.
+    unlocks: []
+
+  - id: stampability-classification
+    name: Element-type stampability for array creation
+    order: 166
+    layer: definite-assignment
+    requires: [definite-assignment-analysis]
+    v2_status: missing
+    evidence: >
+      Bare sized array creation is legal only for stampable element types, so an array of a
+      reference type can never be observed holding null. This is reached through element-type
+      classification rather than per-element flow analysis, and the sanctioned replacement is
+      an initializer-function construction lowered to an allocate-and-fill loop.
+    unlocks: [DefiniteAssignment]
+
+  - id: defaultability-inference
+    name: Per-type defaultability inference
+    order: 167
+    layer: definite-assignment
+    requires: [default-value-synthesis]
+    v2_status: missing
+    evidence: >
+      Defaultability is DERIVED and must agree across three independent sources -- a user
+      default block, implicit zero-initialization for a field-only type, and an enum
+      variant-level default annotation. An optional is defaultable because its union
+      contains void.
+    unlocks: []
+
+  - id: default-generic-constraint
+    name: The default generic constraint
+    order: 168
+    layer: definite-assignment
+    requires: [defaultability-inference, generic-constraints-nominal]
+    v2_status: missing
+    evidence: >
+      Checked at every instantiation site and used to resolve a default expression inside a
+      generic body. The classic pipeline lowers it to an injected factory parameter and a
+      comment, so it is NOT carried in metadata and a violating instantiation from outside
+      would not be caught.
+    unlocks: [OptionalDefaultability]
+
+  # ===================================================================
+  # Layer AE -- async and structured context.
+  # ===================================================================
+
+  - id: async-return-type-transform
+    name: async as a return-type transform
+    order: 169
+    layer: async-and-context
+    requires: [func-structural-function-types]
+    v2_status: missing
+    evidence: >
+      Mist has no async-await keyword pairing. async on a method transforms the RETURN TYPE
+      into a task, and the non-generic task is the void case.
+    unlocks: []
+
+  - id: sync-async-context-classification
+    name: Sync versus async context classification
+    order: 170
+    layer: async-and-context
+    requires: [async-return-type-transform]
+    v2_status: missing
+    evidence: >
+      Context changes the TYPE of a call expression and the TIMING of task completion, so
+      the same call site means different things in different enclosing bodies. Async-ness
+      propagates up the call graph transitively, and can promote the entry point.
+    unlocks: []
+
+  - id: auto-await-and-explicit-await
+    name: Auto-await in sync context and explicit await in async context
+    order: 171
+    layer: async-and-context
+    requires: [sync-async-context-classification]
+    v2_status: missing
+    evidence: >
+      An async call in sync context yields the unwrapped value, including inside a sync
+      lambda body, which changes the lambda's inferred return type. The classic pipeline
+      lowers auto-await to a blocking getter, which cannot deadlock here only because
+      nothing installs a synchronization context.
+    unlocks: []
+
+  - id: async-expression-functor
+    name: async as an expression functor
+    order: 172
+    layer: async-and-context
+    requires: [auto-await-and-explicit-await]
+    v2_status: missing
+    evidence: >
+      Applied to a sync call it LIFTS into a task; applied to an async call it SUPPRESSES
+      auto-await and yields the raw task. Composable inside a lambda body, including
+      double-lifting. Also covers async block expressions.
+    unlocks: [SubstructuralFieldDiscipline]
+
+  - id: discarded-task-obligation
+    name: Completion obligation for a discarded task
+    order: 173
+    layer: async-and-context
+    requires: [auto-await-and-explicit-await]
+    v2_status: missing
+    evidence: >
+      A discarded task carries a completion obligation -- awaited immediately in sync
+      context, deferred to scope exit in async context. The classic pipeline does NOT emit
+      the scope-exit await, so several samples are bare fire-and-forget and read correctly
+      only because every helper completes synchronously.
+    unlocks: [FirstClassFunctions]
+
+  - id: async-state-machine-lowering
+    name: Async lowering with scope-exit awaits
+    order: 174
+    layer: async-and-context
+    requires: [auto-await-and-explicit-await]
+    v2_status: missing
+    evidence: >
+      Emission must place a scope-exit await inside the finally block, which is where the
+      discarded-task cases are currently missing.
+    unlocks: [StructuredConcurrency]
+
+  - id: async-drop-chaining
+    name: Interaction of drop insertion with async lowering
+    order: 175
+    layer: async-and-context
+    requires: [async-state-machine-lowering, drop-recognition-and-insertion]
+    v2_status: missing
+    evidence: >
+      A scope-exit drop obligation can RETROACTIVELY make the enclosing method async,
+      because dropping a task means awaiting it inside the finally block. Explicit capture of
+      a drop result suppresses the recursive chain and gives the local its own obligation.
+    unlocks: [AsyncDropChaining]
+
+  - id: structured-context
+    name: Implicit parameters keyed by type
+    order: 176
+    layer: async-and-context
+    requires: [type-alias-declarations, refinement-type-declarations,
+               dependent-const-witness-encoding]
+    v2_status: missing
+    evidence: >
+      A with clause on a signature is a declared context requirement, resolved from the
+      ambient environment at the call site and propagated through intermediates that do not
+      consume it. Lexically scoped push and pop with shadowing. The hard part is the KEY
+      IDENTITY function -- aliases and refinements collapse to the underlying key while
+      unions and dependent instantiations stay distinct. Requirements on abstract-type
+      members must be honoured through dynamic dispatch.
+    tasks:
+      - Make the context store flow-local. The classic pipeline emits a process-global
+        static dictionary, which is correct only for a single-threaded synchronous program.
+    unlocks: [StructuredContext]
+
+  # ===================================================================
+  # Layer AF -- regex as a first-class type.
+  # ===================================================================
+
+  - id: regex-type-and-literals
+    name: A regex primitive type with literals
+    order: 177
+    layer: regex
+    requires: [class-declaration]
+    v2_status: missing
+    evidence: >
+      Backtick literals with their own escape handling, validated at compile time, plus
+      built-in members, implicit conversion to string, an explicit cast from a non-constant
+      string, and a string-literal shorthand gated on compile-time validation.
+    unlocks: []
+
+  - id: regex-full-match-lowering
+    name: Full-match semantics distinct from partial match
+    order: 178
+    layer: regex
+    requires: [regex-type-and-literals]
+    v2_status: missing
+    evidence: >
+      Full match is DERIVED, not primitive -- the compiler wraps the pattern rather than
+      calling a full-match API. The classic pipeline wraps by string concatenation, so an
+      already-anchored pattern gets DOUBLE-anchored.
+    unlocks: []
+
+  - id: regex-refined-string-types
+    name: String types refined by a pattern
+    order: 179
+    layer: regex
+    requires: [regex-type-and-literals, refinement-type-declarations]
+    v2_status: missing
+    evidence: >
+      A declarable type whose predicate is a regex, narrowable by a type pattern that binds a
+      typed variable, plus regex patterns as switch arms with ordering preserved.
+    unlocks: [RegexLiterals]
+
+  # ===================================================================
+  # Layer AG -- anonymous types.
+  # ===================================================================
+
+  - id: anonymous-type-expressions
+    name: Anonymous type expressions with structural identity
+    order: 180
+    layer: anonymous-types
+    requires: [class-declaration]
+    v2_status: missing
+    evidence: >
+      Explicit and bare-projection member forms with name inference from an identifier or a
+      member-access tail, and an ordered structural shape such that two independently
+      written same-shape literals unify as one type.
+    unlocks: []
+
+  - id: anonymous-type-structural-equality
+    name: Structural equality on anonymous types
+    order: 181
+    layer: anonymous-types
+    requires: [anonymous-type-expressions]
+    v2_status: missing
+    evidence: >
+      Equality is VALUE equality where C# gives reference equality, so this is a deliberate
+      divergence rather than a pass-through.
+    unlocks: [AnonymousTypes]
+
+  # ===================================================================
+  # Layer AH -- conversion classification.
+  # ===================================================================
+
+  - id: conversion-classification-for-as
+    name: Total versus fallible conversion classification
+    order: 182
+    layer: conversions-advanced
+    requires: [pattern-matching-core, union-types-and-carriers]
+    v2_status: missing
+    evidence: >
+      The as operator's RESULT TYPE depends on the classification -- a bare type for a
+      provable conversion, an optional for a runtime-checked one. Covers identity, reference
+      widening, reference narrowing, struct widening and union constituent extraction. C#
+      always yields a nullable, so this is a divergence.
+    tasks:
+      - Evaluate the operand once. The classic pipeline re-emits it two or three times inside
+        a conditional, which double-evaluates a side-effecting operand.
+    unlocks: []
+
+  - id: struct-inheritance-flattening
+    name: Struct inheritance by field flattening
+    order: 183
+    layer: conversions-advanced
+    requires: [struct-inheritance]
+    v2_status: missing
+    evidence: >
+      Inherited fields flatten into the derived layout, base constructor chaining inlines
+      the assignments RECURSIVELY through every level, and a derived-to-base implicit
+      conversion is synthesized that copies only the base fields, applied at assignment,
+      argument and return positions and able to skip a level. Generic struct bases must
+      substitute before the layout forms.
+    tasks:
+      - Flatten inherited METHODS too. The classic pipeline resolves them in the semantic
+        model but does not emit them, and StructInheritance routes around the gap.
+      - Recurse base-constructor inlining past one level. The sample re-assigns grandparent
+        fields by hand to work around it.
+    unlocks: [AsOperator, StructInheritance]
+
+  # ===================================================================
+  # Layer AI -- grammar projection.
+  # ===================================================================
+
+  - id: nary-operator-group-folding
+    name: Left-associative folding of n-ary operator chains
+    order: 184
+    layer: grammar-projection
+    requires: [operators-arithmetic-comparison-logical]
+    v2_status: done
+    verified_by: v2-semantics
+    evidence: >
+      The parser is generated from a PEG grammar that materializes an n-ary group list per
+      precedence level, so the left fold happens during lowering rather than in the parser.
+      v2 already folds correctly -- the AllFeaturesV2 baseline shows the mixed
+      addition-and-subtraction chain evaluating left-associatively.
+    unlocks: [StormAnonymousGroups]
+
+  # ===================================================================
+  # Layer AJ -- constructs only the stdlib exercises.
+  #
+  # Neither appears in ANY sample. Neither is implemented in v2 yet, and the stdlib
+  # is transpiled by v2 on every compile.
+  # ===================================================================
+
+  - id: operator-overload-declarations
+    name: User-declared operator overloads
+    order: 185
+    layer: stdlib-only
+    requires: [class-declaration]
+    v2_status: missing
+    evidence: >
+      TypeEmitter has no operator path yet -- it walks fields, constructors and methods
+      only, so OperatorsList is never reached. The stdlib declares operators in 16 files
+      and the emitted stdlib contains none of them, so every arithmetic and comparison
+      operator on a Mist primitive is still absent from v2's output. Their bodies DO bind:
+      Phase 3 walks MemberType.EnumerateDelegates, which includes operators, so the
+      remaining work is emission alone. No sample declares an operator overload, so the
+      sample suite structurally cannot exercise this once the work lands.
+    unlocks: []
+
+  - id: intrinsic-member-declarations
+    name: The intrinsic modifier
+    order: 186
+    layer: stdlib-only
+    requires: [class-declaration]
+    v2_status: missing
+    evidence: >
+      Marks a declaration whose implementation is supplied by the compiler rather than by a
+      Mist body. Used throughout Source/Standard/Bootstrap and by nothing in samples.
+    unlocks: [stdlib]
+
+# =====================================================================
+# SAMPLES
+#
+# status is derived -- runnable when every capability in the closure of `requires`
+# is delivered. `requires` lists DIRECT dependencies only.
+# =====================================================================
+
+samples:
+
+  - name: Simpliest
+    intro_order: 2
+    threshold: standard-library-binding
+    requires: [class-declaration, methods-static-and-instance, statements-core,
+               namespace-file-scoped, standard-library-binding]
+    untested:
+      - args is declared and never read, so array-of-string need only be a resolvable
+        parameter type.
+      - Only one argument type ever reaches Console.WriteLine, so first-match resolution
+        looks correct. If the unknown-typed overload were preferred over the string one the
+        output would be byte-identical.
+      - The declared namespace is never referenced from inside the file, so namespace
+        registration is unverified by this sample alone.
+
+  - name: Primitives
+    intro_order: 17
+    threshold: arrays-sized-index-length
+    requires: [class-declaration, methods-static-and-instance, statements-core,
+               namespace-file-scoped, standard-library-binding, literals-primitive,
+               string-interpolation, var-type-inference,
+               operators-arithmetic-comparison-logical, control-flow-basic,
+               arrays-sized-index-length]
+    untested:
+      - Every non-int primitive flows only into string interpolation. No arithmetic,
+        comparison or argument passing of uint, long, ulong, short, ushort, byte, sbyte,
+        float, double, decimal or char. A wrong inferred or widened type is invisible as
+        long as the digits match.
+      - The narrow-type declarations emit as bare C# literals, and Roslyn's own
+        constant-conversion rule makes them compile whether or not Mist modelled the
+        conversion. The bootstrap declares no conversion INTO byte or sbyte at all.
+      - The escaped string local is never printed, so escape decoding need only round-trip
+        through emitted source rather than be interpreted.
+      - score is a constant, so two of the three grade branches are dead.
+      - The DigitSum negative guard never executes; the only call passes a positive value.
+      - Console.WriteLine at arity zero is never selected anywhere.
+
+  - name: ArrayLiterals
+    intro_order: 35
+    threshold: array-literals
+    requires: [class-declaration, methods-static-and-instance, statements-core,
+               namespace-file-scoped, standard-library-binding, literals-primitive,
+               string-interpolation, var-type-inference,
+               operators-arithmetic-comparison-logical, control-flow-basic,
+               arrays-sized-index-length, array-literals]
+    untested:
+      - The three printers are uniquely named, not overloaded, so argument-type-driven
+        resolution over the three array types is never required. If every literal inferred
+        as an unknown element type the calls would still bind and print correctly.
+      - The empty literal is observed only through its Length, so the target-typed empty
+        literal's element type is never used.
+      - No foreach and no sized array creation anywhere. This sample says nothing about
+        array enumeration or sized creation despite being the array sample.
+      - Nested arrays are two levels deep with equal inner lengths, so a jagged versus
+        rectangular confusion in the type model produces identical output.
+      - Every index is trivially in range, so the dependent array-bounds refinement can be
+        ignored entirely with no observable failure.
+
+  - name: Overloading
+    intro_order: 16
+    threshold: constructor-overload-resolution
+    requires: [class-declaration, methods-static-and-instance, statements-core,
+               namespace-file-scoped, standard-library-binding, literals-primitive,
+               string-interpolation, var-type-inference,
+               operators-arithmetic-comparison-logical, control-flow-basic,
+               instance-fields, constructors, this-expression,
+               implicit-instance-field-access, object-creation, constructor-chain-this,
+               overload-resolution-by-argument-type, constructor-overload-resolution]
+    note: >
+      Marked done in the old progression. It is not. Everything except overload resolution
+      is delivered; the sample passes because Roslyn resolves the calls and every result
+      feeds string interpolation. This entry is the correction.
+    untested:
+      - Every Format and Add result is interpolated, so choosing the int overload for the
+        double arguments would be invisible. The double sum prints as 4 and so would an int
+        result.
+      - The double Clamp call returns its min and prints as 1, indistinguishable from an int
+        result.
+      - No overload is selected in a position where the static type is observable, such as
+        assignment to an explicitly typed local.
+      - The chain in the parameterless constructor passes a literal, so the
+        parameter-referencing chain argument is not exercised.
+
+  - name: HelloMist
+    intro_order: 1
+    threshold: struct-declaration
+    requires: [class-declaration, methods-static-and-instance, statements-core,
+               namespace-file-scoped, standard-library-binding, literals-primitive,
+               string-interpolation, var-type-inference,
+               operators-arithmetic-comparison-logical, control-flow-basic,
+               arrays-sized-index-length, instance-fields, constructors, this-expression,
+               implicit-instance-field-access, object-creation, constructor-chain-this,
+               struct-declaration]
+    note: >
+      Strictly cheaper than Overloading. Identical field, constructor, this and
+      object-creation cluster, plus struct, minus overload resolution. Its Program.mist body
+      is entirely tier-0 material already covered.
+    untested:
+      - The parameterless Point constructor chains with two int literals, so the
+        parameter-referencing chain argument is not exercised.
+      - Color is constructed and read once, never copied, reassigned or passed by value, so
+        struct value semantics are untested. A struct emitted as a class would pass.
+      - No overloads anywhere, so name lookup alone suffices.
+      - Optional.mist is an empty file.
+
+  - name: Classes
+    intro_order: 14
+    threshold: struct-as-parameter-and-return
+    requires: [class-declaration, methods-static-and-instance, statements-core,
+               namespace-file-scoped, standard-library-binding, literals-primitive,
+               string-interpolation, var-type-inference,
+               operators-arithmetic-comparison-logical, control-flow-basic,
+               instance-fields, constructors, this-expression,
+               implicit-instance-field-access, object-creation, constructor-chain-this,
+               explicit-this-member-read, struct-declaration, static-fields,
+               ambient-math-intrinsics, struct-as-parameter-and-return]
+    note: >
+      Strict superset of HelloMist's object model. Adds a static field mutated from an
+      instance constructor, a static field read from a static method, this-qualified reads
+      throughout, object creation inside an instance method, a struct as parameter and
+      return type, and Math.Abs. The static-field cases are exactly the paths
+      static-context-checking does not currently check, so this sample would pass for the
+      wrong reason without it.
+    untested:
+      - Counter's comment claims field initializers but there are none. The static field is
+        assigned in the constructor, so this sample needs no initializer support.
+      - private is never enforced; no negative case exists.
+      - Color.Mix returns a new struct rather than mutating, so copy-on-assignment semantics
+        are still untested.
+      - totalCreated is only ever incremented, never reset, so static field lifetime across
+        instances is only weakly observed.
+
+  - name: Namespaces
+    intro_order: 9
+    threshold: namespace-block-form
+    requires: [class-declaration, methods-static-and-instance, statements-core,
+               namespace-file-scoped, standard-library-binding, literals-primitive,
+               string-interpolation, var-type-inference,
+               operators-arithmetic-comparison-logical, instance-fields, constructors,
+               this-expression, implicit-instance-field-access, object-creation,
+               namespace-inferred-from-directory, using-import-resolution,
+               namespace-block-form]
+    untested:
+      - A namespace-oblivious flat symbol table passes the entire sample. Every referenced
+        type name is unique project-wide and every reference is same-namespace or explicitly
+        imported.
+      - The three declaration forms the sample exists to demonstrate hold types that are
+        never referenced or executed. If the file-scoped declaration were mis-parsed and
+        StringHelper landed in the wrong namespace, output is identical. Only inspecting
+        emitted C# catches it.
+      - Program imports both the parent and the child namespace, so a compiler that wrongly
+        makes a parent import cover children passes, and so does one that wrongly requires
+        the child import.
+      - Models/Item.mist claims to demonstrate same-namespace scoping inside Models, but Item
+        and Player never reference each other.
+      - MathHelper.Add is the sample's only arithmetic and is never called.
+      - Nothing observes emitted namespace structure, so emitting every type into one
+        namespace passes.
+
+  - name: GlobalUsings
+    intro_order: 49
+    threshold: global-usings-from-manifest
+    requires: [class-declaration, methods-static-and-instance, statements-core,
+               namespace-file-scoped, standard-library-binding, literals-primitive,
+               string-interpolation, var-type-inference, instance-fields, constructors,
+               this-expression, implicit-instance-field-access, object-creation,
+               namespace-inferred-from-directory, using-import-resolution,
+               global-usings-from-manifest]
+    untested:
+      - The flat-symbol-table hazard is strongest here. Every user type sits in one of the
+        two globally-used namespaces, so nothing requires a type OUTSIDE them to fail. The
+        sample cannot distinguish "global usings work" from "namespace-scoped lookup does
+        not exist".
+      - Corollary -- mist.toml could be ignored except for the project name and the sample
+        still passes under such a compiler.
+      - The redundant-import assertion is observable only in emitted C#; runtime output is
+        unchanged either way.
+      - Product.GetName and Product.GetPrice are never called.
+      - The four labelled permutations reduce to two distinct resolution paths.
+      - Contains no arithmetic or comparison at all -- nothing in this sample computes
+        anything.
+
+  - name: TopLevelStatements
+    intro_order: 50
+    threshold: entry-point-resolution
+    requires: [class-declaration, methods-static-and-instance, statements-core,
+               namespace-file-scoped, standard-library-binding, literals-primitive,
+               string-interpolation, var-type-inference,
+               operators-arithmetic-comparison-logical, control-flow-basic,
+               arrays-sized-index-length, array-literals, instance-fields, constructors,
+               this-expression, implicit-instance-field-access, object-creation,
+               explicit-this-member-read, struct-declaration, top-level-statements,
+               entry-point-resolution]
+    untested:
+      - The exit-code return is unobservable, because zero is also the default exit code.
+      - args.Length prints zero and the indexed access never executes, so an args
+        permanently bound to an empty array passes.
+      - Disambiguation.mist is entirely dead at runtime; RunDemo is never called. So if the
+        entry-point setting were ignored and top-level statements always won, the sample
+        passes identically. It cannot distinguish "config resolved the conflict" from
+        "top-level always wins" from "no conflict check exists" -- only the absence of a
+        diagnostic is observed.
+      - Advertises a control-flow survey but uses no compound assignment and no increment.
+        The for iterator is written longhand.
+      - TlsPoint is constructed and read once, so struct value semantics are untested.
+      - The declared namespace equals what inference would produce, so neither file
+        discriminates the file-scoped declaration from directory inference.
+
+  - name: Inheritance
+    intro_order: 4
+    threshold: derived-to-base-conversion
+    requires: [class-declaration, methods-static-and-instance, statements-core,
+               namespace-file-scoped, standard-library-binding, literals-primitive,
+               string-interpolation, var-type-inference, instance-fields, constructors,
+               this-expression, implicit-instance-field-access, object-creation,
+               constructor-chain-this, base-type-list, base-member-lookup,
+               constructor-chain-base, constructor-chain-args-referencing-parameters,
+               derived-to-base-conversion]
+    note: >
+      Classic shipped inheritance on day three, at intro_order 4, which is why it is worth
+      asking whether this layer should move earlier. It is also the sample that would have
+      caught 6957888b emitting a base chain with no base list.
+    untested:
+      - Contains no virtual, override or abstract member. Describe is declared once on Animal
+        and inherited unchanged, so the base-typed parameter produces identical output under
+        purely static binding. A compiler with no virtual dispatch passes.
+      - Inherited FIELD access is never exercised, only inherited method access.
+      - All base-chain arguments are parameter references; no literal or computed chain
+        argument appears.
+      - private is never enforced, and no protected or internal member exists.
+      - Contains no arithmetic, comparison or logical operator and no control flow at all.
+      - args is declared and never read.
+
+  - name: FullAccessibilityModel
+    intro_order: 84
+    threshold: struct-inheritance
+    requires: [class-declaration, methods-static-and-instance, statements-core,
+               namespace-file-scoped, standard-library-binding, literals-primitive,
+               string-interpolation, var-type-inference,
+               operators-arithmetic-comparison-logical, instance-fields, constructors,
+               this-expression, implicit-instance-field-access, object-creation,
+               constructor-chain-this, struct-declaration, base-type-list,
+               base-member-lookup, constructor-chain-base,
+               constructor-chain-args-referencing-parameters, accessibility-full-model,
+               sealed-modifier, struct-inheritance]
+    untested:
+      - Every accessibility level is exercised only on its permissive path. Every access in
+        the sample is legal under "everything is public". A compiler that parsed, recorded
+        and emitted the modifiers and never checked them passes the whole sample.
+      - protected is indistinguishable from internal or public here. Both protected reads are
+        from a derived type in the same compilation.
+      - internal is indistinguishable from public -- single compilation, assembly boundary
+        never crossed.
+      - sealed is semantically inert; nothing derives from either sealed type. Frozen's claim
+        to prove the sealed-protected warning does not fire is proof of an absence, which
+        passes trivially if that warning was never implemented.
+      - Struct inheritance runs with no value-semantics interaction. No struct assignment,
+        copy, by-value pass or field storage. The hard question raised by inheritable structs
+        -- what copying a derived struct through a base-typed slot means -- is untouched.
+      - Both derived types have no fields of their own and empty constructor bodies, so
+        derived-field initialization interleaved with base initialization is untested.
+      - The one base-typed parameter reads a field declared on the base, so static binding
+        gives the same answer. It tests assignability only.
+
+  - name: CastOperators
+    intro_order: 22
+    threshold: user-defined-conversion-insertion
+    requires: [class-declaration, methods-static-and-instance, statements-core,
+               namespace-file-scoped, standard-library-binding, literals-primitive,
+               string-interpolation, var-type-inference,
+               operators-arithmetic-comparison-logical, instance-fields, constructors,
+               this-expression, implicit-instance-field-access, object-creation,
+               constructor-chain-this, base-type-list, constructor-chain-base,
+               constructor-chain-args-referencing-parameters,
+               same-file-forward-type-references, cast-expression,
+               cast-operator-declarations, user-defined-conversion-insertion]
+    untested:
+      - The sample has no Main. Standalone it has no entry point; it is reachable only via
+        AllFeatures calling its RunDemo.
+      - The compile-time-safety case is commented out. Nothing verifies that a cast through a
+        base-typed variable is REJECTED, so an implementation resolving casts against the
+        runtime type passes identically.
+      - Measurement is never instantiated and GetUnit is never called, so the base chain in
+        the Weight constructor has no observable runtime effect.
+      - Celsius's two operators have different target types, so an implementation that
+        ignored the implicit and explicit keywords and keyed only on target produces correct
+        output at all four conversion sites.
+      - Only one operator exists per source-target pair, so operator overload resolution
+        among competing candidates never happens.
+      - Arithmetic is double throughout, so int-to-double widening is never exercised.
+      - No implicit conversion at a return site, despite the comment claiming assignment,
+        argument and return sites.
+
+  - name: DefaultKeyword
+    intro_order: 20
+    threshold: default-value-synthesis
+    requires: [class-declaration, methods-static-and-instance, statements-core,
+               namespace-file-scoped, standard-library-binding, literals-primitive,
+               string-interpolation, var-type-inference, instance-fields, constructors,
+               this-expression, implicit-instance-field-access, explicit-this-member-read,
+               object-creation, struct-declaration, field-initializers, readonly-struct,
+               default-expression, default-value-synthesis]
+    untested:
+      - The empty-string versus null decision, the most surprising semantic in the sample, is
+        completely invisible in the output. C# interpolation renders a null string and an
+        empty string identically, and nothing dereferences a defaulted string.
+      - The int and bool defaults are emitted as C# default expressions, so Mist never
+        computes those zero values -- Roslyn does.
+      - A compiler that ignored the default expression entirely and emitted plain
+        construction produces identical output for Config, Settings and AppState. The factory
+        indirection is load-bearing only for Container.
+      - Payload is entirely dead. Declared, given a synthesized constructor, never
+        instantiated or defaulted or printed. Its comment mislabels it as a readonly struct
+        with a constructor and default block.
+      - AppState's default block assigns all three fields, so a PARTIAL block, where the
+        interaction between block assignments and zero-init would be observable, does not
+        appear.
+      - Container is the only struct, the only readonly type, the only type with both a
+        constructor and a default block, and the only type where construction and defaulting
+        diverge. Four capabilities are entangled in one instance, so a failure in any one
+        cannot be localized by this sample.
+      - The bare default and the type-qualified default emit byte-identical code, so the
+        bare-default path could be a syntactic rewrite and nothing would distinguish it.
+      - No default expression in argument position, return position, or as a field
+        initializer. Every use initializes a local with an explicit declared type.
+      - No arithmetic, comparison or control flow anywhere.
+
+  # -----------------------------------------------------------------
+  # The remaining 62 samples. These records are one reading deep, unlike the 13
+  # above. `requires` lists DIRECT dependencies only.
+  # -----------------------------------------------------------------
+
+  - name: TargetTypedNew
+    intro_order: 76
+    threshold: target-typed-new
+    requires: [target-typed-new, type-argument-substitution, instance-fields,
+               field-initializers, string-interpolation, var-type-inference]
+    untested:
+      - Every target type has exactly one candidate class with one constructor, so
+        first-match resolution looks correct and overload resolution is not exercised.
+      - No missing-target case, no ambiguous target, and no target-typed new into an
+        optional, base or abstract type. A fallback that guessed the only class in scope
+        would pass.
+
+  - name: PropertyInitializers
+    intro_order: 34
+    threshold: object-initializer-blocks
+    requires: [object-initializer-blocks, property-accessor-accessibility-and-init,
+               type-argument-substitution, struct-declaration, string-interpolation,
+               var-type-inference, operators-arithmetic-comparison-logical]
+    untested:
+      - No negative case. Nothing assigns to a get-only or private member, and nothing
+        writes an init accessor outside an initializer, so the accessor-kind check may not
+        exist at all.
+      - The struct case is only ever read back through a method on the same local, so a
+        copy-semantics bug in the initializer would be invisible.
+
+  - name: TypeArgumentInference
+    intro_order: 56
+    threshold: generic-indexers
+    requires: [type-argument-inference, generic-indexers, string-interpolation,
+               var-type-inference, control-flow-basic]
+    untested:
+      - Every inferred result goes straight into interpolation, so an inference that fell
+        back to the top type would print identically and pass.
+      - No conflicting-inference case, no failure case, no constraints. The locally declared
+        list type stores only one element and its indexer ignores the index, masking a wrong
+        element type.
+
+  - name: GenericTypes
+    intro_order: 15
+    threshold: nominal-conformance-and-slot-checking
+    requires: [nominal-conformance-and-slot-checking, type-argument-substitution,
+               instance-fields, constructors, string-interpolation, var-type-inference]
+    untested:
+      - Generic instantiation at a single type argument would pass, so substitution is
+        weakly exercised.
+      - No constraint is present, so nothing checks that conformance is required.
+
+  - name: GenericConstraints
+    intro_order: 29
+    threshold: nominal-conformance-and-slot-checking
+    requires: [generic-constraints-constructor, nominal-conformance-and-slot-checking,
+               abstract-type-declaration, instance-fields, constructors, control-flow-basic,
+               string-interpolation]
+    untested:
+      - No constraint is ever VIOLATED, so the entire rejection surface is unexercised and a
+        compiler that parsed constraints and never checked them would pass.
+      - Case 17, nominal conformance passed as a generic abstract-typed parameter, is
+        commented out. That is the one case that would exercise conformance through a
+        constrained parameter.
+
+  - name: ShapeAbstracts
+    intro_order: 79
+    threshold: abstract-type-property-slots
+    requires: [abstract-type-property-slots, abstract-type-inheritance,
+               nominal-conformance-and-slot-checking, instance-fields, constructors,
+               operators-arithmetic-comparison-logical, string-interpolation]
+    untested:
+      - A get-only slot and a get-set slot are both declared, but nothing attempts to satisfy
+        one with the wrong accessor shape, so accessor-shape checking is unexercised.
+
+  - name: AbstractTypes
+    intro_order: 78
+    threshold: retroactive-conformance-with-blocks
+    requires: [retroactive-conformance-with-blocks, default-member-forwarding-stubs,
+               abstract-type-inheritance, abstract-type-property-slots,
+               derived-to-base-conversion, string-interpolation, var-type-inference]
+    untested:
+      - No slot is ever left unfilled, so the whole conformance rejection surface is
+        unexercised.
+      - The with-block namespace scoping rule is never tested from a file that does NOT
+        import the declaring namespace, so the scoping could be a no-op.
+
+  - name: AssociatedTypes
+    intro_order: 54
+    threshold: associated-type-slots
+    requires: [associated-type-slots, nested-type-declarations,
+               nominal-conformance-and-slot-checking, string-interpolation,
+               var-type-inference]
+    untested:
+      - No slot is ever dispatched through an ABSTRACT-typed reference. Every call goes
+        through a concrete conformer, so the lifted type parameter never has to carry the
+        slot across a polymorphic boundary.
+      - No implementor fills a slot with a type that violates its constraint, so constraint
+        validation is unexercised across all twelve patterns.
+
+  - name: NestedScoping
+    intro_order: 46
+    threshold: enum-variant-value-inference
+    requires: [nested-block-namespaces, nested-type-declarations,
+               enum-variant-value-inference, abstract-type-declaration,
+               type-parameters-and-constructed-types, string-interpolation,
+               instance-fields, constructors]
+    untested:
+      - Patterns 6, 7, 8 and 10 print HARDCODED STRINGS rather than touching the declared
+        nested types, so four of the sixteen advertised patterns verify nothing.
+      - The sample documents two live emitter defects it routes around -- nested block
+        namespaces double the prefix, and methods on a class nested in a struct get a
+        spurious readonly.
+      - One file exists only to dodge an entry-point detection bug with constructed generics.
+
+  - name: VoidType
+    intro_order: 10
+    threshold: void-unit-type
+    requires: [void-unit-type, type-argument-substitution, abstract-type-declaration,
+               instance-fields, constructors, string-interpolation, var-type-inference]
+    untested:
+      - Every void value is observed only through interpolation, so the singleton-versus-
+        type-literal distinction rests entirely on printed names.
+      - The void parameter is ignored by its callee, so nothing checks that a unit argument
+        arrives.
+
+  - name: VoidValueLiteral
+    intro_order: 63
+    threshold: void-unit-type
+    requires: [void-unit-type, optional-operators, nested-type-declarations,
+               type-argument-substitution, string-interpolation, var-type-inference]
+    untested:
+      - This sample has NO entry point and no build output, so it has never been run. Nothing
+        in it is verified.
+      - One token must resolve three ways from context, but every result is only interpolated,
+        so a wrong reading that still prints the same name would pass.
+
+  - name: OptionalTypes
+    intro_order: 57
+    threshold: void-unit-type
+    requires: [optional-operators, void-unit-type, instance-fields, constructors,
+               string-interpolation, var-type-inference]
+    untested:
+      - Every optional is observed only through interpolation, so confusions between the
+        bare, optional and generic spellings never surface.
+      - The claimed narrowing after a coalescing assignment is never used -- no assignment to
+          a plain value type and no call on the narrowed value.
+      - No dereference-without-conditional-access negative case.
+
+  - name: Newtypes
+    intro_order: 38
+    threshold: newtype-declarations
+    requires: [newtype-declarations, cast-expression, struct-declaration, instance-fields,
+               constructors, string-interpolation, var-type-inference]
+    untested:
+      - Distinctness is never negatively exercised. Nothing assigns a newtype to its
+        representation or the reverse without a cast, so a TRANSPARENT alias would pass every
+        line of this sample.
+      - No newtype appears as a field, parameter or return type, and no two newtypes share a
+        representation, so non-interchangeability is unproven.
+
+  - name: TypeAliases
+    intro_order: 27
+    threshold: generic-type-aliases
+    requires: [generic-type-aliases, union-widening-at-use-sites, instance-fields,
+               constructors, string-interpolation]
+    untested:
+      - No negative case, so nothing proves an alias fails to introduce nominal identity.
+      - Expansion depth is one everywhere; nested and recursive aliases are unexercised, so
+        the cycle detection never runs.
+
+  - name: ArityOverloads
+    intro_order: 64
+    threshold: clr-generic-construction-and-members
+    requires: [generic-arity-keyed-lookup, clr-generic-construction-and-members,
+               type-alias-declarations, instance-fields, constructors,
+               string-interpolation]
+    untested:
+      - The arity-zero alias is never used at a use site, only the generic forms are, so
+        coexistence is declared but never actually resolved.
+      - No ambiguity or arity-mismatch case, so the diagnostic is unexercised.
+
+  - name: Enums
+    intro_order: 30
+    threshold: readonly-member-and-type-contexts
+    requires: [enum-conversion-operators, enum-member-patterns,
+               readonly-member-and-type-contexts, union-types-and-carriers,
+               optional-operators, string-interpolation, control-flow-basic]
+    untested:
+      - No enum has two variants sharing an underlying value, which would expose that the
+        name lookup uses reference equality while the pattern form uses structural equality
+        on the value.
+      - The abstract-type-underlying-type cases are commented out pending emitter fixes.
+      - No enum designates a default variant, so the default factory path is unexercised.
+
+  - name: EnumReadonlyRestriction
+    intro_order: 39
+    threshold: readonly-member-and-type-contexts
+    requires: [enum-conversion-operators, enum-member-patterns,
+               readonly-member-and-type-contexts, union-types-and-carriers,
+               string-interpolation]
+    untested:
+      - No NON-readonly base type is ever attempted, so the restriction the sample is named
+        for is never actually triggered.
+      - The struct-backed enum deliberately declares no fields to sidestep a known
+        default-construction defect, leaving struct-backed enums with state unexercised.
+
+  - name: TypeUnions
+    intro_order: 25
+    threshold: union-narrowing-through-patterns
+    requires: [union-narrowing-through-patterns, union-widening-at-use-sites,
+               string-interpolation, var-type-inference, control-flow-basic]
+    untested:
+      - Every type test takes the true branch, so a discriminator that always answered true
+        would pass.
+      - Nothing uses a narrowed binding inside the same condition -- a form the hoisted-
+        binding emission scheme structurally cannot express, so the sample cannot reveal
+        that limitation.
+
+  - name: UnknownType
+    intro_order: 23
+    threshold: pattern-matching-core
+    requires: [unknown-covariant-generic-widening, pattern-matching-core,
+               type-argument-substitution, instance-fields, string-interpolation]
+    untested:
+      - The rejected call that would exercise member FILTERING is a comment, so filtering is
+        never actually applied.
+      - The widened receiver is always backed by a runtime type that has the member, so no
+        binder failure is ever observed under the dynamic lowering.
+
+  - name: UnknownReadonlySemantics
+    intro_order: 36
+    threshold: readonly-mutation-checking
+    requires: [unknown-readonly-member-filtering, readonly-mutation-checking,
+               pattern-matching-core, string-interpolation]
+    untested:
+      - The rejected mutations are comments only, so nothing distinguishes "member filtered
+        by context" from "member does not exist".
+      - No mutable member is reached through a chained or indexed receiver.
+
+  - name: PatternMatching
+    intro_order: 21
+    threshold: list-and-slice-patterns
+    requires: [list-and-slice-patterns, property-patterns, logical-patterns,
+               constructor-chain-base, property-declarations-and-accessors,
+               arrays-sized-index-length, string-interpolation]
+    untested:
+      - Every type test takes the true branch, so an always-true condition passes
+        identically.
+      - Arrays are exactly the arity the pattern wants, so the distinction between an exact
+        length constraint and a minimum length constraint is unproven.
+      - No negation and no disjunction pattern appears.
+
+  - name: SwitchExpressions
+    intro_order: 31
+    threshold: list-and-slice-patterns
+    requires: [exhaustiveness-checking, when-guards, union-narrowing-through-patterns,
+               property-patterns, list-and-slice-patterns, tuple-types-and-literals,
+               string-interpolation]
+    untested:
+      - No switch ever falls through all arms, so the no-match failure path is unexercised,
+        and no arm is subsumed by an earlier one, so ordering is unproven.
+      - No enum-scrutinee switch appears, which is exactly the case the exhaustiveness
+        checker has no rule for.
+
+  - name: Tuples
+    intro_order: 24
+    threshold: tuple-patterns
+    requires: [tuple-patterns, named-tuple-elements, tuple-deconstruction,
+               unknown-top-type, string-interpolation, var-type-inference]
+    untested:
+      - Only one test is expected to be false; nothing checks that a wrong-arity or
+        wrong-element-type narrow is rejected.
+      - No optional element appears, so absence never interacts with tuples.
+
+  - name: TuplePatternMatching
+    intro_order: 62
+    threshold: tuple-patterns
+    requires: [tuple-patterns, enum-member-patterns, when-guards, unknown-top-type,
+               string-interpolation]
+    untested:
+      - The quadrant switch has no catch-all and is accepted ONLY because the exhaustiveness
+        checker returns exhaustive unconditionally for a tuple scrutinee. That is an accident,
+        not a proof.
+      - Overlapping enum arms never disagree, so first-match ordering is unproven, and no
+        scrutinee misses every arm.
+
+  - name: AnonymousTypes
+    intro_order: 80
+    threshold: anonymous-type-structural-equality
+    requires: [anonymous-type-structural-equality, property-patterns, unknown-top-type,
+               string-interpolation, var-type-inference]
+    untested:
+      - The property pattern lowers to a null guard plus dynamic member reads, so it never
+        checks the SHAPE -- a wrong-shaped payload throws rather than failing to match, and
+        the sample only ever supplies the right shape.
+      - The inequality result is equally satisfied by reference equality, so nothing
+        discriminates structural from reference equality.
+
+  - name: AsOperator
+    intro_order: 77
+    threshold: struct-inheritance-flattening
+    requires: [conversion-classification-for-as, struct-inheritance-flattening,
+               union-narrowing-through-patterns, optional-operators, unknown-top-type,
+               string-interpolation]
+    untested:
+      - Every operand is a simple local, so the double-evaluation of a non-provable operand
+        is not observable.
+      - Each failure branch is fed a statically obvious wrong type, so an always-fails
+        implementation would print the same lines.
+
+  - name: DelegateFuncConversion
+    intro_order: 74
+    threshold: clr-extension-method-discovery
+    requires: [delegate-func-conversion, clr-extension-method-discovery,
+               framework-and-package-reference-resolution, lambda-expressions,
+               string-interpolation, var-type-inference]
+    untested:
+      - Invocation proves the wrapper is callable but nothing checks that delegate IDENTITY
+        survives wrapping, so removal from an event or a list would fail undetected.
+      - The endpoint registration is never invoked, so the lambda-to-delegate-base path's
+        runtime behaviour is never exercised.
+
+  - name: FirstClassFunctions
+    intro_order: 65
+    threshold: discarded-task-obligation
+    requires: [func-type-aliases-and-currying, lambda-closure-capture, static-lambdas,
+               discarded-task-obligation, async-expression-functor, extension-properties,
+               clr-extension-method-discovery, string-interpolation]
+    untested:
+      - The discarded-task case inside an async lambda emits BARE fire-and-forget with no
+        await, and reads correctly only because the helper completes synchronously.
+      - Static lambda capture rejection is never negatively tested.
+      - Nothing checks that a function-typed extension parameter is invoked lazily.
+
+  - name: Iterators
+    intro_order: 55
+    threshold: foreach-over-user-enumerable
+    requires: [foreach-over-user-enumerable, iterator-protocol-via-associated-type,
+               nested-type-declarations, property-declarations-and-accessors,
+               array-literals, string-interpolation]
+    untested:
+      - No sequence is enumerated twice or restarted, so the value-type enumerator's copy
+        semantics are indistinguishable from reference semantics.
+      - Nothing iterates an empty sequence, so the advance-before-read ordering contract is
+        only checked on the happy path.
+      - The synthesized reset and dispose members are emitted but never called.
+
+  - name: ExtensionMethods
+    intro_order: 26
+    threshold: extension-properties
+    requires: [extension-properties, universal-unknown-receiver-extensions,
+               extension-lookup-and-specificity, control-flow-basic, var-type-inference]
+    untested:
+      - Every extension body is a PLACEHOLDER that returns its input unchanged, so a wrong
+        receiver binding still yields plausible values.
+      - Seven of the computed results are assigned and never printed. Only two lines reach
+        stdout, so the sample largely proves typecheck-and-compile rather than correctness.
+      - No call site omits the import, so namespace gating could be a no-op, and no name is
+        declared on both a concrete and the universal receiver, so specificity ordering is
+        never contended.
+      - The sample declares no entry point, so it cannot currently satisfy executable rules.
+
+  - name: ExtensionMethodBinding
+    intro_order: 61
+    threshold: clr-extension-method-discovery
+    requires: [clr-extension-method-discovery, array-literals, string-interpolation]
+    untested:
+      - Emission is a static call, so the CLR library resolves the call even if Mist inferred
+        the wrong type argument. Only the two explicitly typed locals could catch that.
+      - Every receiver is an array of a primitive. No user-defined ambient extension, and no
+        receiver requiring a base-class match.
+      - No two namespaces supply the same member, so ambiguity detection is unexercised, and
+        no negative case makes the member unresolvable.
+
+  - name: RangesAndIndices
+    intro_order: 85
+    threshold: list-and-slice-patterns
+    requires: [list-and-slice-patterns, slicing-and-sliceable-classification,
+               array-literals, string-interpolation, var-type-inference]
+    untested:
+      - Slices only ever print their first element, so a slice with a correct length but a
+        wrong offset for later elements would still pass.
+      - Every bound is a literal against a fixed-length array, so no bound is ever clamped or
+        empty.
+
+  - name: Variadics
+    intro_order: 86
+    threshold: variadic-monomorphization
+    requires: [variadic-monomorphization, spread-generated-members,
+               nominal-conformance-and-slot-checking, struct-declaration,
+               lambda-expressions, control-flow-basic, string-interpolation]
+    untested:
+      - Narrowing branches are copied verbatim into every arity monomorph, leaving
+        shape-impossible tests in the arity-1 and arity-2 bodies. Nothing checks that branch
+        PRUNING happens, only that the reachable branch returns the right value.
+      - The arity is folded per monomorph, so a size-agnostic arity computation is never
+        actually required.
+      - The generated projections are emitted as settable properties over a mutable aggregate
+        but are only ever read.
+
+  - name: RefStructs
+    intro_order: 60
+    threshold: span-projection-and-length-erasure
+    requires: [span-projection-and-length-erasure, ref-struct-declarations,
+               property-declarations-and-accessors, foreach-over-user-enumerable,
+               arrays-sized-index-length, string-interpolation]
+    untested:
+      - There is NO escape-analysis case at all. Nothing boxes a ref struct, stores it in a
+        class field, captures it, or returns a stack-referencing span, so a ref struct could
+        emit as a plain struct and every line would still pass.
+      - The property with a statement body exercises both branches only across separate
+        instances, never one instance both ways.
+
+  - name: StackOnlyTypes
+    intro_order: 73
+    threshold: stackalloc
+    requires: [stackalloc, struct-declaration, foreach-over-user-enumerable,
+               arrays-sized-index-length, string-interpolation, var-type-inference]
+    untested:
+      - No negative stackalloc case -- no managed element type, no non-constant or oversized
+        length -- so the element-type check may be absent.
+      - The escape rule is exercised only in the permitted direction.
+      - Zero-initialization rests on one element printing zero, which uninitialized memory
+        could match by chance, and the struct element type has no members so element dispatch
+        is never touched.
+
+  - name: StructInheritance
+    intro_order: 53
+    threshold: struct-inheritance-flattening
+    requires: [struct-inheritance-flattening, type-argument-substitution,
+               string-interpolation, var-type-inference]
+    untested:
+      - The sample works around its own gaps, so those gaps cannot fail it. The multi-level
+        constructor chain is unprovable either way because the derived constructor
+        re-assigns the grandparent fields by hand.
+      - The base struct's method is declared and never called, so inherited-method resolution
+        is never exercised.
+      - The generic derived struct's inherited field is never read, hiding the generic
+        flattening gap. No base-to-derived negative case.
+
+  - name: AssemblyTypeProvider
+    intro_order: 58
+    threshold: clr-nullable-projection
+    requires: [clr-nullable-projection, clr-byref-parameter-projection,
+               clr-generic-construction-and-members, arrays-sized-index-length,
+               string-interpolation]
+    untested:
+      - Every optional-projected result is consumed without narrowing, so union discipline is
+        never forced.
+      - The failing branch of the by-ref lookup is never taken.
+
+  - name: CSharpInteropV2
+    intro_order: 72
+    threshold: span-projection-and-length-erasure
+    requires: [framework-and-package-reference-resolution, clr-extension-method-discovery,
+               span-projection-and-length-erasure, array-literals, string-interpolation]
+    untested:
+      - Each chosen overload is the only one applicable to its single argument, so no
+        conversion competition is exercised even though ref structs are visible candidates
+        that must lose.
+      - All string returns are optional-projected and never narrowed.
+
+  - name: ClrRefInterop
+    intro_order: 59
+    threshold: ref-parameters-and-ref-locals
+    requires: [ref-parameters-and-ref-locals, clr-generic-construction-and-members,
+               string-interpolation]
+    untested:
+      - The in-parameter case is declared as a plain ref, so that projection path is never
+        exercised.
+      - The out-parameter miss only observes the caller's own initial value, so callee-assigns
+        semantics are weakly checked.
+
+  - name: RefParameters
+    intro_order: 45
+    threshold: adhoc-refinement-where-clauses
+    requires: [ref-parameters-and-ref-locals, adhoc-refinement-where-clauses,
+               struct-declaration, instance-fields, arrays-sized-index-length,
+               string-interpolation]
+    untested:
+      - The readonly ref local emits a plain COPY, so the alias is dropped, and the sample
+        only prints the local -- a copy passes.
+      - No write through a readonly ref is attempted.
+      - The ref-returning accessor is only ever called with a literal index.
+
+  - name: ReadonlyLocals
+    intro_order: 51
+    threshold: ownership-specifiers
+    requires: [readonly-locals-and-blocks, ownership-specifiers, tuple-deconstruction,
+               instance-fields, constructors, string-interpolation]
+    untested:
+      - No reassignment is attempted anywhere, so the output is identical if readonly
+        enforcement is a no-op.
+      - The ownership specifier never drives a move or a drop.
+
+  - name: ReadonlyContexts
+    intro_order: 32
+    threshold: readonly-generic-constraints
+    requires: [readonly-generic-constraints, readonly-mutation-checking,
+               readonly-locals-and-blocks, property-backing-field-and-field-keyword,
+               abstract-type-declaration, nominal-conformance-and-slot-checking,
+               struct-declaration, string-interpolation]
+    untested:
+      - Every construct in the sample is LEGAL, so the entire readonly diagnostic surface can
+        be absent and the sample still passes and prints correctly.
+      - Readonly inference has no observable effect -- the inferred members behave identically
+        whether classified readonly or mutable.
+      - Readonly blocks, readonly parameters and both constraints erase entirely, so nothing
+        about them is checkable from stdout.
+
+  - name: Properties
+    intro_order: 7
+    threshold: adhoc-refinement-where-clauses
+    requires: [property-backing-field-and-field-keyword,
+               property-accessor-accessibility-and-init, static-properties,
+               abstract-type-property-slots, abstract-type-inheritance,
+               adhoc-refinement-where-clauses, string-interpolation]
+    note: >
+      This sample currently FAILS on the classic pipeline and nothing catches it. Mixed
+      accessor forms emit two separate backing fields, so writes never reach reads -- the
+      built DLL prints a zero after a non-zero assignment. There is no baseline file for
+      Properties.
+    untested:
+      - The mixed-accessor defect above is not caught by anything, because the sample has no
+        baseline.
+      - The indexer parameter refinement erases entirely and only in-range indices are
+        exercised, so the missing bounds check never shows.
+
+  - name: RefinementTypes
+    intro_order: 37
+    threshold: refinement-runtime-guard-insertion
+    requires: [refinement-runtime-guard-insertion, refinement-implication-engine,
+               property-patterns, union-widening-at-use-sites,
+               readonly-member-and-type-contexts, instance-fields, constructors,
+               control-flow-basic, string-interpolation]
+    untested:
+      - Every predicate is satisfiable by inspection and no site is meant to fail, so a
+        solver that answered yes unconditionally would compile the sample.
+      - One helper is never called, and the narrowing bindings are unused.
+
+  - name: RefinementComparison
+    intro_order: 47
+    threshold: refinement-implication-engine
+    requires: [refinement-implication-engine, pattern-matching-core, string-interpolation]
+    untested:
+      - Every assignment is built to SUCCEED, so nothing separates "proved" from "always
+        true".
+      - No base-type mismatch and no non-implication case appears, and the narrower base
+        cases sit inside guards that always hold.
+      - Every alias erases to its base and assignments become plain copies, so no runtime
+        site observes the engine at all.
+
+  - name: AdhocRefinementConstraints
+    intro_order: 42
+    threshold: adhoc-refinement-where-clauses
+    requires: [adhoc-refinement-where-clauses, indexer-declarations,
+               nominal-conformance-and-slot-checking, generic-constraints-nominal,
+               instance-fields, constructors, string-interpolation]
+    untested:
+      - No runtime guard is emitted for any ad-hoc constraint and no call violates one, so
+        the output is byte-identical if every check is skipped.
+      - The override-weakening rule is exercised only in the ACCEPTING direction, and the
+        weaker override is called only with values the stricter predicate also admits.
+
+  - name: DependentTypes
+    intro_order: 33
+    threshold: dependent-const-witness-encoding
+    requires: [dependent-const-witness-encoding, type-alias-declarations,
+               abstract-type-declaration, nominal-conformance-and-slot-checking,
+               struct-declaration, string-interpolation]
+    untested:
+      - Nothing constructs with a wrong-domain literal or the wrong arity.
+      - The dependent type test is applied to a statically known instantiation, so dependent
+        identity is never actually discriminated.
+      - One declared dependent type is only ever described in a string.
+
+  - name: DependentTypeRefinementConstraints
+    intro_order: 75
+    threshold: dependent-const-witness-encoding
+    requires: [dependent-const-witness-encoding, refinement-type-declarations,
+               struct-declaration, string-interpolation]
+    untested:
+      - No construction uses a value the predicate would reject, so the predicate never
+        decides anything. The sample is identical if the domain were the plain base type.
+
+  - name: ArrayBoundsFlowAnalysis
+    intro_order: 48
+    threshold: array-bounds-flow-analysis
+    requires: [array-bounds-flow-analysis, indexer-declarations, array-literals,
+               control-flow-basic, string-interpolation]
+    untested:
+      - No out-of-bounds site exists anywhere.
+      - Unknown-length arrays accept any index with only the lower bound enforced, and
+        binding a concrete-length array to an annotated local ERASES its length, so several
+        patterns pass by falling through to the runtime check.
+      - One pattern's indexer emits no guard at all.
+
+  - name: DefiniteAssignment
+    intro_order: 70
+    threshold: stampability-classification
+    requires: [stampability-classification, definite-assignment-analysis, array-literals,
+               lambda-expressions, dependent-type-parameters, instance-fields, constructors,
+               string-interpolation]
+    untested:
+      - Every path is legal, so the unassigned-read and partially-assigning-constructor
+        diagnostics never fire.
+      - Nothing checks that a bare sized creation with a non-stampable element type is
+        actually REJECTED. The sample only shows the accepted forms.
+
+  - name: OptionalDefaultability
+    intro_order: 69
+    threshold: default-generic-constraint
+    requires: [default-generic-constraint, defaultability-inference,
+               enum-conversion-operators, optional-union-representation,
+               lambda-expressions, string-interpolation]
+    untested:
+      - The non-defaultable types are never used with a default expression, so the rejection
+        path is unexercised.
+      - The constraint is emitted as a comment plus an injected factory, so it is NOT carried
+        in metadata and a violating instantiation from outside would not be caught.
+
+  - name: RegexLiterals
+    intro_order: 40
+    threshold: regex-refined-string-types
+    requires: [regex-refined-string-types, regex-full-match-lowering, switch-expressions,
+               pattern-matching-core, string-interpolation, var-type-inference]
+    untested:
+      - Full match is lowered by wrapping the pattern via string concatenation, so an
+        already-anchored pattern gets DOUBLE-anchored. Correct here only because no test uses
+        multiline or an alternation spanning the anchor.
+      - Invalid-pattern rejection is never exercised.
+
+  - name: DropSemantics
+    intro_order: 66
+    threshold: with-blocks-and-drop-scopes
+    requires: [with-blocks-and-drop-scopes, drop-recognition-and-insertion,
+               substructural-disciplines, generic-constraints-nominal, instance-fields,
+               constructors, string-interpolation]
+    untested:
+      - The generic box's drop emits the inner field drop AFTER the return, so it is
+        unreachable and no output line asserts it. It also uses dynamic dispatch rather than
+        constraint-resolved dispatch.
+      - Nothing exercises a use-after-move or a linear binding dropped twice.
+
+  - name: Ownership
+    intro_order: 68
+    threshold: this-tier-inference
+    requires: [this-tier-inference, jagged-per-field-ownership, iclonable-implicit-clone,
+               method-tier-visibility-filtering, instance-fields, constructors,
+               property-declarations-and-accessors, string-interpolation]
+    untested:
+      - Every specifier except readonly ref ERASES at emission, so there is no runtime
+        evidence distinguishing correct analysis from missing analysis. The would-fail cases
+        are comments and are never compiled.
+      - An explicit clone into an owned binding emits a DOUBLE clone, so explicit clone is
+        not recognised as owned provenance.
+      - Implicit clone for an immutable reference type emits no clone at all, which looks
+        correct only because the type is immutable.
+
+  - name: SubstructuralFieldDiscipline
+    intro_order: 71
+    threshold: async-expression-functor
+    requires: [substructural-field-containment, async-expression-functor,
+               drop-recognition-and-insertion, generic-constraints-nominal,
+               instance-fields, string-interpolation]
+    untested:
+      - Only PERMITTED combinations appear, so the rejecting half of the containment matrix
+        never fires.
+      - The generic field drop goes through dynamic dispatch and sits after the return, so
+        the constraint is neither used to resolve the drop nor reached.
+
+  - name: DisposableDropInterop
+    intro_order: 81
+    threshold: disposable-drop-interop
+    requires: [disposable-drop-interop, with-blocks-and-drop-scopes,
+               property-declarations-and-accessors, instance-fields, constructors,
+               string-interpolation]
+    untested:
+      - This directory has NO build output, so the sample has never been compiled or run.
+        Nothing in it is verified.
+      - The asymmetry case asserts a NEGATIVE purely by output ordering, which would still
+        read correctly if the drop fired late.
+
+  - name: StructuredConcurrency
+    intro_order: 52
+    threshold: async-state-machine-lowering
+    requires: [async-state-machine-lowering, discarded-task-obligation,
+               async-expression-functor, entry-point-resolution, string-interpolation]
+    untested:
+      - The two scope-exit-await demonstrations emit NO await at all. The output only looks
+        right because every helper completes synchronously before returning.
+      - Concurrent ordering is unproven -- nothing schedules or joins, so the printed order
+        is incidental.
+
+  - name: AsyncDropChaining
+    intro_order: 67
+    threshold: async-drop-chaining
+    requires: [async-drop-chaining, async-expression-functor, lambda-expressions,
+               substructural-disciplines, string-interpolation]
+    untested:
+      - The recursive chain is only ever ONE level deep, so no fixpoint or cycle guard is
+        exercised.
+      - Auto-await inside the sync lambda lowers to a blocking getter, which cannot deadlock
+        here only because nothing installs a synchronization context.
+
+  - name: StructuredContext
+    intro_order: 41
+    threshold: structured-context
+    requires: [structured-context, abstract-type-declaration,
+               nominal-conformance-and-slot-checking, union-types-and-carriers,
+               instance-fields, constructors, string-interpolation]
+    untested:
+      - The context store is a process-global static dictionary, not thread-static or
+        flow-local, so this is correct only because the sample is single-threaded and
+        synchronous.
+      - Generic constructed types as independent keys is explicitly WAIVED in a source
+        comment and demonstrated with hand-written wrapper types instead.
+      - The missing-context diagnostic is never triggered.
+
+  - name: Attributes
+    intro_order: 83
+    threshold: clr-assembly-type-projection
+    requires: [generic-attributes, attribute-arguments-and-type-literals,
+               indexer-declarations, property-declarations-and-accessors,
+               global-usings-from-manifest, clr-assembly-type-projection,
+               struct-declaration, string-interpolation]
+    untested:
+      - Attributes can be emitted VERBATIM with zero type resolution and the sample still
+        passes, because the C# compiler validates them.
+      - No output line reflects any attribute, so a dropped or mis-targeted attribute is
+        invisible. Several annotate members the sample never reads.
+
+  - name: Testing
+    intro_order: 82
+    threshold: mist-test-command
+    requires: [mist-test-command, attribute-arguments-and-type-literals,
+               type-argument-inference]
+    untested:
+      - Bodies compute over literals, so a build-only check passes vacuously without the
+        runner ever executing.
+      - Collapsed repeated data attributes would yield fewer test cases but no failure.
+      - Nothing verifies the emitted output type beyond the external runner succeeding, which
+        it also would for an executable.
+
+  - name: StormAnonymousGroups
+    intro_order: 87
+    threshold: nary-operator-group-folding
+    requires: [nary-operator-group-folding, var-type-inference, string-interpolation]
+    untested:
+      - Two of the three arithmetic chains are associative and commutative, so a wrong fold
+        order still prints the right answer. Only the mixed addition-and-subtraction chain
+        distinguishes association.
+      - No mixed-precedence chain, so interaction between the two group lists is unexercised.
+      - All operands are literals with no side effects, so constant folding could yield right
+        answers over a wrong tree and short-circuiting is not observable.
+
+# =====================================================================
+# NON-SAMPLE ACCEPTANCE TARGETS
+#
+# The stdlib is transpiled by v2 on EVERY compile, and it exercises constructs no
+# sample touches. Tracking samples alone structurally cannot see these.
+# =====================================================================
+
+non_sample_targets:
+
+  - name: stdlib
+    kind: library
+    path: Source/Standard
+    threshold: intrinsic-member-declarations
+    requires: [intrinsic-member-declarations, operator-overload-declarations,
+               cast-operator-declarations, property-declarations-and-accessors,
+               indexer-declarations, associated-type-slots, type-pack-declarations,
+               generic-type-aliases, dependent-type-parameters,
+               refinement-type-declarations, nominal-conformance-and-slot-checking,
+               struct-declaration]
+    note: >
+      Every v2 compile transpiles this, so it is the one target that is already exercised on
+      every run -- and it is currently emitted with operators, cast operators and properties
+      silently dropped. The array type alone needs a dependent length parameter, a refinement
+      alias for its bounds, an associated enumerator slot, an indexer with a refined
+      parameter, a nested struct and the intrinsic modifier.
+    untested:
+      - Nothing asserts on the emitted stdlib. The samples pass because they do not call the
+        dropped members, so the stdlib's own correctness has no test at all.
+      - The unit type is transpiled and then rewritten to the void keyword at every
+        reference, so the emitted file is dead code that still had to compile -- which is how
+        the forced-public struct constructor workaround came about.
+
+# =====================================================================
+# ORPHAN CAPABILITIES
+#
+# Required by no target. Each is a soundness check whose only observable is a
+# REJECTION, and no sample can contain one because samples must build clean.
+# =====================================================================
+
+orphan_capabilities:
+
+  - id: static-context-checking
+    reason: >
+      Its whole purpose is rejecting a this reference or an instance-field read in a static
+      member. Every sample is legal by construction, so no sample can require it. Classes
+      exercises the neighbouring code path and would pass WITHOUT this check, which is
+      precisely why it needs a unit test rather than a sample.
+
+  - id: member-before-namespace-precedence
+    reason: >
+      Observable only when a field name collides with a visible type name. No sample contains
+      such a collision. Needs a unit test asserting the field wins.
+
+  - id: non-public-type-accessibility
+    reason: >
+      No tier-0 through tier-8 sample declares a non-public type, so the current collapse of
+      every non-public level to C# internal is latent. Needs a unit test per level.
+
+# =====================================================================
+# UNCOVERED CONSTRUCTS
+#
+# The grammar generates 403 AST node classes. After removing 65 abstract rule nodes,
+# 14 operator-symbol nodes recorded as operators instead, and 4 precedence-plumbing
+# nodes, these 24 appear in NO sample. Recorded so this file cannot be mistaken for
+# evidence that the sample suite is complete.
+#
+# disposition: needs-sample | unit-test-only | dead-grammar | stdlib-only
+# =====================================================================
+
+uncovered_constructs:
+
+  - construct: OperatorMemberMemberDeclarationNode
+    what: User-declared operator overloads
+    disposition: stdlib-only
+    capability: operator-overload-declarations
+    note: >
+      The sharpest gap in the suite. Declared in 16 stdlib files, dropped silently by the
+      emitter, and unreachable from any sample. Every arithmetic and comparison operator on a
+      Mist primitive depends on it.
+
+  - construct: IntrinsicModifierModifierNode
+    what: The intrinsic modifier
+    disposition: stdlib-only
+    capability: intrinsic-member-declarations
+
+  - construct: BinaryLiteralExpressionPrimaryNode
+    what: Binary integer literals
+    disposition: needs-sample
+    note: Primitives covers decimal and hex but not binary.
+
+  - construct: BinaryLiteralTypeArgumentTypeArgumentNode
+    what: A binary literal as a dependent type argument
+    disposition: needs-sample
+    capability: dependent-type-parameters
+
+  - construct: HexLiteralTypeArgumentTypeArgumentNode
+    what: A hex literal as a dependent type argument
+    disposition: needs-sample
+    capability: dependent-type-parameters
+
+  - construct: FalseLiteralTypeArgumentTypeArgumentNode
+    what: A false literal as a dependent type argument
+    disposition: needs-sample
+    capability: dependent-type-parameters
+    note: DependentTypes covers the true literal but not the false one.
+
+  - construct: CharConstantConstantLiteralNode
+    what: A char constant in pattern position
+    disposition: needs-sample
+    capability: constant-and-relational-patterns
+
+  - construct: FloatConstantConstantLiteralNode
+    what: A float constant in pattern position
+    disposition: needs-sample
+    capability: constant-and-relational-patterns
+
+  - construct: CompoundRefinementPredicateRefinementPredicateNode
+    what: A compound refinement predicate
+    disposition: needs-sample
+    capability: refinement-type-declarations
+
+  - construct: DefaultTypeBindingDefaultFieldInitializerNode
+    what: The type-binding form inside a default block
+    disposition: needs-sample
+    capability: default-value-synthesis
+    note: DefaultKeyword covers the field-override form only.
+
+  - construct: ExpressionInitAccessorAccessorDeclarationNode
+    what: An expression-bodied init accessor
+    disposition: needs-sample
+    capability: property-accessor-accessibility-and-init
+
+  - construct: ExtensionItemTopLevelItemNode
+    what: An extension block at top level rather than in a namespace body
+    disposition: needs-sample
+    capability: extension-block-declaration
+
+  - construct: ForInitializerExpressionForInitializerNode
+    what: A for loop whose initializer is an expression rather than a declaration
+    disposition: needs-sample
+    capability: control-flow-basic
+
+  - construct: NamedAttributeArgumentAttributeArgumentNode
+    what: A named attribute argument
+    disposition: needs-sample
+    capability: attribute-arguments-and-type-literals
+    note: >
+      Attributes claims to cover named arguments in a comment but every argument in the
+      sample is positional.
+
+  - construct: NamespaceNamespaceItemNamespaceBodyItemNode
+    what: A namespace nested inside a namespace body
+    disposition: needs-sample
+    capability: nested-block-namespaces
+
+  - construct: NestedNewtypeMemberMemberDeclarationNode
+    what: A newtype nested inside a type
+    disposition: needs-sample
+    capability: newtype-declarations
+
+  - construct: NestedTypeAliasMemberMemberDeclarationNode
+    what: A type alias nested inside a type
+    disposition: needs-sample
+    capability: type-alias-declarations
+
+  - construct: OptionalMemberAccessSuffixPostfixSuffixNode
+    what: Conditional MEMBER access, as distinct from a conditional method call
+    disposition: needs-sample
+    capability: optional-operators
+    note: OptionalTypes covers the conditional invocation form only.
+
+  - construct: OwnedConstraintConstraintNode
+    what: An owned generic constraint
+    disposition: needs-sample
+    capability: substructural-field-containment
+
+  - construct: ParenthesizedTypeRefSingleTypeRefNode
+    what: A parenthesized type reference
+    disposition: needs-sample
+    note: >
+      Probably only observable where it disambiguates a union inside a function type or an
+      array element type.
+
+  - construct: ReadonlyRefSpecifierOwnershipSpecifierNode
+    what: The readonly ref ownership specifier
+    disposition: needs-sample
+    capability: ownership-specifiers
+    note: >
+      RefParameters uses a readonly ref LOCAL, which is a different node. This is the
+      ownership-specifier position.
+
+  - construct: TargetTypedNewExpressionNoArgsPrimaryNode
+    what: Target-typed creation with an initializer block and no argument list
+    disposition: needs-sample
+    capability: target-typed-new
+
+  - construct: UnknownElementTypeRefElementTypeRefNode
+    what: An unknown array element type
+    disposition: needs-sample
+    capability: unknown-top-type
+
+  - construct: EmptyArrayLiteralExpressionPrimaryNode
+    what: A separate node kind for the empty array literal
+    disposition: dead-grammar
+    note: >
+      Commit 28a65b43 unified the two array literal node types into one, so this alternative
+      is very likely unreachable. Confirm and delete it from the grammar rather than writing
+      a sample for it.
+
+# =====================================================================
+# NOTES CARRIED FORWARD
+# =====================================================================
+#
+# DEFERRABLE INDEFINITELY: compound assignment and increment/decrement. Neither appears in
+# ANY of the 75 samples -- verified by search. Every loop iterator is written longhand and
+# every accumulator re-assigns. BodyEmitter's AssignmentExpression emits a plain assignment
+# only and MapUnaryOperator handles only negate and logical-not, and that is sufficient for
+# the entire suite. TopLevelStatements advertises a control-flow survey and still writes the
+# iterator longhand.
+#
+# ALSO ABSENT from all 75: continue, do-while, and try/catch/throw as SOURCE constructs.
+# try/finally appears only as emitter output for drop insertion and scope-exit awaits, never
+# written by a Mist program, so there is no exception-handling capability in this file at all.
+# That is a genuine hole in the sample suite, not an omission here.
+#
+# ORDERING JUDGEMENTS WORTH REVISITING
+#
+#   1. Overload resolution sits at order 26, ahead of the declaration-boundary layer,
+#      because Overloading is already marked done and should not stay falsely green. Treated
+#      as greenfield rather than debt it would sit later, after the samples that need no new
+#      semantic algorithm.
+#
+#   2. The inheritance layer sits at 34 through 38. Classic shipped inheritance at
+#      intro_order 4, and 6957888b already emits a base chain against a missing base list,
+#      so there is a real argument for pulling this layer ahead of declaration boundaries.
+#
+#   3. struct-as-parameter-and-return at order 25 is a thin capability carrying a fat
+#      requires list, because it is the last thing Classes needs. If it turns out to work
+#      for free, Classes unlocks at ambient-math-intrinsics instead.
+#
+#   4. Nested types sit ahead of abstract types, because AssociatedTypes fills every slot
+#      with a nested type. That ordering was inverted in the first draft and is easy to get
+#      wrong again.
+#
+#   5. Attributes bottoms out on CLR type projection, not on the attribute layer, because
+#      its attribute types come from the BCL. If a sample used only Mist-declared
+#      attributes it would unlock much earlier.
+#
+# THREE SAMPLES HAVE NEVER BEEN RUN, on the classic pipeline either. VoidValueLiteral and
+# DisposableDropInterop have no build output at all, and VoidValueLiteral has no entry
+# point. ArrayLiterals and CastOperators have no committed out/ directory. A sample with no
+# build output cannot be an acceptance test for anything.
+#
+# CROSS-CUTTING TASKS, not tied to one capability:
+#
+#   - Report a Mist diagnostic when the emitter encounters a sentinel expression or
+#     statement. BodyEmitter's default cases currently render an "unsupported" comment in
+#     expression position, which turns a Mist gap into a Roslyn syntax error on a generated
+#     file with no Mist source location. Every `broken` status in this file surfaces that way.
+#
+#   - Decide what to do about the rejection surface. Roughly two thirds of the `untested`
+#     entries in this file are the same observation: the sample exercises only the accepting
+#     path, because a sample must build clean. Ownership, readonly, refinement, dependent
+#     types, substructural disciplines and accessibility are ALL in that position -- their
+#     analyses could be entirely absent and every sample would still pass and print
+#     correctly. Those checks need unit tests; no amount of sample work will cover them.
+#
+#   - Give Properties a baseline. It currently produces wrong output on the classic
+#     pipeline (two backing fields for a mixed accessor pair, so writes never reach reads)
+#     and nothing catches it because the sample has no expected-output file.

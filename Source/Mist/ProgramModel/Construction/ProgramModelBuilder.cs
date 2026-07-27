@@ -132,9 +132,11 @@ public sealed class ProgramModelBuilder
         conformanceBuilder.BuildAll();
 
         // Phase 3: Bind member bodies into the resolved, AST-free bound tree.
-        // Walking-skeleton scope: method bodies only. Constructs the binder does
-        // not yet handle bind to sentinel nodes (no throws, no diagnostics), so
-        // this is safe to run over every source program.
+        // Walking-skeleton scope: delegate bodies only — property and indexer accessors
+        // are not yet bound. Constructs the binder does not yet handle bind to sentinel
+        // nodes (no throws, no diagnostics), so this is safe to run over every source
+        // program. Order is irrelevant: Phase 2 resolved every signature already, so no
+        // body or constructor chain depends on which delegate was bound first.
         foreach(var typeDef in sourceTypes)
         {
             if(typeDef is not MemberType memberType)
@@ -142,11 +144,12 @@ public sealed class ProgramModelBuilder
                 continue;
             }
 
-            foreach(var method in memberType.MethodsList)
+            foreach(var boundDelegate in memberType.EnumerateDelegates())
             {
-                if(method.Body is not null)
+                // Abstract members and intrinsics legitimately have no body to bind.
+                if(boundDelegate.Body is not null)
                 {
-                    BodyBinder.BindDelegate(method, memberType, context);
+                    BodyBinder.BindDelegate(boundDelegate, memberType, context);
                 }
             }
         }

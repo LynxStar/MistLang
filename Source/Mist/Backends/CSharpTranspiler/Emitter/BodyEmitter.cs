@@ -182,23 +182,14 @@ internal static class BodyEmitter
         }
     }
 
-    private static void EmitExpression(Expression expression, CSharpWriter writer)
+    internal static void EmitExpression(Expression expression, CSharpWriter writer)
     {
         switch(expression)
         {
             case InvocationExpression invocation:
                 EmitExpression(invocation.Receiver, writer);
                 writer.Append("(");
-                for(var i = 0; i < invocation.Arguments.Count; i++)
-                {
-                    if(i > 0)
-                    {
-                        writer.Append(", ");
-                    }
-
-                    EmitExpression(invocation.Arguments[i], writer);
-                }
-
+                EmitList.Separated(invocation.Arguments, ", ", writer, argument => EmitExpression(argument, writer));
                 writer.Append(")");
                 break;
 
@@ -242,15 +233,7 @@ internal static class BodyEmitter
                 // expression so the target type is never required at the use site.
                 writer.Append($"new {TypeNameEmitter.Emit(arrayLiteral.ElementType)}[]");
                 writer.Append(arrayLiteral.Elements.Count == 0 ? " { }" : " { ");
-                for(var i = 0; i < arrayLiteral.Elements.Count; i++)
-                {
-                    if(i > 0)
-                    {
-                        writer.Append(", ");
-                    }
-
-                    EmitExpression(arrayLiteral.Elements[i], writer);
-                }
+                EmitList.Separated(arrayLiteral.Elements, ", ", writer, element => EmitExpression(element, writer));
 
                 if(arrayLiteral.Elements.Count > 0)
                 {
@@ -289,6 +272,20 @@ internal static class BodyEmitter
 
             case LocalReferenceExpression localRef:
                 writer.Append(localRef.Local.Name);
+                break;
+
+            case ThisExpression:
+                writer.Append("this");
+                break;
+
+            case FieldReferenceExpression fieldRef:
+                writer.Append(fieldRef.Field.Name);
+                break;
+
+            case NewExpression newExpression:
+                writer.Append($"new {TypeNameEmitter.Emit(newExpression.Type)}(");
+                EmitList.Separated(newExpression.Arguments, ", ", writer, argument => EmitExpression(argument, writer));
+                writer.Append(")");
                 break;
 
             case LiteralExpression literal:

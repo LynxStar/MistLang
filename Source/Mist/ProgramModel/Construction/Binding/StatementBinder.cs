@@ -33,7 +33,7 @@ internal static class StatementBinder
     private static Block BindNestedBlock(BlockNode node, BindingContext ctx, BuilderContext context)
     {
         var block = new Block(node);
-        BodyBinder.BindBody(block, new Scope(ctx.Scope), ctx.ReturnType, ctx.EnclosingType, context);
+        BodyBinder.BindBody(block, new Scope(ctx.Scope), ctx.ReturnType, ctx.EnclosingType, ctx.IsStaticContext, context);
         return block;
     }
 
@@ -100,7 +100,7 @@ internal static class StatementBinder
         var condition = ExpressionBinder.BindExpression(node.Condition, ctx, context);
 
         var thenBlock = new Block(node.ThenBranch);
-        BodyBinder.BindBody(thenBlock, new Scope(ctx.Scope), ctx.ReturnType, ctx.EnclosingType, context);
+        BodyBinder.BindBody(thenBlock, new Scope(ctx.Scope), ctx.ReturnType, ctx.EnclosingType, ctx.IsStaticContext, context);
 
         Statement? elseBranch = null;
         if(node.ElseBranch is not null)
@@ -121,7 +121,7 @@ internal static class StatementBinder
         var condition = ExpressionBinder.BindExpression(node.Condition, ctx, context);
 
         var body = new Block(node.Body);
-        BodyBinder.BindBody(body, new Scope(ctx.Scope), ctx.ReturnType, ctx.EnclosingType, context);
+        BodyBinder.BindBody(body, new Scope(ctx.Scope), ctx.ReturnType, ctx.EnclosingType, ctx.IsStaticContext, context);
 
         return new WhileStatement(condition, body);
     }
@@ -152,7 +152,7 @@ internal static class StatementBinder
         }
 
         var body = new Block(node.Body);
-        BodyBinder.BindBody(body, new Scope(forScope), ctx.ReturnType, ctx.EnclosingType, context);
+        BodyBinder.BindBody(body, new Scope(forScope), ctx.ReturnType, ctx.EnclosingType, ctx.IsStaticContext, context);
 
         ctx.Scope = previousScope;
         return new ForStatement(initializer, condition, iterator, body);
@@ -226,7 +226,7 @@ internal static class StatementBinder
         foreachScope.RegisterLocal(variable, context.Diagnostics);
 
         var body = new Block(bodyNode);
-        BodyBinder.BindBody(body, foreachScope, ctx.ReturnType, ctx.EnclosingType, context);
+        BodyBinder.BindBody(body, foreachScope, ctx.ReturnType, ctx.EnclosingType, ctx.IsStaticContext, context);
 
         return new ForEachStatement(variable, collection, body);
     }

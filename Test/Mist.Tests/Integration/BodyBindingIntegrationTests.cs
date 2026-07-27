@@ -357,6 +357,7 @@ public sealed class BodyBindingIntegrationTests : IDisposable
     private static void AssertExpressionResolved(Expression expr)
     {
         Assert.IsNotType<UnresolvedExpression>(expr);
+        Assert.IsNotType<ErrorExpression>(expr);
 
         switch(expr)
         {

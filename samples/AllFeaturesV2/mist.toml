@@ -4,3 +4,4 @@ name = "AllFeaturesV2"
 Simpliest = { path = "../Simpliest" }
 Primitives = { path = "../Primitives" }
 ArrayLiterals = { path = "../ArrayLiterals" }
+Overloading = { path = "../Overloading" }

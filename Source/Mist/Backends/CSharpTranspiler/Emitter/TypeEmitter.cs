@@ -29,18 +29,48 @@ internal static class TypeEmitter
         writer.WriteLine($"{accessibility}{typeKeyword} {type.Name}");
         using(writer.Block())
         {
-            for(var i = 0; i < type.MethodsList.Count; i++)
-            {
-                if(i > 0)
-                {
-                    writer.WriteBlankLine();
-                }
+            var concrete = type as ConcreteType;
+            var anyEmitted = false;
 
-                MethodEmitter.Emit(type.MethodsList[i], writer);
+            // Fields first so they read as the type's state before the members that use
+            // it, and because C# requires nothing of the order. Each is a single line, so
+            // they run together as one block -- a blank line between every one of them
+            // reads as noise rather than as separation.
+            foreach(var field in concrete?.FieldsList ?? [])
+            {
+                FieldEmitter.Emit(field, writer);
+                anyEmitted = true;
+            }
+
+            foreach(var constructor in concrete?.ConstructorsList ?? [])
+            {
+                SeparateMember(writer, ref anyEmitted);
+                ConstructorEmitter.Emit(constructor, type, writer);
+            }
+
+            foreach(var method in type.MethodsList)
+            {
+                SeparateMember(writer, ref anyEmitted);
+                MethodEmitter.Emit(method, writer);
             }
         }
 
         return writer.ToString();
+    }
+
+    /// <summary>
+    /// Writes the blank line that precedes a block-bodied member, unless that member opens
+    /// the type body. Called per member rather than per section, so it also supplies the
+    /// break between the field block and whatever follows it.
+    /// </summary>
+    private static void SeparateMember(CSharpWriter writer, ref bool anyEmitted)
+    {
+        if(anyEmitted)
+        {
+            writer.WriteBlankLine();
+        }
+
+        anyEmitted = true;
     }
 
     /// <summary>

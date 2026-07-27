@@ -353,6 +353,22 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "A variable named '{0}' is already declared in this scope.");
 
+    // ── Body binding ─────────────────────────────────────────────────────
+
+    /// <summary>A 'this' reference appears where there is no enclosing type.</summary>
+    public static readonly DiagnosticDescriptor ThisOutsideType = new(
+        new DiagnosticId("MIST_PM_THIS_OUTSIDE_TYPE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'this' is not valid here because there is no enclosing type. It is only valid inside an instance member of a type.");
+
+    /// <summary>A 'this' reference appears in a static member.</summary>
+    public static readonly DiagnosticDescriptor ThisInStaticMember = new(
+        new DiagnosticId("MIST_PM_THIS_IN_STATIC"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'this' is not valid in a static member because a static member has no instance to refer to.");
+
     // ── Array literal inference ──────────────────────────────────────────
 
     /// <summary>An empty array literal appears where no target array type supplies the element type.</summary>

@@ -55,3 +55,13 @@ length=5
 --- Boolean array ---
   [True, False, True]
 Done!
+--- Method Overloading ---
+>>> int=42
+>>> bool=True
+>>> double=3.14
+>>> string=hello
+[default] int=99
+Add(int): 7
+Add(double): 4
+Clamp(int): 10
+Clamp(double): 1

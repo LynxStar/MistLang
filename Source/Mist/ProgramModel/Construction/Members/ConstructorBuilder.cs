@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
@@ -40,10 +41,26 @@ internal sealed class ConstructorBuilder
         var constructor = new Constructor(concreteType.Name, concreteType, common.Parameters, common.Modifiers)
         {
             Body = common.Body,
+            ChainKind = ResolveChainKind(ctorDecl.Chain),
+            ChainNode = ctorDecl.Chain,
         };
 
         constructor.ContextBindingsList.AddRange(common.ContextBindings);
 
         concreteType.ConstructorsList.Add(constructor);
+    }
+
+    /// <summary>
+    /// Maps the chain syntax to its kind. The arguments are left for Phase 3, since they
+    /// reference the constructor's own parameters.
+    /// </summary>
+    private static ConstructorChainKind ResolveChainKind(ConstructorChainNode? chain)
+    {
+        return chain switch
+        {
+            ThisChainConstructorChainNode => ConstructorChainKind.This,
+            BaseChainConstructorChainNode => ConstructorChainKind.Base,
+            _ => ConstructorChainKind.None,
+        };
     }
 }

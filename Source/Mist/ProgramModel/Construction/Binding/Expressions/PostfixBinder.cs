@@ -54,7 +54,7 @@ internal static class PostfixBinder
 
     private static InvocationExpression BindInvocation(Storm.Runtime.SyntaxNode node, Expression receiver, ArgumentListNode? arguments, BindingContext ctx, BuilderContext context)
     {
-        var bound = BindArguments(arguments, ctx, context);
+        var bound = ArgumentBinder.Bind(arguments, ctx, context);
         return new InvocationExpression(node, receiver, bound, receiver.Type);
     }
 
@@ -90,23 +90,6 @@ internal static class PostfixBinder
         };
     }
 
-    private static IReadOnlyList<Expression> BindArguments(ArgumentListNode? argumentList, BindingContext ctx, BuilderContext context)
-    {
-        if(argumentList is null)
-        {
-            return [];
-        }
-
-        var expressions = argumentList.GetAllExpressions();
-        var bound = new List<Expression>(expressions.Length);
-        foreach(var expr in expressions)
-        {
-            bound.Add(ExpressionBinder.BindExpression(expr, ctx, context));
-        }
-
-        return bound;
-    }
-
     /// <summary>
     /// Resolves the type of a member accessed on a receiver. Looks up methods and
     /// properties on the receiver's type. Falls back to the error type for members
@@ -135,6 +118,19 @@ internal static class PostfixBinder
                 if(property.Name == memberName)
                 {
                     return property.Type;
+                }
+            }
+
+            // Fields last: only concrete types declare them, and a name that is both a
+            // method and a field cannot occur.
+            if(memberType is ConcreteType concrete)
+            {
+                foreach(var field in concrete.FieldsList)
+                {
+                    if(field.Name == memberName)
+                    {
+                        return field.Type;
+                    }
                 }
             }
         }

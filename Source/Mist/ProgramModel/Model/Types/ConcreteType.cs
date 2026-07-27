@@ -70,6 +70,28 @@ internal abstract class ConcreteType : MemberType, IConcreteType
     /// </summary>
     public DefaultBlock? DefaultBlock { get; internal set; }
 
+    /// <summary>
+    /// Adds the delegates only classes and structs can declare — constructors and
+    /// cast operators — to the methods and operators every member type has.
+    /// </summary>
+    internal override IEnumerable<Method> EnumerateDelegates()
+    {
+        foreach(var inherited in base.EnumerateDelegates())
+        {
+            yield return inherited;
+        }
+
+        foreach(var constructor in ConstructorsList)
+        {
+            yield return constructor;
+        }
+
+        foreach(var castOperator in CastOperatorsList)
+        {
+            yield return castOperator;
+        }
+    }
+
     IMistType? IConcreteType.BaseType => BaseType;
 
     IReadOnlyList<IField> IConcreteType.Fields => FieldsList;

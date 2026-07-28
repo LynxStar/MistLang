@@ -1,7 +1,7 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
-using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
@@ -97,12 +97,13 @@ internal sealed class AmbientTypeResolver
     /// </summary>
     private MistType ResolveTypeParameter(Type clrParam, Scope scope)
     {
-        for(var current = scope; current is not null; current = current.Parent)
+        // Members are excluded: a type parameter can only be a type name, and admitting fields
+        // or methods would let one shadow the parameter being looked for. No location node --
+        // this lookup comes from assembly projection, not from Mist source.
+        var request = new LookupRequest(clrParam.Name, MemberVisibility.None, LocationNode: null);
+        if(scope.Lookup(request) is TypeResult { Type: MistType resolved })
         {
-            if(current.LocalTypes.TryGetValue(clrParam.Name, out var localType))
-            {
-                return (MistType)localType;
-            }
+            return resolved;
         }
 
         diagnostics.Report(

@@ -227,9 +227,9 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
             shells[nestedClrFqn] = nestedShell;
             clrTypes[nestedClrFqn] = nestedClrType;
 
-            // Wire up the parent relationship immediately (scope was set at creation).
+            // Wire up the parent relationship immediately (scope was set at creation). The
+            // declaring type's scope reads NestedTypes back out, so this is the only record needed.
             declaringShell.NestedTypes.Add(nestedShell);
-            declaringShell.Scope.AddLocalType(nestedShell.Name, nestedShell);
 
             // Recurse for deeper nesting (Outer.Middle.Inner).
             CreateNestedShells(nestedClrType, nestedShell, nestedClrFqn, namespaceName, wellKnownTypes, shells, clrTypes);

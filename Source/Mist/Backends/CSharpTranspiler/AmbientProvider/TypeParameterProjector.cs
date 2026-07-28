@@ -1,6 +1,7 @@
 using System.Reflection;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
@@ -46,7 +47,6 @@ internal static class TypeParameterProjector
             var clrParam = clrTypeParams[inheritedCount + i];
             var typeParam = new TypeParameter(clrParam.Name, i, projectedType.Scope, projectedType);
             projectedType.TypeParametersList.Add(typeParam);
-            projectedType.Scope.AddLocalType(clrParam.Name, typeParam);
         }
 
         // Pass 2: Resolve constraints now that all type parameters are in scope.

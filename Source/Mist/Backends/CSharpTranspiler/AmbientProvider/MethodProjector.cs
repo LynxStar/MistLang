@@ -2,6 +2,7 @@ using System.Reflection;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
@@ -44,9 +45,9 @@ internal static class MethodProjector
     private static Method? ProjectMethod(MethodInfo method, MemberType memberType, AmbientTypeResolver resolver)
     {
         // Create a method scope for method-level type parameters.
-        var methodScope = new Scope(memberType.Scope)
+        var methodScope = new MethodScope(memberType.Scope)
         {
-            Namespace = memberType.NamespaceName
+            IsStatic = method.IsStatic,
         };
 
         // Project method-level type parameters (if generic method).
@@ -96,7 +97,7 @@ internal static class MethodProjector
     /// </summary>
     private static void ProjectMethodTypeParameters(
         MethodInfo method,
-        Scope methodScope,
+        ITypeNameScope methodScope,
         MemberType declaringType,
         List<TypeParameter> typeParameters,
         AmbientTypeResolver resolver)
@@ -107,15 +108,15 @@ internal static class MethodProjector
         for(var i = 0; i < clrTypeParams.Length; i++)
         {
             var clrParam = clrTypeParams[i];
-            var typeParam = new TypeParameter(clrParam.Name, i, methodScope, declaringType);
+            var typeParam = new TypeParameter(clrParam.Name, i, (Scope)methodScope, declaringType);
             typeParameters.Add(typeParam);
-            methodScope.AddLocalType(clrParam.Name, typeParam);
+            methodScope.DeclareType(clrParam.Name, typeParam);
         }
 
         // Pass 2: Resolve constraints.
         for(var i = 0; i < clrTypeParams.Length; i++)
         {
-            ProjectConstraints(typeParameters[i], clrTypeParams[i], methodScope, resolver);
+            ProjectConstraints(typeParameters[i], clrTypeParams[i], (Scope)methodScope, resolver);
         }
     }
 

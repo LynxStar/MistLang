@@ -2,6 +2,7 @@ using System.Reflection;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 using ProgramModelType = Mist.ProgramModel.Model.ProgramModel;
 
@@ -102,19 +103,9 @@ internal static class ExtensionProjector
             return;
         }
 
-        // The extension block needs a scope for method-level type parameter resolution.
-        // Use a fresh scope parented to null — ambient extensions don't have a file scope.
-        var blockScope = new Scope(null) { Namespace = namespaceName };
-
-        // Project method-level type parameters first so the receiver and remaining
-        // parameters can reference them (e.g., Where<TSource>(this IEnumerable<TSource>...)).
-        var typeParameters = new List<TypeParameter>();
-        if(method.IsGenericMethodDefinition)
-        {
-            ProjectMethodTypeParameters(method, blockScope, typeParameters, resolver);
-        }
-
-        // Resolve the receiver type (first parameter).
+        // The receiver is the first parameter, and its CLR shape decides which of the method's
+        // type parameters belong to the block. Determined before anything is resolved, because the
+        // block's own parameters have to be in place for the receiver type to reference them.
         var receiverParam = allParams[0];
         var receiverClrType = receiverParam.ParameterType.IsByRef
             ? receiverParam.ParameterType.GetElementType()!
@@ -125,34 +116,42 @@ internal static class ExtensionProjector
             return;
         }
 
+        // Parented to null: ambient extensions have no file scope.
+        var blockScope = new ExtensionScope(null);
+        var extensionBlock = new ExtensionBlock("self", namespaceName, blockScope, null);
+
+        var methodScope = new MethodScope(blockScope) { IsStatic = true };
+
+        var clrTypeParams = method.IsGenericMethodDefinition
+            ? method.GetGenericArguments()
+            : [];
+
+        var methodTypeParameters = ProjectTypeParameters(
+            clrTypeParams, receiverClrType, extensionBlock, blockScope, methodScope, resolver);
+
+        // The receiver may only name block-level parameters, so it resolves against the block.
         var receiverType = resolver.Resolve(receiverClrType, blockScope);
         if(receiverType is ErrorType or NotProjectedType)
         {
             return;
         }
 
-        // Resolve return type.
-        var returnType = resolver.Resolve(method.ReturnType, blockScope);
+        // Everything else may name both levels, so it resolves against the method.
+        var returnType = resolver.Resolve(method.ReturnType, methodScope);
         if(returnType is ErrorType or NotProjectedType)
         {
             return;
         }
 
-        // Project remaining parameters (skip receiver).
         var remainingClrParams = allParams[1..];
-        var parameters = ParameterProjector.Project(remainingClrParams, blockScope, resolver);
+        var parameters = ParameterProjector.Project(remainingClrParams, methodScope, resolver);
         if(parameters is null)
         {
             return;
         }
 
-        // Create the extension block for this method.
-        var extensionBlock = new ExtensionBlock("self", namespaceName, blockScope, null)
-        {
-            ResolvedReceiverType = receiverType,
-        };
+        extensionBlock.ResolvedReceiverType = receiverType;
 
-        // Build the Method instance.
         var modifiers = new MemberModifiers
         {
             Accessibility = Accessibility.Public,
@@ -161,11 +160,11 @@ internal static class ExtensionProjector
 
         var projected = new Method(method.Name, returnType, parameters, modifiers)
         {
-            Scope = blockScope,
+            Scope = methodScope,
         };
 
-        projected.TypeParametersList.AddRange(typeParameters);
-        AttributeProjector.Project(method, projected.AttributesList, blockScope, resolver);
+        projected.TypeParametersList.AddRange(methodTypeParameters);
+        AttributeProjector.Project(method, projected.AttributesList, methodScope, resolver);
 
         extensionBlock.MethodsList.Add(projected);
 
@@ -181,31 +180,156 @@ internal static class ExtensionProjector
     }
 
     /// <summary>
-    /// Projects method-level generic type parameters and their constraints
-    /// into the given scope. Mirrors <see cref="MethodProjector"/>'s logic.
+    /// Splits a CLR extension method's type parameters between the block and the method, creates
+    /// both sets, and resolves their constraints. Returns the method-level ones; the block-level ones
+    /// are added to <paramref name="extensionBlock"/>.
+    /// <para>
+    /// The CLR has no extension blocks -- <c>Select&lt;TSource, TResult&gt;(this
+    /// IEnumerable&lt;TSource&gt; ...)</c> is one flat list -- so resugaring has to decide where each
+    /// parameter came from. A parameter the receiver type mentions was the block's:
+    /// <c>extension&lt;TSource&gt;(IEnumerable&lt;TSource&gt; self)</c>. The rest were the method's.
+    /// </para>
+    /// <para>
+    /// Ordinals stay as the CLR numbered them. They are not positions within either list but the
+    /// index <see cref="ConstructedType.Substitute"/> uses against a receiver's type arguments, so
+    /// renumbering would resolve a method-level parameter to whatever occupied that slot.
+    /// </para>
     /// </summary>
-    private static void ProjectMethodTypeParameters(
-        MethodInfo method,
-        Scope methodScope,
-        List<TypeParameter> typeParameters,
+    private static List<TypeParameter> ProjectTypeParameters(
+        Type[] clrTypeParams,
+        Type receiverClrType,
+        ExtensionBlock extensionBlock,
+        ExtensionScope blockScope,
+        MethodScope methodScope,
         AmbientTypeResolver resolver)
     {
-        var clrTypeParams = method.GetGenericArguments();
+        var methodTypeParameters = new List<TypeParameter>();
+        if(clrTypeParams.Length == 0)
+        {
+            return methodTypeParameters;
+        }
 
-        // Pass 1: Create all type parameters and register in scope.
+        var blockLevel = PartitionBlockLevel(clrTypeParams, receiverClrType);
+
+        // Both sets are created before any constraint is resolved, so a constraint may name any
+        // parameter regardless of which level it landed on.
         for(var i = 0; i < clrTypeParams.Length; i++)
         {
             var clrParam = clrTypeParams[i];
-            // Use null for declaring type — extension method type params belong to the method, not a type.
-            var typeParam = new TypeParameter(clrParam.Name, i, methodScope, null!);
-            typeParameters.Add(typeParam);
-            methodScope.AddLocalType(clrParam.Name, typeParam);
+
+            // Null declaring type: these belong to the block or the method, never to a type.
+            if(blockLevel.Contains(clrParam))
+            {
+                extensionBlock.TypeParametersList.Add(new TypeParameter(clrParam.Name, i, blockScope, null!));
+            }
+            else
+            {
+                var typeParam = new TypeParameter(clrParam.Name, i, methodScope, null!);
+                methodTypeParameters.Add(typeParam);
+                methodScope.DeclareType(clrParam.Name, typeParam);
+            }
         }
 
-        // Pass 2: Resolve constraints.
-        for(var i = 0; i < clrTypeParams.Length; i++)
+        // Resolved against the method scope, which sees both levels through its parent.
+        foreach(var typeParam in extensionBlock.TypeParametersList)
         {
-            ProjectConstraints(typeParameters[i], clrTypeParams[i], methodScope, resolver);
+            ProjectConstraints(typeParam, clrTypeParams[typeParam.Ordinal], methodScope, resolver);
+        }
+
+        foreach(var typeParam in methodTypeParameters)
+        {
+            ProjectConstraints(typeParam, clrTypeParams[typeParam.Ordinal], methodScope, resolver);
+        }
+
+        return methodTypeParameters;
+    }
+
+    /// <summary>
+    /// The type parameters that belong to the block: those the receiver type mentions, plus any a
+    /// block-level parameter's constraints mention.
+    /// <para>
+    /// The second part is what makes <c>where TSource : IEquatable&lt;TResult&gt;</c> representable.
+    /// A block-level parameter constrained by a method-level one would need both visible at the block,
+    /// and the method scope is the inner one, so the referenced parameter is promoted instead.
+    /// Iterated to a fixed point, since a promoted parameter's own constraints may pull in more.
+    /// </para>
+    /// </summary>
+    private static HashSet<Type> PartitionBlockLevel(Type[] clrTypeParams, Type receiverClrType)
+    {
+        var blockLevel = new HashSet<Type>();
+
+        foreach(var clrParam in clrTypeParams)
+        {
+            if(Mentions(receiverClrType, clrParam))
+            {
+                _ = blockLevel.Add(clrParam);
+            }
+        }
+
+        var changed = true;
+        while(changed)
+        {
+            changed = false;
+
+            foreach(var promoted in blockLevel.ToArray())
+            {
+                foreach(var constraint in SafeConstraintsOf(promoted))
+                {
+                    foreach(var clrParam in clrTypeParams)
+                    {
+                        if(!blockLevel.Contains(clrParam) && Mentions(constraint, clrParam))
+                        {
+                            _ = blockLevel.Add(clrParam);
+                            changed = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        return blockLevel;
+    }
+
+    /// <summary>
+    /// Whether <paramref name="candidate"/> appears anywhere in <paramref name="type"/>, at any
+    /// depth: <c>TValue</c> is mentioned by <c>Dictionary&lt;TKey, List&lt;TValue&gt;&gt;</c>.
+    /// </summary>
+    private static bool Mentions(Type type, Type candidate)
+    {
+        if(type.IsGenericParameter)
+        {
+            return type == candidate;
+        }
+
+        if(type.HasElementType)
+        {
+            var element = type.GetElementType();
+            return element is not null && Mentions(element, candidate);
+        }
+
+        if(type.IsGenericType)
+        {
+            foreach(var argument in type.GetGenericArguments())
+            {
+                if(Mentions(argument, candidate))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static Type[] SafeConstraintsOf(Type clrParam)
+    {
+        try
+        {
+            return clrParam.GetGenericParameterConstraints();
+        }
+        catch
+        {
+            return [];
         }
     }
 

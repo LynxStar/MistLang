@@ -1,6 +1,6 @@
-using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
@@ -30,14 +30,15 @@ internal static class TypeProjector
     public static MistType CreateShell(Type clrType, string namespaceName, MistType? declaringType, Scope? parentScope)
     {
         var mistName = NameFormatTranslator.ClrNameToMistName(clrType.Name);
-        var scope = new Scope(parentScope);
 
+        // Each of these owns a TypeScope, built around itself, exactly as a source-declared type
+        // does: a projected type's members have to be reachable by the same lookup rules.
         var shell = clrType switch
         {
-            { IsInterface: true } => (MistType)new AbstractType(mistName, namespaceName, scope, declaringType, null),
-            { IsEnum: true } => new EnumType(mistName, namespaceName, scope, declaringType, null),
-            { IsValueType: true } => new StructType(mistName, namespaceName, scope, declaringType, null),
-            _ => new ClassType(mistName, namespaceName, scope, declaringType, null!),
+            { IsInterface: true } => (MistType)new AbstractType(mistName, namespaceName, parentScope, declaringType, null),
+            { IsEnum: true } => new EnumType(mistName, namespaceName, parentScope, declaringType, null),
+            { IsValueType: true } => new StructType(mistName, namespaceName, parentScope, declaringType, null),
+            _ => new ClassType(mistName, namespaceName, parentScope, declaringType, null!),
         };
 
         if(shell is MemberType memberType)

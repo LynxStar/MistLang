@@ -1,7 +1,7 @@
 using System.Reflection;
-using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 using ParameterModifier = Mist.ProgramModel.Model.Enums.ParameterModifier;
 

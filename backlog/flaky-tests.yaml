@@ -1,0 +1,47 @@
+# Known flaky tests.
+# Tests that fail intermittently without a corresponding code change. Recorded rather than fixed
+# on discovery, because a flake found mid-change is a distraction from that change -- but an
+# unrecorded flake is worse: the next person to see it re-diagnoses it from scratch, and every
+# unexplained red run erodes the signal the suite is supposed to carry.
+#
+# Append an entry the moment a flake is identified, even when leaving it unfixed. See
+# .kiro/steering/test-failure-triage.md.
+#
+# Fields:
+#   id          Short dashed identifier.
+#   test        Fully qualified test name.
+#   file        Where it lives.
+#   discovered  ISO date first recorded.
+#   status      open | fixed | quarantined
+#   symptom     What the failure looks like.
+#   cause       Why it happens. "unknown" is an acceptable answer; a guess dressed as a cause is not.
+#   evidence    How the diagnosis was reached, so it can be re-checked rather than re-derived.
+#   fix         The proposed change. Omit when the cause is unknown.
+
+flakes:
+  - id: attribute-emission-duplicate-named-arg
+    test: Mist.Tests.Backend.AttributeEmissionRoundTripPropertyTests.AttributeEmission_PreservesStructure_RoundTrip
+    file: Test/Mist.Tests/Backend/AttributeEmissionRoundTripPropertyTests.cs
+    discovered: 2026-07-26
+    status: open
+    symptom: >
+      Fails on a minority of full-suite runs; passes in isolation and on rerun. The failure output
+      contains a generated attribute with the SAME named argument twice, for example
+      `[Theory(910, "reason", "world", Timeout = "test", Timeout = 33, Order = "reason")]`.
+    cause: >
+      The generator draws named arguments without enforcing distinct names. `Gen.ArrayOf(GenNamedArg(),
+      namedCount)` can yield two entries for one property, which is not valid C# -- CS1739 territory --
+      so the round-trip fails on input the language does not admit rather than on a real defect in
+      attribute emission. Frequency tracks the odds of a name collision, which is why it is
+      intermittent rather than constant.
+    evidence: >
+      Observed once during the member-lookup unification work, on a run where the only modified files
+      were ProgramModel scopes and types; the test file itself was unmodified in the working tree and
+      last touched by 7805826a. Re-ran the full suite green and the test alone green. The duplicated
+      named argument is visible in the captured failure output, and the generator at line 240 has no
+      distinctness constraint.
+    fix: >
+      Constrain the generator to distinct named-argument names -- deduplicate by name after drawing,
+      or draw from a shuffled subset of the available properties. The assertion under test is about
+      structure being preserved, so shrinking the generated space this way removes invalid inputs
+      without weakening the property.

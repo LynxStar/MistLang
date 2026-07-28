@@ -13,14 +13,14 @@ public interface IMistType
     string Name { get; }
 
     /// <summary>
-    /// The fully qualified namespace this type belongs to.
-    /// </summary>
-    string NamespaceName { get; }
-
-    /// <summary>
-    /// The fully qualified name of this type, including namespace and any
-    /// nesting path. For example: "Standard.Int32", "MyApp.Outer.Inner".
-    /// Used as the primary key in the flat type registry.
+    /// The fully qualified name of this type, including any namespace and nesting path. For
+    /// example: "Standard.Int32", "MyApp.Outer.Inner". Used as the primary key in the flat type
+    /// registry.
+    /// <para>
+    /// Every type has one, but only a declared type is qualified by a NAMESPACE -- a tuple or a
+    /// union has no namespace to be reachable through, and reports its structural name here. The
+    /// namespace itself lives on the declared types alone.
+    /// </para>
     /// </summary>
     string FullyQualifiedName { get; }
 

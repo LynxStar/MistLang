@@ -134,7 +134,7 @@ public sealed class AmbientTypeProviderV2AttributeProjectionTests(
             .Single();
         var clrAttributeType = typeof(ParamArrayAttribute);
         var shell = TypeProjector.CreateShell(clrAttributeType, clrAttributeType.Namespace!);
-        var shells = new Dictionary<string, MistType>
+        var shells = new Dictionary<string, DeclaredType>
         {
             [clrAttributeType.FullName!] = shell,
         };

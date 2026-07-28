@@ -55,7 +55,7 @@ internal sealed class TypeSlotBuilder
         var slot = new TypeSlot(name, typeDef.TypeSlotsList.Count, slotScope, typeDef);
 
         // The slot's own type parameters (e.g. T in `type Foo<T>;`).
-        TypeParameterPopulator.Populate(slot.TypeParametersList, slotScope, slot, slotDecl.TypeParams);
+        TypeParameterPopulator.Populate(slot, slotScope, slot, slotDecl.TypeParams);
 
         // The `:` bound constrains the slot itself; store it on the slot's own
         // constraint list (inherited from TypeParameter).

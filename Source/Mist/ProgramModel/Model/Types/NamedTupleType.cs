@@ -26,7 +26,7 @@ internal sealed class NamedTupleType : MistType, INamedTupleType
     private readonly List<Field> fields;
 
     public NamedTupleType(TupleType underlying, IReadOnlyList<string?> elementNames)
-        : base(BuildName(underlying.ElementTypes, elementNames), "", new Scope(null), declaringType: null)
+        : base(BuildName(underlying.ElementTypes, elementNames), new Scope(null), declaringType: null)
     {
         Underlying = underlying;
         ElementNames = elementNames;

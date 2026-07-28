@@ -13,11 +13,6 @@ namespace Mist.ProgramModel.Contracts;
 /// <see cref="ITypeParameter.Constraints"/>; constraints on the slot's own type
 /// parameters live on those parameters.
 /// </summary>
-public interface ITypeSlot : ITypeParameter
+public interface ITypeSlot : ITypeParameter, IGenericDeclaration
 {
-    /// <summary>
-    /// The type parameters declared on this slot itself (e.g. <c>T</c> in
-    /// <c>type Foo&lt;T&gt;;</c>). Empty for a non-generic slot.
-    /// </summary>
-    IReadOnlyList<ITypeParameter> TypeParameters { get; }
 }

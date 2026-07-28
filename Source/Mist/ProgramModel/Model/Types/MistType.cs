@@ -10,26 +10,32 @@ namespace Mist.ProgramModel.Model.Types;
 internal abstract class MistType : IMistType
 {
     /// <summary>
-    /// For a type that BORROWS its scope: a type parameter, which lives in the scope of whatever
-    /// declared it, and the structural types, which have nothing declared inside them.
+    /// A type that borrows its scope and whose qualified name is just its nesting path: the
+    /// structural types, which have no namespace to be qualified by, and a type parameter, which is
+    /// named through the declaration that introduced it.
     /// </summary>
-    protected MistType(
-        string name,
-        string namespaceName,
-        Scope scope,
-        MistType? declaringType)
+    protected MistType(string name, Scope scope, MistType? declaringType)
+        : this(name, Nest(name, declaringType), scope, declaringType)
     {
-        Name = name;
-        NamespaceName = namespaceName;
-        Scope = scope;
-        DeclaringType = declaringType;
-        FullyQualifiedName = BuildFQN(name, namespaceName, declaringType);
     }
 
     /// <summary>
-    /// For a type that OWNS its scope -- see <see cref="DeclaredType"/>. The scope is built here
-    /// rather than passed in because it needs this type, and this type needs it: handing the
-    /// factory <c>this</c> is what lets both ends be readonly instead of one being filled in after
+    /// A type that borrows its scope but has a qualified name of its own: a constructed generic,
+    /// qualified by its definition, and the emitter's sentinel markers, which are matched by fully
+    /// qualified name without ever being registered under one.
+    /// </summary>
+    protected MistType(string name, string fullyQualifiedName, Scope scope, MistType? declaringType)
+    {
+        Name = name;
+        FullyQualifiedName = fullyQualifiedName;
+        Scope = scope;
+        DeclaringType = declaringType;
+    }
+
+    /// <summary>
+    /// A type that OWNS its scope -- see <see cref="DeclaredType"/>. The scope is built here rather
+    /// than passed in because it needs this type, and this type needs it: handing the factory
+    /// <c>this</c> is what lets both ends be readonly instead of one being filled in after
     /// construction.
     /// </summary>
     /// <param name="scopeFactory">
@@ -38,41 +44,31 @@ internal abstract class MistType : IMistType
     /// </param>
     protected MistType(
         string name,
-        string namespaceName,
+        string fullyQualifiedName,
         MistType? declaringType,
         Func<MistType, Scope> scopeFactory)
     {
         Name = name;
-        NamespaceName = namespaceName;
+        FullyQualifiedName = fullyQualifiedName;
         DeclaringType = declaringType;
-        FullyQualifiedName = BuildFQN(name, namespaceName, declaringType);
         Scope = scopeFactory(this);
     }
 
     public string Name { get; }
 
-    public string NamespaceName { get; }
-
     /// <inheritdoc />
     public string FullyQualifiedName { get; }
 
     /// <summary>
-    /// Computes the FQN for a type: "Namespace.Name" for top-level types,
-    /// "Namespace.Outer.Inner" for nested types (walks the declaring chain).
+    /// A name qualified by its nesting path alone, which is as much as this base can know. A
+    /// namespace prefix is <see cref="DeclaredType"/>'s to add, since only a declared type has one.
     /// </summary>
-    private static string BuildFQN(string name, string namespaceName, MistType? declaringType)
+    protected static string Nest(string name, MistType? declaringType)
     {
-        if(declaringType is not null)
-        {
-            return $"{declaringType.FullyQualifiedName}.{name}";
-        }
-
-        if(string.IsNullOrEmpty(namespaceName))
-        {
-            return name;
-        }
-
-        return $"{namespaceName}.{name}";
+        return declaringType is null
+            ? name
+            : $"{declaringType.FullyQualifiedName}.{name}"
+            ;
     }
 
     /// <summary>

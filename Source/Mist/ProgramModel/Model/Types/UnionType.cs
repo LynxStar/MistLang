@@ -10,7 +10,7 @@ namespace Mist.ProgramModel.Model.Types;
 internal sealed class UnionType : MistType, IUnionType
 {
     public UnionType(IReadOnlyList<IMistType> constituents)
-        : base(BuildName(constituents), "", new Scope(null), declaringType: null)
+        : base(BuildName(constituents), new Scope(null), declaringType: null)
     {
         Constituents = constituents;
     }

@@ -12,7 +12,7 @@ internal sealed class UnknownType : MistType, IMistType
     public static readonly UnknownType Instance = new();
 
     private UnknownType()
-        : base("unknown", "", new Scope(null), declaringType: null)
+        : base("unknown", new Scope(null), declaringType: null)
     {
     }
 }

@@ -96,7 +96,7 @@ internal static class SentinelAttributes
     private sealed class SentinelType : MistType, IMistType
     {
         public SentinelType(string name)
-            : base(name, Namespace, new Scope(null), declaringType: null)
+            : base(name, $"{Namespace}.{name}", new Scope(null), declaringType: null)
         {
         }
     }

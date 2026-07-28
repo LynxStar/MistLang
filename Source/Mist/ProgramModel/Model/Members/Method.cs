@@ -14,7 +14,7 @@ internal class Method(
     string name,
     IMistType returnType,
     List<Parameter> parameters,
-    MemberModifiers modifiers) : IMethod, IHasAttributes
+    MemberModifiers modifiers) : IMethod, IHasTypeParameters, IHasAttributes
 {
     public string Name { get; } = name;
 
@@ -63,7 +63,7 @@ internal class Method(
     /// </summary>
     public OwnershipKind ReturnOwnership { get; init; }
 
-    IReadOnlyList<ITypeParameter> IMethod.TypeParameters => TypeParametersList;
+    IReadOnlyList<ITypeParameter> IGenericDeclaration.TypeParameters => TypeParametersList;
     IReadOnlyList<IContextBinding> IMethod.ContextBindings => ContextBindingsList;
     IReadOnlyList<IParameter> IMethod.Parameters => ParametersList;
     ThisTier? IMethod.DeclaredThisTier => DeclaredThisTier;

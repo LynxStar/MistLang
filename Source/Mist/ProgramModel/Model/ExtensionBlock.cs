@@ -14,7 +14,7 @@ namespace Mist.ProgramModel.Model;
 /// declarations. Multiple blocks may target the same receiver type within a namespace.
 /// Also used for ambient (assembly-projected) extension blocks where there is no AST.
 /// </summary>
-internal sealed class ExtensionBlock : IExtensionBlock, IMethodHost
+internal sealed class ExtensionBlock : IExtensionBlock, IHasTypeParameters, IMethodHost
 {
     public ExtensionBlock(
         string receiverParameterName,
@@ -71,7 +71,7 @@ internal sealed class ExtensionBlock : IExtensionBlock, IMethodHost
 
     IMistType IExtensionBlock.ReceiverType => ResolvedReceiverType!;
 
-    IReadOnlyList<ITypeParameter> IExtensionBlock.TypeParameters => TypeParametersList;
+    IReadOnlyList<ITypeParameter> IGenericDeclaration.TypeParameters => TypeParametersList;
 
     IReadOnlyList<IMethod> IExtensionBlock.Methods => MethodsList;
 

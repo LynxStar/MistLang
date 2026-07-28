@@ -18,7 +18,7 @@ internal static class TypeProjector
     /// <summary>
     /// Creates an empty type shell for a top-level CLR type.
     /// </summary>
-    public static MistType CreateShell(Type clrType, string namespaceName)
+    public static DeclaredType CreateShell(Type clrType, string namespaceName)
     {
         return CreateShell(clrType, namespaceName, declaringType: null, parentScope: null);
     }
@@ -27,7 +27,7 @@ internal static class TypeProjector
     /// Creates an empty type shell for a CLR type, optionally nested inside a declaring type.
     /// For nested types, the shell's scope is parented to the declaring type's scope.
     /// </summary>
-    public static MistType CreateShell(Type clrType, string namespaceName, MistType? declaringType, Scope? parentScope)
+    public static DeclaredType CreateShell(Type clrType, string namespaceName, MistType? declaringType, Scope? parentScope)
     {
         var mistName = NameFormatTranslator.ClrNameToMistName(clrType.Name);
 
@@ -35,7 +35,7 @@ internal static class TypeProjector
         // does: a projected type's members have to be reachable by the same lookup rules.
         var shell = clrType switch
         {
-            { IsInterface: true } => (MistType)new AbstractType(mistName, namespaceName, parentScope, declaringType, null),
+            { IsInterface: true } => (DeclaredType)new AbstractType(mistName, namespaceName, parentScope, declaringType, null),
             { IsEnum: true } => new EnumType(mistName, namespaceName, parentScope, declaringType, null),
             { IsValueType: true } => new StructType(mistName, namespaceName, parentScope, declaringType, null),
             _ => new ClassType(mistName, namespaceName, parentScope, declaringType, null!),

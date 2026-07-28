@@ -1,3 +1,4 @@
+using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Types;
 
@@ -23,7 +24,7 @@ internal static class TypeNameEmitter
     private static string EmitConstructed(ConstructedType constructed)
     {
         // Standard.Array<ElementType, Length> → elementType[]
-        if(constructed.Definition.NamespaceName == "Standard" && constructed.Definition.Name == "Array<,>")
+        if(constructed.Definition.FullyQualifiedName == WellKnownTypes.Array.FullyQualifiedName)
         {
             var elementType = Emit(constructed.TypeArguments[0]);
             return $"{elementType}[]";

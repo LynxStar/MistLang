@@ -27,8 +27,32 @@ internal abstract class DeclaredType : MistType
         string namespaceName,
         Scope? parentScope,
         MistType? declaringType)
-        : base(name, namespaceName, declaringType, scope => new TypeScope(parentScope, scope))
+        : base(name, Qualify(name, namespaceName, declaringType), declaringType, scope => new TypeScope(parentScope, scope))
     {
+        NamespaceName = namespaceName;
+    }
+
+    /// <summary>
+    /// The namespace this type is reachable through. Empty for a type declared outside any
+    /// namespace, which is the global one.
+    /// </summary>
+    public string NamespaceName { get; }
+
+    /// <summary>
+    /// Nesting wins over the namespace: a nested type hangs off its declaring type, whose own
+    /// qualified name already carries the namespace.
+    /// </summary>
+    private static string Qualify(string name, string namespaceName, MistType? declaringType)
+    {
+        if(declaringType is not null)
+        {
+            return Nest(name, declaringType);
+        }
+
+        return string.IsNullOrEmpty(namespaceName)
+            ? name
+            : $"{namespaceName}.{name}"
+            ;
     }
 
     /// <summary>

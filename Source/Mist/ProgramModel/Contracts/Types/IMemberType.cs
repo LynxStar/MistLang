@@ -7,13 +7,8 @@ namespace Mist.ProgramModel.Contracts.Types;
 /// This is the common interface for classes, structs, and abstracts —
 /// types that participate in inheritance and declare methods/properties.
 /// </summary>
-public interface IMemberType : IMistType
+public interface IMemberType : IMistType, IGenericDeclaration
 {
-    /// <summary>
-    /// The type parameters declared on this type. Empty for non-generic types.
-    /// </summary>
-    IReadOnlyList<ITypeParameter> TypeParameters { get; }
-
     /// <summary>
     /// The modifiers declared on this type.
     /// </summary>

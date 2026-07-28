@@ -1,4 +1,5 @@
 using Mist.Generated;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
@@ -13,10 +14,18 @@ internal static class TypeParameterPopulator
 {
     /// <summary>
     /// Creates <see cref="TypeParameter"/> instances from the AST type parameter list and adds them
-    /// to the declaration's own list, which is where lookup reads them from.
+    /// to <paramref name="declaration"/>, which is where lookup reads them from.
     /// </summary>
+    /// <param name="declaringScope">
+    /// Not taken from the declaration: a method's scope exists before the final
+    /// <see cref="Model.Members.Method"/> it will belong to, so there is a caller for whom the
+    /// declaration cannot yet name it.
+    /// </param>
+    /// <param name="declaringType">
+    /// Null when the declaration is not a type, as an extension block is not.
+    /// </param>
     public static void Populate(
-        List<TypeParameter> target,
+        IHasTypeParameters declaration,
         Scope declaringScope,
         MistType? declaringType,
         TypeParameterListNode? typeParams)
@@ -26,16 +35,16 @@ internal static class TypeParameterPopulator
             return;
         }
 
-        AddTypeParameter(target, declaringScope, declaringType, typeParams.TypeParameter, ordinal: 0);
+        AddTypeParameter(declaration, declaringScope, declaringType, typeParams.TypeParameter, ordinal: 0);
 
         for(var i = 0; i < typeParams.TypeParameters.Length; i++)
         {
-            AddTypeParameter(target, declaringScope, declaringType, typeParams.TypeParameters[i], ordinal: i + 1);
+            AddTypeParameter(declaration, declaringScope, declaringType, typeParams.TypeParameters[i], ordinal: i + 1);
         }
     }
 
     private static void AddTypeParameter(
-        List<TypeParameter> target,
+        IHasTypeParameters declaration,
         Scope declaringScope,
         MistType? declaringType,
         TypeParameterNode node,
@@ -50,10 +59,10 @@ internal static class TypeParameterPopulator
             typeParam.HasParams = true;
         }
 
-        target.Add(typeParam);
+        declaration.TypeParametersList.Add(typeParam);
 
         // Only scopes that keep their own table need telling. The ones backed by the declaration
-        // these were just added to will read `target` back out, and telling them as well would be
+        // these were just added to will read the list back out, and telling them as well would be
         // the duplicate store this exists to avoid.
         if(declaringScope is ITypeNameScope declaring)
         {

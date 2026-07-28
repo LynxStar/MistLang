@@ -1,4 +1,5 @@
 using Mist.Generated;
+using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
@@ -10,7 +11,7 @@ namespace Mist.ProgramModel.Model.Types;
 /// </summary>
 internal sealed class Newtype(
     string name, string namespaceName, Scope? parentScope, MistType? declaringType, NewtypeDeclarationNode declarationNode)
-    : DeclaredType(name, namespaceName, parentScope, declaringType), INewtype
+    : DeclaredType(name, namespaceName, parentScope, declaringType), INewtype, IHasTypeParameters
 {
     /// <summary>
     /// The AST declaration node, stashed during Phase 1 for Phase 2 resolution.
@@ -21,6 +22,8 @@ internal sealed class Newtype(
     /// The type parameters declared on this newtype. Empty for non-generic newtypes.
     /// </summary>
     public List<TypeParameter> TypeParametersList { get; } = [];
+
+    IReadOnlyList<ITypeParameter> IGenericDeclaration.TypeParameters => TypeParametersList;
 
     /// <summary>
     /// The modifiers declared on this newtype.

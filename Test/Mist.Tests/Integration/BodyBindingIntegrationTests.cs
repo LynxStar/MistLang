@@ -445,7 +445,7 @@ public sealed class BodyBindingIntegrationTests : IDisposable
             // resolve), matching how the real ambient provider registers projected types.
             foreach(var type in programModel.TypesByFQN.Values)
             {
-                if(type is MistType { NamespaceName: "Standard" } standardType)
+                if(type is DeclaredType { NamespaceName: "Standard" } standardType)
                 {
                     standardType.Assembly = MistAssembly.Ambient;
                 }

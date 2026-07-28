@@ -7,7 +7,7 @@ namespace Mist.ProgramModel.Contracts;
 /// Each <c>extension(ReceiverType name) { ... }</c> block is represented
 /// as its own <see cref="IExtensionBlock"/> with its own scope.
 /// </summary>
-public interface IExtensionBlock
+public interface IExtensionBlock : IGenericDeclaration
 {
     /// <summary>
     /// The resolved receiver type that this extension block targets.
@@ -18,11 +18,6 @@ public interface IExtensionBlock
     /// The receiver parameter name (e.g., "self").
     /// </summary>
     string ReceiverParameterName { get; }
-
-    /// <summary>
-    /// The type parameters declared on this extension block. Empty for non-generic extensions.
-    /// </summary>
-    IReadOnlyList<ITypeParameter> TypeParameters { get; }
 
     /// <summary>
     /// Methods declared in this extension block.

@@ -94,11 +94,14 @@ internal static class TypeMemberLookup
             return;
         }
 
-        foreach(var typeParameter in TypeParametersOf(type))
+        if(type is IHasTypeParameters generic)
         {
-            if(typeParameter.Name == request.Name)
+            foreach(var typeParameter in generic.TypeParametersList)
             {
-                candidates.Add(new TypeResult(typeParameter), depth);
+                if(typeParameter.Name == request.Name)
+                {
+                    candidates.Add(new TypeResult(typeParameter), depth);
+                }
             }
         }
 
@@ -211,25 +214,9 @@ internal static class TypeMemberLookup
     }
 
     /// <summary>
-    /// A switch because <c>TypeParametersList</c> is declared independently on each kind that has
-    /// one, with no base or interface in common.
-    /// </summary>
-    private static List<TypeParameter> TypeParametersOf(MistType type)
-    {
-        return type switch
-        {
-            MemberType memberType => memberType.TypeParametersList,
-            TypeAlias alias => alias.TypeParametersList,
-            Newtype newtype => newtype.TypeParametersList,
-            TypeSlot slot => slot.TypeParametersList,
-            _ => [],
-        };
-    }
-
-    /// <summary>
-    /// A switch for the same reason as <see cref="TypeParametersOf"/>. Kinds that cannot carry
-    /// modifiers -- type parameters, slots, and the structural types -- are public, since nothing
-    /// about them is hideable.
+    /// A switch because <c>Modifiers</c> is declared independently on each kind that has one, with
+    /// no base or interface in common. Kinds that cannot carry modifiers -- type parameters, slots,
+    /// and the structural types -- are public, since nothing about them is hideable.
     /// </summary>
     private static Accessibility AccessibilityOf(MistType type)
     {

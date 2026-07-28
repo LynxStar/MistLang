@@ -18,7 +18,7 @@ namespace Mist.ProgramModel.Model.Types;
 internal sealed class TupleType : MistType, ITupleType
 {
     public TupleType(IReadOnlyList<IMistType> elementTypes)
-        : base(BuildName(elementTypes), "", new Scope(null), declaringType: null)
+        : base(BuildName(elementTypes), new Scope(null), declaringType: null)
     {
         ElementTypes = elementTypes;
         PositionalFields = BuildPositionalFields(elementTypes);

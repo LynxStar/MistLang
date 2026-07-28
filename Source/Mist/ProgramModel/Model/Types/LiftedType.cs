@@ -17,7 +17,7 @@ namespace Mist.ProgramModel.Model.Types;
 internal sealed class LiftedType : MistType
 {
     public LiftedType(IMistType type, object value)
-        : base(value.ToString() ?? "", "", new Scope(null), declaringType: null)
+        : base(value.ToString() ?? "", new Scope(null), declaringType: null)
     {
         Type = type;
         Value = value;

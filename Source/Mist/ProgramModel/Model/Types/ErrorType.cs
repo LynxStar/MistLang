@@ -13,7 +13,7 @@ internal sealed class ErrorType : MistType, IMistType
     public static readonly ErrorType Instance = new();
 
     private ErrorType()
-        : base("<error>", "", new Scope(null), declaringType: null)
+        : base("<error>", new Scope(null), declaringType: null)
     {
     }
 }

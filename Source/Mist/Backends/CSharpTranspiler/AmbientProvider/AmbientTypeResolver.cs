@@ -15,13 +15,13 @@ namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 /// </summary>
 internal sealed class AmbientTypeResolver
 {
-    private readonly Dictionary<string, MistType> shells;
+    private readonly Dictionary<string, DeclaredType> shells;
     private readonly Dictionary<string, IMistType> wellKnownTypes;
     private readonly TypeInterner typeInterner;
     private readonly DiagnosticBag diagnostics;
 
     public AmbientTypeResolver(
-        Dictionary<string, MistType> shells,
+        Dictionary<string, DeclaredType> shells,
         Dictionary<string, IMistType> wellKnownTypes,
         TypeInterner typeInterner,
         DiagnosticBag diagnostics)

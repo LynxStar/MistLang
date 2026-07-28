@@ -17,7 +17,7 @@ namespace Mist.ProgramModel.Model.Types;
 internal sealed class RefinedType : MistType, IRefinedType
 {
     public RefinedType(IMistType baseType, SyntaxNode predicateNode)
-        : base(BuildName(baseType, predicateNode), "", new Scope(null), declaringType: null)
+        : base(BuildName(baseType, predicateNode), new Scope(null), declaringType: null)
     {
         BaseType = baseType;
         PredicateNode = predicateNode;

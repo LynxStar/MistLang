@@ -18,7 +18,7 @@ namespace Mist.ProgramModel.Model;
 /// held on those parameters. Registered by simple name in its declaring abstract's
 /// scope so members can reference it.
 /// </summary>
-internal sealed class TypeSlot : TypeParameter, ITypeSlot
+internal sealed class TypeSlot : TypeParameter, ITypeSlot, IHasTypeParameters
 {
     public TypeSlot(string name, int ordinal, Scope declaringScope, MistType? declaringType)
         : base(name, ordinal, declaringScope, declaringType)
@@ -31,5 +31,5 @@ internal sealed class TypeSlot : TypeParameter, ITypeSlot
     /// </summary>
     public List<TypeParameter> TypeParametersList { get; } = [];
 
-    IReadOnlyList<ITypeParameter> ITypeSlot.TypeParameters => TypeParametersList;
+    IReadOnlyList<ITypeParameter> IGenericDeclaration.TypeParameters => TypeParametersList;
 }

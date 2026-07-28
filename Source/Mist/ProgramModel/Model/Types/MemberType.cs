@@ -11,7 +11,7 @@ namespace Mist.ProgramModel.Model.Types;
 /// Intermediate base for types that participate in inheritance and have
 /// method/property declarations: classes, structs, and abstracts.
 /// </summary>
-internal abstract class MemberType : DeclaredType, IMemberType, IMethodHost, IHasAttributes
+internal abstract class MemberType : DeclaredType, IMemberType, IHasTypeParameters, IMethodHost, IHasAttributes
 {
     protected MemberType(
         string name,
@@ -87,7 +87,7 @@ internal abstract class MemberType : DeclaredType, IMemberType, IMethodHost, IHa
         }
     }
 
-    IReadOnlyList<ITypeParameter> IMemberType.TypeParameters => TypeParametersList;
+    IReadOnlyList<ITypeParameter> IGenericDeclaration.TypeParameters => TypeParametersList;
 
     IReadOnlyList<IMistType> IMemberType.BaseAbstractTypes => BaseAbstractTypes;
 

@@ -114,10 +114,10 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
     /// Also builds a parallel CLR type dictionary for use in phase 2.
     /// Dictionaries are keyed by FQN string (e.g., "System.Console").
     /// </summary>
-    private (Dictionary<string, MistType> Shells, Dictionary<string, Type> ClrTypes) CreateShells(
+    private (Dictionary<string, DeclaredType> Shells, Dictionary<string, Type> ClrTypes) CreateShells(
         Dictionary<string, IMistType> wellKnownTypes)
     {
-        var shells = new Dictionary<string, MistType>();
+        var shells = new Dictionary<string, DeclaredType>();
         var clrTypes = new Dictionary<string, Type>();
 
         foreach(var assembly in LoadedAssemblies)
@@ -187,7 +187,7 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
         string declaringClrFqn,
         string namespaceName,
         Dictionary<string, IMistType> wellKnownTypes,
-        Dictionary<string, MistType> shells,
+        Dictionary<string, DeclaredType> shells,
         Dictionary<string, Type> clrTypes)
     {
         var nestedTypes = declaringClrType.GetNestedTypes(BindingFlags.Public | BindingFlags.NonPublic);
@@ -240,7 +240,7 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
     /// Phase 2: Single pass over all types — dispatches to the appropriate projector
     /// for type parameters, base types, interfaces, enum members, etc.
     /// </summary>
-    private static void ProjectTypes(Dictionary<string, MistType> shells, Dictionary<string, Type> clrTypes, AmbientTypeResolver resolver)
+    private static void ProjectTypes(Dictionary<string, DeclaredType> shells, Dictionary<string, Type> clrTypes, AmbientTypeResolver resolver)
     {
         foreach(var (fqn, clrType) in clrTypes)
         {

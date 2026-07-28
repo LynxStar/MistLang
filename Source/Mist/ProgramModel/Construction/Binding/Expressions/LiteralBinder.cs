@@ -135,8 +135,7 @@ internal static class LiteralBinder
     private static IMistType? ArrayElementType(IMistType? type)
     {
         if(type is ConstructedType constructed
-            && constructed.Definition.NamespaceName == WellKnownTypes.Array.Namespace
-            && constructed.Definition.Name == WellKnownTypes.Array.Name
+            && constructed.Definition.FullyQualifiedName == WellKnownTypes.Array.FullyQualifiedName
             && constructed.TypeArguments.Count > 0)
         {
             return constructed.TypeArguments[0];

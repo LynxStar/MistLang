@@ -15,7 +15,7 @@ internal sealed class NotProjectedType : MistType, IMistType
     public static readonly NotProjectedType Instance = new();
 
     private NotProjectedType()
-        : base("<not-projected>", "", new Scope(null), declaringType: null)
+        : base("<not-projected>", new Scope(null), declaringType: null)
     {
     }
 }

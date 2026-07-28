@@ -10,7 +10,11 @@ namespace Mist.ProgramModel.Model.Types;
 internal sealed class ConstructedType : MistType, IConstructedType
 {
     public ConstructedType(IMistType definition, IReadOnlyList<IMistType> typeArguments)
-        : base(BuildName(definition, typeArguments), definition.NamespaceName, new Scope(null), declaringType: null)
+        : base(
+            BuildName(definition, typeArguments),
+            Qualify(definition, typeArguments),
+            new Scope(null),
+            declaringType: null)
     {
         Definition = definition;
         TypeArguments = typeArguments;
@@ -48,5 +52,24 @@ internal sealed class ConstructedType : MistType, IConstructedType
     private static string BuildName(IMistType definition, IReadOnlyList<IMistType> typeArguments)
     {
         return $"{definition.Name}<{string.Join(", ", typeArguments.Select(a => a.Name))}>";
+    }
+
+    /// <summary>
+    /// Qualified by the definition's namespace, so <c>List&lt;int&gt;</c> constructed from two
+    /// different namespaces' <c>List&lt;&gt;</c> are distinguishable -- which matters where a
+    /// fully qualified name identifies a type, as it does when telling overloads apart.
+    /// <para>
+    /// A definition that is not a declared type has no namespace to contribute, which is only
+    /// reachable through a synthetic construction.
+    /// </para>
+    /// </summary>
+    private static string Qualify(IMistType definition, IReadOnlyList<IMistType> typeArguments)
+    {
+        var name = BuildName(definition, typeArguments);
+
+        return definition is DeclaredType { NamespaceName: { Length: > 0 } namespaceName }
+            ? $"{namespaceName}.{name}"
+            : name
+            ;
     }
 }

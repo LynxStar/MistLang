@@ -1,4 +1,5 @@
 using Mist.Generated;
+using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
@@ -10,7 +11,7 @@ namespace Mist.ProgramModel.Model.Types;
 /// </summary>
 internal sealed class TypeAlias(
     string name, string namespaceName, Scope? parentScope, MistType? declaringType, TypeAliasDeclarationNode declarationNode)
-    : DeclaredType(name, namespaceName, parentScope, declaringType), ITypeAlias
+    : DeclaredType(name, namespaceName, parentScope, declaringType), ITypeAlias, IHasTypeParameters
 {
     /// <summary>
     /// The AST declaration node, stashed during Phase 1 for Phase 2 resolution.
@@ -21,6 +22,8 @@ internal sealed class TypeAlias(
     /// The type parameters declared on this alias. Empty for non-generic aliases.
     /// </summary>
     public List<TypeParameter> TypeParametersList { get; } = [];
+
+    IReadOnlyList<ITypeParameter> IGenericDeclaration.TypeParameters => TypeParametersList;
 
     /// <summary>
     /// The modifiers declared on this type alias.

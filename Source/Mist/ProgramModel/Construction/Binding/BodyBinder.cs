@@ -3,8 +3,8 @@ using Mist.ProgramModel.Construction.Binding.Expressions;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
-using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Binding;
 
@@ -18,31 +18,29 @@ internal static class BodyBinder
     /// Binds a delegate (method, constructor, operator, cast operator): seeds the
     /// scope with parameter aliases, then binds the body.
     /// </summary>
-    public static void BindDelegate(Method method, MemberType enclosingType, BuilderContext context)
+    public static void BindDelegate(Method method, BuilderContext context)
     {
-        var bodyScope = new Scope(method.Scope);
+        var bodyScope = new BodyScope(method.Scope);
         foreach(var parameter in method.ParametersList)
         {
-            bodyScope.RegisterLocal(new LocalVariable(parameter.Name, parameter.Type), context.Diagnostics);
+            bodyScope.DeclareLocal(new LocalVariable(parameter.Name, parameter.Type), context.Diagnostics);
         }
-
-        var isStaticContext = method.Modifiers.IsStatic;
 
         // A constructor chain's arguments are bound in the same scope as the body, since
         // they reference the constructor's parameters, and before it, matching the order
         // they run in.
         if(method is Constructor { ChainNode: { } chain } constructor)
         {
-            BindChainArguments(constructor, chain, bodyScope, enclosingType, isStaticContext, context);
+            BindChainArguments(constructor, chain, bodyScope, context);
         }
 
-        BindBody(method.Body!, bodyScope, method.ReturnType, enclosingType, isStaticContext, context);
+        BindBody(method.Body!, bodyScope, method.ReturnType, context);
     }
 
     /// <summary>
     /// Binds the argument expressions of a <c>: this(...)</c> or <c>: base(...)</c> chain.
     /// </summary>
-    private static void BindChainArguments(Constructor constructor, ConstructorChainNode chain, Scope scope, MemberType enclosingType, bool isStaticContext, BuilderContext context)
+    private static void BindChainArguments(Constructor constructor, ConstructorChainNode chain, BodyScope scope, BuilderContext context)
     {
         var argumentList = chain switch
         {
@@ -56,12 +54,7 @@ internal static class BodyBinder
             return;
         }
 
-        var bindingCtx = new BindingContext(scope, returnType: null)
-        {
-            EnclosingType = enclosingType,
-            IsStaticContext = isStaticContext,
-        };
-
+        var bindingCtx = new BindingContext(scope, returnType: null);
         var arguments = ArgumentBinder.Bind(argumentList, bindingCtx, context);
 
         constructor.ChainArgumentsList.AddRange(arguments);
@@ -72,14 +65,9 @@ internal static class BodyBinder
     /// property/indexer accessors (whose parameters are already in scope) and
     /// indirectly by <see cref="BindDelegate"/>.
     /// </summary>
-    public static void BindBody(Block body, Scope scope, IMistType? returnType, MemberType? enclosingType, bool isStaticContext, BuilderContext context)
+    public static void BindBody(Block body, BodyScope scope, IMistType? returnType, BuilderContext context)
     {
-        var bindingCtx = new BindingContext(scope, returnType)
-        {
-            EnclosingType = enclosingType,
-            IsStaticContext = isStaticContext,
-        };
-
+        var bindingCtx = new BindingContext(scope, returnType);
         var statements = new List<Statement>(body.Node.Statements.Length);
         foreach(var node in body.Node.Statements)
         {

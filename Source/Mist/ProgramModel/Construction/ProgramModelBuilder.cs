@@ -6,7 +6,7 @@ using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Construction.Scaffolding;
 using Mist.ProgramModel.Construction.Types;
 using Mist.ProgramModel.Contracts;
-using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction;
@@ -48,8 +48,8 @@ public sealed class ProgramModelBuilder
             return null;
         }
 
-        var globalScope = CreateGlobalScope(options);
         var programModel = new Model.ProgramModel();
+        var globalScope = CreateGlobalScope(programModel, diagnostics, options);
         var context = new BuilderContext(globalScope, programModel, diagnostics, ambientProvider);
         var unitBuilder = new CompilationUnitBuilder(context);
 
@@ -149,7 +149,7 @@ public sealed class ProgramModelBuilder
                 // Abstract members and intrinsics legitimately have no body to bind.
                 if(boundDelegate.Body is not null)
                 {
-                    BodyBinder.BindDelegate(boundDelegate, memberType, context);
+                    BodyBinder.BindDelegate(boundDelegate, context);
                 }
             }
         }
@@ -157,9 +157,15 @@ public sealed class ProgramModelBuilder
         return programModel;
     }
 
-    private static Scope CreateGlobalScope(CompilerOptions options)
+    /// <summary>
+    /// Builds the root of every scope chain in the compilation: the <see cref="ProgramScope"/>
+    /// holding the type and namespace universe, and beneath it the <see cref="GlobalScope"/>
+    /// holding the project's implicit usings. File scopes hang off the latter.
+    /// </summary>
+    private static GlobalScope CreateGlobalScope(Model.ProgramModel programModel, DiagnosticBag diagnostics, CompilerOptions options)
     {
-        var globalScope = new Scope(parent: null);
+        var programScope = new ProgramScope(programModel);
+        var globalScope = new GlobalScope(programScope, programModel, diagnostics);
 
         // Normalize: ImmutableArray default is a null-backed struct that throws on iteration.
         var globalUsings = options.GlobalUsings.IsDefault
@@ -169,7 +175,7 @@ public sealed class ProgramModelBuilder
 
         foreach(var ns in globalUsings)
         {
-            globalScope.AddImportedNamespace(ns);
+            globalScope.DeclareImport(ns);
         }
 
         return globalScope;

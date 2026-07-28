@@ -4,6 +4,7 @@ using Mist.Generated;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Construction.Scaffolding;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Types;
@@ -38,28 +39,41 @@ internal sealed class TypeBuilder
     /// Processes all type declarations in a compilation unit, including types
     /// inside block namespaces.
     /// </summary>
+    /// <param name="fileScope">
+    /// The file's scope. Top-level types are published on it by simple name, which is what makes
+    /// them -- and only them -- nameable from the namespace blocks written in the same file.
+    /// </param>
+    /// <param name="fileNamespace">
+    /// The namespace the file's top-level items belong to, explicit or inferred.
+    /// </param>
     /// <param name="assembly">
     /// The assembly owning this compilation unit, recorded on every type registered
     /// from it.
     /// </param>
-    public void Build(Scope fileScope, CompilationUnitNode ast, MistAssembly assembly)
+    public void Build(FileScope fileScope, string fileNamespace, CompilationUnitNode ast, MistAssembly assembly)
     {
         currentAssembly = assembly;
+
+        // The file's own namespace level, between its top-level items and the file scope. Block
+        // namespaces deliberately do not get it as an ancestor: they are SIBLINGS of this
+        // namespace, not children, so they see the file's top-level items through the file scope
+        // and the rest of this namespace not at all.
+        var fileLevel = new NamespaceScope(fileScope, fileNamespace, context.ProgramModel);
 
         foreach(var item in ast.Items)
         {
             switch(item)
             {
                 case TypeItemTopLevelItemNode typeItem:
-                    RegisterType(fileScope, typeItem.TypeDeclaration, declaringType: null);
+                    PublishTopLevel(fileScope, RegisterType(fileLevel, fileNamespace, typeItem.TypeDeclaration, declaringType: null));
                     break;
 
                 case ExtensionItemTopLevelItemNode extensionItem:
-                    StashExtension(fileScope, extensionItem.ExtensionDeclaration);
+                    StashExtension(fileLevel, fileNamespace, extensionItem.ExtensionDeclaration);
                     break;
 
                 case WithItemTopLevelItemNode withItem:
-                    StashConformance(fileScope, withItem.WithDeclaration);
+                    StashConformance(fileLevel, fileNamespace, withItem.WithDeclaration);
                     break;
 
                 case NamespaceItemTopLevelItemNode nsItem
@@ -69,43 +83,64 @@ internal sealed class TypeBuilder
 
                 case NamespaceItemTopLevelItemNode nsItem
                     when nsItem.NamespaceDeclaration is FileScopedNamespaceNamespaceDeclarationNode fileScopedNs:
-                    ProcessNamespaceBody(fileScope, fileScopedNs.Body);
+                    ProcessNamespaceBody(fileLevel, fileNamespace, fileScopedNs.Body, fileScope);
                     break;
             }
         }
     }
 
     /// <summary>
-    /// Processes types inside a block namespace. Creates a nested scope for
-    /// the block and registers types under the block's namespace.
+    /// Makes a top-level type nameable from this file's namespace blocks. Accepts null so callers
+    /// need not check: an unrecognized declaration registered nothing and has nothing to publish.
+    /// </summary>
+    private static void PublishTopLevel(FileScope fileScope, MistType? typeDef)
+    {
+        if(typeDef is not null)
+        {
+            fileScope.DeclareTopLevelType(typeDef.Name, typeDef);
+        }
+    }
+
+    /// <summary>
+    /// Processes types inside a block namespace. Creates a namespace level for the block and
+    /// registers types under it.
     /// </summary>
     private void ProcessBlockNamespace(Scope parentScope, BlockNamespaceNamespaceDeclarationNode blockNs)
     {
         var blockNamespace = QualifiedNameHelper.Build(blockNs.Name);
+        var blockScope = new NamespaceScope(parentScope, blockNamespace, context.ProgramModel);
 
-        var blockScope = new Scope(parentScope)
-        {
-            Namespace = blockNamespace
-        };
-
-        ProcessNamespaceBody(blockScope, blockNs.Body);
+        ProcessNamespaceBody(blockScope, blockNamespace, blockNs.Body, publishTo: null);
     }
 
     /// <summary>
     /// Processes namespace body items, registering any type declarations found.
     /// </summary>
-    private void ProcessNamespaceBody(Scope parentScope, ImmutableArray<NamespaceBodyItemNode> body)
+    /// <param name="publishTo">
+    /// The file scope when this body IS the file's top level (a file-scoped namespace), null when
+    /// it is a block. Only the former's types are nameable from the file's namespace blocks.
+    /// </param>
+    private void ProcessNamespaceBody(
+        Scope parentScope,
+        string namespaceName,
+        ImmutableArray<NamespaceBodyItemNode> body,
+        FileScope? publishTo)
     {
         foreach(var bodyItem in body)
         {
             switch(bodyItem)
             {
                 case NamespaceTypeItemNamespaceBodyItemNode typeItem:
-                    RegisterType(parentScope, typeItem.TypeDeclaration, declaringType: null);
+                    var typeDef = RegisterType(parentScope, namespaceName, typeItem.TypeDeclaration, declaringType: null);
+                    if(publishTo is not null)
+                    {
+                        PublishTopLevel(publishTo, typeDef);
+                    }
+
                     break;
 
                 case NamespaceExtensionItemNamespaceBodyItemNode extensionItem:
-                    StashExtension(parentScope, extensionItem.ExtensionDeclaration);
+                    StashExtension(parentScope, namespaceName, extensionItem.ExtensionDeclaration);
                     break;
 
                 case NamespaceNamespaceItemNamespaceBodyItemNode nestedNsItem
@@ -120,15 +155,13 @@ internal sealed class TypeBuilder
     /// Stashes an extension block AST for deferred processing in Phase 2.
     /// The receiver type cannot be resolved until all types are registered.
     /// </summary>
-    private void StashExtension(Scope scope, ExtensionBlockDeclarationNode extensionDecl)
+    private void StashExtension(Scope scope, string namespaceName, ExtensionBlockDeclarationNode extensionDecl)
     {
-        var namespaceName = scope.Namespace ?? "";
         context.PendingExtensions.Add(new PendingExtension(extensionDecl, scope, namespaceName));
     }
 
-    private void StashConformance(Scope scope, WithDeclarationNode withDecl)
+    private void StashConformance(Scope scope, string namespaceName, WithDeclarationNode withDecl)
     {
-        var namespaceName = scope.Namespace ?? "";
         context.PendingConformances.Add(new PendingConformance(withDecl, scope, namespaceName));
     }
 
@@ -138,15 +171,16 @@ internal sealed class TypeBuilder
     /// Newtypes and type aliases have no member bodies, so nested type
     /// registration is skipped for them.
     /// </summary>
-    private void RegisterType(
+    private MistType? RegisterType(
         Scope parentScope,
+        string namespaceName,
         TypeDeclarationNode typeDecl,
         MistType? declaringType)
     {
-        var typeDef = CreateMistType(typeDecl, parentScope, declaringType);
+        var typeDef = CreateMistType(typeDecl, parentScope, namespaceName, declaringType);
         if(typeDef is null)
         {
-            return;
+            return null;
         }
 
         FinalizeRegistration(typeDef, declaringType);
@@ -155,20 +189,19 @@ internal sealed class TypeBuilder
         // type registration for them.
         if(typeDef is Newtype or TypeAlias)
         {
-            return;
+            return typeDef;
         }
 
         // Recurse into nested types within the type body.
         RegisterNestedTypes(typeDef.Scope, typeDecl, typeDef);
+
+        return typeDef;
     }
 
     private void RegisterNestedBodyType(Scope parentScope, TypeBodyDeclarationNode bodyDecl, MistType declaringType)
     {
-        var namespaceName = parentScope.Namespace!;
-        var typeScope = new Scope(parentScope)
-        {
-            Namespace = namespaceName
-        };
+        var namespaceName = declaringType.NamespaceName;
+        var typeScope = new TypeScope(parentScope);
 
         var name = BuildGenericName(bodyDecl.Name.Lexeme, bodyDecl.TypeParams);
         // Wrap in a synthetic TypeDeclarationNode for CreateMistType compatibility
@@ -194,11 +227,8 @@ internal sealed class TypeBuilder
 
     private void RegisterNestedEnum(Scope parentScope, EnumDeclarationNode enumDecl, MistType declaringType)
     {
-        var namespaceName = parentScope.Namespace!;
-        var typeScope = new Scope(parentScope)
-        {
-            Namespace = namespaceName
-        };
+        var namespaceName = declaringType.NamespaceName;
+        var typeScope = new TypeScope(parentScope);
 
         var typeDef = new EnumType(enumDecl.Name.Lexeme, namespaceName, typeScope, declaringType, enumDecl);
         FinalizeRegistration(typeDef, declaringType);
@@ -206,11 +236,8 @@ internal sealed class TypeBuilder
 
     private void RegisterNestedNewtype(Scope parentScope, NewtypeDeclarationNode newtypeDecl, MistType declaringType)
     {
-        var namespaceName = parentScope.Namespace!;
-        var typeScope = new Scope(parentScope)
-        {
-            Namespace = namespaceName
-        };
+        var namespaceName = declaringType.NamespaceName;
+        var typeScope = new TypeScope(parentScope);
 
         var name = BuildGenericName(newtypeDecl.Name.Lexeme, newtypeDecl.TypeParams);
         var typeDef = new Newtype(name, namespaceName, typeScope, declaringType, newtypeDecl);
@@ -220,11 +247,8 @@ internal sealed class TypeBuilder
 
     private void RegisterNestedTypeAlias(Scope parentScope, TypeAliasDeclarationNode aliasDecl, MistType declaringType)
     {
-        var namespaceName = parentScope.Namespace!;
-        var typeScope = new Scope(parentScope)
-        {
-            Namespace = namespaceName
-        };
+        var namespaceName = declaringType.NamespaceName;
+        var typeScope = new TypeScope(parentScope);
 
         var name = BuildGenericName(aliasDecl.Name.Lexeme, aliasDecl.TypeParams);
         var typeDef = new TypeAlias(name, namespaceName, typeScope, declaringType, aliasDecl);
@@ -255,7 +279,7 @@ internal sealed class TypeBuilder
         if(declaringType is not null)
         {
             declaringType.NestedTypes.Add(typeDef);
-            declaringType.Scope.AddLocalType(typeDef.Name, typeDef);
+            ((ITypeNameScope)declaringType.Scope).DeclareType(typeDef.Name, typeDef);
         }
     }
 
@@ -263,10 +287,7 @@ internal sealed class TypeBuilder
     /// Iterates over the members of a type declaration and registers any
     /// nested type declarations found.
     /// </summary>
-    private void RegisterNestedTypes(
-        Scope typeScope,
-        TypeDeclarationNode typeDecl,
-        MistType declaringType)
+    private void RegisterNestedTypes(Scope typeScope, TypeDeclarationNode typeDecl, MistType declaringType)
     {
         var members = GetMembers(typeDecl);
         if(members.IsDefault)
@@ -298,17 +319,9 @@ internal sealed class TypeBuilder
     /// Creates the appropriate concrete MistType subclass for a type declaration node.
     /// Reports a diagnostic and returns null for unrecognized node types.
     /// </summary>
-    private MistType? CreateMistType(
-        TypeDeclarationNode typeDecl,
-        Scope parentScope,
-        MistType? declaringType)
+    private MistType? CreateMistType(TypeDeclarationNode typeDecl, Scope parentScope, string namespaceName, MistType? declaringType)
     {
-        var namespaceName = parentScope.Namespace!;
-
-        var typeScope = new Scope(parentScope)
-        {
-            Namespace = namespaceName
-        };
+        var typeScope = new TypeScope(parentScope);
 
         switch(typeDecl)
         {
@@ -383,7 +396,7 @@ internal sealed class TypeBuilder
     /// </summary>
     private static void PopulateTypeParameters(MemberType type, TypeParameterListNode? typeParams)
     {
-        TypeParameterPopulator.Populate(type.TypeParametersList, type.Scope, type, typeParams);
+        TypeParameterPopulator.Populate(type.TypeParametersList, (ITypeNameScope)type.Scope, type, type.NamespaceName, typeParams);
     }
 
     /// <summary>
@@ -391,9 +404,8 @@ internal sealed class TypeBuilder
     /// adds them to the provided list, and registers them in the given scope.
     /// Works for any type that declares type parameters (member types, aliases, newtypes).
     /// </summary>
-    private static void PopulateTypeParameters(
-        List<TypeParameter> target, Scope scope, MistType declaringType, TypeParameterListNode? typeParams)
+    private static void PopulateTypeParameters(List<TypeParameter> target, ITypeNameScope scope, MistType declaringType, TypeParameterListNode? typeParams)
     {
-        TypeParameterPopulator.Populate(target, scope, declaringType, typeParams);
+        TypeParameterPopulator.Populate(target, scope, declaringType, declaringType.NamespaceName, typeParams);
     }
 }

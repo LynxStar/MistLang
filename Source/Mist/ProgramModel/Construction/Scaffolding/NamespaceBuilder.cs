@@ -1,7 +1,7 @@
 using Mist.Common.Diagnostics;
 using Mist.Common.Source;
 using Mist.Generated;
-using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Scopes;
 
 namespace Mist.ProgramModel.Construction.Scaffolding;
 
@@ -21,35 +21,28 @@ internal sealed class NamespaceBuilder
     }
 
     /// <summary>
-    /// Validates, resolves, and populates the given file scope with namespace
-    /// information from the AST. Sets the scope's namespace and imports.
-    /// Returns false if validation failed (the scope should not be used).
+    /// Validates the file's namespace declarations, registers the namespaces it declares, and
+    /// populates the file scope's usings. Returns the namespace the file's TOP-LEVEL items belong
+    /// to, or null when validation failed and the scope should not be used.
+    /// <para>
+    /// The returned namespace is not recorded on the scope. It becomes a
+    /// <see cref="NamespaceScope"/> beneath it, and only if the file turns out to have top-level
+    /// items at all -- which is <c>TypeBuilder</c>'s to know, since it is the one walking them.
+    /// </para>
     /// </summary>
-    public bool Build(
-        Scope fileScope,
-        CompilationUnitNode ast,
-        SourceText sourceText,
-        string namespaceRoot,
-        string projectFolder)
+    public string? Build(FileScope fileScope, CompilationUnitNode ast, SourceText sourceText, string namespaceRoot, string projectFolder)
     {
-        // Step 1: Validate namespace declarations.
         if(ValidateNamespaceDeclarations(ast))
         {
-            return false;
+            return null;
         }
 
-        // Step 2: Determine the file's namespace.
         var fileNamespace = DetermineFileNamespace(ast, sourceText, namespaceRoot, projectFolder);
 
-        // Step 3: Register namespaces in the program model.
-        RegisterNamespaces(ast, sourceText, fileNamespace);
-
-        // Step 4: Set the scope's namespace and populate imports.
-        fileScope.Namespace = fileNamespace;
-        fileScope.AddImportedNamespace(fileNamespace);
+        RegisterNamespaces(ast, sourceText);
         PopulateImports(ast, sourceText, fileScope);
 
-        return true;
+        return fileNamespace;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -202,12 +195,14 @@ internal sealed class NamespaceBuilder
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Registers namespaces found in the compilation unit into the program model.
+    /// Registers the namespaces the file DECLARES. The file's own namespace is deliberately not
+    /// among them: a file whose declarations all sit inside blocks does not bring its inferred
+    /// namespace into existence, and registering one unconditionally is what used to make it.
+    /// Declaring a type registers its namespace, so a file that does have top-level items still
+    /// gets one.
     /// </summary>
-    private void RegisterNamespaces(CompilationUnitNode ast, SourceText sourceText, string fileNamespace)
+    private void RegisterNamespaces(CompilationUnitNode ast, SourceText sourceText)
     {
-        _ = context.ProgramModel.GetOrAddNamespace(fileNamespace);
-
         foreach(var item in ast.Items)
         {
             if(item is NamespaceItemTopLevelItemNode nsItem
@@ -226,12 +221,12 @@ internal sealed class NamespaceBuilder
     /// <summary>
     /// Populates the file scope with using declarations from the AST.
     /// </summary>
-    private static void PopulateImports(CompilationUnitNode ast, SourceText sourceText, Scope fileScope)
+    private static void PopulateImports(CompilationUnitNode ast, SourceText sourceText, FileScope fileScope)
     {
         foreach(var usingDecl in ast.Usings)
         {
             var usingName = ExtractQualifiedName(usingDecl.Name, sourceText);
-            fileScope.AddImportedNamespace(usingName);
+            fileScope.DeclareImport(usingName);
         }
 
         foreach(var item in ast.Items)
@@ -239,7 +234,7 @@ internal sealed class NamespaceBuilder
             if(item is UsingItemTopLevelItemNode usingItem)
             {
                 var usingName = ExtractQualifiedName(usingItem.UsingDeclaration.Name, sourceText);
-                fileScope.AddImportedNamespace(usingName);
+                fileScope.DeclareImport(usingName);
             }
         }
     }

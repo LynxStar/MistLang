@@ -1,7 +1,7 @@
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Resolution;
-using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 
 namespace Mist.ProgramModel.Construction.Members;
 

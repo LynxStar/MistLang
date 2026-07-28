@@ -3,6 +3,7 @@ using Mist.Generated;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Binding.Expressions;
@@ -49,7 +50,7 @@ internal static class ExpressionBinder
             FalseLiteralExpressionPrimaryNode falseLit => LiteralBinder.BindBoolLiteral(falseLit, false, context),
             ArrayLiteralExpressionPrimaryNode arrayLiteral => LiteralBinder.BindArrayLiteral(arrayLiteral, ctx, context),
 
-            IdentifierExpressionPrimaryNode identifier => IdentifierBinder.BindIdentifier(identifier, ctx, context),
+            IdentifierExpressionPrimaryNode identifier => IdentifierBinder.BindIdentifier(identifier, ctx),
 
             ParenthesizedExpressionPrimaryNode paren => BindExpression(paren.Inner, ctx, context),
             ArrayCreationExpressionPrimaryNode arrayCreation => BindArrayCreation(arrayCreation, ctx, context),
@@ -62,26 +63,27 @@ internal static class ExpressionBinder
     }
 
     /// <summary>
-    /// Binds <c>this</c> to the enclosing type. The grammar admits <c>this</c> in any
-    /// expression position, so both invalid placements are rejected here rather than left
-    /// for the C# backend: outside a type there is no instance to name, and inside a
-    /// static member there is none either.
+    /// Binds <c>this</c>. The grammar admits it in any expression position, so both invalid
+    /// placements are rejected here rather than left for the C# backend -- but neither is checked
+    /// for: the receiver is RESOLVED, like any other name, and the two failures are just the two
+    /// ways that resolution can come back. A static member answers that it has no instance; a
+    /// chain with no type in it at all runs out and answers nothing.
     /// </summary>
     private static Expression BindThis(ThisExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
     {
-        if(ctx.EnclosingType is null)
+        switch(ctx.Scope.Lookup(LookupRequest.Receiver(node)))
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.ThisOutsideType, node, null);
-            return new ErrorExpression(node);
-        }
+            case ReceiverResult receiver:
+                return new ThisExpression(node, receiver.Type);
 
-        if(ctx.IsStaticContext)
-        {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.ThisInStaticMember, node, null);
-            return new ErrorExpression(node);
-        }
+            case StaticReceiverResult:
+                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.ThisInStaticMember, node, null);
+                return new ErrorExpression(node);
 
-        return new ThisExpression(node, ctx.EnclosingType);
+            default:
+                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.ThisOutsideType, node, null);
+                return new ErrorExpression(node);
+        }
     }
 
     /// <summary>

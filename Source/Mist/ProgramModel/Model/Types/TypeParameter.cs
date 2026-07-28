@@ -1,5 +1,6 @@
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Scopes;
 
 namespace Mist.ProgramModel.Model.Types;
 
@@ -15,12 +16,18 @@ namespace Mist.ProgramModel.Model.Types;
 /// </summary>
 internal class TypeParameter : MistType, ITypeParameter
 {
+    /// <param name="namespaceName">
+    /// The namespace of whatever declared this parameter, used only when there is no declaring
+    /// type -- an extension block's own parameters, which belong to the block rather than a type.
+    /// A type parameter is not namespace-registered either way, so this is for display alone.
+    /// </param>
     public TypeParameter(
         string name,
         int ordinal,
+        string namespaceName,
         Scope declaringScope,
         MistType? declaringType)
-        : base(name, declaringType?.NamespaceName ?? declaringScope.Namespace ?? "", declaringScope, declaringType)
+        : base(name, declaringType?.NamespaceName ?? namespaceName, declaringScope, declaringType)
     {
         Ordinal = ordinal;
     }

@@ -1,5 +1,6 @@
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Model;
@@ -19,8 +20,8 @@ namespace Mist.ProgramModel.Model;
 /// </summary>
 internal sealed class TypeSlot : TypeParameter, ITypeSlot
 {
-    public TypeSlot(string name, int ordinal, Scope declaringScope, MistType? declaringType)
-        : base(name, ordinal, declaringScope, declaringType)
+    public TypeSlot(string name, int ordinal, string namespaceName, Scope declaringScope, MistType? declaringType)
+        : base(name, ordinal, namespaceName, declaringScope, declaringType)
     {
     }
 

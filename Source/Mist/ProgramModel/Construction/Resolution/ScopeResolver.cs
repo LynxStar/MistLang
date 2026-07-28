@@ -2,7 +2,7 @@ using System.Globalization;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Contracts.Types;
-using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Resolution;
@@ -195,7 +195,7 @@ internal sealed class ScopeResolver
     /// </summary>
     public IMistType LookupWellKnown(WellKnownType wellKnown)
     {
-        return LookupInNamespace(wellKnown.Namespace, wellKnown.Name) ?? ErrorType.Instance;
+        return context.ProgramModel.FindType(wellKnown.Namespace, wellKnown.Name) ?? ErrorType.Instance;
     }
 
     /// <summary>
@@ -378,132 +378,35 @@ internal sealed class ScopeResolver
 
     // ═══════════════════════════════════════════════════════════════════════
     // Name Lookup
+    //
+    // Resolving a bare name is the scopes' own job -- see Scope.Lookup. What remains here
+    // are the two callers that need something narrower than a raw symbol: a type reference,
+    // which must reject non-types, and a qualification step off a namespace.
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Resolves a name to whatever it is — variable, type, or not found.
-    /// Walks the scope chain checking localVariables and localTypes at each level,
-    /// then falls back to namespace-based resolution.
-    /// </summary>
-    public LookupResult Lookup(string name, Scope scope, Storm.Runtime.SyntaxNode locationNode)
-    {
-        var current = scope;
-        while(current is not null)
-        {
-            var candidates = new List<LookupResult>();
-
-            if(current.LocalVariables.TryGetValue(name, out var local))
-            {
-                candidates.Add(new VariableResult(local));
-            }
-
-            if(current.LocalTypes.TryGetValue(name, out var localType))
-            {
-                candidates.Add(new TypeResult(localType));
-            }
-
-            if(current.LocalMethods.TryGetValue(name, out var methods))
-            {
-                candidates.Add(new MethodGroupResult(methods));
-            }
-
-            if(candidates.Count == 1)
-            {
-                return candidates[0];
-            }
-
-            if(candidates.Count > 1)
-            {
-                return new AmbiguousResult(candidates);
-            }
-
-            current = current.Parent;
-        }
-
-        // Scope chain exhausted — try namespace-based resolution.
-        var namespaceType = ResolveByNamespace(name, scope, locationNode);
-        if(namespaceType is not null)
-        {
-            return new TypeResult(namespaceType);
-        }
-
-        // Not a member of any kind — the name may still be a namespace being used to
-        // qualify one, as in `Simpliest` of `Simpliest.Program.RunDemo()`. Types shadow
-        // namespaces, so this is deliberately the last thing tried.
-        if(IsKnownNamespace(name))
-        {
-            return new NamespaceResult(name);
-        }
-
-        return new NotFoundResult();
-    }
-
-    /// <summary>
-    /// Resolves one qualification step off a namespace: <c>namespaceName.memberName</c>.
-    /// A namespace can only contain types and further namespaces, so the result is a
-    /// <see cref="TypeResult"/>, a <see cref="NamespaceResult"/>, or
-    /// <see cref="NotFoundResult"/>. No diagnostic is emitted — the caller decides
-    /// whether an unresolved qualification is an error.
+    /// One qualification step off a namespace. Exposed here so binders have a single resolution
+    /// facade to talk to; the semantics are <see cref="Model.ProgramModel.LookupQualified"/>'s.
     /// </summary>
     public LookupResult LookupQualified(string namespaceName, string memberName)
     {
-        var qualified = $"{namespaceName}.{memberName}";
-
-        if(context.ProgramModel.TypesByFQN.TryGetValue(qualified, out var type))
-        {
-            return new TypeResult(type);
-        }
-
-        if(IsKnownNamespace(qualified))
-        {
-            return new NamespaceResult(qualified);
-        }
-
-        return new NotFoundResult();
+        return context.ProgramModel.LookupQualified(namespaceName, memberName);
     }
 
     /// <summary>
-    /// Whether the given name denotes a namespace in the program model. A namespace is
-    /// known if it was registered directly, or if it is a proper prefix of one that was:
-    /// registration records leaf namespaces only, so <c>A.B.C</c> being registered is
-    /// what makes <c>A</c> and <c>A.B</c> namespaces too.
+    /// Looks up a type name through the scope chain and filters to types only. Emits
+    /// diagnostics for wrong-kind or not-found.
     /// <para>
-    /// Only namespaces declared in source (including referenced projects) are visible
-    /// here. Ambient assembly-projected types register their types but not their
-    /// namespaces, so <c>System.Console</c>-style qualification is not yet resolvable.
+    /// Requests <see cref="MemberVisibility.None"/>: a type-reference position can never
+    /// denote a field, property or method, so members are excluded from consideration rather
+    /// than matched and then rejected. Excluding them lets the lookup continue outward, so a
+    /// field sharing its name with a type does not mask the type here -- while in an
+    /// expression position, where both are legal, the field still wins.
     /// </para>
-    /// </summary>
-    private bool IsKnownNamespace(string name)
-    {
-        if(string.IsNullOrEmpty(name))
-        {
-            return false;
-        }
-
-        if(context.ProgramModel.Namespaces.ContainsKey(name))
-        {
-            return true;
-        }
-
-        var prefix = name + ".";
-        foreach(var registered in context.ProgramModel.Namespaces.Keys)
-        {
-            if(registered.StartsWith(prefix, StringComparison.Ordinal))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// Looks up a type name by walking the scope chain. Delegates to <see cref="Lookup"/>
-    /// and filters to types only. Emits diagnostics for wrong-kind or not-found.
     /// </summary>
     public IMistType ResolveNamedType(string name, Scope scope, Storm.Runtime.SyntaxNode locationNode)
     {
-        var result = Lookup(name, scope, locationNode);
+        var result = scope.Lookup(new LookupRequest(name, MemberVisibility.None, locationNode));
 
         switch(result)
         {
@@ -526,105 +429,6 @@ internal sealed class ScopeResolver
                     ProgramModelDiagnostics.UnresolvedType, locationNode, null, name);
                 return ErrorType.Instance;
         }
-    }
-
-    /// <summary>
-    /// Namespace-based type resolution (Tiers 2-4):
-    /// 2. Own namespace — shadows imports.
-    /// 3. Imports — flat pool with ambiguity check.
-    /// 4. FQN fallback.
-    /// Returns null if not found (caller decides whether to emit a diagnostic).
-    /// </summary>
-    private IMistType? ResolveByNamespace(string name, Scope scope, Storm.Runtime.SyntaxNode locationNode)
-    {
-        // Tier 2: Check own namespace at each scope level (shadows imports).
-        var current = scope;
-        while(current is not null)
-        {
-            if(current.Namespace is not null)
-            {
-                var found = LookupInNamespace(current.Namespace, name);
-                if(found is not null)
-                {
-                    return found;
-                }
-            }
-
-            current = current.Parent;
-        }
-
-        // Tier 3: Collect all imported namespaces from the entire scope chain
-        // into a flat pool. No shadowing between imports — report ambiguity if
-        // multiple distinct types match.
-        IMistType? match = null;
-        string? matchedNamespace = null;
-        string? conflictNamespace = null;
-
-        current = scope;
-        while(current is not null)
-        {
-            foreach(var imported in current.ImportedNamespaces)
-            {
-                var found = LookupInNamespace(imported, name);
-                if(found is not null)
-                {
-                    if(match is null)
-                    {
-                        match = found;
-                        matchedNamespace = imported;
-                    }
-                    else if(!ReferenceEquals(match, found))
-                    {
-                        conflictNamespace = imported;
-                    }
-                }
-            }
-
-            current = current.Parent;
-        }
-
-        if(conflictNamespace is not null)
-        {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.AmbiguousType, locationNode, null,
-                name, matchedNamespace!, conflictNamespace);
-            return ErrorType.Instance;
-        }
-
-        if(match is not null)
-        {
-            return match;
-        }
-
-        // Tier 4: FQN fallback — if the name has a dot, try it directly as a
-        // fully-qualified name in the flat dictionary.
-        if(name.Contains('.'))
-        {
-            if(context.ProgramModel.TypesByFQN.TryGetValue(name, out var fqnResult))
-            {
-                return fqnResult;
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Looks up a type by constructing a candidate FQN from namespace + type name
-    /// and checking the flat FQN dictionary.
-    /// </summary>
-    private IMistType? LookupInNamespace(string namespaceName, string typeName)
-    {
-        var fqn = string.IsNullOrEmpty(namespaceName)
-            ? typeName
-            : $"{namespaceName}.{typeName}";
-
-        if(context.ProgramModel.TypesByFQN.TryGetValue(fqn, out var typeDef))
-        {
-            return typeDef;
-        }
-
-        return null;
     }
 
     // ═══════════════════════════════════════════════════════════════════════

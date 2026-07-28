@@ -2,7 +2,7 @@ using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Construction.Scaffolding;
 using Mist.ProgramModel.Contracts;
-using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Scopes;
 
 namespace Mist.ProgramModel.Construction;
 
@@ -12,7 +12,7 @@ namespace Mist.ProgramModel.Construction;
 internal sealed class BuilderContext
 {
     public BuilderContext(
-        Scope globalScope,
+        GlobalScope globalScope,
         Model.ProgramModel programModel,
         DiagnosticBag diagnostics,
         IAmbientTypeProvider ambientProvider)
@@ -24,7 +24,13 @@ internal sealed class BuilderContext
         Resolver = new ScopeResolver(this);
     }
 
-    public Scope GlobalScope { get; }
+    /// <summary>
+    /// The level holding the project's implicit usings, and the parent of every file scope in the
+    /// compilation. The <see cref="ProgramScope"/> above it is not exposed: nothing outside the
+    /// chain needs it, because the queries that are not chain walks go to
+    /// <see cref="ProgramModel"/> instead.
+    /// </summary>
+    public GlobalScope GlobalScope { get; }
 
     public Model.ProgramModel ProgramModel { get; }
 

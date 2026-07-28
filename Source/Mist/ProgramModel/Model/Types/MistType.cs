@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Scopes;
 
 namespace Mist.ProgramModel.Model.Types;
 
@@ -19,6 +20,14 @@ internal abstract class MistType : IMistType
         Scope = scope;
         DeclaringType = declaringType;
         FullyQualifiedName = BuildFQN(name, namespaceName, declaringType);
+
+        // A TypeScope needs its type to resolve members, but the scope has to exist first
+        // because it is a constructor argument here. Wiring it up from this end means the two
+        // cannot disagree and no builder can forget to connect them.
+        if(scope is TypeScope typeScope)
+        {
+            typeScope.AttachType(this);
+        }
     }
 
     public string Name { get; }

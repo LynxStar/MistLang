@@ -2,6 +2,7 @@ using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Members;
@@ -26,7 +27,13 @@ internal sealed class ConstructorBuilder
     /// </summary>
     public void Resolve(ConstructorDeclarationNode ctorDecl, ConcreteType concreteType)
     {
-        var common = delegateResolver.ResolveFullDelegate(ctorDecl, concreteType.Scope, concreteType, concreteType.Name);
+        // A constructor needs a member scope of its own for the same reason a method does: it
+        // is the parent of the body scope, so without it the body chains to nothing and no
+        // bare name in a constructor can reach the declaring type.
+        var constructorScope = new MethodScope(concreteType.Scope);
+
+        var common = delegateResolver.ResolveFullDelegate(ctorDecl, constructorScope, concreteType, concreteType.Name);
+        constructorScope.IsStatic = common.Modifiers.IsStatic;
 
         if(common.Modifiers.IsAsync)
         {
@@ -41,6 +48,7 @@ internal sealed class ConstructorBuilder
         var constructor = new Constructor(concreteType.Name, concreteType, common.Parameters, common.Modifiers)
         {
             Body = common.Body,
+            Scope = constructorScope,
             ChainKind = ResolveChainKind(ctorDecl.Chain),
             ChainNode = ctorDecl.Chain,
         };

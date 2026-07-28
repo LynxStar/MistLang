@@ -1,8 +1,8 @@
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Construction.Types;
-using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Members;
@@ -34,21 +34,21 @@ internal sealed class MethodBuilder
     {
         var name = methodDecl.Name.Lexeme;
 
-        // Every method gets its own scope (child of the type's scope).
-        // Type parameters are registered here if present; later, locals will be too.
-        var methodScope = new Scope(host.Scope)
-        {
-            Namespace = host.NamespaceName
-        };
+        // Every method gets its own scope (child of the host's scope), holding its type
+        // parameters. Its staticness lives here too: it is the single point at which a lookup
+        // leaving the member for the declaring type loses access to instance members.
+        var methodScope = new MethodScope(host.Scope);
 
         var method = new Method(name, ErrorType.Instance, [], default);
 
         if(methodDecl.TypeParams is not null)
         {
-            TypeParameterPopulator.Populate(method.TypeParametersList, methodScope, host as MistType, methodDecl.TypeParams);
+            TypeParameterPopulator.Populate(method.TypeParametersList, methodScope, host as MistType, host.NamespaceName, methodDecl.TypeParams);
         }
 
         var common = delegateResolver.ResolveFullDelegate(methodDecl, methodScope, host, name);
+        methodScope.IsStatic = common.Modifiers.IsStatic;
+
         var returnType = scopeResolver.Resolve(methodDecl.ReturnType, methodScope);
         var returnOwnership = MemberTypeBuilder.ResolveOwnership(methodDecl.ReturnOwnership);
 
@@ -70,6 +70,6 @@ internal sealed class MethodBuilder
         resolvedMethod.DeclaredThisTier = common.DeclaredThisTier;
 
         host.MethodsList.Add(resolvedMethod);
-        host.Scope.AddMethod(resolvedMethod);
+        ((IMethodDeclarationScope)host.Scope).DeclareMethod(resolvedMethod);
     }
 }

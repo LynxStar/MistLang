@@ -2,6 +2,7 @@ using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Types;
@@ -49,15 +50,13 @@ internal sealed class TypeSlotBuilder
 
         // A slot gets its own scope (child of the abstract's scope) so its own
         // type parameters are visible while resolving its bound and where clauses.
-        var slotScope = new Scope(typeDef.Scope)
-        {
-            Namespace = typeDef.NamespaceName
-        };
+        var slotScope = new MemberScope(typeDef.Scope);
 
-        var slot = new TypeSlot(name, typeDef.TypeSlotsList.Count, slotScope, typeDef);
+        var slot = new TypeSlot(name, typeDef.TypeSlotsList.Count, typeDef.NamespaceName, slotScope, typeDef);
 
         // The slot's own type parameters (e.g. T in `type Foo<T>;`).
-        TypeParameterPopulator.Populate(slot.TypeParametersList, slotScope, slot, slotDecl.TypeParams);
+        TypeParameterPopulator.Populate(
+            slot.TypeParametersList, slotScope, slot, slot.NamespaceName, slotDecl.TypeParams);
 
         // The `:` bound constrains the slot itself; store it on the slot's own
         // constraint list (inherited from TypeParameter).
@@ -70,6 +69,6 @@ internal sealed class TypeSlotBuilder
         constraintResolver.Resolve(slotDecl.Group0?.SlotWhereConstraints ?? default, slot.TypeParametersList, slotScope);
 
         typeDef.TypeSlotsList.Add(slot);
-        typeDef.Scope.AddLocalType(name, slot);
+        ((ITypeNameScope)typeDef.Scope).DeclareType(name, slot);
     }
 }

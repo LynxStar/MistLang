@@ -4,6 +4,7 @@ using Mist.ProgramModel.Construction.Members;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Construction.Types;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Scopes;
 
 namespace Mist.ProgramModel.Construction.Scaffolding;
 
@@ -52,11 +53,10 @@ internal sealed class ExtensionBuilder
     private void Build(PendingExtension pending)
     {
         var ast = pending.Ast;
-        var fileScope = pending.FileScope;
         var namespaceName = pending.NamespaceName;
 
-        // Create the extension block's own scope (child of the file scope).
-        var extensionScope = new Scope(fileScope) { Namespace = namespaceName };
+        // Create the extension block's own scope, beneath the namespace level it was written in.
+        var extensionScope = new ExtensionScope(pending.DeclaringScope);
 
         var receiverName = ast.ReceiverName.Lexeme;
 
@@ -65,7 +65,8 @@ internal sealed class ExtensionBuilder
         // Populate extension-level type parameters (if generic extension).
         if(ast.TypeParams is not null)
         {
-            TypeParameterPopulator.Populate(extensionBlock.TypeParametersList, extensionScope, null, ast.TypeParams);
+            TypeParameterPopulator.Populate(
+                extensionBlock.TypeParametersList, extensionScope, null, namespaceName, ast.TypeParams);
         }
 
         // Resolve the receiver type reference.

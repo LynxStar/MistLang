@@ -2,6 +2,7 @@ using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Members;
@@ -28,9 +29,13 @@ internal sealed class CastOperatorBuilder
     /// </summary>
     public void Resolve(CastOperatorDeclarationNode castOpDecl, ConcreteType typeDef)
     {
-        var common = delegateResolver.ResolveDelegate(castOpDecl, typeDef.Scope, typeDef, "cast operator");
+        var castScope = new MethodScope(typeDef.Scope);
+
+        var common = delegateResolver.ResolveDelegate(castOpDecl, castScope, typeDef, "cast operator");
+        castScope.IsStatic = common.Modifiers.IsStatic;
+
         var isImplicit = castOpDecl.CastKind is ImplicitCastCastOperatorKindNode;
-        var targetType = scopeResolver.Resolve(castOpDecl.TargetType, typeDef.Scope);
+        var targetType = scopeResolver.Resolve(castOpDecl.TargetType, castScope);
 
         if(!common.Modifiers.IsStatic)
         {
@@ -50,7 +55,11 @@ internal sealed class CastOperatorBuilder
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.CastOperatorTooManyParameters, castOpDecl, null);
         }
 
-        var castOperator = new CastOperator(targetType, sourceParameter, isImplicit, common.Modifiers) { Body = common.Body };
+        var castOperator = new CastOperator(targetType, sourceParameter, isImplicit, common.Modifiers)
+        {
+            Body = common.Body,
+            Scope = castScope,
+        };
         typeDef.CastOperatorsList.Add(castOperator);
     }
 }

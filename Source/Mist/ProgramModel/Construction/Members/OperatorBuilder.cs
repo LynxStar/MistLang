@@ -3,6 +3,7 @@ using Mist.Generated;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Members;
@@ -29,9 +30,13 @@ internal sealed class OperatorBuilder
     /// </summary>
     public void Resolve(OperatorDeclarationNode opDecl, MemberType memberType)
     {
-        var common = delegateResolver.ResolveDelegate(opDecl, memberType.Scope, memberType, "operator");
+        var operatorScope = new MethodScope(memberType.Scope);
+
+        var common = delegateResolver.ResolveDelegate(opDecl, operatorScope, memberType, "operator");
+        operatorScope.IsStatic = common.Modifiers.IsStatic;
+
         var kind = MapOperatorSymbol(opDecl.Symbol);
-        var returnType = scopeResolver.Resolve(opDecl.ReturnType, memberType.Scope);
+        var returnType = scopeResolver.Resolve(opDecl.ReturnType, operatorScope);
 
         if(!common.Modifiers.IsStatic)
         {
@@ -40,7 +45,11 @@ internal sealed class OperatorBuilder
 
         ValidateParameterCount(kind, common.Parameters.Count, opDecl);
 
-        var op = new Operator(kind, returnType, common.Parameters, common.Modifiers) { Body = common.Body };
+        var op = new Operator(kind, returnType, common.Parameters, common.Modifiers)
+        {
+            Body = common.Body,
+            Scope = operatorScope,
+        };
         memberType.OperatorsList.Add(op);
     }
 

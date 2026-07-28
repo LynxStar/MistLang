@@ -5,6 +5,7 @@ using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Resolution;
@@ -35,10 +36,7 @@ internal sealed class ConstraintResolver
     /// <param name="whereClauses">The where clause array from the AST node.</param>
     /// <param name="typeParameters">The type parameters to match against by name.</param>
     /// <param name="scope">The scope for resolving type references in constraints.</param>
-    public void Resolve(
-        ImmutableArray<WhereClauseNode> whereClauses,
-        IReadOnlyList<TypeParameter> typeParameters,
-        Scope scope)
+    public void Resolve(ImmutableArray<WhereClauseNode> whereClauses, IReadOnlyList<TypeParameter> typeParameters, Scope scope)
     {
         Resolve(whereClauses, typeParameters, parameters: null, scope);
     }

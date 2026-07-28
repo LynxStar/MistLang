@@ -1,6 +1,5 @@
 using Mist.ProgramModel.Contracts.Types;
-using Mist.ProgramModel.Model;
-using Mist.ProgramModel.Model.Types;
+using Mist.ProgramModel.Model.Scopes;
 
 namespace Mist.ProgramModel.Construction.Binding;
 
@@ -11,22 +10,11 @@ namespace Mist.ProgramModel.Construction.Binding;
 internal sealed class BindingContext
 {
     /// <summary>
-    /// The lexical scope in effect (locals, parameters, types).
+    /// The lexical scope in effect. Always a body scope: binding only ever happens inside a
+    /// member body or a block within one, and typing it so means a statement can declare a
+    /// local without first proving where it is.
     /// </summary>
-    public Scope Scope { get; set; }
-
-    /// <summary>
-    /// The enclosing type whose members are in scope (for resolving sibling
-    /// method calls, field access via implicit this, etc.). Null for top-level statements.
-    /// </summary>
-    public MemberType? EnclosingType { get; set; }
-
-    /// <summary>
-    /// Whether the enclosing member is declared static. A static member has no instance,
-    /// so <c>this</c> and implicit instance member access are invalid inside it. Operators
-    /// are always static, so this is set for their bodies too.
-    /// </summary>
-    public bool IsStaticContext { get; set; }
+    public BodyScope Scope { get; set; }
 
     /// <summary>
     /// The enclosing member's declared return type, used as the target for
@@ -40,7 +28,7 @@ internal sealed class BindingContext
     /// </summary>
     public IMistType? TargetType { get; set; }
 
-    public BindingContext(Scope scope, IMistType? returnType)
+    public BindingContext(BodyScope scope, IMistType? returnType)
     {
         Scope = scope;
         ReturnType = returnType;

@@ -3,6 +3,7 @@ using Mist.ProgramModel.Construction.Binding.Expressions;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 
 namespace Mist.ProgramModel.Construction.Binding;
@@ -33,7 +34,7 @@ internal static class StatementBinder
     private static Block BindNestedBlock(BlockNode node, BindingContext ctx, BuilderContext context)
     {
         var block = new Block(node);
-        BodyBinder.BindBody(block, new Scope(ctx.Scope), ctx.ReturnType, ctx.EnclosingType, ctx.IsStaticContext, context);
+        BodyBinder.BindBody(block, new BodyScope(ctx.Scope), ctx.ReturnType, context);
         return block;
     }
 
@@ -61,7 +62,7 @@ internal static class StatementBinder
                     }
 
                     var local = new LocalVariable(typed.Name.Lexeme, declaredType);
-                    ctx.Scope.RegisterLocal(local, context.Diagnostics);
+                    ctx.Scope.DeclareLocal(local, context.Diagnostics);
                     return new LocalDeclarationStatement(local, initializer);
                 }
 
@@ -70,7 +71,7 @@ internal static class StatementBinder
                     var initializer = ExpressionBinder.BindExpression(inferred.Initializer, ctx, context);
                     var inferredType = initializer.Type;
                     var local = new LocalVariable(inferred.Name.Lexeme, inferredType);
-                    ctx.Scope.RegisterLocal(local, context.Diagnostics);
+                    ctx.Scope.DeclareLocal(local, context.Diagnostics);
                     return new LocalDeclarationStatement(local, initializer);
                 }
 
@@ -100,7 +101,7 @@ internal static class StatementBinder
         var condition = ExpressionBinder.BindExpression(node.Condition, ctx, context);
 
         var thenBlock = new Block(node.ThenBranch);
-        BodyBinder.BindBody(thenBlock, new Scope(ctx.Scope), ctx.ReturnType, ctx.EnclosingType, ctx.IsStaticContext, context);
+        BodyBinder.BindBody(thenBlock, new BodyScope(ctx.Scope), ctx.ReturnType, context);
 
         Statement? elseBranch = null;
         if(node.ElseBranch is not null)
@@ -121,7 +122,7 @@ internal static class StatementBinder
         var condition = ExpressionBinder.BindExpression(node.Condition, ctx, context);
 
         var body = new Block(node.Body);
-        BodyBinder.BindBody(body, new Scope(ctx.Scope), ctx.ReturnType, ctx.EnclosingType, ctx.IsStaticContext, context);
+        BodyBinder.BindBody(body, new BodyScope(ctx.Scope), ctx.ReturnType, context);
 
         return new WhileStatement(condition, body);
     }
@@ -129,7 +130,7 @@ internal static class StatementBinder
     private static ForStatement BindFor(ForStatementNode node, BindingContext ctx, BuilderContext context)
     {
         // The for loop gets its own scope so the initializer variable is contained.
-        var forScope = new Scope(ctx.Scope);
+        var forScope = new BodyScope(ctx.Scope);
         var previousScope = ctx.Scope;
         ctx.Scope = forScope;
 
@@ -152,13 +153,13 @@ internal static class StatementBinder
         }
 
         var body = new Block(node.Body);
-        BodyBinder.BindBody(body, new Scope(forScope), ctx.ReturnType, ctx.EnclosingType, ctx.IsStaticContext, context);
+        BodyBinder.BindBody(body, new BodyScope(forScope), ctx.ReturnType, context);
 
         ctx.Scope = previousScope;
         return new ForStatement(initializer, condition, iterator, body);
     }
 
-    private static Statement BindForInitializer(ForInitializerNode node, BindingContext ctx, Scope forScope, BuilderContext context)
+    private static Statement BindForInitializer(ForInitializerNode node, BindingContext ctx, BodyScope forScope, BuilderContext context)
     {
         switch(node)
         {
@@ -167,7 +168,7 @@ internal static class StatementBinder
                     var declaredType = context.Resolver.Resolve(typed.VariableDeclaration, forScope);
                     var init = ExpressionBinder.BindExpression(typed.Initializer, ctx, context);
                     var local = new LocalVariable(typed.Name.Lexeme, declaredType);
-                    forScope.RegisterLocal(local, context.Diagnostics);
+                    forScope.DeclareLocal(local, context.Diagnostics);
                     return new LocalDeclarationStatement(local, init);
                 }
 
@@ -175,7 +176,7 @@ internal static class StatementBinder
                 {
                     var init = ExpressionBinder.BindExpression(varDecl.Initializer, ctx, context);
                     var local = new LocalVariable(varDecl.Name.Lexeme, init.Type);
-                    forScope.RegisterLocal(local, context.Diagnostics);
+                    forScope.DeclareLocal(local, context.Diagnostics);
                     return new LocalDeclarationStatement(local, init);
                 }
 
@@ -192,7 +193,7 @@ internal static class StatementBinder
 
     private static ForEachStatement BindForEach(ForeachStatementNode node, BindingContext ctx, BuilderContext context)
     {
-        var foreachScope = new Scope(ctx.Scope);
+        var foreachScope = new BodyScope(ctx.Scope);
 
         IMistType variableType;
         Expression collection;
@@ -223,10 +224,10 @@ internal static class StatementBinder
         }
 
         var variable = new LocalVariable(variableName, variableType);
-        foreachScope.RegisterLocal(variable, context.Diagnostics);
+        foreachScope.DeclareLocal(variable, context.Diagnostics);
 
         var body = new Block(bodyNode);
-        BodyBinder.BindBody(body, foreachScope, ctx.ReturnType, ctx.EnclosingType, ctx.IsStaticContext, context);
+        BodyBinder.BindBody(body, foreachScope, ctx.ReturnType, context);
 
         return new ForEachStatement(variable, collection, body);
     }

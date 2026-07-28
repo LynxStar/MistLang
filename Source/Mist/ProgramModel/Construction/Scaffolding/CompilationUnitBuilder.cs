@@ -2,6 +2,7 @@ using Mist.Driver.Contracts;
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Types;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Scopes;
 
 namespace Mist.ProgramModel.Construction.Scaffolding;
 
@@ -36,17 +37,17 @@ internal sealed class CompilationUnitBuilder
         var projectFolder = unit.ProjectFolder!;
 
         // Create the file scope (parent = global).
-        var fileScope = new Scope(context.GlobalScope);
+        var fileScope = new FileScope(context.GlobalScope, context.ProgramModel, context.Diagnostics);
 
-        // Validate, resolve, and populate namespace + imports.
-        var success = namespaceBuilder.Build(fileScope, ast, sourceText, namespaceRoot, projectFolder);
-        if(!success)
+        // Validate namespaces and populate the file's usings.
+        var fileNamespace = namespaceBuilder.Build(fileScope, ast, sourceText, namespaceRoot, projectFolder);
+        if(fileNamespace is null)
         {
             return null;
         }
 
         // Register type declarations.
-        typeBuilder.Build(fileScope, ast, ResolveAssembly(unit));
+        typeBuilder.Build(fileScope, fileNamespace, ast, ResolveAssembly(unit));
 
         return fileScope;
     }

@@ -35,11 +35,13 @@ flakes:
       attribute emission. Frequency tracks the odds of a name collision, which is why it is
       intermittent rather than constant.
     evidence: >
-      Observed once during the member-lookup unification work, on a run where the only modified files
-      were ProgramModel scopes and types; the test file itself was unmodified in the working tree and
-      last touched by 7805826a. Re-ran the full suite green and the test alone green. The duplicated
-      named argument is visible in the captured failure output, and the generator at line 240 has no
+      Observed during the member-lookup unification work, on a run where the only modified files were
+      ProgramModel scopes and types; the test file itself was unmodified in the working tree and last
+      touched by 7805826a. Re-ran the full suite green and the test alone green. The duplicated named
+      argument is visible in the captured failure output, and the generator at line 240 has no
       distinctness constraint.
+      Recurred during the ambient extension type-parameter partition work, again with the test file
+      unmodified and again green on rerun. Roughly one full-suite run in three.
     fix: >
       Constrain the generator to distinct named-argument names -- deduplicate by name after drawing,
       or draw from a shuffled subset of the available properties. The assertion under test is about

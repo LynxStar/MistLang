@@ -17,7 +17,7 @@ using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 using ExperimentalAccessibility = Mist.ProgramModel.Model.Enums.Accessibility;
 using ExperimentalMistType = Mist.ProgramModel.Model.Types.MistType;
-using ProgramModelScope = Mist.ProgramModel.Model.Scope;
+using ProgramModelScope = Mist.ProgramModel.Model.Scopes.Scope;
 
 namespace Mist.Tests.Analysis;
 

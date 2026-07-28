@@ -364,11 +364,16 @@ capabilities:
     v2_status: partial
     verified_by: v2-semantics
     evidence: >
-      IdentifierBinder.FindEnclosingField, reached on NotFoundResult. Two known gaps -- the
-      fallback runs after namespace and type resolution, inverting C#'s
-      member-before-namespace precedence; and emission writes the bare name rather than a
-      qualified receiver, so correctness depends on C# resolving the simple name the same
-      way Mist did.
+      TypeScope resolves the enclosing type's fields and properties as part of the ordinary
+      scope-chain lookup; the IdentifierBinder fallback is gone. The precedence gap is closed
+      -- members are found during the lexical stage, which runs entirely before namespace and
+      import resolution -- and inherited fields now resolve through TypeScope's base-chain
+      walk. Still partial for one reason: emission writes the bare name rather than a
+      qualified receiver, so correctness depends on C# resolving the simple name the same way
+      Mist did. That breaks for a nested type reading an enclosing type's static, which
+      resolves in Mist and does not bind in the emitted C#.
+    tasks:
+      - Emit a qualified receiver for field references (shared with static-fields, order 21).
     unlocks: []
 
   - id: object-creation
@@ -466,16 +471,19 @@ capabilities:
     order: 22
     layer: object-model
     requires: [static-fields]
-    v2_status: missing
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
-      BindingContext carries EnclosingType but not the enclosing member, so neither BindThis
-      nor FindEnclosingField can see whether it is in a static context.
+      Staticness lives on MethodScope, which narrows the lookup request on the way out to the
+      declaring type, so an instance member is not a CANDIDATE for a bare name inside a static
+      member. `this` in a static member reports MIST_PM_THIS_IN_STATIC, read off
+      Scope.EnclosingMethodScope. Static fields still resolve, as intended.
+      Partial because the instance-member case is rejected by omission rather than by
+      diagnostic: the name simply does not resolve, and an unresolved identifier produces no
+      Mist diagnostic at all today, so the user sees a C# error instead.
     tasks:
-      - Thread the enclosing member, or a staticness flag, through BodyBinder.BindDelegate
-        into BindingContext.
-      - Report a Mist diagnostic for a this reference in a static member.
-      - Report a Mist diagnostic for an instance field read from a static member, while
-        still allowing static fields.
+      - Report a Mist diagnostic for an unresolved identifier, which turns this case (and
+        every other misspelled name) into a Mist error rather than a Roslyn one.
     unlocks: []
 
   - id: member-before-namespace-precedence
@@ -483,16 +491,15 @@ capabilities:
     order: 23
     layer: object-model
     requires: [implicit-instance-field-access]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      The field fallback fires on NotFoundResult, which is after ScopeResolver has tried
-      own-namespace types, imports, fully-qualified names and known-namespace resolution. A
-      field whose name collides with a visible type binds to the type, and because the
-      result is a TypeReferenceExpression the wrong type then propagates into any inferred
-      local downstream.
-    tasks:
-      - Move the enclosing-type field search to immediately after the scope-chain walk and
-        before ResolveByNamespace, preserving local and parameter shadowing.
+      Resolution is two ordered stages: Scope.Lookup runs the whole lexical chain --
+      including enclosing-type members via TypeScope -- and only then does ProgramScope try
+      own-namespace types, imports and fully-qualified names. A member therefore cannot lose
+      to a same-named type, and locals still shadow members because a body scope is inside
+      the type scope. Verified on a scratch program where a field and a class in the same
+      namespace share a name: the bare name emits as the field.
     unlocks: []
 
   - id: ambient-math-intrinsics

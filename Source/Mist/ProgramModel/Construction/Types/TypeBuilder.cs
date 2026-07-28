@@ -201,16 +201,15 @@ internal sealed class TypeBuilder
     private void RegisterNestedBodyType(Scope parentScope, TypeBodyDeclarationNode bodyDecl, MistType declaringType)
     {
         var namespaceName = declaringType.NamespaceName;
-        var typeScope = new TypeScope(parentScope);
 
         var name = BuildGenericName(bodyDecl.Name.Lexeme, bodyDecl.TypeParams);
         // Wrap in a synthetic TypeDeclarationNode for CreateMistType compatibility
         var wrappedDecl = new BodyTypeTypeDeclarationNode { TypeBody = bodyDecl };
         MemberType? typeDef = bodyDecl.Keyword switch
         {
-            ClassKeywordTypeKeywordNode => new ClassType(name, namespaceName, typeScope, declaringType, wrappedDecl),
-            StructKeywordTypeKeywordNode => new StructType(name, namespaceName, typeScope, declaringType, wrappedDecl),
-            AbstractKeywordTypeKeywordNode => new AbstractType(name, namespaceName, typeScope, declaringType, wrappedDecl),
+            ClassKeywordTypeKeywordNode => new ClassType(name, namespaceName, parentScope, declaringType, wrappedDecl),
+            StructKeywordTypeKeywordNode => new StructType(name, namespaceName, parentScope, declaringType, wrappedDecl),
+            AbstractKeywordTypeKeywordNode => new AbstractType(name, namespaceName, parentScope, declaringType, wrappedDecl),
             _ => null
         };
 
@@ -219,7 +218,7 @@ internal sealed class TypeBuilder
             return;
         }
 
-        PopulateTypeParameters(typeDef, bodyDecl.TypeParams);
+        PopulateTypeParameters(typeDef.TypeParametersList, typeDef.Scope, typeDef, bodyDecl.TypeParams);
 
         FinalizeRegistration(typeDef, declaringType);
         RegisterNestedTypes(typeDef.Scope, wrappedDecl, typeDef);
@@ -228,31 +227,28 @@ internal sealed class TypeBuilder
     private void RegisterNestedEnum(Scope parentScope, EnumDeclarationNode enumDecl, MistType declaringType)
     {
         var namespaceName = declaringType.NamespaceName;
-        var typeScope = new TypeScope(parentScope);
 
-        var typeDef = new EnumType(enumDecl.Name.Lexeme, namespaceName, typeScope, declaringType, enumDecl);
+        var typeDef = new EnumType(enumDecl.Name.Lexeme, namespaceName, parentScope, declaringType, enumDecl);
         FinalizeRegistration(typeDef, declaringType);
     }
 
     private void RegisterNestedNewtype(Scope parentScope, NewtypeDeclarationNode newtypeDecl, MistType declaringType)
     {
         var namespaceName = declaringType.NamespaceName;
-        var typeScope = new TypeScope(parentScope);
 
         var name = BuildGenericName(newtypeDecl.Name.Lexeme, newtypeDecl.TypeParams);
-        var typeDef = new Newtype(name, namespaceName, typeScope, declaringType, newtypeDecl);
-        PopulateTypeParameters(typeDef.TypeParametersList, typeScope, typeDef, newtypeDecl.TypeParams);
+        var typeDef = new Newtype(name, namespaceName, parentScope, declaringType, newtypeDecl);
+        PopulateTypeParameters(typeDef.TypeParametersList, typeDef.Scope, typeDef, newtypeDecl.TypeParams);
         FinalizeRegistration(typeDef, declaringType);
     }
 
     private void RegisterNestedTypeAlias(Scope parentScope, TypeAliasDeclarationNode aliasDecl, MistType declaringType)
     {
         var namespaceName = declaringType.NamespaceName;
-        var typeScope = new TypeScope(parentScope);
 
         var name = BuildGenericName(aliasDecl.Name.Lexeme, aliasDecl.TypeParams);
-        var typeDef = new TypeAlias(name, namespaceName, typeScope, declaringType, aliasDecl);
-        PopulateTypeParameters(typeDef.TypeParametersList, typeScope, typeDef, aliasDecl.TypeParams);
+        var typeDef = new TypeAlias(name, namespaceName, parentScope, declaringType, aliasDecl);
+        PopulateTypeParameters(typeDef.TypeParametersList, typeDef.Scope, typeDef, aliasDecl.TypeParams);
         FinalizeRegistration(typeDef, declaringType);
     }
 
@@ -274,13 +270,10 @@ internal sealed class TypeBuilder
         // Ensure the namespace exists (for extensions/conformances that reference it).
         _ = context.ProgramModel.GetOrAddNamespace(typeDef.NamespaceName);
 
-        // If nested, add to the declaring type and make visible by simple name
-        // in the parent type's scope.
-        if(declaringType is not null)
-        {
-            declaringType.NestedTypes.Add(typeDef);
-            ((ITypeNameScope)declaringType.Scope).DeclareType(typeDef.Name, typeDef);
-        }
+        // If nested, add to the declaring type. That is also what makes it visible by simple name
+        // inside that type, since the declaring type's scope reads NestedTypes rather than keeping
+        // a table of its own.
+        declaringType?.NestedTypes.Add(typeDef);
     }
 
     /// <summary>
@@ -321,36 +314,34 @@ internal sealed class TypeBuilder
     /// </summary>
     private MistType? CreateMistType(TypeDeclarationNode typeDecl, Scope parentScope, string namespaceName, MistType? declaringType)
     {
-        var typeScope = new TypeScope(parentScope);
-
         switch(typeDecl)
         {
             case BodyTypeTypeDeclarationNode body:
                 var name = BuildGenericName(body.TypeBody.Name.Lexeme, body.TypeBody.TypeParams);
                 MemberType typeDef = body.TypeBody.Keyword switch
                 {
-                    ClassKeywordTypeKeywordNode => new ClassType(name, namespaceName, typeScope, declaringType, typeDecl),
-                    StructKeywordTypeKeywordNode => new StructType(name, namespaceName, typeScope, declaringType, typeDecl),
-                    AbstractKeywordTypeKeywordNode => new AbstractType(name, namespaceName, typeScope, declaringType, typeDecl),
+                    ClassKeywordTypeKeywordNode => new ClassType(name, namespaceName, parentScope, declaringType, typeDecl),
+                    StructKeywordTypeKeywordNode => new StructType(name, namespaceName, parentScope, declaringType, typeDecl),
+                    AbstractKeywordTypeKeywordNode => new AbstractType(name, namespaceName, parentScope, declaringType, typeDecl),
                     _ => throw new InvalidOperationException($"Unexpected type keyword: {body.TypeBody.Keyword.GetType().Name}")
                 };
 
-                PopulateTypeParameters(typeDef, body.TypeBody.TypeParams);
+                PopulateTypeParameters(typeDef.TypeParametersList, typeDef.Scope, typeDef, body.TypeBody.TypeParams);
                 return typeDef;
 
             case EnumTypeTypeDeclarationNode et:
-                return new EnumType(et.EnumDeclaration.Name.Lexeme, namespaceName, typeScope, declaringType, et.EnumDeclaration);
+                return new EnumType(et.EnumDeclaration.Name.Lexeme, namespaceName, parentScope, declaringType, et.EnumDeclaration);
 
             case NewtypeTypeTypeDeclarationNode nt:
                 var ntName = BuildGenericName(nt.NewtypeDeclaration.Name.Lexeme, nt.NewtypeDeclaration.TypeParams);
-                var newtype = new Newtype(ntName, namespaceName, typeScope, declaringType, nt.NewtypeDeclaration);
-                PopulateTypeParameters(newtype.TypeParametersList, typeScope, newtype, nt.NewtypeDeclaration.TypeParams);
+                var newtype = new Newtype(ntName, namespaceName, parentScope, declaringType, nt.NewtypeDeclaration);
+                PopulateTypeParameters(newtype.TypeParametersList, newtype.Scope, newtype, nt.NewtypeDeclaration.TypeParams);
                 return newtype;
 
             case TypeAliasTypeTypeDeclarationNode ta:
                 var taName = BuildGenericName(ta.TypeAliasDeclaration.Name.Lexeme, ta.TypeAliasDeclaration.TypeParams);
-                var alias = new TypeAlias(taName, namespaceName, typeScope, declaringType, ta.TypeAliasDeclaration);
-                PopulateTypeParameters(alias.TypeParametersList, typeScope, alias, ta.TypeAliasDeclaration.TypeParams);
+                var alias = new TypeAlias(taName, namespaceName, parentScope, declaringType, ta.TypeAliasDeclaration);
+                PopulateTypeParameters(alias.TypeParametersList, alias.Scope, alias, ta.TypeAliasDeclaration.TypeParams);
                 return alias;
 
             default:
@@ -391,21 +382,13 @@ internal sealed class TypeBuilder
     }
 
     /// <summary>
-    /// Creates <see cref="TypeParameter"/> instances from the AST type parameter list
-    /// and registers them on the member type and in its scope.
+    /// Creates <see cref="TypeParameter"/> instances from the AST type parameter list and adds them
+    /// to the declaring type's own list. One overload for every type kind now that the namespace
+    /// comes off the declaring type rather than the scope it was declared in.
     /// </summary>
-    private static void PopulateTypeParameters(MemberType type, TypeParameterListNode? typeParams)
+    private static void PopulateTypeParameters(
+        List<TypeParameter> target, Scope declaringScope, MistType declaringType, TypeParameterListNode? typeParams)
     {
-        TypeParameterPopulator.Populate(type.TypeParametersList, (ITypeNameScope)type.Scope, type, type.NamespaceName, typeParams);
-    }
-
-    /// <summary>
-    /// Creates <see cref="TypeParameter"/> instances from the AST type parameter list,
-    /// adds them to the provided list, and registers them in the given scope.
-    /// Works for any type that declares type parameters (member types, aliases, newtypes).
-    /// </summary>
-    private static void PopulateTypeParameters(List<TypeParameter> target, ITypeNameScope scope, MistType declaringType, TypeParameterListNode? typeParams)
-    {
-        TypeParameterPopulator.Populate(target, scope, declaringType, declaringType.NamespaceName, typeParams);
+        TypeParameterPopulator.Populate(target, declaringScope, declaringType, typeParams);
     }
 }

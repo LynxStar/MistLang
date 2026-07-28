@@ -1,6 +1,6 @@
 using Mist.Backends.CSharpTranspiler.Emitter;
-using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Tests.Backend;

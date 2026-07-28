@@ -78,6 +78,23 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "The type name '{0}' is ambiguous between imported namespaces '{1}' and '{2}'. Use a fully-qualified name to disambiguate.");
 
+    /// <summary>A qualified member access named nothing on the receiver's type or its bases.</summary>
+    public static readonly DiagnosticDescriptor UnresolvedMember = new(
+        new DiagnosticId("MIST_PM_UNRESOLVED_MEMBER"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}' has no member named '{1}'.");
+
+    /// <summary>
+    /// A member name matched two different kinds of declaration -- a field and a method, say -- so
+    /// there is no single thing it could mean.
+    /// </summary>
+    public static readonly DiagnosticDescriptor AmbiguousMember = new(
+        new DiagnosticId("MIST_PM_AMBIGUOUS_MEMBER"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "The member '{1}' on '{0}' is ambiguous between {2} declarations of different kinds.");
+
     /// <summary>An unrecognized type reference AST node was encountered.</summary>
     public static readonly DiagnosticDescriptor UnknownTypeRefNode = new(
         new DiagnosticId("MIST_PM_UNKNOWN_TYPE_REF_NODE"),

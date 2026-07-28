@@ -9,8 +9,8 @@ namespace Mist.ProgramModel.Model.Types;
 /// An abstract (interface-like) type definition in the program model.
 /// </summary>
 internal sealed class AbstractType(
-    string name, string namespaceName, Scope scope, MistType? declaringType, TypeDeclarationNode? declarationNode)
-    : MemberType(name, namespaceName, scope, declaringType, declarationNode),
+    string name, string namespaceName, Scope? parentScope, MistType? declaringType, TypeDeclarationNode? declarationNode)
+    : MemberType(name, namespaceName, parentScope, declaringType, declarationNode),
     IAbstractType
 {
     public List<TypeSlot> TypeSlotsList { get; } = [];

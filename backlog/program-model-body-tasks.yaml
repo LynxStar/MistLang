@@ -133,23 +133,18 @@ infrastructure:
     # Scope (Model/Scope.cs) now holds locals as well as types. Method.Scope is still
     # type-parameters-only; see binding_pass_integration.wiring for why that matters.
     - [~] local-variable symbol model (name, resolved type, ownership tier, ref-kind, readonly-status, source origin) -- MISSING: everything but name and type. LocalVariable's own remarks say the rest lands with the corresponding features
-    - [x] extend Scope to hold local variables + parameters (not just types) -- localVariables dictionary, LocalVariables, RegisterLocal, LookupLocal. NOTE: LookupLocal is dead code; ScopeResolver.Lookup reads LocalVariables directly
+    - [x] extend Scope to hold local variables + parameters (not just types) -- localVariables dictionary, LocalVariables, RegisterLocal, LookupLocal. Resolution now reads these through Scope's own CollectHere rather than from outside, so the tables are no longer exposed for an external walk. LookupLocal remains unused: it predates the request-carrying Lookup and answers a narrower question (locals only, no narrowing)
     - [~] parameter symbols registered into the member's body scope before binding -- MISSING: symbol identity. BodyBinder.BindDelegate registers into a transient child Scope and wraps each Parameter in a fresh LocalVariable, so LocalReferenceExpression.Local never points at the Parameter
     - [~] nested block scopes (child scope per block; shadowing rules) -- MISSING: foreach. Block/if-then/while/for-body each get `new Scope(...)` and shadowing works via the parent walk, but BindForEach passes foreachScope itself as the body scope, so the iteration variable and body locals share one scope
     - [~] duplicate-local detection within a scope (diagnostic) -- MISSING: a source location. RegisterLocal reports DuplicateLocalVariable with `Location: default` and CompilationUnitPath "<unknown>"
     - [ ] discard `_` handling (introduces no binding) -- the grammar spells these name:(IDENTIFIER | DISCARD); StatementBinder reads .Name.Lexeme unconditionally, so `_` becomes a real local named "_" and a second `_` in one scope fires a spurious DuplicateLocalVariable
-    - [~] scope lookup order: locals -> params -> enclosing type members (this) -> file imports -> namespace -> global/ambient -- MISSING: enclosing-type members proper. ScopeResolver.Lookup covers locals/params/nested types/sibling methods then namespaces and imports; enclosing-type FIELDS come from a bolt-on (IdentifierBinder.FindEnclosingField, declaring type only, no base chain) and enclosing-type PROPERTIES are not reachable by bare name at all
+    - [x] scope lookup order: locals -> params -> enclosing type members (this) -> file imports -> namespace -> global/ambient -- Scope.Lookup, two ordered stages: the lexical chain (each kind answering for itself, narrowing member visibility as the request travels out) then ProgramScope's namespace/import/FQN stage. Enclosing-type fields AND properties resolve, inherited members resolve through TypeScope's base-chain walk, and IdentifierBinder.FindEnclosingField is gone. Bare property reads resolve but bind to a sentinel: no property-reference node exists yet
 
     # -------------------------------------------------------------------------
-    # DESIGN NOTE -- polymorphic scope hierarchy (DECIDED, deferred, next up)
+    # DESIGN NOTE -- polymorphic scope hierarchy (IMPLEMENTED)
     #
-    # The intended fix for the [~] item directly above, and for
-    # member-before-namespace-precedence (order 23) in
-    # emitter-v2-capability-progression.yaml. Not started.
-    #
-    # In the meantime: do NOT add a second bolt-on beside
-    # IdentifierBinder.FindEnclosingField. Keeping it the ONLY place that reaches into
-    # the enclosing type is what makes this refactor a deletion rather than a hunt.
+    # Built as described below. The AS-BUILT section at the end of this note records what
+    # differs from the design and what the implementation settled that the design left open.
     #
     # SHAPE. One abstract Scope with concrete kinds: ProgramScope, GlobalScope,
     # FileScope, TypeScope, BodyScope. Each kind owns its own lookup behavior. Lookup
@@ -158,6 +153,11 @@ infrastructure:
     # base is enough; an interface buys nothing while Scope is an internal construction
     # artifact nothing outside implements (revisit if a bound Block comes to own its
     # Scope, see bound_node_hierarchy).
+    #
+    # EACH KIND HOLDS ONLY WHAT CAN BE DECLARED IN IT. The base carries the algorithm and no
+    # declaration table at all, so a kind's fields state exactly what its construct may
+    # declare, and an operation meaningless for a kind does not compile against it -- no
+    # RegisterLocal on a ProgramScope, no import on a BodyScope. See AS BUILT for the table.
     #
     # KEY MECHANIC -- visibility is a property of the PATH, not of one scope. Whether a
     # TypeScope exposes an instance field depends on WHO IS ASKING: a BodyScope directly
@@ -223,6 +223,80 @@ infrastructure:
     # NOT from C# (clean-room principle above). Specify in .kiro/specs/nested-scoping/
     # and .kiro/specs/named-references/. samples/NestedScoping (BlockNamespaces,
     # NestedInAbstract, NestedInStruct) is the acceptance surface.
+    #
+    # ===================== AS BUILT =====================
+    #
+    # THE OPEN DECISION WAS SETTLED AS "YES, STATICS ARE VISIBLE" -- on a soundness
+    # argument, not by copying C#. .kiro/specs/nested-scoping/ turned out to specify only
+    # type parameters (Req 7) and nested-type NAMES (Req 9), and says nothing about member
+    # access across a nesting boundary, so there was no rule to read off. The argument used
+    # instead: a bare name denoting an INSTANCE member requires a receiver, and inside a
+    # nested type no receiver for the enclosing type exists, so instance members cannot be
+    # named there in any coherent language. Static members need no receiver, so nothing
+    # excludes them. This is derived from Mist's own semantics and holds regardless of what
+    # C# does. STILL WORTH A SPEC ENTRY -- the code now has a rule the specs do not.
+    #
+    # It also FIXED AN UNSOUNDNESS rather than merely restricting: method lookup already
+    # walked into enclosing type scopes unfiltered, so a nested type could name an
+    # enclosing type's INSTANCE method by bare name and emit C# that cannot compile. The
+    # same narrowing that admits outer statics now excludes those.
+    #
+    # Scope stayed CONCRETE, not abstract. ~370 `new Scope(...)` sites exist, most in tests
+    # and in synthetic model types (ErrorType, TupleType, UnionType, ConstructedType and
+    # friends each need a scope that holds nothing). An abstract base would have forced a
+    # dedicated empty kind through all of them for no behavioural gain -- and once the
+    # declaration tables moved down onto the kinds, a bare base IS exactly "a scope that
+    # declares nothing but still walks", which is what a synthetic type wants.
+    #
+    # WHAT EACH KIND DECLARES. The base holds none of this; it holds Parent, Namespace, the
+    # two-stage Lookup and the LookupHere/NarrowForParent hooks.
+    #   ProgramScope     nothing -- it IS the type/namespace universe, read off ProgramModel
+    #   ImportingScope   using directives            -> GlobalScope, FileScope
+    #   NamespaceScope   nothing -- a block namespace's types register into the program model
+    #   TypeScope        nested types + type params, methods; reads fields/properties off the
+    #                    type rather than copying them, so registration order cannot matter
+    #   MemberScope      the member's own type params -> MethodScope adds staticness
+    #   ExtensionScope   its own type params + methods, but no state: an extension has none
+    #   BodyScope        locals and parameters
+    #
+    # TWO INTERFACES carry the capabilities that cross branches, so a caller that declares
+    # cannot be handed a scope that cannot hold the declaration: ITypeNameScope (TypeScope,
+    # MemberScope, ExtensionScope) and IMethodDeclarationScope (TypeScope, ExtensionScope).
+    # Both are implemented only by Scope subclasses, hence the few `(Scope)` casts where a
+    # declarer also needs the scope itself.
+    #
+    # BindingContext.Scope IS TYPED BodyScope, not Scope. Binding only ever happens inside a
+    # member body or a block within one, so a statement can declare a local without first
+    # proving where it is.
+    #
+    # EVERYTHING LIVES IN Model/Scopes/ (namespace Mist.ProgramModel.Model.Scopes): the eight
+    # scope kinds plus the lookup protocol they speak -- LookupRequest, MemberVisibility and
+    # LookupResult. LookupResult came from Construction/Resolution/, moved so that a Scope can
+    # return one without Model depending on Construction. It gained FieldResult and
+    # PropertyResult, both carrying the type the member was found ON, which is not always the
+    # type the lookup started from once the base chain is involved.
+    #
+    # BindingContext.IsStaticContext WAS DELETED, along with its threading through BindBody
+    # and the five StatementBinder call sites. Staticness now lives on MethodScope, and
+    # `this`-in-static reads it through Scope.EnclosingMethodScope -- one source of truth
+    # instead of a flag carried alongside the chain that already knew.
+    #
+    # CONSTRUCTORS, OPERATORS AND CAST OPERATORS GAINED MEMBER SCOPES. Only MethodBuilder
+    # created one before; the others passed the TYPE's scope as the delegate scope and never
+    # set Method.Scope, so BodyBinder built their body scope with a null parent and no bare
+    # name in a constructor body could reach the declaring type at all. Unnoticed because
+    # the field fallback read ctx.EnclosingType rather than the chain.
+    #
+    # NOT DONE, and visible in the emitted output rather than in resolution:
+    #   - Bare PROPERTY reads resolve (PropertyResult) but have no bound node, so
+    #     IdentifierBinder maps them to UnresolvedExpression. Needs a property-reference
+    #     expression plus emitter support.
+    #   - The base chain resolves inherited members, but TypeEmitter emits no base list, so
+    #     an inherited read cannot round-trip through Roslyn yet.
+    #   - Nested types resolve correctly but TypeEmitter writes each as its own top-level
+    #     file, so `OuterStatic` from inside Inner emits an unqualified name C# cannot bind.
+    #     Same root cause as the static-fields task: field references emit a bare name
+    #     instead of a qualified receiver.
     # -------------------------------------------------------------------------
 
   body_binding_pass:

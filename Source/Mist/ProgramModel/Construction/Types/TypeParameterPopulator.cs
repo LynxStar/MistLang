@@ -12,14 +12,13 @@ namespace Mist.ProgramModel.Construction.Types;
 internal static class TypeParameterPopulator
 {
     /// <summary>
-    /// Creates <see cref="TypeParameter"/> instances from the AST type parameter list,
-    /// adds them to the provided list, and registers them in the given scope.
+    /// Creates <see cref="TypeParameter"/> instances from the AST type parameter list and adds them
+    /// to the declaration's own list, which is where lookup reads them from.
     /// </summary>
     public static void Populate(
         List<TypeParameter> target,
-        ITypeNameScope scope,
+        Scope declaringScope,
         MistType? declaringType,
-        string namespaceName,
         TypeParameterListNode? typeParams)
     {
         if(typeParams is null)
@@ -27,27 +26,24 @@ internal static class TypeParameterPopulator
             return;
         }
 
-        AddTypeParameter(target, scope, declaringType, namespaceName, typeParams.TypeParameter, ordinal: 0);
+        AddTypeParameter(target, declaringScope, declaringType, typeParams.TypeParameter, ordinal: 0);
 
         for(var i = 0; i < typeParams.TypeParameters.Length; i++)
         {
-            AddTypeParameter(target, scope, declaringType, namespaceName, typeParams.TypeParameters[i], ordinal: i + 1);
+            AddTypeParameter(target, declaringScope, declaringType, typeParams.TypeParameters[i], ordinal: i + 1);
         }
     }
 
     private static void AddTypeParameter(
         List<TypeParameter> target,
-        ITypeNameScope scope,
+        Scope declaringScope,
         MistType? declaringType,
-        string namespaceName,
         TypeParameterNode node,
         int ordinal)
     {
         var name = node.GetName().Lexeme;
 
-        // Every ITypeNameScope is a Scope; the interface exists only to keep the DECLARING
-        // capability off the kinds that cannot hold a type name.
-        var typeParam = new TypeParameter(name, ordinal, namespaceName, (Scope)scope, declaringType);
+        var typeParam = new TypeParameter(name, ordinal, declaringScope, declaringType);
 
         if(node is ParamsPackTypeParameterTypeParameterNode)
         {
@@ -55,6 +51,13 @@ internal static class TypeParameterPopulator
         }
 
         target.Add(typeParam);
-        scope.DeclareType(name, typeParam);
+
+        // Only scopes that keep their own table need telling. The ones backed by the declaration
+        // these were just added to will read `target` back out, and telling them as well would be
+        // the duplicate store this exists to avoid.
+        if(declaringScope is ITypeNameScope declaring)
+        {
+            declaring.DeclareType(name, typeParam);
+        }
     }
 }

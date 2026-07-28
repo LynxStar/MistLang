@@ -1,3 +1,4 @@
+using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
@@ -69,7 +70,7 @@ internal static class PostfixBinder
             return BindQualifiedName(node, namespaceRef, memberName, context);
         }
 
-        var memberType = ResolveMemberType(receiver, memberName);
+        var memberType = ResolveMemberType(receiver, memberName, node, context);
         return new MemberAccessExpression(node, receiver, memberName, memberType);
     }
 
@@ -91,51 +92,105 @@ internal static class PostfixBinder
     }
 
     /// <summary>
-    /// Resolves the type of a member accessed on a receiver. Looks up methods and
-    /// properties on the receiver's type. Falls back to the error type for members
-    /// that cannot be resolved yet.
+    /// Resolves the type of a member accessed on a receiver, through the same lookup an
+    /// unqualified name uses -- so a member reached as <c>receiver.X</c> and the same member
+    /// reached as a bare <c>X</c> inside the type cannot disagree about what exists, what is
+    /// inherited, or what is reachable.
+    /// <para>
+    /// The one thing this path does differently is refuse to look anywhere else: the receiver
+    /// names the type, so a miss is a miss rather than a reason to widen the search.
+    /// </para>
     /// </summary>
-    private static IMistType ResolveMemberType(Expression receiver, string memberName)
+    private static IMistType ResolveMemberType(
+        Expression receiver, string memberName, Storm.Runtime.SyntaxNode node, BuilderContext context)
     {
-        // If the receiver is a type reference (static access like Console.WriteLine),
-        // look up the member on that type.
-        var lookupType = receiver is TypeReferenceExpression typeRef
+        // Naming the type reaches its statics; supplying a value reaches its instance members.
+        // C# rejects the crossings in both directions, and separating them here is what lets the
+        // lookup exclude the wrong ones rather than resolve and then reject them.
+        var isTypeReference = receiver is TypeReferenceExpression;
+
+        var receiverType = receiver is TypeReferenceExpression typeRef
             ? typeRef.ReferencedType
             : receiver.Type;
 
-        if(lookupType is MemberType memberType)
+        var visibility = isTypeReference
+            ? MemberVisibility.StaticOnly
+            : MemberVisibility.InstanceOnly
+            ;
+
+        // Members are declared on the generic DEFINITION, so that is what holds the answer; the
+        // constructed type supplies the arguments to substitute into it.
+        var constructed = receiverType as ConstructedType;
+        var lookupTarget = constructed?.Definition ?? receiverType;
+
+        if(lookupTarget is not MistType modelType)
         {
-            foreach(var method in memberType.MethodsList)
-            {
-                if(method.Name == memberName)
-                {
-                    return method.ReturnType;
-                }
-            }
-
-            foreach(var property in memberType.PropertiesList)
-            {
-                if(property.Name == memberName)
-                {
-                    return property.Type;
-                }
-            }
-
-            // Fields last: only concrete types declare them, and a name that is both a
-            // method and a field cannot occur.
-            if(memberType is ConcreteType concrete)
-            {
-                foreach(var field in concrete.FieldsList)
-                {
-                    if(field.Name == memberName)
-                    {
-                        return field.Type;
-                    }
-                }
-            }
+            return ErrorType.Instance;
         }
 
-        return ErrorType.Instance;
+        var found = TypeMemberLookup.Find(modelType, LookupRequest.Member(memberName, visibility, node));
+
+        Report(found, modelType, memberName, node, context);
+
+        var memberType = MemberTypeOf(found);
+
+        return constructed is not null
+            ? constructed.Substitute(memberType)
+            : memberType
+            ;
+    }
+
+    /// <summary>
+    /// Reports a member access that resolved to nothing, or to more than one kind of thing.
+    /// <para>
+    /// Suppressed when the receiver's type is itself unresolved. A receiver that already failed has
+    /// already been reported on, and it has no members to speak of, so every access through it would
+    /// otherwise add a second error saying so -- one mistake, a cascade of complaints.
+    /// </para>
+    /// </summary>
+    private static void Report(
+        LookupResult found,
+        MistType receiverType,
+        string memberName,
+        Storm.Runtime.SyntaxNode node,
+        BuilderContext context)
+    {
+        if(receiverType is ErrorType or UnknownType or NotProjectedType)
+        {
+            return;
+        }
+
+        switch(found)
+        {
+            case NotFoundResult:
+                context.Diagnostics.ReportAtNode(
+                    ProgramModelDiagnostics.UnresolvedMember, node, null, receiverType.Name, memberName);
+                break;
+
+            case AmbiguousResult ambiguous:
+                context.Diagnostics.ReportAtNode(
+                    ProgramModelDiagnostics.AmbiguousMember, node, null,
+                    receiverType.Name, memberName, ambiguous.Candidates.Count);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// The type a resolved member contributes to the expression. A method group yields its first
+    /// overload's return type: the group travels no further than here, because an invocation reads
+    /// the type off its receiver, and picking between overloads by argument is not implemented.
+    /// </summary>
+    private static IMistType MemberTypeOf(LookupResult found)
+    {
+        return found switch
+        {
+            FieldResult field => field.Field.Type,
+            PropertyResult property => property.Property.Type,
+            MethodGroupResult { Methods.Count: > 0 } group => group.Methods[0].ReturnType,
+            EnumMemberResult member => member.DeclaringType,
+            TypeResult type => type.Type,
+            _ => ErrorType.Instance,
+        };
     }
 
     /// <summary>

@@ -9,8 +9,8 @@ namespace Mist.ProgramModel.Model.Types;
 /// A newtype definition in the program model.
 /// </summary>
 internal sealed class Newtype(
-    string name, string namespaceName, Scope scope, MistType? declaringType, NewtypeDeclarationNode declarationNode)
-    : MistType(name, namespaceName, scope, declaringType), INewtype
+    string name, string namespaceName, Scope? parentScope, MistType? declaringType, NewtypeDeclarationNode declarationNode)
+    : DeclaredType(name, namespaceName, parentScope, declaringType), INewtype
 {
     /// <summary>
     /// The AST declaration node, stashed during Phase 1 for Phase 2 resolution.

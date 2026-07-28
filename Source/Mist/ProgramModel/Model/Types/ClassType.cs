@@ -8,6 +8,6 @@ namespace Mist.ProgramModel.Model.Types;
 /// A class type definition in the program model.
 /// </summary>
 internal sealed class ClassType(
-    string name, string namespaceName, Scope scope, MistType? declaringType, TypeDeclarationNode? declarationNode)
-    : ConcreteType(name, namespaceName, scope, declaringType, declarationNode),
+    string name, string namespaceName, Scope? parentScope, MistType? declaringType, TypeDeclarationNode? declarationNode)
+    : ConcreteType(name, namespaceName, parentScope, declaringType, declarationNode),
     IClassType;

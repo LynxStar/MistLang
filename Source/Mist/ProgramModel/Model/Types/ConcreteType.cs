@@ -16,10 +16,10 @@ internal abstract class ConcreteType : MemberType, IConcreteType
     protected ConcreteType(
         string name,
         string namespaceName,
-        Scope scope,
+        Scope? parentScope,
         MistType? declaringType,
         TypeDeclarationNode? declarationNode)
-        : base(name, namespaceName, scope, declaringType, declarationNode)
+        : base(name, namespaceName, parentScope, declaringType, declarationNode)
     {
     }
 

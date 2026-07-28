@@ -12,10 +12,10 @@ namespace Mist.ProgramModel.Model.Types;
 internal sealed class EnumType(
     string name,
     string namespaceName,
-    Scope scope,
+    Scope? parentScope,
     MistType? declaringType,
     EnumDeclarationNode? declarationNode)
-    : MistType(name, namespaceName, scope, declaringType), IEnumType, IHasAttributes
+    : DeclaredType(name, namespaceName, parentScope, declaringType), IEnumType, IHasAttributes
 {
     /// <summary>
     /// The AST declaration node, stashed during Phase 1 for Phase 2 resolution.

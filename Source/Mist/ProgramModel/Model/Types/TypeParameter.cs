@@ -16,18 +16,20 @@ namespace Mist.ProgramModel.Model.Types;
 /// </summary>
 internal class TypeParameter : MistType, ITypeParameter
 {
-    /// <param name="namespaceName">
-    /// The namespace of whatever declared this parameter, used only when there is no declaring
-    /// type -- an extension block's own parameters, which belong to the block rather than a type.
-    /// A type parameter is not namespace-registered either way, so this is for display alone.
-    /// </param>
+    /// <remarks>
+    /// No namespace is taken, because a type parameter is not reachable through one -- it is
+    /// nameable only inside the declaration that introduced it. It inherits a
+    /// <c>NamespaceName</c> from <see cref="MistType"/> regardless, since that is where the
+    /// fully qualified name is built; when there is a declaring type the parameter's name hangs
+    /// off it and the namespace is never consulted, and when there is not -- an extension block's
+    /// own parameters -- there is no namespace that would mean anything.
+    /// </remarks>
     public TypeParameter(
         string name,
         int ordinal,
-        string namespaceName,
         Scope declaringScope,
         MistType? declaringType)
-        : base(name, declaringType?.NamespaceName ?? namespaceName, declaringScope, declaringType)
+        : base(name, declaringType?.NamespaceName ?? "", declaringScope, declaringType)
     {
         Ordinal = ordinal;
     }

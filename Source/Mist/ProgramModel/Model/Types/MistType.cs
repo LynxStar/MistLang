@@ -9,6 +9,10 @@ namespace Mist.ProgramModel.Model.Types;
 /// </summary>
 internal abstract class MistType : IMistType
 {
+    /// <summary>
+    /// For a type that BORROWS its scope: a type parameter, which lives in the scope of whatever
+    /// declared it, and the structural types, which have nothing declared inside them.
+    /// </summary>
     protected MistType(
         string name,
         string namespaceName,
@@ -20,14 +24,29 @@ internal abstract class MistType : IMistType
         Scope = scope;
         DeclaringType = declaringType;
         FullyQualifiedName = BuildFQN(name, namespaceName, declaringType);
+    }
 
-        // A TypeScope needs its type to resolve members, but the scope has to exist first
-        // because it is a constructor argument here. Wiring it up from this end means the two
-        // cannot disagree and no builder can forget to connect them.
-        if(scope is TypeScope typeScope)
-        {
-            typeScope.AttachType(this);
-        }
+    /// <summary>
+    /// For a type that OWNS its scope -- see <see cref="DeclaredType"/>. The scope is built here
+    /// rather than passed in because it needs this type, and this type needs it: handing the
+    /// factory <c>this</c> is what lets both ends be readonly instead of one being filled in after
+    /// construction.
+    /// </summary>
+    /// <param name="scopeFactory">
+    /// Receives this type and returns the scope it owns. Called with a partially constructed type,
+    /// so it must store the reference and read nothing from it.
+    /// </param>
+    protected MistType(
+        string name,
+        string namespaceName,
+        MistType? declaringType,
+        Func<MistType, Scope> scopeFactory)
+    {
+        Name = name;
+        NamespaceName = namespaceName;
+        DeclaringType = declaringType;
+        FullyQualifiedName = BuildFQN(name, namespaceName, declaringType);
+        Scope = scopeFactory(this);
     }
 
     public string Name { get; }

@@ -20,8 +20,8 @@ namespace Mist.ProgramModel.Model;
 /// </summary>
 internal sealed class TypeSlot : TypeParameter, ITypeSlot
 {
-    public TypeSlot(string name, int ordinal, string namespaceName, Scope declaringScope, MistType? declaringType)
-        : base(name, ordinal, namespaceName, declaringScope, declaringType)
+    public TypeSlot(string name, int ordinal, Scope declaringScope, MistType? declaringType)
+        : base(name, ordinal, declaringScope, declaringType)
     {
     }
 

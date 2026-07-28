@@ -52,11 +52,10 @@ internal sealed class TypeSlotBuilder
         // type parameters are visible while resolving its bound and where clauses.
         var slotScope = new MemberScope(typeDef.Scope);
 
-        var slot = new TypeSlot(name, typeDef.TypeSlotsList.Count, typeDef.NamespaceName, slotScope, typeDef);
+        var slot = new TypeSlot(name, typeDef.TypeSlotsList.Count, slotScope, typeDef);
 
         // The slot's own type parameters (e.g. T in `type Foo<T>;`).
-        TypeParameterPopulator.Populate(
-            slot.TypeParametersList, slotScope, slot, slot.NamespaceName, slotDecl.TypeParams);
+        TypeParameterPopulator.Populate(slot.TypeParametersList, slotScope, slot, slotDecl.TypeParams);
 
         // The `:` bound constrains the slot itself; store it on the slot's own
         // constraint list (inherited from TypeParameter).
@@ -68,7 +67,8 @@ internal sealed class TypeSlotBuilder
         // The `where` clauses constrain the slot's own type parameters.
         constraintResolver.Resolve(slotDecl.Group0?.SlotWhereConstraints ?? default, slot.TypeParametersList, slotScope);
 
+        // Adding it to the abstract is also what makes it nameable by simple name in the
+        // abstract's members: TypeScope reads TypeSlotsList rather than keeping its own table.
         typeDef.TypeSlotsList.Add(slot);
-        ((ITypeNameScope)typeDef.Scope).DeclareType(name, slot);
     }
 }

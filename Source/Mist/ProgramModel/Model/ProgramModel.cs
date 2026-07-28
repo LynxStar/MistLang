@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Scopes;
 
 namespace Mist.ProgramModel.Model;
 
@@ -156,5 +157,81 @@ public sealed class ProgramModel : IProgramModel
 
         typesByFQN[fqn] = type;
         return true;
+    }
+
+    /// <summary>
+    /// A type by namespace and simple name, or null when that namespace holds no such type. An
+    /// empty namespace names the global one, where the simple name IS the fully qualified name.
+    /// </summary>
+    internal IMistType? FindType(string namespaceName, string simpleName)
+    {
+        var fqn = string.IsNullOrEmpty(namespaceName)
+            ? simpleName
+            : $"{namespaceName}.{simpleName}"
+            ;
+
+        return typesByFQN.TryGetValue(fqn, out var type)
+            ? type
+            : null
+            ;
+    }
+
+    /// <summary>
+    /// One qualification step off a namespace: <c>namespaceName.memberName</c>. A namespace holds
+    /// only types and further namespaces, so those are the only two answers.
+    /// <para>
+    /// Answered here rather than by a scope because no scope chain is involved -- the namespace to
+    /// look in is already known, leaving nothing to resolve. No diagnostic either: the caller
+    /// decides whether an unresolved qualification is an error.
+    /// </para>
+    /// </summary>
+    internal LookupResult LookupQualified(string namespaceName, string memberName)
+    {
+        if(FindType(namespaceName, memberName) is { } type)
+        {
+            return new TypeResult(type);
+        }
+
+        var qualified = $"{namespaceName}.{memberName}";
+
+        if(IsKnownNamespace(qualified))
+        {
+            return new NamespaceResult(qualified);
+        }
+
+        return new NotFoundResult();
+    }
+
+    /// <summary>
+    /// Whether the name denotes a namespace. Registration records leaf namespaces only, so a name
+    /// also counts if it is a proper prefix of a registered one -- <c>A.B.C</c> is what makes
+    /// <c>A</c> and <c>A.B</c> namespaces.
+    /// <para>
+    /// Source-declared namespaces only. Ambient projection registers types but not namespaces, so
+    /// <c>System.Console</c>-style qualification is not resolvable yet.
+    /// </para>
+    /// </summary>
+    internal bool IsKnownNamespace(string name)
+    {
+        if(string.IsNullOrEmpty(name))
+        {
+            return false;
+        }
+
+        if(namespaces.ContainsKey(name))
+        {
+            return true;
+        }
+
+        var prefix = name + ".";
+        foreach(var registered in namespaces.Keys)
+        {
+            if(registered.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

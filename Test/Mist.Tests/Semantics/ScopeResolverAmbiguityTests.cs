@@ -3,7 +3,9 @@ using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Construction.Resolution;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
@@ -11,10 +13,14 @@ using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 namespace Mist.Tests.Semantics;
 
 /// <summary>
-/// Unit tests for ScopeResolver ambiguity detection.
-/// Verifies that when the same type name is visible from multiple imported
-/// namespaces at the same scope level, an ambiguity diagnostic is emitted
-/// rather than silently picking the first match.
+/// Unit tests for namespace-level name resolution: which level answers, and when two answers at
+/// the SAME level are an ambiguity rather than a contest.
+/// <para>
+/// The levels, innermost first, are: an enclosing namespace, the file (its own top-level
+/// declarations, then its usings), the project's global usings, and finally the global namespace.
+/// An inner level that answers is never followed by an outer one, so shadowing -- not accumulation
+/// -- is what happens between them.
+/// </para>
 /// </summary>
 public sealed class ScopeResolverAmbiguityTests
 {
@@ -25,9 +31,17 @@ public sealed class ScopeResolverAmbiguityTests
     {
         var programModel = new ProgramModelClass();
         var diagnostics = new DiagnosticBag();
-        var globalScope = new Scope(parent: null);
+        var globalScope = new GlobalScope(new ProgramScope(programModel), programModel, diagnostics);
         var context = new BuilderContext(globalScope, programModel, diagnostics, NullAmbientTypeProvider.Instance);
         return (context, diagnostics);
+    }
+
+    /// <summary>
+    /// A file scope hanging off the compilation's global scope.
+    /// </summary>
+    private static FileScope NewFileScope(BuilderContext context, DiagnosticBag diagnostics)
+    {
+        return new FileScope(context.GlobalScope, context.ProgramModel, diagnostics);
     }
 
     /// <summary>
@@ -36,8 +50,7 @@ public sealed class ScopeResolverAmbiguityTests
     private static MistType RegisterType(ProgramModelClass programModel, string namespaceName, string typeName)
     {
         _ = programModel.GetOrAddNamespace(namespaceName);
-        var scope = new Scope(null) { Namespace = namespaceName };
-        var type = new ClassType(typeName, namespaceName, scope, null, null);
+        var type = new ClassType(typeName, namespaceName, new Scope(null), null, null);
         _ = programModel.RegisterType(type);
         return type;
     }
@@ -54,210 +67,42 @@ public sealed class ScopeResolverAmbiguityTests
         };
     }
 
+    private static void AssertAmbiguous(IMistType result, DiagnosticBag diagnostics, string because)
+    {
+        var diags = diagnostics.ToImmutableArray();
+        Assert.True(
+            result is ErrorType || diags.Any(d => d.Id.Value == "MIST_PM_AMBIGUOUS_TYPE"),
+            $"{because} Got {result.GetType().Name} with {diags.Length} diagnostics.");
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
-    // Test: Two imported namespaces with same type name → ambiguity error
+    // Ambiguity WITHIN one level
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// When two imported namespaces both contain a type with the same name,
-    /// resolving that name should produce an ambiguity diagnostic.
-    /// This is the core bug: the current implementation returns the first match.
+    /// Two usings on the SAME level both providing the name is an ambiguity: neither outranks the
+    /// other, so there is nothing to choose between them.
     /// </summary>
     [Fact]
     public void TwoImportedNamespaces_SameTypeName_ReportsAmbiguity()
     {
         var (context, diagnostics) = CreateContext();
 
-        // Register "Foo" in both NsA and NsB.
         _ = RegisterType(context.ProgramModel, "NsA", "Foo");
         _ = RegisterType(context.ProgramModel, "NsB", "Foo");
 
-        // Create a scope that imports both namespaces.
-        var scope = new Scope(context.GlobalScope) { Namespace = "Consumer" };
-        scope.AddImportedNamespace("NsA");
-        scope.AddImportedNamespace("NsB");
+        var scope = NewFileScope(context, diagnostics);
+        scope.DeclareImport("NsA");
+        scope.DeclareImport("NsB");
 
         var resolver = new ScopeResolver(context);
         var result = resolver.ResolveNamedType("Foo", scope, MakeDummyNode());
 
-        // Should be ErrorType (ambiguous) and a diagnostic should be emitted.
-        var diags = diagnostics.ToImmutableArray();
-        Assert.True(
-            result is ErrorType || diags.Any(d => d.Id.Value == "MIST_PM_AMBIGUOUS_TYPE"),
-            "Expected an ambiguity error when the same type name exists in two imported namespaces, " +
-            $"but got {result.GetType().Name} with {diags.Length} diagnostics.");
+        AssertAmbiguous(result, diagnostics, "Two usings on one level providing the same name is ambiguous.");
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Test: Current namespace shadows imports (correct behavior)
-    // ═══════════════════════════════════════════════════════════════════════
-
     /// <summary>
-    /// When the current namespace and an imported namespace both contain a type
-    /// with the same name, the current namespace should win without ambiguity.
-    /// This matches C# behavior where own namespace shadows imports.
-    /// </summary>
-    [Fact]
-    public void CurrentNamespace_ShadowsImport_NoAmbiguity()
-    {
-        var (context, diagnostics) = CreateContext();
-
-        // Register "Foo" in both the current namespace and an imported one.
-        var ownFoo = RegisterType(context.ProgramModel, "MyNamespace", "Foo");
-        _ = RegisterType(context.ProgramModel, "OtherNs", "Foo");
-
-        // Scope is in MyNamespace and imports OtherNs.
-        var scope = new Scope(context.GlobalScope) { Namespace = "MyNamespace" };
-        scope.AddImportedNamespace("OtherNs");
-
-        var resolver = new ScopeResolver(context);
-        var result = resolver.ResolveNamedType("Foo", scope, MakeDummyNode());
-
-        // Should resolve to MyNamespace.Foo without any diagnostic.
-        var diags = diagnostics.ToImmutableArray();
-        Assert.Same(ownFoo, result);
-        Assert.Empty(diags);
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Test: Local type shadows everything (correct behavior)
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// A type parameter or nested type registered directly in the scope's LocalTypes
-    /// should shadow any namespace-level types with the same name.
-    /// </summary>
-    [Fact]
-    public void LocalType_ShadowsImportsAndCurrentNamespace_NoAmbiguity()
-    {
-        var (context, diagnostics) = CreateContext();
-
-        // Register "T" in an imported namespace.
-        _ = RegisterType(context.ProgramModel, "NsA", "T");
-
-        // Create a scope with "T" as a local type (e.g., a type parameter).
-        var scope = new Scope(context.GlobalScope) { Namespace = "Consumer" };
-        scope.AddImportedNamespace("NsA");
-        var localT = new TypeParameter("T", 0, scope, null);
-        scope.AddLocalType("T", localT);
-
-        var resolver = new ScopeResolver(context);
-        var result = resolver.ResolveNamedType("T", scope, MakeDummyNode());
-
-        // Should resolve to the local type parameter, not the namespace type.
-        var diags = diagnostics.ToImmutableArray();
-        Assert.Same(localT, result);
-        Assert.Empty(diags);
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Test: Single imported namespace — no ambiguity
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// When only one imported namespace contains the type, resolution should
-    /// succeed without any ambiguity diagnostic.
-    /// </summary>
-    [Fact]
-    public void SingleImportedNamespace_ResolvesCleanly()
-    {
-        var (context, diagnostics) = CreateContext();
-
-        var foo = RegisterType(context.ProgramModel, "NsA", "Foo");
-        _ = RegisterType(context.ProgramModel, "NsB", "Bar"); // different name
-
-        var scope = new Scope(context.GlobalScope) { Namespace = "Consumer" };
-        scope.AddImportedNamespace("NsA");
-        scope.AddImportedNamespace("NsB");
-
-        var resolver = new ScopeResolver(context);
-        var result = resolver.ResolveNamedType("Foo", scope, MakeDummyNode());
-
-        var diags = diagnostics.ToImmutableArray();
-        Assert.Same(foo, result);
-        Assert.Empty(diags);
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Test: Imports at different scope levels accumulate — ambiguity detected
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Namespace imports do NOT shadow each other across scope levels — they
-    /// accumulate into a flat pool. When an inner scope imports NsA (containing
-    /// Foo) and an outer scope imports NsB (also containing Foo), both are
-    /// visible and the result is ambiguous.
-    ///
-    /// This is unlike local types which DO shadow across levels.
-    /// </summary>
-    [Fact]
-    public void ImportsAtDifferentScopeLevels_Accumulate_ReportsAmbiguity()
-    {
-        var (context, diagnostics) = CreateContext();
-
-        _ = RegisterType(context.ProgramModel, "NsA", "Foo");
-        _ = RegisterType(context.ProgramModel, "NsB", "Foo");
-
-        // Outer scope imports NsB, inner scope imports NsA.
-        var outerScope = new Scope(context.GlobalScope) { Namespace = "Consumer" };
-        outerScope.AddImportedNamespace("NsB");
-
-        var innerScope = new Scope(outerScope) { Namespace = "Consumer" };
-        innerScope.AddImportedNamespace("NsA");
-
-        var resolver = new ScopeResolver(context);
-        var result = resolver.ResolveNamedType("Foo", innerScope, MakeDummyNode());
-
-        // Namespaces accumulate — both NsA and NsB are visible, so this is ambiguous.
-        var diags = diagnostics.ToImmutableArray();
-        Assert.True(
-            result is ErrorType || diags.Any(d => d.Id.Value == "MIST_PM_AMBIGUOUS_TYPE"),
-            "Expected ambiguity when imports at different scope levels both provide the same type name. " +
-            $"Got {result.GetType().Name} with {diags.Length} diagnostics.");
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Test: Global using + file using both have same type → ambiguity
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Simulates global usings (on the global scope) and file-level usings (on
-    /// the file scope) both importing a namespace that contains the same type.
-    /// Since namespace imports accumulate across all scope levels, this must
-    /// be detected as ambiguous.
-    /// </summary>
-    [Fact]
-    public void GlobalUsing_And_FileUsing_SameType_ReportsAmbiguity()
-    {
-        var (context, diagnostics) = CreateContext();
-
-        _ = RegisterType(context.ProgramModel, "System", "Foo");
-        _ = RegisterType(context.ProgramModel, "MyLib", "Foo");
-
-        // Global scope imports System.
-        context.GlobalScope.AddImportedNamespace("System");
-
-        // File scope imports MyLib.
-        var fileScope = new Scope(context.GlobalScope) { Namespace = "MyApp" };
-        fileScope.AddImportedNamespace("MyLib");
-
-        var resolver = new ScopeResolver(context);
-        var result = resolver.ResolveNamedType("Foo", fileScope, MakeDummyNode());
-
-        var diags = diagnostics.ToImmutableArray();
-        Assert.True(
-            result is ErrorType || diags.Any(d => d.Id.Value == "MIST_PM_AMBIGUOUS_TYPE"),
-            "Expected ambiguity when a global using and a file using both provide the same type name. " +
-            $"Got {result.GetType().Name} with {diags.Length} diagnostics.");
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Test: Three imported namespaces, two have same name → ambiguity
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Even when there are many imports, if exactly two (or more) of them at the
-    /// same scope level contain the same type name, it should be ambiguous.
+    /// Ambiguity does not require that every using match -- only that two of them do.
     /// </summary>
     [Fact]
     public void ThreeImports_TwoHaveSameName_ReportsAmbiguity()
@@ -268,142 +113,258 @@ public sealed class ScopeResolverAmbiguityTests
         _ = RegisterType(context.ProgramModel, "NsB", "Bar");
         _ = RegisterType(context.ProgramModel, "NsC", "Foo");
 
-        var scope = new Scope(context.GlobalScope) { Namespace = "Consumer" };
-        scope.AddImportedNamespace("NsA");
-        scope.AddImportedNamespace("NsB");
-        scope.AddImportedNamespace("NsC");
+        var scope = NewFileScope(context, diagnostics);
+        scope.DeclareImport("NsA");
+        scope.DeclareImport("NsB");
+        scope.DeclareImport("NsC");
 
         var resolver = new ScopeResolver(context);
         var result = resolver.ResolveNamedType("Foo", scope, MakeDummyNode());
 
-        var diags = diagnostics.ToImmutableArray();
-        Assert.True(
-            result is ErrorType || diags.Any(d => d.Id.Value == "MIST_PM_AMBIGUOUS_TYPE"),
-            "Expected an ambiguity error when two of three imported namespaces have the same type name.");
+        AssertAmbiguous(result, diagnostics, "Two of three usings providing the same name is ambiguous.");
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Test: Nested qualified name ambiguity in LookupNestedQualifiedName
-    // ═══════════════════════════════════════════════════════════════════════
-
     /// <summary>
-    /// When a nested type key (e.g., "Outer.Inner") exists in two imported
-    /// namespaces, resolving that name should produce an ambiguity error.
-    /// This tests that the fix addresses LookupNestedQualifiedName too.
-    ///
-    /// Note: ResolveNamedType handles simple names; the nested/qualified path
-    /// is exercised through ResolveNamed when dots are present. This test
-    /// validates the simple-name path with a composite key registered in
-    /// namespace dictionaries, confirming the same first-match-wins pattern
-    /// exists for any namespace-level lookup.
+    /// Arity-bearing names (<c>List&lt;&gt;</c>) go through the same lookup as simple ones, so they
+    /// are ambiguous under the same conditions.
     /// </summary>
     [Fact]
-    public void TwoImportedNamespaces_SameNestedKey_ReportsAmbiguity()
+    public void TwoImportedNamespaces_SameArityBearingName_ReportsAmbiguity()
     {
         var (context, diagnostics) = CreateContext();
 
-        // Register a type with an arity name in two namespaces.
-        // This simulates how generic types are registered (e.g., "List<>").
-        _ = context.ProgramModel.GetOrAddNamespace("NsA");
-        var scopeA = new Scope(null) { Namespace = "NsA" };
-        var listA = new ClassType("List<>", "NsA", scopeA, null, null);
-        _ = context.ProgramModel.RegisterType(listA);
+        _ = RegisterType(context.ProgramModel, "NsA", "List<>");
+        _ = RegisterType(context.ProgramModel, "NsB", "List<>");
 
-        _ = context.ProgramModel.GetOrAddNamespace("NsB");
-        var scopeB = new Scope(null) { Namespace = "NsB" };
-        var listB = new ClassType("List<>", "NsB", scopeB, null, null);
-        _ = context.ProgramModel.RegisterType(listB);
-
-        var scope = new Scope(context.GlobalScope) { Namespace = "Consumer" };
-        scope.AddImportedNamespace("NsA");
-        scope.AddImportedNamespace("NsB");
+        var scope = NewFileScope(context, diagnostics);
+        scope.DeclareImport("NsA");
+        scope.DeclareImport("NsB");
 
         var resolver = new ScopeResolver(context);
         var result = resolver.ResolveNamedType("List<>", scope, MakeDummyNode());
 
-        var diags = diagnostics.ToImmutableArray();
-        Assert.True(
-            result is ErrorType || diags.Any(d => d.Id.Value == "MIST_PM_AMBIGUOUS_TYPE"),
-            "Expected an ambiguity error when two imported namespaces have the same type (arity-bearing name).");
+        AssertAmbiguous(result, diagnostics, "Generic names are ambiguous on the same terms as simple ones.");
+    }
+
+    /// <summary>
+    /// The same namespace named twice on one level collapses, so it cannot conflict with itself.
+    /// </summary>
+    [Fact]
+    public void SameNamespaceImportedTwice_NoAmbiguity()
+    {
+        var (context, diagnostics) = CreateContext();
+
+        var foo = RegisterType(context.ProgramModel, "NsA", "Foo");
+
+        var scope = NewFileScope(context, diagnostics);
+        scope.DeclareImport("NsA");
+        scope.DeclareImport("NsA");
+
+        var resolver = new ScopeResolver(context);
+        var result = resolver.ResolveNamedType("Foo", scope, MakeDummyNode());
+
+        Assert.Same(foo, result);
+        Assert.Empty(diagnostics.ToImmutableArray());
+    }
+
+    /// <summary>
+    /// One using matching is just resolution.
+    /// </summary>
+    [Fact]
+    public void SingleImportedNamespace_ResolvesCleanly()
+    {
+        var (context, diagnostics) = CreateContext();
+
+        var foo = RegisterType(context.ProgramModel, "NsA", "Foo");
+        _ = RegisterType(context.ProgramModel, "NsB", "Bar");
+
+        var scope = NewFileScope(context, diagnostics);
+        scope.DeclareImport("NsA");
+        scope.DeclareImport("NsB");
+
+        var resolver = new ScopeResolver(context);
+        var result = resolver.ResolveNamedType("Foo", scope, MakeDummyNode());
+
+        Assert.Same(foo, result);
+        Assert.Empty(diagnostics.ToImmutableArray());
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Test: Local type at inner scope shadows namespace imports from all levels
+    // Shadowing BETWEEN levels
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// A local type (type parameter, nested type) at an inner scope level shadows
-    /// all namespace imports regardless of scope level. This is the ONLY thing
-    /// that shadows namespace imports.
+    /// A file's using shadows a global using of another namespace holding the same name. The file
+    /// level answers, so the global level is never asked -- this is C#'s rule, and the reason the
+    /// two using levels are separate scopes rather than one pool.
     /// </summary>
     [Fact]
-    public void LocalType_ShadowsAccumulatedNamespaceImports()
+    public void FileUsing_ShadowsGlobalUsing_NoAmbiguity()
+    {
+        var (context, diagnostics) = CreateContext();
+
+        _ = RegisterType(context.ProgramModel, "System", "Foo");
+        var mine = RegisterType(context.ProgramModel, "MyLib", "Foo");
+
+        context.GlobalScope.DeclareImport("System");
+
+        var fileScope = NewFileScope(context, diagnostics);
+        fileScope.DeclareImport("MyLib");
+
+        var resolver = new ScopeResolver(context);
+        var result = resolver.ResolveNamedType("Foo", fileScope, MakeDummyNode());
+
+        Assert.Same(mine, result);
+        Assert.Empty(diagnostics.ToImmutableArray());
+    }
+
+    /// <summary>
+    /// A global using still answers when the file has nothing to say about the name.
+    /// </summary>
+    [Fact]
+    public void GlobalUsing_AnswersWhenFileDoesNot()
+    {
+        var (context, diagnostics) = CreateContext();
+
+        var foo = RegisterType(context.ProgramModel, "System", "Foo");
+        context.GlobalScope.DeclareImport("System");
+
+        var fileScope = NewFileScope(context, diagnostics);
+
+        var resolver = new ScopeResolver(context);
+        var result = resolver.ResolveNamedType("Foo", fileScope, MakeDummyNode());
+
+        Assert.Same(foo, result);
+        Assert.Empty(diagnostics.ToImmutableArray());
+    }
+
+    /// <summary>
+    /// The enclosing namespace shadows the file's usings: a type in your own namespace wins over
+    /// one you merely imported.
+    /// </summary>
+    [Fact]
+    public void EnclosingNamespace_ShadowsFileUsing_NoAmbiguity()
+    {
+        var (context, diagnostics) = CreateContext();
+
+        var ownFoo = RegisterType(context.ProgramModel, "MyNamespace", "Foo");
+        _ = RegisterType(context.ProgramModel, "OtherNs", "Foo");
+
+        var fileScope = NewFileScope(context, diagnostics);
+        fileScope.DeclareImport("OtherNs");
+
+        var namespaceScope = new NamespaceScope(fileScope, "MyNamespace", context.ProgramModel);
+
+        var resolver = new ScopeResolver(context);
+        var result = resolver.ResolveNamedType("Foo", namespaceScope, MakeDummyNode());
+
+        Assert.Same(ownFoo, result);
+        Assert.Empty(diagnostics.ToImmutableArray());
+    }
+
+    /// <summary>
+    /// Same-namespace scoping covers the WHOLE namespace, not just the file's part of it: a type
+    /// declared in a sibling file is reachable by simple name with no using.
+    /// </summary>
+    [Fact]
+    public void EnclosingNamespace_SeesTypesFromOtherFiles()
+    {
+        var (context, diagnostics) = CreateContext();
+
+        var sibling = RegisterType(context.ProgramModel, "MyNamespace", "Sibling");
+
+        var fileScope = NewFileScope(context, diagnostics);
+        var namespaceScope = new NamespaceScope(fileScope, "MyNamespace", context.ProgramModel);
+
+        var resolver = new ScopeResolver(context);
+        var result = resolver.ResolveNamedType("Sibling", namespaceScope, MakeDummyNode());
+
+        Assert.Same(sibling, result);
+        Assert.Empty(diagnostics.ToImmutableArray());
+    }
+
+    /// <summary>
+    /// A type parameter shadows every namespace level, at any depth.
+    /// </summary>
+    [Fact]
+    public void LocalType_ShadowsGlobalAndFileImports()
     {
         var (context, diagnostics) = CreateContext();
 
         _ = RegisterType(context.ProgramModel, "NsA", "T");
         _ = RegisterType(context.ProgramModel, "NsB", "T");
 
-        // Global and file scopes both import namespaces with "T".
-        context.GlobalScope.AddImportedNamespace("NsA");
-        var fileScope = new Scope(context.GlobalScope) { Namespace = "Consumer" };
-        fileScope.AddImportedNamespace("NsB");
+        context.GlobalScope.DeclareImport("NsA");
 
-        // Type scope has a local type parameter "T" — this shadows everything.
-        var typeScope = new Scope(fileScope) { Namespace = "Consumer" };
-        var localT = new TypeParameter("T", 0, typeScope, null);
-        typeScope.AddLocalType("T", localT);
+        var fileScope = NewFileScope(context, diagnostics);
+        fileScope.DeclareImport("NsB");
+
+        var memberScope = new MemberScope(fileScope);
+        var localT = new TypeParameter("T", 0, memberScope, null);
+        memberScope.DeclareType("T", localT);
 
         var resolver = new ScopeResolver(context);
-        var result = resolver.ResolveNamedType("T", typeScope, MakeDummyNode());
+        var result = resolver.ResolveNamedType("T", memberScope, MakeDummyNode());
 
-        var diags = diagnostics.ToImmutableArray();
         Assert.Same(localT, result);
-        Assert.Empty(diags);
+        Assert.Empty(diagnostics.ToImmutableArray());
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Test: Same type reference in both imports resolves to same object → no ambiguity
+    // A file's top-level declarations, seen from its namespace blocks
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// If the same type object is registered in two namespaces (e.g., type forwarding),
-    /// it should not be considered ambiguous — it's the same type.
+    /// A type written at a file's top level is nameable from a namespace block in the SAME file.
+    /// This is what makes <c>type Foo = int;</c> above a <c>namespace Bar { }</c> usable inside it,
+    /// and it is narrower than a using: only the file's own declarations, not the namespace.
     /// </summary>
     [Fact]
-    public void SameTypeObject_InTwoNamespaces_NoAmbiguity()
+    public void TopLevelType_IsVisibleFromNamespaceBlockInSameFile()
     {
         var (context, diagnostics) = CreateContext();
 
-        // Register Foo in NsA. With FQN-keyed storage, type forwarding (same object
-        // under two namespace keys) is no longer naturally representable. Instead, we
-        // test the ReferenceEquals deduplication by importing the same namespace at
-        // multiple scope levels — the resolver finds the same object twice and should
-        // not report ambiguity.
-        var scope = new Scope(null) { Namespace = "NsA" };
-        var sharedFoo = new ClassType("Foo", "NsA", scope, null, null);
+        var foo = RegisterType(context.ProgramModel, "App.Widget", "Foo");
 
-        _ = context.ProgramModel.GetOrAddNamespace("NsA");
-        _ = context.ProgramModel.RegisterType(sharedFoo);
+        var fileScope = NewFileScope(context, diagnostics);
+        fileScope.DeclareTopLevelType("Foo", foo);
 
-        // Import NsA from both outer and inner scope — resolver sees it twice.
-        var outerScope = new Scope(context.GlobalScope) { Namespace = "Consumer" };
-        outerScope.AddImportedNamespace("NsA");
-
-        var innerScope = new Scope(outerScope) { Namespace = "Consumer" };
-        innerScope.AddImportedNamespace("NsA");
+        // A block namespace is a SIBLING of the file's namespace, so its parent is the file scope.
+        var blockScope = new NamespaceScope(fileScope, "Bar", context.ProgramModel);
 
         var resolver = new ScopeResolver(context);
-        var result = resolver.ResolveNamedType("Foo", innerScope, MakeDummyNode());
+        var result = resolver.ResolveNamedType("Foo", blockScope, MakeDummyNode());
 
-        // Same object found via duplicate imports — should resolve cleanly.
-        var diags = diagnostics.ToImmutableArray();
-        Assert.Same(sharedFoo, result);
-        Assert.Empty(diags);
+        Assert.Same(foo, result);
+        Assert.Empty(diagnostics.ToImmutableArray());
+    }
+
+    /// <summary>
+    /// The other half of the same rule: the block sees the file's own top-level declarations and
+    /// NOT the rest of their namespace. A sibling file's contribution to <c>App.Widget</c> needs a
+    /// using, because <c>Bar</c> is not nested inside <c>App.Widget</c>.
+    /// </summary>
+    [Fact]
+    public void NamespaceBlock_DoesNotSeeRestOfFileNamespace()
+    {
+        var (context, diagnostics) = CreateContext();
+
+        var foo = RegisterType(context.ProgramModel, "App.Widget", "Foo");
+        _ = RegisterType(context.ProgramModel, "App.Widget", "FromAnotherFile");
+
+        var fileScope = NewFileScope(context, diagnostics);
+        fileScope.DeclareTopLevelType("Foo", foo);
+
+        var blockScope = new NamespaceScope(fileScope, "Bar", context.ProgramModel);
+
+        var result = blockScope.Lookup(
+            new LookupRequest("FromAnotherFile", MemberVisibility.None, MakeDummyNode()));
+
+        _ = Assert.IsType<NotFoundResult>(result);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Lookup: Variable in inner scope shadows type in outer scope
+    // Lexical shadowing
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
@@ -416,26 +377,19 @@ public sealed class ScopeResolverAmbiguityTests
     {
         var (context, diagnostics) = CreateContext();
 
-        // Outer scope has a local type "x".
-        var outerScope = new Scope(context.GlobalScope);
+        var outerScope = new MemberScope(context.GlobalScope);
         var typeX = new ClassType("x", "Test", new Scope(null), null, null);
-        outerScope.AddLocalType("x", typeX);
+        outerScope.DeclareType("x", typeX);
 
-        // Inner scope has a local variable "x".
-        var innerScope = new Scope(outerScope);
+        var innerScope = new BodyScope(outerScope);
         var varX = new LocalVariable("x", ErrorType.Instance);
-        innerScope.RegisterLocal(varX, diagnostics);
+        innerScope.DeclareLocal(varX, diagnostics);
 
-        var resolver = new ScopeResolver(context);
-        var result = resolver.Lookup("x", innerScope, MakeDummyNode());
+        var result = innerScope.Lookup(new LookupRequest("x", MemberVisibility.InstanceAndStatic, MakeDummyNode()));
 
-        _ = Assert.IsType<VariableResult>(result);
-        Assert.Same(varX, ((VariableResult)result).Variable);
+        var variable = Assert.IsType<VariableResult>(result);
+        Assert.Same(varX, variable.Variable);
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Lookup: Type in inner scope shadows variable in outer scope
-    // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
     /// A local type declared in an inner scope shadows a variable with the same
@@ -447,66 +401,52 @@ public sealed class ScopeResolverAmbiguityTests
     {
         var (context, diagnostics) = CreateContext();
 
-        // Outer scope has a local variable "x".
-        var outerScope = new Scope(context.GlobalScope);
+        var outerScope = new BodyScope(context.GlobalScope);
         var varX = new LocalVariable("x", ErrorType.Instance);
-        outerScope.RegisterLocal(varX, diagnostics);
+        outerScope.DeclareLocal(varX, diagnostics);
 
-        // Inner scope has a local type "x".
-        var innerScope = new Scope(outerScope);
+        var innerScope = new MemberScope(outerScope);
         var typeX = new ClassType("x", "Test", new Scope(null), null, null);
-        innerScope.AddLocalType("x", typeX);
+        innerScope.DeclareType("x", typeX);
 
-        var resolver = new ScopeResolver(context);
-        var result = resolver.Lookup("x", innerScope, MakeDummyNode());
+        var result = innerScope.Lookup(new LookupRequest("x", MemberVisibility.InstanceAndStatic, MakeDummyNode()));
 
-        _ = Assert.IsType<TypeResult>(result);
-        Assert.Same(typeX, ((TypeResult)result).Type);
+        var type = Assert.IsType<TypeResult>(result);
+        Assert.Same(typeX, type.Type);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Lookup: Nothing in scope chain, namespace has it
-    // ═══════════════════════════════════════════════════════════════════════
-
     /// <summary>
-    /// When no local variable or local type matches in the scope chain, the lookup
-    /// falls back to namespace-based resolution and returns TypeResult.
+    /// When nothing lexical matches, the walk keeps going and the namespace levels answer. There is
+    /// no second pass: the using level is simply further out than the local one.
     /// </summary>
     [Fact]
-    public void Lookup_NothingInScopeChain_FallsBackToNamespace()
+    public void Lookup_NothingLexical_ReachesNamespaceLevels()
     {
-        var (context, _) = CreateContext();
+        var (context, diagnostics) = CreateContext();
 
-        // Register "Foo" in a namespace and import it.
         var foo = RegisterType(context.ProgramModel, "NsA", "Foo");
 
-        var scope = new Scope(context.GlobalScope) { Namespace = "Consumer" };
-        scope.AddImportedNamespace("NsA");
+        var scope = NewFileScope(context, diagnostics);
+        scope.DeclareImport("NsA");
 
-        var resolver = new ScopeResolver(context);
-        var result = resolver.Lookup("Foo", scope, MakeDummyNode());
+        var result = scope.Lookup(new LookupRequest("Foo", MemberVisibility.InstanceAndStatic, MakeDummyNode()));
 
-        _ = Assert.IsType<TypeResult>(result);
-        Assert.Same(foo, ((TypeResult)result).Type);
+        var type = Assert.IsType<TypeResult>(result);
+        Assert.Same(foo, type.Type);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Lookup: Nothing anywhere returns NotFoundResult
-    // ═══════════════════════════════════════════════════════════════════════
-
     /// <summary>
-    /// When the name is not found in any scope level or via namespace imports,
-    /// the lookup returns NotFoundResult.
+    /// Running out of chain is a miss, not an error.
     /// </summary>
     [Fact]
     public void Lookup_NothingAnywhere_ReturnsNotFound()
     {
-        var (context, _) = CreateContext();
+        var (context, diagnostics) = CreateContext();
 
-        var scope = new Scope(context.GlobalScope) { Namespace = "Consumer" };
+        var scope = NewFileScope(context, diagnostics);
 
-        var resolver = new ScopeResolver(context);
-        var result = resolver.Lookup("DoesNotExist", scope, MakeDummyNode());
+        var result = scope.Lookup(
+            new LookupRequest("DoesNotExist", MemberVisibility.InstanceAndStatic, MakeDummyNode()));
 
         _ = Assert.IsType<NotFoundResult>(result);
     }

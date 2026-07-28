@@ -8,6 +8,7 @@ using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.InteropFixtures;
 using ParameterModifier = Mist.ProgramModel.Model.Enums.ParameterModifier;

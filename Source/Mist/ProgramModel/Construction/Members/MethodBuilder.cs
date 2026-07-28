@@ -43,7 +43,7 @@ internal sealed class MethodBuilder
 
         if(methodDecl.TypeParams is not null)
         {
-            TypeParameterPopulator.Populate(method.TypeParametersList, methodScope, host as MistType, host.NamespaceName, methodDecl.TypeParams);
+            TypeParameterPopulator.Populate(method.TypeParametersList, methodScope, host as MistType, methodDecl.TypeParams);
         }
 
         var common = delegateResolver.ResolveFullDelegate(methodDecl, methodScope, host, name);
@@ -70,6 +70,5 @@ internal sealed class MethodBuilder
         resolvedMethod.DeclaredThisTier = common.DeclaredThisTier;
 
         host.MethodsList.Add(resolvedMethod);
-        ((IMethodDeclarationScope)host.Scope).DeclareMethod(resolvedMethod);
     }
 }

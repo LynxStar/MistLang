@@ -9,8 +9,8 @@ namespace Mist.ProgramModel.Model.Types;
 /// A type alias definition (includes refinement types) in the program model.
 /// </summary>
 internal sealed class TypeAlias(
-    string name, string namespaceName, Scope scope, MistType? declaringType, TypeAliasDeclarationNode declarationNode)
-    : MistType(name, namespaceName, scope, declaringType), ITypeAlias
+    string name, string namespaceName, Scope? parentScope, MistType? declaringType, TypeAliasDeclarationNode declarationNode)
+    : DeclaredType(name, namespaceName, parentScope, declaringType), ITypeAlias
 {
     /// <summary>
     /// The AST declaration node, stashed during Phase 1 for Phase 2 resolution.

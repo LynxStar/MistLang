@@ -26,6 +26,13 @@ internal sealed class ExtensionBlock : IExtensionBlock, IMethodHost
         NamespaceName = namespaceName;
         Scope = scope;
         DeclarationNode = declarationNode;
+
+        // The scope answers for this block's type parameters and methods, so it needs the block.
+        // Wiring it from here means the two cannot disagree and no builder can forget.
+        if(scope is ExtensionScope extensionScope)
+        {
+            extensionScope.AttachBlock(this);
+        }
     }
 
     /// <summary>

@@ -11,15 +11,15 @@ namespace Mist.ProgramModel.Model.Types;
 /// Intermediate base for types that participate in inheritance and have
 /// method/property declarations: classes, structs, and abstracts.
 /// </summary>
-internal abstract class MemberType : MistType, IMemberType, IMethodHost, IHasAttributes
+internal abstract class MemberType : DeclaredType, IMemberType, IMethodHost, IHasAttributes
 {
     protected MemberType(
         string name,
         string namespaceName,
-        Scope scope,
+        Scope? parentScope,
         MistType? declaringType,
         TypeDeclarationNode? declarationNode)
-        : base(name, namespaceName, scope, declaringType)
+        : base(name, namespaceName, parentScope, declaringType)
     {
         DeclarationNode = declarationNode;
     }

@@ -204,10 +204,8 @@ public sealed class AttributeEmissionRoundTripPropertyTests : IDisposable
     /// <summary>
     /// Generates a named attribute argument.
     /// </summary>
-    private static Gen<AttrArg> GenNamedArg()
+    private static Gen<(string Source, string Expected)> GenNamedArgValue()
     {
-        var names = new[] { "Skip", "Name", "Description", "Order", "Timeout" };
-
         var stringValue = Gen.Elements("reason", "test", "category")
             .Select(s => ($"\"{s}\"", $"\"{s}\""));
 
@@ -217,14 +215,57 @@ public sealed class AttributeEmissionRoundTripPropertyTests : IDisposable
         var boolValue = Gen.Elements(true, false)
             .Select(b => (b ? "true" : "false", b ? "true" : "false"));
 
-        var valueGen = Gen.Frequency(
+        return Gen.Frequency(
             (2, stringValue),
             (2, intValue),
             (1, boolValue));
+    }
 
-        return from name in Gen.Elements(names)
-               from valuePair in valueGen
-               select new AttrArg(name, valuePair.Item1, valuePair.Item2);
+    /// <summary>
+    /// The properties a generated named argument may assign to. Fewer names than
+    /// <c>NamedArgLimit</c> would make a distinct selection impossible.
+    /// </summary>
+    private static readonly string[] NamedArgNames = ["Skip", "Name", "Description", "Order", "Timeout"];
+
+    /// <summary>
+    /// The most named arguments one generated attribute may carry.
+    /// </summary>
+    private const int NamedArgLimit = 3;
+
+    /// <summary>
+    /// Generates <paramref name="count"/> named arguments with DISTINCT names.
+    /// <para>
+    /// Distinctness is not incidental. Assigning the same property twice is not a valid attribute,
+    /// so generating one would measure the emitter against input the language does not admit -- and
+    /// drawing names independently collides often, since three draws from five names collide about
+    /// half the time.
+    /// </para>
+    /// </summary>
+    private static Gen<List<AttrArg>> GenNamedArgs(int count)
+    {
+        return from swaps in Gen.ArrayOf(Gen.Choose(0, NamedArgNames.Length - 1), NamedArgNames.Length)
+               from values in Gen.ArrayOf(GenNamedArgValue(), count)
+               select ChooseNames(swaps, count)
+                   .Zip(values, (name, value) => new AttrArg(name, value.Source, value.Expected))
+                   .ToList();
+    }
+
+    /// <summary>
+    /// A distinct selection of <paramref name="count"/> names, shuffled by the generated
+    /// <paramref name="swaps"/> so which names appear varies with the seed rather than always being
+    /// the first few.
+    /// </summary>
+    private static IEnumerable<string> ChooseNames(int[] swaps, int count)
+    {
+        var pool = (string[])NamedArgNames.Clone();
+
+        for(var i = pool.Length - 1; i > 0; i--)
+        {
+            var j = swaps[i] % (i + 1);
+            (pool[i], pool[j]) = (pool[j], pool[i]);
+        }
+
+        return pool.Take(count);
     }
 
     /// <summary>
@@ -235,9 +276,9 @@ public sealed class AttributeEmissionRoundTripPropertyTests : IDisposable
         return from name in GenAttrName()
                from typeArgs in GenTypeArgs()
                from positionalCount in Gen.Choose(0, 5)
-               from namedCount in Gen.Choose(0, 3)
+               from namedCount in Gen.Choose(0, NamedArgLimit)
                from positionalArgs in Gen.ArrayOf(GenPositionalArg(), positionalCount)
-               from namedArgs in Gen.ArrayOf(GenNamedArg(), namedCount)
+               from namedArgs in GenNamedArgs(namedCount)
                let allArgs = positionalArgs.Concat(namedArgs).ToList()
                select new AttrConfig(name, typeArgs, allArgs);
     }
@@ -559,6 +600,39 @@ public sealed class AttributeEmissionRoundTripPropertyTests : IDisposable
     ///
     /// **Validates: Requirements 1.1, 1.2, 1.3, 1.5, 1.6, 3.1, 3.2, 3.3, 3.4, 3.6, 3.7, 3.8**
     /// </summary>
+    /// <summary>
+    /// Guards the round-trip's premise: every generated attribute must be one the language admits.
+    /// Assigning a property twice is not, so a duplicate named argument would measure the emitter
+    /// against input no source could contain.
+    /// <para>
+    /// Cheap to check and worth checking, because a generator drifting into invalid input fails
+    /// silently -- the round-trip compares the emitted output against the same scenario record, so a
+    /// duplicate appears on both sides and matches.
+    /// </para>
+    /// </summary>
+    [Fact]
+    [Trait("Category", "PropertyBased")]
+    public void GeneratedAttributes_AssignEachNamedArgumentOnce()
+    {
+        var scenarios = GenScenario().Sample(IterationCount).ToList();
+
+        foreach(var scenario in scenarios)
+        {
+            foreach(var list in scenario.Lists)
+            {
+                foreach(var attr in list.Attributes)
+                {
+                    var names = attr.Args
+                        .Where(a => a.Name is not null)
+                        .Select(a => a.Name!)
+                        .ToList();
+
+                    Assert.Equal(names.Count, names.Distinct(StringComparer.Ordinal).Count());
+                }
+            }
+        }
+    }
+
     [Fact]
     [Trait("Category", "PropertyBased")]
     public void AttributeEmission_PreservesStructure_RoundTrip()

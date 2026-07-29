@@ -12,38 +12,61 @@
 #   test        Fully qualified test name.
 #   file        Where it lives.
 #   discovered  ISO date first recorded.
-#   status      open | fixed | quarantined
+#   status      open | unreproduced | fixed | quarantined
+#               `unreproduced` means it was seen but deliberate attempts to trigger it failed, so
+#               even the symptom is not yet pinned down. Do not act on one of these without a
+#               reproduction -- a fix aimed at a guessed cause is worse than no fix, because it
+#               retires the entry without changing anything.
 #   symptom     What the failure looks like.
 #   cause       Why it happens. "unknown" is an acceptable answer; a guess dressed as a cause is not.
 #   evidence    How the diagnosis was reached, so it can be re-checked rather than re-derived.
 #   fix         The proposed change. Omit when the cause is unknown.
 
 flakes:
-  - id: attribute-emission-duplicate-named-arg
+  - id: attribute-emission-round-trip-unreproduced
     test: Mist.Tests.Backend.AttributeEmissionRoundTripPropertyTests.AttributeEmission_PreservesStructure_RoundTrip
     file: Test/Mist.Tests/Backend/AttributeEmissionRoundTripPropertyTests.cs
     discovered: 2026-07-26
-    status: open
+    status: unreproduced
     symptom: >
-      Fails on a minority of full-suite runs; passes in isolation and on rerun. The failure output
-      contains a generated attribute with the SAME named argument twice, for example
-      `[Theory(910, "reason", "world", Timeout = "test", Timeout = 33, Order = "reason")]`.
+      Failed twice during full-solution runs and passed on immediate rerun. Not reproduced since,
+      across 19 deliberate attempts.
     cause: >
-      The generator draws named arguments without enforcing distinct names. `Gen.ArrayOf(GenNamedArg(),
-      namedCount)` can yield two entries for one property, which is not valid C# -- CS1739 territory --
-      so the round-trip fails on input the language does not admit rather than on a real defect in
-      attribute emission. Frequency tracks the odds of a name collision, which is why it is
-      intermittent rather than constant.
+      Unknown. The first recorded cause was wrong and is disproven below; do not reinstate it without
+      new evidence.
     evidence: >
-      Observed during the member-lookup unification work, on a run where the only modified files were
-      ProgramModel scopes and types; the test file itself was unmodified in the working tree and last
-      touched by 7805826a. Re-ran the full suite green and the test alone green. The duplicated named
-      argument is visible in the captured failure output, and the generator at line 240 has no
-      distinctness constraint.
-      Recurred during the ambient extension type-parameter partition work, again with the test file
-      unmodified and again green on rerun. Roughly one full-suite run in three.
+      DISPROVEN -- the original entry blamed the generator for drawing the same named argument twice,
+      producing invalid C#. Three findings kill that theory. The test never invokes Roslyn: it
+      compiles with `EmitToDisk: false` and filters to front-end diagnostics only, so invalid C# is
+      never compiled. Both the Mist source and the expected C# are built from the same scenario
+      record, so a duplicate appears identically on both sides of the comparison. And duplicates are
+      generated constantly rather than rarely -- three named arguments drawn from a five-name pool
+      collide about half the time, so essentially every run of 100 scenarios contains many, yet 14
+      consecutive isolated runs (~1400 scenarios) all passed.
+
+      REPRODUCTION ATTEMPTS, all green: 14 runs of the test alone, 3 runs of the Mist.Tests project,
+      2 runs of the full solution. Both original failures were under `dotnet test Mist.slnx`, which
+      runs three test projects concurrently, so the full-solution runs matched the original
+      conditions and still did not fail.
+
+      NOT YET RULED OUT, in rough order of suspicion. This test exercises the CLASSIC pipeline
+      (SemanticModelBuilder, CSharpTranspilerBackend via CSharpEmitter), not ProgramModel, so
+      whatever it is lives there or in shared infrastructure. Its own state looks clean: `outputDir`
+      is per-instance with a GUID, and `SharedDriver` is static but private to the class. Candidates
+      are therefore process-wide state reachable from the classic pipeline under concurrent load --
+      assembly loading and framework reference resolution being the obvious ones.
+
+      OBSERVER ERROR IS ALSO POSSIBLE. Both sightings were during active development, immediately
+      after a rebuild, and this session contains one confirmed instance of a test run racing an
+      unfinished build (`dotnet test --no-build` batched in parallel with `dotnet build
+      --no-incremental`, which made every test project report its assembly as an invalid argument).
+      A test run against half-written binaries could produce an unrelated failure.
     fix: >
-      Constrain the generator to distinct named-argument names -- deduplicate by name after drawing,
-      or draw from a shuffled subset of the available properties. The assertion under test is about
-      structure being preserved, so shrinking the generated space this way removes invalid inputs
-      without weakening the property.
+      None proposed; the cause is unknown. The next sighting should capture the FULL failure message
+      before rerunning -- the message names whether the scenario failed to compile or failed
+      verification, and which, together with the emitted output, is the missing evidence. Both
+      earlier sightings were rerun before that was read.
+
+      Optional and unrelated: the generator can still produce a duplicate named argument, which is
+      invalid Mist that currently passes only because nothing rejects it. Constraining names to be
+      distinct would remove a latent fragility, but it is not a fix for this entry.

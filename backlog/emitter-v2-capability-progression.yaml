@@ -365,9 +365,6 @@ capabilities:
         unqualified request only by a doc comment, so the next same-named pair collides again.
         Span and ReadOnlySpan are the standing example -- both declare a Length type parameter
         AND a Length property, and are latent only because no v2 sample touches them.
-      - Fail the build when the v2 binder has reported an error, so the next such diagnostic
-        cannot hide behind exit code 0. Safe to do now that AllFeaturesV2 builds with zero
-        diagnostics on both pipelines.
     unlocks: [Primitives]
 
   - id: array-literals
@@ -565,12 +562,20 @@ capabilities:
       to 'int' is required"; an ordinary misspelled local reports "Expected expression", where
       classic reports MIST_UNDEFINED_IDENTIFIER with a line and column. Both errors name the
       generated .cs file, so there is no path back to the Mist source.
+      A reported error now stops the build, so MIST_PM_THIS_IN_STATIC is the only thing a user
+      sees for that program rather than being followed by a Roslyn complaint about generated
+      code. ExperimentalPipeline gates on the principle that a gate belongs between a producer
+      and its consumer, not between peers -- loading, lexing and parsing produce the ASTs, so
+      Stage 4 does not run at all if they failed; Stages 4 and 5 are peers reading one model, so
+      both run and are reported together; and emission gates twice, once on that combined result
+      and once between writing the C# and invoking Roslyn. That last one is why the remaining
+      task below is now the whole of the gap, rather than being compounded by a second error
+      nobody can act on.
     tasks:
       - Report a Mist diagnostic for an unresolved identifier, which turns this case (and
-        every other misspelled name) into a Mist error rather than a Roslyn one.
-      - Stop before emission once the v2 binder has reported an error. Today a rejected
-        program still emits, so a correctly diagnosed error like MIST_PM_THIS_IN_STATIC is
-        followed by a second, worse Roslyn error on generated code.
+        every other misspelled name) into a Mist error rather than a Roslyn one. Until then an
+        unresolved name reports nothing, so there is no error for the gate to catch and
+        emission proceeds as before.
     unlocks: []
 
   - id: member-before-namespace-precedence

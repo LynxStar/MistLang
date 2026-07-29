@@ -19,6 +19,21 @@ public sealed class ExperimentalPipeline : ICompilationPipeline
     {
         var diagnostics = input.Diagnostics;
 
+        // Loading, lexing and parsing PRODUCE what Stage 4 consumes, so a failure in any of
+        // them means the ASTs no longer describe the user's program and nothing built from them
+        // is worth reporting. This is the opposite call from Stages 4 and 5 below, which are
+        // gathered together -- those two are peers reading one model, where more diagnostics
+        // means more information about the same thing. Here it would only mean noise derived
+        // from bad input, up to and including MIST_INTERNAL_AST_UNIT_MISMATCH, which a dropped
+        // AST provokes out of Stage 4 and which says nothing about the source.
+        //
+        // Returning before the ambient provider is created also skips SDK and package assembly
+        // resolution, which there is no point paying for on the way out.
+        if(diagnostics.HasErrors)
+        {
+            return new CompilerResult(false, null, diagnostics.ToImmutableArray());
+        }
+
         // Create the ambient type provider up front (SDK + NuGet assembly resolution).
         using var ambientProvider = AmbientTypeProviderV2Factory.Create(
             input.Options.TargetFramework,
@@ -33,14 +48,30 @@ public sealed class ExperimentalPipeline : ICompilationPipeline
             diagnostics,
             ambientProvider);
 
+        // A null model is the one failure that cannot wait for the gate below, because there
+        // is no model for the analyzers to run against. Stage 4 errors with a model in hand
+        // deliberately fall through.
         if(programModel is null)
         {
             return new CompilerResult(false, null, diagnostics.ToImmutableArray());
         }
 
-        // Stage 5: Run Analyzers
-        var hasErrors = RunAnalyzers(programModel, input, diagnostics);
-        if(hasErrors)
+        // Stage 5: Run Analyzers.
+        //
+        // Runs even when Stage 4 reported errors, which is the point. Stopping at the first
+        // failing stage means a user fixes every binding error, recompiles, and is handed a
+        // fresh pile of analyzer errors that were knowable the whole time. Both stages read
+        // the same model, so both can have their say before anyone is asked to act.
+        //
+        // The cost is that analyzers see a model containing ErrorType and unresolved
+        // sentinels, so they must tolerate one rather than assume every type resolved.
+        RunAnalyzers(programModel, input, diagnostics);
+
+        // The combined gate for Stages 4 and 5, and for the lexing and parsing before them --
+        // the driver does not stop for those either, and the same reasoning applies. Emission
+        // reads the model, so a model that failed to bind, failed analysis, or was built from
+        // source that did not parse cannot produce meaningful output.
+        if(diagnostics.HasErrors)
         {
             return new CompilerResult(false, null, diagnostics.ToImmutableArray());
         }
@@ -50,16 +81,19 @@ public sealed class ExperimentalPipeline : ICompilationPipeline
     }
 
     /// <summary>
-    /// Stage 5 – Runs the new analyzer suite against the <see cref="IProgramModel"/>.
-    /// Returns true if any analyzer produced an error.
+    /// Stage 5 – Runs the new analyzer suite against the <see cref="IProgramModel"/>, reporting
+    /// into <paramref name="diagnostics"/>.
+    /// <para>
+    /// Returns nothing on purpose. Whether analysis found errors is not this method's verdict to
+    /// give, because the caller gates on Stage 4 and Stage 5 together and reads that off the bag.
+    /// </para>
     /// </summary>
-    private static bool RunAnalyzers(IProgramModel programModel, PipelineInput input, DiagnosticBag diagnostics)
+    private static void RunAnalyzers(IProgramModel programModel, PipelineInput input, DiagnosticBag diagnostics)
     {
         // TODO: Run new analyzers that consume IProgramModel
         _ = programModel;
         _ = input;
         _ = diagnostics;
-        return false;
     }
 
     /// <summary>

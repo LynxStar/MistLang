@@ -88,6 +88,16 @@ internal sealed class CSharpEmitterV2
         var csprojPath = Path.Combine(outputDir, $"{options.ProjectName}.csproj");
         File.WriteAllText(csprojPath, csprojContent);
 
+        // Transpilation is done; compiling it is a separate step, and it must not run if
+        // transpilation failed. Roslyn would answer with C# errors against generated files,
+        // which describe symptoms in code the user never wrote and bury the Mist-level cause
+        // that is already sitting in the bag. The pipeline gates Stages 4 and 5 before calling
+        // here, so an error at this point is emission's own.
+        if(diagnostics.HasErrors)
+        {
+            return new CompilerResult(false, null, diagnostics.ToImmutableArray());
+        }
+
         // Compile the emitted sources using the in-process Roslyn driver.
         var binDir = options.BinDirectory;
         _ = Directory.CreateDirectory(binDir);

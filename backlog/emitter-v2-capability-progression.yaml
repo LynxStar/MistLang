@@ -43,6 +43,18 @@
 #   capability it requires is outstanding. This is what stops the Overloading failure from
 #   recurring.
 #
+#   WHERE GREENNESS ACTUALLY LIVES: samples/AllFeaturesV2. A sample runs on v2 if and only
+#   if it is referenced from that project's mist.toml and its RunDemo() is called from
+#   Program.mist, with its output appended to samples/__baselines__/AllFeaturesV2.out. That
+#   is the record; this file explains it but is not it. Deliberately no `status` field here
+#   -- a second place to assert greenness is a second place for it to be wrong, which is the
+#   mistake the deleted sample progression made.
+#
+#   A sample can be green while a capability it requires is still `partial`. That is not a
+#   contradiction, it means the partial's residue is unreachable from that sample, and the
+#   record says which residue -- see struct-declaration (order 20), green through HelloMist
+#   and Classes while its parameterless-struct-constructor workaround stands untouched.
+#
 #
 # CROSS-REFERENCE: backlog/program-model-body-tasks.yaml
 #
@@ -302,7 +314,20 @@ capabilities:
                standard-library-binding]
     v2_status: done
     verified_by: v2-semantics
-    evidence: BodyEmitter ArrayCreationExpression and IndexExpression; Length via MemberAccess.
+    evidence: >
+      BodyEmitter ArrayCreationExpression and IndexExpression; Length via MemberAccess.
+      LIVE DEFECT (v2, not classic): a Length read now reports MIST_PM_AMBIGUOUS_MEMBER --
+      "The member 'Length' on 'Array<,>' is ambiguous between 2 declarations of different
+      kinds". Spurious: emission is unaffected and ArrayLiterals still runs green, so this is
+      a false positive rather than a capability gap. It is invisible to the Tier 6 v2 test
+      because v2 returns success with Mist errors in the bag, so the CLI exits 0 -- see the
+      note under samples/ArrayLiterals. Six occurrences in ArrayLiterals, none anywhere else;
+      first seen after 52bb1251, which unified member lookup on one implementation.
+    tasks:
+      - Resolve Length on Array to a single declaration, or teach the unified lookup to
+        prefer one kind, so the false positive stops.
+      - Fail the build when the v2 binder has reported an error, so the next spurious
+        diagnostic cannot hide behind exit code 0.
     unlocks: [Primitives]
 
   - id: array-literals
@@ -348,12 +373,16 @@ capabilities:
     order: 15
     layer: object-model
     requires: [constructors]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
-      ExpressionBinder.BindThis rejects only a null EnclosingType, which is null solely for
-      top-level statements. So `this` in a static method binds and emits, then fails in
-      Roslyn. See static-context-checking.
+      Exercised throughout HelloMist and Classes -- this-qualified writes in every
+      constructor, this-qualified reads in Point.GetX, Color.Brightness and Counter.GetValue.
+      The static-member case is closed: `this` in a static method reports
+      MIST_PM_THIS_IN_STATIC at the Mist source location, verified on a scratch program. It
+      does not halt emission, so Roslyn then adds "Invalid expression term '.'" on the
+      generated file -- see static-context-checking for that residue, which is the pipeline's
+      behaviour after any reported v2 binder error rather than anything specific to `this`.
     unlocks: []
 
   - id: implicit-instance-field-access
@@ -406,22 +435,29 @@ capabilities:
     order: 19
     layer: object-model
     requires: [implicit-instance-field-access]
-    v2_status: needs-verification
-    verified_by: unexercised
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      PostfixBinder.ResolveMemberType gained a field branch in 6957888b, so a this-qualified
-      read should resolve through MemberAccessExpression over ThisExpression. No done sample
-      reads a field that way -- Overloading and HelloMist only ever WRITE through this.
-      Classes, TopLevelStatements and DefaultKeyword all read through it.
-    tasks:
-      - Confirm a this-qualified field read binds and emits, not just as an assignment target.
+      Confirmed by Classes, which reads through an explicit this in nine places across three
+      types -- Point.GetX and Point.GetY return it, Point.Translate and Color.Mix use it in
+      arithmetic feeding a constructor argument, Color.Describe compares three such reads in a
+      chained condition, and Counter.Increment both reads and writes through it. Color.Mix
+      also reads a field through a non-this receiver of struct type (other.r).
     unlocks: []
 
   # ===================================================================
-  # Layer C -- struct and static state. First pending work.
+  # Layer C -- struct and static state. Delivered.
   #
-  # Cheapest remaining object-model work, and it unlocks the two samples that
-  # actually are "basic classes and structs".
+  # Both samples it gates are now referenced by AllFeaturesV2 and their output is in the
+  # stored baseline: HelloMist and Classes each run on v2 with output byte-identical to
+  # classic. The work was already in the emitter when this layer was written as pending --
+  # nothing here was implemented to close it, the statuses were simply behind the code and
+  # the two samples had never been run on v2 to find out. That is the failure mode this
+  # file's `needs-verification` status exists to catch, and it cost a layer's worth of
+  # apparent work to discover.
+  #
+  # Residue is recorded on the records below rather than dropped. None of it is reachable
+  # from any sample, and all of it is emitter-side cleanup rather than binding.
   # ===================================================================
 
   - id: struct-declaration
@@ -430,13 +466,13 @@ capabilities:
     layer: object-model
     requires: [instance-fields, constructors]
     v2_status: partial
-    verified_by: roslyn-downstream
+    verified_by: v2-semantics
     evidence: >
-      TypeEmitter maps StructType to the struct keyword, and the stdlib exercises it --
-      Source/Standard/Void.mist declares a struct, and emitting constructors surfaced CS8938
-      on it. No SAMPLE declares a struct in v2 yet, which is why the old progression listed
-      StructKeywordTypeKeywordNode as pending while v2 had been emitting one all along. The
-      ConstructorEmitter workaround is entangled here.
+      TypeEmitter maps StructType to the struct keyword. Sample-level coverage now exists:
+      HelloMist/Color and Classes/Color both emit as `public struct` with public int fields, a
+      three-argument constructor and instance methods, and both run correctly. Still partial
+      only for the ConstructorEmitter workaround below, which no sample reaches -- neither
+      Color declares a parameterless or a static constructor.
     tasks:
       - Narrow ConstructorEmitter.ResolveModifiers. It returns "public " for ANY
         zero-parameter struct constructor, discarding every other modifier, so a static
@@ -445,7 +481,6 @@ capabilities:
       - Decide whether v2 should transpile Standard/Void.mist at all. TypeNameEmitter
         rewrites that type to the void keyword at every reference, so the emitted file is
         dead code today and dropping it costs nothing.
-      - Add sample-level struct coverage so struct emission stops being stdlib-only.
     unlocks: [HelloMist]
 
   - id: static-fields
@@ -454,13 +489,17 @@ capabilities:
     layer: object-model
     requires: [implicit-instance-field-access]
     v2_status: partial
-    verified_by: roslyn-downstream
+    verified_by: v2-semantics
     evidence: >
-      FieldEmitter routes modifiers through MemberModifierEmitter, which emits static. But
-      IdentifierBinder.FindEnclosingField checks neither the field's nor the enclosing
-      method's staticness, so a static field read from a static method binds by accident
-      rather than by rule -- and an INSTANCE field read from a static method binds just as
-      happily and then fails in Roslyn.
+      FieldEmitter routes modifiers through MemberModifierEmitter, which emits static.
+      Exercised by Classes/Counter: totalCreated is declared private static, incremented from
+      an INSTANCE constructor, and read from the static method GetTotalCreated, and the
+      printed total is correct across two instances. The staticness rule is now real rather
+      than accidental -- MethodScope narrows the lookup, so a bare-name INSTANCE field read
+      inside a static method does NOT resolve. Verified on a scratch program. Still partial
+      because the failure is silent: the read becomes an UnresolvedExpression, emits as
+      `return /* unsupported: UnresolvedExpression */;` and surfaces as a Roslyn error on the
+      generated file. See static-context-checking.
     tasks:
       - Emit a qualified receiver for field references -- this for instance fields, the
         declaring type for statics -- instead of the bare name.
@@ -480,10 +519,18 @@ capabilities:
       Scope.EnclosingMethodScope. Static fields still resolve, as intended.
       Partial because the instance-member case is rejected by omission rather than by
       diagnostic: the name simply does not resolve, and an unresolved identifier produces no
-      Mist diagnostic at all today, so the user sees a C# error instead.
+      Mist diagnostic at all today, so the user sees a C# error instead. Measured on two
+      scratch programs -- a bare instance field read in a static method emits
+      `/* unsupported: UnresolvedExpression */` and reports "An object of a type convertible
+      to 'int' is required"; an ordinary misspelled local reports "Expected expression", where
+      classic reports MIST_UNDEFINED_IDENTIFIER with a line and column. Both errors name the
+      generated .cs file, so there is no path back to the Mist source.
     tasks:
       - Report a Mist diagnostic for an unresolved identifier, which turns this case (and
         every other misspelled name) into a Mist error rather than a Roslyn one.
+      - Stop before emission once the v2 binder has reported an error. Today a rejected
+        program still emits, so a correctly diagnosed error like MIST_PM_THIS_IN_STATIC is
+        followed by a second, worse Roslyn error on generated code.
     unlocks: []
 
   - id: member-before-namespace-precedence
@@ -507,14 +554,13 @@ capabilities:
     order: 24
     layer: object-model
     requires: [standard-library-binding]
-    v2_status: needs-verification
-    verified_by: unexercised
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       Math moved from ambient types into stdlib intrinsics when the AmbientTypes sample was
-      deleted, so it should bind the way Convert.ToInt32 already does. No done v2 sample
-      calls it. Classes/Point.DistanceFromOrigin does.
-    tasks:
-      - Confirm Math.Abs on an int binds and emits under v2.
+      deleted, and it binds the way Convert.ToInt32 already does. Confirmed by
+      Classes/Point.DistanceFromOrigin, which sums two Math.Abs calls over this-qualified int
+      fields; the printed distance is correct. Only Abs, and only at int, is covered.
     unlocks: []
 
   - id: struct-as-parameter-and-return
@@ -524,12 +570,13 @@ capabilities:
     requires: [struct-declaration, static-fields, explicit-this-member-read,
                ambient-math-intrinsics, constructor-chain-this, control-flow-basic,
                string-interpolation, var-type-inference]
-    v2_status: needs-verification
-    verified_by: unexercised
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      Classes/Color.Mix takes a struct parameter and returns a new struct. No v2 sample does
-      this yet. Nothing in the emitter looks value-type-specific, so this is expected to
-      work, but it is unverified.
+      Classes/Color.Mix takes a struct parameter and returns a new struct, and it now runs on
+      v2 with the correct mixed colour. Nothing in the emitter is value-type-specific, which
+      is why it worked untouched -- and is also why copy semantics remain untested; see the
+      Classes untested list.
     unlocks: [Classes]
 
   # ===================================================================
@@ -2905,6 +2952,13 @@ samples:
                string-interpolation, var-type-inference,
                operators-arithmetic-comparison-logical, control-flow-basic,
                arrays-sized-index-length, array-literals]
+    note: >
+      Green on v2 by output, but the v2 build reports six MIST_PM_AMBIGUOUS_MEMBER errors on
+      its Length reads -- see arrays-sized-index-length (order 11). The sample still runs
+      correctly and the Tier 6 v2 test still passes, because it asserts exit code 0 plus a
+      baseline match and v2 exits 0 with binder errors outstanding. So this is a sample whose
+      greenness is real and whose build is not clean, and only one of those two facts is
+      currently checked by anything.
     untested:
       - The three printers are uniquely named, not overloaded, so argument-type-driven
         resolution over the three array types is never required. If every literal inferred
@@ -2932,6 +2986,10 @@ samples:
       Marked done in the old progression. It is not. Everything except overload resolution
       is delivered; the sample passes because Roslyn resolves the calls and every result
       feeds string interpolation. This entry is the correction.
+      A static Main calling RunDemo was added so the sample builds and runs on its own. That
+      changes nothing about the debt: the wrong-overload case stays invisible here, and the
+      reproduction lives outside the sample suite -- `var sum = MathHelper.Add(1.5, 2.5)`
+      against an int-first overload set emits `int sum = ...` and fails in Roslyn with CS0029.
     untested:
       - Every Format and Add result is interpolated, so choosing the int overload for the
         double arguments would be invisible. The double sum prints as 4 and so would an int
@@ -2954,6 +3012,9 @@ samples:
                implicit-instance-field-access, object-creation, constructor-chain-this,
                struct-declaration]
     note: >
+      GREEN ON V2 -- referenced from AllFeaturesV2, its 31 lines appended to the baseline.
+      Output is byte-identical to the classic pipeline and the build reports no diagnostics.
+      Nothing was implemented to get here; it had simply never been run on v2.
       Strictly cheaper than Overloading. Identical field, constructor, this and
       object-creation cluster, plus struct, minus overload resolution. Its Program.mist body
       is entirely tier-0 material already covered.
@@ -2977,12 +3038,17 @@ samples:
                explicit-this-member-read, struct-declaration, static-fields,
                ambient-math-intrinsics, struct-as-parameter-and-return]
     note: >
+      GREEN ON V2 -- referenced from AllFeaturesV2, its 9 lines appended to the baseline.
+      Output is byte-identical to the classic pipeline and the build reports no diagnostics.
+      A static Main calling RunDemo was added so it also builds and runs on its own; before
+      that, both pipelines refused it for having no entry point, which is why the capabilities
+      it covers had gone unverified for so long.
       Strict superset of HelloMist's object model. Adds a static field mutated from an
       instance constructor, a static field read from a static method, this-qualified reads
       throughout, object creation inside an instance method, a struct as parameter and
-      return type, and Math.Abs. The static-field cases are exactly the paths
-      static-context-checking does not currently check, so this sample would pass for the
-      wrong reason without it.
+      return type, and Math.Abs. The static-field cases were the paths
+      static-context-checking did not check when this record was written; MethodScope now
+      narrows the lookup, so they pass by rule rather than by accident.
     untested:
       - Counter's comment claims field initializers but there are none. The static field is
         assigned in the constructor, so this sample needs no initializer support.

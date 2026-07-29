@@ -26,4 +26,9 @@ public class Program
         Console.WriteLine($"Clamp(int): {MathHelper.Clamp(15, 0, 10)}");
         Console.WriteLine($"Clamp(double): {MathHelper.Clamp(0.5, 1.0, 5.0)}");
     }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
 }

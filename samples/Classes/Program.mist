@@ -34,4 +34,9 @@ public class Program
         Console.WriteLine(c1.Describe());
         Console.WriteLine(c2.Describe());
     }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
 }

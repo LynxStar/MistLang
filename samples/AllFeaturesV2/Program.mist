@@ -23,5 +23,7 @@ public class Program
         Primitives.Program.RunDemo();
         ArrayLiterals.Program.RunDemo();
         Overloading.Program.RunDemo();
+        HelloMist.Program.RunDemo();
+        Classes.Program.RunDemo();
     }
 }

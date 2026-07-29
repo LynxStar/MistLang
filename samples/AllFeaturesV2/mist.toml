@@ -5,3 +5,5 @@ Simpliest = { path = "../Simpliest" }
 Primitives = { path = "../Primitives" }
 ArrayLiterals = { path = "../ArrayLiterals" }
 Overloading = { path = "../Overloading" }
+HelloMist = { path = "../HelloMist" }
+Classes = { path = "../Classes" }

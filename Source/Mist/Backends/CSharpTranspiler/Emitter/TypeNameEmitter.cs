@@ -9,11 +9,29 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// </summary>
 internal static class TypeNameEmitter
 {
+    /// <summary>
+    /// The C# spelling of a Mist type.
+    /// <para>
+    /// A dependent type argument emits its DOMAIN, whether or not its value is known. Both
+    /// carriers would otherwise emit something that is not a C# type -- a <see cref="LiftedType"/>
+    /// is named for the value it holds, so the fallback arm would emit the <c>3</c> of
+    /// <c>Array&lt;int, 3&gt;</c>, and an <see cref="UnknownValueType"/> is named <c>unknown</c>.
+    /// C# has neither singleton types nor a spelling for "some int I cannot name", so the domain
+    /// is the only faithful projection of either. Reached whenever a dependent argument becomes an
+    /// expression's type, which today means an array length read through <c>arr.Length</c>.
+    /// </para>
+    /// <para>
+    /// <see cref="UnknownType"/> is the separate case and keeps emitting <c>object</c>: it is the
+    /// user-facing top type, with no domain to fall back on.
+    /// </para>
+    /// </summary>
     public static string Emit(IMistType type)
     {
         return type switch
         {
             ConstructedType constructed => EmitConstructed(constructed),
+            LiftedType lifted => Emit(lifted.Type),
+            UnknownValueType unknownValue => Emit(unknownValue.Domain),
             MemberType memberType => MapMemberType(memberType),
             ErrorType => "/* error */",
             UnknownType => "object",

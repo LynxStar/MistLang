@@ -16,6 +16,7 @@ internal sealed class TypeInterner
     private readonly Dictionary<UnionTypeKey, UnionType> unionTypes = [];
     private readonly Dictionary<TupleTypeKey, TupleType> tupleTypes = [];
     private readonly Dictionary<LiftedTypeKey, LiftedType> liftedTypes = [];
+    private readonly Dictionary<IMistType, UnknownValueType> unknownValueTypes = new(ReferenceEqualityComparer.Instance);
 
     /// <summary>
     /// Returns the canonical <see cref="LiftedType"/> for an integral compile-time
@@ -58,6 +59,27 @@ internal sealed class TypeInterner
         var lifted = new LiftedType(type, value);
         liftedTypes[key] = lifted;
         return lifted;
+    }
+
+    /// <summary>
+    /// Returns the canonical <see cref="UnknownValueType"/> for a domain — a dependent argument
+    /// whose value is not statically known.
+    /// <para>
+    /// Keyed on the domain alone, since there is no value to distinguish two of them. One
+    /// unknown-of-int is therefore shared by every unsized array, which is what keeps
+    /// <c>int[]</c> a single interned type however many times it is written.
+    /// </para>
+    /// </summary>
+    public UnknownValueType GetOrCreateUnknownValue(IMistType domain)
+    {
+        if(unknownValueTypes.TryGetValue(domain, out var existing))
+        {
+            return existing;
+        }
+
+        var unknownValue = new UnknownValueType(domain);
+        unknownValueTypes[domain] = unknownValue;
+        return unknownValue;
     }
 
     /// <summary>

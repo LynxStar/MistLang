@@ -6,7 +6,9 @@ intrinsic public class Array<TValue, Length:ZeroOrPositiveInt> : IEnumerable<TVa
 {
     public type ArrayBounds = ZeroOrPositiveInt and < Length;
 
-    intrinsic public Int32 Length { get; }
+    // No `Length` property is declared: the dependent type parameter above already IS the
+    // length, and declaring both makes a bare `arr.Length` match two declarations at once.
+    // Reading it goes through the parameter, so the length stays a single source of truth.
 
     intrinsic public TValue this[ArrayBounds index] { get; set; }
 

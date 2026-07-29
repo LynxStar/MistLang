@@ -472,7 +472,16 @@ internal sealed class ScopeResolver
 
         // Lifted through the same helper as an explicit type argument, so a length
         // written as string[7] and one written as Array<string, 7> reach the same type.
-        var lengthArgument = length is { } known ? LiftInt(known) : UnknownType.Instance;
+        //
+        // An unknown length carries its DOMAIN rather than being the bare top type, so a
+        // `arr.Length` read can still be emitted as an int. The domain is int for the same
+        // reason LiftInt lifts as int -- a length inhabits a refinement over int -- and it is
+        // hardcoded here rather than read off the Length parameter because
+        // TypeParameter.Domain is not populated yet.
+        var lengthArgument = length is { } known
+            ? LiftInt(known)
+            : context.ProgramModel.TypeInterner.GetOrCreateUnknownValue(LookupWellKnown(WellKnownTypes.Int32))
+            ;
 
         return context.ProgramModel.TypeInterner.GetOrCreateConstructedType(arrayDefinition, new IMistType[] { elementType, lengthArgument });
     }

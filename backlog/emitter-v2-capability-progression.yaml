@@ -315,19 +315,59 @@ capabilities:
     v2_status: done
     verified_by: v2-semantics
     evidence: >
-      BodyEmitter ArrayCreationExpression and IndexExpression; Length via MemberAccess.
-      LIVE DEFECT (v2, not classic): a Length read now reports MIST_PM_AMBIGUOUS_MEMBER --
-      "The member 'Length' on 'Array<,>' is ambiguous between 2 declarations of different
-      kinds". Spurious: emission is unaffected and ArrayLiterals still runs green, so this is
-      a false positive rather than a capability gap. It is invisible to the Tier 6 v2 test
-      because v2 returns success with Mist errors in the bag, so the CLI exits 0 -- see the
-      note under samples/ArrayLiterals. Six occurrences in ArrayLiterals, none anywhere else;
-      first seen after 52bb1251, which unified member lookup on one implementation.
+      BodyEmitter ArrayCreationExpression and IndexExpression. Length reads resolve to the
+      DEPENDENT TYPE PARAMETER, not to a property: Array.mist declares
+      `Array<TValue, Length:ZeroOrPositiveInt>` and no longer declares an
+      `intrinsic Int32 Length { get; }` beside it. Both existed until this was fixed, and a
+      bare `arr.Length` matched both -- TypeMemberLookup.AddTypeNames offers a depth-0 type
+      parameter as a candidate and AddState offers the property, so CandidateSet.Resolve had
+      one surviving Type and one surviving Property and returned AmbiguousResult, reported as
+      six MIST_PM_AMBIGUOUS_MEMBER errors across ArrayLiterals. String.Length has no type
+      parameter to collide with, which is why Primitives was always clean.
+      The collision was resolved in favour of the dependent parameter, since the length is
+      what that parameter IS and a second declaration of it can only disagree. Emission then
+      needed TypeNameEmitter to map a LiftedType to its DOMAIN: a lifted value's Name is the
+      value's text, so an inferred binding over a statically known length emitted
+      `3 n = items.Length;`. It now emits `int n = items.Length;`.
+      An array whose length is NOT statically known needed the same treatment and could not get
+      it from the emitter, because it carries no lift to take a type from -- ConstructArray
+      slots a sentinel instead, and WellKnownTypeMap projects CLR `T[]` to
+      `Standard.Array<T, unknown>`. That sentinel used to be UnknownType, the user-facing top
+      type, so `var count = args.Length` emitted `object count = args.Length` and `count + 1`
+      failed with CS0019. The top type cannot say what it is unknown OF, which is the whole of
+      the problem.
+      UnknownValueType now fills that slot -- a dependent argument that knows its domain but
+      not its value, the counterpart to a lift, interned per domain so `int[]` stays one type.
+      Both slot shapes therefore emit their domain and both read as int. UnknownType stays the
+      top type and stays `object`, which is the distinction that makes this work.
+      COMPROMISE, deliberately taken. The domain is hardcoded to Int32 at the construction site
+      rather than read off the Length parameter, because TypeParameter.Domain is never populated
+      -- TypeParameterPopulator reads only the name and a params check, so the two dependent
+      grammar variants (DependentTypeParameter and NamedConstraintDependentTypeParameter, which
+      is Array's) are dropped at model construction. Populating it means resolving
+      ZeroOrPositiveInt, an alias over a RefinedType, during parameter creation, which is
+      dependent-type work. When that exists, UnknownValueType should carry the parameter and
+      read the domain through it. Nothing else about it changes.
+      WHAT THIS DOES NOT FIX. Emission of the type, not USE of the value. The model still
+      carries the dependent argument and only the emitter erases it, so member access THROUGH a
+      length read still fails -- `args.Length.ToString()` reports MIST_PM_UNRESOLVED_MEMBER,
+      "'unknown' has no member named 'ToString'". Not a regression, and an improvement on what
+      it replaced -- the same code previously emitted the same broken output with NO Mist
+      diagnostic at all, because a bare UnknownType receiver hits PostfixBinder's suppression
+      guard and an UnknownValueType receiver does not.
     tasks:
-      - Resolve Length on Array to a single declaration, or teach the unified lookup to
-        prefer one kind, so the false positive stops.
-      - Fail the build when the v2 binder has reported an error, so the next spurious
-        diagnostic cannot hide behind exit code 0.
+      - Resolve a member through a dependent argument's domain, so `arr.Length.ToString()`
+        binds on Int32. Needs the expression's type to come from the domain rather than the
+        substituted argument, which is the binder half of this and was left out on purpose.
+      - Consider excluding type parameters from a qualified member access regardless. The
+        ambiguity is gone because one declaration was removed, not because the lookup can tell
+        a qualified `receiver.X` from a bare `X` -- LookupRequest.Member still differs from the
+        unqualified request only by a doc comment, so the next same-named pair collides again.
+        Span and ReadOnlySpan are the standing example -- both declare a Length type parameter
+        AND a Length property, and are latent only because no v2 sample touches them.
+      - Fail the build when the v2 binder has reported an error, so the next such diagnostic
+        cannot hide behind exit code 0. Safe to do now that AllFeaturesV2 builds with zero
+        diagnostics on both pipelines.
     unlocks: [Primitives]
 
   - id: array-literals
@@ -2953,12 +2993,15 @@ samples:
                operators-arithmetic-comparison-logical, control-flow-basic,
                arrays-sized-index-length, array-literals]
     note: >
-      Green on v2 by output, but the v2 build reports six MIST_PM_AMBIGUOUS_MEMBER errors on
-      its Length reads -- see arrays-sized-index-length (order 11). The sample still runs
-      correctly and the Tier 6 v2 test still passes, because it asserts exit code 0 plus a
-      baseline match and v2 exits 0 with binder errors outstanding. So this is a sample whose
-      greenness is real and whose build is not clean, and only one of those two facts is
-      currently checked by anything.
+      Green on v2, and the build is now clean. It previously reported six
+      MIST_PM_AMBIGUOUS_MEMBER errors on its Length reads while still running correctly, which
+      nothing caught: the Tier 6 v2 test asserts exit code 0 plus a baseline match, and v2 exits
+      0 with binder errors outstanding. See arrays-sized-index-length (order 11) for the fix.
+      Every Length read here sits in a for-condition or an interpolation hole, so none of them
+      writes an inferred type. That is why the sample kept passing through both the ambiguity
+      and the lifted-value emission bug, and it still says nothing about either. A
+      `var n = items.Length` would exercise the first and, on an unknown-length array, still
+      fails today -- adding one of each is the cheapest way to put this under the suite.
     untested:
       - The three printers are uniquely named, not overloaded, so argument-type-driven
         resolution over the three array types is never required. If every literal inferred

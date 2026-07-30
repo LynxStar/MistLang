@@ -451,8 +451,27 @@ capabilities:
     verified_by: v2-semantics
     evidence: >
       ExpressionBinder.BindObjectCreation. Property-initializer blocks are refused to a
-      sentinel by design. node.TypeArgs is ignored entirely, so a generic construction
-      fails with a misleading "type could not be found".
+      sentinel by design, and node.TypeArgs is refused the same way, so a generic
+      construction never binds.
+      THE LARGEST SINGLE GAP IN THE V2 BACKLOG, by measurement rather than estimate.
+      ObjectCreationExpressionPrimaryNode accounts for 64 of the 210 unbound sites across the
+      sample suite, in 13 samples -- nearly three times the next construct. `new T<...>`
+      appears in 29 samples against initializer-block syntax in exactly one
+      (PropertyInitializers), so the bucket is generic construction almost entirely.
+      Confirmed on GenericTypes, where `new GenericBox<int>(42)` emits the sentinel marker.
+      The symptom recorded here before -- a misleading "type could not be found" -- is out of
+      date. It now reports MIST_BE_UNSUPPORTED_EXPRESSION at the construction site.
+    tasks:
+      - >
+        Bind generic object creation. Every piece already exists and is used together in
+        BaseTypeResolver.ResolveBaseTypeRef: build the arity-bearing name from the argument count,
+        resolve it, resolve the type arguments, intern through
+        TypeInterner.GetOrCreateConstructedType. BindObjectCreation refuses instead because the
+        grammar hands the name and the type arguments over as separate fields.
+      - >
+        Bind an object creation carrying a property-initializer block. Only PropertyInitializers
+        uses the syntax, and binding the creation while dropping the block would silently
+        construct a different object, which is why it is refused rather than half-handled.
     unlocks: []
 
   - id: constructor-chain-this
@@ -775,9 +794,14 @@ capabilities:
     layer: declaration-boundaries
     requires: [namespace-file-scoped, array-literals, struct-declaration,
                explicit-this-member-read]
-    v2_status: needs-verification
+    v2_status: missing
     evidence: >
-      Not traced in the v2 pipeline. Requires a real restructuring rather than a
+      Measured now rather than untraced. The statements do not bind --
+      WithVarBlockStatementStatementNode and ReadonlyBlockStatementStatementNode both appear as
+      unbound sites here -- and v2 runs a different program entirely, because
+      entry-point-resolution (order 33) selects the declared Main over the top-level entry point,
+      so the statements never execute at all.
+      Requires a real restructuring rather than a
       syntax-preserving emit. The committed C# hoists the statements above a BLOCK namespace
       holding the types and injects a self-import so the statements still see those types by
       simple name.
@@ -795,8 +819,13 @@ capabilities:
     order: 33
     layer: declaration-boundaries
     requires: [top-level-statements]
-    v2_status: needs-verification
+    v2_status: broken
     evidence: >
+      BROKEN RATHER THAN UNVERIFIED. v2 selects the WRONG entry point and runs a different
+      program without complaint. On TopLevelStatements, classic executes the top-level statements
+      and opens with "=== Variable Declarations ===", while v2 executes the declared Main and
+      opens with "Main called explicitly (not as entry point)". Both compile and run, which is
+      exactly why a compile-based screen passes it.
       EntryPointDiagnostics defines MIST_EP_0001 through MIST_EP_0008 for the classic
       pipeline. The TopLevelStatements sample sets the top-level entry point AND declares a
       static Main in a second file, which must survive as an ordinary callable static
@@ -1297,9 +1326,20 @@ capabilities:
       and the emitted stdlib contains none of them. Accessor bodies are not bound either:
       accessors are not Methods, so Phase 3's delegate walk does not cover them and they
       need their own BodyBinder.BindBody pass.
+      Second-largest measured gap after generic construction.
+      IdentifierExpressionPrimaryNode accounts for 27 of the 210 unbound sites across the sample
+      suite. Those are not misspellings: an unresolved name reports
+      MIST_PM_UNRESOLVED_IDENTIFIER and binds ErrorExpression, so what reaches the emitter is
+      the deliberate fallthrough for a resolved-but-unrepresentable result -- a bare property
+      read through an implicit receiver, and a bare enum variant.
     tasks:
       - Emit auto-property, block-bodied accessor and expression-bodied forms.
       - Sequence an auto-property initializer against the constructor body.
+      - >
+        Bind a bare property read. Resolution already succeeds and hands back PropertyResult;
+        IdentifierBinder has no bound node to map it onto, so it parks a sentinel. Reading a
+        property through an implicit receiver is a separate capability from resolving a name to
+        one.
     unlocks: []
 
   - id: property-backing-field-and-field-keyword
@@ -2287,12 +2327,26 @@ capabilities:
     order: 132
     layer: clr-interop
     requires: [clr-byref-parameter-projection]
-    v2_status: missing
+    v2_status: broken
     evidence: >
-      Needs an lvalue check for ref arguments, escape analysis for ref returns, and alias
+      BROKEN RATHER THAN MISSING, and the distinction is the point: RefParameters compiles and RUNS
+      on v2, printing wrong answers. `ref` is dropped entirely from emission -- the whole v2 output
+      contains no occurrence of the keyword, where classic emits
+      `private static void MutatePoint(ref Point p)` and `return ref this.Field`. Mutation through a
+      ref parameter therefore fails to propagate: classic prints `after: Point(100, 200)` and
+      `[ref-return-field] 77`, v2 prints `after: Point(1, 2)` and `10`.
+      Nothing catches it and nothing can as things stand. No name is unresolved, so no sentinel is
+      parked; the binder discards ref-ness and the emitter has nothing to notice. A sample that
+      passes a compile-based screen while computing the wrong result is the failure this file exists
+      to prevent, which puts it ahead of anything merely missing.
+      Also needs an lvalue check for ref arguments, escape analysis for ref returns, and alias
       liveness for ref locals whose referent is a field or an element. Mist omits the second
       ref keyword C# requires at a ref-local initializer, so the emitter reinstates it.
     tasks:
+      - >
+        Refuse a ref parameter, ref argument, ref return or ref local rather than dropping it, until
+        the alias can be emitted. A diagnostic naming the Mist declaration beats a program that runs
+        and lies, and it is what makes the gap visible to a sample sweep at all.
       - Preserve the alias for a readonly ref local. The classic pipeline currently emits a
         plain copy, silently turning an alias into a value.
     unlocks: [ClrRefInterop]
@@ -4420,6 +4474,45 @@ uncovered_constructs:
 # point. ArrayLiterals and CastOperators have no committed out/ directory. A sample with no
 # build output cannot be an acceptance test for anything.
 #
+# MEASURED GAP ORDERING. Every construct the v2 binder leaves unbound, counted across the whole
+# sample suite. Prefer this to the requires lists below when choosing what to do next: those are
+# hand-written and have overstated the remaining work four times, whereas this is counted at the
+# point of failure.
+#
+#   sites  samples  construct
+#      64       13  ObjectCreationExpressionPrimaryNode         (generic, see order 17)
+#      27        3  IdentifierExpressionPrimaryNode             (bare property read, order 58)
+#      22        3  TypeLiteralExpressionPrimaryNode
+#      18        1  SwitchExpressionSuffixPostfixSuffixNode
+#      10        2  IsExpressionRelationalNode
+#      10        2  AwaitExpressionUnaryNode
+#       8        2  DefaultExpressionPrimaryNode
+#       8        1  ObjectCreationExpressionNoArgsPrimaryNode
+#       7        2  VoidCoalescingNode
+#       7        1  TargetTypedNewExpressionPrimaryNode
+#       5        2  AsyncExpressionUnaryNode
+#       5        1  OptionalMethodCallSuffixPostfixSuffixNode
+#       4        1  WithVarBlockStatementStatementNode
+#       3        1  AssignmentFormExpressionNode
+#       3        1  ReadonlyBlockStatementStatementNode
+#       2        1  LambdaFormExpressionNode
+#       2        1  CastExpressionUnaryNode
+#       2        2  DefaultLiteralExpressionPrimaryNode
+#       2        1  TupleLiteralExpressionPrimaryNode
+#       1        1  WithBlockStatementStatementNode
+#
+#   210 sites, 24 samples, 20 distinct constructs.
+#
+# To reproduce: run each sample on --pipeline experimental and count the
+# '/* unsupported: Kind */' markers left in the emitted .cs. Emission writes every file before
+# the error gate, so a failing run still leaves them on disk, and the marker names the AST node
+# kind rather than the sentinel's own type.
+#
+# What this ordering does NOT capture: a construct the binder handles WRONGLY rather than not at
+# all leaves no marker. Two are known -- ref-parameters-and-ref-locals (order 132) and
+# entry-point-resolution (order 33) -- and both compile, run and produce the wrong program. A
+# marker count finds unbound constructs, never silent miscompiles.
+
 # CROSS-CUTTING TASKS, not tied to one capability:
 #
 #   - DONE. Report a Mist diagnostic when the emitter encounters a sentinel. Both halves are in:

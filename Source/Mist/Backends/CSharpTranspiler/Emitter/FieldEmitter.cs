@@ -1,3 +1,4 @@
+using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model.Members;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
@@ -7,7 +8,7 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// </summary>
 internal static class FieldEmitter
 {
-    public static void Emit(Field field, CSharpWriter writer)
+    public static void Emit(Field field, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var modifiers = MemberModifierEmitter.Emit(field.Modifiers);
         var typeName = TypeNameEmitter.Emit(field.Type);
@@ -19,7 +20,7 @@ internal static class FieldEmitter
         }
 
         writer.Write($"{modifiers}{typeName} {field.Name} = ");
-        BodyEmitter.EmitExpression(field.Initializer, writer);
+        BodyEmitter.EmitExpression(field.Initializer, writer, diagnostics);
         writer.Append(";");
         writer.AppendLine();
     }

@@ -187,7 +187,9 @@ internal static class StatementBinder
                 }
 
             default:
-                return new UnsupportedStatement(null!);
+                // The initializer node rather than the enclosing `for`, since it is the part that
+                // went unbound and so the part worth pointing a diagnostic at.
+                return new UnsupportedStatement(node);
         }
     }
 

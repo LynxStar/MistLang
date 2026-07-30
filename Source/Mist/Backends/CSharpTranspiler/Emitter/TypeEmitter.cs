@@ -1,3 +1,4 @@
+using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Types;
 
@@ -12,7 +13,7 @@ internal static class TypeEmitter
     /// <summary>
     /// Emits a type to a C# source string. Returns the file content.
     /// </summary>
-    public static string Emit(MemberType type)
+    public static string Emit(MemberType type, DiagnosticBag diagnostics)
     {
         var writer = new CSharpWriter();
 
@@ -38,20 +39,20 @@ internal static class TypeEmitter
             // reads as noise rather than as separation.
             foreach(var field in concrete?.FieldsList ?? [])
             {
-                FieldEmitter.Emit(field, writer);
+                FieldEmitter.Emit(field, writer, diagnostics);
                 anyEmitted = true;
             }
 
             foreach(var constructor in concrete?.ConstructorsList ?? [])
             {
                 SeparateMember(writer, ref anyEmitted);
-                ConstructorEmitter.Emit(constructor, type, writer);
+                ConstructorEmitter.Emit(constructor, type, writer, diagnostics);
             }
 
             foreach(var method in type.MethodsList)
             {
                 SeparateMember(writer, ref anyEmitted);
-                MethodEmitter.Emit(method, writer);
+                MethodEmitter.Emit(method, writer, diagnostics);
             }
         }
 

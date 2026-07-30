@@ -89,6 +89,39 @@ public static class BackendDiagnostics
         "Cannot resolve ambient type '{0}'. The assembly containing this type may not be referenced.");
 
     /// <summary>
+    /// The emitter reached a statement the binder never resolved. Means "the compiler does not
+    /// implement this yet", not "the program is wrong".
+    /// <para>
+    /// Reported even though the emitted comment is harmless C#, and the harmlessness is precisely why
+    /// it has to be: a comment is legal where a statement was, so an unreported one leaves a program
+    /// that compiles and runs with a piece of itself missing. The expression case cannot hide that
+    /// way, because a comment is not an expression.
+    /// </para>
+    /// </summary>
+    public static readonly DiagnosticDescriptor UnsupportedStatement = new(
+        new DiagnosticId("MIST_BE_UNSUPPORTED_STATEMENT"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Backend,
+        "This statement is not supported by the compiler yet, so no C# can be emitted for it.");
+
+    /// <summary>
+    /// The emitter reached an expression the binder never resolved. Means "the compiler does not
+    /// implement this yet", not "the program is wrong".
+    /// <para>
+    /// Reported at the point of EMISSION rather than binding, because that is where an unresolved
+    /// expression stops being a private matter: the binder leaves a sentinel on purpose and most
+    /// sentinels are never reached, whereas writing one out produces a comment where C# needs an
+    /// expression, which does not parse. Reporting here keeps the error on the Mist source instead of
+    /// on a generated file the user never wrote.
+    /// </para>
+    /// </summary>
+    public static readonly DiagnosticDescriptor UnsupportedExpression = new(
+        new DiagnosticId("MIST_BE_UNSUPPORTED_EXPRESSION"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Backend,
+        "This expression is not supported by the compiler yet, so no C# can be emitted for it.");
+
+    /// <summary>
     /// An executable was requested but the project declares no entry point. Reported by the
     /// emitter, which cannot produce a runnable artifact without one. Libraries are exempt.
     /// </summary>

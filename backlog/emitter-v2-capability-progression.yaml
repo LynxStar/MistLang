@@ -1016,19 +1016,78 @@ capabilities:
     order: 47
     layer: initialization
     requires: [instance-fields]
-    v2_status: broken
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      ConcreteTypeBuilder parks the initializer as an UnresolvedExpression and phase 3 never
-      binds it, but FieldEmitter has a dedicated initializer branch that routes it to
-      BodyEmitter's sentinel default. A field with an initializer therefore emits a comment
-      where an expression belongs, which is not parseable C#. Reachable by the next sample
-      that declares one -- DefaultKeyword/Settings has three. Property.Initializer has the
-      same shape and is dormant only because PropertiesList is dropped.
+      Field AND property initializers now bind. ProgramModelBuilder.BindInitializers walks each
+      ConcreteType's FieldsList and every MemberType's PropertiesList in Phase 3, and
+      BodyBinder.BindInitializer replaces the sentinel
+      Phase 2 parked. Verified on a scratch program covering an int, string and bool literal, a
+      binary expression, a static field, a static field read from another initializer, and a
+      field with no initializer: all six emit correct C# and print correct values. Before this,
+      `public int retries = 3;` emitted
+      `public int retries = /* unsupported: UnresolvedExpression */;` and failed in Roslyn with
+      "Invalid expression term ';'" against the GENERATED file -- no Mist location, no Mist
+      diagnostic. Classic has always handled it.
+      Initializers bind in a new InitializerScope, which narrows the request through
+      WithoutReceiver UNCONDITIONALLY -- unlike MethodScope, which narrows only when its
+      member is static. An initializer runs before any constructor body, so no instance exists
+      for a bare name to read through whether or not the field is static. That is what stops the
+      emitter writing a C# field initializer that reads an instance member, which C# rejects
+      outright (CS0236).
+      Two changes outside this capability were needed to finish it, both recorded in the tasks
+      below: LookupRequest.WithoutReceiver no longer widens a type-position request, and
+      Source/Standard/Void.mist renamed its `Void` property to `Instance` so it stops sharing its
+      enclosing type's name -- which C# rejects as CS0542 and which the new
+      MIST_PM_MEMBER_NAME_IS_TYPE_NAME diagnostic now refuses up front.
+      The emitter sentinel diagnostic is in: BackendDiagnostics.UnsupportedExpression, reported
+      from BodyEmitter's expression default with the location taken off the retained SyntaxNode.
+      CSharpEmitterV2 already gated on diagnostics.HasErrors between writing the C# and invoking
+      Roslyn, so it halts there. Measured: an instance field read in an initializer now reports
+      MIST_BE_UNSUPPORTED_EXPRESSION at Program.mist(7,25), where CLASSIC reports a Roslyn
+      CS0236 against out/Program.cs. v2 is now better than classic on this input.
     tasks:
-      - Bind field initializers in phase 3, covering Property.Initializer too.
-      - Report a Mist diagnostic when the emitter meets a sentinel expression, so this class
-        of gap stops surfacing as a Roslyn error on a generated file with no Mist source
-        location.
+      - >
+        DONE. Property initializers bind too. This was recorded here as blocked on "LookupRequest
+        cannot say it wants a type", which was WRONG in an instructive way: ResolveNamedType has
+        always passed MemberVisibility.None precisely so that members are excluded from a type
+        position rather than matched and rejected, and its doc comment already spelled out the
+        C# reasoning. The type-position mode existed. What was broken is that
+        LookupRequest.WithoutReceiver() then CLOBBERED it -- it set Visibility to StaticOnly
+        unconditionally, so a type-only request that crossed a type boundary came out the other
+        side admitting static members again. Crossing a boundary is supposed to narrow, and this
+        widened. Fixed by returning the request unchanged when Visibility is None.
+        That bug was PRE-EXISTING and not about initializers at all. Reproduced with no
+        initializer in sight: `Paint p = new Paint(7);` inside a STATIC method of a type that
+        declares `public static int Paint` reported MIST_PM_UNRESOLVED_TYPE twice. It now prints
+        made=7 field=5 -- the type position resolves to the type while Canvas.Paint still
+        resolves to the field, which is the behaviour C# gets from its "Color Color" rule.
+        The same shape WITHOUT a boundary crossing (an instance field named after another type,
+        used in a type position from an instance context) already worked, which is why this went
+        unnoticed: MethodScope only narrows when the member is static, so only static members and
+        initializers crossed the boundary that did the damage.
+      - >
+        DONE. Report a diagnostic for an unsupported STATEMENT, as
+        BackendDiagnostics.UnsupportedStatement. This was previously recorded here as blocked on
+        statement origins, which was WRONG and worth recording as a lesson: the Statement BASE
+        class is a bare marker with no origin, but UnsupportedStatement -- the only kind that
+        needed one -- retained its AST node all along and said so in its own doc comment. The
+        conclusion came from reading the base and generalizing. Nothing was blocked.
+        This mattered more than the expression case, not less. An unsupported expression emits a
+        comment where C# needs an expression, so it cannot parse and cannot be missed; an
+        unsupported statement emits a comment where a statement WAS, which is legal C#, so it
+        compiled and ran with a piece of the program silently gone. Measured on
+        `readonly { Console.WriteLine("inside"); }`: classic prints all three lines, while v2
+        emitted `/* unsupported statement: ReadonlyBlockStatementStatementNode */` between the
+        two surviving WriteLines and ran clean. It now reports at Program.mist(9,9).
+        UnsupportedStatement.Node was widened from StatementNode to SyntaxNode as part of this.
+        A for-initializer is a ForInitializerNode, not a statement node, so the narrower type had
+        forced StatementBinder to pass `null!` at one of the three construction sites -- meaning
+        that one genuinely had no location. The node is only ever used for provenance and
+        ReportAtNode takes the base type, so nothing wanted the tighter type.
+        The emitter's remaining `default:` for statements is now a different thing and stays
+        silent: it means a Statement subclass nobody taught the emitter about, which is a
+        compiler-authoring bug with nothing for a user to fix.
     unlocks: []
 
   - id: readonly-struct
@@ -4313,10 +4372,28 @@ uncovered_constructs:
 #
 # CROSS-CUTTING TASKS, not tied to one capability:
 #
-#   - Report a Mist diagnostic when the emitter encounters a sentinel expression or
-#     statement. BodyEmitter's default cases currently render an "unsupported" comment in
-#     expression position, which turns a Mist gap into a Roslyn syntax error on a generated
-#     file with no Mist source location. Every `broken` status in this file surfaces that way.
+#   - DONE. Report a Mist diagnostic when the emitter encounters a sentinel. Both halves are in:
+#     BodyEmitter reports BackendDiagnostics.UnsupportedExpression and
+#     BackendDiagnostics.UnsupportedStatement, each with a real Mist location, so a gap no longer
+#     surfaces as a Roslyn error on a generated file and no longer silently drops a statement.
+#     See field-initializers (order 47) for the measurements and for the mis-diagnosis that had
+#     the statement half recorded as blocked.
+#
+#   - OPEN, design cleanup rather than a fix. Detect sentinels in Stage 5 instead of during
+#     emission. ExperimentalPipeline ALREADY refuses to run Stage 6 when Stages 4 or 5 reported
+#     errors -- verified: a program with an unresolved field type produces no out/ directory at
+#     all. The gate is not the gap. The gap is that nothing reports a sentinel before Stage 6:
+#     the binder parks them silently on purpose (UnresolvedExpression means "not implemented",
+#     and ExperimentalPipeline documents that analyzers must tolerate sentinels), and
+#     RunAnalyzers is still a stub. So the bag is empty when the gate is evaluated and the
+#     emitter is the first thing to walk the bound tree.
+#     Moving detection into Stage 5 would attribute the error to the right stage and stop
+#     uncompilable .cs being written to disk before the build fails. It would NOT change whether
+#     the build fails, nor how many sentinels get reported -- the emitter writes every file
+#     before its own HasErrors check, so it already reports all of them. Cost is a second
+#     traversal of the statement/expression hierarchy duplicating BodyEmitter's switch shape,
+#     which is why the check went in the emitter to begin with. Wants the bound-tree walker
+#     (program-model-body-tasks.yaml, bound_node_hierarchy).
 #
 #   - Decide what to do about the rejection surface. Roughly two thirds of the `untested`
 #     entries in this file are the same observation: the sample exercises only the accepting

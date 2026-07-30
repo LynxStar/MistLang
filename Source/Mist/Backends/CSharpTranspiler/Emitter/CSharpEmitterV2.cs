@@ -78,7 +78,7 @@ internal sealed class CSharpEmitterV2
                 _ = Directory.CreateDirectory(dir);
             }
 
-            var source = TypeEmitter.Emit(memberType);
+            var source = TypeEmitter.Emit(memberType, diagnostics);
             File.WriteAllText(fullPath, source);
             emittedFiles.Add(fullPath);
         }

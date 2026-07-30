@@ -1,3 +1,4 @@
+using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model.Members;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
@@ -7,7 +8,7 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// </summary>
 internal static class MethodEmitter
 {
-    public static void Emit(Method method, CSharpWriter writer)
+    public static void Emit(Method method, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var modifiers = MemberModifierEmitter.Emit(method.Modifiers);
         var returnType = TypeNameEmitter.Emit(method.ReturnType);
@@ -18,9 +19,8 @@ internal static class MethodEmitter
         {
             if(method.Body is not null)
             {
-                BodyEmitter.EmitBlock(method.Body, writer);
+                BodyEmitter.EmitBlock(method.Body, writer, diagnostics);
             }
         }
     }
-
 }

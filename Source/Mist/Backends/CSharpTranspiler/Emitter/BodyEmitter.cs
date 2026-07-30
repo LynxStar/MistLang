@@ -1,3 +1,4 @@
+using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Statements;
@@ -7,24 +8,30 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 
 /// <summary>
 /// Emits C# source for method bodies by walking the Statement/Expression model.
+/// <para>
+/// Emission is where an unresolved node becomes a user-facing problem, which is why a
+/// <see cref="DiagnosticBag"/> travels with the writer: the binder parks sentinels deliberately, and
+/// writing one out is the moment that turns into C# that will not compile. See
+/// <see cref="BackendDiagnostics.UnsupportedExpression"/>.
+/// </para>
 /// </summary>
 internal static class BodyEmitter
 {
-    public static void EmitBlock(Block block, CSharpWriter writer)
+    public static void EmitBlock(Block block, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         foreach(var statement in block.Statements)
         {
-            EmitStatement(statement, writer);
+            EmitStatement(statement, writer, diagnostics);
         }
     }
 
-    private static void EmitStatement(Statement statement, CSharpWriter writer)
+    private static void EmitStatement(Statement statement, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         switch(statement)
         {
             case ExpressionStatement exprStmt:
                 writer.Write("");
-                EmitExpression(exprStmt.Expression, writer);
+                EmitExpression(exprStmt.Expression, writer, diagnostics);
                 writer.Append(";");
                 writer.AppendLine();
                 break;
@@ -33,7 +40,7 @@ internal static class BodyEmitter
                 if(returnStmt.Value is not null)
                 {
                     writer.Write("return ");
-                    EmitExpression(returnStmt.Value, writer);
+                    EmitExpression(returnStmt.Value, writer, diagnostics);
                     writer.Append(";");
                     writer.AppendLine();
                 }
@@ -45,37 +52,37 @@ internal static class BodyEmitter
                 break;
 
             case LocalDeclarationStatement localDecl:
-                EmitLocalDeclaration(localDecl, writer);
+                EmitLocalDeclaration(localDecl, writer, diagnostics);
                 break;
 
             case IfStatement ifStmt:
-                EmitIf(ifStmt, writer);
+                EmitIf(ifStmt, writer, diagnostics);
                 break;
 
             case WhileStatement whileStmt:
                 writer.Write("while (");
-                EmitExpression(whileStmt.Condition, writer);
+                EmitExpression(whileStmt.Condition, writer, diagnostics);
                 writer.Append(")");
                 writer.AppendLine();
                 using(writer.Block())
                 {
-                    EmitBlock(whileStmt.Body, writer);
+                    EmitBlock(whileStmt.Body, writer, diagnostics);
                 }
 
                 break;
 
             case ForStatement forStmt:
-                EmitFor(forStmt, writer);
+                EmitFor(forStmt, writer, diagnostics);
                 break;
 
             case ForEachStatement foreachStmt:
                 writer.Write($"foreach ({TypeNameEmitter.Emit(foreachStmt.Variable.Type)} {foreachStmt.Variable.Name} in ");
-                EmitExpression(foreachStmt.Collection, writer);
+                EmitExpression(foreachStmt.Collection, writer, diagnostics);
                 writer.Append(")");
                 writer.AppendLine();
                 using(writer.Block())
                 {
-                    EmitBlock(foreachStmt.Body, writer);
+                    EmitBlock(foreachStmt.Body, writer, diagnostics);
                 }
 
                 break;
@@ -87,58 +94,65 @@ internal static class BodyEmitter
             case Block nestedBlock:
                 using(writer.Block())
                 {
-                    EmitBlock(nestedBlock, writer);
+                    EmitBlock(nestedBlock, writer, diagnostics);
                 }
 
                 break;
 
+            case UnsupportedStatement unsupported:
+                diagnostics.ReportAtNode(BackendDiagnostics.UnsupportedStatement, unsupported.Node, null);
+                writer.WriteLine($"/* unsupported statement: {unsupported.Node.GetType().Name} */");
+                break;
+
             default:
+                // Unreported because it is not a language gap: reaching here means the model gained a
+                // statement kind the emitter was never taught, which no user can act on.
                 writer.WriteLine($"/* unsupported statement: {statement.GetType().Name} */");
                 break;
         }
     }
 
-    private static void EmitLocalDeclaration(LocalDeclarationStatement localDecl, CSharpWriter writer)
+    private static void EmitLocalDeclaration(LocalDeclarationStatement localDecl, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var typeName = TypeNameEmitter.Emit(localDecl.Local.Type);
         writer.Write($"{typeName} {localDecl.Local.Name}");
         if(localDecl.Initializer is not null)
         {
             writer.Append(" = ");
-            EmitExpression(localDecl.Initializer, writer);
+            EmitExpression(localDecl.Initializer, writer, diagnostics);
         }
 
         writer.Append(";");
         writer.AppendLine();
     }
 
-    private static void EmitIf(IfStatement ifStmt, CSharpWriter writer)
+    private static void EmitIf(IfStatement ifStmt, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         writer.Write("if (");
-        EmitExpression(ifStmt.Condition, writer);
+        EmitExpression(ifStmt.Condition, writer, diagnostics);
         writer.Append(")");
         writer.AppendLine();
         using(writer.Block())
         {
-            EmitBlock(ifStmt.ThenBranch, writer);
+            EmitBlock(ifStmt.ThenBranch, writer, diagnostics);
         }
 
         if(ifStmt.ElseBranch is IfStatement elseIf)
         {
             writer.Write("else ");
-            EmitIf(elseIf, writer);
+            EmitIf(elseIf, writer, diagnostics);
         }
         else if(ifStmt.ElseBranch is Block elseBlock)
         {
             writer.WriteLine("else");
             using(writer.Block())
             {
-                EmitBlock(elseBlock, writer);
+                EmitBlock(elseBlock, writer, diagnostics);
             }
         }
     }
 
-    private static void EmitFor(ForStatement forStmt, CSharpWriter writer)
+    private static void EmitFor(ForStatement forStmt, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         writer.Write("for (");
 
@@ -150,12 +164,12 @@ internal static class BodyEmitter
             if(initDecl.Initializer is not null)
             {
                 writer.Append(" = ");
-                EmitExpression(initDecl.Initializer, writer);
+                EmitExpression(initDecl.Initializer, writer, diagnostics);
             }
         }
         else if(forStmt.Initializer is ExpressionStatement initExpr)
         {
-            EmitExpression(initExpr.Expression, writer);
+            EmitExpression(initExpr.Expression, writer, diagnostics);
         }
 
         writer.Append("; ");
@@ -163,7 +177,7 @@ internal static class BodyEmitter
         // Condition
         if(forStmt.Condition is not null)
         {
-            EmitExpression(forStmt.Condition, writer);
+            EmitExpression(forStmt.Condition, writer, diagnostics);
         }
 
         writer.Append("; ");
@@ -171,60 +185,60 @@ internal static class BodyEmitter
         // Iterator
         if(forStmt.Iterator is not null)
         {
-            EmitExpression(forStmt.Iterator, writer);
+            EmitExpression(forStmt.Iterator, writer, diagnostics);
         }
 
         writer.Append(")");
         writer.AppendLine();
         using(writer.Block())
         {
-            EmitBlock(forStmt.Body, writer);
+            EmitBlock(forStmt.Body, writer, diagnostics);
         }
     }
 
-    internal static void EmitExpression(Expression expression, CSharpWriter writer)
+    internal static void EmitExpression(Expression expression, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         switch(expression)
         {
             case InvocationExpression invocation:
-                EmitExpression(invocation.Receiver, writer);
+                EmitExpression(invocation.Receiver, writer, diagnostics);
                 writer.Append("(");
-                EmitList.Separated(invocation.Arguments, ", ", writer, argument => EmitExpression(argument, writer));
+                EmitList.Separated(invocation.Arguments, ", ", writer, argument => EmitExpression(argument, writer, diagnostics));
                 writer.Append(")");
                 break;
 
             case MemberAccessExpression memberAccess:
-                EmitExpression(memberAccess.Receiver, writer);
+                EmitExpression(memberAccess.Receiver, writer, diagnostics);
                 writer.Append($".{memberAccess.MemberName}");
                 break;
 
             case BinaryExpression binary:
-                EmitSubExpression(binary.Left, binary, writer);
+                EmitSubExpression(binary.Left, binary, writer, diagnostics);
                 writer.Append($" {MapBinaryOperator(binary.OperatorKind)} ");
-                EmitSubExpression(binary.Right, binary, writer);
+                EmitSubExpression(binary.Right, binary, writer, diagnostics);
                 break;
 
             case UnaryExpression unary:
                 writer.Append(MapUnaryOperator(unary.OperatorKind));
-                EmitExpression(unary.Operand, writer);
+                EmitExpression(unary.Operand, writer, diagnostics);
                 break;
 
             case AssignmentExpression assignment:
-                EmitExpression(assignment.Target, writer);
+                EmitExpression(assignment.Target, writer, diagnostics);
                 writer.Append(" = ");
-                EmitExpression(assignment.Value, writer);
+                EmitExpression(assignment.Value, writer, diagnostics);
                 break;
 
             case IndexExpression elementAccess:
-                EmitExpression(elementAccess.Receiver, writer);
+                EmitExpression(elementAccess.Receiver, writer, diagnostics);
                 writer.Append("[");
-                EmitExpression(elementAccess.Index, writer);
+                EmitExpression(elementAccess.Index, writer, diagnostics);
                 writer.Append("]");
                 break;
 
             case ArrayCreationExpression arrayCreation:
                 writer.Append($"new {TypeNameEmitter.Emit(arrayCreation.ElementType)}[");
-                EmitExpression(arrayCreation.Size, writer);
+                EmitExpression(arrayCreation.Size, writer, diagnostics);
                 writer.Append("]");
                 break;
 
@@ -233,7 +247,7 @@ internal static class BodyEmitter
                 // expression so the target type is never required at the use site.
                 writer.Append($"new {TypeNameEmitter.Emit(arrayLiteral.ElementType)}[]");
                 writer.Append(arrayLiteral.Elements.Count == 0 ? " { }" : " { ");
-                EmitList.Separated(arrayLiteral.Elements, ", ", writer, element => EmitExpression(element, writer));
+                EmitList.Separated(arrayLiteral.Elements, ", ", writer, element => EmitExpression(element, writer, diagnostics));
 
                 if(arrayLiteral.Elements.Count > 0)
                 {
@@ -253,7 +267,7 @@ internal static class BodyEmitter
                             break;
                         case InterpolatedStringHole hole:
                             writer.Append("{");
-                            EmitExpression(hole.Expression, writer);
+                            EmitExpression(hole.Expression, writer, diagnostics);
                             writer.Append("}");
                             break;
                     }
@@ -284,7 +298,7 @@ internal static class BodyEmitter
 
             case NewExpression newExpression:
                 writer.Append($"new {TypeNameEmitter.Emit(newExpression.Type)}(");
-                EmitList.Separated(newExpression.Arguments, ", ", writer, argument => EmitExpression(argument, writer));
+                EmitList.Separated(newExpression.Arguments, ", ", writer, argument => EmitExpression(argument, writer, diagnostics));
                 writer.Append(")");
                 break;
 
@@ -293,6 +307,9 @@ internal static class BodyEmitter
                 break;
 
             default:
+                // Still written, invalid though it is, so the emitted file stays readable for whoever
+                // is diagnosing the gap. The build stops before Roslyn ever parses it.
+                diagnostics.ReportAtNode(BackendDiagnostics.UnsupportedExpression, expression.Node, null);
                 writer.Append($"/* unsupported: {expression.GetType().Name} */");
                 break;
         }
@@ -356,17 +373,17 @@ internal static class BodyEmitter
     /// Emits a sub-expression of a binary expression, wrapping it in parentheses when
     /// the child has lower precedence than the parent to preserve evaluation order.
     /// </summary>
-    private static void EmitSubExpression(Expression child, BinaryExpression parent, CSharpWriter writer)
+    private static void EmitSubExpression(Expression child, BinaryExpression parent, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         if(child is BinaryExpression childBinary && GetPrecedence(childBinary.OperatorKind) < GetPrecedence(parent.OperatorKind))
         {
             writer.Append("(");
-            EmitExpression(child, writer);
+            EmitExpression(child, writer, diagnostics);
             writer.Append(")");
         }
         else
         {
-            EmitExpression(child, writer);
+            EmitExpression(child, writer, diagnostics);
         }
     }
 

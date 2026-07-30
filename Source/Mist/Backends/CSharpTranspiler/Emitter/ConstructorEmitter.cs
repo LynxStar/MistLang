@@ -1,3 +1,4 @@
+using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -9,7 +10,7 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// </summary>
 internal static class ConstructorEmitter
 {
-    public static void Emit(Constructor constructor, MemberType declaringType, CSharpWriter writer)
+    public static void Emit(Constructor constructor, MemberType declaringType, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var modifiers = ResolveModifiers(constructor, declaringType);
         var parameters = ParameterEmitter.Emit(constructor.ParametersList);
@@ -23,7 +24,7 @@ internal static class ConstructorEmitter
             var target = constructor.ChainKind == ConstructorChainKind.This ? "this" : "base";
             writer.Append($" : {target}(");
             EmitList.Separated(
-                constructor.ChainArgumentsList, ", ", writer, argument => BodyEmitter.EmitExpression(argument, writer));
+                constructor.ChainArgumentsList, ", ", writer, argument => BodyEmitter.EmitExpression(argument, writer, diagnostics));
             writer.Append(")");
         }
 
@@ -33,7 +34,7 @@ internal static class ConstructorEmitter
         {
             if(constructor.Body is not null)
             {
-                BodyEmitter.EmitBlock(constructor.Body, writer);
+                BodyEmitter.EmitBlock(constructor.Body, writer, diagnostics);
             }
         }
     }

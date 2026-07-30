@@ -39,24 +39,21 @@ internal static class ConstructorEmitter
         }
     }
 
-    /// <summary>
-    /// Emits the constructor's modifiers, forcing a parameterless struct constructor to be
-    /// public.
-    /// <para>
-    /// C# requires it (CS8938), so a non-public one is not expressible. Mist allows it as a
-    /// way to forbid direct construction, but that intent cannot survive the transpile in
-    /// any case: C# supplies a public parameterless constructor for every struct whether or
-    /// not one is declared. Widening here keeps the declared body, which dropping the
-    /// constructor would lose.
-    /// </para>
-    /// </summary>
     private static string ResolveModifiers(Constructor constructor, MemberType declaringType)
     {
-        if(declaringType is StructType && constructor.ParametersList.Count == 0)
+        
+        if(constructor.Modifiers.IsStatic)
         {
-            return "public ";
+            return "static ";
         }
 
-        return MemberModifierEmitter.Emit(constructor.Modifiers);
+        
+        var accessibility = declaringType is StructType && constructor.ParametersList.Count == 0
+            ? Accessibility.Public
+            : constructor.Modifiers.Accessibility
+            ;
+
+        
+        return MemberModifierEmitter.Emit(new MemberModifiers { Accessibility = accessibility });
     }
 }

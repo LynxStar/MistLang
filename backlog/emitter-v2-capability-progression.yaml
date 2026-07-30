@@ -507,14 +507,17 @@ capabilities:
     evidence: >
       TypeEmitter maps StructType to the struct keyword. Sample-level coverage now exists:
       HelloMist/Color and Classes/Color both emit as `public struct` with public int fields, a
-      three-argument constructor and instance methods, and both run correctly. Still partial
-      only for the ConstructorEmitter workaround below, which no sample reaches -- neither
-      Color declares a parameterless or a static constructor.
+      three-argument constructor and instance methods, and both run correctly.
+      ConstructorEmitter.ResolveModifiers now builds the modifier set C# admits on a constructor
+      rather than filtering the general member set: `static` for a static constructor, an
+      accessibility otherwise, and nothing else. Measured on a scratch program declaring both a
+      private parameterless struct constructor and a static constructor -- emits
+      `public Marker()` with its body intact and bare `static Registry()`, and prints
+      tag=3 count=11. Widening a parameterless struct constructor to public is kept: private is
+      not enforceable in C# in any case, since `new T()` on a struct always compiles, so the
+      declared accessibility is the frontend's to hold.
+      Still partial only for the Void.mist question below.
     tasks:
-      - Narrow ConstructorEmitter.ResolveModifiers. It returns "public " for ANY
-        zero-parameter struct constructor, discarding every other modifier, so a static
-        constructor silently becomes an instance constructor. CS8938 does not apply to
-        static constructors.
       - Decide whether v2 should transpile Standard/Void.mist at all. TypeNameEmitter
         rewrites that type to the void keyword at every reference, so the emitted file is
         dead code today and dropping it costs nothing.

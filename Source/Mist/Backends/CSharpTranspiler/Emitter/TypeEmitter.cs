@@ -66,7 +66,7 @@ internal static class TypeEmitter
                 }
                 else
                 {
-                    MethodEmitter.Emit(method, writer, diagnostics);
+                    MethodEmitter.Emit(method, type.DeclarationNode, writer, diagnostics);
                 }
             }
         }

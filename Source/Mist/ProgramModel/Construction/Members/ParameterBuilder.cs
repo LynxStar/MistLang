@@ -1,5 +1,6 @@
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Resolution;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
 
@@ -39,10 +40,8 @@ internal sealed class ParameterBuilder
     {
         var name = param.Name.Lexeme;
         var type = scopeResolver.Resolve(param.Type, scope);
+        var modifier = new ParameterModifier(IsReadonly: false, IsRef: param.RefModifier is not null, Ownership: default);
 
-        // Source-side modifier population (ref/readonly/ownership specifier, the struct-vs-class
-        // by-value/by-ref derivation, and the redundant/invalid-combination diagnostics) is handled
-        // by the type-checker pass, not here. Parameters default to an unrestricted by-value modifier.
-        return new Parameter(name, type);
+        return new Parameter(name, type, modifier);
     }
 }

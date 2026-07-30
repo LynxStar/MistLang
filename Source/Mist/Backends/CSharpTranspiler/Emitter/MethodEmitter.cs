@@ -8,8 +8,10 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// </summary>
 internal static class MethodEmitter
 {
-    public static void Emit(Method method, CSharpWriter writer, DiagnosticBag diagnostics)
+    public static void Emit(Method method, Storm.Runtime.SyntaxNode? locationNode, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        ParameterEmitter.ReportUnsupportedRef(method.ParametersList, locationNode, diagnostics);
+
         var modifiers = MemberModifierEmitter.Emit(method.Modifiers);
         var returnType = TypeNameEmitter.Emit(method.ReturnType);
         var parameters = ParameterEmitter.Emit(method.ParametersList);

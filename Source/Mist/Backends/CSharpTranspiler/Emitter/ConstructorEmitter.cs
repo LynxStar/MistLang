@@ -12,6 +12,8 @@ internal static class ConstructorEmitter
 {
     public static void Emit(Constructor constructor, MemberType declaringType, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        ParameterEmitter.ReportUnsupportedRef(constructor.ParametersList, declaringType.DeclarationNode, diagnostics);
+
         var modifiers = ResolveModifiers(constructor, declaringType);
         var parameters = ParameterEmitter.Emit(constructor.ParametersList);
 

@@ -130,4 +130,15 @@ public static class BackendDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.Backend,
         "Project '{0}' produces an executable but declares no entry point. Add a 'static void Main()' method, or set output type to library.");
+
+    /// <summary>
+    /// A parameter is declared <c>ref</c>, which the v2 emitter does not yet support.
+    /// Without this diagnostic the parameter would be emitted as pass-by-value, producing
+    /// a program that compiles and runs but silently computes wrong results.
+    /// </summary>
+    public static readonly DiagnosticDescriptor UnsupportedRefParameter = new(
+        new DiagnosticId("MIST_BE_UNSUPPORTED_REF"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Backend,
+        "Parameter '{0}' is declared ref, which is not yet supported by the experimental emitter.");
 }

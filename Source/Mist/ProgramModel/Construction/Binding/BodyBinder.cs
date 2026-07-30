@@ -2,6 +2,7 @@ using Mist.Generated;
 using Mist.ProgramModel.Construction.Binding.Expressions;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
@@ -58,6 +59,33 @@ internal static class BodyBinder
         var arguments = ArgumentBinder.Bind(argumentList, bindingCtx, context);
 
         constructor.ChainArgumentsList.AddRange(arguments);
+    }
+
+    /// <summary>
+    /// Replaces the sentinel that Phase 2 parked with the resolved expression, returning null when
+    /// there is no initializer so the caller can assign the result back unconditionally.
+    /// <para>
+    /// <see cref="InitializerScope"/> is where the no-receiver rule lives. The member's own type is
+    /// pushed as target type because a declared type is the only target an initializer ever has.
+    /// </para>
+    /// </summary>
+    public static Expression? BindInitializer(
+        Expression? parked, IMistType memberType, Scope typeScope, BuilderContext context)
+    {
+        // Matched rather than cast so that a future caller parking something other than an
+        // ExpressionNode leaves the initializer unbound instead of throwing.
+        if(parked?.Node is not ExpressionNode initializerNode)
+        {
+            return parked;
+        }
+
+        var scope = new BodyScope(new InitializerScope(typeScope));
+        var bindingCtx = new BindingContext(scope, returnType: null);
+
+        using(bindingCtx.PushTargetType(memberType))
+        {
+            return ExpressionBinder.BindExpression(initializerNode, bindingCtx, context);
+        }
     }
 
     /// <summary>

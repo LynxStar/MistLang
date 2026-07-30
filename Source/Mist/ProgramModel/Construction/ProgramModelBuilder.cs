@@ -132,11 +132,11 @@ public sealed class ProgramModelBuilder
         conformanceBuilder.BuildAll();
 
         // Phase 3: Bind member bodies into the resolved, AST-free bound tree.
-        // Walking-skeleton scope: delegate bodies only — property and indexer accessors
-        // are not yet bound. Constructs the binder does not yet handle bind to sentinel
-        // nodes (no throws, no diagnostics), so this is safe to run over every source
-        // program. Order is irrelevant: Phase 2 resolved every signature already, so no
-        // body or constructor chain depends on which delegate was bound first.
+        // Walking-skeleton scope: delegate bodies and field/property initializers — property
+        // and indexer ACCESSOR bodies are not yet bound. Constructs the binder does not yet
+        // handle bind to sentinel nodes (no throws, no diagnostics), so this is safe to run
+        // over every source program. Order is irrelevant: Phase 2 resolved every signature
+        // already, so no body, chain or initializer depends on which member was bound first.
         foreach(var typeDef in sourceTypes)
         {
             if(typeDef is not MemberType memberType)
@@ -152,9 +152,33 @@ public sealed class ProgramModelBuilder
                     BodyBinder.BindDelegate(boundDelegate, context);
                 }
             }
+
+            BindInitializers(memberType, context);
         }
 
         return programModel;
+    }
+
+    /// <summary>
+    /// An initializer is an expression rather than a body, so <c>EnumerateDelegates</c> does not
+    /// reach it and the delegate walk cannot bind it.
+    /// </summary>
+    private static void BindInitializers(MemberType memberType, BuilderContext context)
+    {
+        if(memberType is ConcreteType concreteType)
+        {
+            foreach(var field in concreteType.FieldsList)
+            {
+                field.Initializer = BodyBinder.BindInitializer(
+                    field.Initializer, field.Type, memberType.Scope, context);
+            }
+        }
+
+        foreach(var property in memberType.PropertiesList)
+        {
+            property.Initializer = BodyBinder.BindInitializer(
+                property.Initializer, property.Type, memberType.Scope, context);
+        }
     }
 
     /// <summary>

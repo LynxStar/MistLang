@@ -33,8 +33,13 @@ internal sealed class Field(
     /// <summary>
     /// The field initializer expression, or null if none. Also the sole holder of
     /// the field's AST node (via <see cref="Expression.Node"/>) when present.
+    /// <para>
+    /// Settable for the same reason <see cref="Statements.Block.Statements"/> is: signature
+    /// resolution runs before any body binding, so Phase 2 parks the unbound expression here and
+    /// Phase 3 replaces it with the resolved one. Nothing reads it in between.
+    /// </para>
     /// </summary>
-    public Expression? Initializer { get; init; }
+    public Expression? Initializer { get; internal set; }
 
     IReadOnlyList<AttributeData> IHasAttributes.Attributes => AttributesList;
 }

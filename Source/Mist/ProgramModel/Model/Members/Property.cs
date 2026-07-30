@@ -34,9 +34,10 @@ internal sealed class Property(
     public PropertyAccessor? Setter { get; init; }
 
     /// <summary>
-    /// The property initializer expression, or null if none.
+    /// The property initializer expression, or null if none. Settable for the same reason
+    /// <see cref="Field.Initializer"/> is: Phase 2 parks the unbound expression, Phase 3 replaces it.
     /// </summary>
-    public Expression? Initializer { get; init; }
+    public Expression? Initializer { get; internal set; }
 
     IReadOnlyList<AttributeData> IHasAttributes.Attributes => AttributesList;
 }

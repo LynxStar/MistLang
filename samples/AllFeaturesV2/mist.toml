@@ -8,3 +8,4 @@ Overloading = { path = "../Overloading" }
 HelloMist = { path = "../HelloMist" }
 Classes = { path = "../Classes" }
 Inheritance = { path = "../Inheritance" }
+StormAnonymousGroups = { path = "../StormAnonymousGroups" }

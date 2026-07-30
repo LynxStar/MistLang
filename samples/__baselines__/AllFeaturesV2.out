@@ -126,3 +126,9 @@ Base Animal: Cat (age 8)
 Dog via base chain: Max (age 1)
 GuideDog via base chain: Luna (age 2)
 Done!
+--- Storm Anonymous Groups ---
+x=8
+y=24
+z=10
+w=True
+--- Storm Anonymous Groups Done ---

@@ -2990,6 +2990,9 @@ capabilities:
       precedence level, so the left fold happens during lowering rather than in the parser.
       v2 already folds correctly -- the AllFeaturesV2 baseline shows the mixed
       addition-and-subtraction chain evaluating left-associatively.
+      StormAnonymousGroups is now referenced from AllFeaturesV2 and needed no compiler change to get
+      there. Its every required capability was already done, which is how it was found: a sweep for
+      samples with no outstanding blocker turned it up as the only one.
     unlocks: [StormAnonymousGroups]
 
   # ===================================================================

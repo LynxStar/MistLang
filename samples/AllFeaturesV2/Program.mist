@@ -26,5 +26,6 @@ public class Program
         HelloMist.Program.RunDemo();
         Classes.Program.RunDemo();
         Inheritance.Program.RunDemo();
+        StormAnonymousGroups.Program.RunDemo();
     }
 }

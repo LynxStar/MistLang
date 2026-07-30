@@ -309,8 +309,18 @@ internal static class BodyEmitter
             default:
                 // Still written, invalid though it is, so the emitted file stays readable for whoever
                 // is diagnosing the gap. The build stops before Roslyn ever parses it.
+                //
+                // The AST node's kind rather than the bound expression's: a sentinel's own type says
+                // only that it is a sentinel, whereas the node says which construct went unbound,
+                // which is the thing worth knowing. Falls back to the bound kind for anything that
+                // reached here without being a sentinel, where the bound type IS the answer.
+                var unsupportedKind = expression is UnresolvedExpression
+                    ? expression.Node.GetType().Name
+                    : expression.GetType().Name
+                    ;
+
                 diagnostics.ReportAtNode(BackendDiagnostics.UnsupportedExpression, expression.Node, null);
-                writer.Append($"/* unsupported: {expression.GetType().Name} */");
+                writer.Append($"/* unsupported: {unsupportedKind} */");
                 break;
         }
     }

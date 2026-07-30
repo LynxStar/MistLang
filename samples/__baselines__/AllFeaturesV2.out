@@ -136,3 +136,9 @@ Player: Alice, HP: 100
 Level: 1, Active: True
 App: Namespace Demo v1.0
 Done!
+=== GlobalUsings Demo ===
+[Global using only] LOG: hello from services
+[Redundant explicit using] Product(Widget, $42)
+[Multiple global usings] LOG: Product(Widget, $42)
+[Second instances] INFO: Product(Gadget, $99)
+=== GlobalUsings Done ===

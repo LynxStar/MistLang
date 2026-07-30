@@ -31,17 +31,27 @@ public sealed class ScopeResolverAmbiguityTests
     {
         var programModel = new ProgramModelClass();
         var diagnostics = new DiagnosticBag();
-        var globalScope = new GlobalScope(new ProgramScope(programModel), programModel, diagnostics);
-        var context = new BuilderContext(globalScope, programModel, diagnostics, NullAmbientTypeProvider.Instance);
+        _ = programModel.AddSelfAssembly("Test");
+        var context = new BuilderContext(programModel, diagnostics, NullAmbientTypeProvider.Instance);
         return (context, diagnostics);
     }
 
     /// <summary>
-    /// A file scope hanging off the compilation's global scope.
+    /// The scope holding the implicit usings every file in these tests resolves through. Implicit
+    /// usings belong to an assembly, so a single-assembly compilation is what makes one level of them
+    /// the only level.
+    /// </summary>
+    private static AssemblyScope AssemblyScopeOf(BuilderContext context)
+    {
+        return context.ScopeFor(context.ProgramModel.SelfAssembly!);
+    }
+
+    /// <summary>
+    /// A file scope hanging off its assembly's scope.
     /// </summary>
     private static FileScope NewFileScope(BuilderContext context, DiagnosticBag diagnostics)
     {
-        return new FileScope(context.GlobalScope, context.ProgramModel, diagnostics);
+        return new FileScope(AssemblyScopeOf(context), context.ProgramModel, diagnostics);
     }
 
     /// <summary>
@@ -206,7 +216,7 @@ public sealed class ScopeResolverAmbiguityTests
         _ = RegisterType(context.ProgramModel, "System", "Foo");
         var mine = RegisterType(context.ProgramModel, "MyLib", "Foo");
 
-        context.GlobalScope.DeclareImport("System");
+        AssemblyScopeOf(context).DeclareImport("System");
 
         var fileScope = NewFileScope(context, diagnostics);
         fileScope.DeclareImport("MyLib");
@@ -227,7 +237,7 @@ public sealed class ScopeResolverAmbiguityTests
         var (context, diagnostics) = CreateContext();
 
         var foo = RegisterType(context.ProgramModel, "System", "Foo");
-        context.GlobalScope.DeclareImport("System");
+        AssemblyScopeOf(context).DeclareImport("System");
 
         var fileScope = NewFileScope(context, diagnostics);
 
@@ -294,7 +304,7 @@ public sealed class ScopeResolverAmbiguityTests
         _ = RegisterType(context.ProgramModel, "NsA", "T");
         _ = RegisterType(context.ProgramModel, "NsB", "T");
 
-        context.GlobalScope.DeclareImport("NsA");
+        AssemblyScopeOf(context).DeclareImport("NsA");
 
         var fileScope = NewFileScope(context, diagnostics);
         fileScope.DeclareImport("NsB");
@@ -377,7 +387,7 @@ public sealed class ScopeResolverAmbiguityTests
     {
         var (context, diagnostics) = CreateContext();
 
-        var outerScope = new MemberScope(context.GlobalScope);
+        var outerScope = new MemberScope(AssemblyScopeOf(context));
         var typeX = new ClassType("x", "Test", new Scope(null), null, null);
         outerScope.DeclareType("x", typeX);
 
@@ -401,7 +411,7 @@ public sealed class ScopeResolverAmbiguityTests
     {
         var (context, diagnostics) = CreateContext();
 
-        var outerScope = new BodyScope(context.GlobalScope);
+        var outerScope = new BodyScope(AssemblyScopeOf(context));
         var varX = new LocalVariable("x", ErrorType.Instance);
         outerScope.DeclareLocal(varX, diagnostics);
 

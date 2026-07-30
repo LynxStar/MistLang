@@ -10,3 +10,4 @@ Classes = { path = "../Classes" }
 Inheritance = { path = "../Inheritance" }
 StormAnonymousGroups = { path = "../StormAnonymousGroups" }
 Namespaces = { path = "../Namespaces" }
+GlobalUsings = { path = "../GlobalUsings" }

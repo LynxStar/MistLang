@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts;
@@ -80,9 +81,9 @@ public sealed class ProgramModel : IProgramModel
     /// Establishes the assembly for the project being compiled. Called once, before any
     /// type is registered.
     /// </summary>
-    internal MistAssembly AddSelfAssembly(string name)
+    internal MistAssembly AddSelfAssembly(string name, ImmutableArray<string> globalUsings = default)
     {
-        SelfAssembly = new MistAssembly(name, MistAssemblyKind.Self);
+        SelfAssembly = new MistAssembly(name, MistAssemblyKind.Self, projectPath: null, globalUsings);
         assemblies.Add(SelfAssembly);
         return SelfAssembly;
     }
@@ -103,14 +104,15 @@ public sealed class ProgramModel : IProgramModel
     /// <c>mist.toml</c> path that identifies the project. Two projects sharing a display
     /// name remain distinct assemblies.
     /// </summary>
-    internal MistAssembly AddReferenceAssembly(string name, string projectPath)
+    internal MistAssembly AddReferenceAssembly(
+        string name, string projectPath, ImmutableArray<string> globalUsings = default)
     {
         if(referencesByProjectPath.TryGetValue(projectPath, out var existing))
         {
             return existing;
         }
 
-        var assembly = new MistAssembly(name, MistAssemblyKind.Reference, projectPath);
+        var assembly = new MistAssembly(name, MistAssemblyKind.Reference, projectPath, globalUsings);
         referencesByProjectPath[projectPath] = assembly;
         assemblies.Add(assembly);
         return assembly;

@@ -33,4 +33,12 @@ public sealed record MistCompilation(
     /// </para>
     /// </summary>
     public bool HasStandardLibrary { get; init; }
+
+    /// <summary>
+    /// The implicit usings from the <c>mist.toml</c> of the project being compiled. Held here rather
+    /// than in <see cref="Projects"/> because that list deliberately excludes the project being
+    /// compiled; the referenced projects carry their own on <see cref="MistProject.GlobalUsings"/>,
+    /// and the standard library has none.
+    /// </summary>
+    public ImmutableArray<string> GlobalUsings { get; init; } = ImmutableArray<string>.Empty;
 }

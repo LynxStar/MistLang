@@ -222,14 +222,17 @@ public sealed class CompilerDriver : ICompilerDriver
                             // Record the project itself alongside its files, so later
                             // stages can group units by project without inferring the
                             // grouping back out of per-unit fields.
-                            refProjectBuilder.Add(new MistProject(
-                                proj.Configuration.NamespaceRoot,
-                                proj.ProjectFolder,
-                                proj.CanonicalTomlPath));
-
                             var projGlobalUsings = proj.Configuration.GlobalUsings.IsDefault
                                 ? ImmutableArray<string>.Empty
                                 : proj.Configuration.GlobalUsings;
+
+                            refProjectBuilder.Add(new MistProject(
+                                proj.Configuration.NamespaceRoot,
+                                proj.ProjectFolder,
+                                proj.CanonicalTomlPath)
+                            {
+                                GlobalUsings = projGlobalUsings,
+                            });
 
                             foreach(var path in proj.SourcePaths)
                             {
@@ -288,6 +291,7 @@ public sealed class CompilerDriver : ICompilerDriver
         {
             Projects = refProjects,
             HasStandardLibrary = !stdlibUnits.IsEmpty,
+            GlobalUsings = userGlobalUsings,
         };
 
         loadingStopwatch.Stop();

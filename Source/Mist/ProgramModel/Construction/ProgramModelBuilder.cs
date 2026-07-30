@@ -6,7 +6,6 @@ using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Construction.Scaffolding;
 using Mist.ProgramModel.Construction.Types;
 using Mist.ProgramModel.Contracts;
-using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction;
@@ -49,15 +48,16 @@ public sealed class ProgramModelBuilder
         }
 
         var programModel = new Model.ProgramModel();
-        var globalScope = CreateGlobalScope(programModel, diagnostics, options);
-        var context = new BuilderContext(globalScope, programModel, diagnostics, ambientProvider);
-        var unitBuilder = new CompilationUnitBuilder(context);
 
         // Phase 0: Establish the compilation's declaration boundaries before any type is
-        // registered. Referenced projects are read straight off the compilation, so each
-        // appears exactly once by construction rather than by deduplicating a scan over
-        // the units it contributed.
-        _ = programModel.AddSelfAssembly(options.ProjectName);
+        // registered, and before the context that builds scopes over them. Referenced projects are
+        // read straight off the compilation, so each appears exactly once by construction rather
+        // than by deduplicating a scan over the units it contributed.
+        //
+        // Implicit usings are supplied here and nowhere else. They belong to a project, so an
+        // assembly is the only thing that can hold them without one project's choice reaching
+        // another's files. The standard library declares none and has no mechanism to.
+        _ = programModel.AddSelfAssembly(options.ProjectName, compilation.GlobalUsings);
 
         if(compilation.HasStandardLibrary)
         {
@@ -66,8 +66,12 @@ public sealed class ProgramModelBuilder
 
         foreach(var project in compilation.Projects)
         {
-            _ = programModel.AddReferenceAssembly(project.Name, project.CanonicalTomlPath);
+            _ = programModel.AddReferenceAssembly(
+                project.Name, project.CanonicalTomlPath, project.GlobalUsings);
         }
+
+        var context = new BuilderContext(programModel, diagnostics, ambientProvider);
+        var unitBuilder = new CompilationUnitBuilder(context);
 
         // Process each compilation unit.
         for(var i = 0; i < asts.Length; i++)
@@ -181,27 +185,4 @@ public sealed class ProgramModelBuilder
         }
     }
 
-    /// <summary>
-    /// Builds the root of every scope chain in the compilation: the <see cref="ProgramScope"/>
-    /// holding the type and namespace universe, and beneath it the <see cref="GlobalScope"/>
-    /// holding the project's implicit usings. File scopes hang off the latter.
-    /// </summary>
-    private static GlobalScope CreateGlobalScope(Model.ProgramModel programModel, DiagnosticBag diagnostics, CompilerOptions options)
-    {
-        var programScope = new ProgramScope(programModel);
-        var globalScope = new GlobalScope(programScope, programModel, diagnostics);
-
-        // Normalize: ImmutableArray default is a null-backed struct that throws on iteration.
-        var globalUsings = options.GlobalUsings.IsDefault
-            ? ImmutableArray<string>.Empty
-            : options.GlobalUsings
-            ;
-
-        foreach(var ns in globalUsings)
-        {
-            globalScope.DeclareImport(ns);
-        }
-
-        return globalScope;
-    }
 }

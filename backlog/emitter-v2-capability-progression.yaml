@@ -736,19 +736,37 @@ capabilities:
     order: 31
     layer: declaration-boundaries
     requires: [using-import-resolution]
-    v2_status: needs-verification
+    v2_status: done
+    verified_by: sample
     evidence: >
-      ProjectConfiguration.GlobalUsings is parsed from the global_usings table. Whether the
-      v2 binder consumes it is unconfirmed -- not traced past the configuration record.
+      The binder was reading the wrong field. ProgramModelBuilder declared imports from
+      options.GlobalUsings, which CompilerDriver documents as the test path: when a mist.toml is
+      parsed the manifest value goes to CompilationUnit.GlobalUsings instead, leaving the options
+      field empty. So v2 global usings only ever worked in tests, and the sample reported
+      MIST_PM_UNRESOLVED_TYPE three times.
+      Implicit usings now belong to the assembly. MistAssembly carries them, set once at
+      registration, for the same reason it carries EntryPoint: the setting is a project's, and one
+      project's choice must not reach another's files. GlobalScope became AssemblyScope, one per
+      assembly rather than one shared across the compilation, seeded from its own assembly.
+      CompilationUnitBuilder resolves the assembly before building the file scope -- it was already
+      resolving it four lines below -- and parents each FileScope onto that assembly's scope.
+      All three recorded tasks are covered. A file inside a globally-used namespace resolving a type
+      from the other one is GlobalUsings/Services/Formatter.mist reaching Product, and it works. The
+      redundant explicit using produces no error and no warning. The emission task is obsolete: v2
+      emits fully qualified type names, so it needs no using directives for its own types and has
+      nothing to deduplicate.
+      Isolation is measured rather than assumed. AllFeaturesV2 declares no global usings of its own
+      and now references GlobalUsings, which declares two. The orchestrator's first 2727 bytes are
+      byte-identical to the baseline taken before it was added, so those two usings reached
+      GlobalUsings' own files and none of the other eight samples'.
     tasks:
-      - Inject manifest global usings into every file's import scope, including files that
-        themselves live in a globally-used namespace. GlobalUsings/Services/Formatter.mist
-        is in one of the two listed namespaces and resolves a type from the other.
-      - Accept an explicit using that duplicates a global using with no error AND no
-        warning. The zero-warnings policy makes a warning a failure here.
-      - Deduplicate on emission. Output is flat, so the emitter must synthesize the
-        global-using namespaces as C# usings -- the directory information that produced them
-        is gone by then.
+      - >
+        Follow-up, not a gap in this capability: collapse the two ways global usings enter the
+        compiler. CompilerOptions.GlobalUsings and CompilationUnit.GlobalUsings both still exist,
+        the driver folds the first into the second, and classic reads the per-unit field at
+        CSharpEmitter.cs:598. v2 now reads neither, taking MistProject.GlobalUsings and
+        MistCompilation.GlobalUsings instead. Retiring the unit field means moving classic over in
+        the same change, which is why it was left out of this one.
     unlocks: [GlobalUsings]
 
   - id: top-level-statements

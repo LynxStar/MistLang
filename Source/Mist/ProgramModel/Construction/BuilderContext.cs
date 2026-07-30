@@ -2,6 +2,7 @@ using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Construction.Scaffolding;
 using Mist.ProgramModel.Contracts;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Scopes;
 
 namespace Mist.ProgramModel.Construction;
@@ -11,26 +12,40 @@ namespace Mist.ProgramModel.Construction;
 /// </summary>
 internal sealed class BuilderContext
 {
+    private readonly ProgramScope programScope;
+    private readonly Dictionary<MistAssembly, AssemblyScope> assemblyScopes = [];
+
     public BuilderContext(
-        GlobalScope globalScope,
         Model.ProgramModel programModel,
         DiagnosticBag diagnostics,
         IAmbientTypeProvider ambientProvider)
     {
-        GlobalScope = globalScope;
         ProgramModel = programModel;
         Diagnostics = diagnostics;
         AmbientProvider = ambientProvider;
+        programScope = new ProgramScope(programModel);
         Resolver = new ScopeResolver(this);
     }
 
     /// <summary>
-    /// The level holding the project's implicit usings, and the parent of every file scope in the
-    /// compilation. The <see cref="ProgramScope"/> above it is not exposed: nothing outside the
-    /// chain needs it, because the queries that are not chain walks go to
-    /// <see cref="ProgramModel"/> instead.
+    /// The level holding an assembly's implicit usings, and the parent of every file scope belonging
+    /// to it. Interned per assembly so that two files of one project share a level, which is what
+    /// makes an ambiguity between two implicit usings detectable at all.
+    /// <para>
+    /// The <see cref="ProgramScope"/> above them is not exposed: nothing outside the chain needs it,
+    /// because the queries that are not chain walks go to <see cref="ProgramModel"/> instead.
+    /// </para>
     /// </summary>
-    public GlobalScope GlobalScope { get; }
+    public AssemblyScope ScopeFor(MistAssembly assembly)
+    {
+        if(!assemblyScopes.TryGetValue(assembly, out var scope))
+        {
+            scope = new AssemblyScope(programScope, assembly, ProgramModel, Diagnostics);
+            assemblyScopes[assembly] = scope;
+        }
+
+        return scope;
+    }
 
     public Model.ProgramModel ProgramModel { get; }
 

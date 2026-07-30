@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Mist.ProgramModel.Contracts.Types;
 
 namespace Mist.ProgramModel.Model;
@@ -10,7 +11,8 @@ namespace Mist.ProgramModel.Model;
 public sealed class MistAssembly(
     string name,
     MistAssemblyKind kind,
-    string? projectPath = null) : IAssembly
+    string? projectPath = null,
+    ImmutableArray<string> globalUsings = default) : IAssembly
 {
     public string Name { get; } = name;
 
@@ -36,6 +38,20 @@ public sealed class MistAssembly(
     /// </para>
     /// </summary>
     public IMistType? EntryPoint { get; internal set; }
+    /// <summary>
+    /// The implicit usings every file in this assembly resolves through, from the project's
+    /// <c>mist.toml</c>. Empty for the standard library, which has no mechanism to declare any, and
+    /// for the ambient and synthetic assemblies, which have no files.
+    /// <para>
+    /// Per assembly for the same reason <see cref="EntryPoint"/> is: a referenced project declaring
+    /// its own is not an error, and its choice must not reach another project's files. Set once at
+    /// registration, before any type is resolved.
+    /// </para>
+    /// </summary>
+    public ImmutableArray<string> GlobalUsings { get; } = globalUsings.IsDefault
+        ? ImmutableArray<string>.Empty
+        : globalUsings
+        ;
 
     /// <summary>
     /// The well-known name of the standard library assembly. It coincides with the

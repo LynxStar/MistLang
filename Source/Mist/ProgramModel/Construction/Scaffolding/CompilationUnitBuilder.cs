@@ -36,8 +36,10 @@ internal sealed class CompilationUnitBuilder
         var namespaceRoot = unit.NamespaceRoot!;
         var projectFolder = unit.ProjectFolder!;
 
-        // Create the file scope (parent = global).
-        var fileScope = new FileScope(context.GlobalScope, context.ProgramModel, context.Diagnostics);
+        // The assembly is resolved before the file scope rather than with the type registration
+        // below, because it decides which implicit usings this file resolves through.
+        var assembly = ResolveAssembly(unit);
+        var fileScope = new FileScope(context.ScopeFor(assembly), context.ProgramModel, context.Diagnostics);
 
         // Validate namespaces and populate the file's usings.
         var fileNamespace = namespaceBuilder.Build(fileScope, ast, sourceText, namespaceRoot, projectFolder);
@@ -47,7 +49,7 @@ internal sealed class CompilationUnitBuilder
         }
 
         // Register type declarations.
-        typeBuilder.Build(fileScope, fileNamespace, ast, ResolveAssembly(unit));
+        typeBuilder.Build(fileScope, fileNamespace, ast, assembly);
 
         return fileScope;
     }

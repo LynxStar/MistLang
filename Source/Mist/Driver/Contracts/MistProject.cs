@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+
 namespace Mist.Driver.Contracts;
 
 /// <summary>
@@ -26,4 +28,12 @@ namespace Mist.Driver.Contracts;
 public sealed record MistProject(
     string Name,
     string ProjectFolder,
-    string CanonicalTomlPath);
+    string CanonicalTomlPath)
+{
+    /// <summary>
+    /// The implicit usings from this project's <c>mist.toml</c>, applying to its files and no
+    /// others. Recorded per project because that is the granularity the setting has: two projects in
+    /// one compilation may declare different ones, and neither should see the other's.
+    /// </summary>
+    public ImmutableArray<string> GlobalUsings { get; init; } = ImmutableArray<string>.Empty;
+}

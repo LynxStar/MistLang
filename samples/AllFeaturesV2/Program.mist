@@ -25,5 +25,6 @@ public class Program
         Overloading.Program.RunDemo();
         HelloMist.Program.RunDemo();
         Classes.Program.RunDemo();
+        Inheritance.Program.RunDemo();
     }
 }

@@ -105,3 +105,24 @@ mixed=Color(127, 127, 0) [neutral]
 total=2
 Counter 'Alpha' = 2
 Counter 'Beta' = 1
+=== Single-level inheritance ===
+Rex is a German Shepherd, age 5
+  Name: Rex
+  Age: 5
+  Breed: German Shepherd
+=== Multi-tier inheritance (3 levels) ===
+Buddy is a Labrador guide dog, age 3, handler: Alice
+  Name: Buddy
+  Age: 3
+  Breed: Labrador
+  Handler: Alice
+=== Subtype assignability ===
+Passing Dog to method accepting Animal:
+  Animal info: Rex (age 5)
+Passing GuideDog to method accepting Animal:
+  Animal info: Buddy (age 3)
+=== Base constructor chaining ===
+Base Animal: Cat (age 8)
+Dog via base chain: Max (age 1)
+GuideDog via base chain: Luna (age 2)
+Done!

@@ -27,7 +27,7 @@ internal static class TypeEmitter
         var typeKeyword = type is StructType ? "struct" : "class";
         var accessibility = type.Modifiers.Accessibility == Accessibility.Public ? "public " : "";
 
-        writer.WriteLine($"{accessibility}{typeKeyword} {type.Name}");
+        writer.WriteLine($"{accessibility}{typeKeyword} {type.Name}{EmitBaseList(type)}");
         using(writer.Block())
         {
             var concrete = type as ConcreteType;
@@ -57,6 +57,32 @@ internal static class TypeEmitter
         }
 
         return writer.ToString();
+    }
+
+    /// <summary>
+    /// The <c>: Base, IFirst, ISecond</c> clause, or empty when the type has neither a base nor an
+    /// abstract to implement.
+    /// <para>
+    /// The concrete base comes first because C# requires it to. Mist keeps the two apart --
+    /// <see cref="ConcreteType.BaseType"/> against <see cref="MemberType.BaseAbstractTypes"/> --
+    /// so the ordering does not depend on how the declaration was written.
+    /// </para>
+    /// </summary>
+    private static string EmitBaseList(MemberType type)
+    {
+        var bases = new List<string>();
+
+        if(type is ConcreteType { BaseType: { } baseType })
+        {
+            bases.Add(TypeNameEmitter.Emit(baseType));
+        }
+
+        foreach(var abstractBase in type.BaseAbstractTypes)
+        {
+            bases.Add(TypeNameEmitter.Emit(abstractBase));
+        }
+
+        return bases.Count > 0 ? $" : {string.Join(", ", bases)}" : "";
     }
 
     /// <summary>

@@ -800,12 +800,17 @@ capabilities:
     order: 34
     layer: inheritance
     requires: [class-declaration]
-    v2_status: missing
-    evidence: TypeEmitter writes the accessibility, keyword and name, and no base list.
-    tasks:
-      - Emit the base type in the type declaration.
-      - Until this lands, gate ConstructorChainKind.Base behind a Mist diagnostic instead of
-        emitting a base chain against an implicit object base.
+    v2_status: done
+    verified_by: sample
+    evidence: >
+      TypeEmitter.EmitBaseList writes the concrete base first, then the abstracts, matching the order
+      C# requires. Both were already resolved onto the model -- ConcreteType.BaseType and
+      MemberType.BaseAbstractTypes, filled by BaseTypeResolver in Phase 2 -- so this capability was
+      emission and nothing else.
+      Emitting it turned out to be the whole of the inheritance layer. Orders 35, 36 and 38 needed no
+      further work and went green with it, and the Inheritance sample now runs on v2 with output
+      byte-identical to classic at 570 bytes. The gating task recorded here is moot: with a base list
+      emitted, a base chain resolves against the declared base rather than System.Object.
     unlocks: []
 
   - id: base-member-lookup
@@ -813,18 +818,21 @@ capabilities:
     order: 35
     layer: inheritance
     requires: [base-type-list, implicit-instance-field-access]
-    v2_status: missing
+    v2_status: done
+    verified_by: sample
     evidence: >
-      IdentifierBinder.FindEnclosingField searches only the enclosing type and says so in
-      its own doc comment -- inherited fields need the base chain, which arrives with the
-      inheritance work. PostfixBinder.ResolveMemberType has the same limit.
-    tasks:
-      - Unqualified implicit-this lookup through the chain, two levels deep.
-        Inheritance/GuideDog.DescribeGuideDog calls a method declared on Animal.
-      - Qualified member lookup where the member is declared on a base -- pup.Describe() in
-        Inheritance, unit.name in FullAccessibilityModel.
-      - Inherited FIELD reads, not just methods. FullAccessibilityModel/Square reads two
-        inherited fields from Shape.
+      The binder side was already built and only wanted a base chain to walk. TypeScope.LookupSelf
+      treats the type and its bases alike, on the stated ground that an inherited member is reached
+      through the same receiver as a declared one, so once base-type-list (order 34) emitted the base
+      the lookup already resolved through it. The FindEnclosingField limitation recorded here had
+      already been removed by the move to scope-chain lookup.
+      All three shapes measured. Unqualified implicit-this two levels deep: GuideDog.DescribeGuideDog
+      calls GetName and GetAge declared on Animal. Qualified against a base-declared member on a
+      derived instance: pup.Describe() and service.Describe() in Inheritance/Program. Inherited FIELD
+      reads, which the Inheritance sample cannot show because its fields are private -- measured
+      instead on a scratch program with a public base field read three ways from the derived type, by
+      bare name, through `this`, and qualified on an instance. All three print correctly and match
+      classic.
     unlocks: []
 
   - id: constructor-chain-base
@@ -832,16 +840,17 @@ capabilities:
     order: 36
     layer: inheritance
     requires: [base-type-list, constructor-chain-this]
-    v2_status: broken
+    v2_status: done
+    verified_by: sample
     evidence: >
-      ConstructorEmitter emits a base chain for ChainKind.Base, but with no base list the
-      call resolves against System.Object. Argument binding itself is already implemented --
-      BodyBinder.BindChainArguments binds in the body scope precisely so chain arguments can
-      reference constructor parameters.
-    tasks:
-      - Resolve the base constructor by arity and argument type. Inheritance uses arities
-        two and three.
-      - Order base initialization before the derived body.
+      ConstructorEmitter was already emitting the chain and BodyBinder.BindChainArguments already
+      binding its arguments in the body scope; the base list was the only missing piece. With order 34
+      in, `: base(...)` resolves against the declared base instead of System.Object.
+      Both recorded tasks fall out of emitting a C# base chain rather than needing work of their own.
+      Overload selection is C#'s: Inheritance chains at arity two (Dog to Animal) and three (GuideDog
+      to Dog), and both bind. Initialization order likewise -- C# runs a base initializer before the
+      derived body by construction, which is why lowering to `: base(...)` is worth more than
+      synthesizing the call at the top of the body.
     unlocks: []
 
   - id: constructor-chain-args-referencing-parameters
@@ -868,10 +877,16 @@ capabilities:
     requires: [base-member-lookup, constructor-chain-base,
                constructor-chain-args-referencing-parameters, string-interpolation,
                var-type-inference, standard-library-binding]
-    v2_status: missing
+    v2_status: done
+    verified_by: sample
     evidence: >
       Inheritance/Program.PrintAnimalInfo takes the base type and is called with both a
-      one-level and a two-level derived instance, so the conversion must skip a level.
+      one-level and a two-level derived instance, so the conversion must skip a level. Both calls
+      work. Nothing was needed beyond the base list: the conversion is C#'s own once the emitted
+      declaration says the type derives, and Mist's binder had already accepted the arguments.
+      This is the sample gate for the whole inheritance layer, and Inheritance is now referenced from
+      AllFeaturesV2 with the stored baseline extended from 1992 to 2562 bytes. The first 1992 bytes
+      are byte-identical to the previous baseline, so no other sample's output moved.
     unlocks: [Inheritance]
 
   # ===================================================================

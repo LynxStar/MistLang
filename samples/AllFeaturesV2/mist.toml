@@ -7,3 +7,4 @@ ArrayLiterals = { path = "../ArrayLiterals" }
 Overloading = { path = "../Overloading" }
 HelloMist = { path = "../HelloMist" }
 Classes = { path = "../Classes" }
+Inheritance = { path = "../Inheritance" }

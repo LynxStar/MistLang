@@ -27,5 +27,6 @@ public class Program
         Classes.Program.RunDemo();
         Inheritance.Program.RunDemo();
         StormAnonymousGroups.Program.RunDemo();
+        Namespaces.Program.RunDemo();
     }
 }

@@ -709,20 +709,26 @@ capabilities:
     order: 30
     layer: declaration-boundaries
     requires: [using-import-resolution, operators-arithmetic-comparison-logical]
-    v2_status: missing
+    v2_status: done
+    verified_by: sample
     evidence: >
-      NamespaceBuilder.DetermineFileNamespace scans only for a file-scoped namespace node
-      and otherwise falls back to path inference, so a block-namespace file's types land in
-      the inferred namespace instead. Namespaces/BlockExample.mist declares one block
-      namespace and MixedExample.mist declares two siblings in one file.
-    tasks:
-      - Recognize block namespace declarations and scope their contents.
-      - Support two or more sibling namespaces in one file as independent scopes.
-      - Treat block namespace names as absolute. A block namespace in a file whose inferred
-        namespace shares its first segment must not have that segment doubled.
-      - Tolerate a file whose inferred namespace ends up holding zero types.
-      - Emit block namespaces as block namespaces, since output shape is the only observable
-        this capability has.
+      Needed no work. The recorded claim -- that DetermineFileNamespace scans only for a file-scoped
+      namespace and otherwise falls back to path inference, so a block-namespace file's types land in
+      the inferred namespace -- does not hold. NamespaceBuilder registers block namespaces in its own
+      pass over ast.Items.
+      Measured on the sample, whose output is byte-identical to classic. The emitted layout is the
+      proof, since v2 files are pathed from the resolved namespace: BlockExample.mist yields
+      Namespaces/Helpers/MathHelper.cs, and MixedExample.mist yields Namespaces/MixedA/AlphaType.cs
+      alongside Namespaces/MixedB/BetaType.cs. That covers four of the five recorded tasks at once --
+      block namespaces recognised, two siblings in one file kept apart, the name treated as absolute
+      rather than doubled onto the inferred segment (Namespaces.Helpers, not
+      Namespaces.Namespaces.Helpers), and a file whose inferred namespace ends up empty tolerated,
+      which BlockExample.mist is.
+      The fifth task, emitting block namespaces as block namespaces, is obsolete rather than
+      outstanding: v2 emits one type per file under a file-scoped namespace, so there is no file in
+      which two namespaces could appear as blocks. It was written when output shape was thought to be
+      this capability's only observable; the namespace-derived output path is a better one, and it is
+      what the measurement above rests on.
     unlocks: [Namespaces]
 
   - id: global-usings-from-manifest

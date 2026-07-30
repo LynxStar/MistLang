@@ -64,6 +64,18 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "A type named '{0}' already exists in namespace '{1}'.");
 
+    /// <summary>
+    /// A name in expression position resolved to nothing in any reachable scope. Covers a misspelling,
+    /// a name not in scope, and an instance member named from a static context -- the last of which is
+    /// excluded from the lookup rather than matched and rejected, so it arrives here as an ordinary
+    /// miss.
+    /// </summary>
+    public static readonly DiagnosticDescriptor UnresolvedIdentifier = new(
+        new DiagnosticId("MIST_PM_UNRESOLVED_IDENTIFIER"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "The name '{0}' could not be found in this scope.");
+
     /// <summary>A type reference could not be resolved in any reachable scope.</summary>
     public static readonly DiagnosticDescriptor UnresolvedType = new(
         new DiagnosticId("MIST_PM_UNRESOLVED_TYPE"),

@@ -50,7 +50,7 @@ internal static class ExpressionBinder
             FalseLiteralExpressionPrimaryNode falseLit => LiteralBinder.BindBoolLiteral(falseLit, false, context),
             ArrayLiteralExpressionPrimaryNode arrayLiteral => LiteralBinder.BindArrayLiteral(arrayLiteral, ctx, context),
 
-            IdentifierExpressionPrimaryNode identifier => IdentifierBinder.BindIdentifier(identifier, ctx),
+            IdentifierExpressionPrimaryNode identifier => IdentifierBinder.BindIdentifier(identifier, ctx, context),
 
             ParenthesizedExpressionPrimaryNode paren => BindExpression(paren.Inner, ctx, context),
             ArrayCreationExpressionPrimaryNode arrayCreation => BindArrayCreation(arrayCreation, ctx, context),

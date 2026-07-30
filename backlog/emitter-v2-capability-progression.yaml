@@ -536,10 +536,10 @@ capabilities:
       an INSTANCE constructor, and read from the static method GetTotalCreated, and the
       printed total is correct across two instances. The staticness rule is now real rather
       than accidental -- MethodScope narrows the lookup, so a bare-name INSTANCE field read
-      inside a static method does NOT resolve. Verified on a scratch program. Still partial
-      because the failure is silent: the read becomes an UnresolvedExpression, emits as
-      `return /* unsupported: UnresolvedExpression */;` and surfaces as a Roslyn error on the
-      generated file. See static-context-checking.
+      inside a static method does NOT resolve. Verified on a scratch program, and the miss now
+      reports MIST_PM_UNRESOLVED_IDENTIFIER against the Mist source instead of reaching the
+      emitter -- see static-context-checking. Still partial only for the qualified receiver
+      below.
     tasks:
       - Emit a qualified receiver for field references -- this for instance fields, the
         declaring type for statics -- instead of the bare name.
@@ -557,28 +557,26 @@ capabilities:
       declaring type, so an instance member is not a CANDIDATE for a bare name inside a static
       member. `this` in a static member reports MIST_PM_THIS_IN_STATIC, read off
       Scope.EnclosingMethodScope. Static fields still resolve, as intended.
-      Partial because the instance-member case is rejected by omission rather than by
-      diagnostic: the name simply does not resolve, and an unresolved identifier produces no
-      Mist diagnostic at all today, so the user sees a C# error instead. Measured on two
-      scratch programs -- a bare instance field read in a static method emits
-      `/* unsupported: UnresolvedExpression */` and reports "An object of a type convertible
-      to 'int' is required"; an ordinary misspelled local reports "Expected expression", where
-      classic reports MIST_UNDEFINED_IDENTIFIER with a line and column. Both errors name the
-      generated .cs file, so there is no path back to the Mist source.
-      A reported error now stops the build, so MIST_PM_THIS_IN_STATIC is the only thing a user
-      sees for that program rather than being followed by a Roslyn complaint about generated
-      code. ExperimentalPipeline gates on the principle that a gate belongs between a producer
-      and its consumer, not between peers -- loading, lexing and parsing produce the ASTs, so
-      Stage 4 does not run at all if they failed; Stages 4 and 5 are peers reading one model, so
-      both run and are reported together; and emission gates twice, once on that combined result
-      and once between writing the C# and invoking Roslyn. That last one is why the remaining
-      task below is now the whole of the gap, rather than being compounded by a second error
-      nobody can act on.
+      The instance-member case is rejected by omission rather than by a dedicated check -- the
+      name is not a candidate, so it comes back a miss -- and IdentifierBinder now reports that
+      miss as MIST_PM_UNRESOLVED_IDENTIFIER and binds ErrorExpression. Measured on one scratch
+      program carrying both shapes: a bare instance field read in a static method reports at
+      Program.mist(12,16) and an ordinary misspelling at Program.mist(22,36). Reporting at
+      Stage 4 means the Stage 4/5 gate stops the build before emission, so no out/ directory is
+      produced at all.
+      v2 is ahead of classic on both. Classic reports the misspelling TWICE and, on the
+      static-context read in isolation, reports only Roslyn's "An object reference is required
+      for the non-static field" against out/Program.cs -- no Mist location.
+      NotFoundResult is matched on its own rather than folded into IdentifierBinder's
+      fallthrough, which still covers results the binder cannot represent yet, a bare enum
+      variant among them. Those mean the compiler is unfinished and must stay silent;
+      only this one means the program is wrong.
+      Still partial: an AmbiguousResult in expression position remains unreported, so it falls
+      to the sentinel and is described as an unsupported expression rather than an ambiguity.
     tasks:
-      - Report a Mist diagnostic for an unresolved identifier, which turns this case (and
-        every other misspelled name) into a Mist error rather than a Roslyn one. Until then an
-        unresolved name reports nothing, so there is no error for the gate to catch and
-        emission proceeds as before.
+      - Report an ambiguous name in expression position. ScopeResolver.ResolveNamedType already
+        reports MIST_PM_AMBIGUOUS_TYPE for the type-position equivalent, so only the expression
+        path is missing, and its wording is type-specific rather than reusable as-is.
     unlocks: []
 
   - id: member-before-namespace-precedence

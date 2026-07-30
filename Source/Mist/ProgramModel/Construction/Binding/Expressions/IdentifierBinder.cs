@@ -1,3 +1,4 @@
+using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Scopes;
@@ -12,7 +13,7 @@ namespace Mist.ProgramModel.Construction.Binding.Expressions;
 /// </summary>
 internal static class IdentifierBinder
 {
-    internal static Expression BindIdentifier(IdentifierExpressionPrimaryNode node, BindingContext ctx)
+    internal static Expression BindIdentifier(IdentifierExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
     {
         var name = node.Name.Lexeme;
 
@@ -34,7 +35,22 @@ internal static class IdentifierBinder
             // program is fine, the binder is not finished.
             PropertyResult => new UnresolvedExpression(node),
 
+            // Matched on its own rather than folded into the fallthrough below, which still covers
+            // results the binder cannot represent yet -- an enum variant named bare, among them.
+            // Those are the compiler being unfinished and must stay silent; this one is the program
+            // being wrong.
+            NotFoundResult => ReportUnresolved(node, name, context),
+
             _ => new UnresolvedExpression(node),
         };
+    }
+
+    private static Expression ReportUnresolved(IdentifierExpressionPrimaryNode node, string name, BuilderContext context)
+    {
+        context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnresolvedIdentifier, node, null, name);
+
+        // ErrorExpression, not UnresolvedExpression: the name will not resolve on a later pass, and
+        // the emitter must not report a second time for the same cause.
+        return new ErrorExpression(node);
     }
 }

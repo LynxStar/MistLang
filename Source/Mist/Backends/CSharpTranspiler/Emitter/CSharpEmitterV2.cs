@@ -1,6 +1,7 @@
 using Mist.Common.Diagnostics;
 using Mist.Driver.Contracts;
 using Mist.ProgramModel.Contracts;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
@@ -58,13 +59,14 @@ internal sealed class CSharpEmitterV2
 
         var emittedFiles = new List<string>();
 
-        // Emit each source type as a separate .cs file.
+        // Emit each source type as a separate .cs file. Standard library types are
+        // provided by the runtime and must not be emitted.
         var sourceTypes = programModel
             .TypesByFQN
             .Values
-            .Where(t => t.Assembly.HasMistSource)
-            .OfType<ConcreteType>()
-            .Where(t => !t.IsIntrinsic)
+            .Where(t => t.Assembly.HasMistSource && t.Assembly.Kind != MistAssemblyKind.Standard)
+            .OfType<MemberType>()
+            .Where(t => t is not ConcreteType { IsIntrinsic: true })
             ;
 
         foreach(var memberType in sourceTypes)

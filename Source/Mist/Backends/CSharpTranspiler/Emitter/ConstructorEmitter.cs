@@ -16,8 +16,15 @@ internal static class ConstructorEmitter
         var parameters = ParameterEmitter.Emit(constructor.ParametersList);
 
         // The name comes from the declaring type rather than the constructor, so it matches
-        // whatever the type was emitted as.
-        writer.Write($"{modifiers}{declaringType.Name}({parameters})");
+        // whatever the type was emitted as. Strip the arity suffix for generic types.
+        var name = declaringType.Name;
+        var arityIndex = name.IndexOf('<');
+        if(arityIndex >= 0)
+        {
+            name = name[..arityIndex];
+        }
+
+        writer.Write($"{modifiers}{name}({parameters})");
 
         if(constructor.ChainKind != ConstructorChainKind.None)
         {

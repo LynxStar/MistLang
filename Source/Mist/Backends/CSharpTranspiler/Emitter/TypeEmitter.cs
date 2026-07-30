@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model.Enums;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
@@ -24,10 +25,17 @@ internal static class TypeEmitter
         writer.WriteLine($"namespace {type.NamespaceName};");
         writer.WriteBlankLine();
 
-        var typeKeyword = type is StructType ? "struct" : "class";
+        var typeKeyword = type switch
+        {
+            AbstractType => "interface",
+            StructType => "struct",
+            ClassType => "class",
+            _ => throw new InvalidOperationException($"ICE: unexpected MemberType kind '{type.GetType().Name}' in TypeEmitter"),
+        };
         var accessibility = type.Modifiers.Accessibility == Accessibility.Public ? "public " : "";
+        var typeName = EmitTypeName(type);
 
-        writer.WriteLine($"{accessibility}{typeKeyword} {type.Name}{EmitBaseList(type)}");
+        writer.WriteLine($"{accessibility}{typeKeyword} {typeName}{EmitBaseList(type)}");
         using(writer.Block())
         {
             var concrete = type as ConcreteType;
@@ -52,7 +60,14 @@ internal static class TypeEmitter
             foreach(var method in type.MethodsList)
             {
                 SeparateMember(writer, ref anyEmitted);
-                MethodEmitter.Emit(method, writer, diagnostics);
+                if(type is AbstractType)
+                {
+                    EmitInterfaceMethod(method, writer);
+                }
+                else
+                {
+                    MethodEmitter.Emit(method, writer, diagnostics);
+                }
             }
         }
 
@@ -101,12 +116,66 @@ internal static class TypeEmitter
     }
 
     /// <summary>
+    /// Interface methods are bodiless declarations terminated by a semicolon, with no
+    /// accessibility modifiers (C# interface members are implicitly public).
+    /// </summary>
+    private static void EmitInterfaceMethod(Method method, CSharpWriter writer)
+    {
+        var returnType = TypeNameEmitter.Emit(method.ReturnType);
+        var parameters = ParameterEmitter.Emit(method.ParametersList);
+        writer.WriteLine($"{returnType} {method.Name}({parameters});");
+    }
+
+    /// <summary>
     /// Computes the relative file path for a type based on its namespace.
     /// E.g., namespace "Simpliest" with type "Program" -> "Simpliest/Program.cs"
+    /// Generic types include their arity to avoid collisions when the same base name
+    /// exists at multiple arities: "GenericBox" vs "GenericBox`1" vs "GenericBox`2".
     /// </summary>
     public static string GetRelativePath(MemberType type)
     {
         var namespacePath = type.NamespaceName.Replace('.', Path.DirectorySeparatorChar);
-        return Path.Combine(namespacePath, $"{type.Name}.cs");
+        return Path.Combine(namespacePath, $"{FileName(type)}.cs");
+    }
+
+    /// <summary>
+    /// The file-safe name for a type. Non-generic types use their bare name.
+    /// Generic types append a backtick and arity count to disambiguate:
+    /// <c>GenericBox`1</c>, <c>GenericBox`2</c>.
+    /// </summary>
+    private static string FileName(MemberType type)
+    {
+        if(type.TypeParametersList.Count == 0)
+        {
+            return type.Name;
+        }
+
+        return $"{CleanName(type)}`{type.TypeParametersList.Count}";
+    }
+
+    /// <summary>
+    /// The declared name with type parameter names appended. A non-generic type
+    /// returns its bare name; a generic one returns e.g. <c>GenericBox&lt;T&gt;</c>.
+    /// </summary>
+    private static string EmitTypeName(MemberType type)
+    {
+        if(type.TypeParametersList.Count == 0)
+        {
+            return type.Name;
+        }
+
+        var baseName = CleanName(type);
+        var typeParams = string.Join(", ", type.TypeParametersList.Select(tp => tp.Name));
+        return $"{baseName}<{typeParams}>";
+    }
+
+    /// <summary>
+    /// Strips the arity-bearing suffix (e.g., <c>GenericBox&lt;&gt;</c> → <c>GenericBox</c>).
+    /// Returns the name unchanged for non-generic types.
+    /// </summary>
+    private static string CleanName(MemberType type)
+    {
+        var arityIndex = type.Name.IndexOf('<');
+        return arityIndex >= 0 ? type.Name[..arityIndex] : type.Name;
     }
 }

@@ -142,3 +142,8 @@ Done!
 [Multiple global usings] LOG: Product(Widget, $42)
 [Second instances] INFO: Product(Gadget, $99)
 === GlobalUsings Done ===
+--- Generics ---
+gbox=GenericBox(42)
+gbox.item=42
+gboxStr=GenericBox(hello)
+gc.item=99

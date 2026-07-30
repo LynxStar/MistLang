@@ -70,3 +70,17 @@ flakes:
       Optional and unrelated: the generator can still produce a duplicate named argument, which is
       invalid Mist that currently passes only because nothing rejects it. Constraining names to be
       distinct would remove a latent fragility, but it is not a fix for this entry.
+
+  - id: storm-memo-propagation-property
+    test: Storm.SourceGenerator.Tests.StormMemoPropagationPropertyTests.P3_MemoPropagation_RuleIR_IsMemo_MatchesSource
+    file: Test/Storm.SourceGenerator.Tests/StormMemoPropagationPropertyTests.cs
+    discovered: 2026-07-30
+    status: unreproduced
+    symptom: >
+      Failed once in a full-solution test run and passed on immediate isolated rerun.
+    cause: unknown
+    evidence: >
+      Failed during `dotnet test Mist.slnx --no-build` (all three test projects concurrent).
+      Immediate rerun with --filter passed. The change being tested (generic object creation
+      binding, TypeEmitter, ConstructorEmitter, CSharpEmitterV2) touches nothing in
+      Storm.SourceGenerator. The test file was unmodified in the working tree.

@@ -29,5 +29,6 @@ public class Program
         StormAnonymousGroups.Program.RunDemo();
         Namespaces.Program.RunDemo();
         GlobalUsings.Program.RunDemo();
+        GenericTypes.Program.RunDemo();
     }
 }

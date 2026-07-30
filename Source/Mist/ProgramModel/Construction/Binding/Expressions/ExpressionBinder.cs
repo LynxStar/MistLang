@@ -87,8 +87,8 @@ internal static class ExpressionBinder
     }
 
     /// <summary>
-    /// Binds non-generic <c>new T(...)</c> with no initializer block. The arguments are
-    /// bound but the constructor overload is not selected; see
+    /// Binds <c>new T(...)</c> and <c>new T&lt;...&gt;(...)</c> with no initializer block.
+    /// The arguments are bound but the constructor overload is not selected; see
     /// <see cref="NewExpression"/>.
     /// </summary>
     private static Expression BindObjectCreation(ObjectCreationExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
@@ -101,17 +101,27 @@ internal static class ExpressionBinder
             return new UnresolvedExpression(node);
         }
 
-        // Generic creation is not handled yet. The grammar hands the name and the type
-        // arguments over as separate fields, so resolving one needs the arity-bearing
-        // lookup and ConstructedType interning that ScopeResolver.ResolveNamed already
-        // does for type references.
-        if(node.TypeArgs is not null)
+        var typeName = QualifiedNameHelper.Build(node.Type);
+
+        IMistType type;
+        if(node.TypeArgs is { } typeArgList)
         {
-            return new UnresolvedExpression(node);
+            var arity = 1 + typeArgList.TypeArguments.Length;
+            var arityName = $"{typeName}<{new string(',', arity - 1)}>";
+            var definition = context.Resolver.ResolveNamedType(arityName, ctx.Scope, node);
+            if(definition is ErrorType)
+            {
+                return new ErrorExpression(node);
+            }
+
+            var typeArgs = context.Resolver.ResolveTypeArguments(typeArgList, ctx.Scope);
+            type = context.ProgramModel.TypeInterner.GetOrCreateConstructedType(definition, typeArgs);
+        }
+        else
+        {
+            type = context.Resolver.ResolveNamedType(typeName, ctx.Scope, node);
         }
 
-        var typeName = QualifiedNameHelper.Build(node.Type);
-        var type = context.Resolver.ResolveNamedType(typeName, ctx.Scope, node);
         var arguments = ArgumentBinder.Bind(node.Arguments, ctx, context);
 
         return new NewExpression(node, type, arguments);

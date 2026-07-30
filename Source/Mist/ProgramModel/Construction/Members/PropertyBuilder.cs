@@ -49,6 +49,8 @@ internal sealed class PropertyBuilder
         var type = scopeResolver.Resolve(exprProp.Type, host.Scope);
         var modifiers = ModifierBuilder.Build(exprProp, context.Diagnostics, host as MistType);
 
+        MemberNameValidation.Validate(name, host, exprProp, context.Diagnostics);
+
         if(modifiers.IsAsync)
         {
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AsyncOnlyOnMethods, exprProp, null);
@@ -75,6 +77,8 @@ internal sealed class PropertyBuilder
         var modifiers = ModifierBuilder.Build(blockProp, context.Diagnostics, host as MistType);
         var isAbstract = host.IsAbstract;
         var isExtension = host is ExtensionBlock;
+
+        MemberNameValidation.Validate(name, host, blockProp, context.Diagnostics);
 
         if(modifiers.IsAsync)
         {

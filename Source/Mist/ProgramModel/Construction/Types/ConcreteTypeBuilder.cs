@@ -131,6 +131,8 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
         var ownership = ResolveOwnership(fieldDecl.OwnershipSpecifier);
         var modifiers = ModifierBuilder.Build(fieldDecl, Context.Diagnostics, typeDef);
 
+        MemberNameValidation.Validate(name, typeDef.Name, fieldDecl, Context.Diagnostics);
+
         var initializer = fieldDecl.Initializer is { } initExpr ? new UnresolvedExpression(initExpr) : null;
 
         if(modifiers.IsAsync)

@@ -363,6 +363,17 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "Extension property '{0}' cannot use auto-accessors (get; / set;); extension properties have no backing field.");
 
+    /// <summary>
+    /// A member shares its enclosing type's name. Refused for two independent reasons: C# rejects
+    /// the declaration as CS0542, so it cannot be emitted; and inside the type the bare name shadows
+    /// the type, so a type position there resolves to the member instead.
+    /// </summary>
+    public static readonly DiagnosticDescriptor MemberNameMatchesEnclosingType = new(
+        new DiagnosticId("MIST_PM_MEMBER_NAME_IS_TYPE_NAME"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "A member cannot have the same name as its enclosing type '{0}'. Rename the member.");
+
     /// <summary>A local variable with the same name is already declared in this scope.</summary>
     public static readonly DiagnosticDescriptor DuplicateLocalVariable = new(
         new DiagnosticId("MIST_PM_DUPLICATE_LOCAL"),

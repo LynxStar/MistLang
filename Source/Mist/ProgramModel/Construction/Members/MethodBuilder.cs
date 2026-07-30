@@ -13,15 +13,18 @@ namespace Mist.ProgramModel.Construction.Members;
 /// </summary>
 internal sealed class MethodBuilder
 {
+    private readonly BuilderContext context;
     private readonly ScopeResolver scopeResolver;
     private readonly DelegateResolver delegateResolver;
     private readonly ConstraintResolver constraintResolver;
 
     public MethodBuilder(
+        BuilderContext context,
         ScopeResolver scopeResolver,
         DelegateResolver delegateResolver,
         ConstraintResolver constraintResolver)
     {
+        this.context = context;
         this.scopeResolver = scopeResolver;
         this.delegateResolver = delegateResolver;
         this.constraintResolver = constraintResolver;
@@ -33,6 +36,8 @@ internal sealed class MethodBuilder
     public void Resolve(MethodDeclarationNode methodDecl, IMethodHost host)
     {
         var name = methodDecl.Name.Lexeme;
+
+        MemberNameValidation.Validate(name, host, methodDecl, context.Diagnostics);
 
         // Every method gets its own scope (child of the host's scope), holding its type
         // parameters. Its staticness lives here too: it is the single point at which a lookup

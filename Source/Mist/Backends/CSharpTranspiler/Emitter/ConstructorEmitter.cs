@@ -41,19 +41,19 @@ internal static class ConstructorEmitter
 
     private static string ResolveModifiers(Constructor constructor, MemberType declaringType)
     {
-        
+
         if(constructor.Modifiers.IsStatic)
         {
             return "static ";
         }
 
-        
+
         var accessibility = declaringType is StructType && constructor.ParametersList.Count == 0
             ? Accessibility.Public
             : constructor.Modifiers.Accessibility
             ;
 
-        
+
         return MemberModifierEmitter.Emit(new MemberModifiers { Accessibility = accessibility });
     }
 }

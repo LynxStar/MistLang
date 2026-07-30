@@ -1,6 +1,7 @@
 public struct Void
 {
-    public static Void Void { get; } = new Void();
+    
+    public static Void Instance { get; } = new Void();
 
     private Void() { }
 

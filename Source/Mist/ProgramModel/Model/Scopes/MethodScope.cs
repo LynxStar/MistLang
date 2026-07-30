@@ -17,8 +17,8 @@ internal sealed class MethodScope(Scope? parent) : MemberScope(parent)
     public bool IsStatic { get; internal set; }
 
     /// <summary>
-    /// A static member is inside its type but has no instance of it, so it crosses the same
-    /// boundary a nested type does.
+    /// A static member is inside its type but holds no instance of it, so it reaches that type the
+    /// same way a lookup from outside would.
     /// </summary>
     internal override LookupResult Lookup(LookupRequest request)
     {
@@ -28,7 +28,7 @@ internal sealed class MethodScope(Scope? parent) : MemberScope(parent)
             return self;
         }
 
-        var outward = IsStatic ? request.CrossTypeBoundary() : request;
+        var outward = IsStatic ? request.WithoutReceiver() : request;
 
         return Parent?.Lookup(outward) ?? new NotFoundResult();
     }

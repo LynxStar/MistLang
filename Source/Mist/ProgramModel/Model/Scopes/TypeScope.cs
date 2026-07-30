@@ -25,7 +25,7 @@ internal sealed class TypeScope(Scope? parent, MistType type) : Scope(parent)
             return self;
         }
 
-        return Parent?.Lookup(request.CrossTypeBoundary()) ?? new NotFoundResult();
+        return Parent?.Lookup(request.WithoutReceiver()) ?? new NotFoundResult();
     }
 
     /// <summary>

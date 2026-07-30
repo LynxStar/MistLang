@@ -31,11 +31,30 @@ internal readonly record struct LookupRequest(
     }
 
     /// <summary>
-    /// The request as seen one level further out, having left a type behind. Instance members fall
-    /// away because no receiver for that type exists out here; static members need none.
+    /// The request with the enclosing type's receiver taken away. Instance members fall out of
+    /// consideration because reading one needs an instance; static members stay because they do not.
+    /// <para>
+    /// Applied wherever a lookup passes a point at which no receiver of the enclosing type is to be
+    /// had. That is not always the type's lexical edge: travelling OUT of a type reaches code with no
+    /// instance of it (<see cref="TypeScope"/>), but so does reaching the enclosing type from INSIDE
+    /// a member that holds no instance either -- <see cref="MethodScope"/> when static, and
+    /// <see cref="InitializerScope"/> always, since an initializer runs before any constructor body.
+    /// </para>
+    /// <para>
+    /// Only ever NARROWS. A type-position request (<see cref="MemberVisibility.None"/>) travels
+    /// through unchanged: it admits no member at all, so it has no receiver to lose, and moving it to
+    /// <see cref="MemberVisibility.StaticOnly"/> would widen it into admitting static ones -- which
+    /// would let a static member sharing a type's name mask that type from a type position that has
+    /// to reach past the enclosing type to find it.
+    /// </para>
     /// </summary>
-    public LookupRequest CrossTypeBoundary()
+    public LookupRequest WithoutReceiver()
     {
+        if(Visibility == MemberVisibility.None)
+        {
+            return this;
+        }
+
         return this with { Visibility = MemberVisibility.StaticOnly };
     }
 

@@ -136,6 +136,11 @@ public class Program
         Console.WriteLine($"  Temperature: {f.Describe()}");
     }
 
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
     public static void RunDemo()
     {
         Console.WriteLine("=== Cast Operators Sample ===");

@@ -6,6 +6,11 @@ namespace VoidType;
 
 public class Program
 {
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
     public static void RunDemo()
     {
         VoidDemo.RunDemo();

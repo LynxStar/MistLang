@@ -12,6 +12,11 @@ public class Program
         return $"{shape.Describe()} has area {shape.Area()}";
     }
 
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
     public static void RunDemo()
     {
         // 25. Abstract types: declaration, implementation, polymorphic dispatch

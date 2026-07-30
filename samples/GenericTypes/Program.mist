@@ -6,6 +6,11 @@ namespace GenericTypes;
 
 public class Program
 {
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
     public static void RunDemo()
     {
         // 27. Generics: generic class, generic abstract type, constructed generic types

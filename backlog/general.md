@@ -216,3 +216,46 @@ Option 1 is the strongest guarantee (misalignment is structurally impossible). O
 3. Accept the warning with a comment in the grammar explaining why it's safe.
 
 **Context:** Introduced by the grammar-type-declaration-unification spec (task 1.8), which moved `ModifiedAssociatedTypeSlotDeclaration` from `AbstractMemberDeclaration` (now deleted) into the unified `MemberDeclaration` rule.
+
+---
+
+## 🟡 MIST_TC_0015 / MIST_TC_0016 reach the user with unformatted `{0}` placeholders, and both fire at once
+
+**Severity: medium** — two static/instance access diagnostics in the classic pipeline are reported without substituting their message arguments, so the user sees a literal `'{0}'` where the member name belongs. The same program also triggers both at once, and they contradict each other.
+
+**Verified empirically** — this program, on the classic pipeline:
+
+```mist
+public class Outer
+{
+    public static int Shared = 7;
+
+    public class Inner
+    {
+        public static int Read()
+        {
+            return Shared;
+        }
+    }
+}
+// ... Outer.Inner.Read() at the call site
+```
+
+reports:
+
+```
+Program.mist(22,40): error MIST_TC_0016: Instance member '{0}' cannot be accessed via a type name
+Program.mist(22,46): error MIST_TC_0015: Static member '{0}' cannot be accessed via an instance
+```
+
+Two separate defects in one output:
+
+1. **Unformatted placeholders.** Neither message had its arguments applied. `DiagnosticBagExtensions.ReportAtNode` only calls `string.Format` when `args.Length > 0`, so a call site that omits the arguments emits the template verbatim. Whatever reports these two passes none.
+2. **Contradictory pair.** `Read` is a static method reached through a type name, which is correct usage. One of the two diagnostics is wrong about what it is looking at, and arguably both are — the real problem in that program is reaching a nested type's member at all.
+
+**Why this matters:** a diagnostic that prints `{0}` tells the user nothing about their own code, and a contradictory pair leaves them no way to work out which one to act on. Both are in the shipping pipeline rather than the experimental one.
+
+**Action:**
+1. Find the report sites for `MIST_TC_0015` and `MIST_TC_0016` and pass the member name.
+2. Work out why both fire for one access, and which is correct for a static member reached through a nested type name.
+3. Consider whether `ReportAtNode` should fail loudly when a template contains `{0}` and no arguments are supplied, so the next instance of this cannot reach a user silently.

@@ -1367,6 +1367,13 @@ capabilities:
       goes four levels deep and nests inside a generic parent, a struct and an abstract
       type.
     tasks:
+      - >
+        Resolve a member reached through a nested type name. `Outer.Inner.Read()` reports
+        MIST_PM_UNRESOLVED_MEMBER: 'Inner' has no member named 'Read' -- so qualification arrives at
+        the nested type and then finds nothing on it. Measured on a scratch program with a static
+        method on a nested class. This blocks reaching the bare-name field emission gap recorded on
+        implicit-instance-field-access (order 16), whose only stated reproduction is a nested type
+        reading an enclosing static; that reproduction cannot be constructed until this resolves.
       - Emit nested types in place rather than hoisting them.
       - Let a nested type see the enclosing type's type parameters through the scope chain
         without redeclaring them.

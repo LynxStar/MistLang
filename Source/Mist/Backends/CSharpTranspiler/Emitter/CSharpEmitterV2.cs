@@ -3,6 +3,7 @@ using Mist.Driver.Contracts;
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Types;
+using static Mist.ProgramModel.Construction.Types.TypeBuilder;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
@@ -17,7 +18,10 @@ internal sealed class CSharpEmitterV2
     private readonly CompilerOptions options;
     private readonly DiagnosticBag diagnostics;
 
-    public CSharpEmitterV2(IProgramModel programModel, CompilerOptions options, DiagnosticBag diagnostics)
+    public CSharpEmitterV2(
+        IProgramModel programModel,
+        CompilerOptions options,
+        DiagnosticBag diagnostics)
     {
         this.programModel = programModel;
         this.options = options;
@@ -41,13 +45,12 @@ internal sealed class CSharpEmitterV2
     /// </summary>
     public CompilerResult Emit()
     {
-        var entryPoint = programModel.SelfAssembly?.EntryPoint;
+        var isTopLevelEntry = options.EntryPoint == "top-level";
+        var entryPoint = isTopLevelEntry ? null : programModel.SelfAssembly?.EntryPoint;
 
-        // An executable with no entry point cannot be produced. Reported here as a Mist
-        // error rather than left to Roslyn, because it is the emitter that cannot do its
-        // job and the Mist-level cause is clearer than the C# symptom. Duplicate entry
-        // points are caught earlier, during member resolution.
-        if(entryPoint is null && options.OutputType == ProjectOutputType.Executable)
+        // An executable with no entry point cannot be produced — unless the project uses
+        // top-level statements, in which case C# handles entry point selection itself.
+        if(entryPoint is null && !isTopLevelEntry && options.OutputType == ProjectOutputType.Executable)
         {
             diagnostics.Report(
                 BackendDiagnostics.MissingEntryPoint, default, options.ProjectName, (object?)options.ProjectName);
@@ -71,6 +74,12 @@ internal sealed class CSharpEmitterV2
 
         foreach(var memberType in sourceTypes)
         {
+            if(isTopLevelEntry && memberType.Name == TopLevelTypeName)
+            {
+                EmitTopLevelType(memberType, outputDir, emittedFiles);
+                continue;
+            }
+
             var relativePath = TypeEmitter.GetRelativePath(memberType);
             var fullPath = Path.Combine(outputDir, relativePath);
 
@@ -119,5 +128,39 @@ internal sealed class CSharpEmitterV2
         }
 
         return new CompilerResult(true, compileResult.PrimaryArtifactPath, diagnostics.ToImmutableArray());
+    }
+
+    private void EmitTopLevelType(MemberType type, string outputDir, List<string> emittedFiles)
+    {
+        var writer = new CSharpWriter();
+        writer.WriteLine("using System;");
+
+        // Emit a using for the project namespace so TLS code can reference types
+        // declared in the same project.
+        if(!string.IsNullOrEmpty(type.NamespaceName))
+        {
+            writer.WriteLine($"using {type.NamespaceName};");
+        }
+
+        writer.WriteBlankLine();
+
+        // Emit the Main body's statements directly as top-level statements.
+        var mainMethod = type.MethodsList.FirstOrDefault(m => m.Name == "Main");
+        if(mainMethod?.Body is not null)
+        {
+            BodyEmitter.EmitBlock(mainMethod.Body, writer, diagnostics);
+        }
+
+        var namespacePath = type.NamespaceName.Replace('.', Path.DirectorySeparatorChar);
+        var fullPath = Path.Combine(outputDir, namespacePath, "Program.cs");
+
+        var dir = Path.GetDirectoryName(fullPath);
+        if(dir is not null)
+        {
+            _ = Directory.CreateDirectory(dir);
+        }
+
+        File.WriteAllText(fullPath, writer.ToString());
+        emittedFiles.Add(fullPath);
     }
 }

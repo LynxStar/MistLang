@@ -109,7 +109,7 @@ public sealed class ProgramModelBuilder
         {
             switch(typeDef)
             {
-                case ConcreteType concrete:
+                case ConcreteType concrete when concrete.DeclarationNode is not null:
                     concreteTypeBuilder.Build(concrete);
                     break;
                 case AbstractType abstractDef:

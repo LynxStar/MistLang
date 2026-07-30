@@ -4,7 +4,10 @@ using Mist.Generated;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Construction.Scaffolding;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
+using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Types;
@@ -87,6 +90,18 @@ internal sealed class TypeBuilder
                     break;
             }
         }
+
+        // Synthesize a $TopLevel type for top-level statements so Phase 3 can bind them
+        // and the emitter can emit them as C# top-level statements.
+        var tlsStatements = ast.Items
+            .OfType<StatementItemTopLevelItemNode>()
+            .Select(s => s.Statement)
+            .ToImmutableArray();
+
+        if(!tlsStatements.IsEmpty)
+        {
+            SynthesizeTopLevelProgram(fileLevel, fileNamespace, tlsStatements);
+        }
     }
 
     /// <summary>
@@ -100,6 +115,49 @@ internal sealed class TypeBuilder
             fileScope.DeclareTopLevelType(typeDef.Name, typeDef);
         }
     }
+
+    /// <summary>
+    /// Synthesizes a <c>$TopLevel</c> class with a <c>Main</c> method wrapping the
+    /// file's top-level statements. Registered as the assembly's entry point so the
+    /// emitter can detect it and emit raw C# top-level statements.
+    /// </summary>
+    private void SynthesizeTopLevelProgram(
+        NamespaceScope fileLevel,
+        string fileNamespace,
+        ImmutableArray<StatementNode> statements)
+    {
+        var syntheticType = new ClassType(
+            TopLevelTypeName, fileNamespace, fileLevel, declaringType: null, declarationNode: null)
+        {
+            Assembly = currentAssembly,
+            Modifiers = new MemberModifiers { Accessibility = Accessibility.Public, IsStatic = true },
+        };
+
+        var voidType = context.Resolver.LookupWellKnown(WellKnownTypes.Void);
+        var stringType = context.Resolver.LookupWellKnown(WellKnownTypes.String);
+        var stringArrayType = context.Resolver.ConstructArray(stringType, null);
+        var syntheticBlock = new BlockNode { Statements = statements };
+
+        var argsParam = new Parameter("args", stringArrayType);
+        var mainMethod = new Method(
+            "Main",
+            voidType,
+            [argsParam],
+            new MemberModifiers { Accessibility = Accessibility.Public, IsStatic = true })
+        {
+            Body = new Block(syntheticBlock),
+            Scope = syntheticType.Scope,
+        };
+
+        syntheticType.MethodsList.Add(mainMethod);
+        _ = context.ProgramModel.RegisterType(syntheticType);
+    }
+
+    /// <summary>
+    /// The internal name for the synthesized top-level statement type. Chosen to be
+    /// invalid as a user-written identifier so it cannot collide with user code.
+    /// </summary>
+    internal const string TopLevelTypeName = "$TopLevel";
 
     /// <summary>
     /// Processes types inside a block namespace. Creates a namespace level for the block and

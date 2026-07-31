@@ -2,15 +2,15 @@ using Mist.Common.Diagnostics;
 using Mist.Driver.Contracts;
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
-using static Mist.ProgramModel.Construction.Types.TypeBuilder;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
 /// <summary>
-/// V2 C# emitter that consumes an <see cref="IProgramModel"/> and produces
-/// compilable C# source files organized by namespace, then compiles them
-/// into a DLL using <see cref="CSharpCompilationDriver"/>.
+/// V2 C# emitter that consumes an <see cref="IProgramModel"/> and produces one
+/// compilable C# source file per Mist source file, then compiles them into a DLL
+/// using <see cref="CSharpCompilationDriver"/>.
 /// </summary>
 internal sealed class CSharpEmitterV2
 {
@@ -29,8 +29,13 @@ internal sealed class CSharpEmitterV2
     }
 
     /// <summary>
-    /// Emits all types to disk and compiles the result.
-    /// Returns a <see cref="CompilerResult"/>.
+    /// Emits all compilation units to disk and compiles the result.
+    /// <para>
+    /// One C# file per Mist file, which is what preserves file scope: a file's using
+    /// directives reach its own types and nothing else, exactly as they do in the source.
+    /// Emitting per TYPE instead would either lose the usings or leak one file's imports
+    /// into another's.
+    /// </para>
     /// <para>
     /// Every assembly is emitted into a single CLR assembly, so a composed program contains
     /// one <c>Main</c> per project and Roslyn reports CS0017 unless told which to use. The
@@ -38,18 +43,19 @@ internal sealed class CSharpEmitterV2
     /// disambiguates. Once emission splits per assembly this becomes unnecessary; see
     /// <c>backlog/multi-project-emission.md</c>.
     /// </para>
-    /// <para>
-    /// Fails before emitting anything if an executable was requested and no entry point was
-    /// recorded.
-    /// </para>
     /// </summary>
     public CompilerResult Emit()
     {
         var isTopLevelEntry = options.EntryPoint == "top-level";
+
+        // A top-level-statement entry point is C#'s to find: the statements compile into a
+        // synthesized type whose name is not ours to predict, so naming one would be wrong.
         var entryPoint = isTopLevelEntry ? null : programModel.SelfAssembly?.EntryPoint;
 
-        // An executable with no entry point cannot be produced — unless the project uses
-        // top-level statements, in which case C# handles entry point selection itself.
+        // An executable with no entry point cannot be produced. Reported here as a Mist
+        // error rather than left to Roslyn, because it is the emitter that cannot do its
+        // job and the Mist-level cause is clearer than the C# symptom. Duplicate entry
+        // points are caught earlier, during member resolution.
         if(entryPoint is null && !isTopLevelEntry && options.OutputType == ProjectOutputType.Executable)
         {
             diagnostics.Report(
@@ -62,39 +68,21 @@ internal sealed class CSharpEmitterV2
 
         var emittedFiles = new List<string>();
 
-        // Emit each source type as a separate .cs file. Standard library types are
-        // provided by the runtime and must not be emitted.
-        var sourceTypes = programModel
-            .TypesByFQN
-            .Values
-            .Where(t => t.Assembly.HasMistSource && t.Assembly.Kind != MistAssemblyKind.Standard)
-            .OfType<MemberType>()
-            .Where(t => t is not ConcreteType { IsIntrinsic: true })
-            ;
-
-        foreach(var memberType in sourceTypes)
+        // The standard library is provided by the runtime, so its declarations are resolved
+        // against but never emitted.
+        foreach(var assembly in programModel.Assemblies)
         {
-            if(isTopLevelEntry && memberType.Name == TopLevelTypeName)
+            if(!assembly.HasMistSource || assembly.Kind == MistAssemblyKind.Standard)
             {
-                EmitTopLevelType(memberType, outputDir, emittedFiles);
                 continue;
             }
 
-            var relativePath = TypeEmitter.GetRelativePath(memberType);
-            var fullPath = Path.Combine(outputDir, relativePath);
-
-            var dir = Path.GetDirectoryName(fullPath);
-            if(dir is not null)
+            foreach(var unit in ((MistAssembly)assembly).CompilationUnits)
             {
-                _ = Directory.CreateDirectory(dir);
+                EmitCompilationUnit(unit, (MistAssembly)assembly, isTopLevelEntry, outputDir, emittedFiles);
             }
-
-            var source = TypeEmitter.Emit(memberType, diagnostics);
-            File.WriteAllText(fullPath, source);
-            emittedFiles.Add(fullPath);
         }
 
-        // Emit the .csproj file.
         var csprojContent = ProjectFileEmitter.Emit(options);
         var csprojPath = Path.Combine(outputDir, $"{options.ProjectName}.csproj");
         File.WriteAllText(csprojPath, csprojContent);
@@ -130,29 +118,58 @@ internal sealed class CSharpEmitterV2
         return new CompilerResult(true, compileResult.PrimaryArtifactPath, diagnostics.ToImmutableArray());
     }
 
-    private void EmitTopLevelType(MemberType type, string outputDir, List<string> emittedFiles)
+    /// <summary>
+    /// Emits a single compilation unit as one C# source file.
+    /// </summary>
+    private void EmitCompilationUnit(
+        ProgramModelCompilationUnit unit,
+        MistAssembly assembly,
+        bool isTopLevelEntry,
+        string outputDir,
+        List<string> emittedFiles)
     {
+        // An intrinsic's implementation is supplied by the backend, so a declaration for it
+        // would collide with the real one.
+        var emittableTypes = unit.Types
+            .Where(t => t is not ConcreteType { IsIntrinsic: true })
+            .ToList();
+
+        // A file that declares nothing emittable would produce a .cs holding only usings,
+        // which Roslyn accepts but which adds a file to the compilation for no reason.
+        if(emittableTypes.Count == 0 && !unit.HasTopLevelStatements)
+        {
+            return;
+        }
+
         var writer = new CSharpWriter();
-        writer.WriteLine("using System;");
 
-        // Emit a using for the project namespace so TLS code can reference types
-        // declared in the same project.
-        if(!string.IsNullOrEmpty(type.NamespaceName))
+        EmitUsings(unit, writer);
+
+        if(unit.HasTopLevelStatements && isTopLevelEntry)
         {
-            writer.WriteLine($"using {type.NamespaceName};");
+            EmitTopLevelStatements(unit, writer);
         }
 
-        writer.WriteBlankLine();
-
-        // Emit the Main body's statements directly as top-level statements.
-        var mainMethod = type.MethodsList.FirstOrDefault(m => m.Name == "Main");
-        if(mainMethod?.Body is not null)
+        if(emittableTypes.Count > 0)
         {
-            BodyEmitter.EmitBlock(mainMethod.Body, writer, diagnostics);
+            if(unit.HasTopLevelStatements && isTopLevelEntry)
+            {
+                writer.WriteBlankLine();
+            }
+
+            EmitFileTypes(emittableTypes, unit.Namespace, unit.HasTopLevelStatements && isTopLevelEntry, writer);
         }
 
-        var namespacePath = type.NamespaceName.Replace('.', Path.DirectorySeparatorChar);
-        var fullPath = Path.Combine(outputDir, namespacePath, "Program.cs");
+        // Determine output path: {outputDir}/{Assembly.Name}/{RelativePath}/{FileName}.cs
+        var fileName = DeriveOutputFileName(unit);
+        var pathSegments = new List<string> { outputDir, assembly.Name };
+        if(!string.IsNullOrEmpty(unit.RelativePath))
+        {
+            pathSegments.Add(unit.RelativePath);
+        }
+
+        pathSegments.Add(fileName);
+        var fullPath = Path.Combine([.. pathSegments]);
 
         var dir = Path.GetDirectoryName(fullPath);
         if(dir is not null)
@@ -162,5 +179,91 @@ internal sealed class CSharpEmitterV2
 
         File.WriteAllText(fullPath, writer.ToString());
         emittedFiles.Add(fullPath);
+    }
+
+    private static void EmitUsings(ProgramModelCompilationUnit unit, CSharpWriter writer)
+    {
+        // Unconditional because TypeNameEmitter projects the Standard namespace onto C#
+        // keywords and System types, so a file can reach System without naming it.
+        var usings = new HashSet<string>(StringComparer.Ordinal) { "System" };
+
+        foreach(var ns in unit.Usings)
+        {
+            // Standard is Mist's stdlib namespace and has no C# counterpart to import --
+            // its types arrive through the System projection above.
+            if(ns != "Standard")
+            {
+                _ = usings.Add(ns);
+            }
+        }
+
+        foreach(var ns in usings.OrderBy(n => n, StringComparer.Ordinal))
+        {
+            writer.WriteLine($"using {ns};");
+        }
+
+        writer.WriteBlankLine();
+    }
+
+    private void EmitTopLevelStatements(ProgramModelCompilationUnit unit, CSharpWriter writer)
+    {
+        // Emit a using for the file's namespace so TLS code can reference types
+        // declared in the same project without qualification.
+        if(!string.IsNullOrEmpty(unit.Namespace))
+        {
+            writer.WriteLine($"using {unit.Namespace};");
+            writer.WriteBlankLine();
+        }
+
+        if(unit.TopLevelMethod?.Body is not null)
+        {
+            BodyEmitter.EmitBlock(unit.TopLevelMethod.Body, writer, diagnostics);
+        }
+    }
+
+    private void EmitFileTypes(List<MemberType> types, string fileNamespace, bool hasTopLevelStatements, CSharpWriter writer)
+    {
+        if(hasTopLevelStatements)
+        {
+            // C# requires a file-scoped namespace to precede every other member, which the
+            // top-level statements already emitted violate. A block namespace has no such rule.
+            writer.WriteLine($"namespace {fileNamespace}");
+            using(writer.Block())
+            {
+                var first = true;
+                foreach(var type in types)
+                {
+                    if(!first)
+                    {
+                        writer.WriteBlankLine();
+                    }
+
+                    first = false;
+                    TypeEmitter.EmitTypeBody(type, writer, diagnostics);
+                }
+            }
+        }
+        else
+        {
+            writer.WriteLine($"namespace {fileNamespace};");
+            writer.WriteBlankLine();
+
+            var first = true;
+            foreach(var type in types)
+            {
+                if(!first)
+                {
+                    writer.WriteBlankLine();
+                }
+
+                first = false;
+                TypeEmitter.EmitTypeBody(type, writer, diagnostics);
+            }
+        }
+    }
+
+    private static string DeriveOutputFileName(ProgramModelCompilationUnit unit)
+    {
+        return $"{Path.GetFileNameWithoutExtension(unit.SourcePath)}.cs";
     }
 }

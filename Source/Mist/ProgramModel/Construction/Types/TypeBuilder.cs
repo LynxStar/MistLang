@@ -32,6 +32,7 @@ internal sealed class TypeBuilder
     /// </para>
     /// </summary>
     private MistAssembly currentAssembly = MistAssembly.Synthetic;
+    private readonly List<MemberType> registeredTypes = [];
 
     public TypeBuilder(BuilderContext context)
     {
@@ -53,9 +54,10 @@ internal sealed class TypeBuilder
     /// The assembly owning this compilation unit, recorded on every type registered
     /// from it.
     /// </param>
-    public void Build(FileScope fileScope, string fileNamespace, CompilationUnitNode ast, MistAssembly assembly)
+    public TypeBuilderResult Build(FileScope fileScope, string fileNamespace, CompilationUnitNode ast, MistAssembly assembly)
     {
         currentAssembly = assembly;
+        registeredTypes.Clear();
 
         // The file's own namespace level, between its top-level items and the file scope. Block
         // namespaces deliberately do not get it as an ancestor: they are SIBLINGS of this
@@ -91,17 +93,20 @@ internal sealed class TypeBuilder
             }
         }
 
-        // Synthesize a $TopLevel type for top-level statements so Phase 3 can bind them
-        // and the emitter can emit them as C# top-level statements.
+        // After the item walk, so the statements are collected whatever order they were
+        // interleaved with the declarations in.
         var tlsStatements = ast.Items
             .OfType<StatementItemTopLevelItemNode>()
             .Select(s => s.Statement)
             .ToImmutableArray();
 
+        Method? topLevelMethod = null;
         if(!tlsStatements.IsEmpty)
         {
-            SynthesizeTopLevelProgram(fileLevel, fileNamespace, tlsStatements);
+            topLevelMethod = SynthesizeTopLevelProgram(fileLevel, fileNamespace, tlsStatements);
         }
+
+        return new TypeBuilderResult([.. registeredTypes], topLevelMethod);
     }
 
     /// <summary>
@@ -117,11 +122,22 @@ internal sealed class TypeBuilder
     }
 
     /// <summary>
-    /// Synthesizes a <c>$TopLevel</c> class with a <c>Main</c> method wrapping the
-    /// file's top-level statements. Registered as the assembly's entry point so the
-    /// emitter can detect it and emit raw C# top-level statements.
+    /// Wraps the file's top-level statements in a <c>Main</c> on a synthesized
+    /// <c>$TopLevel</c> class, and returns that method.
+    /// <para>
+    /// The class is registered even though it is never emitted as a declaration, because
+    /// registration is what puts it in Phase 3's walk -- and Phase 3 is what binds the
+    /// statements. It also owns the scope the method binds against, which a bare method
+    /// would have nowhere to get.
+    /// </para>
+    /// <para>
+    /// Deliberately does NOT claim the assembly's entry point. A declared <c>Main</c>
+    /// elsewhere in the project is still a valid method and must still be recorded, so
+    /// choosing between the two is the emitter's, decided from <c>entry_point</c> in
+    /// <c>mist.toml</c>.
+    /// </para>
     /// </summary>
-    private void SynthesizeTopLevelProgram(
+    private Method SynthesizeTopLevelProgram(
         NamespaceScope fileLevel,
         string fileNamespace,
         ImmutableArray<StatementNode> statements)
@@ -151,13 +167,15 @@ internal sealed class TypeBuilder
 
         syntheticType.MethodsList.Add(mainMethod);
         _ = context.ProgramModel.RegisterType(syntheticType);
+
+        return mainMethod;
     }
 
     /// <summary>
-    /// The internal name for the synthesized top-level statement type. Chosen to be
-    /// invalid as a user-written identifier so it cannot collide with user code.
+    /// The name of the synthesized top-level statement type. The <c>$</c> makes it
+    /// unspellable as a Mist identifier, so it cannot collide with a declared type.
     /// </summary>
-    internal const string TopLevelTypeName = "$TopLevel";
+    private const string TopLevelTypeName = "$TopLevel";
 
     /// <summary>
     /// Processes types inside a block namespace. Creates a namespace level for the block and
@@ -331,7 +349,16 @@ internal sealed class TypeBuilder
         // If nested, add to the declaring type. That is also what makes it visible by simple name
         // inside that type, since the declaring type's scope reads NestedTypes rather than keeping
         // a table of its own.
-        declaringType?.NestedTypes.Add(typeDef);
+        if(declaringType is not null)
+        {
+            declaringType.NestedTypes.Add(typeDef);
+        }
+        else if(typeDef is MemberType memberType)
+        {
+            // Only the top level is collected: a nested type is emitted inside its declaring
+            // type's body, so listing it again would emit it twice.
+            registeredTypes.Add(memberType);
+        }
     }
 
     /// <summary>

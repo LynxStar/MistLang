@@ -38,6 +38,12 @@ public sealed class MistAssembly(
     /// </para>
     /// </summary>
     public IMistType? EntryPoint { get; internal set; }
+
+    /// <summary>
+    /// The source files (compilation units) belonging to this assembly, in processing
+    /// order. Populated during Stage 4 as each file is processed.
+    /// </summary>
+    internal List<ProgramModelCompilationUnit> CompilationUnits { get; } = [];
     /// <summary>
     /// The implicit usings every file in this assembly resolves through, from the project's
     /// <c>mist.toml</c>. Empty for the standard library, which has no mechanism to declare any, and

@@ -26,7 +26,8 @@ internal sealed class CompilationUnitBuilder
 
     /// <summary>
     /// Processes a compilation unit: creates the file scope, resolves namespaces
-    /// and imports, and registers type declarations.
+    /// and imports, registers type declarations, and stashes a
+    /// <see cref="ProgramModelCompilationUnit"/> on the assembly.
     /// Returns the file scope, or null if namespace validation produced fatal errors.
     /// </summary>
     public Scope? Build(CompilationUnit unit)
@@ -49,7 +50,21 @@ internal sealed class CompilationUnitBuilder
         }
 
         // Register type declarations.
-        typeBuilder.Build(fileScope, fileNamespace, ast, assembly);
+        var result = typeBuilder.Build(fileScope, fileNamespace, ast, assembly);
+
+        // Read off the scope AFTER namespaceBuilder ran, which is what populated the imports.
+        var relativePath = ComputeRelativePath(sourceText.Path, unit.ProjectFolder);
+        var modelUnit = new ProgramModelCompilationUnit
+        {
+            SourcePath = sourceText.Path,
+            RelativePath = relativePath,
+            Namespace = fileNamespace,
+            Usings = [.. fileScope.Imports],
+            HasTopLevelStatements = result.TopLevelMethod is not null,
+            TopLevelMethod = result.TopLevelMethod,
+        };
+        modelUnit.Types.AddRange(result.Types);
+        assembly.CompilationUnits.Add(modelUnit);
 
         return fileScope;
     }
@@ -86,5 +101,26 @@ internal sealed class CompilationUnitBuilder
             ?? throw new InvalidOperationException(
                 $"ICE: unit '{unit.Source.Path}' cites referenced project "
                 + $"'{unit.OriginProjectPath}', which is absent from the compilation's project list.");
+    }
+
+    /// <summary>
+    /// Computes the directory of the source file relative to the project root.
+    /// Returns empty string for files at the root.
+    /// </summary>
+    private static string ComputeRelativePath(string? sourcePath, string? projectFolder)
+    {
+        if(string.IsNullOrEmpty(sourcePath) || string.IsNullOrEmpty(projectFolder))
+        {
+            return "";
+        }
+
+        var fileDir = Path.GetDirectoryName(sourcePath);
+        if(string.IsNullOrEmpty(fileDir))
+        {
+            return "";
+        }
+
+        var relative = Path.GetRelativePath(projectFolder, fileDir);
+        return relative == "." ? "" : relative;
     }
 }

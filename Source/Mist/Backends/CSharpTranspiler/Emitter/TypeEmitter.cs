@@ -6,24 +6,18 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
 /// <summary>
-/// Emits a single type (class/struct) as a complete C# source file.
-/// Handles namespace declaration, type declaration, and method iteration.
+/// Emits one class, struct or abstract as a C# type declaration, with its fields,
+/// constructors and methods.
 /// </summary>
 internal static class TypeEmitter
 {
     /// <summary>
-    /// Emits a type to a C# source string. Returns the file content.
+    /// Emits one type declaration into an open file. The using directives and the namespace
+    /// belong to the file, not the type, so <see cref="CSharpEmitterV2"/> writes those once per
+    /// compilation unit and calls this for each type the unit declares.
     /// </summary>
-    public static string Emit(MemberType type, DiagnosticBag diagnostics)
+    public static void EmitTypeBody(MemberType type, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        var writer = new CSharpWriter();
-
-        // Always emit using System for access to Console, etc.
-        writer.WriteLine("using System;");
-        writer.WriteBlankLine();
-
-        writer.WriteLine($"namespace {type.NamespaceName};");
-        writer.WriteBlankLine();
 
         var typeKeyword = type switch
         {
@@ -70,8 +64,6 @@ internal static class TypeEmitter
                 }
             }
         }
-
-        return writer.ToString();
     }
 
     /// <summary>
@@ -127,35 +119,8 @@ internal static class TypeEmitter
     }
 
     /// <summary>
-    /// Computes the relative file path for a type based on its namespace.
-    /// E.g., namespace "Simpliest" with type "Program" -> "Simpliest/Program.cs"
-    /// Generic types include their arity to avoid collisions when the same base name
-    /// exists at multiple arities: "GenericBox" vs "GenericBox`1" vs "GenericBox`2".
-    /// </summary>
-    public static string GetRelativePath(MemberType type)
-    {
-        var namespacePath = type.NamespaceName.Replace('.', Path.DirectorySeparatorChar);
-        return Path.Combine(namespacePath, $"{FileName(type)}.cs");
-    }
-
-    /// <summary>
-    /// The file-safe name for a type. Non-generic types use their bare name.
-    /// Generic types append a backtick and arity count to disambiguate:
-    /// <c>GenericBox`1</c>, <c>GenericBox`2</c>.
-    /// </summary>
-    private static string FileName(MemberType type)
-    {
-        if(type.TypeParametersList.Count == 0)
-        {
-            return type.Name;
-        }
-
-        return $"{CleanName(type)}`{type.TypeParametersList.Count}";
-    }
-
-    /// <summary>
-    /// The declared name with type parameter names appended. A non-generic type
-    /// returns its bare name; a generic one returns e.g. <c>GenericBox&lt;T&gt;</c>.
+    /// The C# spelling of the declaration's name: <c>GenericBox&lt;T&gt;</c>, naming the
+    /// parameters that <see cref="CleanName"/> strips the placeholders for.
     /// </summary>
     private static string EmitTypeName(MemberType type)
     {
@@ -170,10 +135,16 @@ internal static class TypeEmitter
     }
 
     /// <summary>
-    /// Strips the arity-bearing suffix (e.g., <c>GenericBox&lt;&gt;</c> → <c>GenericBox</c>).
-    /// Returns the name unchanged for non-generic types.
+    /// The bare name, with any arity suffix removed: <c>GenericBox&lt;,&gt;</c> becomes
+    /// <c>GenericBox</c>.
+    /// <para>
+    /// A generic type's <see cref="MistType.Name"/> is the arity-bearing key it was registered
+    /// under, so that <c>Box&lt;T&gt;</c> and <c>Box&lt;T1, T2&gt;</c> can coexist in one scope.
+    /// That key is not a C# identifier, so nothing may emit it verbatim -- a declaration names
+    /// its parameters instead (<see cref="EmitTypeName"/>) and a constructor names neither.
+    /// </para>
     /// </summary>
-    private static string CleanName(MemberType type)
+    internal static string CleanName(MemberType type)
     {
         var arityIndex = type.Name.IndexOf('<');
         return arityIndex >= 0 ? type.Name[..arityIndex] : type.Name;

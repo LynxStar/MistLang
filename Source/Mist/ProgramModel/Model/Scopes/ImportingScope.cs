@@ -29,6 +29,11 @@ internal abstract class ImportingScope(Scope? parent, ProgramModel programModel,
     }
 
     /// <summary>
+    /// The namespace names brought into scope by using directives on this level.
+    /// </summary>
+    public IReadOnlyList<string> Imports => imports;
+
+    /// <summary>
     /// The types this level's usings bring in. Compared by identity, so two usings that reach the
     /// same type agree rather than conflict.
     /// </summary>

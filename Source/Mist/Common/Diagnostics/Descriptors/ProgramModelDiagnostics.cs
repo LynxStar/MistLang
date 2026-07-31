@@ -436,4 +436,14 @@ public static class ProgramModelDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
         "'{0}' declares an entry point, but '{1}' already declares one in the same assembly. A program can have only one entry point.");
+
+    /// <summary>
+    /// Two assemblies in the same compilation share a name. This makes output path
+    /// construction ambiguous — the emitter uses assembly name as a directory.
+    /// </summary>
+    public static readonly DiagnosticDescriptor DuplicateAssemblyName = new(
+        new DiagnosticId("MIST_PM_DUPLICATE_ASSEMBLY_NAME"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "Assembly name '{0}' is used by multiple projects in this compilation. Each referenced project must have a unique name.");
 }

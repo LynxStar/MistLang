@@ -70,6 +70,9 @@ public sealed class ProgramModelBuilder
                 project.Name, project.CanonicalTomlPath, project.GlobalUsings);
         }
 
+        // Validate that all assembly names are unique across the compilation.
+        ValidateUniqueAssemblyNames(programModel, diagnostics);
+
         var context = new BuilderContext(programModel, diagnostics, ambientProvider);
         var unitBuilder = new CompilationUnitBuilder(context);
 
@@ -182,6 +185,29 @@ public sealed class ProgramModelBuilder
         {
             property.Initializer = BodyBinder.BindInitializer(
                 property.Initializer, property.Type, memberType.Scope, context);
+        }
+    }
+
+    /// <summary>
+    /// Reports an error if two source-bearing assemblies share a name. The emitter uses
+    /// assembly name as a directory, so a collision would overwrite files silently.
+    /// </summary>
+    private static void ValidateUniqueAssemblyNames(Model.ProgramModel programModel, DiagnosticBag diagnostics)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach(var assembly in programModel.Assemblies)
+        {
+            if(!assembly.HasMistSource)
+            {
+                continue;
+            }
+
+            if(!seen.Add(assembly.Name))
+            {
+                diagnostics.Report(
+                    ProgramModelDiagnostics.DuplicateAssemblyName, default, "", assembly.Name);
+            }
         }
     }
 

@@ -152,8 +152,7 @@ internal sealed class BaseTypeResolver
         if(baseTypeRef.TypeArgs is { } typeArgList)
         {
             var arity = 1 + typeArgList.TypeArguments.Length;
-            var commas = new string(',', arity - 1);
-            var arityName = $"{name}<{commas}>";
+            var arityName = ScopeResolver.BuildArityName(name, arity);
 
             var definition = scopeResolver.ResolveNamedType(arityName, typeDef.Scope, baseTypeRef);
             if(definition is ErrorType)

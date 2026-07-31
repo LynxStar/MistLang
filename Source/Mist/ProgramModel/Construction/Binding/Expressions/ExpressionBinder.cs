@@ -107,7 +107,7 @@ internal static class ExpressionBinder
         if(node.TypeArgs is { } typeArgList)
         {
             var arity = 1 + typeArgList.TypeArguments.Length;
-            var arityName = $"{typeName}<{new string(',', arity - 1)}>";
+            var arityName = ScopeResolver.BuildArityName(typeName, arity);
             var definition = context.Resolver.ResolveNamedType(arityName, ctx.Scope, node);
             if(definition is ErrorType)
             {

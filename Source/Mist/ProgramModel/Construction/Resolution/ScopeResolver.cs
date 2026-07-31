@@ -251,7 +251,7 @@ internal sealed class ScopeResolver
     /// Builds the arity-bearing lookup name for a generic type reference.
     /// E.g., ("List", 1) → "List&lt;&gt;", ("Dict", 2) → "Dict&lt;,&gt;".
     /// </summary>
-    private static string BuildArityName(string baseName, int arity)
+    internal static string BuildArityName(string baseName, int arity)
     {
         var commas = new string(',', arity - 1);
         return $"{baseName}<{commas}>";

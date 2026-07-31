@@ -45,8 +45,7 @@ internal sealed class ConformanceBuilder
         if(decl.AbstractTypeArgs is { } typeArgList)
         {
             var arity = 1 + typeArgList.TypeArguments.Length;
-            var commas = new string(',', arity - 1);
-            var arityName = $"{abstractName}<{commas}>";
+            var arityName = ScopeResolver.BuildArityName(abstractName, arity);
 
             var definition = scopeResolver.ResolveNamedType(arityName, pending.Scope, decl);
             var typeArgs = scopeResolver.ResolveTypeArguments(typeArgList, pending.Scope);

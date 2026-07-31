@@ -438,8 +438,9 @@ public static class ProgramModelDiagnostics
         "'{0}' declares an entry point, but '{1}' already declares one in the same assembly. A program can have only one entry point.");
 
     /// <summary>
-    /// Two assemblies in the same compilation share a name. This makes output path
-    /// construction ambiguous — the emitter uses assembly name as a directory.
+    /// Two assemblies in the same compilation share a name. An assembly's name is how a Mist
+    /// program refers to it, so two of them sharing one leaves references between projects
+    /// ambiguous with no way for the user to disambiguate.
     /// </summary>
     public static readonly DiagnosticDescriptor DuplicateAssemblyName = new(
         new DiagnosticId("MIST_PM_DUPLICATE_ASSEMBLY_NAME"),

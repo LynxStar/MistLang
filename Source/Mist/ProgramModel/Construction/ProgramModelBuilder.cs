@@ -189,8 +189,10 @@ public sealed class ProgramModelBuilder
     }
 
     /// <summary>
-    /// Reports an error if two source-bearing assemblies share a name. The emitter uses
-    /// assembly name as a directory, so a collision would overwrite files silently.
+    /// Reports an error if two source-bearing assemblies share a name. Checked here rather than
+    /// in a backend because it is a property of the program, not of any target: an assembly name
+    /// is the handle a Mist program has on an assembly, so a duplicate is ambiguous however the
+    /// program is later emitted.
     /// </summary>
     private static void ValidateUniqueAssemblyNames(Model.ProgramModel programModel, DiagnosticBag diagnostics)
     {

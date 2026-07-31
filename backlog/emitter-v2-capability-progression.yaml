@@ -3038,18 +3038,34 @@ capabilities:
     order: 183
     layer: conversions-advanced
     requires: [struct-inheritance]
-    v2_status: missing
+    v2_status: partial
     evidence: >
-      Inherited fields flatten into the derived layout, base constructor chaining inlines
-      the assignments RECURSIVELY through every level, and a derived-to-base implicit
-      conversion is synthesized that copies only the base fields, applied at assignment,
-      argument and return positions and able to skip a level. Generic struct bases must
-      substitute before the layout forms.
+      Inherited fields and methods flatten into the derived struct, base constructor chaining
+      runs through every level, and a derived-to-base implicit conversion is synthesized that
+      copies only the base fields, applied at assignment, argument and return positions and
+      able to skip a level. Generic struct bases must substitute before the layout forms.
+
+      v2 emits all of this. Rather than inlining a base constructor's statements, it emits one
+      private __{Base}_ctor initializer per ancestor constructor and calls it, which keeps the
+      base body and its chain arguments emitting verbatim in terms of their own parameters.
+      Structs carry [StructLayout(Sequential)] and ancestor fields are laid out root-first, so
+      an ancestor's fields sit at the same offsets in the derived struct. Verified against the
+      classic pipeline: StructInheritance output is byte-identical apart from the residue below.
+
+      Not a struct-to-class lowering. Classic turns an inheriting struct into a class, which
+      changes allocation and dispatch cost, so v2 does not follow it.
     tasks:
-      - Flatten inherited METHODS too. The classic pipeline resolves them in the semantic
-        model but does not emit them, and StructInheritance routes around the gap.
-      - Recurse base-constructor inlining past one level. The sample re-assigns grandparent
-        fields by hand to work around it.
+      - Bind a member inherited from a GENERIC base. `ext.Value`, where `ExtendedContainer<int>`
+        extends `Container<int>`, reports MIST_PM_UNRESOLVED_MEMBER on 'ExtendedContainer<>' --
+        member lookup does not walk a constructed base's chain. This is stage 4, not the backend,
+        and is what keeps StructInheritance out of AllFeaturesV2.
+      - Prove generic substitution with a CONCRETE type argument, a struct extending
+        `Container<int>` rather than `Container<T>`. The substitution is implemented but no
+        sample reaches it.
+      - Copy a private or readonly ancestor field in the conversion operator. Refused with
+        MIST_BE_STRUCT_CONVERSION_FIELD rather than silently emitting a partial copy.
+      - Name a generic ancestor more than one level up by its own arguments rather than the
+        parent's. Correct only where the arguments pass straight through unchanged.
     unlocks: [AsOperator, StructInheritance]
 
   # ===================================================================

@@ -25,6 +25,7 @@ using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Backend;
+using CompilationUnit = Mist.Driver.Contracts.CompilationUnit;
 using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 
 namespace Mist.Tests.Integration;

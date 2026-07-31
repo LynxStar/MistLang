@@ -4,6 +4,7 @@ using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
+using CompilationUnit = Mist.ProgramModel.Model.CompilationUnit;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
@@ -122,7 +123,7 @@ internal sealed class CSharpEmitterV2
     /// Emits a single compilation unit as one C# source file.
     /// </summary>
     private void EmitCompilationUnit(
-        ProgramModelCompilationUnit unit,
+        CompilationUnit unit,
         MistAssembly assembly,
         bool isTopLevelEntry,
         string outputDir,
@@ -157,7 +158,7 @@ internal sealed class CSharpEmitterV2
                 writer.WriteBlankLine();
             }
 
-            EmitFileTypes(emittableTypes, unit.Namespace, unit.HasTopLevelStatements && isTopLevelEntry, writer);
+            EmitFileTypes(emittableTypes, unit.HasTopLevelStatements && isTopLevelEntry, writer);
         }
 
         // Determine output path: {outputDir}/{Assembly.Name}/{RelativePath}/{FileName}.cs
@@ -181,7 +182,7 @@ internal sealed class CSharpEmitterV2
         emittedFiles.Add(fullPath);
     }
 
-    private static void EmitUsings(ProgramModelCompilationUnit unit, CSharpWriter writer)
+    private static void EmitUsings(CompilationUnit unit, CSharpWriter writer)
     {
         // Unconditional because TypeNameEmitter projects the Standard namespace onto C#
         // keywords and System types, so a file can reach System without naming it.
@@ -205,13 +206,12 @@ internal sealed class CSharpEmitterV2
         writer.WriteBlankLine();
     }
 
-    private void EmitTopLevelStatements(ProgramModelCompilationUnit unit, CSharpWriter writer)
+    private void EmitTopLevelStatements(CompilationUnit unit, CSharpWriter writer)
     {
-        // Emit a using for the file's namespace so TLS code can reference types
-        // declared in the same project without qualification.
-        if(!string.IsNullOrEmpty(unit.Namespace))
+        var fileNamespace = unit.Types.FirstOrDefault()?.NamespaceName ?? "";
+        if(!string.IsNullOrEmpty(fileNamespace))
         {
-            writer.WriteLine($"using {unit.Namespace};");
+            writer.WriteLine($"using {fileNamespace};");
             writer.WriteBlankLine();
         }
 
@@ -221,8 +221,10 @@ internal sealed class CSharpEmitterV2
         }
     }
 
-    private void EmitFileTypes(List<MemberType> types, string fileNamespace, bool hasTopLevelStatements, CSharpWriter writer)
+    private void EmitFileTypes(List<MemberType> types, bool hasTopLevelStatements, CSharpWriter writer)
     {
+        var fileNamespace = types[0].NamespaceName;
+
         if(hasTopLevelStatements)
         {
             // C# requires a file-scoped namespace to precede every other member, which the
@@ -262,7 +264,7 @@ internal sealed class CSharpEmitterV2
         }
     }
 
-    private static string DeriveOutputFileName(ProgramModelCompilationUnit unit)
+    private static string DeriveOutputFileName(CompilationUnit unit)
     {
         return $"{Path.GetFileNameWithoutExtension(unit.SourcePath)}.cs";
     }

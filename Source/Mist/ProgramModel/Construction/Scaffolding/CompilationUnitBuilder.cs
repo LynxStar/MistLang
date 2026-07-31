@@ -3,6 +3,8 @@ using Mist.Generated;
 using Mist.ProgramModel.Construction.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Scopes;
+using DriverCompilationUnit = Mist.Driver.Contracts.CompilationUnit;
+using ModelCompilationUnit = Mist.ProgramModel.Model.CompilationUnit;
 
 namespace Mist.ProgramModel.Construction.Scaffolding;
 
@@ -27,10 +29,10 @@ internal sealed class CompilationUnitBuilder
     /// <summary>
     /// Processes a compilation unit: creates the file scope, resolves namespaces
     /// and imports, registers type declarations, and stashes a
-    /// <see cref="ProgramModelCompilationUnit"/> on the assembly.
+    /// <see cref="CompilationUnit"/> on the assembly.
     /// Returns the file scope, or null if namespace validation produced fatal errors.
     /// </summary>
-    public Scope? Build(CompilationUnit unit)
+    public Scope? Build(DriverCompilationUnit unit)
     {
         var ast = (CompilationUnitNode)unit.Ast!;
         var sourceText = unit.Source;
@@ -54,11 +56,10 @@ internal sealed class CompilationUnitBuilder
 
         // Read off the scope AFTER namespaceBuilder ran, which is what populated the imports.
         var relativePath = ComputeRelativePath(sourceText.Path, unit.ProjectFolder);
-        var modelUnit = new ProgramModelCompilationUnit
+        var modelUnit = new ModelCompilationUnit
         {
             SourcePath = sourceText.Path,
             RelativePath = relativePath,
-            Namespace = fileNamespace,
             Usings = [.. fileScope.Imports],
             HasTopLevelStatements = result.TopLevelMethod is not null,
             TopLevelMethod = result.TopLevelMethod,
@@ -75,7 +76,7 @@ internal sealed class CompilationUnitBuilder
     /// are the standard library, units with no origin project belong to the project being
     /// compiled, and the rest arrived through a reference.
     /// </summary>
-    private MistAssembly ResolveAssembly(CompilationUnit unit)
+    private MistAssembly ResolveAssembly(DriverCompilationUnit unit)
     {
         var programModel = context.ProgramModel;
 

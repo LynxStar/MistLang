@@ -5,17 +5,11 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramModel.Model;
 
 /// <summary>
-/// The program model's record of a single Mist source file, and the reason file scope
-/// outlives Stage 4. A <see cref="Scopes.FileScope"/> answers lookups while the model is
-/// being built and is then unreachable, so without this the emitter would have no way to
-/// know which types shared a file or which usings that file declared.
-/// <para>
-/// Named against <see cref="Driver.Contracts.CompilationUnit"/>, which describes the same
-/// file for the driver and carries its AST. Both survive the compilation; this one is the
-/// view reachable from <see cref="IProgramModel"/>, which is all the emitter is given.
-/// </para>
+/// The program model's record of a single Mist source file. Preserves file scope into
+/// emission: the file's using directives, its types in declaration order, and its
+/// top-level statements if any.
 /// </summary>
-internal sealed class ProgramModelCompilationUnit
+internal sealed class CompilationUnit
 {
     /// <summary>
     /// The path to the source file on disk. The emitted C# file takes its name from this,
@@ -29,11 +23,6 @@ internal sealed class ProgramModelCompilationUnit
     /// would collide two same-named files in different folders.
     /// </summary>
     public string RelativePath { get; init; } = "";
-
-    /// <summary>
-    /// The file's declared namespace (explicit or inferred).
-    /// </summary>
-    public string Namespace { get; init; } = "";
 
     /// <summary>
     /// The namespace names brought into scope by this file's own <c>using</c> directives.

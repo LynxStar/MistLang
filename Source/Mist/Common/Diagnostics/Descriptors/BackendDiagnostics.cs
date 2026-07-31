@@ -141,4 +141,30 @@ public static class BackendDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.Backend,
         "Parameter '{0}' is declared ref, which is not yet supported by the experimental emitter.");
+
+    /// <summary>
+    /// A struct and one of its ancestors declare a field of the same name. Legal Mist, because two
+    /// levels declaring a private field cannot see each other, but the C# backend flattens
+    /// inherited fields into one struct where the name can only resolve to one of them.
+    /// <para>
+    /// A backend that expresses struct inheritance natively has no such conflict, so this is a
+    /// limitation of this backend rather than of the language.
+    /// </para>
+    /// </summary>
+    public static readonly DiagnosticDescriptor StructInheritanceFieldCollision = new(
+        new DiagnosticId("MIST_BE_STRUCT_FIELD_COLLISION"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Backend,
+        "Field '{0}' is declared on both '{1}' and '{2}'. Inherited struct fields are flattened into the derived struct, so a name cannot be reused across the inheritance chain.");
+
+    /// <summary>
+    /// A derived-to-base struct conversion cannot copy one of the base's fields, because the field
+    /// is private to the base or is readonly. Emitting the conversion anyway would produce a base
+    /// value missing part of its state.
+    /// </summary>
+    public static readonly DiagnosticDescriptor StructConversionFieldInaccessible = new(
+        new DiagnosticId("MIST_BE_STRUCT_CONVERSION_FIELD"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Backend,
+        "Cannot emit the conversion from '{1}' to '{0}' because field '{2}' is private or readonly and cannot be copied.");
 }

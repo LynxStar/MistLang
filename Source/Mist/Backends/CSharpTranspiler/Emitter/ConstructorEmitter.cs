@@ -10,7 +10,18 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// </summary>
 internal static class ConstructorEmitter
 {
-    public static void Emit(Constructor constructor, MemberType declaringType, CSharpWriter writer, DiagnosticBag diagnostics)
+    /// <param name="structInitNames">
+    /// The per-ancestor initializer names when the declaring type is a struct, which turns a chain
+    /// clause C# cannot express into a call at the top of the body. Both chain kinds are lowered,
+    /// not just <c>base</c>, so a struct constructor's shape does not depend on which it used.
+    /// Null for a class, which keeps its real chain clause.
+    /// </param>
+    public static void Emit(
+        Constructor constructor,
+        MemberType declaringType,
+        CSharpWriter writer,
+        DiagnosticBag diagnostics,
+        IReadOnlyDictionary<StructType, string>? structInitNames = null)
     {
         ParameterEmitter.ReportUnsupportedRef(constructor.ParametersList, declaringType.DeclarationNode, diagnostics);
 
@@ -22,7 +33,9 @@ internal static class ConstructorEmitter
         // parameters even when its type declares them. See TypeEmitter.CleanName.
         writer.Write($"{modifiers}{TypeEmitter.CleanName(declaringType)}({parameters})");
 
-        if(constructor.ChainKind != ConstructorChainKind.None)
+        var loweredToCall = declaringType is StructType && structInitNames is not null;
+
+        if(!loweredToCall && constructor.ChainKind != ConstructorChainKind.None)
         {
             var target = constructor.ChainKind == ConstructorChainKind.This ? "this" : "base";
             writer.Append($" : {target}(");
@@ -35,6 +48,12 @@ internal static class ConstructorEmitter
 
         using(writer.Block())
         {
+            if(loweredToCall)
+            {
+                StructInitEmitter.EmitChainCall(
+                    constructor, (StructType)declaringType, structInitNames!, writer, diagnostics);
+            }
+
             if(constructor.Body is not null)
             {
                 BodyEmitter.EmitBlock(constructor.Body, writer, diagnostics);

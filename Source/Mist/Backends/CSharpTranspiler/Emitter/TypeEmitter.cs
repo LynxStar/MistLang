@@ -1,3 +1,4 @@
+using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
@@ -18,7 +19,6 @@ internal static class TypeEmitter
     /// </summary>
     public static void EmitTypeBody(MemberType type, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-
         var typeKeyword = type switch
         {
             AbstractType => "interface",
@@ -28,6 +28,21 @@ internal static class TypeEmitter
         };
         var accessibility = type.Modifiers.Accessibility == Accessibility.Public ? "public " : "";
         var typeName = EmitTypeName(type);
+
+        // Every struct, not only the ones with a base: flattening is also what remaps a struct's
+        // own protected members, which C# rejects outright.
+        var flattened = type is StructType structType
+            ? new StructFlattener(diagnostics).Flatten(structType)
+            : null;
+
+        if(type is StructType)
+        {
+            // Half of the offset guarantee FlattenedStruct.Fields describes; the field order is the
+            // other half. Fully qualified rather than importing InteropServices, which would add a
+            // using to every emitted file for the sake of the ones declaring a struct.
+            writer.WriteLine(
+                "[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]");
+        }
 
         writer.WriteLine($"{accessibility}{typeKeyword} {typeName}{EmitBaseList(type)}");
         using(writer.Block())
@@ -39,16 +54,44 @@ internal static class TypeEmitter
             // it, and because C# requires nothing of the order. Each is a single line, so
             // they run together as one block -- a blank line between every one of them
             // reads as noise rather than as separation.
-            foreach(var field in concrete?.FieldsList ?? [])
+            if(flattened is not null)
             {
-                FieldEmitter.Emit(field, writer, diagnostics);
-                anyEmitted = true;
+                foreach(var field in flattened.Fields)
+                {
+                    FieldEmitter.Emit(field, writer, diagnostics);
+                    anyEmitted = true;
+                }
             }
+            else
+            {
+                foreach(var field in concrete?.FieldsList ?? [])
+                {
+                    FieldEmitter.Emit(field, writer, diagnostics);
+                    anyEmitted = true;
+                }
+            }
+
+            // Named before any constructor is emitted, because a constructor's chain call has to
+            // name an initializer that is only emitted further down.
+            var initNames = flattened is not null
+                ? StructInitEmitter.BuildNames(flattened)
+                : null;
 
             foreach(var constructor in concrete?.ConstructorsList ?? [])
             {
                 SeparateMember(writer, ref anyEmitted);
-                ConstructorEmitter.Emit(constructor, type, writer, diagnostics);
+                ConstructorEmitter.Emit(constructor, type, writer, diagnostics, initNames);
+            }
+
+            foreach(var ancestor in flattened?.Ancestors ?? [])
+            {
+                StructInitEmitter.EmitFor(ancestor, initNames!, writer, diagnostics, ref anyEmitted);
+            }
+
+            foreach(var ancestor in flattened?.Ancestors ?? [])
+            {
+                SeparateMember(writer, ref anyEmitted);
+                StructConversionEmitter.Emit((StructType)type, ancestor, writer, diagnostics);
             }
 
             foreach(var indexer in type.IndexersList)
@@ -57,7 +100,7 @@ internal static class TypeEmitter
                 IndexerEmitter.Emit(indexer, writer, diagnostics);
             }
 
-            foreach(var method in type.MethodsList)
+            foreach(var method in flattened?.Methods ?? (IReadOnlyList<Method>)type.MethodsList)
             {
                 SeparateMember(writer, ref anyEmitted);
                 if(type is AbstractType)
@@ -85,7 +128,9 @@ internal static class TypeEmitter
     {
         var bases = new List<string>();
 
-        if(type is ConcreteType { BaseType: { } baseType })
+        // A struct's base is flattened in, and naming it here would have C# read it as an
+        // interface for the struct to implement.
+        if(type is ConcreteType { BaseType: { } baseType } and not StructType)
         {
             bases.Add(TypeNameEmitter.Emit(baseType));
         }
@@ -103,7 +148,7 @@ internal static class TypeEmitter
     /// the type body. Called per member rather than per section, so it also supplies the
     /// break between the field block and whatever follows it.
     /// </summary>
-    private static void SeparateMember(CSharpWriter writer, ref bool anyEmitted)
+    internal static void SeparateMember(CSharpWriter writer, ref bool anyEmitted)
     {
         if(anyEmitted)
         {
@@ -128,7 +173,7 @@ internal static class TypeEmitter
     /// The C# spelling of the declaration's name: <c>GenericBox&lt;T&gt;</c>, naming the
     /// parameters that <see cref="CleanName"/> strips the placeholders for.
     /// </summary>
-    private static string EmitTypeName(MemberType type)
+    internal static string EmitTypeName(MemberType type)
     {
         if(type.TypeParametersList.Count == 0)
         {

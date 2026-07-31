@@ -1,12 +1,26 @@
 # Code Comment Policy
 
-One test, applied to every comment you write:
+## The default is no comment
+
+Code is expected to speak for itself. A comment is the exception, warranted only where there is something a reader could not discern quickly from the code in front of them.
+
+The burden therefore runs one way. A comment has to earn its existence; not writing one needs no justification. Most members carry none, and that includes most public ones — a bare method with a clear name and a readable body is the finished state, not an unfinished one.
 
 > A comment earns its place only if it says something that neither the code nor another comment already says.
 
 Comments carry the reasoning that code cannot: why this approach and not the obvious alternative, what constraint from outside the file forces this shape, what breaks if someone changes it. Anything else is upkeep with no payoff, and it decays into a lie the first time the code moves underneath it.
 
 Three failure modes keep recurring. All three pass a casual read, because each one is individually plausible and only looks like noise once you ask what it tells you.
+
+### When they happen
+
+Each in a predictable moment. Recognising the moment is what makes the rule fire while writing, rather than during review, which is too late to have saved the effort.
+
+**Having just changed something,** while the reasoning that led there is still fresh and feels worth preserving. It is not: the diff and the commit message already hold it. This produces Rule 1.
+
+**Writing a new declaration.** The surrounding file has `<summary>` on everything, so a new member pulls one into existence by style-matching. A summary that *must* exist gets filled with whatever is true, and what is true is usually the identifier in prose. This produces Rule 2, and it is the most common failure by a wide margin. The correct output for a new private helper is very often no doc comment at all.
+
+**Moving or consolidating code.** The urge is to explain the move — at the new site, at the old one, or at a call site that restates what the thing it calls already documents. This produces Rule 3.
 
 ## Rule 1: Do not narrate the change
 
@@ -144,7 +158,7 @@ Where a cross-reference genuinely helps, make it a link rather than a copy:
 
 ## What To Keep
 
-None of the above is an argument for fewer comments. It is an argument for comments that carry weight. Write them freely when they explain:
+The above *is* an argument for fewer comments. It is not an argument against the ones that carry weight. Write those freely when they explain:
 
 - Why an approach was chosen over the obvious alternative.
 - A constraint imposed from outside the file -- a C# restriction the emitter must respect, a grammar shape, an ordering the pipeline requires.
@@ -156,9 +170,11 @@ None of the above is an argument for fewer comments. It is an argument for comme
 
 Re-read every comment you added and ask, in order:
 
-1. Does it describe the past? Delete or rewrite in the present.
-2. Would deleting it lose anything the code does not say? If not, delete it.
+1. Would deleting it lose anything the code does not say? If not, delete it. Read each `<summary>` against the identifier above it: if it is the name with spaces in it, delete it.
+2. Does it describe the past? Delete or rewrite in the present.
 3. Does another comment already say it? Keep one, reference it from the other.
+
+The first question is the default, so it comes first. The other two only matter for comments that survive it.
 
 ## Applies To
 

@@ -100,3 +100,31 @@ flakes:
       PROCESS NOTE: redirect the run to a file and grep the file, rather than piping the run through
       a summary filter. Two of the three sightings across this register lost their failure message
       to exactly that.
+  - id: sample-runner-tests-race-concurrent-sample-runs
+    test: Mist.Tests.Integration.SamplesCompileAndMatchBaselineTest.EnumReadonlyRestriction_CompilesAndProducesExpectedOutput
+    file: Test/Mist.Tests/Integration/SamplesCompileAndMatchBaselineTest.cs
+    discovered: 2026-07-31
+    status: open
+    symptom: >
+      Failed once in a full-solution run, then passed 19/19 under --filter with no intervening
+      edit, and the sample it drives ran clean from the shell with no diagnostics.
+    cause: >
+      NOT a product flake. Every test in this class spawns the Mist CLI against a directory under
+      samples/, and the CLI writes its emitted C# into that sample's own out/ directory. Anything
+      else driving the same sample concurrently writes to the same place. In this instance the test
+      suite and a full 78-sample sweep were launched as PARALLEL tool calls, so both were running
+      the CLI over samples/*/out/ at the same time and collided.
+    evidence: >
+      The failing test asserts on stdout from samples/EnumReadonlyRestriction. That sample declares
+      no properties or indexers, so the change under test -- accessor body binding, PropertyEmitter,
+      AccessorEmitter, the TypeEmitter walk -- has no path to it. Running the sample directly on
+      classic gave a clean exit and the expected sections. The test file was unmodified. The full
+      suite then passed 5324/5324 twice, both times run on its own rather than beside a sweep.
+    fix: >
+      Do not run a sample sweep, or any manual `mist run`, at the same time as the test suite. They
+      contend for samples/*/out/. Sequence them instead, which is what turned this green and kept it
+      green.
+
+      A durable fix would give the spawning tests their own output directory rather than the
+      sample's, which would also let the suite parallelise against local experimentation. That is a
+      change to the test harness rather than to the compiler, and nothing depends on it yet.

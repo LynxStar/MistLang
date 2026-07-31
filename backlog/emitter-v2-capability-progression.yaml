@@ -516,7 +516,7 @@ capabilities:
     order: 20
     layer: object-model
     requires: [instance-fields, constructors]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
       TypeEmitter maps StructType to the struct keyword. Sample-level coverage now exists:
@@ -530,11 +530,12 @@ capabilities:
       tag=3 count=11. Widening a parameterless struct constructor to public is kept: private is
       not enforceable in C# in any case, since `new T()` on a struct always compiles, so the
       declared accessibility is the frontend's to hold.
-      Still partial only for the Void.mist question below.
-    tasks:
-      - Decide whether v2 should transpile Standard/Void.mist at all. TypeNameEmitter
-        rewrites that type to the void keyword at every reference, so the emitted file is
-        dead code today and dropping it costs nothing.
+
+      The Void.mist question that held this at `partial` was MISFILED and has moved to
+      void-unit-type (order 80). Whether Standard/Void.mist is transpiled is a question about how
+      the unit type is realized, not about emitting a struct. What Void.mist would ask of THIS
+      capability is a private parameterless struct constructor, which is measured above as working;
+      everything else it needs belongs to properties, operator declarations and cast operators.
     unlocks: [HelloMist]
 
   - id: static-fields
@@ -1714,15 +1715,63 @@ capabilities:
     requires: [optional-union-representation]
     v2_status: missing
     evidence: >
-      void is a real type with a singleton value, doubles as the optional absence value, and
-      overlaps the type-literal rule -- one token resolves three ways from context alone. The
-      classic pipeline runs a whole-program usage analysis to decide per method whether to
-      emit void or a generated unit struct, and a void-typed parameter means "takes a unit",
-      not "takes nothing".
+      `void` is a reserved alias for Standard.Void -- one type, two spellings. It doubles as the
+      optional absence value and overlaps the type-literal rule, so one token resolves three ways
+      from context alone. A void-typed parameter means "takes a unit", not "takes nothing".
+
+      Methods ALWAYS return a value, so there is no unit-returning method that returns nothing.
+      Every void method returns the singleton, which makes any emitted difference between two such
+      methods the backend's invention rather than the language's.
+
+      SYSTEM.VOID IS NOT THE TARGET, measured rather than assumed. The CLR refuses it in every
+      position a unit type needs, so this is not a C# restriction that IL could route around.
+      MakeGenericType gives "The type 'System.Void' may not be used as a type argument",
+      Activator.CreateInstance gives "Cannot dynamically create an instance of System.Void", and
+      MakeArrayType cannot load 'System.Void[]'. System.Void marks the ABSENCE of a value; Mist's
+      Void is a type with one value. Standard.Void therefore has to emit as an ordinary struct.
+
+      THE EMISSION RULE, decided. It is framed by RECEIVER rather than by expression -- what
+      decides is whether something receives the type or the value, not what produced it. Every
+      receiver takes Standard.Void. A TYPE receiver -- type argument, parameter type, field type,
+      local type -- takes the type; a VALUE receiver -- an initializer, an argument, an assignment
+      -- takes Standard.Void.Instance. Framing it this way is what covers the positions holding no
+      expression at all, `Result<void>` being the plain case and the one an expression-shaped rule
+      misses.
+
+      ONE DELIBERATE EXCEPTION. A method's return type emits the C# `void` keyword, though it is a
+      type receiver, because C# offers a native form there and the value is recoverable. That
+      exception is exactly what the call-site lowering repairs: the call now yields nothing in C#,
+      so a value receiver evaluates it as a statement, keeping its side effects, and then supplies
+      Standard.Void.Instance itself. Sound because the type has one inhabitant, so the value
+      carries no information and reconstruction is exact rather than approximate. Taking the
+      exception is also what hands back the CLR-native shape wherever C# demands one, in overrides,
+      interface members, entry points and delegate conversions.
+
+      DO NOT COPY CLASSIC. Classic runs a whole-program usage analysis to choose per method
+      between `void` and a generated MistVoid struct, and MistVoid is a hand-written C# copy of
+      Void.mist that nothing keeps in step with it. Deciding by usage makes a declaration's
+      signature depend on its callers, which cannot be answered for a public method whose callers
+      live in a project compiled later, forces a whole override chain to change when one call site
+      consumes a result, and has no answer for a method with both a consuming and a discarding
+      call site. Uniform `void` plus lowering at the sites that want a value needs no such
+      analysis.
+
+      A RUNTIME OF OUR OWN WOULD NEED NONE OF THIS. All of the above is a concession to the CLR's
+      treatment of System.Void. A backend targeting our own runtime can use its unit type in every
+      position and drop both lowerings.
     tasks:
       - Resolve the void token to a singleton value, a type literal, or optional absence,
         from the target type.
-      - Decide per method whether the return emits as void or as the unit struct.
+      - Emit Standard.Void by transpiling Standard/Void.mist rather than hand-writing the C#,
+        so the language stays the one authority on what Void is and a later backend inherits the
+        definition instead of reimplementing it. Waits on properties, operator declarations and
+        cast operator declarations, all of which Void.mist uses.
+      - Hoist a unit-valued call out of an enclosing expression when a value receiver needs it,
+        preserving evaluation order against the other operands -- in `g(f(), h())`, f must still
+        run before h. This is the only genuinely awkward part of the lowering and the part that
+        looks smaller than it is.
+      - Wrap rather than convert where a unit-returning method is used as a function value, since
+        Func<Standard.Void> cannot bind a void-returning method.
       - Support void as a type argument, a parameter type and a field type.
     unlocks: [OptionalTypes, VoidType, VoidValueLiteral]
 

@@ -84,3 +84,19 @@ flakes:
       Immediate rerun with --filter passed. The change being tested (generic object creation
       binding, TypeEmitter, ConstructorEmitter, CSharpEmitterV2) touches nothing in
       Storm.SourceGenerator. The test file was unmodified in the working tree.
+
+      SECOND SIGHTING 2026-07-31, SAME TEST UNCONFIRMED. One of 664 failed in
+      Storm.SourceGenerator.Tests under `dotnet test Mist.slnx --no-build`; the project passed
+      664/664 on immediate isolated rerun and the full solution passed 5324/5324 on the next run.
+      Same project, same trigger, same one-of-664 shape as above, but recorded here as UNCONFIRMED
+      because the failing test's name was never captured -- the run was filtered to summary lines
+      (`grep -E 'Passed:|Failed:'`), which discards the name along with the message. It may have
+      been a different test in this project entirely.
+
+      That sighting cannot implicate the change it ran against either way: the working tree held one
+      edit, to backlog/emitter-v2-capability-progression.yaml, which is a document no code or test
+      reads.
+
+      PROCESS NOTE: redirect the run to a file and grep the file, rather than piping the run through
+      a summary filter. Two of the three sightings across this register lost their failure message
+      to exactly that.

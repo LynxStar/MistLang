@@ -89,10 +89,87 @@ internal static class BodyBinder
     }
 
     /// <summary>
-    /// Binds a body block: resolves statements in the given scope. Used directly by
-    /// property/indexer accessors (whose parameters are already in scope) and
-    /// indirectly by <see cref="BindDelegate"/>.
+    /// Accessors reach their enclosing type through a <see cref="MethodScope"/>, the same kind a
+    /// method uses, because the one thing they need beyond a body is its narrowing of a static
+    /// member's request away from an instance receiver.
     /// </summary>
+    public static void BindAccessors(
+        PropertyAccessor? getter,
+        PropertyAccessor? setter,
+        IMistType valueType,
+        IReadOnlyList<Parameter> parameters,
+        bool isStatic,
+        Scope typeScope,
+        BuilderContext context)
+    {
+        BindAccessor(getter, valueType, parameters, isStatic, isSetter: false, typeScope, context);
+        BindAccessor(setter, valueType, parameters, isStatic, isSetter: true, typeScope, context);
+    }
+
+    private static void BindAccessor(
+        PropertyAccessor? accessor,
+        IMistType valueType,
+        IReadOnlyList<Parameter> parameters,
+        bool isStatic,
+        bool isSetter,
+        Scope typeScope,
+        BuilderContext context)
+    {
+        if(accessor is null || accessor.IsAuto)
+        {
+            return;
+        }
+
+        var bodyScope = new BodyScope(new MethodScope(typeScope) { IsStatic = isStatic });
+
+        foreach(var parameter in parameters)
+        {
+            bodyScope.DeclareLocal(new LocalVariable(parameter.Name, parameter.Type), context.Diagnostics);
+        }
+
+        if(isSetter)
+        {
+            bodyScope.DeclareLocal(new LocalVariable(ValueParameterName, valueType), context.Diagnostics);
+        }
+
+        // A getter's `return` carries the value; a setter has nothing to return, so it gets no
+        // return type rather than a wrong one.
+        var returnType = isSetter ? null : valueType;
+
+        if(accessor.Body is { } body)
+        {
+            BindBody(body, bodyScope, returnType, context);
+            return;
+        }
+
+        accessor.ExpressionBody = BindAccessorExpression(
+            accessor.ExpressionBody, returnType, bodyScope, context);
+    }
+
+    private const string ValueParameterName = "value";
+
+    private static Expression? BindAccessorExpression(Expression? parked, IMistType? targetType, BodyScope scope, BuilderContext context)
+    {
+        if(parked?.Node is not ExpressionNode expressionNode)
+        {
+            return parked;
+        }
+
+        var bindingCtx = new BindingContext(scope, returnType: null);
+
+        // A getter's expression IS the value, so the property's type targets it. A setter's is a
+        // side effect whose type nothing constrains.
+        if(targetType is null)
+        {
+            return ExpressionBinder.BindExpression(expressionNode, bindingCtx, context);
+        }
+
+        using(bindingCtx.PushTargetType(targetType))
+        {
+            return ExpressionBinder.BindExpression(expressionNode, bindingCtx, context);
+        }
+    }
+
     public static void BindBody(Block body, BodyScope scope, IMistType? returnType, BuilderContext context)
     {
         var bindingCtx = new BindingContext(scope, returnType);

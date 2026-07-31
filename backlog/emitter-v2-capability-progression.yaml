@@ -1374,9 +1374,15 @@ capabilities:
     evidence: >
       TypeEmitter has no property path yet -- it walks fields, constructors and methods
       only, so PropertiesList is never reached. The stdlib declares properties in 7 files
-      and the emitted stdlib contains none of them. Accessor bodies are not bound either:
-      accessors are not Methods, so Phase 3's delegate walk does not cover them and they
-      need their own BodyBinder.BindBody pass.
+      and the emitted stdlib contains none of them.
+
+      ACCESSOR BODIES ARE NOW BOUND, which was the frontend half of this. Accessors are not
+      Methods, so EnumerateDelegates never reached them; Phase 3 gained a pass of its own giving
+      each accessor a MethodScope over the type's scope, the indexer's parameters where there are
+      any, and an implicit `value` local in a setter. Verified through indexers (order 62), which
+      that pass took from broken to working, since they share AccessorBuilder and now the binding
+      too. What remains here is emission and the bare read below.
+
       Second-largest measured gap after generic construction.
       IdentifierExpressionPrimaryNode accounts for 27 of the 210 unbound sites across the sample
       suite. Those are not misspellings: an unresolved name reports
@@ -1450,16 +1456,26 @@ capabilities:
     layer: properties
     requires: [property-declarations-and-accessors]
     v2_status: done
-    verified_by: unexercised
+    verified_by: v2-semantics
     evidence: >
-      TypeEmitter walks IndexersList and IndexerEmitter spells `this[params]` with both
-      accessors, each in whichever of the three forms it was written -- block, expression or
-      auto.
+      TypeEmitter walks IndexersList and IndexerEmitter spells `this[params]` with both accessors
+      in whichever form each was written. Phase 3 now binds accessor bodies, which is what was
+      missing -- the declaration always emitted, but the bodies came out EMPTY, so the getter did
+      not compile and the setter silently discarded every write.
 
-      No BANKED sample declares an indexer, so nothing runs this. The five samples that do
-      declare one (Properties, Attributes, AdhocRefinementConstraints, ArrayBoundsFlowAnalysis,
-      TypeArgumentInference) are all still outside AllFeaturesV2, each blocked on properties or
-      on generics rather than on indexers.
+      Verified on two scratch programs, both byte-identical to classic. Block-bodied get and set,
+      reading the index parameter and the setter's `value`, with a guard so one index is writable
+      and another is not. And expression-bodied get and set, `get => stored * factor` against
+      `set => stored = value / factor`, which exercises the index parameter on both sides.
+
+      This entry was RECORDED done/unexercised EARLIER FROM A READING OF THE EMITTER, before the
+      bodies were bound. Reading the emission path was not enough, because the gap was upstream of
+      it. Worth remembering as the reason a status wants running rather than reading.
+
+      No BANKED sample declares an indexer, so nothing in the suite covers this. The five that do
+      (Properties, Attributes, AdhocRefinementConstraints, ArrayBoundsFlowAnalysis,
+      TypeArgumentInference) are all outside AllFeaturesV2, each blocked on properties or on
+      generics rather than on indexers.
     unlocks: []
 
   - id: generic-indexers

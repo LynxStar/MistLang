@@ -34,6 +34,11 @@ internal sealed class PropertyAccessor
     /// <summary>
     /// The expression body of this accessor, if it has one.
     /// Null for auto or block-bodied accessors.
+    /// <para>
+    /// Settable for the same reason <see cref="Property.Initializer"/> is: Phase 2 parks the
+    /// unbound expression, Phase 3 replaces it. A block body needs no equivalent, because
+    /// <see cref="Block"/> is filled in place.
+    /// </para>
     /// </summary>
-    public Expression? ExpressionBody { get; init; }
+    public Expression? ExpressionBody { get; internal set; }
 }

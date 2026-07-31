@@ -366,7 +366,7 @@ AutoProps(Name=Alice, Id=A001, Count=0, Label=default)
 AutoProps(Name=Bob, Id=A001, Count=5, Label=updated)
 --- Block Accessors ---
 BlockAccessors(Temperature=20)
-  After set 100: 20
+  After set 100: 100
   After set -999 (clamped): -273
 --- Expression-Bodied ---
 ExpressionBodied(Width=5, Height=3, Area=15)

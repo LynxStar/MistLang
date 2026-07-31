@@ -6558,24 +6558,50 @@ internal sealed class CSharpSourceWriter
                     return "";
                 }
             case IfStatementStatementNode ifStmt:
-                {
-                    var condition = EmitExpression(ifStmt.IfStatement.Condition);
-                    var sb = new StringBuilder();
-                    _ = sb.Append($"if ({condition}) {{ ");
-                    foreach(var s in ifStmt.IfStatement.ThenBranch.Statements)
-                    {
-                        _ = sb.Append(EmitStatementToString(s));
-                        _ = sb.Append(' ');
-                    }
-
-                    _ = sb.Append('}');
-                    return sb.ToString();
-                }
+                return EmitIfToString(ifStmt.IfStatement);
             case BreakStatementStatementNode:
                 return "break;";
             default:
                 return "";
         }
+    }
+
+    /// <summary>
+    /// Recursive so that <c>else if</c> reaches the nested if rather than being dropped with the
+    /// rest of the else clause.
+    /// </summary>
+    private string EmitIfToString(IfStatementNode ifNode)
+    {
+        var sb = new StringBuilder();
+        _ = sb.Append($"if ({EmitExpression(ifNode.Condition)}) ");
+        _ = sb.Append(EmitBlockToString(ifNode.ThenBranch));
+
+        switch(ifNode.ElseBranch)
+        {
+            case ElseIfElseClauseNode elseIf:
+                _ = sb.Append($" else {EmitIfToString(elseIf.ElseIf)}");
+                break;
+            case ElseBlockElseClauseNode elseBlock:
+                _ = sb.Append($" else {EmitBlockToString(elseBlock.ElseBlock)}");
+                break;
+        }
+
+        return sb.ToString();
+    }
+
+    private string EmitBlockToString(BlockNode block)
+    {
+        var sb = new StringBuilder();
+        _ = sb.Append("{ ");
+
+        foreach(var statement in block.Statements)
+        {
+            _ = sb.Append(EmitStatementToString(statement));
+            _ = sb.Append(' ');
+        }
+
+        _ = sb.Append('}');
+        return sb.ToString();
     }
 
     /// <summary>

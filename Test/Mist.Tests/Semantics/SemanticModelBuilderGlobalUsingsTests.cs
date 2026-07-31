@@ -153,7 +153,8 @@ public sealed class SemanticModelBuilderGlobalUsingsTests
         // File 2 has global using "Foo"
         var compilation = new MistCompilation(ImmutableArray.Create(
             new CompilationUnit(sourceText1),
-            new CompilationUnit(sourceText2) { GlobalUsings = ImmutableArray.Create("Foo") }));
+            new CompilationUnit(sourceText2)))
+        { GlobalUsings = ImmutableArray.Create("Foo") };
         var diagnostics = new DiagnosticBag();
 
         _ = Builder.Build(
@@ -226,7 +227,8 @@ public sealed class SemanticModelBuilderGlobalUsingsTests
         // File 2 has global using "Foo" AND explicit using "Foo"
         var compilation = new MistCompilation(ImmutableArray.Create(
             new CompilationUnit(sourceText1),
-            new CompilationUnit(sourceText2) { GlobalUsings = ImmutableArray.Create("Foo") }));
+            new CompilationUnit(sourceText2)))
+        { GlobalUsings = ImmutableArray.Create("Foo") };
         var diagnostics = new DiagnosticBag();
 
         _ = Builder.Build(
@@ -287,7 +289,8 @@ public sealed class SemanticModelBuilderGlobalUsingsTests
 
         // Global using references a namespace that doesn't exist
         var compilation = new MistCompilation(ImmutableArray.Create(
-            new CompilationUnit(sourceText1) { GlobalUsings = ImmutableArray.Create("NonExistent.Namespace") }));
+            new CompilationUnit(sourceText1)))
+        { GlobalUsings = ImmutableArray.Create("NonExistent.Namespace") };
         var diagnostics = new DiagnosticBag();
 
         _ = Builder.Build(
@@ -373,7 +376,8 @@ public sealed class SemanticModelBuilderGlobalUsingsTests
         var compilation = new MistCompilation(ImmutableArray.Create(
             new CompilationUnit(sourceTextA),
             new CompilationUnit(sourceTextB),
-            new CompilationUnit(sourceTextC) { GlobalUsings = ImmutableArray.Create("NsA", "NsB") }));
+            new CompilationUnit(sourceTextC)))
+        { GlobalUsings = ImmutableArray.Create("NsA", "NsB") };
         var diagnostics = new DiagnosticBag();
 
         _ = Builder.Build(
@@ -464,7 +468,8 @@ public sealed class SemanticModelBuilderGlobalUsingsTests
         var compilation = new MistCompilation(ImmutableArray.Create(
             new CompilationUnit(sourceTextA),
             new CompilationUnit(sourceTextB),
-            new CompilationUnit(sourceTextC) { GlobalUsings = ImmutableArray.Create("NsA") }));
+            new CompilationUnit(sourceTextC)))
+        { GlobalUsings = ImmutableArray.Create("NsA") };
         var diagnostics = new DiagnosticBag();
 
         _ = Builder.Build(

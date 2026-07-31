@@ -838,7 +838,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 var sourceText = i < compilation.Units.Length ? compilation.Units[i].Source : null;
                 var unitGlobalUsings = i < compilation.Units.Length
-                    ? compilation.Units[i].GlobalUsings
+                    ? compilation.GetGlobalUsingsForUnit(compilation.Units[i])
                     : ImmutableArray<string>.Empty;
 
                 var fileScope = BuildFileScopeForUnit(
@@ -1050,7 +1050,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 if(i < compilation.Units.Length)
                 {
-                    foreach(var globalNs in compilation.Units[i].GlobalUsings)
+                    foreach(var globalNs in compilation.GetGlobalUsingsForUnit(compilation.Units[i]))
                     {
                         if(!string.IsNullOrEmpty(globalNs))
                         {
@@ -1075,7 +1075,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var sourceText = i < compilation.Units.Length ? compilation.Units[i].Source : null;
             var unitHasTopLevelStatements = i < compilation.Units.Length && compilation.Units[i].HasTopLevelStatements;
             var unitGlobalUsings = i < compilation.Units.Length
-                ? compilation.Units[i].GlobalUsings
+                ? compilation.GetGlobalUsingsForUnit(compilation.Units[i])
                 : ImmutableArray<string>.Empty;
 
             try
@@ -2634,7 +2634,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // Register global usings from the compilation unit.
             if(containingUnit is not null)
             {
-                foreach(var globalNs in containingUnit.GlobalUsings)
+                foreach(var globalNs in compilation.GetGlobalUsingsForUnit(containingUnit))
                 {
                     if(!string.IsNullOrEmpty(globalNs))
                     {
@@ -5389,7 +5389,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // Also include global usings from the compilation unit.
             if(containingCuIndex < compilation.Units.Length)
             {
-                foreach(var globalNs in compilation.Units[containingCuIndex].GlobalUsings)
+                foreach(var globalNs in compilation.GetGlobalUsingsForUnit(compilation.Units[containingCuIndex]))
                 {
                     if(!string.IsNullOrEmpty(globalNs))
                     {

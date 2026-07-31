@@ -595,7 +595,7 @@ internal sealed class CSharpSourceWriter
         {
             if(ReferenceEquals(unit.Source, sourceText))
             {
-                foreach(var globalNs in unit.GlobalUsings)
+                foreach(var globalNs in model.Compilation.GetGlobalUsingsForUnit(unit))
                 {
                     _ = usings.Add(globalNs);
                 }

@@ -191,9 +191,9 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
 
         foreach(var unit in userUnits)
         {
-            Assert.Equal(2, unit.GlobalUsings.Length);
-            Assert.Equal("System", unit.GlobalUsings[0]);
-            Assert.Equal("MyApp.Models", unit.GlobalUsings[1]);
+            Assert.Equal(2, capture.CapturedCompilation!.GetGlobalUsingsForUnit(unit).Length);
+            Assert.Equal("System", capture.CapturedCompilation!.GetGlobalUsingsForUnit(unit)[0]);
+            Assert.Equal("MyApp.Models", capture.CapturedCompilation!.GetGlobalUsingsForUnit(unit)[1]);
         }
     }
 
@@ -273,8 +273,8 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
         // B's units should have B's global usings, not A's
         foreach(var unit in refUnits)
         {
-            _ = Assert.Single(unit.GlobalUsings);
-            Assert.Equal("SharedLib.Internal", unit.GlobalUsings[0]);
+            _ = Assert.Single(capture.CapturedCompilation!.GetGlobalUsingsForUnit(unit));
+            Assert.Equal("SharedLib.Internal", capture.CapturedCompilation!.GetGlobalUsingsForUnit(unit)[0]);
         }
 
         // User units (A's) should have A's global usings
@@ -283,9 +283,9 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
 
         foreach(var unit in userUnits)
         {
-            Assert.Equal(2, unit.GlobalUsings.Length);
-            Assert.Equal("System", unit.GlobalUsings[0]);
-            Assert.Equal("MyApp.Models", unit.GlobalUsings[1]);
+            Assert.Equal(2, capture.CapturedCompilation!.GetGlobalUsingsForUnit(unit).Length);
+            Assert.Equal("System", capture.CapturedCompilation!.GetGlobalUsingsForUnit(unit)[0]);
+            Assert.Equal("MyApp.Models", capture.CapturedCompilation!.GetGlobalUsingsForUnit(unit)[1]);
         }
     }
 
@@ -339,9 +339,9 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
 
         foreach(var unit in stdlibUnits)
         {
-            Assert.True(unit.GlobalUsings.IsEmpty,
+            Assert.True(capture.CapturedCompilation!.GetGlobalUsingsForUnit(unit).IsEmpty,
                 $"Stdlib unit '{unit.Source.Path}' should have empty GlobalUsings " +
-                $"but had: [{string.Join(", ", unit.GlobalUsings)}]");
+                $"but had: [{string.Join(", ", capture.CapturedCompilation!.GetGlobalUsingsForUnit(unit))}]");
         }
     }
 
@@ -394,16 +394,16 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
 
         foreach(var unit in userUnits)
         {
-            Assert.Equal(2, unit.GlobalUsings.Length);
-            Assert.Equal("System", unit.GlobalUsings[0]);
-            Assert.Equal("System.Collections.Generic", unit.GlobalUsings[1]);
+            Assert.Equal(2, capture.CapturedCompilation!.GetGlobalUsingsForUnit(unit).Length);
+            Assert.Equal("System", capture.CapturedCompilation!.GetGlobalUsingsForUnit(unit)[0]);
+            Assert.Equal("System.Collections.Generic", capture.CapturedCompilation!.GetGlobalUsingsForUnit(unit)[1]);
         }
 
         // Stdlib units should still have empty global usings
         var stdlibUnits = units.Where(u => u.IsStdlib).ToList();
         foreach(var unit in stdlibUnits)
         {
-            Assert.True(unit.GlobalUsings.IsEmpty,
+            Assert.True(capture.CapturedCompilation!.GetGlobalUsingsForUnit(unit).IsEmpty,
                 "Stdlib units should not receive CompilerOptions.GlobalUsings");
         }
     }
@@ -459,8 +459,8 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
 
         foreach(var unit in userUnits)
         {
-            _ = Assert.Single(unit.GlobalUsings);
-            Assert.Equal("FromToml.Namespace", unit.GlobalUsings[0]);
+            _ = Assert.Single(capture.CapturedCompilation!.GetGlobalUsingsForUnit(unit));
+            Assert.Equal("FromToml.Namespace", capture.CapturedCompilation!.GetGlobalUsingsForUnit(unit)[0]);
         }
     }
 
@@ -538,7 +538,7 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
 
         foreach(var unit in refUnits)
         {
-            Assert.True(unit.GlobalUsings.IsEmpty,
+            Assert.True(capture.CapturedCompilation!.GetGlobalUsingsForUnit(unit).IsEmpty,
                 $"Referenced project unit '{unit.Source.Path}' should have empty GlobalUsings " +
                 $"when no [global_usings] section is declared");
         }
@@ -547,8 +547,8 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
         var userUnits = units.Where(u => !u.IsStdlib && u.OriginProjectPath is null).ToList();
         foreach(var unit in userUnits)
         {
-            _ = Assert.Single(unit.GlobalUsings);
-            Assert.Equal("System", unit.GlobalUsings[0]);
+            _ = Assert.Single(capture.CapturedCompilation!.GetGlobalUsingsForUnit(unit));
+            Assert.Equal("System", capture.CapturedCompilation!.GetGlobalUsingsForUnit(unit)[0]);
         }
     }
 }

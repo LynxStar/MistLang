@@ -245,7 +245,6 @@ public sealed class CompilerDriver : ICompilerDriver
                                         NamespaceRoot = proj.Configuration.NamespaceRoot,
                                         ProjectFolder = proj.ProjectFolder,
                                         OriginProjectPath = proj.CanonicalTomlPath,
-                                        GlobalUsings = projGlobalUsings,
                                     });
                                 }
                                 catch(Exception ex)
@@ -267,15 +266,6 @@ public sealed class CompilerDriver : ICompilerDriver
             else if(refParseBag.HasErrors)
             {
                 return null;
-            }
-        }
-
-        // Apply global usings to user compilation units.
-        if(!userGlobalUsings.IsEmpty)
-        {
-            for(var i = 0; i < userUnits.Count; i++)
-            {
-                userUnits[i] = userUnits[i] with { GlobalUsings = userGlobalUsings };
             }
         }
 

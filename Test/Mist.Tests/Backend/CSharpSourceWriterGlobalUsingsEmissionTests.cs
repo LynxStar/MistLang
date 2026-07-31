@@ -62,12 +62,12 @@ public sealed class CSharpSourceWriterGlobalUsingsEmissionTests : IDisposable
             return null;
         }
 
-        // 3. Build semantic model with global usings on the compilation unit
-        var compilationUnit = new CompilationUnit(sourceText)
+        // 3. Build semantic model with global usings on the compilation
+        var compilationUnit = new CompilationUnit(sourceText);
+        var compilation = new MistCompilation(ImmutableArray.Create(compilationUnit))
         {
             GlobalUsings = globalUsings,
         };
-        var compilation = new MistCompilation(ImmutableArray.Create(compilationUnit));
         var semanticBag = new DiagnosticBag();
         var model = builder.Build(
             compilation,

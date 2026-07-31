@@ -794,24 +794,18 @@ capabilities:
     layer: declaration-boundaries
     requires: [namespace-file-scoped, array-literals, struct-declaration,
                explicit-this-member-read]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      Measured now rather than untraced. The statements do not bind --
-      WithVarBlockStatementStatementNode and ReadonlyBlockStatementStatementNode both appear as
-      unbound sites here -- and v2 runs a different program entirely, because
-      entry-point-resolution (order 33) selects the declared Main over the top-level entry point,
-      so the statements never execute at all.
-      Requires a real restructuring rather than a
-      syntax-preserving emit. The committed C# hoists the statements above a BLOCK namespace
-      holding the types and injects a self-import so the statements still see those types by
-      simple name.
-    tasks:
-      - Bind a statement body at file scope, with types declared later in the same file
-        visible to it -- a forward reference.
-      - Introduce an implicit args parameter of array-of-string type.
-      - Support a valued return at file scope as an int exit code.
-      - Restructure emission so statements come first, then a block namespace, plus the
-        injected self-import.
+      TopLevelStatements is banked in AllFeaturesV2 and green, which covers each part
+      separately: the statements reach TlsHelper and TlsPoint, both declared BELOW them, so the
+      forward reference resolves; they read args.Length and args[0], so the implicit parameter
+      exists and is an array of string; and the file ends in `return 0`, so a valued return at
+      file scope becomes the exit code.
+
+      Statements are hoisted above a BLOCK namespace holding the types, with an injected
+      self-import so they still see those types by simple name, and a synthesized $TopLevel
+      entry point carries them.
     unlocks: []
 
   - id: entry-point-resolution
@@ -1228,15 +1222,13 @@ capabilities:
     order: 51
     layer: generics
     requires: [class-declaration]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      TypeEmitter has no type parameter path yet, so TypeParametersList is never read.
-      Commit c4d91013 keys lifted types on the Mist type rather than the CLR box, which is
-      the interning groundwork.
-    tasks:
-      - Emit type parameter lists on type and member declarations.
-      - Intern constructed types so one representation serves every structurally identical
-        instantiation.
+      TypeEmitter.EmitTypeName spells the parameter list on a type declaration, and a generic
+      method declaration carries its own. TypeInterner.GetOrCreateConstructedType, keyed on a
+      ConstructedTypeKey over the definition and the argument list, gives one representation
+      per structurally identical instantiation. GenericTypes is banked in AllFeaturesV2.
     unlocks: []
 
   - id: generic-arity-keyed-lookup
@@ -1244,10 +1236,14 @@ capabilities:
     order: 52
     layer: generics
     requires: [type-parameters-and-constructed-types]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       ArityOverloads declares a non-generic and a generic type sharing one simple name, plus
-      an alias occupying arity 0 of a name whose generic form is separately declared.
+      an alias occupying arity 0 of a name whose generic form is separately declared. It is
+      banked in AllFeaturesV2 and green, and it does reach the alias case --
+      `type Result = Result<string>` alongside `Result<T>`. Arity names are built in one place,
+      ScopeResolver.BuildArityName.
     unlocks: []
 
   - id: type-argument-substitution
@@ -1255,11 +1251,26 @@ capabilities:
     order: 53
     layer: generics
     requires: [type-parameters-and-constructed-types]
-    v2_status: missing
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
       Required before a member of a constructed type can be bound -- PropertyInitializers
       resolves a property on Box of int, which means substituting the argument before member
       lookup.
+
+      ConstructedType.Substitute does this, and PostfixBinder applies it to a member found on the
+      receiver's own definition, which GenericTypes exercises. The residue is not an absent path
+      but a wrong answer, so it will not announce itself: Substitute matches a TypeParameter on
+      ORDINAL alone, without checking which definition declared it, contradicting its own doc
+      comment. Correct wherever arguments pass straight through, silently wrong where they are
+      reordered -- `Derived<A, B> : Base<B>` substitutes A where B is meant.
+    tasks:
+      - Check ownership in Substitute, and compose substitutions along a base chain so a member
+        found on a generic ancestor is read through every construction between it and the
+        receiver.
+      - Walk a constructed base's chain in member lookup. TypeMemberLookup.EnqueueBases enqueues
+        the ConstructedType itself, which then matches nothing because it is not a MemberType, so
+        a member inherited from a generic base reports MIST_PM_UNRESOLVED_MEMBER.
     unlocks: []
 
   - id: generic-methods
@@ -1385,8 +1396,17 @@ capabilities:
     order: 62
     layer: properties
     requires: [property-declarations-and-accessors]
-    v2_status: missing
-    evidence: TypeEmitter has no indexer path yet, so IndexersList is never read.
+    v2_status: done
+    verified_by: unexercised
+    evidence: >
+      TypeEmitter walks IndexersList and IndexerEmitter spells `this[params]` with both
+      accessors, each in whichever of the three forms it was written -- block, expression or
+      auto.
+
+      No BANKED sample declares an indexer, so nothing runs this. The five samples that do
+      declare one (Properties, Attributes, AdhocRefinementConstraints, ArrayBoundsFlowAnalysis,
+      TypeArgumentInference) are all still outside AllFeaturesV2, each blocked on properties or
+      on generics rather than on indexers.
     unlocks: []
 
   - id: generic-indexers
@@ -3039,6 +3059,7 @@ capabilities:
     layer: conversions-advanced
     requires: [struct-inheritance]
     v2_status: partial
+    verified_by: v2-semantics
     evidence: >
       Inherited fields and methods flatten into the derived struct, base constructor chaining
       runs through every level, and a derived-to-base implicit conversion is synthesized that

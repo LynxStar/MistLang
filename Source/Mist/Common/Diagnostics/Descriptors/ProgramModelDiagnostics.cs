@@ -376,6 +376,17 @@ public static class ProgramModelDiagnostics
         "Extension property '{0}' cannot use auto-accessors (get; / set;); extension properties have no backing field.");
 
     /// <summary>
+    /// <c>field</c> named where there is no property whose storage it could mean. The grammar admits
+    /// it in any expression position, so the placement is refused here rather than left to a backend
+    /// that would have nothing to emit for it.
+    /// </summary>
+    public static readonly DiagnosticDescriptor FieldKeywordOutsideAccessor = new(
+        new DiagnosticId("MIST_PM_FIELD_OUTSIDE_ACCESSOR"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'field' is only meaningful inside a property accessor, where it names that property's storage.");
+
+    /// <summary>
     /// A member shares its enclosing type's name. Refused for two independent reasons: C# rejects
     /// the declaration as CS0542, so it cannot be emitted; and inside the type the bare name shadows
     /// the type, so a type position there resolves to the member instead.

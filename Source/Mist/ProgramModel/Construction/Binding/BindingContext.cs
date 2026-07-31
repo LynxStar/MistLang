@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
 
 namespace Mist.ProgramModel.Construction.Binding;
@@ -27,6 +28,13 @@ internal sealed class BindingContext
     /// there is no target.
     /// </summary>
     public IMistType? TargetType { get; set; }
+
+    /// <summary>
+    /// The property whose accessor is being bound, or null anywhere else. What <c>field</c> resolves
+    /// against, and the reason it is carried here rather than looked up: <c>field</c> is its own
+    /// token, so it never reaches a scope as a name to resolve.
+    /// </summary>
+    public Property? EnclosingProperty { get; set; }
 
     public BindingContext(BodyScope scope, IMistType? returnType)
     {

@@ -298,6 +298,9 @@ internal static class BodyEmitter
             case PropertyReferenceExpression propertyRef:
                 writer.Append(propertyRef.Property.Name);
                 break;
+            case BackingFieldReferenceExpression:
+                writer.Append("field");
+                break;
 
             case NewExpression newExpression:
                 writer.Append($"new {TypeNameEmitter.Emit(newExpression.Type)}(");

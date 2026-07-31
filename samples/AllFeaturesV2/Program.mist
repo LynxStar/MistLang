@@ -32,5 +32,6 @@ public class Program
         GenericTypes.Program.RunDemo();
         ArityOverloads.Program.RunDemo();
         TopLevelStatements.Program.RunDemo();
+        Properties.Program.RunDemo();
     }
 }

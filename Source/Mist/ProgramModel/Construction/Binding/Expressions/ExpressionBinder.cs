@@ -57,9 +57,21 @@ internal static class ExpressionBinder
             InterpolatedStringExpressionPrimaryNode interpStr => BindInterpolatedString(interpStr, ctx, context),
             ThisExpressionPrimaryNode thisExpr => BindThis(thisExpr, ctx, context),
             ObjectCreationExpressionPrimaryNode objectCreation => BindObjectCreation(objectCreation, ctx, context),
+            FieldKeywordExpressionPrimaryNode fieldKeyword => BindFieldKeyword(fieldKeyword, ctx, context),
 
             _ => new UnresolvedExpression(node),
         };
+    }
+
+    private static Expression BindFieldKeyword(FieldKeywordExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
+    {
+        if(ctx.EnclosingProperty is not { } property)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.FieldKeywordOutsideAccessor, node, null);
+            return new ErrorExpression(node);
+        }
+
+        return new BackingFieldReferenceExpression(node, property);
     }
 
     /// <summary>

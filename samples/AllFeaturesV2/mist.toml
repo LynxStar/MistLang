@@ -14,3 +14,4 @@ GlobalUsings = { path = "../GlobalUsings" }
 GenericTypes = { path = "../GenericTypes" }
 ArityOverloads = { path = "../ArityOverloads" }
 TopLevelStatements = { path = "../TopLevelStatements" }
+Properties = { path = "../Properties" }

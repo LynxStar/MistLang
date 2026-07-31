@@ -67,14 +67,14 @@ internal static class MemberBinder
         {
             BodyBinder.BindAccessors(
                 property.Getter, property.Setter, property.Type, [],
-                property.Modifiers.IsStatic, memberType.Scope, context);
+                property.Modifiers.IsStatic, property, memberType.Scope, context);
         }
 
         foreach(var indexer in memberType.IndexersList)
         {
             BodyBinder.BindAccessors(
                 indexer.Getter, indexer.Setter, indexer.Type, indexer.ParametersList,
-                indexer.Modifiers.IsStatic, memberType.Scope, context);
+                indexer.Modifiers.IsStatic, owningProperty: null, memberType.Scope, context);
         }
     }
 }

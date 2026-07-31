@@ -34,7 +34,7 @@ internal static class StatementBinder
     private static Block BindNestedBlock(BlockNode node, BindingContext ctx, BuilderContext context)
     {
         var block = new Block(node);
-        BodyBinder.BindBody(block, new BodyScope(ctx.Scope), ctx.ReturnType, context);
+        BodyBinder.BindNestedBlock(block, new BodyScope(ctx.Scope), ctx, context);
         return block;
     }
 
@@ -101,7 +101,7 @@ internal static class StatementBinder
         var condition = ExpressionBinder.BindExpression(node.Condition, ctx, context);
 
         var thenBlock = new Block(node.ThenBranch);
-        BodyBinder.BindBody(thenBlock, new BodyScope(ctx.Scope), ctx.ReturnType, context);
+        BodyBinder.BindNestedBlock(thenBlock, new BodyScope(ctx.Scope), ctx, context);
 
         Statement? elseBranch = null;
         if(node.ElseBranch is not null)
@@ -122,7 +122,7 @@ internal static class StatementBinder
         var condition = ExpressionBinder.BindExpression(node.Condition, ctx, context);
 
         var body = new Block(node.Body);
-        BodyBinder.BindBody(body, new BodyScope(ctx.Scope), ctx.ReturnType, context);
+        BodyBinder.BindNestedBlock(body, new BodyScope(ctx.Scope), ctx, context);
 
         return new WhileStatement(condition, body);
     }
@@ -153,7 +153,7 @@ internal static class StatementBinder
         }
 
         var body = new Block(node.Body);
-        BodyBinder.BindBody(body, new BodyScope(forScope), ctx.ReturnType, context);
+        BodyBinder.BindNestedBlock(body, new BodyScope(forScope), ctx, context);
 
         ctx.Scope = previousScope;
         return new ForStatement(initializer, condition, iterator, body);
@@ -229,7 +229,7 @@ internal static class StatementBinder
         foreachScope.DeclareLocal(variable, context.Diagnostics);
 
         var body = new Block(bodyNode);
-        BodyBinder.BindBody(body, foreachScope, ctx.ReturnType, context);
+        BodyBinder.BindNestedBlock(body, foreachScope, ctx, context);
 
         return new ForEachStatement(variable, collection, body);
     }

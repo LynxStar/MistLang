@@ -176,3 +176,41 @@ Done!
   Main called explicitly (not as entry point)
   Main args.Length: 2
   Disambiguation complete - Main is callable but not the entry point
+=== Properties Mist Sample ===
+--- Auto-Properties ---
+AutoProps(Name=Alice, Id=A001, Count=0, Label=default)
+AutoProps(Name=Bob, Id=A001, Count=5, Label=updated)
+--- Block Accessors ---
+BlockAccessors(Temperature=20)
+  After set 100: 100
+  After set -999 (clamped): -273
+--- Expression-Bodied ---
+ExpressionBodied(Width=5, Height=3, Area=15)
+  After Height=10: Area=50
+--- Field Keyword ---
+FieldKeyword(Name=Charlie, Age=0)
+FieldKeyword(Name=Dana, Age=25)
+  After invalid age: 25
+--- Mixed Accessors ---
+MixedAccessors(Score=42, Status=active)
+  After invalid score: 42
+--- Accessor Modifiers ---
+AccessorModifiers(Name=Eve, Value=10)
+AccessorModifiers(Name=Frank, Value=11)
+--- Init Accessors ---
+InitAccessors(Name=Grace, Year=2024)
+--- Static Properties ---
+  HasInstances before: False
+StaticProps(name=One, total=2)
+  HasInstances after: True
+  InstanceCount: 2
+--- Computed Properties ---
+ComputedProps(Area=24, Perimeter=20, IsSquare=False)
+ComputedProps(Area=25, Perimeter=20, IsSquare=True)
+--- Abstract Type Properties ---
+LabeledItem(Label=Widget, Value=99)
+  After edit: Label=Widget, Value=200
+--- Indexers ---
+  idx[0]=10 idx[1]=20 idx[2]=30
+IndexerDemo(length=3)
+=== Done! ===

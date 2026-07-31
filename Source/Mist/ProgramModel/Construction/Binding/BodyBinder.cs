@@ -93,17 +93,22 @@ internal static class BodyBinder
     /// method uses, because the one thing they need beyond a body is its narrowing of a static
     /// member's request away from an instance receiver.
     /// </summary>
+    /// <param name="owningProperty">
+    /// The property these accessors belong to, or null for an indexer's. What <c>field</c> resolves
+    /// against, so passing null is also what refuses it: an indexer has no single slot behind it.
+    /// </param>
     public static void BindAccessors(
         PropertyAccessor? getter,
         PropertyAccessor? setter,
         IMistType valueType,
         IReadOnlyList<Parameter> parameters,
         bool isStatic,
+        Property? owningProperty,
         Scope typeScope,
         BuilderContext context)
     {
-        BindAccessor(getter, valueType, parameters, isStatic, isSetter: false, typeScope, context);
-        BindAccessor(setter, valueType, parameters, isStatic, isSetter: true, typeScope, context);
+        BindAccessor(getter, valueType, parameters, isStatic, isSetter: false, owningProperty, typeScope, context);
+        BindAccessor(setter, valueType, parameters, isStatic, isSetter: true, owningProperty, typeScope, context);
     }
 
     private static void BindAccessor(
@@ -112,6 +117,7 @@ internal static class BodyBinder
         IReadOnlyList<Parameter> parameters,
         bool isStatic,
         bool isSetter,
+        Property? owningProperty,
         Scope typeScope,
         BuilderContext context)
     {
@@ -138,24 +144,25 @@ internal static class BodyBinder
 
         if(accessor.Body is { } body)
         {
-            BindBody(body, bodyScope, returnType, context);
+            BindBody(body, bodyScope, returnType, context, owningProperty);
             return;
         }
 
         accessor.ExpressionBody = BindAccessorExpression(
-            accessor.ExpressionBody, returnType, bodyScope, context);
+            accessor.ExpressionBody, returnType, bodyScope, owningProperty, context);
     }
 
     private const string ValueParameterName = "value";
 
-    private static Expression? BindAccessorExpression(Expression? parked, IMistType? targetType, BodyScope scope, BuilderContext context)
+    private static Expression? BindAccessorExpression(
+        Expression? parked, IMistType? targetType, BodyScope scope, Property? owningProperty, BuilderContext context)
     {
         if(parked?.Node is not ExpressionNode expressionNode)
         {
             return parked;
         }
 
-        var bindingCtx = new BindingContext(scope, returnType: null);
+        var bindingCtx = new BindingContext(scope, returnType: null) { EnclosingProperty = owningProperty };
 
         // A getter's expression IS the value, so the property's type targets it. A setter's is a
         // side effect whose type nothing constrains.
@@ -170,15 +177,36 @@ internal static class BodyBinder
         }
     }
 
-    public static void BindBody(Block body, BodyScope scope, IMistType? returnType, BuilderContext context)
+    public static void BindBody(
+        Block body, BodyScope scope, IMistType? returnType, BuilderContext context, Property? enclosingProperty = null)
     {
-        var bindingCtx = new BindingContext(scope, returnType);
-        var statements = new List<Statement>(body.Node.Statements.Length);
-        foreach(var node in body.Node.Statements)
+        BindStatements(body, new BindingContext(scope, returnType) { EnclosingProperty = enclosingProperty }, context);
+    }
+
+    /// <summary>
+    /// Binds a block nested inside a body, under a scope of its own but everything else inherited.
+    /// <para>
+    /// Takes the enclosing context rather than its parts, so that whatever
+    /// <see cref="BindingContext"/> comes to carry is inherited by construction. Forwarding field by
+    /// field is what let <c>field</c> resolve at the top of a setter and fail one <c>if</c> deeper.
+    /// </para>
+    /// </summary>
+    public static void BindNestedBlock(Block block, BodyScope scope, BindingContext enclosing, BuilderContext context)
+    {
+        BindStatements(
+            block,
+            new BindingContext(scope, enclosing.ReturnType) { EnclosingProperty = enclosing.EnclosingProperty },
+            context);
+    }
+
+    private static void BindStatements(Block block, BindingContext bindingCtx, BuilderContext context)
+    {
+        var statements = new List<Statement>(block.Node.Statements.Length);
+        foreach(var node in block.Node.Statements)
         {
             statements.Add(StatementBinder.BindStatement(node, bindingCtx, context));
         }
 
-        body.Statements = statements;
+        block.Statements = statements;
     }
 }

@@ -1370,7 +1370,7 @@ capabilities:
     order: 58
     layer: properties
     requires: [instance-fields, methods-static-and-instance]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
       ACCESSOR BODIES ARE BOUND. Accessors are not Methods, so EnumerateDelegates never reached
@@ -1404,10 +1404,6 @@ capabilities:
       MIST_PM_UNRESOLVED_IDENTIFIER and binds ErrorExpression, so what reaches the emitter is
       the deliberate fallthrough for a resolved-but-unrepresentable result -- a bare property
       read through an implicit receiver, and a bare enum variant.
-    tasks:
-      - >
-        Emit a property declared on an abstract type, and verify it. Auto accessors take the
-        one-line path, so it probably already works, but nothing exercises it.
     unlocks: []
 
   - id: property-backing-field-and-field-keyword
@@ -1415,7 +1411,8 @@ capabilities:
     order: 59
     layer: properties
     requires: [property-declarations-and-accessors]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       WAS a live defect in the classic pipeline, now FIXED there, and the fix is the shape v2
       should copy. An auto accessor beside a hand-written one reached two different slots: a
@@ -1433,12 +1430,15 @@ capabilities:
       It also had TWO instances, not one. Beyond MixedAccessors.Score, InitAccessors.Year has the
       same shape with an `init` block, and read 0 after a constructor assigned 2024. Any auto
       accessor can be the one left bodiless -- get, set or init -- so all three needed the fix.
-    tasks:
-      - Use ONE shared backing slot when an auto-accessor and a hand-written accessor
-        coexist on the same property. Fixed in classic; v2 must not reintroduce it. Prefer
-        emitting C#'s own `field` keyword over a declared backing field if the accessor bodies
-        allow it, since that removes the chance of the two diverging at all.
-      - Resolve the field keyword to that same slot.
+      V2 CANNOT REPRODUCE IT, by construction rather than by care. `field` binds to a
+      BackingFieldReferenceExpression carrying the property, and the C# backend renders that as C#'s
+      own `field` keyword, so Roslyn owns the one slot and there is never a second to diverge from.
+      A backend without auto-properties synthesizes storage from the property's name and type. The
+      property is the slot's whole identity -- one slot per property, its type is the property's,
+      and Mist has no attribute target that would need somewhere else to attach.
+
+      Banked through Properties, whose Field Keyword, Mixed Accessors and Init Accessors sections
+      all use `field` and run byte-identical to classic.
     unlocks: []
 
   - id: property-accessor-accessibility-and-init
@@ -1446,10 +1446,20 @@ capabilities:
     order: 60
     layer: properties
     requires: [property-declarations-and-accessors]
-    v2_status: missing
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
       A private set enforced at call sites, and init writable only from a constructor or an
       object initializer.
+
+      EMISSION is done and banked. AccessorEmitter spells a narrowed accessor accessibility and
+      the init keyword, and Properties exercises both -- its Accessor Modifiers and Init Accessors
+      sections run byte-identical to classic.
+
+      ENFORCEMENT is not. Neither half of this entry is a matter of emitting: refusing a private
+      setter from outside, and refusing an init write from anywhere but a constructor or an object
+      initializer, are checks. A passing sample cannot show them, because a sample that violated
+      either would fail to compile -- so this needs negative tests rather than a sample.
     unlocks: []
 
   - id: static-properties
@@ -1457,8 +1467,12 @@ capabilities:
     order: 61
     layer: properties
     requires: [property-declarations-and-accessors]
-    v2_status: missing
-    evidence: Properties declares a static computed property reading static state.
+    v2_status: done
+    verified_by: v2-semantics
+    evidence: >
+      Properties declares a static computed property reading static state, and it is banked. Its
+      Static Properties section reads HasInstances and InstanceCount off static state through
+      static properties, byte-identical to classic.
     unlocks: []
 
   - id: indexer-declarations
@@ -4148,13 +4162,16 @@ samples:
                abstract-type-property-slots, abstract-type-inheritance,
                adhoc-refinement-where-clauses, string-interpolation]
     note: >
-      This sample currently FAILS on the classic pipeline and nothing catches it. Mixed
-      accessor forms emit two separate backing fields, so writes never reach reads -- the
-      built DLL prints a zero after a non-zero assignment. There is no baseline file for
-      Properties.
+      BANKED on v2, and identical on both pipelines. Getting here fixed two classic defects this
+      sample had been hiding rather than catching, because AllFeatures.out had recorded the wrong
+      output of each as expected. Mixed accessor forms reached two separate backing fields, so a
+      write never reached a read and Score read 0 after being assigned 42. And the inline statement
+      emitter used for accessor bodies dropped an else clause entirely, so Temperature read 20 after
+      being assigned 100.
     untested:
-      - The mixed-accessor defect above is not caught by anything, because the sample has no
-        baseline.
+      - A private set refused from outside, and an init write refused outside a constructor. Both
+        are checks rather than emission, and a sample cannot show either, since a sample violating
+        them would not compile. See order 60.
       - The indexer parameter refinement erases entirely and only in-range indices are
         exercised, so the missing bounds check never shows.
 

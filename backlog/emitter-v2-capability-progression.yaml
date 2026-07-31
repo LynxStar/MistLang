@@ -1251,26 +1251,53 @@ capabilities:
     order: 53
     layer: generics
     requires: [type-parameters-and-constructed-types]
-    v2_status: partial
-    verified_by: v2-semantics
+    v2_status: broken
     evidence: >
       Required before a member of a constructed type can be bound -- PropertyInitializers
       resolves a property on Box of int, which means substituting the argument before member
       lookup.
 
       ConstructedType.Substitute does this, and PostfixBinder applies it to a member found on the
-      receiver's own definition, which GenericTypes exercises. The residue is not an absent path
-      but a wrong answer, so it will not announce itself: Substitute matches a TypeParameter on
-      ORDINAL alone, without checking which definition declared it, contradicting its own doc
-      comment. Correct wherever arguments pass straight through, silently wrong where they are
-      reordered -- `Derived<A, B> : Base<B>` substitutes A where B is meant.
+      receiver's own definition, which is the case GenericTypes exercises and which works. What
+      makes this `broken` rather than `partial` is that Substitute identifies a type parameter by
+      ORDINAL alone, never asking which declaration introduced it, so it answers for parameters
+      that are not its definition's. Its own doc comment claims the opposite -- "Returns the type
+      parameter unchanged if it does not belong to this definition" -- and no such check exists.
+
+      The reachable trigger is NOT inheritance. Any generic method on a generic type collides,
+      whenever the method's parameter ordinal falls inside the enclosing type's argument count,
+      because TypeParameterPopulator records a method's parameters with the ENCLOSING TYPE as
+      their DeclaringType. In `class Box<T>` with `U Echo<U>(U input)`, T and U are both ordinal
+      0 with DeclaringType Box, indistinguishable to Substitute.
+
+      DEMONSTRATED, both cases run from a scratch project on this commit and correct on classic.
+      Calling `b.Echo("hello")` on a `Box<int>`, then reading `.Length` off the result, gives
+      `MIST_PM_UNRESOLVED_MEMBER: 'Int32' has no member named 'Length'` -- Int32 because U was
+      answered with Box's argument. Dropping the member access does not save it: the wrong type
+      reaches emission as `int echoed = ...` and Roslyn rejects it with
+      `MIST_CS_ERROR: Cannot implicitly convert type 'string' to 'int'`, reported against a
+      generated Program.cs the user never wrote. Neither diagnostic names Echo, U, or
+      substitution, so the trail from symptom to cause is cold.
+
+      Inheritance is the tidier illustration and the harder one to reach -- `Derived<A, B> :
+      Base<B>` would substitute A where B is meant, but member lookup does not reach a generic
+      ancestor at all today (see the base chain task below), so substitution is never consulted.
+      Fixing that walk without fixing this turns a diagnosed miss into a silent wrong type.
     tasks:
-      - Check ownership in Substitute, and compose substitutions along a base chain so a member
-        found on a generic ancestor is read through every construction between it and the
-        receiver.
+      - Identify a type parameter by the declaration that introduced it, not by ordinal.
+        DeclaringType cannot carry this -- it holds the enclosing type for a method's parameters,
+        and two ExtensionProjector sites pass it null. Asking whether the definition's own
+        TypeParametersList contains the parameter does distinguish them.
+      - Compose substitutions along a base chain so a member found on a generic ancestor is read
+        through every construction between it and the receiver.
       - Walk a constructed base's chain in member lookup. TypeMemberLookup.EnqueueBases enqueues
         the ConstructedType itself, which then matches nothing because it is not a MemberType, so
         a member inherited from a generic base reports MIST_PM_UNRESOLVED_MEMBER.
+      - Note on sequencing. The ownership fix alone makes NEITHER demonstrated case pass, it only
+        stops the wrong answer -- the result becomes an unsubstituted U, and reaching `hello`
+        needs type-argument-inference (order 55) to infer U from the argument. So this entry
+        gates on 54 and 55 for the method case and on the base chain walk for the inheritance
+        case, and the ownership fix belongs inside whichever lands first rather than alone.
     unlocks: []
 
   - id: generic-methods

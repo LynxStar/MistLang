@@ -12,3 +12,5 @@ StormAnonymousGroups = { path = "../StormAnonymousGroups" }
 Namespaces = { path = "../Namespaces" }
 GlobalUsings = { path = "../GlobalUsings" }
 GenericTypes = { path = "../GenericTypes" }
+ArityOverloads = { path = "../ArityOverloads" }
+TopLevelStatements = { path = "../TopLevelStatements" }

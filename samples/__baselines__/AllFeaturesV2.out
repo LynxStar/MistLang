@@ -147,3 +147,32 @@ gbox=GenericBox(42)
 gbox.item=42
 gboxStr=GenericBox(hello)
 gc.item=99
+=== Arity Overloads Sample ===
+--- Mist arity overloads ---
+Wrapper(hello)
+Wrapper<T>(42)
+Wrapper<T1,T2>(active, True)
+Wrapper<T1,T2,T3>(1, two, 3)
+--- CLR generic arity ---
+List<int>.Count: 3
+Dictionary<string,int>.Count: 2
+--- Type alias coexistence ---
+Result<int>: Ok(42)
+Result<string>: Err
+--- Field types ---
+Wrapper(fixed)
+Wrapper<T>(100)
+Wrapper<T1,T2>(flag, True)
+Wrapper<T1,T2,T3>(7, seven, True)
+--- Method parameters ---
+plain: Wrapper(hello)
+single: Wrapper<T>(42)
+pair: Wrapper<T1,T2>(active, True)
+Done!
+=== Top-Level Statements: Disambiguation Demo ===
+  This class has static void Main(string[] args)
+  But entry_point = "top-level" in mist.toml means TLS is the entry point
+  Calling Main explicitly to prove it is just a normal static method:
+  Main called explicitly (not as entry point)
+  Main args.Length: 2
+  Disambiguation complete - Main is callable but not the entry point

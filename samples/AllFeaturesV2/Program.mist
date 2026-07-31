@@ -30,5 +30,7 @@ public class Program
         Namespaces.Program.RunDemo();
         GlobalUsings.Program.RunDemo();
         GenericTypes.Program.RunDemo();
+        ArityOverloads.Program.RunDemo();
+        TopLevelStatements.Program.RunDemo();
     }
 }

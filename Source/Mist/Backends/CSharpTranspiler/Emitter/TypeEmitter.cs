@@ -94,6 +94,12 @@ internal static class TypeEmitter
                 StructConversionEmitter.Emit((StructType)type, ancestor, writer, diagnostics);
             }
 
+            foreach(var property in type.PropertiesList)
+            {
+                SeparateMember(writer, ref anyEmitted);
+                PropertyEmitter.Emit(property, writer, diagnostics);
+            }
+
             foreach(var indexer in type.IndexersList)
             {
                 SeparateMember(writer, ref anyEmitted);

@@ -1370,33 +1370,44 @@ capabilities:
     order: 58
     layer: properties
     requires: [instance-fields, methods-static-and-instance]
-    v2_status: missing
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
-      TypeEmitter has no property path yet -- it walks fields, constructors and methods
-      only, so PropertiesList is never reached. The stdlib declares properties in 7 files
-      and the emitted stdlib contains none of them.
+      ACCESSOR BODIES ARE BOUND. Accessors are not Methods, so EnumerateDelegates never reached
+      them; MemberBinder now runs a Phase 3 pass of its own giving each accessor a MethodScope over
+      the type's scope, the indexer's parameters where there are any, and an implicit `value` local
+      in a setter. Verified through indexers (order 62), which that pass took from broken to
+      working, since they share AccessorBuilder and now the binding too.
 
-      ACCESSOR BODIES ARE NOW BOUND, which was the frontend half of this. Accessors are not
-      Methods, so EnumerateDelegates never reached them; Phase 3 gained a pass of its own giving
-      each accessor a MethodScope over the type's scope, the indexer's parameters where there are
-      any, and an implicit `value` local in a setter. Verified through indexers (order 62), which
-      that pass took from broken to working, since they share AccessorBuilder and now the binding
-      too. What remains here is emission and the bare read below.
+      PROPERTIES EMIT. PropertyEmitter and a shared AccessorEmitter cover the auto,
+      block-bodied and expression-bodied forms, an initializer after the closing brace, a narrowed
+      accessor accessibility, and static. Auto-only properties emit on one line, anything with a
+      body multi-line. A bare property read binds through PropertyReferenceExpression, mirroring
+      FieldReferenceExpression, where IdentifierBinder previously parked a sentinel -- that is what
+      an assignment like `Locked = by;` inside a method needed.
 
-      Second-largest measured gap after generic construction.
+      Verified on a scratch class covering all six shapes at once, byte-identical to classic.
+      NOT verified: a property on an abstract type, which nothing exercises yet.
+
+      NO PROPERTY-LEVEL ARROW FORM. `int X => e;` and `int X { get => e; }` are indistinguishable
+      in the model -- both arrive as one expression-bodied getter and no setter -- so collapsing to
+      the short form would be the emitter guessing at source shape. Accessor-level `get => e` is
+      different and is emitted, because ExpressionBody against Body is a distinction the model
+      actually records.
+
+      Still blocked for samples/Properties, which fails on the `field` keyword in three files. That
+      is order 59.
+
+      This was the second-largest measured gap after generic construction.
       IdentifierExpressionPrimaryNode accounts for 27 of the 210 unbound sites across the sample
       suite. Those are not misspellings: an unresolved name reports
       MIST_PM_UNRESOLVED_IDENTIFIER and binds ErrorExpression, so what reaches the emitter is
       the deliberate fallthrough for a resolved-but-unrepresentable result -- a bare property
       read through an implicit receiver, and a bare enum variant.
     tasks:
-      - Emit auto-property, block-bodied accessor and expression-bodied forms.
-      - Sequence an auto-property initializer against the constructor body.
       - >
-        Bind a bare property read. Resolution already succeeds and hands back PropertyResult;
-        IdentifierBinder has no bound node to map it onto, so it parks a sentinel. Reading a
-        property through an implicit receiver is a separate capability from resolving a name to
-        one.
+        Emit a property declared on an abstract type, and verify it. Auto accessors take the
+        one-line path, so it probably already works, but nothing exercises it.
     unlocks: []
 
   - id: property-backing-field-and-field-keyword

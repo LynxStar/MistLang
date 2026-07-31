@@ -25,15 +25,10 @@ internal static class IdentifierBinder
         {
             VariableResult variable => new LocalReferenceExpression(node, variable.Variable),
             FieldResult field => new FieldReferenceExpression(node, field.Field),
+            PropertyResult property => new PropertyReferenceExpression(node, property.Property),
             TypeResult type => new TypeReferenceExpression(node, type.Type),
             MethodGroupResult group => new MethodReferenceExpression(node, group.Methods[0]),
             NamespaceResult ns => new NamespaceReferenceExpression(node, ns.NamespaceName),
-
-            // Resolution succeeds for a bare property name, but there is no bound node to
-            // carry it yet -- reading a property through an implicit receiver is a separate
-            // capability from resolving the name to it. Sentinel rather than diagnostic: the
-            // program is fine, the binder is not finished.
-            PropertyResult => new UnresolvedExpression(node),
 
             // Matched on its own rather than folded into the fallthrough below, which still covers
             // results the binder cannot represent yet -- an enum variant named bare, among them.

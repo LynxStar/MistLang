@@ -17,38 +17,15 @@ internal static class IndexerEmitter
         writer.WriteLine($"{modifiers}{type} this[{parameters}]");
         using(writer.Block())
         {
-            if(indexer.Getter is not null)
+            if(indexer.Getter is { } getter)
             {
-                EmitAccessor("get", indexer.Getter, writer, diagnostics);
+                AccessorEmitter.Emit(getter, isSetter: false, writer, diagnostics);
             }
 
-            if(indexer.Setter is not null)
+            if(indexer.Setter is { } setter)
             {
-                EmitAccessor("set", indexer.Setter, writer, diagnostics);
+                AccessorEmitter.Emit(setter, isSetter: true, writer, diagnostics);
             }
-        }
-    }
-
-    private static void EmitAccessor(string keyword, PropertyAccessor accessor, CSharpWriter writer, DiagnosticBag diagnostics)
-    {
-        if(accessor.Body is not null)
-        {
-            writer.WriteLine(keyword);
-            using(writer.Block())
-            {
-                BodyEmitter.EmitBlock(accessor.Body, writer, diagnostics);
-            }
-        }
-        else if(accessor.ExpressionBody is not null)
-        {
-            writer.Write($"{keyword} => ");
-            BodyEmitter.EmitExpression(accessor.ExpressionBody, writer, diagnostics);
-            writer.Append(";");
-            writer.AppendLine();
-        }
-        else
-        {
-            writer.WriteLine($"{keyword};");
         }
     }
 }

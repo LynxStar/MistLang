@@ -51,6 +51,12 @@ internal static class TypeEmitter
                 ConstructorEmitter.Emit(constructor, type, writer, diagnostics);
             }
 
+            foreach(var indexer in type.IndexersList)
+            {
+                SeparateMember(writer, ref anyEmitted);
+                IndexerEmitter.Emit(indexer, writer, diagnostics);
+            }
+
             foreach(var method in type.MethodsList)
             {
                 SeparateMember(writer, ref anyEmitted);

@@ -450,24 +450,19 @@ capabilities:
     v2_status: partial
     verified_by: v2-semantics
     evidence: >
-      ExpressionBinder.BindObjectCreation. Property-initializer blocks are refused to a
-      sentinel by design, and node.TypeArgs is refused the same way, so a generic
-      construction never binds.
-      THE LARGEST SINGLE GAP IN THE V2 BACKLOG, by measurement rather than estimate.
-      ObjectCreationExpressionPrimaryNode accounts for 64 of the 210 unbound sites across the
-      sample suite, in 13 samples -- nearly three times the next construct. `new T<...>`
-      appears in 29 samples against initializer-block syntax in exactly one
-      (PropertyInitializers), so the bucket is generic construction almost entirely.
-      Confirmed on GenericTypes, where `new GenericBox<int>(42)` emits the sentinel marker.
-      The symptom recorded here before -- a misleading "type could not be found" -- is out of
-      date. It now reports MIST_BE_UNSUPPORTED_EXPRESSION at the construction site.
+      ExpressionBinder.BindObjectCreation.
+
+      Generic construction now binds and emits. GenericTypes is banked and its AllFeaturesV2
+      baseline carries `gbox=GenericBox(42)` from `new GenericBox<int>(42)`, plus a
+      `GenericBox<string>` and an abstract-typed `IGenericContainer<int>` holding one. This entry
+      was previously recorded as THE LARGEST SINGLE GAP IN THE V2 BACKLOG on a measurement of
+      unbound sites -- ObjectCreationExpressionPrimaryNode was 64 of 210 across the suite, with
+      `new T<...>` in 29 samples against initializer-block syntax in exactly one -- and since that
+      bucket was generic construction almost entirely, the bulk of it is closed.
+
+      What remains is the initializer-block half, which is one sample's worth of syntax and waits
+      on properties (order 58) to have anything to initialize.
     tasks:
-      - >
-        Bind generic object creation. Every piece already exists and is used together in
-        BaseTypeResolver.ResolveBaseTypeRef: build the arity-bearing name from the argument count,
-        resolve it, resolve the type arguments, intern through
-        TypeInterner.GetOrCreateConstructedType. BindObjectCreation refuses instead because the
-        grammar hands the name and the type arguments over as separate fields.
       - >
         Bind an object creation carrying a property-initializer block. Only PropertyInitializers
         uses the syntax, and binding the creation while dropping the block would silently
@@ -797,15 +792,22 @@ capabilities:
     v2_status: done
     verified_by: v2-semantics
     evidence: >
-      TopLevelStatements is banked in AllFeaturesV2 and green, which covers each part
-      separately: the statements reach TlsHelper and TlsPoint, both declared BELOW them, so the
-      forward reference resolves; they read args.Length and args[0], so the implicit parameter
-      exists and is an array of string; and the file ends in `return 0`, so a valued return at
-      file scope becomes the exit code.
+      Running samples/TopLevelStatements STANDALONE on v2 is byte-identical to classic, and that
+      run covers each former task separately: the statements reach TlsHelper and TlsPoint, both
+      declared BELOW them, so the forward reference resolves; the output carries "args.Length: 0"
+      and the no-arguments branch, so the implicit parameter exists and is an array of string; and
+      "returning exit code 0" is reached from a `return 0` at file scope.
+
+      STANDALONE IS THE ONLY RUN THAT PROVES THIS. AllFeaturesV2 calls
+      TopLevelStatements.Program.RunDemo() explicitly, so the file-scope statements never execute
+      there. Banked-and-green shows the file compiles; it does not show the statements run. An
+      earlier version of this entry cited the orchestrator, which was the wrong proof for the
+      right conclusion.
 
       Statements are hoisted above a BLOCK namespace holding the types, with an injected
-      self-import so they still see those types by simple name, and a synthesized $TopLevel
-      entry point carries them.
+      self-import so they still see those types by simple name. TypeBuilder synthesizes a
+      `$TopLevel` type to carry them in the model, but nothing of that name is emitted -- the
+      output is real C# top-level statements.
     unlocks: []
 
   - id: entry-point-resolution
@@ -814,21 +816,31 @@ capabilities:
     layer: declaration-boundaries
     requires: [top-level-statements]
     v2_status: broken
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      BROKEN RATHER THAN UNVERIFIED. v2 selects the WRONG entry point and runs a different
-      program without complaint. On TopLevelStatements, classic executes the top-level statements
-      and opens with "=== Variable Declarations ===", while v2 executes the declared Main and
-      opens with "Main called explicitly (not as entry point)". Both compile and run, which is
-      exactly why a compile-based screen passes it.
-      EntryPointDiagnostics defines MIST_EP_0001 through MIST_EP_0008 for the classic
-      pipeline. The TopLevelStatements sample sets the top-level entry point AND declares a
-      static Main in a second file, which must survive as an ordinary callable static
-      method.
-    tasks:
-      - Honour the top-level entry-point setting when a static Main also exists, without
-        renaming or eliding the demoted Main.
-      - If synthesizing a Mist-level entry type, do not collide with the user's own type of
-        the same name in that namespace. Disambiguation.mist already declares one.
+      Was recorded BROKEN on the observation that v2 ran the declared Main instead of the
+      top-level statements, opening with "Main called explicitly (not as entry point)" where
+      classic opened with "=== Variable Declarations ===". That no longer reproduces. Running
+      samples/TopLevelStatements STANDALONE on both pipelines gives byte-identical output, and v2
+      opens with "=== Variable Declarations ===".
+
+      Both former tasks hold. The demoted Main survives as an ordinary method: Disambiguation.mist
+      declares `public class Program` with `static void Main(string[] args)` in the same namespace,
+      and the emitted Disambiguation.cs still carries it and still calls it. And the synthesized
+      entry type cannot collide, on two counts -- TypeBuilder names it `$TopLevel`, using a
+      character no source identifier may contain, and nothing of that name reaches the output
+      anyway, because the statements emit as real C# top-level statements hoisted above a block
+      namespace rather than as a class.
+
+      MEASURE IT STANDALONE, NOT THROUGH THE ORCHESTRATOR. AllFeaturesV2 calls
+      TopLevelStatements.Program.RunDemo() explicitly, so the file-scope statements never execute
+      there and its baseline holds no "Variable Declarations" line. A green AllFeaturesV2 says
+      nothing about this capability either way.
+
+      EntryPointDiagnostics defines MIST_EP_0001 through MIST_EP_0008 for the classic pipeline;
+      no v2 equivalent has been checked, so the diagnostics remain unverified even though
+      selection is correct.
     unlocks: [TopLevelStatements]
 
   # ===================================================================

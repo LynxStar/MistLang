@@ -1400,14 +1400,27 @@ capabilities:
     requires: [property-declarations-and-accessors]
     v2_status: missing
     evidence: >
-      LIVE DEFECT in the classic pipeline, worth not repeating. An auto-accessor combined
-      with a hand-written accessor emits TWO backing fields, so writes never reach reads.
-      samples/Properties/out/MixedAccessors.cs emits both an auto-property and a separate
-      backing field, and running the built DLL prints a zero after a non-zero assignment.
-      There is no baseline file for Properties, so nothing catches it.
+      WAS a live defect in the classic pipeline, now FIXED there, and the fix is the shape v2
+      should copy. An auto accessor beside a hand-written one reached two different slots: a
+      `field`-using accessor was rewritten against a declared `_Name_k__BackingField`, while the
+      auto accessor stayed bodiless and so bound to the separate slot C# synthesizes for it. Every
+      write landed in one and every read came from the other. EmitAccessorDeclaration now spells a
+      body for an auto accessor whenever a backing field was declared, so both reach it.
+
+      THE BASELINE HAD RATIFIED THE BUG rather than failing to catch it, which is why it survived.
+      The earlier note here said no baseline file exists for Properties; true of per-sample
+      baselines and beside the point, since Properties is wired into AllFeatures and its output
+      was in AllFeatures.out with `Score=0` recorded as expected. A passing baseline test was
+      therefore protecting the defect. Corrected to `Score=42` and `Year=2024`.
+
+      It also had TWO instances, not one. Beyond MixedAccessors.Score, InitAccessors.Year has the
+      same shape with an `init` block, and read 0 after a constructor assigned 2024. Any auto
+      accessor can be the one left bodiless -- get, set or init -- so all three needed the fix.
     tasks:
       - Use ONE shared backing slot when an auto-accessor and a hand-written accessor
-        coexist on the same property.
+        coexist on the same property. Fixed in classic; v2 must not reintroduce it. Prefer
+        emitting C#'s own `field` keyword over a declared backing field if the accessor bodies
+        allow it, since that removes the chance of the two diverging at all.
       - Resolve the field keyword to that same slot.
     unlocks: []
 

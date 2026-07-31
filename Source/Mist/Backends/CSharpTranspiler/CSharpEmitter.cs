@@ -6258,6 +6258,12 @@ internal sealed class CSharpSourceWriter
         AppendLine($"{modifiers}{type} {name} => {body};");
     }
 
+    /// <param name="backingFieldName">
+    /// The field declared for this property when any accessor spelled <c>field</c>, or null when
+    /// none did. Non-null obliges even an AUTO accessor to spell out a body against that field:
+    /// left bodiless it would bind to the separate slot C# synthesizes, and a property whose
+    /// getter and setter reach different storage silently discards every write.
+    /// </param>
     private string EmitAccessorDeclaration(AccessorDeclarationNode accessor, string? backingFieldName, bool isReadonlyProperty = false)
     {
         switch(accessor)
@@ -6266,7 +6272,9 @@ internal sealed class CSharpSourceWriter
             case AutoGetAccessorAccessorDeclarationNode autoGet:
                 {
                     var mod = EmitAccessorModifier(autoGet.AccessorModifier);
-                    return $"{mod}get;";
+                    return backingFieldName is null
+                        ? $"{mod}get;"
+                        : $"{mod}get {{ return {backingFieldName}; }}";
                 }
             case BlockGetAccessorAccessorDeclarationNode blockGet:
                 {
@@ -6287,7 +6295,9 @@ internal sealed class CSharpSourceWriter
                 {
                     var mod = EmitAccessorModifier(autoSet.AccessorModifier);
                     var keyword = isReadonlyProperty ? "init" : "set";
-                    return $"{mod}{keyword};";
+                    return backingFieldName is null
+                        ? $"{mod}{keyword};"
+                        : $"{mod}{keyword} {{ {backingFieldName} = value; }}";
                 }
             case BlockSetAccessorAccessorDeclarationNode blockSet:
                 {
@@ -6308,7 +6318,9 @@ internal sealed class CSharpSourceWriter
             case AutoInitAccessorAccessorDeclarationNode autoInit:
                 {
                     var mod = EmitAccessorModifier(autoInit.AccessorModifier);
-                    return $"{mod}init;";
+                    return backingFieldName is null
+                        ? $"{mod}init;"
+                        : $"{mod}init {{ {backingFieldName} = value; }}";
                 }
             case BlockInitAccessorAccessorDeclarationNode blockInit:
                 {

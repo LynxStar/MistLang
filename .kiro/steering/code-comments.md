@@ -176,6 +176,10 @@ Re-read every comment you added and ask, in order:
 
 The first question is the default, so it comes first. The other two only matter for comments that survive it.
 
+This self-check is weakest exactly where it matters, for the reason given above: it runs while the comment still feels earned, judged by whoever just decided to write it. Where a change added comments, dispatch the `comment-auditor` agent before presenting it. It judges each one against this policy from a context that did not write the code and has no stake in keeping the prose, and it reports rather than edits unless told otherwise, so running it risks nothing.
+
+The trigger is self-limiting, which is why it can be a default. A change that follows this policy adds almost no comments, so there is usually nothing to audit. A change where the auditor finds a great deal is the change that needed it.
+
 ## Applies To
 
 - All comments in `Source/` and `Test/`, both `//` and `///`.

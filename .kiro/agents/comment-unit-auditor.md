@@ -185,8 +185,14 @@ ABSENCE: one deliberate-looking absence, per the bounded exception above. Omit i
 ```
 
 REPLACEMENT is raw source, character for character as it will sit in the file, indentation
-included. Never HTML-escape it: `<` and `>` appear literally, never as `&lt;` or `&gt;`, or
-the caller relays text that cannot be pasted.
+included. Do not escape it on the way out: the characters you write are the characters that
+get pasted, so adding `&lt;` or `&gt;` for transport hands the caller text that cannot be used.
+
+A replacement is not the place to introduce an XML escape either. Policy Rule 4 forbids
+`&lt;` and `&gt;` in a comment outright, so a replacement needing one to be valid XML is not
+finished -- rewrite it without the angle brackets, or make it a `//` comment. The same rule
+forbids splitting a code sample across lines, so wrap the prose around a snippet rather than
+through it.
 
 KEEP means the comment is already at its smallest justified form. Expect it to be rare;
 REDUCE is the normal outcome for a comment that survives stage 1.

@@ -166,6 +166,51 @@ The above *is* an argument for fewer comments. It is not an argument against the
 - Why something is deliberately absent: no diagnostic here, no narrowing here, no validation here.
 - A deliberate-looking oddity that would otherwise read as a mistake, such as emitting output known to be invalid.
 
+## Rule 4: No XML escapes
+
+A comment is read in the editor, as source. That is the only form most readers ever see it in, so source is the form that has to be legible. `///` is XML, so `<` and `>` inside it have to be written `&lt;` and `&gt;` -- which means a code sample containing a generic type arrives like this:
+
+```csharp
+/// A group used as a VALUE does survive -- <c>Func&lt;int, int&gt; f
+/// = Add;</c> never invokes anything
+```
+
+Nobody can read that. The escaping is most of it; the line wrap through the middle of the snippet finishes the job.
+
+So: **no comment contains `&lt;` or `&gt;`**, and no code sample is split across lines.
+
+### Why
+
+The escape buys nothing a reader wants. It is there to keep a doc-XML parser happy, and this project generates no documentation file, so nothing consumes that XML except an IDE hover on types that are almost all `internal`. The cost lands entirely on the person reading the file.
+
+The rendered snippet is also, nearly always, decoration. What earns a comment's place is the mechanism it describes; the sample was an illustration of it. Removing the sample and stating the mechanism is shorter *and* readable, which is why it is the first option rather than the last.
+
+### How to comply
+
+In order of preference:
+
+1. **Drop the sample and state the mechanism.** Usually the prose already carries it and the sample was restating it in a second notation.
+2. **Choose a sample that needs no angle brackets.** `Action f = Log;` illustrates a method group as a value as well as `Func<int, int>` does. `int[]`, a call, a declaration -- most illustrations have a bracket-free form.
+3. **Use `//` instead of `///`.** A non-doc comment is not XML, so the sample sits there literally and reads fine. This is the answer when the brackets are genuinely load-bearing, and it costs nothing on an `internal` member.
+
+For a type *reference* rather than a code sample, `<see cref="..."/>` already takes braces where C# takes angle brackets, and that is the idiomatic form: `<see cref="IReadOnlyList{Method}"/>`.
+
+### Forbidden
+
+```csharp
+/// A constructed type interpolates its arguments' names, so <c>Buffer&lt;255&gt;</c> over an
+/// <c>int</c> and over a <c>byte</c> compare equal here.
+```
+
+### Approved
+
+```csharp
+/// A constructed type interpolates its argument's name, so the same lifted value over an
+/// <c>int</c> and over a <c>byte</c> produces the same name and compares equal here.
+```
+
+The rendering went, the mechanism stayed, and the line is shorter than the one it replaced.
+
 ## Self-Check Before Presenting
 
 Re-read every comment you added and ask, in order:
@@ -173,8 +218,9 @@ Re-read every comment you added and ask, in order:
 1. Would deleting it lose anything the code does not say? If not, delete it. Read each `<summary>` against the identifier above it: if it is the name with spaces in it, delete it.
 2. Does it describe the past? Delete or rewrite in the present.
 3. Does another comment already say it? Keep one, reference it from the other.
+4. Does it contain `&lt;` or `&gt;`, or a code sample broken across lines? Rewrite per Rule 4.
 
-The first question is the default, so it comes first. The other two only matter for comments that survive it.
+The first question is the default, so it comes first. The others only matter for comments that survive it.
 
 This self-check is weakest exactly where it matters, for the reason given above: it runs while the comment still feels earned, judged by whoever just decided to write it. Where a change added comments, dispatch the `comment-auditor` agent before presenting it. It judges each one against this policy from a context that did not write the code and has no stake in keeping the prose, and it reports rather than edits unless told otherwise, so running it risks nothing.
 

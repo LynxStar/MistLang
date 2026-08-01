@@ -120,6 +120,10 @@ careful, or recently written.
 Amend rather than overturn when a REDUCE drops a factual correction the delegate reported
 under CLAIMS -- put the corrected value back into the replacement text and keep the verdict.
 
+Amend, too, any replacement carrying `&lt;` or `&gt;`, or a code sample broken across lines.
+Policy Rule 4 forbids both, and a replacement is the last point before that text lands in a
+file the user has to read. Fix it per that rule and keep the verdict.
+
 Record the accepted set before applying anything. That record is what phase 3 executes.
 
 # Phase 3: apply

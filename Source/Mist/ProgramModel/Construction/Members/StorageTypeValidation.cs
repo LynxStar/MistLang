@@ -7,13 +7,7 @@ namespace Mist.ProgramModel.Construction.Members;
 
 internal static class StorageTypeValidation
 {
-    /// <summary>
-    /// Reports a declared storage type that mentions <c>unknown</c>.
-    /// </summary>
-    /// <param name="description">
-    /// How the member is named to the user, already including its kind -- "Field 'Holder.slot'".
-    /// Supplied by the caller because only the caller knows which kind of member it is building.
-    /// </param>
+    /// <param name="description">Already includes the member kind -- "Field 'Holder.slot'".</param>
     public static void Validate(IMistType type, string description, SyntaxNode node, BuilderContext context)
     {
         if(!ContainsUnknown(type))
@@ -24,9 +18,6 @@ internal static class StorageTypeValidation
         context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownAtStoragePosition, node, null, description, TypeDisplay.Mist(type));
     }
 
-    /// <summary>
-    /// Whether <paramref name="type"/> mentions <c>unknown</c> anywhere in its type expression.
-    /// </summary>
     public static bool ContainsUnknown(IMistType type)
     {
         return type switch
@@ -36,6 +27,8 @@ internal static class StorageTypeValidation
             UnionType union => AnyContainsUnknown(union.Constituents),
             NamedTupleType named => AnyContainsUnknown(named.ElementTypes),
             TupleType tuple => AnyContainsUnknown(tuple.ElementTypes),
+            // UnknownValueType is also named "unknown", but it is an array's length argument, so
+            // matching it would refuse every array field.
             _ => false,
         };
     }

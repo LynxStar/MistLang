@@ -132,6 +132,7 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
         var modifiers = ModifierBuilder.Build(fieldDecl, Context.Diagnostics, typeDef);
 
         MemberNameValidation.Validate(name, typeDef.Name, fieldDecl, Context.Diagnostics);
+        StorageTypeValidation.Validate(type, $"Field '{typeDef.Name}.{name}'", fieldDecl, Context);
 
         var initializer = fieldDecl.Initializer is { } initExpr ? new UnresolvedExpression(initExpr) : null;
 

@@ -48,7 +48,7 @@ internal static class AmbientProviderTestHelper
         register(new AbstractType(WellKnownTypes.IEnumerable.Name, WellKnownTypes.IEnumerable.Namespace, scope, null, null));
         register(new AbstractType(WellKnownTypes.IEnumerator.Name, WellKnownTypes.IEnumerator.Namespace, scope, null, null));
 
-        // Array definition for CLR T[] → Standard.Array<T, unknown>.
+        // Array definition for CLR T[] → Standard.Array<T, Length>.
         register(new ClassType(WellKnownTypes.Array.Name, WellKnownTypes.Array.Namespace, scope, null, null!));
 
         // Func family (arity 1-17).

@@ -49,9 +49,15 @@ internal sealed class ConstructedType : MistType, IConstructedType
         return type;
     }
 
+    /// <summary>
+    /// The definition's name with the arguments in place of its arity marker, so
+    /// <c>Box&lt;&gt;</c> constructed with <c>int</c> is named <c>Box&lt;int&gt;</c>. Stripping is
+    /// required rather than cosmetic: the definition is REGISTERED under the arity-bearing name, so
+    /// interpolating it directly yields <c>Box&lt;&gt;&lt;int&gt;</c>.
+    /// </summary>
     private static string BuildName(IMistType definition, IReadOnlyList<IMistType> typeArguments)
     {
-        return $"{definition.Name}<{string.Join(", ", typeArguments.Select(a => a.Name))}>";
+        return $"{StripArity(definition.Name)}<{string.Join(", ", typeArguments.Select(a => a.Name))}>";
     }
 
     /// <summary>

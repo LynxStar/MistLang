@@ -49,9 +49,7 @@ internal static class TypeNameEmitter
         }
 
         // Generic types: Definition<Arg1, Arg2, ...>
-        var defName = constructed.Definition.Name;
-        var arityIndex = defName.IndexOf('<');
-        var baseName = arityIndex >= 0 ? defName[..arityIndex] : defName;
+        var baseName = MistType.StripArity(constructed.Definition.Name);
         var args = string.Join(", ", constructed.TypeArguments.Select(Emit));
         return $"{baseName}<{args}>";
     }

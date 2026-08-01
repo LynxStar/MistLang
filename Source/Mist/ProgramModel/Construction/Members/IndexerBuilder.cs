@@ -36,6 +36,8 @@ internal sealed class IndexerBuilder
         var parameters = parameterBuilder.Resolve(indexerDecl.Parameters, memberType.Scope);
         var isAbstract = memberType is AbstractType;
 
+        StorageTypeValidation.Validate(type, $"Indexer '{memberType.Name}.this[]'", indexerDecl, context);
+
         if(modifiers.IsAsync)
         {
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AsyncOnlyOnMethods, indexerDecl, null);

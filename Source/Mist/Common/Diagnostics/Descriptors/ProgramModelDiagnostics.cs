@@ -458,4 +458,27 @@ public static class ProgramModelDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
         "Assembly name '{0}' is used by multiple projects in this compilation. Each referenced project must have a unique name.");
+
+    // ── The unknown top type ─────────────────────────────────────────────
+
+    /// <summary>
+    /// <c>unknown</c> is the declared type of writable storage, directly or through a type
+    /// argument, union constituent or tuple element.
+    /// <para>
+    /// Storage is banned because it is the one position that would let a value LEAVE the top type
+    /// without a pattern: write an <c>int</c> into an <c>unknown</c>-typed slot and read it back
+    /// through a concretely-typed view of the same slot, and the narrowing rule has been bypassed
+    /// without any assignment having broken it.
+    /// </para>
+    /// <para>
+    /// A getter-only property is refused along with the rest. The ban is on the declaration, not on
+    /// the presence of a setter, because it is the declared type that decides what the slot admits
+    /// -- and a property that is read-only today is one edit away from not being.
+    /// </para>
+    /// </summary>
+    public static readonly DiagnosticDescriptor UnknownAtStoragePosition = new(
+        new DiagnosticId("MIST_PM_UNKNOWN_AT_STORAGE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "{0} cannot have type '{1}': 'unknown' is not permitted as the declared type of writable storage. Use a concrete type, or accept 'unknown' as a parameter and pattern-match it.");
 }

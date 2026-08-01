@@ -188,8 +188,17 @@ internal sealed class AmbientTypeResolver
 
     /// <summary>
     /// Resolves a CLR array type (e.g., int[], string[]) by constructing
-    /// <c>Standard.Array&lt;ElementType, unknown&gt;</c> — matching how the source-side
-    /// TypeReferenceResolver handles array rank suffixes.
+    /// <c>Standard.Array&lt;ElementType, Length&gt;</c>, where the length is an
+    /// <see cref="UnknownValueType"/> over <c>int</c> because reflection carries no length.
+    /// <para>
+    /// The length has to be built the same way <c>ScopeResolver.ConstructArray</c> builds it, or a
+    /// CLR <c>string[]</c> and a Mist <c>string[]</c> intern as two different types. It is
+    /// specifically NOT <c>UnknownType</c>: that is the user-facing top type, and putting it at a
+    /// dependent-value position says the array's LENGTH is a value of unknown type rather than an
+    /// int nobody has named -- which loses the domain that lets <c>arr.Length</c> emit as an
+    /// <c>int</c>, and reads as an array carrying the top type to anything asking where
+    /// <c>unknown</c> appears.
+    /// </para>
     /// </summary>
     private MistType ResolveArrayType(Type clrType, Scope scope)
     {
@@ -205,7 +214,14 @@ internal sealed class AmbientTypeResolver
             return ErrorType.Instance;
         }
 
+        if(!wellKnownTypes.TryGetValue("System.Int32", out var int32Def))
+        {
+            return ErrorType.Instance;
+        }
+
+        var length = typeInterner.GetOrCreateUnknownValue(int32Def);
+
         return typeInterner.GetOrCreateConstructedType(
-            arrayDef, new IMistType[] { elementType, UnknownType.Instance });
+            arrayDef, new IMistType[] { elementType, length });
     }
 }

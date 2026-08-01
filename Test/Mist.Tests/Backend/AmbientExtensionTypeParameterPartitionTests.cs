@@ -2,9 +2,11 @@ using System.Collections.Immutable;
 using System.Reflection;
 using Mist.Backends.CSharpTranspiler.AmbientProvider;
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
+using Mist.ProgramModel.Model.Types;
 using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 
 namespace Mist.Tests.Backend;
@@ -93,8 +95,16 @@ public sealed class AmbientExtensionTypeParameterPartitionTests : IDisposable
 
     /// <summary>
     /// <c>Select&lt;TSource, TResult&gt;(this IEnumerable&lt;TSource&gt;, Func&lt;TSource,
-    /// TResult&gt;)</c>. The receiver mentions only TSource, so TSource is the block's and TResult is
-    /// the method's -- one apiece, not two on either.
+    /// TResult&gt;)</c>. The receiver mentions one of the two parameters, so that one is the block's
+    /// and the result is the method's -- one apiece, not two on either.
+    /// <para>
+    /// What the receiver MENTIONS is asserted rather than the parameter's name, for the same reason
+    /// <see cref="Where_PutsItsOnlyParameterOnTheBlock"/> asserts only placement: System.Linq
+    /// declares Select on more than one class, as TSource on Enumerable and T on
+    /// ImmutableArrayExtensions. Blocks are held in a dictionary keyed by receiver type under
+    /// reference equality, so which overload is reached first follows identity hash codes and a
+    /// name pinned to one of them holds only by luck of that order.
+    /// </para>
     /// </summary>
     [Fact]
     public void Select_PutsReceiverParameterOnBlockAndResultOnMethod()
@@ -108,9 +118,36 @@ public sealed class AmbientExtensionTypeParameterPartitionTests : IDisposable
 
         Assert.NotEmpty(split);
 
-        var (block, method) = split[0];
-        Assert.Equal("TSource", block.TypeParametersList[0].Name);
-        Assert.Equal("TResult", method.TypeParametersList[0].Name);
+        Assert.All(split, o =>
+        {
+            var receiverMentions = new HashSet<string>(StringComparer.Ordinal);
+            CollectTypeParameters(o.Block.ResolvedReceiverType!, receiverMentions);
+
+            Assert.Contains(o.Block.TypeParametersList[0].Name, receiverMentions);
+            Assert.DoesNotContain(o.Method.TypeParametersList[0].Name, receiverMentions);
+        });
+    }
+
+    /// <summary>
+    /// Every type parameter named anywhere in a type expression, which is the evidence the partition
+    /// is built from.
+    /// </summary>
+    private static void CollectTypeParameters(IMistType type, HashSet<string> into)
+    {
+        switch(type)
+        {
+            case TypeParameter parameter:
+                _ = into.Add(parameter.Name);
+                break;
+
+            case ConstructedType constructed:
+                foreach(var argument in constructed.TypeArguments)
+                {
+                    CollectTypeParameters(argument, into);
+                }
+
+                break;
+        }
     }
 
     /// <summary>

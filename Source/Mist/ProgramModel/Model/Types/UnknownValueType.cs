@@ -30,8 +30,7 @@ internal sealed class UnknownValueType : MistType
     /// which is what it means to a reader and what diagnostics already say. The name is not the
     /// identity -- <see cref="Domain"/> is -- so two domains sharing this name is not a collision.
     /// </remarks>
-    public UnknownValueType(IMistType domain)
-        : base("unknown", new Scope(null), declaringType: null)
+    public UnknownValueType(IMistType domain) : base("unknown", new Scope(null), declaringType: null)
     {
         Domain = domain;
     }

@@ -192,18 +192,15 @@ internal static class TypeEmitter
     }
 
     /// <summary>
-    /// The bare name, with any arity suffix removed: <c>GenericBox&lt;,&gt;</c> becomes
-    /// <c>GenericBox</c>.
+    /// The name a C# declaration is emitted under, via <see cref="MistType.StripArity"/>.
     /// <para>
-    /// A generic type's <see cref="MistType.Name"/> is the arity-bearing key it was registered
-    /// under, so that <c>Box&lt;T&gt;</c> and <c>Box&lt;T1, T2&gt;</c> can coexist in one scope.
-    /// That key is not a C# identifier, so nothing may emit it verbatim -- a declaration names
-    /// its parameters instead (<see cref="EmitTypeName"/>) and a constructor names neither.
+    /// The registered name is not a C# identifier, so nothing may emit it verbatim -- a
+    /// declaration names its parameters instead (<see cref="EmitTypeName"/>) and a constructor
+    /// names neither.
     /// </para>
     /// </summary>
     internal static string CleanName(MemberType type)
     {
-        var arityIndex = type.Name.IndexOf('<');
-        return arityIndex >= 0 ? type.Name[..arityIndex] : type.Name;
+        return MistType.StripArity(type.Name);
     }
 }

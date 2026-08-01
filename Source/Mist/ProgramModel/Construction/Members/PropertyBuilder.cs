@@ -50,6 +50,7 @@ internal sealed class PropertyBuilder
         var modifiers = ModifierBuilder.Build(exprProp, context.Diagnostics, host as MistType);
 
         MemberNameValidation.Validate(name, host, exprProp, context.Diagnostics);
+        StorageTypeValidation.Validate(type, $"Property '{host.Name}.{name}'", exprProp, context);
 
         if(modifiers.IsAsync)
         {
@@ -79,6 +80,7 @@ internal sealed class PropertyBuilder
         var isExtension = host is ExtensionBlock;
 
         MemberNameValidation.Validate(name, host, blockProp, context.Diagnostics);
+        StorageTypeValidation.Validate(type, $"Property '{host.Name}.{name}'", blockProp, context);
 
         if(modifiers.IsAsync)
         {

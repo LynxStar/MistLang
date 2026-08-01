@@ -153,6 +153,7 @@ internal static class ExpressionBinder
         return elementTypeRef switch
         {
             PrimitiveElementTypeRefElementTypeRefNode primitiveRef => ResolvePrimitiveElementType(primitiveRef, context),
+            UnknownElementTypeRefElementTypeRefNode => UnknownType.Instance,
             NamedElementTypeRefElementTypeRefNode namedRef => context.Resolver.ResolveNamedType(namedRef.Name.IDENTIFIER.Lexeme, ctx.Scope, namedRef),
             _ => ErrorType.Instance,
         };

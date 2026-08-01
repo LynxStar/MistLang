@@ -105,6 +105,19 @@
 #   capabilities[].tasks        subtasks; a capability may have 1..N
 #   capabilities[].unlocks      samples whose threshold this capability is
 #
+#   capabilities[].analysis_phase_tasks
+#                               rules this capability will need ENFORCED, deferred wholesale
+#                               to the analysis phase that follows the samples work. Kept
+#                               apart from `tasks` because they are NOT what `v2_status`
+#                               measures: done here means the model is right and the emission
+#                               is right, and v2 runs no analyzers at all -- Stage 5 is an
+#                               empty stub. A capability with entries here is not partial;
+#                               it is in the same state as every other banked capability.
+#                               Recording them per capability is so the analysis phase
+#                               inherits the reasoning rather than rediscovering it, and
+#                               several are already-written rules that were removed on
+#                               purpose rather than rules nobody has designed.
+#
 #   samples[].requires          DIRECT capability dependencies. The transitive closure is
 #                               implied, not spelled out. (The first 13 sample records
 #                               predate this convention and list their full closure; that is
@@ -653,18 +666,56 @@ capabilities:
     layer: member-binding
     requires: [methods-static-and-instance, object-creation, control-flow-basic]
     v2_status: missing
+    priority: next
     evidence: >
+      NEXT FEATURE. Chosen deliberately over anything that unlocks more samples, because this is
+      the capability whose absence is least visible: the Overloading sample is banked in
+      AllFeaturesV2 and green, and that greenness is not evidence of anything. Every other missing
+      capability announces itself as a failed compile.
+
       PostfixBinder.ResolveMemberType returns the first name match and ignores argument
       types entirely. Emission gets away with it because Roslyn re-resolves the call
       downstream, and in the Overloading sample every result feeds string interpolation. An
       int-typed local initialized from a double-returning overload could still bind wrong.
+
+      WHY THE SAMPLE PASSES ANYWAY, since this is the trap to understand before starting. Mist
+      binds nothing, emits the call as written, and Roslyn resolves it against the C# overload
+      set. Where Mist's rules and C#'s agree the output is right by coincidence rather than by
+      construction, and the sample's results all flow into string interpolation, which accepts
+      whichever overload was picked. The sample cannot fail on a wrong choice, so it proves only
+      that the emitted text is plausible C#.
+
+      IT ALSO GATES ONE OF THE UNKNOWN TOP TYPE'S USE-SITE RULES (order 81). ArgumentBinder has no
+      parameter type to check an argument against, so there is nothing for a rule about
+      `Describe(u)` to consult. The other four sites that rule needs already pair a target type
+      with a value type and are reachable whenever the analysis phase starts; the argument position
+      is the one that cannot be written until this lands. Order 81 owns the rule itself, under its
+      `analysis_phase_tasks`.
     tasks:
       - Implement candidate collection by name, then selection by argument type.
       - Handle the four-way Printer.Format case over int, bool, double and string.
       - Handle static overloads differing in both arity and type -- MathHelper declares Add
         at arity 2 and Clamp at arity 3, each in an int and a double form.
-      - Add a negative test where the wrong choice is observable. Assign the result to an
-        explicitly typed local rather than interpolating it.
+      - Report an ambiguous call and a call matching no candidate, rather than binding the first
+        name match and letting Roslyn describe the problem against generated C#.
+      - Record the selected parameter on the bound argument, so a later rule about what may be
+        passed has a target type to consult. Selecting an overload without keeping what it selected
+        would leave order 81's argument rule blocked for the same reason it is blocked today.
+    negative_tests_required: >
+      The reason this capability needs its tests written as REJECTIONS is that the positive cases
+      already appear to pass. A test that calls an overload and asserts the output cannot
+      distinguish "Mist chose correctly" from "Mist chose nothing and Roslyn chose correctly", so
+      the suite must contain cases where a wrong choice is OBSERVABLE or reported. At minimum:
+      - Bind through a target that forces the choice to be observable -- assign to an explicitly
+        typed local (`int n = Pick(1);` against int and double overloads) rather than
+        interpolating the result, so a wrong pick is a type error rather than different text.
+      - Assert on the SELECTED overload in the model, not on program output. A Tier 3 test over
+        ProgramModelBuilder can name which Method the call bound to, which no amount of stdout
+        can show.
+      - An ambiguous call reports at the Mist source location, and a no-candidate call likewise.
+        Neither may reach the backend as MIST_CS_ERROR on a generated file.
+      - A counter-example per rule, so a resolver that simply rejects more is not mistaken for a
+        resolver that chooses correctly.
     unlocks: []
 
   - id: constructor-overload-resolution
@@ -675,9 +726,13 @@ capabilities:
                string-interpolation, var-type-inference, standard-library-binding,
                implicit-instance-field-access]
     v2_status: missing
+    priority: next
     evidence: >
-      Same root cause. Overloading/Printer declares two constructors distinguished only by
-      arity.
+      Same root cause, and the same reason for going next: BindObjectCreation binds arguments
+      without selecting a constructor, so a wrong choice is invisible for as long as Roslyn
+      re-resolves it. Overloading/Printer declares two constructors distinguished only by arity.
+      Carries the same negative-test requirement as order 26 -- assert on the constructor the
+      model selected, not on what the program printed.
     unlocks: [Overloading]
 
   # ===================================================================
@@ -1834,11 +1889,139 @@ capabilities:
     order: 81
     layer: unions-and-unknown
     requires: [class-declaration]
-    v2_status: missing
+    v2_status: done
+    verified_by: unexercised
     evidence: >
       A real user-facing type that every non-void type is assignable to, lowering to C#
       object. Forbidden as the declared type of writable storage and of a new expression.
       Pattern matching is the designated way back to a concrete type.
+
+      DONE MEANS THE MODEL IS RIGHT AND THE EMISSION IS RIGHT. `unknown` resolves to a real type,
+      carries correctly through every position it can appear in, and lowers to C# `object`. The
+      rules that REJECT a program are type checking, and v2 does none yet -- Stage 5 is an empty
+      stub with no analyzer contract over IProgramModel -- which is the same state every other
+      capability in this file is banked in. Analysis is a later phase over the whole language, not
+      a debt owed by this entry. See `analysis_phase_tasks`.
+
+      `unexercised` because NO SAMPLE reaches it. UnknownType is the closest consumer and still
+      needs type-argument-substitution (53, broken), unknown-covariant-generic-widening (82) and
+      pattern-matching-core (90), so nothing in AllFeaturesV2 spells `unknown` today and the
+      positive path was measured on scratch programs rather than on a sample. The stdlib does reach
+      it -- Standard/Unknown.mist declares `extension(unknown self)`, whose receiver resolves on
+      every compile -- but that is the non-sample target, not sample greenness.
+
+      Rules that judge a value flowing from one place to another were written, measured working, and
+      then deleted rather than left in the binders, because putting them there sites analysis inside
+      construction and pre-empts a decision the analyzer layer should make for itself. They are
+      listed under "WHAT THE ANALYSIS PHASE WILL OWN" so nobody has to rediscover them.
+
+      THE ONE REJECTION THAT STAYED, and it is in Stage 4 because of a fact about the model rather
+      than a preference. Field does not store its declaring AST node -- its own doc says so, noting the
+      node is reachable only through Initializer.Node when an initializer exists. A field with no
+      initializer, which is exactly `public unknown slot;`, therefore has NO node anywhere in the
+      finished model, so an analyzer could detect the violation and could not report it at the
+      user's source. Construction is the only place that holds both the resolved type and the
+      declaration it came from. Property and Indexer store no node either, so the rule is not
+      splittable into a Stage 4 half for fields and a Stage 5 half for the other two -- all three
+      storage kinds are reportable only from construction, which is why one descriptor covering all
+      three sits in one place. Classic reaches the same split from the same constraint: its
+      MIST_SB_0050/0051/0052 come from SemanticModelBuilder Pass 2 while every use-site unknown
+      rule comes from TypeCheckerAnalyzer.
+
+      MIST_PM_UNKNOWN_AT_STORAGE, one descriptor for field, property and indexer, with the member
+      named as an argument. Previously accepted in silence, emitting a real object-typed slot. Fires
+      on a getter-only property too: the ban is on the declared type, not on the presence of a
+      setter, since a property that is read-only today is one edit away from not being. It does NOT
+      fire on a parameter, a return type or a local, which is how an unknown is meant to be accepted
+      and handed on -- banning those would leave the type no usable position at all.
+
+      THE BAN CASCADES STRUCTURALLY through type arguments, union constituents and tuple elements,
+      so `Box<unknown>`, `Box<Box<unknown>>`, `int | unknown`, `(int, unknown)` and
+      `(int[], unknown)` are each refused. Arrays need no case of their own because v2 represents
+      `T[]` as Standard.Array<T, Length>, putting the element type at a type-argument position
+      already.
+
+      THE POSITIVE PATH WAS ALREADY THERE before any of this, which is the other half of why the
+      register's `missing` was wrong. `unknown` as a local, parameter and return type resolved and
+      ran on v2 already: ScopeResolver mapped the keyword to UnknownType.Instance and TypeNameEmitter
+      spelled it `object`. Measured by running a program that widens int, string, bool and char into
+      an unknown local, passes them to an unknown parameter, and round-trips one through an
+      unknown-returning method. So `missing` was simultaneously too pessimistic about the type and
+      too generous about the rules.
+
+      A TRAP FOUND EN ROUTE, and the reason the ban is not simply "does this mention UnknownType".
+      AmbientTypeResolver.ResolveArrayType was building a CLR `T[]` as `Array<T, UnknownType>` --
+      the user-facing top type at a dependent-VALUE position -- while ScopeResolver.ConstructArray
+      builds the same array as `Array<T, UnknownValueType(int)>`. Two consequences: a CLR string[]
+      and a Mist string[] interned as different types, and any structural search for unknown would
+      have reported every CLR-projected array as containing it, banning array-typed fields
+      wholesale. Fixed to match ScopeResolver. UnknownValueType is deliberately NOT matched by the
+      walk; conflating the two unknowns is the specific mistake its own doc comment warns about.
+      NOT covered by a test: the Tier 3 harness registers Standard shells without loading CLR
+      assemblies, so its int[] and string[] fields come from ScopeResolver and never exercise the
+      ambient path.
+
+      WHAT THE ANALYSIS PHASE WILL OWN for this capability. Each was implemented and verified
+      reporting at Mist source, then removed, so the cost of redoing it is known to be small and the
+      design questions are already settled:
+        * unknown flowing into a concrete target -- the defining asymmetry, and the rule that makes
+          this a TOP type rather than a synonym for object. Reachable at four sites where v2 already
+          pairs a target type with a value type: typed local declaration, return, assignment
+          expression, typed for-initializer.
+        * void into unknown -- the single exception to "every type widens in", since void is not a
+          type of value and there is nothing at the assignment to receive.
+        * `new Box<unknown>()` -- constructing the type is what commits its storage, so this is the
+          storage ban reached through a constructor.
+        * `new unknown[3]` -- every element a writable slot.
+        * a member named on a bare unknown receiver.
+      Today each of these instead reaches the C# backend, which reports MIST_CS_ERROR against
+      generated .cs naming `object`, a type the user never wrote. That is the same residue every
+      unchecked v2 construct leaves, and it is not a correctness problem for a program that was
+      going to be rejected anyway -- a VALID program using `unknown` models and emits correctly,
+      which is what this entry claims.
+
+      THE SILENCE CONSTRAINT, recorded because it will govern whoever writes the analyzer. v2 has no
+      assignability relation -- no numeric promotion, no subtype rule, no user conversions -- so a
+      check that tried to decide arbitrary pairs would reject the programs that compile today,
+      `long n = 42;` among them. Any unknown rule must answer only the questions unknown raises and
+      stay silent on every other pair.
+
+      ONE RESOLUTION FIX WAS KEPT, being resolution rather than checking. ExpressionBinder's
+      ResolveElementType had no arm for UnknownElementTypeRef, so `new unknown[3]` resolved its
+      element to ErrorType and emitted `new /* error */[3]` -- garbage C# provoking seven Roslyn
+      errors. It now resolves to UnknownType and emits `new object[3]`: accepted, because rejecting
+      it is checking, but at least a faithful lowering of what was written rather than a broken
+      file.
+
+      FOUND AND FIXED ALONGSIDE, unrelated to unknown. ConstructedType.BuildName interpolated the
+      definition's arity-bearing registered name directly, so every constructed type named itself
+      with the marker doubled -- `Box<int>` reported as `Box<><int>`. Invisible in behaviour, which
+      is why it survived: TypeNameEmitter and TypeEmitter each stripped the marker in their own
+      copy, and the only other consumer, CandidateSet's overload shadowing key, only ever compares
+      one of these names with another, so any self-consistent format works there. Now stripped
+      through one shared MistType.StripArity with four consumers -- ConstructedType.BuildName,
+      TypeDisplay.Mist, TypeNameEmitter.EmitConstructed and TypeEmitter.CleanName, the last keeping
+      its name for the emitter's own intent but delegating its body. Pinned by Tier 1 tests over
+      ConstructedType naming, since no higher tier can observe it, and confirmed load-bearing by
+      reverting the fix and watching four of them fail.
+      NameFormatTranslator.MistNameToClrName also locates the marker and is deliberately NOT a
+      consumer: it translates arity into CLR backtick notation (`List<>` to List`1), so it needs the
+      comma count as well as the base name and uses the marker's absence as its not-generic test.
+
+      DIAGNOSTICS RENDER THROUGH TypeDisplay.Mist, which spells a type the way source does rather
+      than the way the model names it: Standard.Int32 as `int`, a generic without its arity marker,
+      and Standard.Array<T, Length> with a rank suffix -- `int[]` when the length is an unknown
+      value and `int[5]` when it was stated. Without the array case a banned `(int[], unknown)`
+      reported as `(Array<int, int>, unknown)`, which names nothing the user can find in their file.
+    analysis_phase_tasks:
+      - Add the five use-site rules as an analyzer over IProgramModel. Everything needed survives
+        construction, since Expression carries both Node and Type and the walk from method to body
+        supplies the return type. Only the storage ban has to stay in Stage 4.
+      - Check an argument against its parameter type once overload-resolution-by-argument-type
+        (order 26) can name one, so unknown cannot enter a concrete parameter.
+      - Consult universal extensions (extension(unknown self), order 113) BEFORE any bare-unknown
+        member rule fires, or Standard/Unknown.mist's ToString, GetHashCode and GetType become
+        unreachable on the receiver they are declared for.
     unlocks: []
 
   - id: unknown-covariant-generic-widening
@@ -2961,6 +3144,39 @@ capabilities:
       An assigned-or-unassigned lattice merged at join points, checked on every read
       including through interpolation, plus a constructor-level all-fields-assigned-on-all-
       paths verification.
+
+      THE DECLARATION IT ANALYSES IS NOT BOUND YET, which has to be fixed here rather than
+      separately. `int later;` parses -- Mist.storm has UninitializedVariableDeclaration, wired into
+      Statement as UninitializedVariableStatement and placed after ExpressionStatement so it does
+      not capture cast statements like `(ulong)a;` -- but StatementBinder.BindStatement has no case
+      for that node, so it falls to UnsupportedStatement and the local is never declared into
+      scope. Every later use then reports MIST_PM_UNRESOLVED_IDENTIFIER, which names the wrong
+      problem: the diagnostic blames the use rather than the unbound declaration, and the accurate
+      one (BackendDiagnostics.UnsupportedStatement) never fires because it reports at emission and
+      the binder errors gate emission first. Classic binds it and emits `int later;` verbatim.
+
+      BINDING IT IS A MODEL CONCERN AND NEED NOT WAIT FOR THIS ANALYSIS. The two were initially
+      recorded here as inseparable, on the grounds that a bound local with no analysis lets a read
+      before assignment reach C# as CS0165 against a generated file. That reasoning was wrong: it is
+      the ordinary residue of an unanalysed construct, and every capability in this file is banked
+      with residue of that kind. What matters for the model is that the declaration is RECORDED, and
+      today it is not -- so the DefiniteAssignment sample cannot model correctly whatever this
+      analysis eventually does. Bind it when that sample is next worked on; the analysis follows in
+      its own phase. Measured on a scratch program on the experimental pipeline.
+
+      SCOPE OF THE BLOCKAGE, measured across every sample: exactly one uses the construct in
+      statement position -- DefiniteAssignment/Program.mist:45, `int category;`, assigned on both
+      branches of an if and read after the merge, which is this analysis's own demonstration.
+      Nothing else is waiting on it. In particular the void samples are NOT: VoidType,
+      VoidValueLiteral and OptionalTypes contain no uninitialized local, and what looks like one in
+      VoidValueLiteral/Result<T> (`T value; bool success;`) are modifier-less FIELD declarations,
+      which go through FieldDeclaration and bind today.
+    tasks:
+      - Bind UninitializedVariableStatement in StatementBinder so the declaration reaches the model.
+        A model-correctness gap, independent of the analysis below and not blocked by it.
+    analysis_phase_tasks:
+      - Report a read of an unassigned local against Mist source rather than leaving it to arrive as
+        CS0165 on generated C#.
     unlocks: []
 
   - id: stampability-classification

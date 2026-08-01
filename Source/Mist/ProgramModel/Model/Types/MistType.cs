@@ -72,6 +72,22 @@ internal abstract class MistType : IMistType
     }
 
     /// <summary>
+    /// A generic definition's name without the arity marker it is registered under
+    /// (<c>Box&lt;&gt;</c> to <c>Box</c>), so type arguments can be written in its place. The
+    /// inverse of <c>ScopeResolver.BuildArityName</c>, which puts the marker there.
+    /// <para>
+    /// Shared because three callers need it and each one writing the <c>IndexOf('&lt;')</c> itself
+    /// is how <c>Box&lt;&gt;&lt;int&gt;</c> came about: the two that stripped were the emitter and
+    /// the diagnostic renderer, and the one that forgot was the name the type reports for itself.
+    /// </para>
+    /// </summary>
+    public static string StripArity(string definitionName)
+    {
+        var marker = definitionName.IndexOf('<');
+        return marker >= 0 ? definitionName[..marker] : definitionName;
+    }
+
+    /// <summary>
     /// The type's own scope. Parent is the file scope for top-level types,
     /// or the enclosing type's scope for nested types.
     /// </summary>

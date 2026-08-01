@@ -1425,6 +1425,16 @@ capabilities:
       generated Program.cs the user never wrote. Neither diagnostic names Echo, U, or
       substitution, so the trail from symptom to cause is cold.
 
+      A THIRD PATH REACHES IT, THROUGH OVERLOAD SELECTION, and it is the one that now costs the
+      most. OverloadResolution.ParameterType substitutes through the receiver before comparing a
+      parameter against an argument, so a wrong answer here decides applicability and betterness
+      for every call to a generic method on a generic type. That path used to absorb the error:
+      eliminating every candidate fell through to the first arity match and bound in silence.
+      Since order 26 stopped guessing it reports MIST_PM_UNRESOLVABLE_OVERLOAD instead, so this
+      defect can REFUSE a valid call outright wherever two or more candidates share an arity.
+      Loud over silent is the intended direction, and the price of it is paid here until this is
+      fixed.
+
       Inheritance is the tidier illustration and the harder one to reach -- `Derived<A, B> :
       Base<B>` would substitute A where B is meant, but member lookup does not reach a generic
       ancestor at all today (see the base chain task below), so substitution is never consulted.
@@ -1439,6 +1449,10 @@ capabilities:
       - Walk a constructed base's chain in member lookup. TypeMemberLookup.EnqueueBases enqueues
         the ConstructedType itself, which then matches nothing because it is not a MemberType, so
         a member inherited from a generic base reports MIST_PM_UNRESOLVED_MEMBER.
+      - Confirm the broken path is unreachable from GenericTypes and ArityOverloads, both of which
+        are green in AllFeaturesV2 while requiring this. Their compiling at all says it must be,
+        but the exemption this file grants for a green sample over an outstanding capability is
+        written for `partial`, and a silent wrong type is exactly what `broken` means here.
       - Note on sequencing. The ownership fix alone makes NEITHER demonstrated case pass, it only
         stops the wrong answer -- the result becomes an unsubstituted U, and reaching `hello`
         needs type-argument-inference (order 55) to infer U from the argument. So this entry

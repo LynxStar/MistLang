@@ -3,6 +3,7 @@ using Mist.Generated;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
@@ -99,9 +100,8 @@ internal static class ExpressionBinder
     }
 
     /// <summary>
-    /// Binds <c>new T(...)</c> and <c>new T&lt;...&gt;(...)</c> with no initializer block.
-    /// The arguments are bound but the constructor overload is not selected; see
-    /// <see cref="NewExpression"/>.
+    /// Binds <c>new T(...)</c>, generic or not, with no initializer block, selecting the
+    /// constructor its arguments pick out.
     /// </summary>
     private static Expression BindObjectCreation(ObjectCreationExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
     {
@@ -136,7 +136,41 @@ internal static class ExpressionBinder
 
         var arguments = ArgumentBinder.Bind(node.Arguments, ctx, context);
 
-        return new NewExpression(node, type, arguments);
+        return new NewExpression(node, type, arguments, SelectConstructor(type, arguments, node, context));
+    }
+
+    /// <summary>
+    /// The constructor the arguments select. Null without a diagnostic whenever no constructor could
+    /// be named at all -- the definition declares none, or is not a concrete type to declare any --
+    /// because a construction that reaches neither is already being reported elsewhere or is a C#
+    /// default with nothing to choose between.
+    /// <para>
+    /// A constructed type is unwrapped to reach the definition its constructors are declared on, and
+    /// passed on as the source of the arguments to substitute in.
+    /// </para>
+    /// </summary>
+    private static Constructor? SelectConstructor(IMistType type, IReadOnlyList<Expression> arguments, Storm.Runtime.SyntaxNode node, BuilderContext context)
+    {
+        var constructed = type as ConstructedType;
+        var definition = constructed?.Definition ?? type;
+
+        if(definition is not ConcreteType { ConstructorsList.Count: > 0 } concrete)
+        {
+            return null;
+        }
+
+        var choice = OverloadResolution.Select(concrete.ConstructorsList, arguments, constructed);
+
+        if(choice.Selected is null)
+        {
+            var name = MistType.StripArity(definition.Name);
+
+            OverloadResolution.ReportFailure(
+                choice, concrete.ConstructorsList, arguments.Count,
+                $"constructor '{name}'", node, context.Diagnostics);
+        }
+
+        return choice.Selected;
     }
 
     private static Expression BindArrayCreation(ArrayCreationExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)

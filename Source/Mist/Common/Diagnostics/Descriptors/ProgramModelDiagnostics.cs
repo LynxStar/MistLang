@@ -459,6 +459,64 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "Assembly name '{0}' is used by multiple projects in this compilation. Each referenced project must have a unique name.");
 
+    /// <summary>
+    /// A call supplies a number of arguments no overload of the named member takes. Unlike every other
+    /// mismatch, counting parameters needs no conversion relation, so this is decidable outright.
+    /// </summary>
+    public static readonly DiagnosticDescriptor NoApplicableOverload = new(
+        new DiagnosticId("MIST_PM_NO_APPLICABLE_OVERLOAD"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "There is no overload of {0} accepting {1} argument(s). Declared arities: {2}.");
+
+    /// <summary>
+    /// Several overloads tie for a call, so choosing between them would be arbitrary.
+    /// <para>
+    /// Reported only among candidates already established as APPLICABLE, which is what makes a tie
+    /// safe to report from a partial conversion relation: it rests on a positive fact about each
+    /// candidate rather than on the absence of a conversion nobody looked for. A call the relation
+    /// cannot place at all is <see cref="UnresolvableOverload"/> instead, which is an absence rather
+    /// than a tie.
+    /// </para>
+    /// </summary>
+    public static readonly DiagnosticDescriptor AmbiguousOverload = new(
+        new DiagnosticId("MIST_PM_AMBIGUOUS_OVERLOAD"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "The call to {0} is ambiguous. These overloads are equally applicable: {1}. Cast an argument to choose one.");
+
+    /// <summary>
+    /// A method group reached a position that does not consume it. A group has two consumers, an
+    /// invocation and a conversion to a function type, and only the first is built.
+    /// <para>
+    /// One message covers two different situations because separating them needs the target type this
+    /// pipeline does not propagate yet: a group where no function type could have been meant, which
+    /// is an error however much of the compiler gets built, and a group whose conversion is merely
+    /// unimplemented. So it states the rule rather than attributing the fault to either side.
+    /// </para>
+    /// </summary>
+    public static readonly DiagnosticDescriptor MethodGroupNotConverted = new(
+        new DiagnosticId("MIST_PM_METHOD_GROUP_NOT_CONVERTED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}' names a method group, which is only valid where it is invoked or converted to a function type. Conversion to a function type is not yet supported by the experimental pipeline.");
+
+    /// <summary>
+    /// Several overloads take the right number of arguments and no conversion could be established
+    /// to any of them.
+    /// <para>
+    /// Reported rather than guessed. A partial conversion relation licenses declining to refuse a
+    /// program, which is not the same licence as inventing a selection: with every candidate
+    /// eliminated the relation has contributed nothing to choose on, so picking one would record a
+    /// call the program does not make and hand the emitter a member the user never named.
+    /// </para>
+    /// </summary>
+    public static readonly DiagnosticDescriptor UnresolvableOverload = new(
+        new DiagnosticId("MIST_PM_UNRESOLVABLE_OVERLOAD"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "The call to {0} matches no overload. No conversion is known from the given arguments to any of: {1}.");
+
     // ── The unknown top type ─────────────────────────────────────────────
 
     /// <summary>

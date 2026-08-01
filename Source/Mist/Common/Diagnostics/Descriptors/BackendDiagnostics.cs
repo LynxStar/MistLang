@@ -158,6 +158,23 @@ public static class BackendDiagnostics
         "Field '{0}' is declared on both '{1}' and '{2}'. Inherited struct fields are flattened into the derived struct, so a name cannot be reused across the inheritance chain.");
 
     /// <summary>
+    /// A method group reached emission. Unreachable by construction, since a group is not a value and
+    /// there is no C# to write for one.
+    /// <para>
+    /// Distinct from <see cref="UnsupportedExpression"/>, which reports a construct the compiler has
+    /// not built. A group has exactly two consumers -- an invocation, and a conversion to a function
+    /// type -- and a site that can reach neither is required to report that and bind an error
+    /// expression in its place. Arriving here therefore means the group was neither resolved nor
+    /// reported, which is a fault in the compiler rather than anything the user can act on.
+    /// </para>
+    /// </summary>
+    public static readonly DiagnosticDescriptor MethodGroupReachedEmission = new(
+        new DiagnosticId("MIST_INTERNAL_METHOD_GROUP_AT_EMISSION"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Backend,
+        "Internal compiler error: the method group '{0}' reached emission without having been resolved to a single overload. This is a bug in the compiler, not an error in your source.");
+
+    /// <summary>
     /// A derived-to-base struct conversion cannot copy one of the base's fields, because the field
     /// is private to the base or is readonly. Emitting the conversion anyway would produce a base
     /// value missing part of its state.

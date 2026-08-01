@@ -665,57 +665,115 @@ capabilities:
     order: 26
     layer: member-binding
     requires: [methods-static-and-instance, object-creation, control-flow-basic]
-    v2_status: missing
-    priority: next
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
-      NEXT FEATURE. Chosen deliberately over anything that unlocks more samples, because this is
-      the capability whose absence is least visible: the Overloading sample is banked in
-      AllFeaturesV2 and green, and that greenness is not evidence of anything. Every other missing
-      capability announces itself as a failed compile.
+      A call selects among the overloads its name resolved to -- by argument count, then by exact
+      argument type -- and the choice is RECORDED as InvocationExpression.Method. The record is the
+      substance of this entry, not a convenience: emission re-writes the call as source spelled it
+      and lets Roslyn resolve it again, so nothing observable in the emitted program distinguishes a
+      correct selection from no selection followed by a lucky one. The model is the only place the
+      choice can be seen, so that is where the tests read it.
 
-      PostfixBinder.ResolveMemberType returns the first name match and ignores argument
-      types entirely. Emission gets away with it because Roslyn re-resolves the call
-      downstream, and in the Overloading sample every result feeds string interpolation. An
-      int-typed local initialized from a double-returning overload could still bind wrong.
+      COLLECTION AND SELECTION ARE SEPARATE CONCERNS, and only selection was ever missing.
+      CandidateSet.MergeMethods returns the whole overload set spanning the base chain, nearest
+      first, shadowing correctly: same name and signature at greater depth is overridden, same name
+      with a different signature is another overload. Both consumers simply threw that set away --
+      IdentifierBinder took Methods[0], PostfixBinder took the first name match.
 
-      WHY THE SAMPLE PASSES ANYWAY, since this is the trap to understand before starting. Mist
-      binds nothing, emits the call as written, and Roslyn resolves it against the C# overload
-      set. Where Mist's rules and C#'s agree the output is right by coincidence rather than by
-      construction, and the sample's results all flow into string interpolation, which accepts
-      whichever overload was picked. The sample cannot fail on a wrong choice, so it proves only
-      that the emitted text is plausible C#.
+      SELECTION RUNS C#'s THREE STAGES: filter by arity, keep the candidates every argument converts
+      to, take the best of those. ConversionRelation supplies the conversions -- identity, the implicit
+      numeric widening table, and inheritance through the base chain and declared abstract types.
 
-      IT ALSO GATES ONE OF THE UNKNOWN TOP TYPE'S USE-SITE RULES (order 81). ArgumentBinder has no
-      parameter type to check an argument against, so there is nothing for a rule about
-      `Describe(u)` to consult. The other four sites that rule needs already pair a target type
-      with a value type and are reachable whenever the analysis phase starts; the argument position
-      is the one that cannot be written until this lands. Order 81 owns the rule itself, under its
-      `analysis_phase_tasks`.
+      THE PARTIAL RELATION MAY NARROW AND RANK, NEVER REFUSE, and this is the load-bearing idea in the
+      whole entry. It knows nothing of user-defined cast operators, unions, tuples or variance, so a
+      false answer means "no conversion is known", which is not the claim "no conversion exists". What
+      that licenses is declining to read an eliminated candidate as proof the call is wrong. What it
+      does NOT license is choosing one regardless: with every candidate eliminated the relation has
+      contributed nothing to choose ON, so selection reports MIST_PM_UNRESOLVABLE_OVERLOAD and binds an
+      error expression rather than recording a call the program does not make.
+
+      WHICH IS WHAT MAKES THE AMBIGUITY DIAGNOSTIC SAFE. MIST_PM_AMBIGUOUS_OVERLOAD is reported only
+      among candidates already established APPLICABLE, so it rests on a positive fact about each rather
+      than on the absence of a conversion nobody looked for. `Pair(int, double)` against
+      `Pair(double, int)` called with two ints is exact in one position and widened in the other for
+      both candidates, so neither is better and the call is refused with both signatures named. A call
+      the relation cannot place at all is not a tie but an absence, and carries the unresolvable
+      diagnostic instead.
+
+      BETTERNESS IS PAIRWISE, exact over converted and then the narrower target, established by asking
+      which direction converts: int beats long because int widens to long and long does not narrow to
+      int. This is not decoration -- Console.WriteLine carries about nineteen overloads and a
+      `WriteLine(42)` admits int, long, float, double and decimal. Without exact-beats-converted every
+      such call would tie and the ambiguity error would fire across every sample.
+
+      A CALL MATCHING NO ARITY IS REFUSED. MIST_PM_NO_APPLICABLE_OVERLOAD names the arities on
+      offer, and reports at the Mist source instead of arriving as MIST_CS_ERROR against a generated
+      .cs the user never wrote. Unlike applicability it needs no conversions at all, so it is a hard
+      rejection rather than a preference.
+
+      `partial` FOR ONE REASON ONLY: a call whose correct resolution turns on a conversion the relation
+      does not model -- a user-defined cast among them -- is now REFUSED rather than guessed at. That is
+      a false rejection of a valid program, and it is the deliberate trade: a wrong selection recorded
+      in silence is far harder to find than an error, and the refusal is what creates pressure to
+      extend the relation. It can only bite at two or more candidates of the same arity, because a lone
+      arity match is returned without consulting the relation at all -- there is nothing to select
+      between, so applicability could only serve to refuse, and whether the one candidate able to take
+      an argument actually suits it is a type check rather than a selection. Everything the relation
+      does model is decided here.
+
+      THE GROUP TRAVELS AS A NODE, and no further than its consumer. MethodGroupExpression carries the
+      candidates from the lookup that found them to the invocation that decides between them, and it
+      has to exist because arguments are bound before the overload they are arguments to is selected,
+      so a group in an argument slot has no target available yet. Where the consumer is reached
+      directly it is only ever a local: BindMemberAccess and BindInvocation sit one statement apart.
+
+      A GROUP IS NEVER A VALUE. It has no runtime representation -- resolving one happens entirely at
+      compile time and leaves nothing behind -- and no Mist syntax can produce one, since `var x = Add;`
+      wants the initialiser's type while the initialiser wants a target. So it carries MethodGroupType,
+      a sentinel ConversionRelation declines to reason about, rather than a plausible-looking type
+      borrowed from whichever overload happens to be first.
+
+      IT HAS EXACTLY TWO CONSUMERS: an invocation, selecting on argument types, and a conversion to a
+      function type, selecting on the target signature. Only the first is built, so every other position
+      reports MIST_PM_METHOD_GROUP_NOT_CONVERTED at the end of the postfix walk -- the complete choke
+      point, since OperatorBinder routes every primary through it -- and binds an error expression. That
+      is what makes BodyEmitter's MethodGroupReachedEmission unreachable. It stays as an invariant
+      assertion, because a group arriving there means the binder both failed to resolve one and failed
+      to report that, which is a compiler fault rather than anything in the source.
+
+      THE OVERLOADING SAMPLE IS NOW RESOLVED BY CONSTRUCTION rather than by coincidence. Every call
+      in it is an exact match: Format over 42, true, 3.14 and "hello"; Add and Clamp in their int and
+      double forms; Printer at arity 0 and 1. None reaches the fallback above, so the sample no
+      longer passes for the reason it used to.
+
+      STILL MISSING, none of it contradicting the above: generic method type-argument inference, so
+      an open parameter cannot be matched and falls to the arity path; explicit type arguments, which
+      MethodCallSuffix still drops; extension and ambient methods, which never enter the group at
+      all; and the delegate case, where invoking a Func value yields the Func type rather than its
+      return type.
     tasks:
-      - Implement candidate collection by name, then selection by argument type.
-      - Handle the four-way Printer.Format case over int, bool, double and string.
-      - Handle static overloads differing in both arity and type -- MathHelper declares Add
-        at arity 2 and Clamp at arity 3, each in an int and a double form.
-      - Report an ambiguous call and a call matching no candidate, rather than binding the first
-        name match and letting Roslyn describe the problem against generated C#.
+      - Extend ConversionRelation to user-defined cast operators, which ConcreteType.CastOperatorsList
+        already holds, plus unions and tuples. Each addition only ever admits MORE candidates, so none
+        can turn a bound call into a refused one; it turns refusals into resolutions, which is the
+        direction the no-guess rule creates pressure in.
+      - Delete ConversionRelation.NumericWidening once that lands. Source/Standard/Bootstrap declares
+        every entry of that table as an `implicit operator` -- Int32 to Int64, Single, Double and
+        Decimal, and so on per numeric type -- written transitively closed exactly as the table is, so
+        CastOperatorsList already holds the whole thing and the table is a second copy of it with
+        nothing forcing the two to agree. Verified by reading Byte, Char, Single, UInt32, Int32 and
+        Decimal against it -- the sets match exactly in both directions, including Decimal declaring
+        none and the table having no decimal key. Blocked on cast-expression and
+        cast-operator-declarations rather than on the relation, since a scan is only equivalent once
+        those bind and emit.
+      - Resolve a method group against a target signature, the second consumer named above and the
+        reason MIST_PM_METHOD_GROUP_NOT_CONVERTED exists. Needs a function type in the model, which v2
+        has none of -- `func<>` reaches the type reference resolver as FuncSingleTypeRefSingleTypeRefNode
+        and is unhandled, so samples/DelegateFuncConversion cannot ingest at all -- and a target type
+        propagated into argument slots, which ArgumentBinder does not carry.
       - Record the selected parameter on the bound argument, so a later rule about what may be
-        passed has a target type to consult. Selecting an overload without keeping what it selected
-        would leave order 81's argument rule blocked for the same reason it is blocked today.
-    negative_tests_required: >
-      The reason this capability needs its tests written as REJECTIONS is that the positive cases
-      already appear to pass. A test that calls an overload and asserts the output cannot
-      distinguish "Mist chose correctly" from "Mist chose nothing and Roslyn chose correctly", so
-      the suite must contain cases where a wrong choice is OBSERVABLE or reported. At minimum:
-      - Bind through a target that forces the choice to be observable -- assign to an explicitly
-        typed local (`int n = Pick(1);` against int and double overloads) rather than
-        interpolating the result, so a wrong pick is a type error rather than different text.
-      - Assert on the SELECTED overload in the model, not on program output. A Tier 3 test over
-        ProgramModelBuilder can name which Method the call bound to, which no amount of stdout
-        can show.
-      - An ambiguous call reports at the Mist source location, and a no-candidate call likewise.
-        Neither may reach the backend as MIST_CS_ERROR on a generated file.
-      - A counter-example per rule, so a resolver that simply rejects more is not mistaken for a
-        resolver that chooses correctly.
+        passed has a target type to consult. Selection now names a parameter, which is what order
+        81's argument rule was waiting for; the argument node does not yet carry it.
     unlocks: []
 
   - id: constructor-overload-resolution
@@ -725,14 +783,22 @@ capabilities:
     requires: [overload-resolution-by-argument-type, constructor-chain-this,
                string-interpolation, var-type-inference, standard-library-binding,
                implicit-instance-field-access]
-    v2_status: missing
-    priority: next
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
-      Same root cause, and the same reason for going next: BindObjectCreation binds arguments
-      without selecting a constructor, so a wrong choice is invisible for as long as Roslyn
-      re-resolves it. Overloading/Printer declares two constructors distinguished only by arity.
-      Carries the same negative-test requirement as order 26 -- assert on the constructor the
-      model selected, not on what the program printed.
+      The same selection, reached through ExpressionBinder.SelectConstructor and recorded as
+      NewExpression.Constructor. One algorithm serves both because Constructor derives from Method,
+      so a constructor is already a method whose name is its type's.
+
+      A type declaring NO constructor records none and is not refused: C# supplies a default, so
+      there is neither a choice to make nor a call to reject. Only a stated argument count matching
+      no declared constructor reports, under order 26's MIST_PM_NO_APPLICABLE_OVERLOAD, naming the
+      constructor rather than a method so the reader is not sent looking for one.
+
+      `partial` for exactly order 26's reason and no other: a constructor reached by a conversion
+      ConversionRelation does not model still falls back to the arity match. Applicability, betterness
+      and the ambiguity report all apply here unchanged. Overloading/Printer declares two constructors
+      distinguished by arity, which arity alone settles, so the sample is fully resolved.
     unlocks: [Overloading]
 
   # ===================================================================
@@ -1095,7 +1161,11 @@ capabilities:
     layer: conversions
     requires: [same-file-forward-type-references]
     v2_status: missing
-    evidence: BodyEmitter has no cast case, so it would fall through to the sentinel default.
+    evidence: >
+      BodyEmitter has no cast case, so a cast falls through to the sentinel default. Measured:
+      CastOperators on --pipeline experimental reports MIST_BE_UNSUPPORTED_EXPRESSION at the two
+      explicit-cast lines and nothing else, which makes this the only one of the sample's three
+      conversion requirements that ANNOUNCES itself. The other two fail silently.
     unlocks: []
 
   - id: cast-operator-declarations
@@ -1133,6 +1203,14 @@ capabilities:
       searching the SOURCE type for an implicit operator to the target, and an argument
       passed to a Fahrenheit parameter requires the same search driven by the parameter
       type. Casts must resolve against the static type only.
+
+      MEASURED, AND A FALSE GREEN IN WAITING: the sample's two implicit sites -- `Fahrenheit
+      boilingF = boiling;` and a Celsius passed to PrintTemperature's Fahrenheit parameter -- bind
+      with no diagnostic on v2 already, and neither is evidence of anything working. No
+      assignability rule exists, because RunAnalyzers is still a stub; and the argument site's
+      method declares one overload, so a lone arity match is returned before applicability is ever
+      consulted. Both sites would bind exactly as they do now if the operator were deleted
+      outright, which is why this capability cannot be verified by the sample reaching green.
     unlocks: [CastOperators]
 
   # ===================================================================

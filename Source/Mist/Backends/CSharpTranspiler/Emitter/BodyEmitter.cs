@@ -284,6 +284,12 @@ internal static class BodyEmitter
                 writer.Append(methodRef.Method.Name);
                 break;
 
+            case MethodGroupExpression methodGroup:
+                diagnostics.ReportAtNode(
+                    BackendDiagnostics.MethodGroupReachedEmission, methodGroup.Node, null, methodGroup.MemberName);
+                writer.Append($"/* unresolved method group: {methodGroup.MemberName} */");
+                break;
+
             case LocalReferenceExpression localRef:
                 writer.Append(localRef.Local.Name);
                 break;

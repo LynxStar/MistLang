@@ -22,6 +22,17 @@ internal static class PostfixBinder
             result = BindPostfixSuffix(suffix, result, ctx, context);
         }
 
+        // A group is born inside this walk and has to be consumed inside it, so this is the last
+        // point that still knows one went unconsumed. Left to the emitter it would surface as
+        // MethodGroupReachedEmission, which blames the compiler for what is a gap in the frontend.
+        if(result is MethodGroupExpression group)
+        {
+            context.Diagnostics.ReportAtNode(
+                ProgramModelDiagnostics.MethodGroupNotConverted, group.Node, null, group.MemberName);
+
+            return new ErrorExpression(group.Node);
+        }
+
         return result;
     }
 
@@ -53,10 +64,39 @@ internal static class PostfixBinder
         }
     }
 
-    private static InvocationExpression BindInvocation(Storm.Runtime.SyntaxNode node, Expression receiver, ArgumentListNode? arguments, BindingContext ctx, BuilderContext context)
+    /// <summary>
+    /// Binds a call, selecting the overload its arguments pick out. The arguments are bound first
+    /// because selection reads their types.
+    /// </summary>
+    private static Expression BindInvocation(Storm.Runtime.SyntaxNode node, Expression receiver, ArgumentListNode? arguments, BindingContext ctx, BuilderContext context)
     {
         var bound = ArgumentBinder.Bind(arguments, ctx, context);
-        return new InvocationExpression(node, receiver, bound, receiver.Type);
+
+        // Invoking a delegate or func value resolves no member, so the receiver's own type stands as
+        // the result -- which is wrong for a delegate, whose result is its return type.
+        if(receiver is not MethodGroupExpression group)
+        {
+            return new InvocationExpression(node, receiver, bound, receiver.Type, null);
+        }
+
+        var choice = OverloadResolution.Select(group.Candidates, bound, group.ReceiverConstructed);
+
+        if(choice.Selected is not { } selected)
+        {
+            OverloadResolution.ReportFailure(
+                choice, group.Candidates, bound.Count,
+                $"method '{group.MemberName}'", node, context.Diagnostics);
+
+            return new ErrorExpression(node);
+        }
+
+        var returnType = group.ReceiverConstructed?.Substitute(selected.ReturnType) ?? selected.ReturnType;
+
+        var callee = group.Receiver is null
+            ? new MethodReferenceExpression(node, selected)
+            : (Expression)new MemberAccessExpression(node, group.Receiver, group.MemberName, returnType);
+
+        return new InvocationExpression(node, callee, bound, returnType, selected);
     }
 
     private static Expression BindMemberAccess(Storm.Runtime.SyntaxNode node, Expression receiver, string memberName, BuilderContext context)
@@ -70,8 +110,17 @@ internal static class PostfixBinder
             return BindQualifiedName(node, namespaceRef, memberName, context);
         }
 
-        var memberType = ResolveMemberType(receiver, memberName, node, context);
-        return new MemberAccessExpression(node, receiver, memberName, memberType);
+        var (found, constructed) = ResolveMember(receiver, memberName, node, context);
+
+        if(found is MethodGroupResult { Methods.Count: > 0 } group)
+        {
+            return new MethodGroupExpression(node, receiver, memberName, group.Methods, constructed);
+        }
+
+        var memberType = MemberTypeOf(found);
+        var resolved = constructed is not null ? constructed.Substitute(memberType) : memberType;
+
+        return new MemberAccessExpression(node, receiver, memberName, resolved);
     }
 
     /// <summary>
@@ -92,16 +141,17 @@ internal static class PostfixBinder
     }
 
     /// <summary>
-    /// Resolves the type of a member accessed on a receiver, through the same lookup an
-    /// unqualified name uses -- so a member reached as <c>receiver.X</c> and the same member
-    /// reached as a bare <c>X</c> inside the type cannot disagree about what exists, what is
-    /// inherited, or what is reachable.
+    /// Looks up a member on a receiver, through the same lookup an unqualified name uses -- so a
+    /// member reached as <c>receiver.X</c> and the same member reached as a bare <c>X</c> inside the
+    /// type cannot disagree about what exists, what is inherited, or what is reachable. The result is
+    /// returned unreduced, since a method group has no single type until a call decides between its
+    /// overloads.
     /// <para>
     /// The one thing this path does differently is refuse to look anywhere else: the receiver
     /// names the type, so a miss is a miss rather than a reason to widen the search.
     /// </para>
     /// </summary>
-    private static IMistType ResolveMemberType(
+    private static (LookupResult Found, ConstructedType? Constructed) ResolveMember(
         Expression receiver, string memberName, Storm.Runtime.SyntaxNode node, BuilderContext context)
     {
         // Naming the type reaches its statics; supplying a value reaches its instance members.
@@ -125,19 +175,14 @@ internal static class PostfixBinder
 
         if(lookupTarget is not MistType modelType)
         {
-            return ErrorType.Instance;
+            return (new NotFoundResult(), null);
         }
 
         var found = TypeMemberLookup.Find(modelType, LookupRequest.Member(memberName, visibility, node));
 
         Report(found, modelType, memberName, node, context);
 
-        var memberType = MemberTypeOf(found);
-
-        return constructed is not null
-            ? constructed.Substitute(memberType)
-            : memberType
-            ;
+        return (found, constructed);
     }
 
     /// <summary>
@@ -176,9 +221,8 @@ internal static class PostfixBinder
     }
 
     /// <summary>
-    /// The type a resolved member contributes to the expression. A method group yields its first
-    /// overload's return type: the group travels no further than here, because an invocation reads
-    /// the type off its receiver, and picking between overloads by argument is not implemented.
+    /// The type a resolved member contributes to the expression. No method-group arm, because a
+    /// group has no single type to contribute and is intercepted before this is reached.
     /// </summary>
     private static IMistType MemberTypeOf(LookupResult found)
     {
@@ -186,7 +230,6 @@ internal static class PostfixBinder
         {
             FieldResult field => field.Field.Type,
             PropertyResult property => property.Property.Type,
-            MethodGroupResult { Methods.Count: > 0 } group => group.Methods[0].ReturnType,
             EnumMemberResult member => member.DeclaringType,
             TypeResult type => type.Type,
             _ => ErrorType.Instance,

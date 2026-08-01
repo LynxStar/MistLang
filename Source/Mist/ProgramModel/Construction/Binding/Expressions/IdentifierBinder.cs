@@ -27,7 +27,7 @@ internal static class IdentifierBinder
             FieldResult field => new FieldReferenceExpression(node, field.Field),
             PropertyResult property => new PropertyReferenceExpression(node, property.Property),
             TypeResult type => new TypeReferenceExpression(node, type.Type),
-            MethodGroupResult group => new MethodReferenceExpression(node, group.Methods[0]),
+            MethodGroupResult { Methods.Count: > 0 } group => new MethodGroupExpression(node, null, name, group.Methods, null),
             NamespaceResult ns => new NamespaceReferenceExpression(node, ns.NamespaceName),
 
             // Matched on its own rather than folded into the fallthrough below, which still covers

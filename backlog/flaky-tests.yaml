@@ -128,3 +128,65 @@ flakes:
       A durable fix would give the spawning tests their own output directory rather than the
       sample's, which would also let the suite parallelise against local experimentation. That is a
       change to the test harness rather than to the compiler, and nothing depends on it yet.
+  - id: storm-trait-field-type-resolution-property
+    test: Storm.SourceGenerator.Tests.StormTraitFieldTypeResolutionPropertyTests.P3_FragmentFieldType_STORM0018Emitted
+    file: Test/Storm.SourceGenerator.Tests/StormTraitFieldTypeResolutionPropertyTests.cs
+    discovered: 2026-08-01
+    status: unreproduced
+    symptom: >
+      Failed once in a full-solution run and passed 5/5 on immediate isolated rerun.
+    cause: unknown
+    evidence: >
+      Failed during `dotnet test Mist.slnx --no-build` (all three test projects concurrent). Rerun
+      with --filter passed 5/5 with no intervening edit. The change it ran against was overload
+      resolution in the v2 binder -- OverloadResolution, ConversionRelation, PostfixBinder,
+      IdentifierBinder, ExpressionBinder, the two expression nodes, ProgramModelDiagnostics and
+      BodyEmitter -- none of which Storm.SourceGenerator references. `git status` reported both
+      Source/Storm.SourceGenerator and Test/Storm.SourceGenerator.Tests clean.
+
+      THIRD SIGHTING IN THIS PROJECT, and the first with a captured name. The two under
+      storm-memo-propagation-property share the shape exactly: one of 664 fails in
+      Storm.SourceGenerator.Tests under a concurrent full-solution run, passes in isolation, against
+      a change that cannot reach the project. Whether this is the same underlying flake as that entry
+      is still unknown -- what is now established is that it is not confined to a single test, since
+      this one and P3_MemoPropagation are different tests in different files.
+
+      That makes a per-test cause less likely than something shared: both are property tests in the
+      same project, and the project's tests run concurrently with two others. Process-wide state
+      under concurrent load is the standing suspicion, unchanged from the earlier entry.
+
+      The failure message was captured only as the FAIL line; the assertion detail was lost to a
+      `Select-String` summary filter, which is the same mistake that entry's process note warns
+      about. Next sighting in this project should redirect the run to a file and read the file.
+  - id: mass-standard-namespace-not-found-stale-binaries
+    test: Not one test -- 430 of 4645 in Mist.Tests, across every area that compiles Mist source.
+    file: n/a
+    discovered: 2026-08-01
+    status: open
+    symptom: >
+      A large fraction of the suite fails at once, and the failures that carry a message carry
+      `MIST_UNDEFINED_NAMESPACE: The namespace 'Standard' could not be found`. Tests that never touch
+      the standard library pass. A plain `dotnet build` followed by the same `dotnet test --no-build`
+      returns the suite to green with no source change.
+    cause: >
+      NOT a product flake and not a test flake. The test binaries' copied content -- Standard/*.mist
+      among it -- was absent or half-written when the run started, so the stdlib could not be loaded
+      and every compilation failed at name resolution. Recorded because the SIGNATURE is worth
+      recognising instantly: a mass failure whose message names the Standard namespace is a stale or
+      mid-write output directory, not a semantic regression.
+    evidence: >
+      Seen once during the overload-resolution change. The immediately preceding run of the same
+      command on the same source was green apart from one unrelated Storm flake, and the only edit in
+      between was an append to this file, which no code or test reads. A rebuild plus rerun then gave
+      5377/5377.
+
+      The preceding command batch had issued `dotnet format --verify-no-changes` and
+      `dotnet test --no-build` as PARALLEL tool calls. `dotnet format` loads and builds the solution
+      to run its analyzers, so it can be rewriting output directories while a `--no-build` run is
+      reading them. This is the second instance in this register of a test run racing a build; see the
+      observer-error note under attribute-emission-round-trip-unreproduced.
+    fix: >
+      Do not batch `dotnet format` in parallel with `dotnet test`. Chain them, or run the tests first.
+      More generally, treat any mass failure naming the Standard namespace as a build-state problem
+      and rebuild before reading it as a regression -- diagnosing 430 failures on the assumption they
+      are real is a large amount of wasted work.

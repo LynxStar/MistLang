@@ -34,5 +34,6 @@ public class Program
         TopLevelStatements.Program.RunDemo();
         Properties.Program.RunDemo();
         TypeArgumentInference.Program.RunDemo();
+        TargetTypedNew.Program.RunDemo();
     }
 }

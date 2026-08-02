@@ -220,3 +220,16 @@ pair=(1, two)
 first_of_list=10
 instance_echo=99
 explicit=explicit
+=== Target-Typed New ===
+  local: Point(3, 4)
+  return: Point(5, 6)
+  param: Point(7, 8)
+  assign: Point(9, 10)
+  field: Point(0, 0)
+  generic: Pair(1, 2)
+  overload_int: Tag(int:7)
+  overload_string: Tag(string:seven)
+  overload_arity: Tag(pair:1,2)
+  nested: Wrapper(Tag(int:9))
+  base_target: Shape(square)
+  derived_into_base: Shape(circle)

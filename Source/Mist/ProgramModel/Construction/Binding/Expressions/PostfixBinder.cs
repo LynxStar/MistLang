@@ -81,15 +81,15 @@ internal static class PostfixBinder
         BindingContext ctx,
         BuilderContext context)
     {
-        var bound = ArgumentBinder.Bind(arguments, ctx, context);
-
         // Invoking a delegate or func value resolves no member, so the receiver's own type stands as
         // the result -- which is wrong for a delegate, whose result is its return type.
         if(receiver is not MethodGroupExpression group)
         {
-            return new InvocationExpression(node, receiver, bound, receiver.Type, null);
+            var value = ArgumentBinder.Bind(arguments, ctx, context);
+            return new InvocationExpression(node, receiver, value, receiver.Type, null);
         }
 
+        var bound = ArgumentBinder.Bind(arguments, group.Candidates, ctx, context);
         var interner = context.ProgramModel.TypeInterner;
 
         var choice = OverloadResolution.Select(

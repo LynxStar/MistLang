@@ -28,7 +28,13 @@ internal static class ExpressionBinder
             if(assignmentOp.Operator.Lexeme == "=")
             {
                 var target = OperatorBinder.BindVoidCoalescing(assignment.Target, ctx, context);
-                var value = BindExpression(assignmentOp.Value, ctx, context);
+
+                Expression value;
+                using(ctx.PushTargetType(target.Type))
+                {
+                    value = BindExpression(assignmentOp.Value, ctx, context);
+                }
+
                 return new AssignmentExpression(expression, target, value, value.Type);
             }
 
@@ -58,6 +64,7 @@ internal static class ExpressionBinder
             InterpolatedStringExpressionPrimaryNode interpStr => BindInterpolatedString(interpStr, ctx, context),
             ThisExpressionPrimaryNode thisExpr => BindThis(thisExpr, ctx, context),
             ObjectCreationExpressionPrimaryNode objectCreation => BindObjectCreation(objectCreation, ctx, context),
+            TargetTypedNewExpressionPrimaryNode targetTypedNew => BindTargetTypedNew(targetTypedNew, ctx, context),
             FieldKeywordExpressionPrimaryNode fieldKeyword => BindFieldKeyword(fieldKeyword, ctx, context),
 
             _ => new UnresolvedExpression(node),
@@ -134,9 +141,62 @@ internal static class ExpressionBinder
             type = context.Resolver.ResolveNamedType(typeName, ctx.Scope, node);
         }
 
-        var arguments = ArgumentBinder.Bind(node.Arguments, ctx, context);
+        return BindConstruction(node, type, node.Arguments, ctx, context);
+    }
+
+    /// <summary>
+    /// Binds <c>new(...)</c>, which names no type and takes the one the position expects.
+    /// </summary>
+    private static Expression BindTargetTypedNew(
+        TargetTypedNewExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
+    {
+        if(node.Initializer is not null)
+        {
+            return new UnresolvedExpression(node);
+        }
+
+        if(ctx.TargetType is not { } target || target is ErrorType)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.TargetTypedNewNeedsTargetType, node, null);
+            return new ErrorExpression(node);
+        }
+
+        if(Definition(target) is not ConcreteType)
+        {
+            context.Diagnostics.ReportAtNode(
+                ProgramModelDiagnostics.TargetTypeNotConstructible, node, null,
+                MistType.StripArity(target.Name));
+
+            return new ErrorExpression(node);
+        }
+
+        return BindConstruction(node, target, node.Arguments, ctx, context);
+    }
+
+    private static Expression BindConstruction(
+        Storm.Runtime.SyntaxNode node,
+        IMistType type,
+        ArgumentListNode? argumentList,
+        BindingContext ctx,
+        BuilderContext context)
+    {
+        var arguments = ArgumentBinder.Bind(argumentList, ConstructorsOf(type), ctx, context);
 
         return new NewExpression(node, type, arguments, SelectConstructor(type, arguments, node, context));
+    }
+
+    /// <summary>
+    /// A constructed type unwrapped to the definition its members are declared on, and anything else
+    /// returned as it is.
+    /// </summary>
+    private static IMistType Definition(IMistType type)
+    {
+        return (type as ConstructedType)?.Definition ?? type;
+    }
+
+    private static IReadOnlyList<Constructor> ConstructorsOf(IMistType type)
+    {
+        return Definition(type) is ConcreteType concrete ? concrete.ConstructorsList : [];
     }
 
     /// <summary>
@@ -152,7 +212,7 @@ internal static class ExpressionBinder
     private static Constructor? SelectConstructor(IMistType type, IReadOnlyList<Expression> arguments, Storm.Runtime.SyntaxNode node, BuilderContext context)
     {
         var constructed = type as ConstructedType;
-        var definition = constructed?.Definition ?? type;
+        var definition = Definition(type);
 
         if(definition is not ConcreteType { ConstructorsList.Count: > 0 } concrete)
         {

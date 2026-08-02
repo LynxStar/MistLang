@@ -1788,11 +1788,52 @@ capabilities:
     order: 65
     layer: properties
     requires: [object-creation]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       TargetTypedNew requires a target type to flow inward from six distinct contexts --
       an explicitly typed local, a field initializer, a return statement, a parameter at an
-      argument position, an assignment to an existing variable, and a constructed generic.
+      argument position, an assignment to an existing variable, and a constructed generic. All
+      six bind now, and the sample is banked in AllFeaturesV2.
+
+      FOUR OF THE SIX ALREADY PUSHED A TARGET TYPE, put there for the array-literal work.
+      BindingContext has carried TargetType and a PushTargetType guard all along, used by the
+      typed local, the return, the field initializer and an expression-bodied accessor. What was
+      missing was the binder case for TargetTypedNewExpression, which the grammar has parsed all
+      along and which reached BindPrimary unhandled and became a sentinel, plus the two remaining
+      pushes -- assignment, and the argument position.
+
+      THE ARGUMENT POSITION CARRIES A REAL LIMIT rather than an unfinished one. A parameter type
+      can target an argument only once the overload is known, and the overload is chosen from the
+      argument types, so the two are circular. ArgumentBinder therefore pushes a parameter type
+      only where exactly ONE candidate takes this many arguments, which covers every call in the
+      sample. Where several do, the argument gets no target and
+      MIST_PM_TARGET_TYPED_NEW_NO_TARGET asks for the type rather than guessing at a parameter.
+      C# breaks the circle properly, by treating the construction as convertible to anything with
+      an applicable constructor.
+
+      ARGUMENTS ARE NOW SCOPED whether or not anything targets them, which closed a latent leak
+      as well as enabling the feature. An enclosing target type used to reach straight through an
+      argument list, so `Point p = new(3, 4)` bound its arguments with Point as their target --
+      harmless for an integer literal, wrong for an array literal. It is also why the nested case
+      earns a test: an inner `new` inheriting the outer target would construct a second Holder
+      instead of the Tag its parameter asks for.
+
+      TESTED AT THE MODEL, in Test/Mist.Tests/Semantics/TargetTypedNewTests.cs, 17 cases, no
+      process spawned. Model-level rather than through output because C# HAS target-typed new of
+      its own, so emitting `new(...)` unchanged would let Roslyn resolve it and print the right
+      answer whatever Mist decided. Emission spells the resolved type instead, which the sample's
+      generated C# shows as `new TargetTypedNew.Point(3, 4)`.
+    tasks:
+      - Target an argument from its parameter where SEVERAL candidates share an arity. Needs the
+        construction to take part in applicability as convertible to anything constructible,
+        rather than needing a type before selection has run.
+      - Push a target type through a constructor chain's arguments. BodyBinder.BindChainArguments
+        calls ArgumentBinder with no candidates, so a target-typed new handed to a base chain
+        reports no target.
+      - Refuse `new AbstractName()` written explicitly. Only the target-typed path checks that
+        what it is about to construct is a class or a struct; the named path returns no
+        constructor and no diagnostic at all.
     unlocks: [TargetTypedNew]
 
   # ===================================================================
@@ -4066,13 +4107,22 @@ samples:
     intro_order: 76
     threshold: target-typed-new
     requires: [target-typed-new, type-argument-substitution, instance-fields,
-               field-initializers, string-interpolation, var-type-inference]
+               field-initializers, string-interpolation, var-type-inference, base-type-list,
+               constructor-chain-base, derived-to-base-conversion]
     untested:
-      - Every target type has exactly one candidate class with one constructor, so
-        first-match resolution looks correct and overload resolution is not exercised.
-      - No missing-target case, no ambiguous target, and no target-typed new into an
-        optional, base or abstract type. A fallback that guessed the only class in scope
-        would pass.
+      - The NEGATIVE cases are absent by construction, since a sample has to run and nothing
+        that fails to compile can live in one. No target at all, and a target nothing can
+        construct, are covered at the model in TargetTypedNewTests instead.
+      - No target-typed new into an optional type, which waits on unions at orders 76 to 78.
+        None into an abstract type either, which waits on order 67 and would be a refusal
+        rather than a result.
+      - Nothing HERE distinguishes the type Mist resolved from the one Roslyn would infer from
+        the same source, because C# has target-typed new too. This sample pins the output; what
+        pins the answer is the model-level test and the spelled type in the generated C#.
+      - The expansion answered the first two notes this entry used to carry. Selection at the
+        target is now exercised by three constructors on one type, two of them sharing an arity,
+        and a base-class target proves the target itself is constructed rather than a derived
+        type reachable from it.
 
   - name: PropertyInitializers
     intro_order: 34

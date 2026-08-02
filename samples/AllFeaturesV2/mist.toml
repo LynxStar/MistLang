@@ -16,3 +16,4 @@ ArityOverloads = { path = "../ArityOverloads" }
 TopLevelStatements = { path = "../TopLevelStatements" }
 Properties = { path = "../Properties" }
 TypeArgumentInference = { path = "../TypeArgumentInference" }
+TargetTypedNew = { path = "../TargetTypedNew" }

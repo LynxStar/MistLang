@@ -436,6 +436,29 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "The elements of the array literal have no common type ('{0}' and '{1}'). Annotate the target with an array type to select the element type explicitly.");
 
+    // ── Target-typed new ─────────────────────────────────────────────────
+
+    /// <summary>
+    /// A <c>new(...)</c> appears where nothing supplies the type to construct.
+    /// <para>
+    /// Also reported where several overloads take this many arguments, because the parameter that
+    /// would supply the target cannot be picked without the argument types and this argument is one
+    /// of them. Hence a message asking for the type rather than one claiming none exists.
+    /// </para>
+    /// </summary>
+    public static readonly DiagnosticDescriptor TargetTypedNewNeedsTargetType = new(
+        new DiagnosticId("MIST_PM_TARGET_TYPED_NEW_NO_TARGET"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "The type of 'new(...)' cannot be determined at this position. Name it, as in 'new Point(...)'.");
+
+    /// <summary>A <c>new(...)</c> is targeted at something no constructor can produce.</summary>
+    public static readonly DiagnosticDescriptor TargetTypeNotConstructible = new(
+        new DiagnosticId("MIST_PM_TARGET_TYPE_NOT_CONSTRUCTIBLE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}' cannot be constructed, so 'new(...)' has nothing to create here. Only a class or a struct can be.");
+
     // ── Entry points ─────────────────────────────────────────────────────
     /// <summary>
     /// A second entry point was found in an assembly that already had one. Detected as the

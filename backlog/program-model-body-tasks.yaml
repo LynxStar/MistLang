@@ -316,8 +316,9 @@ infrastructure:
           is set by mutation behind a RAII PushTargetType guard and BindFor assigns
           ctx.Scope then restores it by hand. That is the ambient-mutable-field shape this
           line rules out. The effect is achieved (values are restored), the design is not.
-          Only three sites ever push a target type: typed var-decl, return, array-literal
-          element.
+          Seven sites push a target type now -- typed var-decl, return, field initializer,
+          expression-bodied accessor, assignment RHS, array-literal element, and each argument
+          slot from its parameter.
 
 # =============================================================================
 statements:
@@ -394,7 +395,7 @@ expressions:
       - [ ] redirect to referenced type for static member access (`string.IsNullOrEmpty(...)`)
       - [ ] as `void` value when target type is void/optional (void value literal)
   assignment:
-    - [~] simple assignment (`=`) -> result type is target type; bind RHS with target-type context -- MISSING: BOTH stated behaviors. The node is produced, but the result type is value.Type rather than the target's, and there is no PushTargetType around the RHS
+    - [~] simple assignment (`=`) -> result type is target type; bind RHS with target-type context -- MISSING: the result type only, which is value.Type rather than the target's. The RHS IS bound under the assignment target's type now, which is what lets a target-typed new stand on the right of one
     - [ ] void-coalescing assignment (`??=`) -- any operator other than "=" -> UnresolvedExpression
     - [ ] note: assignable-target validation is a CHECK (out_of_scope); binding still resolves target/value/result -- informational; target, value and result are all resolved, modulo the result-type issue above
   operators:
@@ -428,7 +429,7 @@ expressions:
   object_creation:
     - [~] ObjectCreationExpression (`new T<...>(args) { init }`) -> constructor overload resolution -- MISSING: the initializer form only (present initializer -> UnresolvedExpression). GENERICS WORK: node.TypeArgs is resolved, the definition looked up under its arity-bearing name, and the constructed type interned, so `new List<int>()` binds. The constructor is selected and recorded on NewExpression, through the same resolution methods use
     - [ ] ObjectCreationExpressionNoArgs (`new T<...> { init }`) -- no case in BindPrimary
-    - [ ] TargetTypedNewExpression (`new(args) { init }`) -> type from target context; ctor resolution
+    - [~] TargetTypedNewExpression (`new(args) { init }`) -> type from target context; ctor resolution -- MISSING: the initializer-block form only, which stays unresolved until order 64. The bare `new(args)` takes the target type and selects its constructor through the same OverloadResolution methods use. Refuses rather than guesses in two shapes: nothing to target, and a target that is not a class or struct
     - [ ] TargetTypedNewExpressionNoArgs (`new { init }` via initializer)
     - [ ] AnonymousTypeExpression (`new { Name = e, projection }`) -> synthesized anonymous type (explicit + projected properties; name inference; duplicate detection)
     - [ ] property initializer block (NamedPropertyAssignment + CollectionElementAssignment) -- its presence is what forces ObjectCreationExpression to the sentinel
@@ -466,7 +467,7 @@ expressions:
   arguments:
     - [~] ValueArgument -- MISSING: nothing for the value case itself; argument expressions bind in both BindArguments overloads. Listed partial because it shares GetAllExpressions() with the ref case below
     - [ ] RefArgument (`ref x`) -- ref-ness is ERASED. Generated/ArgumentListNodeExtensions.cs unwraps RefArgument and ValueArgument to the same ExpressionNode, so the bound tree cannot distinguish `f(x)` from `f(ref x)`. That file's own header calls itself a shim until it handles ref arguments
-    - [ ] argument binding threads parameter types as target types (lambdas, void literal, default, target-typed new) -- neither BindArguments overload pushes a target type; arguments inherit whatever happens to be ambient
+    - [~] argument binding threads parameter types as target types (lambdas, void literal, default, target-typed new) -- MISSING: the case where SEVERAL candidates share an arity, which is circular -- a parameter can target an argument only once the overload is known, and the overload is chosen from the argument types. ArgumentBinder pushes the parameter type where exactly one candidate matches by arity, and pushes NULL otherwise, which also stopped an enclosing target type leaking into an argument list it had nothing to say about
   ranges_and_indices:
     # Not previously listed. Both are in the grammar and both degrade to the sentinel.
     - [ ] RangeExpression (`a..b`) -- OperatorBinder.BindRange passes non-range nodes through to Unary and degrades an actual range, which is not modelled in the ProgramModel at all
@@ -539,7 +540,7 @@ name_and_symbol_resolution:
     - [ ] generic extension receiver-type unification
     - [ ] static extension members (TypeName.Member) + universal + union-receiver extensions
   constructors_indexers:
-    - [~] constructor overload resolution (object creation + target-typed new) -- MISSING: target-typed new. Object creation selects through the same OverloadResolution.Select methods use, unwrapping a constructed type to reach the definition its constructors are declared on and passing it as the source of the arguments to substitute in. A constructor declares no type parameters of its own, so the closing stage is a no-op for it
+    - [~] constructor overload resolution (object creation + target-typed new) -- MISSING: target-typed new with an initializer block, and target-typed new written where nothing supplies a target, which is refused rather than resolved. Both forms otherwise select through the same OverloadResolution.Select methods use, unwrapping a constructed type to reach the definition its constructors are declared on and passing it as the source of the arguments to substitute in. A constructor declares no type parameters of its own, so the closing stage is a no-op for it
     - [~] constructor chains (`: this(...)` / `: base(...)`) -- MISSING: the target constructor. BindChainArguments binds the arguments into Constructor.ChainArgumentsList, in the body scope and before the body so they see the parameters, but only ChainKind records which flavor it was
     - [~] indexer resolution (get/set), array/span element access -- MISSING: overload resolution, get/set distinction, resolved symbol. See postfix.IndexSuffix
   namespaces:
@@ -554,9 +555,9 @@ type_inference_and_conversions:
     # Only three of the eight sites push at all.
     - [x] variable-declaration target type -- TypedVariableDeclaration only; for-initializers do not push
     - [x] return-statement target type (method/lambda return)
-    - [ ] assignment-RHS target type -- no push in BindExpression
-    - [ ] argument target type (from resolved parameter type) -- no push in either BindArguments
-    - [ ] object-creation / target-typed-new (constructor parameter types)
+    - [x] assignment-RHS target type -- the assignment target is bound first, so its type targets the value
+    - [~] argument target type (from resolved parameter type) -- MISSING: the several-candidates case, which needs the argument to take part in applicability before it has a type. One candidate of the right arity supplies its parameter types; several supply none
+    - [x] object-creation / target-typed-new (constructor parameter types) -- both go through ArgumentBinder with the target's constructors, so a nested `new(new(...))` reaches the inner parameter's type
     - [x] empty-array element target type -- LiteralBinder.ArrayElementType + PushTargetType
     - [ ] lambda parameter target types
     - [ ] void-value-literal + default-literal target type

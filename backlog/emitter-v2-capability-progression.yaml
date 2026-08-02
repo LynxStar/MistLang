@@ -1656,11 +1656,58 @@ capabilities:
     order: 56
     layer: generics
     requires: [type-parameters-and-constructed-types]
-    v2_status: missing
+    v2_status: done
+    verified_by: unexercised
     evidence: >
       GenericConstraints covers all four nominal forms plus multiple constraints on one
       parameter, multiple where clauses, method-level constraints, propagation through
       inheritance, and constraints on struct and abstract-type declarations.
+
+      TWO HALVES, BOTH NOW BUILT, AND THE FIRST WAS THE SURPRISE. The declarations already parsed and
+      resolved -- ConstraintResolver fills TypeParameter.ConstraintsList in Phase 2 -- so the sample
+      failed on only THREE binding errors, all of the shape "'T' has no member named 'GetOrder'". A
+      CONSTRAINT IS WHAT IS KNOWN ABOUT A TYPE PARAMETER, so it is also the whole of what a member
+      access on one may see, and TypeMemberLookup never consulted it: a TypeParameter is not a
+      MemberType, so it fell out of the walk exactly as a ConstructedType base did. EnqueueBases now
+      treats a nominal constraint as a base of the parameter, which is the same fix as order 53's and
+      reuses the same helper.
+
+      THE SECOND HALF IS EMISSION, and it was absent entirely -- no `where` clause was emitted for
+      any declaration. With member lookup fixed the failures moved wholesale from Mist to Roslyn,
+      which is how the two halves were told apart. ConstraintEmitter now writes them for types and
+      methods, and the 19 clauses it produces are identical in content to classic's 19, differing only
+      in v2 qualifying a type name where classic leaves it bare -- which is v2's style throughout and
+      compiles the same.
+
+      C# FIXES THE ORDER WITHIN A CLAUSE and rejects any other, so the parts are bucketed rather than
+      emitted as declared: `class` or `struct`, then the types, then `new()`. Only the constraints C#
+      HAS are spelled; readonly, mutable, owned and the three substructural kinds are Mist's alone and
+      govern checks rather than emission.
+
+      `unexercised` BECAUSE NO BANKED SAMPLE REACHES IT. GenericConstraints is still blocked by order
+      57, so all of the above is measured against classic on an unbanked sample rather than protected
+      by a baseline. It banks the moment 57's factory lowering lands, and the sample's remaining
+      failures are now exactly two shapes, both 57's.
+      ENFORCEMENT SPLITS IN TWO, and only half of it is a gap. Measured on a program that violates
+      one nominal and one Mist-only constraint. The NOMINAL kinds are enforced today because the
+      `where` clause is emitted and Roslyn reads it: `Sorter<Plain>` where Plain lacks IOrderable is
+      refused, as MIST_CS_ERROR against the generated file. That is `roslyn-downstream` and it is
+      fine until Stage 5 exists -- the program is correctly refused, just not at the nicest location.
+      The MIST-ONLY kinds are enforced by NOBODY: `Frozen<Plain>` where Plain is not readonly compiles
+      and runs on v2, while classic reports MIST_TC_0077. That is the real hole, and it is the one the
+      analysis task below is about.
+    analysis_phase_tasks:
+      - >
+        CHECK THE MIST-ONLY CONSTRAINTS -- readonly, mutable, owned, and the three substructural
+        kinds -- which erase into nothing and so are checked by nothing. A violating program compiles
+        and runs today. The nominal kinds need no work here beyond relocating their diagnostic from
+        the generated file to the Mist source, since Roslyn already refuses them.
+        WATCH THE MESSAGE WHEN PORTING: classic's MIST_TC_0077 prints its template with the
+        placeholders still in it rather than the type argument and parameter names, so its format
+        arguments are never passed. MIST_LEX_ERROR has the same defect, which makes it a pattern in
+        classic's diagnostics rather than a one-off.
+        The sample never violates a constraint either way, so a compiler that parsed them and checked
+        nothing passes it.
     unlocks: []
 
   - id: generic-constraints-constructor
@@ -1673,9 +1720,68 @@ capabilities:
       Mist allows a parameterized constructor constraint, which the classic pipeline lowers
       to synthesized factory delegate parameters threaded through constructors and call
       sites. C# has only the parameterless form.
+
+      THE ONE CONSTRAINT THAT CANNOT BE ERASED, and the reason is worth stating because every other
+      one can. A constraint normally RESTRICTS what a type argument may be, so dropping it from
+      emission loses a check and nothing else -- which is exactly what order 56 does with readonly,
+      owned and the substructural kinds. A constructor constraint does the opposite: it ENABLES,
+      granting the right to write `new T(value)` inside the generic body. Erase it and the body has no
+      way to construct, so the emitted C# does not compile rather than merely going unchecked.
+
+      THIS IS WHAT KEEPS GENERICCONSTRAINTS OFF V2 with order 56 complete. The sample's failures are
+      now exactly two shapes, both from here: "cannot provide arguments when creating an instance of a
+      variable type", and "does not have the new() constraint" for a parameter whose only constructor
+      constraint is parameterized, so order 56 emitted no `new()` for it.
+
+      CLASSIC'S TARGET SHAPE IS MEASURED. A `Func<int, T>` field per parameterized constraint, named
+      for the parameter and its argument types; a constructor parameter supplying it; `new T(value)`
+      rewritten to invoke it; and a factory passed at every construction of the generic type. So this
+      is field synthesis plus call-site rewriting rather than an emitter tweak.
+
+      DECIDED: THREAD A FACTORY, and the deciding requirement is FOREIGN TYPES -- a type argument may
+      come from a referenced assembly the compiler cannot modify. Three shapes were weighed and only
+      this one satisfies every requirement:
+
+      A THREADED FACTORY works on a foreign type because the synthesized factory lives on the
+      CONSUMER's side. At a construction site the compiler emits its own static method,
+      `static Widget __factory_Widget_int(int v) => new Widget(v);`, where `new Widget(v)` is an
+      ordinary constructor call -- so Widget may be foreign and is never touched. Everything stays
+      statically checked and AOT-safe.
+
+      A C# 11 STATIC ABSTRACT INTERFACE MEMBER would be the most faithful, keeping the constraint a
+      constraint rather than re-expressing it, and is RULED OUT for exactly the foreign-type case: it
+      requires an interface on the type argument itself, which cannot be added to a referenced
+      assembly's type.
+
+      `Activator.CreateInstance` WITH A CAST is the cheapest to build, a purely local rewrite of the
+      `new T(...)` expression that changes no signature, and is REJECTED on three counts. It erases
+      the constraint and rediscovers it by reflection, so a violating program fails at RUNTIME with
+      MissingMethodException where the other two fail at compile time -- and v2 has no constraint
+      checker, so nothing else would catch it. It boxes every argument and does a runtime constructor
+      lookup, in a language that otherwise carries stack-only types and substructural discipline. And
+      `Activator.CreateInstance(typeof(T), ...)` on an open parameter is not statically analyzable, so
+      it makes any program using the constraint trim-hostile and AOT-hostile.
+
+      PREFER A STATIC METHOD GROUP TO CLASSIC'S INLINE LAMBDA. Classic passes a closure at each site;
+      a generated static method is allocation-free, cacheable per type-and-signature pair rather than
+      per site, and reads far better in the emitted file.
+
+      NOTE FOR WHOEVER BUILDS IT: classic checks this constraint itself rather than leaning on the
+      target language, reporting MIST_CONSTRAINT_0015 "Type 'NoIntCtor' must have a public constructor
+      with parameters '(Int32)'" at the Mist source. V2 has no such check, so until Stage 5 a
+      violating program would reach the emitter; the threaded shape at least hands Roslyn a lambda it
+      will refuse, which Activator would not. That is an inference from the shape rather than a
+      measurement, and worth confirming once the lowering exists.
     tasks:
       - Support the parameterless form and the parameterized forms together on one parameter.
-      - Thread the synthesized factory parameters through every construction site.
+      - >
+        Thread the synthesized factory parameters through every construction site, emitting a static
+        method group rather than a closure.
+      - >
+        PROPAGATION IS THE CASE THAT DOES NOT FIT THE PATTERN. Where the type argument is itself a
+        TYPE PARAMETER -- an outer generic constructing an inner one that carries the same constraint
+        -- there is no concrete type to write a static factory over, so the outer's own incoming
+        factory parameter is forwarded instead. The sample exercises this at case 12.
     unlocks: []
 
   # ===================================================================

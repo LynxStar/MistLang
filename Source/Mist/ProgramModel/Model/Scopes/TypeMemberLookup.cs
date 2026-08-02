@@ -62,6 +62,12 @@ internal static class TypeMemberLookup
     /// <see cref="Construction.Binding.TypeSubstitution"/> in the layer above. Open once means open
     /// onwards, a base of an unsubstituted base being no more substituted than the base itself.
     /// </para>
+    /// <para>
+    /// A TYPE PARAMETER's nominal constraints are bases of it in the only sense that matters here.
+    /// <c>where T : IOrderable</c> is the whole of what is known about a T, so it is exactly what a
+    /// member access on one may see -- and being all that is known, it is also the only thing that
+    /// could answer. A keyword or constructor constraint carries no members and contributes nothing.
+    /// </para>
     /// </summary>
     private static void EnqueueBases(
         MistType type, int depth, bool open, Queue<(MistType, int, bool)> queue, HashSet<MistType> seen)
@@ -76,6 +82,17 @@ internal static class TypeMemberLookup
             foreach(var abstractBase in memberType.BaseAbstractTypes)
             {
                 Enqueue(abstractBase, depth, open, queue, seen);
+            }
+        }
+
+        if(type is TypeParameter typeParameter)
+        {
+            foreach(var constraint in typeParameter.ConstraintsList)
+            {
+                if(constraint is TypeConstraint { ConstraintType: MistType constraintType })
+                {
+                    Enqueue(constraintType, depth, open, queue, seen);
+                }
             }
         }
     }

@@ -45,6 +45,7 @@ internal static class TypeEmitter
         }
 
         writer.WriteLine($"{accessibility}{typeKeyword} {typeName}{EmitBaseList(type)}");
+        ConstraintEmitter.Emit(type.TypeParametersList, writer);
         using(writer.Block())
         {
             var concrete = type as ConcreteType;

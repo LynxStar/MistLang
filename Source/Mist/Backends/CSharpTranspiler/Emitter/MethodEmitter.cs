@@ -15,6 +15,7 @@ internal static class MethodEmitter
         var modifiers = MemberModifierEmitter.Emit(method.Modifiers);
 
         writer.WriteLine($"{modifiers}{EmitSignature(method)}");
+        ConstraintEmitter.Emit(method.TypeParametersList, writer);
         using(writer.Block())
         {
             if(method.Body is not null)

@@ -80,6 +80,7 @@ public class Program
         Variadics.Program.RunDemo();
         RangesAndIndices.Program.RunDemo();
         StormAnonymousGroups.Program.RunDemo();
+        AbstractTypes.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

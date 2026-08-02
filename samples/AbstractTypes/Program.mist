@@ -124,7 +124,7 @@ public abstract ITaggable
     }
 }
 
-public class Widget
+public class TaggedWidget
 {
     public string GetWidgetTag()
     {
@@ -137,7 +137,7 @@ public class Widget
     }
 }
 
-with Widget : ITaggable
+with TaggedWidget : ITaggable
 {
     GetWidgetTag as Tag;
     GetWidgetDisplay as DisplayTag;
@@ -194,7 +194,7 @@ public class Program
         Console.WriteLine("=== With block overrides default ===");
         // PROOF: with block maps GetWidgetDisplay to DisplayTag slot,
         // overriding the default implementation
-        var widget = new Widget();
+        var widget = new TaggedWidget();
         ITaggable taggable = widget;
         Console.WriteLine($"  Tag: {taggable.Tag()}");
         Console.WriteLine($"  DisplayTag: {taggable.DisplayTag()}");

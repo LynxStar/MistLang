@@ -289,6 +289,7 @@ This feature unifies Mist's `interface` and `trait` keywords into a single `abst
 4. WHEN a concrete type provides its own implementation for a member that has a default implementation in the abstract type AND the signatures match exactly, THE Type_Checker SHALL accept the concrete type's implementation and use it instead of the default (slot filling takes precedence over defaults). IF the signatures do not match exactly, THE Type_Checker SHALL reject the implementation with a signature mismatch error.
 5. WHEN matching slot signatures, THE Type_Checker SHALL verify name, return type, and parameter types all match exactly.
 6. WHEN an abstract type inherits from another abstract type that has default methods, THE Type_Checker SHALL propagate those defaults — implementers of the child abstract type are not required to fill them either.
+7. WHEN a parent abstract type declares a SLOT and a child abstract type inheriting from it declares a member of the same name and signature WITH a default implementation, THE Type_Checker SHALL treat the child's member as HIDING the parent's slot rather than filling it, and SHALL still require implementers of the child to fill the parent's slot. This is the converse of 14.6 and does not follow from it: 14.6 propagates a default declared on the PARENT down to implementers of the child, whereas a default declared on the CHILD does not reach back up to answer the parent's slot. The rule matches C#, where a derived interface's member hides rather than implements a base interface member of the same signature.
 
 ### Requirement 15: Default Implementation Semantics — Rust-style (Phase 3)
 
@@ -305,15 +306,22 @@ This feature unifies Mist's `interface` and `trait` keywords into a single `abst
 
 ### Requirement 16: Default Implementation C# Emission (Phase 3)
 
-**User Story:** As a Mist developer, I want default implementations to emit as C# default interface methods with forwarding stubs, so that Rust-style dispatch semantics are preserved in the generated code.
+**User Story:** As a Mist developer, I want default implementations to emit as C# default interface methods and to be restated on each conformer, so that Rust-style dispatch semantics are preserved in the generated code.
 
 #### Acceptance Criteria
 
 1. THE Emitter SHALL emit default implementations as C# default interface methods (DIM) in the generated interface.
-2. WHEN a concrete type does NOT override a default implementation, THE Emitter SHALL emit a forwarding method on the concrete type that calls the interface's default implementation (e.g., `public string Greet() => ((IGreeting)this).Greet();`).
-3. THE forwarding method SHALL ensure the default is accessible on the concrete type without casting to the interface type.
-4. WHEN a concrete type provides its own implementation for a method with a default, THE Emitter SHALL emit only the concrete type's implementation (no forwarding, no DIM invocation).
-5. THE emitted forwarding method SHALL use explicit interface casting to invoke the DIM.
+2. WHEN a concrete type does NOT override a default implementation, THE Emitter SHALL RESTATE the default's body as a public method on the concrete type, emitting the same body the DIM carries.
+3. THE restated method SHALL ensure the default is accessible on the concrete type without casting to the interface type.
+4. WHEN a concrete type provides its own implementation for a method with a default, THE Emitter SHALL emit only the concrete type's implementation (no restatement, no DIM invocation).
+5. THE Emitter SHALL NOT emit a forwarding stub that invokes the DIM through an explicit interface cast. Such a stub does not terminate: the public method on the concrete type is the implicit implementation of the interface member, so `((IGreeting)this).Greet()` dispatches back into the method it sits in. Compiled and run as written, `public string Greet() => ((IGreeting)this).Greet();` dies with a stack overflow.
+6. WHEN a default's signature or body names a type parameter of a generic abstract type, THE Emitter SHALL apply that conformer's type arguments to the restated member. IF the type arguments cannot be applied, THE Emitter SHALL NOT restate the member, rather than emit a member naming an unbound type parameter.
+
+> **Amendment note.** Criteria 2 and 5 originally prescribed a forwarding stub using an explicit
+> interface cast, spelled `public string Greet() => ((IGreeting)this).Greet();`. That construct was
+> measured to recurse infinitely (stack overflow at ~261k frames), so it was never implementable and
+> neither pipeline ever implemented it — both restate the body. Criterion 5 now forbids what it used
+> to require, and 6 records the generic case the original criteria did not consider.
 
 ### Requirement 17: Book Documentation — Phase 3 (Phase 3)
 
@@ -676,7 +684,7 @@ abstract ITaggable
     }
 }
 
-public class Widget
+public class TaggedWidget
 {
     public string GetWidgetTag()
     {
@@ -689,7 +697,7 @@ public class Widget
     }
 }
 
-with Widget : ITaggable
+with TaggedWidget : ITaggable
 {
     GetWidgetTag as Tag;
     GetWidgetDisplay as DisplayTag;
@@ -746,7 +754,7 @@ public class Program
         Console.WriteLine("=== With block overrides default ===");
         // PROOF: with block maps GetWidgetDisplay to DisplayTag slot,
         // overriding the default implementation
-        var widget = new Widget();
+        var widget = new TaggedWidget();
         ITaggable taggable = widget;
         Console.WriteLine($"  Tag: {taggable.Tag()}");
         Console.WriteLine($"  DisplayTag: {taggable.DisplayTag()}");

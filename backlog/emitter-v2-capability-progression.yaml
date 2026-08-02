@@ -2336,7 +2336,25 @@ capabilities:
       A with block declares that an existing type conforms, mapping its members onto slots.
       Scoped to its declaring namespace, so it is only active when that namespace is
       imported. Recorded in ConformanceMap keyed on the concrete and abstract type pair.
+
+      LIVE DEFECT IN CLASSIC, measured while wiring samples/AbstractTypes into AllFeatures, which v2
+      must not reproduce when it builds this: THE WITH-BLOCK TARGET NAME DOES NOT RESOLVE AGAINST ITS
+      DECLARING NAMESPACE. `with Widget : ITaggable` inside `namespace AbstractTypes` bound to a
+      `Widget` from another namespace entirely -- GenericConstraints and Ownership each declare one --
+      and failed with MIST_WITH_0004 reporting the RIGHT member names against the WRONG type, which
+      reads like a broken mapping rather than a misresolved target. An ordinary type reference in that
+      position would have preferred the enclosing namespace.
+
+      UNSPECIFIED RATHER THAN A VIOLATION. Requirement 19.2 gives the syntax as `with TypeName :
+      AbstractType` and Requirement 20 covers what conformance then means, but neither says how
+      TypeName resolves; order 73's own "scoped to its declaring namespace" is about where the
+      conformance is ACTIVE, which is a different question. So the rule wants stating before it is
+      implemented. Worked around in the sample by renaming the type.
     tasks:
+      - >
+        Resolve the with-block's TARGET type through the declaring namespace's scope, the way any
+        other type reference in that position resolves, rather than by simple name across the whole
+        compilation. See the live defect above.
       - Record the conformance and validate every mapping against a real slot.
       - Append the interface to the conforming type's base list at emission.
       - Emit explicit interface members forwarding to the mapped source member.
@@ -4581,13 +4599,19 @@ samples:
                derived-to-base-conversion, string-interpolation, var-type-inference]
     untested:
       - >
-        NOTHING RUNS THIS SAMPLE AT ALL, on either pipeline, which makes every note below moot until
-        that changes. It is absent from samples/AllFeatures/mist.toml as well as from AllFeaturesV2,
-        so no baseline covers it. Being out of AllFeaturesV2 is correct and gated -- its threshold is
-        order 73, which v2 has not built -- but being out of AllFeatures is a REQUIREMENT VIOLATION.
-        Requirement 29.4 says AllFeatures SHALL call AbstractTypes.Program.RunDemo(), and classic
-        runs the sample clean today, all thirteen sections including the with-block ones. So the
-        spec's own proof code for this feature passes and is protected by nothing.
+        RUNS ON CLASSIC ONLY. It is now in samples/AllFeatures, which satisfies Requirement 29.4 and
+        puts all thirteen of its sections under the classic Tier 6 baseline, with-blocks included. It
+        is absent from AllFeaturesV2 and correctly so -- its threshold is order 73, which v2 has not
+        built -- so nothing here covers the v2 pipeline. For most of this file's life nothing ran it
+        at all, on either pipeline, so the spec's own proof code for the feature was protected by
+        nothing.
+      - >
+        WIRING IT IN NEEDED A RENAME, which is worth knowing before wiring in any other sample. Its
+        with-block target was `Widget`, and GenericConstraints and Ownership each declare a `Widget`
+        too; inside one AllFeatures compilation the with-block resolved to the wrong one and failed
+        with MIST_WITH_0004 naming the RIGHT members against the WRONG type. Renamed to
+        `TaggedWidget` in the sample and in Requirement 29's proof code together, so the two still
+        match verbatim. See order 73 for the underlying resolution hazard.
       - >
         THIS IS THE SPEC'S DESIGNATED SAMPLE for the abstract-types feature, carrying Requirement
         29's proof code verbatim with its `// PROOF:` markers. The Phase 3 default-implementation

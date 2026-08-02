@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Added Comment Budget",
+      "trigger": "UserPromptSubmit",
+      "description": "Same report on the trigger whose stdout is forwarded into the model context, so pending added comments are visible to the agent while they can still be cut. Silent when none were added.",
+      "action": {
+        "type": "command",
+        "command": "git diff HEAD -U0 -- Source Test | grep '^+++\\|^+[[:space:]]*//'",
+        "timeout": 30
+      }
+    }
+  ]
+}

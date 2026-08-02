@@ -2138,8 +2138,17 @@ capabilities:
     verified_by: v2-semantics
     evidence: >
       A bodied member on an abstract type is a default, emitted as a C# default interface method.
-      A default called through an abstract-typed reference now prints `[widget]` on v2, byte-identical
-      to classic, on the same scratch program that measured the defect.
+
+      SHAPEABSTRACTS EXERCISES IT, which is what makes this `v2-semantics` rather than
+      `unexercised`. IShape declares a bodied `Summary()` whose body reads a property slot and calls
+      two method slots through `this`, and the sample invokes it twice: once through an IShape
+      reference and once through IResizable, which INHERITS the default from its base abstract. Both
+      lines are in AllFeaturesV2.out and in AllFeatures.out, identical, so the two pipelines agree on
+      a default's dispatch as well as on its emission.
+
+      The capability was banked before that coverage existed, on scratch programs since deleted, and
+      the sample was extended precisely because a `done` nothing runs is a status resting on
+      evidence nobody can re-check.
 
       WAS BROKEN, NOT MISSING, AND THE FIX IS SMALL. TypeEmitter.EmitInterfaceMethod terminated
       every abstract-type method with a semicolon and discarded Method.Body, so `string Describe()
@@ -4430,8 +4439,11 @@ samples:
         here satisfies a slot with the wrong accessor shape or leaves one unfilled, so the rejection
         surface of orders 69 and 70 is entirely unexercised -- and no such check exists on v2 today,
         by design. See their analysis_phase_tasks.
-      - No default member anywhere, so order 71 is unexercised by this sample despite being the
-        capability that most recently changed. One bodied member on IShape would cover it.
+      - IShape's default `Summary()` is called only through abstract-typed references, deliberately,
+        since a concrete-typed receiver is order 72 and unbuilt. So the sample covers a default's
+        emission and dispatch and says nothing about the half that is still missing.
+      - No conformer OVERRIDES the default, so nothing checks that a conformer's own implementation
+        wins over it -- which is the case order 72's second task turns on.
       - Every conformer declares its abstract types in its own base list, so nothing exercises
         retroactive conformance at order 73.
 
@@ -4895,7 +4907,8 @@ samples:
         inheriting `ILabeled`, and a read of the inherited slot -- but LabeledItem fills every slot
         with the right accessor shape, so neither the slot check nor the accessor-shape check is
         exercised, and neither exists on v2 today. See the analysis_phase_tasks on orders 69 and 70.
-      - No default member on either abstract type, so order 71 is unexercised here as well.
+      - No default member on either abstract type, so order 71 is not reached from here. It is
+        covered by ShapeAbstracts instead.
 
   - name: RefinementTypes
     intro_order: 37

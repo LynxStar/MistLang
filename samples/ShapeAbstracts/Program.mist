@@ -38,6 +38,11 @@ public class Program
         // Inherited abstract type member dispatch: call IShape.Describe through IResizable reference
         Console.WriteLine($"resizable desc={resizable.Describe()}");
 
+        // Default member: a bodied member on IShape, whose body calls three slots through `this`.
+        // Once through an IShape reference, once through IResizable, which inherits the default.
+        Console.WriteLine($"shape1 summary={shape1.Summary()}");
+        Console.WriteLine($"resizable summary={resizable.Summary()}");
+
         // Static helper accepting IShape parameter
         Console.WriteLine($"helper circle: {DescribeShape(circle)}");
         Console.WriteLine($"helper rect: {DescribeShape(rect)}");

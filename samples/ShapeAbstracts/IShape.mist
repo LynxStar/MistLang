@@ -9,6 +9,13 @@ public abstract IShape
     string Name { get; }
     string Describe();
     int Area();
+
+    // Bodied, so a default rather than a slot. Reached only through an abstract-typed reference,
+    // because a concrete-typed receiver needs capability 72, which is not built.
+    string Summary()
+    {
+        return $"{this.Name} -> {this.Describe()} area={this.Area()}";
+    }
 }
 
 public abstract IResizable : IShape

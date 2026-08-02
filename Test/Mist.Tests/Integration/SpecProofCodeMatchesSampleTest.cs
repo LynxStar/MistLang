@@ -44,6 +44,20 @@ public class SpecProofCodeMatchesSampleTest
     private static readonly Regex ProofCode =
         new(@"#### Proof Code[^\n]*\n+```mist\n(.*?)\n```", RegexOptions.Compiled | RegexOptions.Singleline);
 
+    private static readonly Regex ExpectedOutput = new(
+        @"#### Proof Code[^\n]*\n+```mist\n.*?\n```\s*\n+\*\*Expected output:\*\*\n```\n(.*?)\n```",
+        RegexOptions.Compiled | RegexOptions.Singleline);
+
+    /// <summary>
+    /// Samples the classic orchestrator cannot reference, so their output is absent from its
+    /// baseline. samples/DelegateFuncConversion carries a <c>Microsoft.AspNetCore.App</c> framework
+    /// reference, and adding it to AllFeatures would give the whole orchestrator a web dependency.
+    /// </summary>
+    private static readonly HashSet<(string Spec, int Block)> OutsideTheOrchestrator =
+    [
+        ("delegate-func-conversion", 0),
+    ];
+
     [Fact]
     public void EveryProofCodeBlock_AppearsVerbatim_InItsDesignatedSample()
     {
@@ -96,6 +110,66 @@ public class SpecProofCodeMatchesSampleTest
             failures.Count == 0,
             $"Proof code has drifted from its sample. The SAMPLE is authoritative -- update the spec "
                 + $"to match it, per .kiro/steering/sample-proof-code.md:{Environment.NewLine}"
+                + string.Join(Environment.NewLine, failures));
+    }
+
+    /// <summary>
+    /// The companion invariant, asserted against the classic baseline rather than by running
+    /// anything. AllFeatures orchestrates nearly every sample, so its recorded stdout already says
+    /// what they print, and <see cref="SamplesCompileAndMatchBaselineTest"/> is what keeps that file
+    /// honest -- so this chains off an artifact something else already verifies instead of spawning
+    /// 26 compilations of its own.
+    /// <para>
+    /// A SLICE rather than an equality, which is the same shape the proof-code assertion takes and is
+    /// what makes it work for a spec documenting one section of a large sample. ownership-v2 states
+    /// eight lines of a sample that prints ninety-eight, and needs no exemption for it.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void EveryExpectedOutputBlock_AppearsAsASlice_OfTheClassicBaseline()
+    {
+        var repoRoot = FindRepoRoot();
+        var specsDir = Path.Combine(repoRoot, ".kiro", "specs");
+        var baselineFile = Path.Combine(repoRoot, "samples", "__baselines__", "AllFeatures.out");
+        Assert.True(File.Exists(baselineFile), $"Baseline not found: {baselineFile}");
+
+        var baseline = File.ReadAllText(baselineFile).Replace("\r\n", "\n");
+        var checkedBlocks = 0;
+        var failures = new List<string>();
+
+        foreach(var requirements in Directory.GetFiles(specsDir, "requirements.md", SearchOption.AllDirectories).Order())
+        {
+            var spec = Path.GetFileName(Path.GetDirectoryName(requirements))!;
+            var text = File.ReadAllText(requirements).Replace("\r\n", "\n");
+
+            if(!Designated.IsMatch(text))
+            {
+                continue;
+            }
+
+            var blocks = ExpectedOutput.Matches(text);
+            for(var i = 0; i < blocks.Count; i++)
+            {
+                if(Illustrations.Contains((spec, i)) || OutsideTheOrchestrator.Contains((spec, i)))
+                {
+                    continue;
+                }
+
+                checkedBlocks++;
+                var expected = blocks[i].Groups[1].Value.Replace("\r\n", "\n").Trim('\n');
+
+                if(!baseline.Contains(expected, StringComparison.Ordinal))
+                {
+                    failures.Add($"{spec} block {i} expected output is not a slice of AllFeatures.out");
+                }
+            }
+        }
+
+        Assert.True(checkedBlocks > 20, $"Expected to check more than 20 output blocks, checked {checkedBlocks}");
+        Assert.True(
+            failures.Count == 0,
+            $"A spec claims output its sample does not produce. The SAMPLE is authoritative -- update "
+                + $"the spec to match the baseline, per .kiro/steering/sample-proof-code.md:{Environment.NewLine}"
                 + string.Join(Environment.NewLine, failures));
     }
 

@@ -87,25 +87,37 @@ could not compile at all, and Requirement 16 of the same spec specified a forwar
 recurses infinitely. Neither was an implementation gap; both were the document going stale beside
 working code. All were reconciled the same day by lifting the sample into the spec.
 
-### Two shapes that legitimately do not satisfy the check
+### Both invariants are CONTAINMENT, not equality
 
-A blanket "every block is a substring of its designated sample, and every expected output equals
-that sample's run" is right for most blocks and wrong for these two, so a checker needs to exempt
-them by name rather than treat them as drift:
+`Test/Mist.Tests/Integration/SpecProofCodeMatchesSampleTest.cs` enforces them, and states them the
+same way on purpose:
+
+- proof code is a verbatim **substring** of its sample
+- expected output is a contiguous **slice** of `samples/__baselines__/AllFeatures.out`
+
+Containment rather than equality is what lets a spec document one section of a large sample.
+`ownership-v2` states 8 lines of a sample that prints 98 and satisfies both invariants exactly.
+Asserting equality would have made that a failure and invited "fixing" the spec to claim a 71-line
+excerpt prints all 98 — which is how the first attempt at this got it wrong.
+
+The output invariant reads the baseline rather than running anything, so it costs no process spawns.
+`SamplesCompileAndMatchBaselineTest` is what keeps the baseline honest, so this chains off an
+artifact something else already verifies.
+
+### Cases the checker exempts by name
 
 1. **An inline illustration.** A `#### Proof Code` block under a requirement other than the sample
    requirement demonstrates that requirement in isolation and belongs to no sample. Its namespace
    gives it away by differing from the sample's. `abstract-type-unification` Requirement 26's
-   `HidingDemo` block is the example.
-2. **An excerpt with sectional output.** Where the proof code is a substring of a large sample, its
-   expected output covers that excerpt's own lines, not the whole sample's run. `ownership-v2` is
-   the example: 71 lines of a 757-line sample, with 8 lines of expected output against the sample's
-   full 98.
+   `HidingDemo` block is the only one.
+2. **A sample outside the orchestrator.** `samples/DelegateFuncConversion` carries a
+   `Microsoft.AspNetCore.App` framework reference, so AllFeatures cannot reference it without taking
+   a web dependency, and its output is therefore absent from the classic baseline.
 
-A third case is worth knowing rather than exempting: a spec may carry proof code for a DIFFERENT
-sample than the one it designates. `attributes-and-test-command` designates `samples/Attributes`
-and its second block is `namespace Testing`, which belongs to `samples/Testing/Tests.mist`. Match on
-the namespace, not on the designated path.
+One more case is handled rather than exempted: a spec may carry proof code for a DIFFERENT sample
+than the one it designates. `attributes-and-test-command` designates `samples/Attributes` and its
+second block is `namespace Testing`, which belongs to `samples/Testing/Tests.mist`. Match on the
+namespace, not on the designated path.
 
 ## Applies To
 

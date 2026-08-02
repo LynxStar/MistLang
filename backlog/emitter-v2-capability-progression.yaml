@@ -1494,22 +1494,45 @@ capabilities:
       asked, since Extend unions two maps, but nothing asks: member lookup does not reach a
       generic ancestor at all, so substitution is never consulted there. See the remaining tasks.
 
-      NOW BLOCKING A NAMED CONSUMER, which it was not when this was written. Order 72 restates an
-      abstract's default members onto each conformer, and for a GENERIC abstract the restatement is
-      emitted correctly and then cannot be called: `IntHold.Show` on a conformer of `IHold<T>`
-      reports MIST_PM_UNRESOLVED_MEMBER. Independently reproduced against two controls in one
-      program -- the same shape on a NON-generic abstract resolves, and so does the same member on
-      a constructed-abstract-typed receiver, since MemberResolution unwraps a receiver even though
-      EnqueueBases does not unwrap a base. So the first task below is the whole of what 72's
-      generic residue is waiting on, not merely of what this entry is.
+      THE WALK NOW REACHES A GENERIC ANCESTOR, which is half of the inheritance gap and the half that
+      needed no substitution. EnqueueBases unwraps a ConstructedType base to its definition, since
+      that is where members are declared, and flags everything reached from there OPEN. A member of an
+      open base is returned when its type names no type parameter and WITHHELD when it does.
+
+      WITHHELD RATHER THAN ANSWERED OPEN, and that is the load-bearing choice. Surfacing `T Get()`
+      off a `Box<int>` base without applying the argument would answer `T`, and no caller can tell an
+      open T from a real one, so a wrong type would flow on silently where today the name simply does
+      not resolve. Not answering is recoverable; answering wrongly is not. Order 72's emitter half
+      refuses the same members for the same reason, which is a coincidence worth keeping: both layers
+      decline exactly what they cannot close.
+
+      MEASURED, and v2 is now AHEAD of classic here. `IntBox : Box<int>` reads an inherited
+      `Describe()` and `Size()`, and `StringPair : Pair<string>` reads them through a GENERIC MIDDLE
+      two levels up. CLASSIC FAILS ALL OF THOSE -- MIST_UNDEFINED_MEMBER, "'IntBox' does not contain
+      a definition for 'Describe'" -- so generic CLASS base inheritance is a LIVE DEFECT in classic
+      rather than a v2 gap, and no sample exercises it on either pipeline. Classic does handle a
+      generic ABSTRACT base, which is what made order 72's residue a genuine v2-only gap; that is now
+      closed and `Holder.Show()` on a conformer of `IHold<T>` resolves.
+
+      STILL `partial` FOR THE SUBSTITUTED HALF, and the obstacle is layering rather than logic.
+      Composing the chain needs the accumulated map applied to each hop's arguments BEFORE binding --
+      union alone is not enough, since `StringPair -> Pair<string> -> Box<A>` yields
+      {Pair.A: string, Box.T: Pair.A} and one Apply answers Pair.A rather than string. TypeSubstitution
+      does all of that already, but it lives in Construction.Binding while TypeMemberLookup, CandidateSet
+      and LookupResult live in Model.Scopes, and Model must not depend on Construction. So a member
+      found on a generic ancestor has nowhere in the lookup contract to carry its substitution:
+      FieldResult and PropertyResult have a DeclaringType that could hold the closed construction,
+      MethodGroupResult has nothing, and CandidateSet.MergeMethods flattens overloads ACROSS depths so
+      one substitution per group would be wrong. Deciding where that lives is a design call, not a
+      task.
     tasks:
-      - Walk a constructed base's chain in member lookup. TypeMemberLookup.EnqueueBases enqueues
-        the ConstructedType itself, which then matches nothing because it is not a MemberType, so
-        a member inherited from a generic base reports MIST_PM_UNRESOLVED_MEMBER. This is the
-        whole of what keeps this entry off `done`.
-      - Compose substitutions along that chain once it is walked, so a member found on a generic
-        ancestor is read through every construction between it and the receiver. TypeSubstitution
-        composes already; what is missing is the walk that would supply the levels.
+      - >
+        DECIDE WHERE AN INHERITED MEMBER'S SUBSTITUTION LIVES, then compose the chain and drop
+        TypeMemberLookup.Withheld. The walk is done; this is the remaining half. Two shapes are
+        open: give the lookup contract somewhere to carry the closed declaring construction per
+        candidate -- which MethodGroupResult lacks and MergeMethods would have to preserve across
+        depths -- or move the generic part of the walk up into Construction, where TypeSubstitution
+        already is. The second avoids a Model-to-Construction dependency and is probably right.
       - Descend unions and tuples in TypeSubstitution.Apply when a signature can be stated in
         terms of one.
     unlocks: []
@@ -2308,14 +2331,17 @@ capabilities:
       needs the type arguments applied to the body as well as the signature, which is a rewrite of
       a bound block that nothing in the backend does.
 
-      A default whose signature is closed already works: `string Show()` on `IHold<T>` is restated
-      onto `IntHold : IHold<int>` as valid C#, verified by reading the emitted file. So the
-      EMISSION side is complete for everything the model can present to it. What stops the
-      concrete-receiver call is order 53's inheritance half -- member lookup does not reach a
-      generic ancestor, reporting MIST_PM_UNRESOLVED_MEMBER for `IntHold.Show` -- which that entry
-      records as the whole of what keeps IT off `done`. Measured against a non-generic control in
-      the same program, and against a constructed-abstract-typed receiver, which both resolve. So
-      this entry needs no further emitter work for that case; it needs 53.
+      A DEFAULT WITH A CLOSED SIGNATURE ON A GENERIC ABSTRACT NOW WORKS END TO END. `string Show()`
+      on `IHold<T>` is restated onto `IntHold : IHold<int>` as valid C# and the concrete-receiver call
+      resolves and runs. It previously reported MIST_PM_UNRESOLVED_MEMBER because member lookup did
+      not reach a generic ancestor; order 53's walk now does.
+
+      WHAT REMAINS IS THE OPEN SIGNATURE, and the two layers refuse it in step. The emitter skips a
+      default whose signature names a type parameter, and order 53's lookup withholds any member of a
+      generic base for the same reason -- neither can apply the conformer's type arguments, and both
+      would rather answer nothing than answer an open `T`. So the residue is unreachable from either
+      side rather than half-emitted, and closing it means composing substitutions along the base
+      chain, which is order 53's remaining task.
     tasks:
       - >
         Substitute a generic abstract's type arguments into a restated default, in the BODY as well

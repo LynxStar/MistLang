@@ -1,3 +1,4 @@
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -33,45 +34,63 @@ internal static class TypeMemberLookup
     /// </summary>
     public static void Gather(MistType type, LookupRequest request, CandidateSet candidates)
     {
-        var queue = new Queue<(MistType Type, int Depth)>();
+        var queue = new Queue<(MistType Type, int Depth, bool Open)>();
         var seen = new HashSet<MistType>();
 
-        queue.Enqueue((type, 0));
+        queue.Enqueue((type, 0, false));
         _ = seen.Add(type);
 
         while(queue.Count > 0)
         {
-            var (current, depth) = queue.Dequeue();
+            var (current, depth, open) = queue.Dequeue();
 
             AddTypeNames(current, request, depth, candidates);
-            AddState(current, request, depth, candidates);
-            AddMethods(current, request, depth, candidates);
+            AddState(current, request, depth, open, candidates);
+            AddMethods(current, request, depth, open, candidates);
 
-            EnqueueBases(current, depth, queue, seen);
+            EnqueueBases(current, depth, open, queue, seen);
         }
     }
 
     /// <summary>
     /// Bases breadth-first, the concrete base before the declared abstracts. <paramref name="seen"/>
     /// makes a diamond one visit rather than two, and stops a cycle from hanging the walk.
+    /// <para>
+    /// A CONSTRUCTED base is walked through its definition, since that is where members are declared,
+    /// and everything reached from there is flagged OPEN: the construction's arguments are known here
+    /// but nothing in this layer can apply them, substitution belonging to
+    /// <see cref="Construction.Binding.TypeSubstitution"/> in the layer above. Open once means open
+    /// onwards, a base of an unsubstituted base being no more substituted than the base itself.
+    /// </para>
     /// </summary>
-    private static void EnqueueBases(MistType type, int depth, Queue<(MistType, int)> queue, HashSet<MistType> seen)
+    private static void EnqueueBases(
+        MistType type, int depth, bool open, Queue<(MistType, int, bool)> queue, HashSet<MistType> seen)
     {
-        if(type is ConcreteType { BaseType: { } concreteBase } && seen.Add(concreteBase))
+        if(type is ConcreteType { BaseType: { } concreteBase })
         {
-            queue.Enqueue((concreteBase, depth + 1));
+            Enqueue(concreteBase, depth, open, queue, seen);
         }
 
         if(type is MemberType memberType)
         {
             foreach(var abstractBase in memberType.BaseAbstractTypes)
             {
-                if(seen.Add(abstractBase))
-                {
-                    queue.Enqueue((abstractBase, depth + 1));
-                }
+                Enqueue(abstractBase, depth, open, queue, seen);
             }
         }
+    }
+
+    private static void Enqueue(
+        MistType baseType, int depth, bool open, Queue<(MistType, int, bool)> queue, HashSet<MistType> seen)
+    {
+        var constructed = baseType as ConstructedType;
+
+        if((constructed?.Definition ?? baseType) is not MistType definition || !seen.Add(definition))
+        {
+            return;
+        }
+
+        queue.Enqueue((definition, depth + 1, open || constructed is not null));
     }
 
     /// <summary>
@@ -121,11 +140,11 @@ internal static class TypeMemberLookup
     /// Fields and properties, plus the two kinds reached by the same syntax without being stored as
     /// ordinary members: tuple elements and enum variants.
     /// </summary>
-    private static void AddState(MistType type, LookupRequest request, int depth, CandidateSet candidates)
+    private static void AddState(MistType type, LookupRequest request, int depth, bool open, CandidateSet candidates)
     {
         foreach(var field in FieldsOf(type))
         {
-            if(field.Name == request.Name && Admits(field.Modifiers, request, depth))
+            if(field.Name == request.Name && Admits(field.Modifiers, request, depth) && !Withheld(open, field.Type))
             {
                 candidates.Add(new FieldResult(field, type), depth);
             }
@@ -135,7 +154,8 @@ internal static class TypeMemberLookup
         {
             foreach(var property in memberType.PropertiesList)
             {
-                if(property.Name == request.Name && Admits(property.Modifiers, request, depth))
+                if(property.Name == request.Name && Admits(property.Modifiers, request, depth)
+                    && !Withheld(open, property.Type))
                 {
                     candidates.Add(new PropertyResult(property, type), depth);
                 }
@@ -176,7 +196,7 @@ internal static class TypeMemberLookup
     /// are excluded by construction: they live in their own lists because they are not reached by
     /// name.
     /// </summary>
-    private static void AddMethods(MistType type, LookupRequest request, int depth, CandidateSet candidates)
+    private static void AddMethods(MistType type, LookupRequest request, int depth, bool open, CandidateSet candidates)
     {
         if(type is not MemberType memberType)
         {
@@ -186,7 +206,7 @@ internal static class TypeMemberLookup
         var group = new List<Method>();
         foreach(var method in memberType.MethodsList)
         {
-            if(method.Name == request.Name && Admits(method.Modifiers, request, depth))
+            if(method.Name == request.Name && Admits(method.Modifiers, request, depth) && !Withheld(open, method))
             {
                 group.Add(method);
             }
@@ -201,6 +221,63 @@ internal static class TypeMemberLookup
     private static bool Admits(MemberModifiers modifiers, LookupRequest request, int depth)
     {
         return request.Permits(modifiers.IsStatic) && IsVisible(modifiers.Accessibility, depth);
+    }
+
+    /// <summary>
+    /// A member of an OPEN base is withheld when its type is stated in terms of a type parameter,
+    /// because the answer would be that parameter rather than the argument standing for it. Answering
+    /// it unsubstituted is the one outcome worse than not answering: the caller cannot tell an open
+    /// <c>T</c> from a real one, so a wrong type would flow on silently where today a name simply does
+    /// not resolve. Members whose types name no parameter are unaffected by the construction and are
+    /// returned as they stand.
+    /// </summary>
+    private static bool Withheld(bool open, Method method)
+    {
+        if(!open)
+        {
+            return false;
+        }
+
+        if(Withheld(open, method.ReturnType))
+        {
+            return true;
+        }
+
+        foreach(var parameter in method.ParametersList)
+        {
+            if(Withheld(open, parameter.Type))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool Withheld(bool open, IMistType type)
+    {
+        if(!open)
+        {
+            return false;
+        }
+
+        if(type is TypeParameter)
+        {
+            return true;
+        }
+
+        if(type is ConstructedType constructed)
+        {
+            foreach(var argument in constructed.TypeArguments)
+            {
+                if(Withheld(open, argument))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

@@ -64,6 +64,7 @@ internal static class ExpressionBinder
             InterpolatedStringExpressionPrimaryNode interpStr => BindInterpolatedString(interpStr, ctx, context),
             ThisExpressionPrimaryNode thisExpr => BindThis(thisExpr, ctx, context),
             ObjectCreationExpressionPrimaryNode objectCreation => BindObjectCreation(objectCreation, ctx, context),
+            ObjectCreationExpressionNoArgsPrimaryNode noArgs => BindObjectCreationNoArgs(noArgs, ctx, context),
             TargetTypedNewExpressionPrimaryNode targetTypedNew => BindTargetTypedNew(targetTypedNew, ctx, context),
             FieldKeywordExpressionPrimaryNode fieldKeyword => BindFieldKeyword(fieldKeyword, ctx, context),
 
@@ -107,23 +108,36 @@ internal static class ExpressionBinder
     }
 
     /// <summary>
-    /// Binds <c>new T(...)</c>, generic or not, with no initializer block, selecting the
-    /// constructor its arguments pick out.
+    /// Binds <c>new T(...)</c>, generic or not, selecting the constructor its arguments pick out.
     /// </summary>
     private static Expression BindObjectCreation(ObjectCreationExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
     {
-        // A property initializer block changes what the expression constructs, so binding
-        // the creation while dropping the block would silently emit a different object.
-        // Left unresolved until initializers are supported.
-        if(node.Initializer is not null)
-        {
-            return new UnresolvedExpression(node);
-        }
+        return BindNamedCreation(node, node.Type, node.TypeArgs, node.Arguments, node.Initializer, ctx, context);
+    }
 
-        var typeName = QualifiedNameHelper.Build(node.Type);
+    /// <summary>
+    /// Binds <c>new T { ... }</c>, whose omitted argument list is a separate grammar alternative
+    /// rather than an empty one, so the two forms cannot share a node type.
+    /// </summary>
+    private static Expression BindObjectCreationNoArgs(
+        ObjectCreationExpressionNoArgsPrimaryNode node, BindingContext ctx, BuilderContext context)
+    {
+        return BindNamedCreation(node, node.Type, node.TypeArgs, null, node.Initializer, ctx, context);
+    }
+
+    private static Expression BindNamedCreation(
+        Storm.Runtime.SyntaxNode node,
+        QualifiedIdentifierNode typeNode,
+        TypeArgumentListNode? typeArgList,
+        ArgumentListNode? argumentList,
+        PropertyInitializerBlockNode? initializer,
+        BindingContext ctx,
+        BuilderContext context)
+    {
+        var typeName = QualifiedNameHelper.Build(typeNode);
 
         IMistType type;
-        if(node.TypeArgs is { } typeArgList)
+        if(typeArgList is not null)
         {
             var arity = 1 + typeArgList.TypeArguments.Length;
             var arityName = ScopeResolver.BuildArityName(typeName, arity);
@@ -141,7 +155,7 @@ internal static class ExpressionBinder
             type = context.Resolver.ResolveNamedType(typeName, ctx.Scope, node);
         }
 
-        return BindConstruction(node, type, node.Arguments, ctx, context);
+        return BindConstruction(node, type, argumentList, initializer, ctx, context);
     }
 
     /// <summary>
@@ -150,11 +164,6 @@ internal static class ExpressionBinder
     private static Expression BindTargetTypedNew(
         TargetTypedNewExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
     {
-        if(node.Initializer is not null)
-        {
-            return new UnresolvedExpression(node);
-        }
-
         if(ctx.TargetType is not { } target || target is ErrorType)
         {
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.TargetTypedNewNeedsTargetType, node, null);
@@ -170,19 +179,25 @@ internal static class ExpressionBinder
             return new ErrorExpression(node);
         }
 
-        return BindConstruction(node, target, node.Arguments, ctx, context);
+        return BindConstruction(node, target, node.Arguments, node.Initializer, ctx, context);
     }
 
     private static Expression BindConstruction(
         Storm.Runtime.SyntaxNode node,
         IMistType type,
         ArgumentListNode? argumentList,
+        PropertyInitializerBlockNode? initializer,
         BindingContext ctx,
         BuilderContext context)
     {
         var arguments = ArgumentBinder.Bind(argumentList, ConstructorsOf(type), ctx, context);
 
-        return new NewExpression(node, type, arguments, SelectConstructor(type, arguments, node, context));
+        return new NewExpression(
+            node,
+            type,
+            arguments,
+            SelectConstructor(type, arguments, node, context),
+            ObjectInitializerBinder.Bind(initializer, type, ctx, context));
     }
 
     /// <summary>

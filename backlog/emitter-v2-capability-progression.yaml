@@ -460,7 +460,7 @@ capabilities:
     order: 17
     layer: object-model
     requires: [constructors]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
       ExpressionBinder.BindObjectCreation.
@@ -473,13 +473,9 @@ capabilities:
       `new T<...>` in 29 samples against initializer-block syntax in exactly one -- and since that
       bucket was generic construction almost entirely, the bulk of it is closed.
 
-      What remains is the initializer-block half, which is one sample's worth of syntax and waits
-      on properties (order 58) to have anything to initialize.
-    tasks:
-      - >
-        Bind an object creation carrying a property-initializer block. Only PropertyInitializers
-        uses the syntax, and binding the creation while dropping the block would silently
-        construct a different object, which is why it is refused rather than half-handled.
+      The initializer-block half closed at order 64, which is where it belonged: it needed
+      properties (order 58) to have anything to initialize, so it could not have been finished
+      here whatever the effort spent.
     unlocks: []
 
   - id: constructor-chain-this
@@ -1772,15 +1768,57 @@ capabilities:
     order: 64
     layer: properties
     requires: [property-declarations-and-accessors, object-creation]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      6957888b deliberately refuses an initializer block to a sentinel, because binding the
-      creation while dropping the block would construct a different object. This is the
-      capability that lifts that refusal.
-    tasks:
-      - Resolve each initializer target as a set property, an init accessor or a field.
-      - Sequence the constructor body before the initializer assignments.
-      - Support the omitted-argument-list form and the empty block form.
+      PropertyInitializers is banked in AllFeaturesV2, byte-identical to classic across all
+      fourteen sites: a settable property, an init accessor, a public field, a struct, a
+      constructed generic, an argument position, and a value expression that calls a method and
+      interpolates.
+
+      ObjectInitializerBinder resolves each element through MemberResolution, the same code path a
+      qualified `receiver.X` goes through, so an initializer target and a receiver access cannot
+      disagree about what exists, what is inherited, or which diagnostic a failure earns. That is
+      shared structure rather than two implementations kept in step: PostfixBinder reduces its
+      receiver to a type and a visibility and then calls the same method this does, and the
+      not-found and ambiguous diagnostics are reported in one place for both.
+
+      The resolved member's type is pushed as the value's target, substituted against the
+      constructed type's arguments first -- which is what lets `new Box<int>(42) { Tag = "integer" }`
+      target T correctly rather than targeting the parameter.
+
+      THE OMITTED-ARGUMENT-LIST FORM IS A SEPARATE GRAMMAR ALTERNATIVE, not an empty argument list.
+      `new Config { Timeout = 30 }` parses as ObjectCreationExpressionNoArgs, which had no case in
+      BindPrimary at all -- so it was an unbound sentinel independently of the refusal this entry
+      was written about, and eight of the sample's fourteen sites use it. Both node kinds now route
+      through one BindNamedCreation.
+
+      Sequencing the constructor body before the assignments needed nothing: C# has the same
+      construct with the same order, so emission is a brace list appended to the call.
+
+      THE EMPTY BLOCK IS DELIBERATELY NOT PRESERVED. `new Config() { }` emits `new Config()`,
+      because a block that assigns nothing is a no-op wherever it appears and carrying the
+      distinction would add a third state to the model for no difference in behaviour.
+
+      `new(...) { X = 1 }` binds too, its refusal in BindTargetTypedNew lifted by the same change.
+      Nothing exercises it -- no sample writes a target-typed new with a block.
+
+      A bare expression in a block, C#'s collection-initializer form, is REFUSED with
+      MIST_PM_COLLECTION_INITIALIZER rather than passed through. It stands for a call to an `Add`
+      overload nobody resolved, and emitting it would hand Roslyn a member the model never chose --
+      the same reasoning that refused the whole block before this entry.
+    analysis_phase_tasks:
+      - >
+        Port classic's MIST_PI_* family, none of which v2 performs: no accessible set or init
+        (0003), readonly field (0004), inaccessible member (0005), duplicate name in one block
+        (0006), and value not convertible to the member's type (0002). Only member-not-found (0001)
+        has a v2 counterpart, as MIST_PM_UNRESOLVED_MEMBER.
+
+        EVERY ONE OF THEM IS ALREADY CAUGHT, by Roslyn, on the GENERATED FILE. Measured on scratch
+        programs: `Doubled = 3` against a get-only property reports MIST_CS_ERROR "cannot be
+        assigned to -- it is read only", and `Timeout = 1, Timeout = 2` reports "Duplicate
+        initialization of member". So this is wrong place, not wrong output, which is why the whole
+        family is deferred rather than blocking the capability.
     unlocks: [PropertyInitializers]
 
   - id: target-typed-new
@@ -4131,11 +4169,13 @@ samples:
                type-argument-substitution, struct-declaration, string-interpolation,
                var-type-inference, operators-arithmetic-comparison-logical]
     untested:
-      - No negative case. Nothing assigns to a get-only or private member, and nothing
-        writes an init accessor outside an initializer, so the accessor-kind check may not
-        exist at all.
+      - No negative case, and the accessor-kind check DOES NOT EXIST -- confirmed on v2, not
+        merely suspected. A get-only or private target binds and emits, and Roslyn is what
+        refuses it. See the capability's analysis_phase_tasks.
       - The struct case is only ever read back through a method on the same local, so a
         copy-semantics bug in the initializer would be invisible.
+      - Nothing here writes an initializer on a target-typed `new(...)`, which binds on v2 and
+        is exercised by no sample at all.
 
   - name: TypeArgumentInference
     intro_order: 56

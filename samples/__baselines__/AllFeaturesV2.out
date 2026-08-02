@@ -233,3 +233,32 @@ explicit=explicit
   nested: Wrapper(Tag(int:9))
   base_target: Shape(square)
   derived_into_base: Shape(circle)
+=== PropertyInitializers Sample ===
+--- Constructor args + initializer ---
+  Point: Point(X=3, Y=4)
+--- No constructor args + initializer ---
+  Config: Config(Timeout=30, Verbose=True, Name=)
+--- Empty initializer block ---
+  Empty: Config(Timeout=0, Verbose=False, Name=)
+--- Init-only properties ---
+  Record: Record(Id=abc-123, Version=5, Tag=release)
+--- Set properties ---
+  Config: Config(Timeout=60, Verbose=False, Name=production)
+--- Multiple properties ---
+  Config: Config(Timeout=30, Verbose=True, Name=test)
+--- As method argument ---
+  ProcessConfig: Config(Timeout=0, Verbose=True, Name=arg-demo)
+--- Variable declaration with var ---
+  var c: Config(Timeout=10, Verbose=False, Name=)
+--- Generic type ---
+  Box<int>: Box(Value=42, Tag=integer)
+  Box<string>: Box(Value=hello, Tag=text)
+--- Struct type ---
+  MyStruct: MyStruct(X=1, Y=2)
+--- Public field ---
+  Data: Data(Count=7, Label=items)
+--- Complex expressions ---
+  Data: Data(Count=11, Label=item-42)
+--- Mixed init/set properties ---
+  MixedProps: MixedProps(ReadOnlyName=immutable, MutableCount=99)
+Done!

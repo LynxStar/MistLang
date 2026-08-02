@@ -35,5 +35,6 @@ public class Program
         Properties.Program.RunDemo();
         TypeArgumentInference.Program.RunDemo();
         TargetTypedNew.Program.RunDemo();
+        PropertyInitializers.Program.RunDemo();
     }
 }

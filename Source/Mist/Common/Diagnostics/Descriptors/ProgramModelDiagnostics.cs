@@ -459,6 +459,25 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "'{0}' cannot be constructed, so 'new(...)' has nothing to create here. Only a class or a struct can be.");
 
+    // ── Object initializers ──────────────────────────────────────────────
+
+    public static readonly DiagnosticDescriptor InitializerTargetNotAssignable = new(
+        new DiagnosticId("MIST_PM_INITIALIZER_TARGET_NOT_ASSIGNABLE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{1}' on '{0}' is not a field or a property, so an initializer block cannot assign to it.");
+
+    /// <summary>
+    /// An initializer block element is a bare expression, which is C#'s collection-initializer form.
+    /// Refused rather than passed through: it stands for a call to an <c>Add</c> overload nobody
+    /// resolved, so emitting it would hand Roslyn a member the model never chose.
+    /// </summary>
+    public static readonly DiagnosticDescriptor CollectionInitializerNotSupported = new(
+        new DiagnosticId("MIST_PM_COLLECTION_INITIALIZER"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "An initializer block element must name a member and assign to it, as in 'Count = 1'. Collection initializers are not supported by the experimental pipeline; add the elements after construction.");
+
     // ── Entry points ─────────────────────────────────────────────────────
     /// <summary>
     /// A second entry point was found in an assembly that already had one. Detected as the

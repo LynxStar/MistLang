@@ -162,22 +162,18 @@ internal static class PostfixBinder
     }
 
     /// <summary>
-    /// Looks up a member on a receiver, through the same lookup an unqualified name uses -- so a
-    /// member reached as <c>receiver.X</c> and the same member reached as a bare <c>X</c> inside the
-    /// type cannot disagree about what exists, what is inherited, or what is reachable. The result is
-    /// returned unreduced, since a method group has no single type until a call decides between its
-    /// overloads.
+    /// Reduces a receiver to the type and the visibility to resolve against, and refuses to look
+    /// anywhere else: the receiver names the type, so a miss is a miss rather than a reason to widen
+    /// the search.
     /// <para>
-    /// The one thing this path does differently is refuse to look anywhere else: the receiver
-    /// names the type, so a miss is a miss rather than a reason to widen the search.
+    /// Naming the type reaches its statics; supplying a value reaches its instance members. C#
+    /// rejects the crossings in both directions, and separating them here is what lets the lookup
+    /// exclude the wrong ones rather than resolve and then reject them.
     /// </para>
     /// </summary>
     private static (LookupResult Found, ConstructedType? Constructed) ResolveMember(
         Expression receiver, string memberName, Storm.Runtime.SyntaxNode node, BuilderContext context)
     {
-        // Naming the type reaches its statics; supplying a value reaches its instance members.
-        // C# rejects the crossings in both directions, and separating them here is what lets the
-        // lookup exclude the wrong ones rather than resolve and then reject them.
         var isTypeReference = receiver is TypeReferenceExpression;
 
         var receiverType = receiver is TypeReferenceExpression typeRef
@@ -189,56 +185,7 @@ internal static class PostfixBinder
             : MemberVisibility.InstanceOnly
             ;
 
-        // Members are declared on the generic DEFINITION, so that is what holds the answer; the
-        // constructed type supplies the arguments to substitute into it.
-        var constructed = receiverType as ConstructedType;
-        var lookupTarget = constructed?.Definition ?? receiverType;
-
-        if(lookupTarget is not MistType modelType)
-        {
-            return (new NotFoundResult(), null);
-        }
-
-        var found = TypeMemberLookup.Find(modelType, LookupRequest.Member(memberName, visibility, node));
-
-        Report(found, modelType, memberName, node, context);
-
-        return (found, constructed);
-    }
-
-    /// <summary>
-    /// Reports a member access that resolved to nothing, or to more than one kind of thing.
-    /// <para>
-    /// Suppressed when the receiver's type is itself unresolved. A receiver that already failed has
-    /// already been reported on, and it has no members to speak of, so every access through it would
-    /// otherwise add a second error saying so -- one mistake, a cascade of complaints.
-    /// </para>
-    /// </summary>
-    private static void Report(
-        LookupResult found,
-        MistType receiverType,
-        string memberName,
-        Storm.Runtime.SyntaxNode node,
-        BuilderContext context)
-    {
-        if(receiverType is ErrorType or UnknownType or NotProjectedType)
-        {
-            return;
-        }
-
-        switch(found)
-        {
-            case NotFoundResult:
-                context.Diagnostics.ReportAtNode(
-                    ProgramModelDiagnostics.UnresolvedMember, node, null, receiverType.Name, memberName);
-                break;
-
-            case AmbiguousResult ambiguous:
-                context.Diagnostics.ReportAtNode(
-                    ProgramModelDiagnostics.AmbiguousMember, node, null,
-                    receiverType.Name, memberName, ambiguous.Candidates.Count);
-                break;
-        }
+        return MemberResolution.Resolve(receiverType, memberName, visibility, node, context);
     }
 
     /// <summary>

@@ -312,6 +312,7 @@ internal static class BodyEmitter
                 writer.Append($"new {TypeNameEmitter.Emit(newExpression.Type)}(");
                 EmitList.Separated(newExpression.Arguments, ", ", writer, argument => EmitExpression(argument, writer, diagnostics));
                 writer.Append(")");
+                EmitObjectInitializer(newExpression.Initializer, writer, diagnostics);
                 break;
 
             case LiteralExpression literal:
@@ -335,6 +336,25 @@ internal static class BodyEmitter
                 writer.Append($"/* unsupported: {unsupportedKind} */");
                 break;
         }
+    }
+
+    private static void EmitObjectInitializer(
+        IReadOnlyList<ObjectInitializerAssignment> initializer, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        if(initializer.Count == 0)
+        {
+            return;
+        }
+
+        writer.Append(" { ");
+
+        EmitList.Separated(initializer, ", ", writer, assignment =>
+        {
+            writer.Append($"{assignment.MemberName} = ");
+            EmitExpression(assignment.Value, writer, diagnostics);
+        });
+
+        writer.Append(" }");
     }
 
     private static string EmitTypeArguments(IReadOnlyList<IMistType> typeArguments)

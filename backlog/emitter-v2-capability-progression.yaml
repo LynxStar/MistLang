@@ -2235,6 +2235,12 @@ capabilities:
       a conformer owes and TypeEmitter emits it after the type's own methods, which is also the
       order classic emits in.
 
+      COVERED IN SHAPEABSTRACTS RATHER THAN WHERE THE SPEC PUTS IT. Requirement 29's Build-Up
+      Plan assigns the Phase 3 demonstrations to samples/AbstractTypes, which holds the proof code
+      and cannot be banked on v2 until order 73 lands. ShapeAbstracts is banked in both
+      orchestrators, so it is where the coverage can actually bite today. See that sample's untested
+      notes, which also record that NOTHING runs AbstractTypes on either pipeline.
+
       ALL THREE TASKS LAND AND SHAPEABSTRACTS EXERCISES ALL THREE. Circle takes IShape's `Summary`
       DIRECTLY. Rectangle takes it TRANSITIVELY, conforming to IResizable which inherits it from
       IShape. And Rectangle answers `Kind` itself while Circle takes the default, which is the
@@ -4574,6 +4580,21 @@ samples:
                abstract-type-inheritance, abstract-type-property-slots,
                derived-to-base-conversion, string-interpolation, var-type-inference]
     untested:
+      - >
+        NOTHING RUNS THIS SAMPLE AT ALL, on either pipeline, which makes every note below moot until
+        that changes. It is absent from samples/AllFeatures/mist.toml as well as from AllFeaturesV2,
+        so no baseline covers it. Being out of AllFeaturesV2 is correct and gated -- its threshold is
+        order 73, which v2 has not built -- but being out of AllFeatures is a REQUIREMENT VIOLATION.
+        Requirement 29.4 says AllFeatures SHALL call AbstractTypes.Program.RunDemo(), and classic
+        runs the sample clean today, all thirteen sections including the with-block ones. So the
+        spec's own proof code for this feature passes and is protected by nothing.
+      - >
+        THIS IS THE SPEC'S DESIGNATED SAMPLE for the abstract-types feature, carrying Requirement
+        29's proof code verbatim with its `// PROOF:` markers. The Phase 3 default-implementation
+        demonstrations the Build-Up Plan assigns to it -- default taken as-is, default overridden,
+        dispatch through both reference types -- were instead added to ShapeAbstracts by the order 72
+        work, because ShapeAbstracts is banked in both orchestrators and this sample can be banked in
+        neither until order 73. The v2 coverage is real; it is just not where the spec puts it.
       - No slot is ever left unfilled, so the whole conformance rejection surface is
         unexercised.
       - The with-block namespace scoping rule is never tested from a file that does NOT

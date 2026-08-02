@@ -564,25 +564,25 @@ namespace AbstractTypes;
 
 // PROOF: abstract keyword parses as a type declaration
 // PROOF: members without bodies are slots (must be filled)
-abstract IDescribable
+public abstract IDescribable
 {
     string Describe();
 }
 
 // PROOF: abstract type inheritance works
-abstract IFullyDescribable : IDescribable
+public abstract IFullyDescribable : IDescribable
 {
     string DetailedDescribe();
 }
 
 // PROOF: property slots on abstract types
-abstract ILabeled
+public abstract ILabeled
 {
     string Label { get; }
 }
 
 // PROOF: abstract type with default implementation
-abstract IGreeting
+public abstract IGreeting
 {
     string Name();
 
@@ -663,7 +663,7 @@ public class Logger
     }
 }
 
-abstract INamed
+public abstract INamed
 {
     string Name();
 }
@@ -674,7 +674,7 @@ with Logger : INamed
 }
 
 // PROOF: with block filling a slot that has a default
-abstract ITaggable
+public abstract ITaggable
 {
     string Tag();
 

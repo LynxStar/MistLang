@@ -2223,6 +2223,16 @@ capabilities:
       in base-list order, one member emitted rather than two, which is also what keeps C# from
       seeing a duplicate declaration.
 
+      FOUR MORE SHAPES MEASURED, all byte-identical to classic on both pipelines, because the
+      sample reaches none of them. A STRUCT conformer gets the restatement, which is the case the
+      `declared` parameter exists for -- a struct emits a FLATTENED method set, and matching
+      suppression against anything else is how a duplicate member would reach C#; the emitted
+      struct carries `Wrap` exactly once. A default WITH PARAMETERS restates and dispatches. A
+      conformer declaring the default's NAME AT A DIFFERENT ARITY does not answer it, so both are
+      emitted and both are callable -- a legitimate overload pair rather than a duplicate, which is
+      what the arity half of the match is for. And a default calling ANOTHER default works, both
+      being restated onto the same conformer.
+
       `partial` FOR GENERIC ABSTRACTS ONLY, and the blocking half is not here. A default whose
       SIGNATURE names its abstract's type parameter is deliberately skipped, because restating `T
       Echo()` verbatim puts `T` where the conformer has nothing to bind it to -- and that is an

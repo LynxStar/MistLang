@@ -517,6 +517,24 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "The call to {0} matches no overload. No conversion is known from the given arguments to any of: {1}.");
 
+    /// <summary>
+    /// Refused rather than left open, unlike the two failures resting on the partial conversion
+    /// relation. An undetermined parameter is a missing TYPE, not a missing preference: binding anyway
+    /// emits C# naming a type parameter where a type belongs, which puts the error on a generated file
+    /// instead of on the call.
+    /// </summary>
+    public static readonly DiagnosticDescriptor TypeArgumentsNotInferred = new(
+        new DiagnosticId("MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "Cannot infer the type arguments of {0} from the arguments. State all of them explicitly at the call: {1}.");
+
+    public static readonly DiagnosticDescriptor TypeArgumentCountMismatch = new(
+        new DiagnosticId("MIST_PM_TYPE_ARGUMENT_COUNT_MISMATCH"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "The call to {0} states the wrong number of type arguments. Declared type parameter counts: {1}.");
+
     // ── The unknown top type ─────────────────────────────────────────────
 
     /// <summary>

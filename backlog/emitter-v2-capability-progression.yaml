@@ -1397,67 +1397,66 @@ capabilities:
     order: 53
     layer: generics
     requires: [type-parameters-and-constructed-types]
-    v2_status: broken
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
       Required before a member of a constructed type can be bound -- PropertyInitializers
       resolves a property on Box of int, which means substituting the argument before member
       lookup.
 
-      ConstructedType.Substitute does this, and PostfixBinder applies it to a member found on the
-      receiver's own definition, which is the case GenericTypes exercises and which works. What
-      makes this `broken` rather than `partial` is that Substitute identifies a type parameter by
-      ORDINAL alone, never asking which declaration introduced it, so it answers for parameters
-      that are not its definition's. Its own doc comment claims the opposite -- "Returns the type
-      parameter unchanged if it does not belong to this definition" -- and no such check exists.
+      OWNERSHIP IS FIXED, and with it the three paths recorded below. Substitution is a MAP from
+      the parameters a declaration introduced to the types standing in for them
+      (TypeSubstitution), built by reading the parameters off the receiver's DEFINITION. A
+      parameter belonging to anything else is absent from the map and travels through untouched,
+      so the question "is this mine" is answered structurally rather than assumed. The ordinal
+      still indexes the arguments, which is what keeps ExtensionProjector's CLR numbering
+      meaningful; what changed is that a list is consulted first. ConstructedType.Substitute is
+      gone, and with it the doc comment that claimed a check it did not perform.
 
-      The reachable trigger is NOT inheritance. Any generic method on a generic type collides,
-      whenever the method's parameter ordinal falls inside the enclosing type's argument count,
-      because TypeParameterPopulator records a method's parameters with the ENCLOSING TYPE as
-      their DeclaringType. In `class Box<T>` with `U Echo<U>(U input)`, T and U are both ordinal
-      0 with DeclaringType Box, indistinguishable to Substitute.
+      SUBSTITUTION IS ALSO RECURSIVE NOW. It descends a construction, so a member typed
+      `List<T>` read off a `Box<int>` is a `List<int>`; the shallow version returned it open.
+      Arrays come through the same arm, being a construction of Standard.Array. Unions and tuples
+      are not descended, so a parameter reachable only through one survives untouched -- no
+      signature in the model produces that yet.
 
-      DEMONSTRATED, both cases run from a scratch project on this commit and correct on classic.
-      Calling `b.Echo("hello")` on a `Box<int>`, then reading `.Length` off the result, gives
+      WHAT WAS BROKEN, all four reproduced on 620bfe20 from a scratch project and correct on
+      classic, all four now passing. TypeParameterPopulator records a method's parameters with
+      the ENCLOSING TYPE as their DeclaringType, so in `class Box<T>` with `U Echo<U>(U input)`
+      T and U are both ordinal 0 with DeclaringType Box, indistinguishable to an ordinal-only
+      substitution.
+
+      One, `b.Echo("hello")` on a `Box<int>` then `.Length` off the result gave
       `MIST_PM_UNRESOLVED_MEMBER: 'Int32' has no member named 'Length'` -- Int32 because U was
-      answered with Box's argument. Dropping the member access does not save it: the wrong type
-      reaches emission as `int echoed = ...` and Roslyn rejects it with
-      `MIST_CS_ERROR: Cannot implicitly convert type 'string' to 'int'`, reported against a
-      generated Program.cs the user never wrote. Neither diagnostic names Echo, U, or
-      substitution, so the trail from symptom to cause is cold.
+      answered with Box's argument. Two, the nested case: a field typed `Box<A>` on a `Pair<A>`
+      gave `'A' has no member named 'Length'`, the shallow substitution leaving A open. Three,
+      `Tag<U>(U)` beside `Tag(int)` on a `Box<int>` refused `b.Tag("x")` with
+      MIST_PM_UNRESOLVABLE_OVERLOAD -- valid code, refused, exactly as this entry predicted once
+      order 26 stopped guessing. Four, and unrecorded before now, `b.Tag(3)` reported
+      MIST_PM_AMBIGUOUS_OVERLOAD: U answered as int makes the generic signature IDENTICAL to its
+      non-generic sibling, so the call tied between a method and its own specialisation. That one
+      needed C#'s tie-break -- a non-generic candidate beats a generic one where every argument
+      converts alike -- which selection now applies.
 
-      A THIRD PATH REACHES IT, THROUGH OVERLOAD SELECTION, and it is the one that now costs the
-      most. OverloadResolution.ParameterType substitutes through the receiver before comparing a
-      parameter against an argument, so a wrong answer here decides applicability and betterness
-      for every call to a generic method on a generic type. That path used to absorb the error:
-      eliminating every candidate fell through to the first arity match and bound in silence.
-      Since order 26 stopped guessing it reports MIST_PM_UNRESOLVABLE_OVERLOAD instead, so this
-      defect can REFUSE a valid call outright wherever two or more candidates share an arity.
-      Loud over silent is the intended direction, and the price of it is paid here until this is
-      fixed.
+      GREEN-OVER-BROKEN IS RESOLVED, the question this entry used to carry as a task. GenericTypes
+      and ArityOverloads were green while requiring this, and reading both confirms neither could
+      reach the defect: neither declares a generic method, and every generic member in either is
+      typed as a BARE type parameter -- `T Value`, `T1 First`, `T GetItem()` -- never a nested
+      construction over one. Both triggers need what neither sample writes, so the exemption was
+      sound rather than lucky.
 
-      Inheritance is the tidier illustration and the harder one to reach -- `Derived<A, B> :
-      Base<B>` would substitute A where B is meant, but member lookup does not reach a generic
-      ancestor at all today (see the base chain task below), so substitution is never consulted.
-      Fixing that walk without fixing this turns a diagnosed miss into a silent wrong type.
+      STILL `partial`, for the inheritance half. `Derived<A, B> : Base<B>` composes correctly if
+      asked, since Extend unions two maps, but nothing asks: member lookup does not reach a
+      generic ancestor at all, so substitution is never consulted there. See the remaining tasks.
     tasks:
-      - Identify a type parameter by the declaration that introduced it, not by ordinal.
-        DeclaringType cannot carry this -- it holds the enclosing type for a method's parameters,
-        and two ExtensionProjector sites pass it null. Asking whether the definition's own
-        TypeParametersList contains the parameter does distinguish them.
-      - Compose substitutions along a base chain so a member found on a generic ancestor is read
-        through every construction between it and the receiver.
       - Walk a constructed base's chain in member lookup. TypeMemberLookup.EnqueueBases enqueues
         the ConstructedType itself, which then matches nothing because it is not a MemberType, so
-        a member inherited from a generic base reports MIST_PM_UNRESOLVED_MEMBER.
-      - Confirm the broken path is unreachable from GenericTypes and ArityOverloads, both of which
-        are green in AllFeaturesV2 while requiring this. Their compiling at all says it must be,
-        but the exemption this file grants for a green sample over an outstanding capability is
-        written for `partial`, and a silent wrong type is exactly what `broken` means here.
-      - Note on sequencing. The ownership fix alone makes NEITHER demonstrated case pass, it only
-        stops the wrong answer -- the result becomes an unsubstituted U, and reaching `hello`
-        needs type-argument-inference (order 55) to infer U from the argument. So this entry
-        gates on 54 and 55 for the method case and on the base chain walk for the inheritance
-        case, and the ownership fix belongs inside whichever lands first rather than alone.
+        a member inherited from a generic base reports MIST_PM_UNRESOLVED_MEMBER. This is the
+        whole of what keeps this entry off `done`.
+      - Compose substitutions along that chain once it is walked, so a member found on a generic
+        ancestor is read through every construction between it and the receiver. TypeSubstitution
+        composes already; what is missing is the walk that would supply the levels.
+      - Descend unions and tuples in TypeSubstitution.Apply when a signature can be stated in
+        terms of one.
     unlocks: []
 
   - id: generic-methods
@@ -1465,8 +1464,17 @@ capabilities:
     order: 54
     layer: generics
     requires: [type-argument-substitution, methods-static-and-instance]
-    v2_status: missing
-    evidence: TypeArgumentInference declares generic methods on both a static and an instance member.
+    v2_status: done
+    verified_by: v2-semantics
+    evidence: >
+      TypeArgumentInference declares generic methods on both a static and an instance member, and
+      is banked in AllFeaturesV2.
+
+      The DECLARATION side was already built and unrecorded. MethodBuilder populates a method's
+      type parameters into its own MethodScope, so `U input` resolves to the method's U, and
+      MethodEmitter spells the `<U>` on the signature. On 620bfe20 the sample's four generic
+      methods emitted correctly and only their CALL SITES failed. So this entry cost nothing of
+      its own; it was the calls, which are order 55.
     unlocks: []
 
   - id: type-argument-inference
@@ -1474,11 +1482,95 @@ capabilities:
     order: 55
     layer: generics
     requires: [generic-methods]
-    v2_status: missing
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
       Unification of parameter types against argument types, including through a nested
       constructed type, then substitution into the return type so var binds concretely.
-      Explicit type arguments must suppress inference while still checking the argument.
+
+      Banked in AllFeaturesV2, which covers five inferring calls and one stating its arguments:
+      T from an int and from a string, two parameters from two arguments, T read through a
+      `List<int>` in a parameter position, and inference on an instance method.
+
+      INFERENCE IS PART OF APPLICABILITY, not a step after selection. A candidate is CLOSED before
+      any conversion is weighed, because ConversionRelation declines to reason about an open type
+      parameter -- so a candidate left open is eliminated for being generic rather than for being
+      wrong, which is how a generic overload beside a non-generic one refused a valid call before
+      this. A candidate whose parameters cannot all be determined is not applicable, matching C#.
+
+      THE CALL SITE STATES ITS TYPE ARGUMENTS IN THE EMITTED C#, inferred ones included, rather
+      than leaving Roslyn to infer them again. This is a choice about failure rather than about
+      correctness, and MEASURED as such: suppressing the emission entirely leaves all 4647 tests
+      green, the AllFeaturesV2 v2 baseline among them, so nothing in the repository distinguishes
+      stating the answer from not having one.
+
+      The reason to state it anyway is that this algorithm is the weaker of the two, in five named
+      ways: it does not walk bases or interfaces when matching, does not track variance, folds
+      repeated answers pairwise rather than resolving a bound set, has no inference from lambdas or
+      method groups, and runs one pass rather than fixing in dependency order. Every shape it does
+      infer, C# infers and agrees on, so its successful answers are a subset of C#'s -- established
+      by reasoning over the cases, not proved. Stating them therefore makes a wrong answer a C#
+      error rather than something Roslyn quietly infers correctly on our behalf.
+
+      IT ALSO HAS A FAILURE MODE C# DOES NOT, and this cuts against the direction of order 26. Where
+      one parameter is answered twice with types neither of which converts, Wider keeps the first
+      arbitrarily; a lone candidate is then returned without weighing conversions, so
+      `F<T>(T, T)` called `F("x", 1)` emits `F<string>("x", 1)` and fails in Roslyn against a
+      generated file. C# reports CS0411 on the call itself. Refusing that in the frontend is the
+      best-common-type task below.
+
+      Which also means the sample does not test inference as tightly as it appears to. Every result
+      it prints would print the same had inference answered nothing at all; what the baseline pins
+      is the emitted C#, not the answer.
+
+      Failure is REPORTED rather than left open, by MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED naming the
+      parameters to state. An undetermined parameter is not a missing preference but a missing
+      type: it reaches the call's result, so binding anyway records a local typed by a parameter
+      out of scope and emits that parameter where a type belongs, which Roslyn then reports against
+      a generated file naming neither the call nor the parameter.
+    tasks:
+      - Unify an argument against a BASE of the declared parameter type, so
+        `F<T>(IEnumerable<T>)` can be called with a `List<int>`. Matching requires the same
+        definition today, and answers nothing otherwise. Gated on the same base chain walk that
+        order 53 needs, and unreachable until abstract types can be reached generically.
+      - Bind GenericInvocationExpression, so a bare `Identity<string>(x)` works as the qualified
+        `Program.Identity<string>(x)` already does. Only the MethodCallSuffix form carries stated
+        type arguments through today; the primary form reaches ExpressionBinder.BindPrimary
+        unhandled and binds to a sentinel.
+      - Replace the pairwise Wider fold with a bound set per type parameter and a fixing step, which
+        is C#'s shape and the right one. The fixing RULE is DECIDED and differs from C#'s, in two
+        ordered steps. One, if some bound dominates -- every other bound implicitly converts to it --
+        fix to that bound, so {int, long} answers long. Two, failing that, fix to the UNION of the
+        bounds, so {string, int} answers `string | int` and `F<T>(T, T)` on `F("x", 1)` is a legal
+        call where C# reports CS0411. A union is the answer of last resort, never a first choice.
+      - The two steps have to be ordered EXPLICITLY, because step two is not a fallback that step one
+        subsumes and neither follows from "most specific". The union of the bounds is by construction
+        their LEAST common supertype, so a most-specific rule alone would answer `int | long` for
+        {int, long} and never reach `long`. Dominance is what expresses "a stricter fit exists".
+      - Fixing then never fails for a parameter carrying at least one bound, since every bound
+        converts to the union of the bounds by construction. So MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED
+        narrows to its real case, which is a parameter mentioned in no parameter type at all, where
+        the arguments say nothing about it whatsoever.
+      - Step one cannot answer `unknown`, and not because of a guard against it --
+        ConversionRelation declines `unknown` outright as indeterminate, so no conversion INTO it is
+        ever established and it cannot qualify as a common supertype. Worth knowing rather than
+        rediscovering, because were the relation to start modelling it as a true top type, step one
+        would admit it on every call. Step two needs no such guard -- a union of the bounds is
+        strictly more specific than the top type.
+      - BLOCKED ON A UNION ARM IN ConversionRelation, which has none -- constituent-to-union and
+        union-to-wider-union are both unmodelled, so a fixed union is found INAPPLICABLE and the
+        candidate eliminated wherever two or more share an arity. A lone candidate would bind and, as
+        it happens, compile, since the emitted carrier declares an implicit conversion from each
+        constituent. Half-live is the worst of the three states, so do the relation arm first. See
+        orders 76 to 78.
+      - COST TO WEIGH when it lands. `F<T>(T, T)` accepting `("x", 1)` is a signature saying "two of
+        the same thing" being handed two different things, and C# refuses it precisely to catch that.
+        Under this rule it compiles. If that turns out to be too quiet, the place to say so is a
+        warning at the fixing site, not a change to the rule.
+      - Until any of this, that call emits `F<string>("x", 1)` on an arbitrary first-wins pick and
+        fails in Roslyn against a generated file. This is the one gap in this entry reachable today,
+        and it puts an error where the user cannot act on it, which is the opposite of order 26's
+        direction. Refusing it in the frontend is worth doing on its own, ahead of the union work.
     unlocks: []
 
   - id: generic-constraints-nominal
@@ -1655,10 +1747,24 @@ capabilities:
     order: 63
     layer: properties
     requires: [indexer-declarations, type-argument-substitution]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       TypeArgumentInference declares a generic class with an indexer returning the type
-      parameter, invoked on a constructed receiver.
+      parameter, invoked on a constructed receiver, and is banked in AllFeaturesV2.
+
+      RECORDED `missing` WITHOUT EVER BEING RUN, and it already worked -- on 620bfe20 as well as
+      now. PostfixBinder.ResolveIndexerType unwraps a constructed receiver to its definition,
+      reads the indexer off it and substitutes, so `items[0]` on a `List<T>` answers T. Nothing
+      here needed building; ordering the sample behind it delayed the sample rather than the
+      capability.
+
+      The same lesson indexer-declarations records, in the other direction: that entry was called
+      done from a reading of the emitter and was not, this one was called missing without a reading
+      and was fine. Neither status was run. Only running settles it.
+
+      Still weakly exercised, on one indexer with one parameter, whose body ignores the index. See
+      the sample's own untested notes.
     unlocks: [TypeArgumentInference]
 
   - id: object-initializer-blocks

@@ -41,7 +41,7 @@ internal static class PostfixBinder
         switch(suffix)
         {
             case InvocationSuffixPostfixSuffixNode invocation:
-                return BindInvocation(suffix, receiver, invocation.Arguments, ctx, context);
+                return BindInvocation(suffix, receiver, invocation.Arguments, null, ctx, context);
 
             case MemberAccessSuffixPostfixSuffixNode memberAccess:
                 return BindMemberAccess(suffix, receiver, memberAccess.Name.Lexeme, context);
@@ -49,13 +49,18 @@ internal static class PostfixBinder
             case MethodCallSuffixPostfixSuffixNode methodCall:
                 {
                     var memberExpr = BindMemberAccess(suffix, receiver, methodCall.Name.Lexeme, context);
-                    return BindInvocation(suffix, memberExpr, methodCall.Arguments, ctx, context);
+                    var typeArguments = methodCall.TypeArgs is { } stated
+                        ? context.Resolver.ResolveTypeArguments(stated, ctx.Scope)
+                        : null
+                        ;
+
+                    return BindInvocation(suffix, memberExpr, methodCall.Arguments, typeArguments, ctx, context);
                 }
 
             case IndexSuffixPostfixSuffixNode indexSuffix:
                 {
                     var index = ExpressionBinder.BindExpression(indexSuffix.Index, ctx, context);
-                    var resultType = ResolveIndexerType(receiver.Type);
+                    var resultType = ResolveIndexerType(receiver.Type, context);
                     return new IndexExpression(suffix, receiver, index, resultType);
                 }
 
@@ -68,7 +73,13 @@ internal static class PostfixBinder
     /// Binds a call, selecting the overload its arguments pick out. The arguments are bound first
     /// because selection reads their types.
     /// </summary>
-    private static Expression BindInvocation(Storm.Runtime.SyntaxNode node, Expression receiver, ArgumentListNode? arguments, BindingContext ctx, BuilderContext context)
+    private static Expression BindInvocation(
+        Storm.Runtime.SyntaxNode node,
+        Expression receiver,
+        ArgumentListNode? arguments,
+        IReadOnlyList<IMistType>? typeArguments,
+        BindingContext ctx,
+        BuilderContext context)
     {
         var bound = ArgumentBinder.Bind(arguments, ctx, context);
 
@@ -79,7 +90,10 @@ internal static class PostfixBinder
             return new InvocationExpression(node, receiver, bound, receiver.Type, null);
         }
 
-        var choice = OverloadResolution.Select(group.Candidates, bound, group.ReceiverConstructed);
+        var interner = context.ProgramModel.TypeInterner;
+
+        var choice = OverloadResolution.Select(
+            group.Candidates, bound, group.ReceiverConstructed, typeArguments, interner);
 
         if(choice.Selected is not { } selected)
         {
@@ -90,11 +104,17 @@ internal static class PostfixBinder
             return new ErrorExpression(node);
         }
 
-        var returnType = group.ReceiverConstructed?.Substitute(selected.ReturnType) ?? selected.ReturnType;
+        var returnType = choice.Substitution.Apply(selected.ReturnType, interner);
+
+        // The receiver's type arguments are already spelled in the receiver expression, and
+        // repeating them on the member would be C# for something else entirely.
+        var methodTypeArguments = selected.TypeParametersList
+            .ConvertAll(parameter => choice.Substitution.Apply(parameter, interner));
 
         var callee = group.Receiver is null
-            ? new MethodReferenceExpression(node, selected)
-            : (Expression)new MemberAccessExpression(node, group.Receiver, group.MemberName, returnType);
+            ? new MethodReferenceExpression(node, selected, methodTypeArguments)
+            : (Expression)new MemberAccessExpression(
+                node, group.Receiver, group.MemberName, returnType, methodTypeArguments);
 
         return new InvocationExpression(node, callee, bound, returnType, selected);
     }
@@ -117,8 +137,9 @@ internal static class PostfixBinder
             return new MethodGroupExpression(node, receiver, memberName, group.Methods, constructed);
         }
 
-        var memberType = MemberTypeOf(found);
-        var resolved = constructed is not null ? constructed.Substitute(memberType) : memberType;
+        var resolved = TypeSubstitution
+            .ForReceiver(constructed)
+            .Apply(MemberTypeOf(found), context.ProgramModel.TypeInterner);
 
         return new MemberAccessExpression(node, receiver, memberName, resolved);
     }
@@ -241,25 +262,18 @@ internal static class PostfixBinder
     /// For constructed types, looks up the indexer on the definition type and
     /// substitutes type parameters against the constructed type's arguments.
     /// </summary>
-    private static IMistType ResolveIndexerType(IMistType receiverType)
+    private static IMistType ResolveIndexerType(IMistType receiverType, BuilderContext context)
     {
-        var lookupType = receiverType is ConstructedType constructed
-            ? constructed.Definition
-            : receiverType
-            ;
+        var constructed = receiverType as ConstructedType;
+        var lookupType = constructed?.Definition ?? receiverType;
 
-        if(lookupType is MemberType memberType && memberType.IndexersList.Count > 0)
+        if(lookupType is not MemberType { IndexersList.Count: > 0 } memberType)
         {
-            var indexer = memberType.IndexersList[0];
-
-            if(receiverType is ConstructedType ct)
-            {
-                return ct.Substitute(indexer.Type);
-            }
-
-            return indexer.Type;
+            return ErrorType.Instance;
         }
 
-        return ErrorType.Instance;
+        return TypeSubstitution
+            .ForReceiver(constructed)
+            .Apply(memberType.IndexersList[0].Type, context.ProgramModel.TypeInterner);
     }
 }

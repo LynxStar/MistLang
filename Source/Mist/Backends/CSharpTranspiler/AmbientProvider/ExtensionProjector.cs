@@ -190,9 +190,8 @@ internal static class ExtensionProjector
     /// <c>extension&lt;TSource&gt;(IEnumerable&lt;TSource&gt; self)</c>. The rest were the method's.
     /// </para>
     /// <para>
-    /// Ordinals stay as the CLR numbered them. They are not positions within either list but the
-    /// index <see cref="ConstructedType.Substitute"/> uses against a receiver's type arguments, so
-    /// renumbering would resolve a method-level parameter to whatever occupied that slot.
+    /// Ordinals stay as the CLR numbered them rather than becoming positions within either list,
+    /// because the constraint projection below indexes back into the flat CLR list by ordinal.
     /// </para>
     /// </summary>
     private static List<TypeParameter> ProjectTypeParameters(

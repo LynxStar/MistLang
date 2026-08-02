@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -61,11 +62,11 @@ internal sealed class StructFlattener
 
             // Before this struct's own fields, which is the ordering FlattenedStruct.Fields
             // guarantees.
+            var substitution = TypeSubstitution.ForReceiver(constructedBase);
+
             foreach(var inherited in inheritedFields)
             {
-                fields.Add(constructedBase is null
-                    ? inherited
-                    : inherited with { Type = constructedBase.Substitute(inherited.Type) });
+                fields.Add(inherited with { Type = substitution.Apply(inherited.Type, interner: null) });
             }
 
             foreach(var inheritedMethod in inheritedMethods)

@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
@@ -7,13 +8,8 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramModel.Construction.Binding;
 
 /// <summary>
-/// What a call's arguments picked out of its candidates.
-/// <para>
-/// <see cref="Selected"/> is null in exactly three cases, and the caller must tell them apart
-/// because they carry different diagnostics: no candidate takes this many arguments
-/// (<see cref="NoArityMatch"/>), several tied (<see cref="Ambiguous"/>), or none could be placed at
-/// all (<see cref="Unresolvable"/>).
-/// </para>
+/// What a call's arguments picked out of its candidates. A null <see cref="Selected"/> leaves exactly
+/// one of the five failure members non-empty, since each carries a different diagnostic.
 /// </summary>
 internal sealed class OverloadChoice<T>
     where T : Method
@@ -21,6 +17,12 @@ internal sealed class OverloadChoice<T>
     public required T? Selected { get; init; }
 
     public bool NoArityMatch { get; init; }
+
+    /// <summary>
+    /// The receiver's type arguments and the method's own, together. <see cref="Selected"/> is the
+    /// declaration, so its signature has to be read through this.
+    /// </summary>
+    public TypeSubstitution Substitution { get; init; } = TypeSubstitution.Empty;
 
     /// <summary>
     /// The candidates that tied, empty unless the call is ambiguous. Each is applicable and none is
@@ -33,6 +35,18 @@ internal sealed class OverloadChoice<T>
     /// <see cref="Ambiguous"/> in what it rests on: a tie is several positive results, this is none.
     /// </summary>
     public IReadOnlyList<T> Unresolvable { get; init; } = [];
+
+    /// <summary>
+    /// The arity matches, empty unless every one of them is generic and left a type parameter
+    /// undetermined.
+    /// </summary>
+    public IReadOnlyList<T> Uninferred { get; init; } = [];
+
+    /// <summary>
+    /// The arity matches, empty unless the call stated type arguments and no candidate declares that
+    /// many type parameters.
+    /// </summary>
+    public IReadOnlyList<T> TypeArgumentMismatch { get; init; } = [];
 }
 
 /// <summary>
@@ -48,19 +62,31 @@ internal sealed class OverloadChoice<T>
 /// reasons recorded on each.
 /// </para>
 /// <para>
-/// A single arity match is returned without consulting the relation at all. There is nothing to
-/// select between, so applicability could only serve to refuse, and whether an argument suits the one
-/// candidate able to take it is a type check rather than a selection.
+/// A single closed candidate is returned without consulting the relation to select it. There is
+/// nothing to select between, so applicability could only serve to refuse, and whether an argument
+/// suits the one candidate able to take it is a type check rather than a selection.
+/// </para>
+/// <para>
+/// A generic candidate is closed before any of that. Closing precedes selection because an open
+/// parameter has no conversion into it, so a candidate left open would be eliminated for being generic
+/// rather than for being wrong.
 /// </para>
 /// </summary>
 internal static class OverloadResolution
 {
+    /// <param name="typeArguments">
+    /// Null means infer. Empty is not the same: it admits only non-generic candidates.
+    /// </param>
     public static OverloadChoice<T> Select<T>(
         IReadOnlyList<T> candidates,
         IReadOnlyList<Expression> arguments,
-        ConstructedType? receiver)
+        ConstructedType? receiver,
+        IReadOnlyList<IMistType>? typeArguments,
+        TypeInterner interner)
         where T : Method
     {
+        var receiverSubstitution = TypeSubstitution.ForReceiver(receiver);
+
         var byArity = new List<T>();
         foreach(var candidate in candidates)
         {
@@ -75,15 +101,52 @@ internal static class OverloadResolution
             return new OverloadChoice<T> { Selected = null, NoArityMatch = true };
         }
 
-        if(byArity.Count == 1)
+        if(typeArguments is not null)
         {
-            return new OverloadChoice<T> { Selected = byArity[0] };
+            var byTypeArity = byArity.FindAll(
+                candidate => candidate.TypeParametersList.Count == typeArguments.Count);
+
+            if(byTypeArity.Count == 0)
+            {
+                // byArity, not every candidate: one that cannot take this many arguments has no
+                // type parameter count worth offering the user.
+                return new OverloadChoice<T> { Selected = null, TypeArgumentMismatch = byArity };
+            }
+
+            byArity = byTypeArity;
         }
 
-        var applicable = new List<T>();
+        var closed = new List<Applicant<T>>();
+        var open = new List<T>();
+
         foreach(var candidate in byArity)
         {
-            if(IsApplicable(candidate, arguments, receiver))
+            var substitution = Close(candidate, arguments, receiverSubstitution, typeArguments, interner);
+
+            if(substitution is null)
+            {
+                open.Add(candidate);
+            }
+            else
+            {
+                closed.Add(new Applicant<T>(candidate, substitution));
+            }
+        }
+
+        if(closed.Count == 0)
+        {
+            return new OverloadChoice<T> { Selected = null, Uninferred = open };
+        }
+
+        if(closed.Count == 1)
+        {
+            return Winner(closed[0]);
+        }
+
+        var applicable = new List<Applicant<T>>();
+        foreach(var candidate in closed)
+        {
+            if(IsApplicable(candidate, arguments, interner))
             {
                 applicable.Add(candidate);
             }
@@ -91,31 +154,72 @@ internal static class OverloadResolution
 
         if(applicable.Count == 0)
         {
-            return new OverloadChoice<T> { Selected = null, Unresolvable = byArity };
+            return new OverloadChoice<T> { Selected = null, Unresolvable = Methods(closed) };
         }
 
         if(applicable.Count == 1)
         {
-            return new OverloadChoice<T> { Selected = applicable[0] };
+            return Winner(applicable[0]);
         }
 
-        var maximal = Maximal(applicable, arguments, receiver);
+        var maximal = Maximal(applicable, arguments, interner);
 
-        if(maximal.Count == 1 || !AreDistinguishable(maximal))
+        if(maximal.Count == 1 || !AreDistinguishable(Methods(maximal)))
         {
-            return new OverloadChoice<T> { Selected = maximal[0] };
+            return Winner(maximal[0]);
         }
 
-        return new OverloadChoice<T> { Selected = null, Ambiguous = maximal };
+        return new OverloadChoice<T> { Selected = null, Ambiguous = Methods(maximal) };
+    }
+
+    private sealed record Applicant<T>(T Method, TypeSubstitution Substitution)
+        where T : Method;
+
+    private static OverloadChoice<T> Winner<T>(Applicant<T> applicant)
+        where T : Method
+    {
+        return new OverloadChoice<T> { Selected = applicant.Method, Substitution = applicant.Substitution };
+    }
+
+    private static List<T> Methods<T>(List<Applicant<T>> applicants)
+        where T : Method
+    {
+        return applicants.ConvertAll(applicant => applicant.Method);
+    }
+
+    /// <summary>
+    /// Null if any of the candidate's own type parameters went undetermined.
+    /// </summary>
+    private static TypeSubstitution? Close<T>(
+        T candidate,
+        IReadOnlyList<Expression> arguments,
+        TypeSubstitution receiver,
+        IReadOnlyList<IMistType>? typeArguments,
+        TypeInterner interner)
+        where T : Method
+    {
+        if(candidate.TypeParametersList.Count == 0)
+        {
+            return receiver;
+        }
+
+        var own = typeArguments is null
+            ? TypeSubstitution.ForMethod(candidate, TypeArgumentInference.Infer(candidate, arguments, receiver, interner))
+            : TypeSubstitution.ForMethod(candidate, typeArguments)
+            ;
+
+        var substitution = receiver.Extend(own);
+
+        return substitution.Unbound(candidate.TypeParametersList).Count == 0 ? substitution : null;
     }
 
     /// <summary>
     /// Reports whichever failure a null <see cref="OverloadChoice{T}.Selected"/> stands for. Called
     /// only where selection failed; with a winner in hand there is nothing here to say.
     /// <para>
-    /// Lives here rather than at the two call sites because the three states have to be told apart
-    /// together. <see cref="OverloadChoice{T}.Ambiguous"/> is empty for an unresolvable call, so a
-    /// site testing only two of them reports a tie between no candidates at all.
+    /// Lives here rather than at the two call sites because the states have to be told apart together.
+    /// <see cref="OverloadChoice{T}.Ambiguous"/> is empty for every other failure, so a site testing
+    /// only some of them reports a tie between no candidates at all.
     /// </para>
     /// </summary>
     /// <param name="description">
@@ -140,6 +244,24 @@ internal static class OverloadResolution
             return;
         }
 
+        if(choice.TypeArgumentMismatch.Count > 0)
+        {
+            diagnostics.ReportAtNode(
+                ProgramModelDiagnostics.TypeArgumentCountMismatch, node, null,
+                description, DescribeTypeArities(choice.TypeArgumentMismatch));
+
+            return;
+        }
+
+        if(choice.Uninferred.Count > 0)
+        {
+            diagnostics.ReportAtNode(
+                ProgramModelDiagnostics.TypeArgumentsNotInferred, node, null,
+                description, DescribeTypeParameters(choice.Uninferred));
+
+            return;
+        }
+
         if(choice.Unresolvable.Count > 0)
         {
             diagnostics.ReportAtNode(
@@ -152,6 +274,31 @@ internal static class OverloadResolution
         diagnostics.ReportAtNode(
             ProgramModelDiagnostics.AmbiguousOverload, node, null,
             description, DescribeSignatures(choice.Ambiguous));
+    }
+
+    private static string DescribeTypeArities<T>(IReadOnlyList<T> candidates)
+        where T : Method
+    {
+        var arities = new SortedSet<int>();
+        foreach(var candidate in candidates)
+        {
+            _ = arities.Add(candidate.TypeParametersList.Count);
+        }
+
+        return string.Join(", ", arities);
+    }
+
+    /// <summary>
+    /// Every type parameter the first candidate declares, determined or not, because a call states all
+    /// of a method's type arguments or none and so all of them are what the user has to write. Which
+    /// ones went undetermined is therefore not worth carrying out of selection.
+    /// </summary>
+    private static string DescribeTypeParameters<T>(IReadOnlyList<T> candidates)
+        where T : Method
+    {
+        var names = candidates[0].TypeParametersList.Select(parameter => $"'{parameter.Name}'");
+
+        return string.Join(", ", names);
     }
 
     /// <summary>
@@ -193,11 +340,11 @@ internal static class OverloadResolution
     /// <c>double</c>.
     /// </para>
     /// </summary>
-    private static List<T> Maximal<T>(
-        List<T> applicable, IReadOnlyList<Expression> arguments, ConstructedType? receiver)
+    private static List<Applicant<T>> Maximal<T>(
+        List<Applicant<T>> applicable, IReadOnlyList<Expression> arguments, TypeInterner interner)
         where T : Method
     {
-        var maximal = new List<T>();
+        var maximal = new List<Applicant<T>>();
 
         foreach(var candidate in applicable)
         {
@@ -205,7 +352,7 @@ internal static class OverloadResolution
 
             foreach(var other in applicable)
             {
-                if(!ReferenceEquals(other, candidate) && IsBetter(other, candidate, arguments, receiver))
+                if(!ReferenceEquals(other, candidate) && IsBetter(other, candidate, arguments, interner))
                 {
                     beaten = true;
                     break;
@@ -244,12 +391,12 @@ internal static class OverloadResolution
         return true;
     }
 
-    private static bool IsApplicable<T>(T candidate, IReadOnlyList<Expression> arguments, ConstructedType? receiver)
+    private static bool IsApplicable<T>(Applicant<T> candidate, IReadOnlyList<Expression> arguments, TypeInterner interner)
         where T : Method
     {
         for(var i = 0; i < arguments.Count; i++)
         {
-            if(!ConversionRelation.IsImplicit(arguments[i].Type, ParameterType(candidate, i, receiver)))
+            if(!ConversionRelation.IsImplicit(arguments[i].Type, ParameterType(candidate, i, interner)))
             {
                 return false;
             }
@@ -261,9 +408,14 @@ internal static class OverloadResolution
     /// <summary>
     /// Whether <paramref name="left"/> beats <paramref name="right"/>: no argument converts worse to
     /// it, and at least one converts better. Both are already applicable, so this only orders them.
+    /// <para>
+    /// A non-generic candidate wins an otherwise-exact tie, as it does in C#: closing a generic
+    /// candidate can make its parameter types identical to a non-generic sibling's, and the call would
+    /// then be refused as ambiguous between a method and its own specialisation.
+    /// </para>
     /// </summary>
     private static bool IsBetter<T>(
-        T left, T right, IReadOnlyList<Expression> arguments, ConstructedType? receiver)
+        Applicant<T> left, Applicant<T> right, IReadOnlyList<Expression> arguments, TypeInterner interner)
         where T : Method
     {
         var strictlyBetterSomewhere = false;
@@ -271,7 +423,7 @@ internal static class OverloadResolution
         for(var i = 0; i < arguments.Count; i++)
         {
             var comparison = CompareConversions(
-                arguments[i].Type, ParameterType(left, i, receiver), ParameterType(right, i, receiver));
+                arguments[i].Type, ParameterType(left, i, interner), ParameterType(right, i, interner));
 
             if(comparison > 0)
             {
@@ -284,7 +436,9 @@ internal static class OverloadResolution
             }
         }
 
-        return strictlyBetterSomewhere;
+        return strictlyBetterSomewhere
+            || (left.Method.TypeParametersList.Count == 0 && right.Method.TypeParametersList.Count > 0)
+            ;
     }
 
     /// <summary>
@@ -323,15 +477,9 @@ internal static class OverloadResolution
         return leftToRight ? -1 : 1;
     }
 
-    /// <summary>
-    /// A parameter's type as seen at the call. The overloads are declared on the generic definition,
-    /// so a parameter stated in its type parameters means nothing until the receiver's arguments are
-    /// substituted in.
-    /// </summary>
-    private static IMistType ParameterType<T>(T candidate, int index, ConstructedType? receiver)
+    private static IMistType ParameterType<T>(Applicant<T> candidate, int index, TypeInterner interner)
         where T : Method
     {
-        var declared = candidate.ParametersList[index].Type;
-        return receiver?.Substitute(declared) ?? declared;
+        return candidate.Substitution.Apply(candidate.Method.ParametersList[index].Type, interner);
     }
 }

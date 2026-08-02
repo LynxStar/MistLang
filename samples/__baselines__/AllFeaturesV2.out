@@ -214,3 +214,9 @@ LabeledItem(Label=Widget, Value=99)
   idx[0]=10 idx[1]=20 idx[2]=30
 IndexerDemo(length=3)
 === Done! ===
+identity_int=42
+identity_string=hello
+pair=(1, two)
+first_of_list=10
+instance_echo=99
+explicit=explicit

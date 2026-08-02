@@ -11,7 +11,8 @@ internal sealed class MemberAccessExpression(
     SyntaxNode node,
     Expression receiver,
     string memberName,
-    IMistType type) : Expression(node)
+    IMistType type,
+    IReadOnlyList<IMistType>? typeArguments = null) : Expression(node)
 {
     /// <summary>
     /// The expression whose member is being accessed.
@@ -22,6 +23,12 @@ internal sealed class MemberAccessExpression(
     /// The name of the member being accessed.
     /// </summary>
     public string MemberName { get; } = memberName;
+
+    /// <summary>
+    /// The called method's OWN type arguments, never the receiver's, which <see cref="Receiver"/>
+    /// already carries. Empty for anything that is not a call to a generic method.
+    /// </summary>
+    public IReadOnlyList<IMistType> TypeArguments { get; } = typeArguments ?? [];
 
     public override IMistType Type { get; } = type;
 }

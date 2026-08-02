@@ -159,7 +159,8 @@ internal static class ExpressionBinder
             return null;
         }
 
-        var choice = OverloadResolution.Select(concrete.ConstructorsList, arguments, constructed);
+        var choice = OverloadResolution.Select(
+            concrete.ConstructorsList, arguments, constructed, null, context.ProgramModel.TypeInterner);
 
         if(choice.Selected is null)
         {

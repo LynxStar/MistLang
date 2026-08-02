@@ -198,9 +198,8 @@ public sealed class AmbientExtensionTypeParameterPartitionTests : IDisposable
     }
 
     /// <summary>
-    /// Ordinals stay as the CLR numbered them across both levels, because
-    /// <c>ConstructedType.Substitute</c> indexes a receiver's type arguments by them. Renumbering each
-    /// list from zero would make a method-level parameter substitute to whatever sat in that slot.
+    /// Pins the numbering ExtensionProjector.ProjectTypeParameters assigns, where the reason it is not
+    /// renumbered per level is documented.
     /// </summary>
     [Fact]
     public void OrdinalsRemainTheClrIndicesAcrossBothLevels()

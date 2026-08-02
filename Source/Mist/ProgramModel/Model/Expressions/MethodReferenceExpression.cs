@@ -11,12 +11,15 @@ namespace Mist.ProgramModel.Model.Expressions;
 /// </summary>
 internal sealed class MethodReferenceExpression(
     SyntaxNode node,
-    Method method) : Expression(node)
+    Method method,
+    IReadOnlyList<IMistType>? typeArguments = null) : Expression(node)
 {
     /// <summary>
     /// The resolved method being referenced.
     /// </summary>
     public Method Method { get; } = method;
+
+    public IReadOnlyList<IMistType> TypeArguments { get; } = typeArguments ?? [];
 
     public override IMistType Type { get; } = method.ReturnType;
 }

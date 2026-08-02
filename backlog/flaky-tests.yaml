@@ -159,7 +159,7 @@ flakes:
       `Select-String` summary filter, which is the same mistake that entry's process note warns
       about. Next sighting in this project should redirect the run to a file and read the file.
   - id: mass-standard-namespace-not-found-stale-binaries
-    test: Not one test -- 430 of 4645 in Mist.Tests, across every area that compiles Mist source.
+    test: Not one test -- 430 of 4645, then 431 of 4647, in Mist.Tests, across every area that compiles Mist source.
     file: n/a
     discovered: 2026-08-01
     status: open
@@ -185,8 +185,27 @@ flakes:
       to run its analyzers, so it can be rewriting output directories while a `--no-build` run is
       reading them. This is the second instance in this register of a test run racing a build; see the
       observer-error note under attribute-emission-round-trip-unreproduced.
+      SECOND SIGHTING, 431 of 4647, during the generics substitution change. Same family, different
+      trigger, and the trigger is worth knowing: the preceding command was
+      `dotnet build Mist.slnx -v minimal | grep ... | head -5`. `head` closes the pipe once it has its
+      five lines, which SIGPIPEs the upstream `dotnet build`, so the build can be killed PARTWAY
+      THROUGH writing output directories. The "Build succeeded / 0 Warnings" read back from that
+      command came off a truncated stream and did not mean the build had finished. A `--no-build` test
+      run immediately after read half-written binaries.
+
+      Cause NOT confirmed for this sighting, because the failure message was never captured -- the
+      same mistake the fix note on attribute-emission-round-trip-unreproduced asks the next sighting
+      to avoid. What IS established is that it was not the change under test: the experiment that
+      produced it was reverted and rerun green (4647/4647), then REAPPLIED and rerun green
+      (4647/4647), so the identical source both failed and passed. The family is inferred from the
+      count and from the mid-write build, not read off a message.
     fix: >
       Do not batch `dotnet format` in parallel with `dotnet test`. Chain them, or run the tests first.
+      Do not pipe `dotnet build` into `head` either, or into anything else that closes the pipe early;
+      it can kill the build mid-write and reports success while doing it. Pipe to a filter that drains
+      its input, or let the build run unpiped.
+
       More generally, treat any mass failure naming the Standard namespace as a build-state problem
       and rebuild before reading it as a regression -- diagnosing 430 failures on the assumption they
-      are real is a large amount of wasted work.
+      are real is a large amount of wasted work. Capture the message BEFORE rerunning; two of the
+      three entries in this register are weaker than they need to be for want of that.

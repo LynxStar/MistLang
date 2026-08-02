@@ -33,5 +33,6 @@ public class Program
         ArityOverloads.Program.RunDemo();
         TopLevelStatements.Program.RunDemo();
         Properties.Program.RunDemo();
+        TypeArgumentInference.Program.RunDemo();
     }
 }

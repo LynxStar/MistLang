@@ -209,7 +209,7 @@ internal static class BodyEmitter
 
             case MemberAccessExpression memberAccess:
                 EmitExpression(memberAccess.Receiver, writer, diagnostics);
-                writer.Append($".{memberAccess.MemberName}");
+                writer.Append($".{memberAccess.MemberName}{EmitTypeArguments(memberAccess.TypeArguments)}");
                 break;
 
             case BinaryExpression binary:
@@ -281,7 +281,7 @@ internal static class BodyEmitter
                 break;
 
             case MethodReferenceExpression methodRef:
-                writer.Append(methodRef.Method.Name);
+                writer.Append($"{methodRef.Method.Name}{EmitTypeArguments(methodRef.TypeArguments)}");
                 break;
 
             case MethodGroupExpression methodGroup:
@@ -335,6 +335,16 @@ internal static class BodyEmitter
                 writer.Append($"/* unsupported: {unsupportedKind} */");
                 break;
         }
+    }
+
+    private static string EmitTypeArguments(IReadOnlyList<IMistType> typeArguments)
+    {
+        if(typeArguments.Count == 0)
+        {
+            return "";
+        }
+
+        return $"<{string.Join(", ", typeArguments.Select(TypeNameEmitter.Emit))}>";
     }
 
     internal static string EmitLiteral(LiteralExpression literal)

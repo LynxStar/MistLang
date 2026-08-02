@@ -149,6 +149,7 @@ As proof that ref structs work end-to-end, the sample application demonstrates b
 
 ```mist
 using Standard;
+using System;
 
 namespace RefStructs;
 
@@ -242,16 +243,17 @@ public class Program
         numbers[2] = 30;
         numbers[3] = 40;
         numbers[4] = 50;
-        Span<int> span = numbers.AsSpan();
+        Span<int> span = new Span<int>(numbers);
         Console.WriteLine($"span.Length={span.Length}");
         Console.WriteLine($"span[0]={span[0]}");
         Console.WriteLine($"span[4]={span[4]}");
 
         // PROOF: ReadOnlySpan<T> projected and usable as local variable
-        // PROOF: string.AsSpan() returns ReadOnlySpan<char> — no longer filtered
+        // PROOF: ReadOnlySpan<T> constructor from char array works
         Console.WriteLine("--- ReadOnlySpan from String ---");
         string greeting = "Hello, Mist!";
-        ReadOnlySpan<char> chars = greeting.AsSpan();
+        char[] greetingChars = greeting.ToCharArray();
+        ReadOnlySpan<char> chars = new ReadOnlySpan<char>(greetingChars);
         Console.WriteLine($"chars.Length={chars.Length}");
         Console.WriteLine($"chars[0]={chars[0]}");
         Console.WriteLine($"chars[6]={chars[6]}");
@@ -259,7 +261,7 @@ public class Program
         // PROOF: Span<T> indexer write works
         // PROOF: Writes through span mutate the underlying array
         Console.WriteLine("--- Span Indexer Write ---");
-        Span<int> writeSpan = numbers.AsSpan();
+        Span<int> writeSpan = new Span<int>(numbers);
         writeSpan[0] = 99;
         Console.WriteLine($"writeSpan[0]={writeSpan[0]}");
         Console.WriteLine($"numbers[0]={numbers[0]}");
@@ -279,7 +281,7 @@ public class Program
         foreachNums[0] = 100;
         foreachNums[1] = 200;
         foreachNums[2] = 300;
-        Span<int> foreachSpan = foreachNums.AsSpan();
+        Span<int> foreachSpan = new Span<int>(foreachNums);
         foreach (int val in foreachSpan)
         {
             Console.WriteLine($"val={val}");

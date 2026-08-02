@@ -141,6 +141,10 @@ Key characteristics:
 #### Proof Code
 
 ```mist
+using Standard;
+
+namespace TargetTypedNew;
+
 // PROOF: Target-typed new resolves type from field declaration
 // PROOF: Constructor arguments are forwarded correctly
 // PROOF: Target-typed new resolves type from local variable with explicit type
@@ -148,8 +152,11 @@ Key characteristics:
 // PROOF: Target-typed new resolves type from method parameter type
 // PROOF: Target-typed new resolves type from assignment to existing variable
 // PROOF: Target-typed new works with generic types
+// PROOF: The constructor is selected by argument type and by arity, not first-match
+// PROOF: A nested target-typed new takes the constructor parameter's type
+// PROOF: A base-class target constructs the base, not a derived type
 
-class Point
+public class Point
 {
     public int X;
     public int Y;
@@ -160,13 +167,13 @@ class Point
         Y = y;
     }
 
-    public override string ToString()
+    public string Describe()
     {
         return $"Point({X}, {Y})";
     }
 }
 
-class Pair<T>
+public class Pair<T>
 {
     public T First;
     public T Second;
@@ -177,19 +184,83 @@ class Pair<T>
         Second = second;
     }
 
-    public override string ToString()
+    public string Describe()
     {
         return $"Pair({First}, {Second})";
     }
 }
 
-class Container
+public class Container
 {
     // PROOF: field initializer with target-typed new
     public Point Origin = new(0, 0);
 }
 
-class Program
+// Several constructors, so selecting one at the target is a real choice rather
+// than the only candidate in scope.
+public class Tag
+{
+    public string Text;
+
+    public Tag(int number)
+    {
+        Text = $"int:{number}";
+    }
+
+    public Tag(string label)
+    {
+        Text = $"string:{label}";
+    }
+
+    public Tag(int first, int second)
+    {
+        Text = $"pair:{first},{second}";
+    }
+
+    public string Describe()
+    {
+        return $"Tag({Text})";
+    }
+}
+
+public class Wrapper
+{
+    public Tag Inner;
+
+    public Wrapper(Tag inner)
+    {
+        Inner = inner;
+    }
+
+    public string Describe()
+    {
+        return $"Wrapper({Inner.Describe()})";
+    }
+}
+
+public class Shape
+{
+    public string Kind;
+
+    public Shape(string kind)
+    {
+        Kind = kind;
+    }
+
+    public string Describe()
+    {
+        return $"Shape({Kind})";
+    }
+}
+
+public class Circle : Shape
+{
+    public Circle() : base("circle")
+    {
+    }
+}
+
+public class Program
 {
     // PROOF: return type inference
     public static Point MakePoint(int x, int y)
@@ -200,7 +271,7 @@ class Program
     // PROOF: parameter type inference
     public static void PrintPoint(Point p)
     {
-        Console.WriteLine($"  param: {p}");
+        Console.WriteLine($"  param: {p.Describe()}");
     }
 
     public static void RunDemo()
@@ -209,11 +280,11 @@ class Program
 
         // PROOF: local variable with explicit type
         Point p1 = new(3, 4);
-        Console.WriteLine($"  local: {p1}");
+        Console.WriteLine($"  local: {p1.Describe()}");
 
         // PROOF: return type
         var p2 = MakePoint(5, 6);
-        Console.WriteLine($"  return: {p2}");
+        Console.WriteLine($"  return: {p2.Describe()}");
 
         // PROOF: method argument
         PrintPoint(new(7, 8));
@@ -221,15 +292,43 @@ class Program
         // PROOF: assignment to existing typed variable
         Point p3 = new(0, 0);
         p3 = new(9, 10);
-        Console.WriteLine($"  assign: {p3}");
+        Console.WriteLine($"  assign: {p3.Describe()}");
 
         // PROOF: field initializer
         var c = new Container();
-        Console.WriteLine($"  field: {c.Origin}");
+        Console.WriteLine($"  field: {c.Origin.Describe()}");
 
         // PROOF: generic target type
         Pair<int> pair = new(1, 2);
-        Console.WriteLine($"  generic: {pair}");
+        Console.WriteLine($"  generic: {pair.Describe()}");
+
+        // PROOF: constructor selected by argument type, not just by arity
+        Tag byInt = new(7);
+        Tag byString = new("seven");
+        Console.WriteLine($"  overload_int: {byInt.Describe()}");
+        Console.WriteLine($"  overload_string: {byString.Describe()}");
+
+        // PROOF: constructor selected by arity among three
+        Tag byArity = new(1, 2);
+        Console.WriteLine($"  overload_arity: {byArity.Describe()}");
+
+        // PROOF: a target-typed new nested in the argument slot of another, so the
+        // inner one takes the constructor's parameter type rather than the outer target
+        Wrapper nested = new(new(9));
+        Console.WriteLine($"  nested: {nested.Describe()}");
+
+        // PROOF: a base-class target constructs the base itself, not a derived type
+        Shape s = new("square");
+        Console.WriteLine($"  base_target: {s.Describe()}");
+
+        // PROOF: a derived instance still assigns to a base-typed slot
+        Shape c2 = new Circle();
+        Console.WriteLine($"  derived_into_base: {c2.Describe()}");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
     }
 }
 ```
@@ -243,6 +342,12 @@ class Program
   assign: Point(9, 10)
   field: Point(0, 0)
   generic: Pair(1, 2)
+  overload_int: Tag(int:7)
+  overload_string: Tag(string:seven)
+  overload_arity: Tag(pair:1,2)
+  nested: Wrapper(Tag(int:9))
+  base_target: Shape(square)
+  derived_into_base: Shape(circle)
 ```
 
 ### Requirement 9: Book Documentation

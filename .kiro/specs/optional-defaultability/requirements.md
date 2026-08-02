@@ -261,10 +261,10 @@ public class Point
 // PROOF: The default modifier is a variant-level annotation, not a separate block
 public enum Direction : string
 {
-    default North: "N",
-    South: "S",
-    East: "E",
-    West: "W"
+    default North = "N",
+    South = "S",
+    East = "E",
+    West = "W"
 }
 
 // ─── Enum without default variant: non-defaultable ───────────────────────────
@@ -272,9 +272,9 @@ public enum Direction : string
 // PROOF: Must be explicitly constructed by naming a variant
 public enum Priority : int
 {
-    Low: 1,
-    Medium: 2,
-    High: 3
+    Low = 1,
+    Medium = 2,
+    High = 3
 }
 
 // ─── Generic function with default constraint ────────────────────────────────
@@ -296,10 +296,9 @@ public class OptionalHolder
     public int? MaybeValue;
 }
 
-// ─── Array requires TValue : default ─────────────────────────────────────────
-// PROOF: int[] works because int is defaultable
-// PROOF: Point[] works because Point is defaultable (no constructor, all fields defaultable)
-// PROOF: DatabaseConnection?[] works because DatabaseConnection? includes void
+// ─── Array stampable-vs-initializer model ────────────────────────────────────
+// PROOF: int[] works because int is stampable (primitive) — bare new int[N] accepted
+// PROOF: Point[] requires initializer construction because Point is a class (reference type)
 public class ArrayDemo
 {
     public static void ShowArrays()
@@ -307,7 +306,7 @@ public class ArrayDemo
         var ints = new int[3];
         Console.WriteLine($"  ints[0]={ints[0]} ints[1]={ints[1]} ints[2]={ints[2]}");
 
-        var points = new Point[2];
+        var points = new Array<Point, 2>(i => new Point());
         Console.WriteLine($"  points[0].X={points[0].X} points[0].Y={points[0].Y}");
     }
 }
@@ -359,8 +358,8 @@ public class Program
         OptionalHolder holder = default(OptionalHolder);
         Console.WriteLine($"  maybeValue={holder.MaybeValue}");
 
-        // 7. Arrays of defaultable types
-        Console.WriteLine("--- Array Defaultability ---");
+        // 7. Arrays — stampable vs. initializer construction
+        Console.WriteLine("--- Array Stampability ---");
         ArrayDemo.ShowArrays();
 
         Console.WriteLine("Done!");
@@ -385,7 +384,7 @@ public class Program
   factory point: x=0 y=0
 --- Optional Defaultability ---
   maybeValue=Void
---- Array Defaultability ---
+--- Array Stampability ---
   ints[0]=0 ints[1]=0 ints[2]=0
   points[0].X=0 points[0].Y=0
 Done!

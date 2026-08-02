@@ -247,6 +247,11 @@ public class Program
 
         Console.WriteLine("Done!");
     }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
 }
 ```
 

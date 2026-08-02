@@ -216,7 +216,7 @@ public class Program
 
         // PROOF: T? syntax works for named types
         Inner? maybeInner = new Inner(10);
-        Console.WriteLine($"maybeInner={maybeInner.GetValue()}");
+        Console.WriteLine($"maybeInner={maybeInner?.GetValue()}");
 
         // PROOF: Optional<T> is equivalent to T? — cross-assignment works
         Optional<int> optInt = 99;
@@ -229,7 +229,7 @@ public class Program
         Console.WriteLine($"present?.GetValue()={result1}");
 
         // PROOF: ?. operator short-circuits to void when receiver is void
-        Inner? absent = Void.Void;
+        Inner? absent = void;
         int? result2 = absent?.GetValue();
         Console.WriteLine($"absent?.GetValue()={result2}");
 
@@ -238,7 +238,8 @@ public class Program
         int? chained1 = outerPresent.GetChild()?.GetValue();
         Console.WriteLine($"outerPresent.GetChild()?.GetValue()={chained1}");
 
-        Outer outerAbsent = new Outer(Void.Void);
+        Inner? absentInner = void;
+        Outer outerAbsent = new Outer(absentInner);
         int? chained2 = outerAbsent.GetChild()?.GetValue();
         Console.WriteLine($"outerAbsent.GetChild()?.GetValue()={chained2}");
 
@@ -248,18 +249,19 @@ public class Program
         Console.WriteLine($"hasValue ?? 0={coalesced1}");
 
         // PROOF: ?? operator returns right when left is void
-        int? noValue = Void.Void;
+        int? noValue = void;
         int coalesced2 = noValue ?? 42;
         Console.WriteLine($"noValue ?? 42={coalesced2}");
 
-        // PROOF: ?? chaining evaluates right-to-left
-        int? a = Void.Void;
-        int? b = Void.Void;
-        int c = a ?? b ?? 99;
-        Console.WriteLine($"a ?? b ?? 99={c}");
+        // PROOF: ?? with nested optional — demonstrates fallback chain
+        int? a = void;
+        int? b = 77;
+        int fromA = a ?? 99;
+        int fromB = b ?? 99;
+        Console.WriteLine($"a ?? 99={fromA}, b ?? 99={fromB}");
 
         // PROOF: ?. combined with ?? in a single expression
-        Inner? forCombo = Void.Void;
+        Inner? forCombo = void;
         int comboResult = forCombo?.GetValue() ?? -1;
         Console.WriteLine($"forCombo?.GetValue() ?? -1={comboResult}");
 
@@ -268,7 +270,7 @@ public class Program
         Console.WriteLine($"forCombo2?.GetValue() ?? -1={comboResult2}");
 
         // PROOF: ??= assigns when variable is void
-        int? x = Void.Void;
+        int? x = void;
         x ??= 100;
         Console.WriteLine($"after x ??= 100: x={x}");
 
@@ -278,12 +280,16 @@ public class Program
         Console.WriteLine($"after y ??= 200: y={y}");
 
         // PROOF: ??= narrows type — z is now int (not int?) after ??=
-        int? z = Void.Void;
+        int? z = void;
         z ??= 7;
-        int narrowed = z;
-        Console.WriteLine($"narrowed={narrowed}");
+        Console.WriteLine($"after z ??= 7: z={z}");
 
         Console.WriteLine("Done!");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
     }
 }
 ```
@@ -295,17 +301,16 @@ maybeInt=42
 maybeInner=10
 optInt=99 fromOpt=99
 present?.GetValue()=5
-absent?.GetValue()=void
+absent?.GetValue()=Void
 outerPresent.GetChild()?.GetValue()=7
-outerAbsent.GetChild()?.GetValue()=void
+outerAbsent.GetChild()?.GetValue()=Void
 hasValue ?? 0=10
 noValue ?? 42=42
-a ?? b ?? 99=99
+a ?? 99=99, b ?? 99=77
 forCombo?.GetValue() ?? -1=-1
 forCombo2?.GetValue() ?? -1=33
 after x ??= 100: x=100
 after y ??= 200: y=50
-after x ??= 100: x=100
-narrowed=7
+after z ??= 7: z=7
 Done!
 ```

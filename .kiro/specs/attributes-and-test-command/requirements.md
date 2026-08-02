@@ -172,16 +172,17 @@ These features work together: attributes enable decorating methods with `[Fact]`
 ```mist
 namespace Attributes;
 
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 
 // PROOF: Attribute on a class declaration with no arguments
 [Serializable]
-class Config
+public class Config
 {
     string name;
 
-    Config(string name)
+    public Config(string name)
     {
         this.name = name;
     }
@@ -190,13 +191,13 @@ class Config
 // PROOF: Multiple attributes in separate lists on a class
 [Serializable]
 [Obsolete("Use NewService instead")]
-class OldService
+public class OldService
 {
 }
 
 // PROOF: Attribute with positional arguments on a method
 // PROOF: Attribute with named argument on a method
-class MyTests
+public class MyTests
 {
     [Obsolete("use TestAdditionV2")]
     public void TestAddition()
@@ -218,12 +219,12 @@ class MyTests
 
 // PROOF: Attribute on a struct
 [Serializable]
-struct Point
+public struct Point
 {
-    int x;
-    int y;
+    public int x;
+    public int y;
 
-    Point(int x, int y)
+    public Point(int x, int y)
     {
         this.x = x;
         this.y = y;
@@ -232,23 +233,23 @@ struct Point
 
 // PROOF: Attribute with typeof argument (type literal)
 [DebuggerTypeProxy(List<int>)]
-class CustomCollection
+public class CustomCollection
 {
 }
 
 // PROOF: Multiple attributes in a single list
 [Serializable, Obsolete("combined")]
-class MultiAttr
+public class MultiAttr
 {
 }
 
 // PROOF: Generic attribute type arguments
 [JsonConverter<int>]
-class TypedConfig
+public class TypedConfig
 {
 }
 
-class Program
+public class Program
 {
     public static void RunDemo()
     {
@@ -260,12 +261,78 @@ class Program
         var tests = new MyTests();
         tests.TestAddition();
         tests.TestSum(1, 2, 3);
+
+        // PROOF: Attribute on a parameter - the code compiles and runs
+        var fmt = new Formatter();
+        var formatted = fmt.Format("Hello", 42);
+        Console.WriteLine($"Formatter result: {formatted}");
+
+        // PROOF: Attribute on a property - the code compiles and runs
+        var settings = new Settings(100);
+        Console.WriteLine($"Settings timeout: {settings.Timeout}");
+
+        // PROOF: Attribute on an indexer - the code compiles and runs
+        var table = new LookupTable(3);
+        table[0] = 99;
+        Console.WriteLine($"LookupTable[0]: {table[0]}");
+
         Console.WriteLine("--- Attributes Demo End ---");
     }
 
     public static void Main()
     {
         RunDemo();
+    }
+}
+
+// PROOF: Attribute on a parameter - uses a custom attribute targeting parameters
+public class ParamTagAttribute : Attribute
+{
+    public string Tag;
+
+    ParamTagAttribute(string tag)
+    {
+        this.Tag = tag;
+    }
+}
+
+public class Formatter
+{
+    public string Format([ParamTag("format-input")] string template, int value)
+    {
+        return $"{template}: {value}";
+    }
+}
+
+// PROOF: Attribute on a property declaration
+public class Settings
+{
+    [Obsolete("Use Timeout instead")]
+    public int Delay { get; }
+
+    public int Timeout { get; }
+
+    Settings(int timeout)
+    {
+        this.Timeout = timeout;
+    }
+}
+
+// PROOF: Attribute on an indexer declaration
+public class LookupTable
+{
+    int[] data;
+
+    LookupTable(int size)
+    {
+        this.data = new int[size];
+    }
+
+    [Obsolete("Use Get method instead")]
+    public int this[int index]
+    {
+        get { return data[index]; }
+        set { data[index] = value; }
     }
 }
 ```
@@ -277,6 +344,9 @@ Config created: Attributes.Config
 Point created: (1, 2)
 TestAddition: 2
 TestSum(1,2): 3 == 3
+Formatter result: Hello: 42
+Settings timeout: 100
+LookupTable[0]: 99
 --- Attributes Demo End ---
 ```
 
@@ -300,7 +370,7 @@ namespace Testing;
 
 using Xunit;
 
-class MathTests
+public class MathTests
 {
     [Fact]
     public void Addition()

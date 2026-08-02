@@ -165,6 +165,11 @@ public class Program
         }
     }
 
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
     public static void RunDemo()
     {
         Console.WriteLine("--- Void Value Literal ---");

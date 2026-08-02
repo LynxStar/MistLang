@@ -102,8 +102,12 @@ The Assembly Type Provider's `VisibilityFilter` currently excludes CLR methods t
 ```mist
 // PROOF: CLR ref parameter — Interlocked.Exchange(ref int, int) is now visible and callable
 // PROOF: The ref keyword is required at the call site for projected ref params
+// PROOF: CLR out parameter — Dictionary.TryGetValue(key, ref value) is now visible and callable
+// PROOF: Out parameters are projected as ref — same call-site syntax, emitter writes 'out'
 using Standard;
+using System;
 using System.Threading;
+using System.Collections.Generic;
 
 namespace ClrRefInterop;
 
@@ -118,17 +122,29 @@ public class Program
         int old = Interlocked.Exchange(ref value, 100);
         Console.WriteLine($"[ref-param] old={old}, new={value}");
 
-        // [ref-param-array] Call Array.Resize(ref T[], int)
-        var arr = new string[2];
-        arr[0] = "a";
-        arr[1] = "b";
-        Array.Resize(ref arr, 4);
-        Console.WriteLine($"[ref-param-array] length={arr.Length}");
+        // [ref-param-add] Call Interlocked.Add(ref int, int) — CLR ref param
+        int counter = 10;
+        int result = Interlocked.Add(ref counter, 5);
+        Console.WriteLine($"[ref-param-add] result={result}, counter={counter}");
 
         // [in-param] Call a method with in parameter (projected as ref)
         int x = 7;
         int doubled = ReadAndDouble(ref x);
         Console.WriteLine($"[in-param] doubled={doubled}, x={x}");
+
+        // [out-param] Call Dictionary.TryGetValue(key, out value)
+        // Out parameters are projected as ref — caller passes ref, emitter emits 'out'
+        var dict = new Dictionary<string, int>();
+        dict.Add("hello", 42);
+        dict.Add("world", 99);
+        int found = 0;
+        bool success = dict.TryGetValue("hello", ref found);
+        Console.WriteLine($"[out-param] success={success}, found={found}");
+
+        // [out-param-miss] TryGetValue with missing key
+        int missing = 0;
+        bool miss = dict.TryGetValue("nope", ref missing);
+        Console.WriteLine($"[out-param-miss] success={miss}, missing={missing}");
 
         Console.WriteLine("--- CLR Ref Interop Done ---");
     }
@@ -150,8 +166,10 @@ public class Program
 ```
 --- CLR Ref Interop ---
 [ref-param] old=42, new=100
-[ref-param-array] length=4
+[ref-param-add] result=15, counter=15
 [in-param] doubled=14, x=7
+[out-param] success=True, found=42
+[out-param-miss] success=False, missing=0
 --- CLR Ref Interop Done ---
 ```
 

@@ -234,12 +234,17 @@ The Assembly Type Provider replaces the manually coded ambient type system with 
 #### Proof Code
 
 ```mist
+using Standard;
 using System.Collections.Generic;
+
+namespace AssemblyTypeProvider;
 
 public class Program
 {
     public static void RunDemo()
     {
+        Console.WriteLine("=== AssemblyTypeProvider Sample ===");
+
         // PROOF: SDK assembly types are available without explicit package reference
         // PROOF: Generic CLR type (List<T>) resolves with Mist type argument
         var list = new List<int>();
@@ -260,11 +265,10 @@ public class Program
         var dict = new Dictionary<string, int>();
         dict.Add("hello", 42);
 
-        // PROOF: Nullable value handling — TryGetValue excluded (out param),
-        // so we use ContainsKey + indexer pattern
-        if (dict.ContainsKey("hello"))
+        // PROOF: Out parameter interop — TryGetValue is now callable (out projected as ref)
+        int val = 0;
+        if (dict.TryGetValue("hello", ref val))
         {
-            var val = dict["hello"];
             Console.WriteLine($"Found={val}");
         }
 
@@ -294,6 +298,7 @@ public class Program
 
 **Expected output:**
 ```
+=== AssemblyTypeProvider Sample ===
 Count=3
 Item0=10
 Found=42

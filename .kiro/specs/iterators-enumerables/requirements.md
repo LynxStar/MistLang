@@ -112,8 +112,8 @@ namespace Iterators;
 // ─── Supporting types ────────────────────────────────────────────────────────
 
 // PROOF: User-defined struct enumerator implementing IEnumerator<TElement>
-// PROOF: MoveNext() and Current satisfy the interface contract
-class Range : IEnumerable<int>
+// PROOF: MoveNext() and Current satisfy the abstract type contract
+public class CountSequence : IEnumerable<int>
 {
     public struct Enumerator : IEnumerator<int>
     {
@@ -126,14 +126,14 @@ class Range : IEnumerable<int>
 
     private int count;
 
-    public Range(int count) { this.count = count; }
+    public CountSequence(int count) { this.count = count; }
 
     public Enumerator GetEnumerator() { return new Enumerator(count); }
 }
 
 // PROOF: User-defined class enumerator implementing IEnumerator<TElement>
 // PROOF: Associated type slot satisfied by a class (not just structs)
-class Words : IEnumerable<string>
+public class Words : IEnumerable<string>
 {
     public class Enumerator : IEnumerator<string>
     {
@@ -173,8 +173,8 @@ public class Program
         // PROOF: GetEnumerator() returns concrete struct type (not boxed)
         // PROOF: Type checker resolved TElement=int from IEnumerable<int>
         Console.WriteLine("--- Struct Enumerator ---");
-        var range = new Range(4);
-        foreach (int x in range)
+        var countSequence = new CountSequence(4);
+        foreach (int x in countSequence)
         {
             Console.WriteLine($"x={x}");
         }
@@ -182,10 +182,7 @@ public class Program
         // PROOF: foreach over user-defined IEnumerable<string> with class Enumerator
         // PROOF: Associated type slot works with class enumerators
         Console.WriteLine("--- Class Enumerator ---");
-        string[] wordData = new string[3];
-        wordData[0] = "hello";
-        wordData[1] = "world";
-        wordData[2] = "mist";
+        string[] wordData = ["hello", "world", "mist"];
         var words = new Words(wordData);
         foreach (string w in words)
         {
@@ -198,6 +195,27 @@ public class Program
         foreach (int n in numbers)
         {
             Console.WriteLine($"typed={n}");
+        }
+
+        // PROOF: foreach with var infers element type from array
+        Console.WriteLine("--- Var Foreach (Array) ---");
+        foreach (var n in numbers)
+        {
+            Console.WriteLine($"var_n={n}");
+        }
+
+        // PROOF: foreach with var infers element type from user-defined IEnumerable<int>
+        Console.WriteLine("--- Var Foreach (Struct Enumerator) ---");
+        foreach (var x in countSequence)
+        {
+            Console.WriteLine($"var_x={x}");
+        }
+
+        // PROOF: foreach with var infers element type from IEnumerable<string>
+        Console.WriteLine("--- Var Foreach (Class Enumerator) ---");
+        foreach (var w in words)
+        {
+            Console.WriteLine($"var_w={w}");
         }
 
         Console.WriteLine("--- Iterators Done ---");
@@ -230,5 +248,18 @@ w=mist
 typed=10
 typed=20
 typed=30
+--- Var Foreach (Array) ---
+var_n=10
+var_n=20
+var_n=30
+--- Var Foreach (Struct Enumerator) ---
+var_x=0
+var_x=1
+var_x=2
+var_x=3
+--- Var Foreach (Class Enumerator) ---
+var_w=hello
+var_w=world
+var_w=mist
 --- Iterators Done ---
 ```

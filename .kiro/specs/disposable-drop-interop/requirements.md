@@ -109,6 +109,7 @@ This feature enables seamless interop between .NET's `System.IDisposable` patter
 
 ```mist
 using Standard;
+using System;
 
 namespace DisposableDropInterop;
 

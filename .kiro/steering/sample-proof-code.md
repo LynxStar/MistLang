@@ -80,12 +80,32 @@ what demonstrably runs. Weakening a block so it stops exercising the feature is 
 and so is editing one because the compiler cannot do what it asks.
 
 Measured on 2026-08-02, so the scale is known rather than assumed: of 28 proof-code blocks across
-specs that designate a sample, 12 had every non-blank line present in that sample and 16 did not,
-the worst at 33 lines of 129. Two specific failures show what drift looks like — the
+specs that designate a sample, 19 had drifted from it and 12 expected-output blocks did not match
+what their sample actually printed. Two specific failures show what drift looks like — the
 abstract-type-unification proof code omitted `public` on six abstract declarations and therefore
 could not compile at all, and Requirement 16 of the same spec specified a forwarding stub that
 recurses infinitely. Neither was an implementation gap; both were the document going stale beside
-working code.
+working code. All were reconciled the same day by lifting the sample into the spec.
+
+### Two shapes that legitimately do not satisfy the check
+
+A blanket "every block is a substring of its designated sample, and every expected output equals
+that sample's run" is right for most blocks and wrong for these two, so a checker needs to exempt
+them by name rather than treat them as drift:
+
+1. **An inline illustration.** A `#### Proof Code` block under a requirement other than the sample
+   requirement demonstrates that requirement in isolation and belongs to no sample. Its namespace
+   gives it away by differing from the sample's. `abstract-type-unification` Requirement 26's
+   `HidingDemo` block is the example.
+2. **An excerpt with sectional output.** Where the proof code is a substring of a large sample, its
+   expected output covers that excerpt's own lines, not the whole sample's run. `ownership-v2` is
+   the example: 71 lines of a 757-line sample, with 8 lines of expected output against the sample's
+   full 98.
+
+A third case is worth knowing rather than exempting: a spec may carry proof code for a DIFFERENT
+sample than the one it designates. `attributes-and-test-command` designates `samples/Attributes`
+and its second block is `namespace Testing`, which belongs to `samples/Testing/Tests.mist`. Match on
+the namespace, not on the designated path.
 
 ## Applies To
 

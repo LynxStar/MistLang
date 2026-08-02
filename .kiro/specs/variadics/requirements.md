@@ -383,7 +383,7 @@ public struct ShapePair<Type[2]:TShapes> where TShapes : IShape
 }
 
 // PROOF: a variadic abstract type (Mist's interface-like construct) declared with a pack.
-public abstract ICountable<params TArgs>
+abstract ICountable<params TArgs>
 {
     int Count();
 }

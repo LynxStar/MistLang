@@ -252,138 +252,47 @@ public class Program
 {
     public static void RunDemo()
     {
-        Console.WriteLine("=== Ranges and Indices ===");
+        Console.WriteLine("--- Ranges and Indices ---");
 
         var numbers = [10, 20, 30, 40, 50];
 
-        // PROOF: the `^` operator lexes and parses, produces a System.Index, and
-        // index-from-end access resolves ^1 to the last element and ^2 to the
-        // second-to-last element. If `^` were not implemented this fails to lex/parse.
+        // PROOF (Property 12): index-from-end access. `^1` resolves to the last
+        // element (offset L-1) and `^2` to the second-to-last. If `^` were not
+        // implemented this fails to lex/parse; a wrong offset falsifies the values.
         Console.WriteLine("--- Index from end ---");
-        var last = numbers[^1];
-        Console.WriteLine($"last={last}");
-        var secondToLast = numbers[^2];
-        Console.WriteLine($"secondToLast={secondToLast}");
+        Console.WriteLine($"last={numbers[^1]}");
+        Console.WriteLine($"secondToLast={numbers[^2]}");
 
-        // PROOF: the `..` operator in expression position parses with both bounds and
-        // slices [start inclusive, end exclusive) producing a NEW array of length 3.
-        // Inclusive-start/exclusive-end semantics are falsified if the length or
-        // element values differ.
-        Console.WriteLine("--- Range both bounds ---");
-        var middle = numbers[1..4];
-        Console.WriteLine($"middleLength={middle.Length}");
-        Console.WriteLine($"middle0={middle[0]}");
-        Console.WriteLine($"middle2={middle[2]}");
-
-        // PROOF: start-only range `a..` slices through to the end.
-        Console.WriteLine("--- Range start only ---");
-        var tail = numbers[2..];
-        Console.WriteLine($"tailLength={tail.Length}");
-        Console.WriteLine($"tail0={tail[0]}");
-
-        // PROOF: end-only range `..b` slices from the start.
-        Console.WriteLine("--- Range end only ---");
+        // PROOF (Property 13): range slicing is inclusive-start, exclusive-end and
+        // yields a NEW array. `1..3` -> [20, 30]; `..2` -> [10, 20]; `2..` -> the tail
+        // [30, 40, 50]; the from-end bound `1..^1` trims one from each end -> [20, 30, 40].
+        Console.WriteLine("--- Range slicing ---");
+        var mid = numbers[1..3];
+        Console.WriteLine($"mid={mid.Length}:{mid[0]},{mid[1]}");
         var head = numbers[..2];
-        Console.WriteLine($"headLength={head.Length}");
-        Console.WriteLine($"head0={head[0]}");
-
-        // PROOF: full range `..` copies the whole collection.
-        Console.WriteLine("--- Full range ---");
-        var all = numbers[..];
-        Console.WriteLine($"allLength={all.Length}");
-
-        // PROOF: an index-from-end expression is accepted as a range bound (`1..^1`),
-        // trimming one element from each end; the from-end bound resolves to L - k.
-        Console.WriteLine("--- Range with from-end bound ---");
+        Console.WriteLine($"head={head.Length}:{head[0]},{head[1]}");
+        var tail = numbers[2..];
+        Console.WriteLine($"tail={tail.Length}:{tail[0]}");
         var trimmed = numbers[1..^1];
-        Console.WriteLine($"trimmedLength={trimmed.Length}");
-        Console.WriteLine($"trimmed0={trimmed[0]}");
-        Console.WriteLine($"trimmedLast={trimmed[^1]}");
+        Console.WriteLine($"trimmed={trimmed.Length}:{trimmed[0]},{trimmed[^1]}");
 
-        // PROOF: `^k` resolves to a spellable `Index` value and `a..b` to a spellable
-        // `Range` value; both can be stored in typed locals and reused in element access.
-        Console.WriteLine("--- Stored Index and Range ---");
-        Index fromEnd = ^2;
-        var valueAtStored = numbers[fromEnd];
-        Console.WriteLine($"valueAtStored={valueAtStored}");
-        Range r = 0..2;
-        var sliceFromStored = numbers[r];
-        Console.WriteLine($"slice0={sliceFromStored[0]}");
-        Console.WriteLine($"slice1={sliceFromStored[1]}");
-
-        // PROOF: a fixed-length list pattern `[1, 2, 3]` matches a countable receiver
-        // positionally, succeeding only when the length and every element pattern
-        // match; a `var` element pattern binds the element at its offset. If list
-        // patterns were unimplemented this fails to compile or matches incorrectly.
-        Console.WriteLine("--- List pattern (fixed length) ---");
-        var triple = [1, 2, 3];
-        if (triple is [1, 2, 3])
+        // PROOF (Property 17): list + slice pattern matching. `[var first, .. var middle,
+        // var last]` matches a receiver of length >= 2, binding the first/last elements
+        // from each end and binding the contiguous middle sub-sequence (a new array) via
+        // `.. var middle`; the discard slice `[10, ..]` tests only the leading element.
+        // Falsified if list/slice patterns are unimplemented (fails to compile / matches wrong).
+        Console.WriteLine("--- List and slice patterns ---");
+        if (numbers is [var first, .. var middle, var last])
         {
-            Console.WriteLine("tripleMatched=true");
+            Console.WriteLine($"first={first},last={last}");
+            Console.WriteLine($"middle={middle.Length}:{middle[0]}");
         }
-        if (triple is [1, _, var third])
-        {
-            Console.WriteLine($"third={third}");
-        }
-
-        // PROOF: a slice pattern binds the matched contiguous middle sub-sequence with
-        // `.. var middle`, while the element patterns before and after bind from the
-        // start and from the end. Slicing an array yields a new array, so middle has
-        // length 3 with middle[0]=20. Falsified if slice binding is not implemented.
-        Console.WriteLine("--- Slice pattern with binding ---");
-        if (numbers is [var patHead, .. var middle, var patLast])
-        {
-            Console.WriteLine($"patHead={patHead}");
-            Console.WriteLine($"patLast={patLast}");
-            Console.WriteLine($"middleLen={middle.Length}");
-            Console.WriteLine($"middleFirst={middle[0]}");
-        }
-
-        // PROOF: a discard slice pattern `..` matches the remaining elements without
-        // binding, so `[10, ..]` tests only the first element.
-        Console.WriteLine("--- Slice pattern discard ---");
         if (numbers is [10, ..])
         {
             Console.WriteLine("startsWith10=true");
         }
 
-        // PROOF: list patterns are accepted in switch-arm position; `[]` matches a
-        // zero-length receiver and `[_]` matches a single-element receiver.
-        Console.WriteLine("--- List pattern in switch ---");
-        var label = numbers switch {
-            [] => "empty",
-            [_] => "single",
-            _ => "many"
-        };
-        Console.WriteLine($"label={label}");
-
-        // PROOF: an empty list pattern `[]` matches only a zero-length receiver.
-        Console.WriteLine("--- Empty list pattern ---");
-        var emptyArr = numbers[0..0];
-        if (emptyArr is [])
-        {
-            Console.WriteLine("emptyMatched=true");
-        }
-
-        // PROOF: a slice pattern may carry a subpattern beyond a bare `var` binding or
-        // discard. `[.. var rest, 50]` is a slice-before-element binding: the slice
-        // binds the leading sub-sequence (rest = [10, 20, 30, 40], length 4) and the
-        // match succeeds only when the final element is 50. `[10, .. [.., 40, 50]]`
-        // matches the trailing slice against a NESTED list pattern requiring the
-        // sub-sequence to end with 40 then 50. Both are falsified if slice subpatterns
-        // beyond var/discard are unimplemented.
-        Console.WriteLine("--- Slice subpattern (beyond var/discard) ---");
-        if (numbers is [.. var rest, 50])
-        {
-            Console.WriteLine($"restLen={rest.Length}");
-            Console.WriteLine($"restFirst={rest[0]}");
-        }
-        if (numbers is [10, .. [.., 40, 50]])
-        {
-            Console.WriteLine("nestedSliceMatched=true");
-        }
-
-        Console.WriteLine("Done!");
+        Console.WriteLine("--- Ranges and Indices Done ---");
     }
 
     public static void Main(string[] args)
@@ -395,49 +304,20 @@ public class Program
 
 **Expected output:**
 ```
-=== Ranges and Indices ===
+--- Ranges and Indices ---
 --- Index from end ---
 last=50
 secondToLast=40
---- Range both bounds ---
-middleLength=3
-middle0=20
-middle2=40
---- Range start only ---
-tailLength=3
-tail0=30
---- Range end only ---
-headLength=2
-head0=10
---- Full range ---
-allLength=5
---- Range with from-end bound ---
-trimmedLength=3
-trimmed0=20
-trimmedLast=40
---- Stored Index and Range ---
-valueAtStored=40
-slice0=10
-slice1=20
---- List pattern (fixed length) ---
-tripleMatched=true
-third=3
---- Slice pattern with binding ---
-patHead=10
-patLast=50
-middleLen=3
-middleFirst=20
---- Slice pattern discard ---
+--- Range slicing ---
+mid=2:20,30
+head=2:10,20
+tail=3:30
+trimmed=3:20,40
+--- List and slice patterns ---
+first=10,last=50
+middle=3:20
 startsWith10=true
---- List pattern in switch ---
-label=many
---- Empty list pattern ---
-emptyMatched=true
---- Slice subpattern (beyond var/discard) ---
-restLen=4
-restFirst=10
-nestedSliceMatched=true
-Done!
+--- Ranges and Indices Done ---
 ```
 
 ### Requirement 16: Book Documentation

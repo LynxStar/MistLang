@@ -111,7 +111,7 @@ internal static class TypeEmitter
                 SeparateMember(writer, ref anyEmitted);
                 if(type is AbstractType)
                 {
-                    EmitInterfaceMethod(method, writer);
+                    EmitInterfaceMethod(method, writer, diagnostics);
                 }
                 else
                 {
@@ -165,14 +165,30 @@ internal static class TypeEmitter
     }
 
     /// <summary>
-    /// Interface methods are bodiless declarations terminated by a semicolon, with no
-    /// accessibility modifiers (C# interface members are implicitly public).
+    /// A member of an abstract type, with no accessibility modifier because C# interface members
+    /// are implicitly public.
+    /// <para>
+    /// A body makes this a default implementation rather than a slot, and needs no lowering: a
+    /// C# default interface method is reachable on exactly the abstract-typed references Mist
+    /// expects it on. Reaching it through a concrete-typed reference is what
+    /// <c>default-member-forwarding-stubs</c> is for, and it is a separate capability.
+    /// </para>
     /// </summary>
-    private static void EmitInterfaceMethod(Method method, CSharpWriter writer)
+    private static void EmitInterfaceMethod(Method method, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        var returnType = TypeNameEmitter.Emit(method.ReturnType);
-        var parameters = ParameterEmitter.Emit(method.ParametersList);
-        writer.WriteLine($"{returnType} {method.Name}({parameters});");
+        var signature = MethodEmitter.EmitSignature(method);
+
+        if(method.Body is null)
+        {
+            writer.WriteLine($"{signature};");
+            return;
+        }
+
+        writer.WriteLine(signature);
+        using(writer.Block())
+        {
+            BodyEmitter.EmitBlock(method.Body, writer, diagnostics);
+        }
     }
 
     /// <summary>

@@ -55,6 +55,20 @@
 #   record says which residue -- see struct-declaration (order 20), green through HelloMist
 #   and Classes while its parameterless-struct-constructor workaround stands untouched.
 #
+#   WHAT THIS EXERCISE DELIVERS, AND WHAT IT DOES NOT
+#
+#   Building a program model, and emitting from it. NOT verifying that the program is valid.
+#   v2 will need many analyzers and NONE of them are in scope here -- Stage 5 is an empty stub
+#   on purpose, and source-to-AST is shared with classic, which is untouched.
+#
+#   So a capability is measured by what it makes REPRESENTABLE and EMITTABLE. Ask of any
+#   proposed work: what new part of a program can now be held in memory, or emitted and run?
+#   If the answer is nothing, it is not a capability task however much it improves a message.
+#   Construction does report a great many errors, and every one of them is something that
+#   STOPPED IT BUILDING -- a name it could not resolve, an overload it could not pick. That is
+#   not the same as judging a model it finished building. Rules of the second kind go in
+#   `analysis_phase_tasks`.
+#
 #
 # CROSS-REFERENCE: backlog/program-model-body-tasks.yaml
 #
@@ -117,6 +131,23 @@
 #                               inherits the reasoning rather than rediscovering it, and
 #                               several are already-written rules that were removed on
 #                               purpose rather than rules nobody has designed.
+#
+#                               THE TEST IS WHETHER SOMETHING IS PRODUCED, never which stage a
+#                               diagnostic happens to be declared at. A rule belongs in `tasks`
+#                               only if the model or the emission is WRONG without it. A rule
+#                               that walks a finished model and judges it belongs here, however
+#                               early CLASSIC reports the equivalent -- classic's PipelineStage
+#                               is a fact about classic, and v2's construction stage reports
+#                               only what stops it building.
+#
+#                               ORDERS 69 AND 70 GOT THIS WRONG AND IT COST AN IMPLEMENTATION.
+#                               Both were recorded `partial` for a missing check, and both
+#                               argued it could not be deferred BECAUSE classic declares the
+#                               diagnostic at SemanticModelConstruction. Acting on that
+#                               produced a Stage 4 conformance checker that made nothing new
+#                               representable or emittable, let no program run that had not run
+#                               before, and was reverted. Their evidence records the misreading
+#                               so it is not repeated on 72, 73 or 74.
 #
 #   samples[].requires          DIRECT capability dependencies. The transitive closure is
 #                               implied, not spelled out. (The first 13 sample records
@@ -743,12 +774,32 @@ capabilities:
       double forms; Printer at arity 0 and 1. None reaches the fallback above, so the sample no
       longer passes for the reason it used to.
 
+      THE REFUSAL BITES ON `Console.WriteLine`, WHICH IS THE MEASURED COST OF THIS BEING PARTIAL AND
+      the sharpest instance of it. Standard/Bootstrap/Console.mist declares WriteLine(String),
+      WriteLine(unknown) and WriteLine() -- so a non-string argument gives two candidates of the same
+      arity, and ConversionRelation.IsIndeterminate excludes UnknownType outright, leaving neither
+      applicable. `Console.WriteLine(7)` is therefore refused on v2 with
+      MIST_PM_UNRESOLVABLE_OVERLOAD naming "(string), (unknown)", where classic prints 7. Measured on
+      a literal, a local, a method call and an indexer read, all identical -- so it is the parameter
+      type, not the argument.
+
+      WHICH MAKES THE TOP TYPE THE ONE PARAMETER THIS RELATION CAN NEVER MATCH, and order 81 calls
+      `unknown` the type every non-void type is assignable to. The exclusion is deliberate there and
+      right for the questions IsIdentity is asked -- unknown admits everything, so it discriminates
+      nothing -- but APPLICABILITY is a different question from identity, and for applicability the
+      answer is always yes. NO SAMPLE CATCHES THIS: every banked one routes output through string
+      interpolation, so `WriteLine` is only ever called on a string.
+
       STILL MISSING, none of it contradicting the above: generic method type-argument inference, so
       an open parameter cannot be matched and falls to the arity path; explicit type arguments, which
       MethodCallSuffix still drops; extension and ambient methods, which never enter the group at
       all; and the delegate case, where invoking a Func value yields the Func type rather than its
       return type.
     tasks:
+      - >
+        Admit every non-void type as convertible TO `unknown`, so an unknown-typed parameter is
+        applicable to any argument. Separate from the identity question IsIndeterminate answers,
+        which must keep excluding it. Unblocks `Console.WriteLine` on any non-string argument.
       - Extend ConversionRelation to user-defined cast operators, which ConcreteType.CastOperatorsList
         already holds, plus unions and tuples. Each addition only ever admits MORE candidates, so none
         can turn a bound call into a refused one; it turns refusals into resolutions, which is the
@@ -1960,31 +2011,66 @@ capabilities:
     order: 69
     layer: abstract-types
     requires: [abstract-type-declaration]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
       The base-list form binds and emits. A conforming class emits `: IGreeter`, an instance
       assigns to an abstract-typed local, and slot calls dispatch -- across GenericTypes,
       Properties and ShapeAbstracts, all banked.
 
-      THE CHECKING HALF IS ABSENT, which is the whole of what remains and the reason this is not
-      done. A class that claims an abstract type and fills none of its slots is bound and emitted
-      without complaint; Roslyn is what refuses it, as MIST_CS_ERROR "'Silent' does not implement
-      interface member 'IGreeter.Greet(string)'" against the GENERATED file. Classic reports
-      MIST_SM_0022 at the class declaration instead.
+      DONE MEANS THE MODEL IS RIGHT AND THE EMISSION IS RIGHT, and both already were. Nothing was
+      built for this entry. It was RECORDED `partial` FOR A MISSING CHECK, which is not what
+      `v2_status` measures -- see the field doc on `analysis_phase_tasks` -- so the status was wrong
+      on its own terms while the evidence above it described a working capability.
 
-      UNLIKE THE OBJECT-INITIALIZER CHECKS, THIS ONE CANNOT BE DEFERRED TO THE ANALYSIS PHASE.
-      MIST_SM_0022 is declared at PipelineStage.SemanticModelConstruction, which is the stage v2's
-      program-model construction already occupies, so it belongs in this capability rather than in
-      a later pass.
+      THE MISREADING IS WORTH KEEPING, because it is subtle and it cost a wasted implementation.
+      The entry argued the check could not be deferred BECAUSE classic declares MIST_SM_0022 at
+      PipelineStage.SemanticModelConstruction, which is the stage v2's construction occupies. That
+      conflates WHICH STAGE CLASSIC REPORTS FROM with WHAT V2's `v2_status` MEASURES. They are
+      unrelated: classic's staging is a fact about classic, and v2's construction stage reports only
+      what stops it building a model. An unfilled slot stops nothing -- the class binds, `: IGreeter`
+      emits, and the model is complete and coherent. Acting on that argument produced a Stage 4
+      conformance checker that added no representable construct and no emittable one, let no program
+      run that had not run before, and was reverted.
+
+      WHAT AN UNFILLED SLOT COSTS TODAY is a diagnostic sited on the wrong file: Roslyn refuses the
+      GENERATED source with MIST_CS_ERROR "'Silent' does not implement interface member
+      'IGreeter.Greet(string)'". That is a worse message than classic's, and it is an analysis debt
+      rather than a gap in this capability.
 
       Every banked sample fills its slots, so the residue is unreachable from all three -- which is
-      what makes GenericTypes green over a partial rather than green over a hole.
-    tasks:
+      what makes GenericTypes green over a complete capability rather than green over a hole.
+    analysis_phase_tasks:
       - >
         Prove every slot of every declared abstract type is filled, reporting at the conforming
         type's declaration. Port of classic MIST_SM_0022, which distinguishes a name found nowhere
         from a name whose overloads all mismatch on signature.
+      - >
+        MEASURED, AND THE TRAP THAT BREAKS A NAIVE VERSION: a default restated on a DERIVED abstract
+        HIDES the base's slot rather than filling it, so the obligation stays with the conformer. C#
+        says so and classic agrees, reporting MIST_SM_0022 for exactly that program. A bodied member
+        is therefore not a slot AND not a filler. The reverted checker treated any bodied member on
+        any reachable abstract as a filler and let that program through to a Roslyn error.
+      - >
+        An INDETERMINATE type must compare as AGREEING, the same rule order 26 rests on. A slot
+        written in terms of its abstract's type parameters is not compared at the instantiation the
+        conformer supplies, so reading an open position as a mismatch refuses correct programs --
+        `IntBox : IBox<int>` among them. The cost is that a generic slot is checked on arity alone.
+      - >
+        Slots come from the type's OWN base list, transitively through the abstract hierarchy: a
+        slot reached through a concrete base is that base's obligation and is reported on its own
+        declaration, so collecting it twice reports it twice. Fillers come the other way, across the
+        concrete base chain as well as the type itself, since an inherited member fills a slot as
+        well as a declared one.
+      - >
+        Retroactive conformance needs its own pass. BaseTypeResolver.ResolveAbstractBase is the only
+        writer of BaseAbstractTypes and ConformanceBuilder writes ConformancesList instead, so a
+        with-block conformance is invisible to a walk over base lists. See order 73.
+      - >
+        NEEDS A SOURCE LOCATION ON THE CONTRACT FIRST. Nothing under ProgramModel/Contracts/ exposes
+        an origin -- MemberType.DeclarationNode is internal and absent from IMemberType -- so an
+        analyzer over IProgramModel can detect an unfilled slot and has nowhere to point. That is a
+        prerequisite for this task, not a reason to site it in construction.
     unlocks: [GenericConstraints, GenericTypes]
 
   - id: abstract-type-property-slots
@@ -1992,7 +2078,7 @@ capabilities:
     order: 70
     layer: abstract-types
     requires: [abstract-type-declaration, property-declarations-and-accessors]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
       Declaration and conformance both work, and two banked samples prove it. Properties declares
@@ -2001,16 +2087,46 @@ capabilities:
       ShapeAbstracts reads a slot property through IShape and reads and writes one through
       IResizable.
 
-      ACCESSOR-SHAPE CHECKING IS ABSENT, mirroring the slot check missing at order 69. A get-only
-      property offered against a get-set slot is emitted, and Roslyn refuses the generated file
-      with "'ReadOnlyItem' does not implement interface member 'IEditable.Value.set'". Classic
-      reports MIST_MISSING_ABSTRACT_PROPERTY_ACCESSOR, naming the accessor and the abstract type
-      -- and at SemanticModelConstruction, so it belongs here rather than in the analysis phase
-      for the same reason 69's does.
-    tasks:
+      DONE FOR THE SAME REASON ORDER 69 IS, and it was recorded `partial` for the same mistaken
+      reason -- a missing CHECK, which `v2_status` does not measure. Nothing was built. Read 69's
+      evidence for the misreading in full; it applies here unchanged, with
+      MIST_MISSING_ABSTRACT_PROPERTY_ACCESSOR in place of MIST_SM_0022.
+
+      MEASURED WHILE ESTABLISHING THAT, and both results were the opposite of what the emitter's
+      shape suggested. PropertyEmitter and IndexerEmitter have NO AbstractType branch at all, which
+      looked like the omission order 71 turned out to be:
+
+      A BODIED PROPERTY ON AN ABSTRACT TYPE IS NOT A GAP IN EITHER PIPELINE. Both refuse it with
+      MIST_ABSTRACT_PROPERTY_DEFAULT, "Property slots cannot have default implementations. Only
+      methods can have defaults." It is a language rule, so there is nothing to build and no
+      asymmetry with classic. A property slot therefore has no default form to emit, which is why
+      order 71 is about methods alone.
+
+      AND AN INDEXER SLOT ALREADY WORKS ON V2 -- by the same coincidence that carries an
+      auto-property slot, since a slot's accessors are bodiless `get;` and `set;`, which is valid
+      interface syntax whichever emitter writes it.
+
+      LIVE DEFECT IN CLASSIC, which v2 must not copy on its way to parity: classic DROPS an indexer
+      declared on an abstract type, emitting `interface IBucket { }` empty, so indexing through an
+      abstract-typed reference fails as MIST_CS_ERROR "Cannot apply indexing with [] to an expression
+      of type 'IBucket'". V2 emits `int this[int index] { get; set; }` and both the read and the
+      write dispatch. Measured on both pipelines; v2 is AHEAD here rather than behind, so a baseline
+      taken from classic cannot be the target for this one construct.
+    analysis_phase_tasks:
       - >
         Check the ACCESSOR SHAPE at conformance, not just that a property of the name and type
-        exists. Port of classic MIST_MISSING_ABSTRACT_PROPERTY_ACCESSOR.
+        exists. Port of classic MIST_MISSING_ABSTRACT_PROPERTY_ACCESSOR. Shares a walk with order
+        69's slot check -- the property case is the method case plus an accessor comparison, over
+        the same abstract hierarchy, so the two want writing together.
+      - >
+        THE SHAPE IS CARRIED BY WHICH ACCESSORS EXIST, not by a flag. Getter and Setter being null
+        or not is exactly what get-only against get-set means on both sides. Do NOT reach for IsAuto:
+        PropertyBuilder builds an abstract slot's accessor through the same path as a concrete
+        auto-property's, so IsAuto is true on both and discriminates nothing.
+      - >
+        Decide deliberately whether the property TYPE is compared as well as the accessor shape.
+        Classic compares it. A type comparison carries the indeterminacy risk order 69's tasks
+        describe, so it is not free.
     unlocks: [ShapeAbstracts]
 
   - id: abstract-type-default-members
@@ -2018,30 +2134,43 @@ capabilities:
     order: 71
     layer: abstract-types
     requires: [abstract-type-declaration]
-    v2_status: broken
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      A bodied member on an abstract type is a default. The classic pipeline emits it as a C#
-      default interface method.
+      A bodied member on an abstract type is a default, emitted as a C# default interface method.
+      A default called through an abstract-typed reference now prints `[widget]` on v2, byte-identical
+      to classic, on the same scratch program that measured the defect.
 
-      V2 SILENTLY DROPS THE BODY AND EMITS THE MEMBER AS A SLOT. `string Describe() { return
-      $"[{this.Name()}]"; }` on an abstract type comes out as `string Describe();`, so every
-      conformer is then short one implementation and Roslyn refuses the generated file with
-      "'Widget' does not implement interface member 'IDescribable.Describe()'". No Mist diagnostic,
-      no sentinel: the emission looks like a well-formed interface, and what is wrong about it is
-      the absence of something.
+      WAS BROKEN, NOT MISSING, AND THE FIX IS SMALL. TypeEmitter.EmitInterfaceMethod terminated
+      every abstract-type method with a semicolon and discarded Method.Body, so `string Describe()
+      { ... }` came out as `string Describe();` and every conformer was short one implementation --
+      Roslyn refusing the generated file with "'Widget' does not implement interface member
+      'IDescribable.Describe()'", with no Mist diagnostic and no sentinel, because the emission
+      looked like a well-formed interface and what was wrong about it was an absence. C# has had
+      default interface methods since 8.0, so no lowering was needed: the body emits as a block when
+      Method.Body is non-null and the semicolon is kept only for a slot.
 
-      BROKEN RATHER THAN MISSING, and the distinction is load-bearing here. Missing would mean no
-      path exists; the path exists, runs, and produces output that does not compile. It is also a
-      REGRESSION AGAINST CLASSIC, which prints `[widget]` for the same program -- so this is the
-      one entry in the layer where v2 is behind rather than merely unfinished.
+      ITS DOC COMMENT IS WHY IT LOOKED FINISHED. It asserted that interface methods are bodiless
+      declarations as a universal truth, which is true of slots and false of defaults.
 
-      Measured on a scratch program with one slot and one default calling it, run on both
-      pipelines.
-    tasks:
-      - >
-        Emit the body of a bodied abstract-type member instead of discarding it. C# has had
-        default interface methods since 8.0, so the target construct needs no lowering -- which
-        makes this narrower than order 72, where Rust-style semantics do need one.
+      A SECOND DEFECT IN THE SAME EXPRESSION, found by reading it rather than by the reported
+      symptom: EmitInterfaceMethod also dropped Method.TypeParametersList, so a GENERIC slot emitted
+      as `string Echo(T value)` with no `<T>` and failed as "The type or namespace name 'T' could not
+      be found". Measured broken on v2 and working on classic, and fixed in the same change.
+
+      BOTH WERE ONE BUG: A LESSER COPY OF METHOD EMISSION. The interface path spelled its own
+      signature rather than sharing MethodEmitter's, so it drifted from it. The fix extracts
+      MethodEmitter.EmitSignature -- return type, name, type parameters, parameters -- and has both
+      paths compose it, which is what makes a future addition to a signature reach the interface
+      form without anyone remembering to. The accessibility handling is untouched, since C# interface
+      members are implicitly public and neither path emits a modifier.
+
+      THE RESIDUE BELONGS TO ORDER 72, and the boundary was measured rather than assumed. Calling a
+      default through a CONCRETE-typed receiver still fails on v2 -- "'Widget' does not contain a
+      definition for 'Describe'" -- and works on classic, because a C# default is unreachable except
+      through an interface-typed reference. That is default-member-forwarding-stubs, which needs the
+      Rust-style duplication, and it is the reason v2 remains behind classic on defaults overall
+      even with this entry done.
     unlocks: []
 
   - id: default-member-forwarding-stubs
@@ -4297,12 +4426,12 @@ samples:
                nominal-conformance-and-slot-checking, instance-fields, constructors,
                operators-arithmetic-comparison-logical, string-interpolation]
     untested:
-      - A get-only slot and a get-set slot are both declared, and NEITHER CHECK EXISTS on v2 --
-        confirmed rather than suspected. Nothing here satisfies a slot with the wrong accessor
-        shape, or leaves one unfilled, and both would be emitted and left to Roslyn. See the
-        tasks on orders 69 and 70.
-      - No default member anywhere, which is why this sample banks over a BROKEN order 71. One
-        bodied member on IShape would fail to compile on v2 today.
+      - A get-only slot and a get-set slot are both declared and both correctly satisfied. Nothing
+        here satisfies a slot with the wrong accessor shape or leaves one unfilled, so the rejection
+        surface of orders 69 and 70 is entirely unexercised -- and no such check exists on v2 today,
+        by design. See their analysis_phase_tasks.
+      - No default member anywhere, so order 71 is unexercised by this sample despite being the
+        capability that most recently changed. One bodied member on IShape would cover it.
       - Every conformer declares its abstract types in its own base list, so nothing exercises
         retroactive conformance at order 73.
 
@@ -4762,11 +4891,11 @@ samples:
         them would not compile. See order 60.
       - The indexer parameter refinement erases entirely and only in-range indices are
         exercised, so the missing bounds check never shows.
-      - This sample is HOW ORDERS 67, 68 AND 70 ARE COVERED, through ILabeled, `IEditable :
-        ILabeled` and a read of the inherited slot -- but LabeledItem fills every slot with the
-        right accessor shape, so neither the slot check nor the accessor-shape check is exercised.
-        Both are confirmed absent on v2, not merely unexercised. See orders 69 and 70.
-      - No default member on either abstract type, which is why this banks over a BROKEN order 71.
+      - This sample is HOW ORDERS 67, 68 AND 70 ARE COVERED, through ILabeled, `IEditable`
+        inheriting `ILabeled`, and a read of the inherited slot -- but LabeledItem fills every slot
+        with the right accessor shape, so neither the slot check nor the accessor-shape check is
+        exercised, and neither exists on v2 today. See the analysis_phase_tasks on orders 69 and 70.
+      - No default member on either abstract type, so order 71 is unexercised here as well.
 
   - name: RefinementTypes
     intro_order: 37

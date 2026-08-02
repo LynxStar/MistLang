@@ -209,3 +209,37 @@ flakes:
       and rebuild before reading it as a regression -- diagnosing 430 failures on the assumption they
       are real is a large amount of wasted work. Capture the message BEFORE rerunning; two of the
       three entries in this register are weaker than they need to be for want of that.
+
+  - id: unidentified-mist-tests-single-failure-2026-08-02
+    test: >
+      NOT CAPTURED. One test of 4664 in Mist.Tests. The name was never recorded -- see evidence.
+    file: unknown
+    discovered: 2026-08-02
+    status: unreproduced
+    symptom: >
+      A single failure in Mist.Tests.dll on a full-solution `dotnet test Mist.slnx --no-build`
+      (4663 passed, 1 failed). Mist.CLI.Tests and Storm.SourceGenerator.Tests were green in the same
+      run. Four consecutive full-suite reruns afterward were green at 4664/4664, two of them with a
+      trx logger attached specifically to catch a recurrence.
+    cause: >
+      Unknown, and unusually weakly evidenced: the failing test was never identified, so not even the
+      symptom is pinned down. Do not attribute this to either existing Mist.Tests entry without a
+      reproduction -- the coarse signature it shares with them (one failure under the three-project
+      concurrent run, green on immediate rerun) is not enough to tell them apart, and guessing would
+      retire a real entry against the wrong test.
+    evidence: >
+      THE NAME WAS LOST TO THE OUTPUT FILTER, which is the actionable part of this entry. The run was
+      piped through a pattern matching only the per-assembly summary lines, so the failing test's name
+      and message went to the filtered-out portion and were gone by the time the failure was noticed.
+      This is the THIRD entry in this register weakened the same way, and the closing note on
+      mass-standard-namespace-not-found-stale-binaries asks the next sighting to avoid exactly it.
+      Recovery was attempted and failed: no trx existed from the failing run, and the trx files under
+      Test/*/TestResults are from May and June, unrelated.
+      NOT THE CHANGE UNDER TEST. The working tree at the time held only two emitter files
+      (MethodEmitter.cs, TypeEmitter.cs -- abstract-type member emission) plus two backlog YAML files.
+      No test file was modified, and none was added: `git status --short Test/` was empty. The
+      preceding full-suite run on a SUPERSET of the same change was green at 4664/4664, and the four
+      runs after it were green on the reverted-to state, so the same source both failed and passed.
+      NEXT SIGHTING: run `dotnet test Mist.slnx --no-build --logger "trx;LogFileName=x.trx"` and read
+      the trx, or capture the whole stream to a file before filtering it. Do not filter a test run's
+      output to summary lines only.

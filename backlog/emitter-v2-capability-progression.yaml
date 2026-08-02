@@ -2051,15 +2051,37 @@ capabilities:
       what makes GenericTypes green over a complete capability rather than green over a hole.
     analysis_phase_tasks:
       - >
-        Prove every slot of every declared abstract type is filled, reporting at the conforming
-        type's declaration. Port of classic MIST_SM_0022, which distinguishes a name found nowhere
-        from a name whose overloads all mismatch on signature.
+        SPEC: .kiro/specs/abstract-type-unification/requirements.md, Requirements 14 and 28, are the
+        authoritative statement for everything below and this entry did not cite either before. 14.1
+        with 28.1 and 14.2 with 28.2 are the satisfaction task, and 28.2 adds that it HALTS
+        COMPILATION rather than warning. 14.4, 14.5 and 28.4 are the signature task. 28.3 requires
+        slots from an abstract's whole ancestry, and 28.5 requires ONE implementation to satisfy two
+        parent slots of the same name and signature in a diamond -- which is about SLOTS and is
+        untouched by order 72's handling of a diamond of DEFAULTS. 14.3 and 14.6 are order 72's and
+        are already satisfied.
       - >
-        MEASURED, AND THE TRAP THAT BREAKS A NAIVE VERSION: a default restated on a DERIVED abstract
-        HIDES the base's slot rather than filling it, so the obligation stays with the conformer. C#
-        says so and classic agrees, reporting MIST_SM_0022 for exactly that program. A bodied member
-        is therefore not a slot AND not a filler. The reverted checker treated any bodied member on
-        any reachable abstract as a filler and let that program through to a Roslyn error.
+        Prove every slot of every declared abstract type is filled, reporting at the conforming
+        type's declaration and naming each unfilled slot BY NAME AND SIGNATURE, which is what 14.2
+        asks for. Port of classic MIST_SM_0022, which distinguishes a name found nowhere from a name
+        whose overloads all mismatch on signature.
+      - >
+        MATCH A SIGNATURE ON NAME, RETURN TYPE AND PARAMETER TYPES, which 14.5 requires exactly, and
+        reject a near-miss with a mismatch error, which 14.4 requires. A CAPABILITY GAP RATHER THAN A
+        DETAIL: order 72's restatement suppresses on name and PARAMETER COUNT alone, so a conformer
+        declaring `int Summary()` against a `string Summary()` default suppresses the restatement and
+        the type then fails to implement the abstract, with the error landing on generated C#. See
+        that entry for why the emitter cannot tighten the test on its own.
+      - >
+        A default restated on a DERIVED abstract HIDES the base's slot rather than filling it, so the
+        obligation stays with the conformer. A bodied member is therefore not a slot AND not a
+        filler. The reverted checker treated any bodied member on any reachable abstract as a filler
+        and let that program through to a Roslyn error.
+        NOT IN THE SPEC, and recorded here rather than inferred from it. Requirement 14.6 covers the
+        other direction only -- a default on a BASE abstract propagating to implementers of a CHILD,
+        which order 72 delivers. A slot on the base against a same-named default on the child is
+        unspecified. Measured to error on BOTH pipelines and consistent with C#, where the derived
+        interface's member hides rather than implements, so it is taken as correct; Requirement 14
+        wants a clause saying so.
       - >
         An INDETERMINATE type must compare as AGREEING, the same rule order 26 rests on. A slot
         written in terms of its abstract's type parameters is not compared at the instantiation the
@@ -2107,9 +2129,9 @@ capabilities:
 
       A BODIED PROPERTY ON AN ABSTRACT TYPE IS NOT A GAP IN EITHER PIPELINE. Both refuse it with
       MIST_ABSTRACT_PROPERTY_DEFAULT, "Property slots cannot have default implementations. Only
-      methods can have defaults." It is a language rule, so there is nothing to build and no
-      asymmetry with classic. A property slot therefore has no default form to emit, which is why
-      order 71 is about methods alone.
+      methods can have defaults." It is a language rule -- Requirement 13.3 states it and 15.6
+      restates it -- so there is nothing to build and no asymmetry with classic. A property slot
+      therefore has no default form to emit, which is why order 71 is about methods alone.
 
       AND AN INDEXER SLOT ALREADY WORKS ON V2 -- by the same coincidence that carries an
       auto-property slot, since a slot's accessors are bodiless `get;` and `set;`, which is valid
@@ -2146,6 +2168,12 @@ capabilities:
     v2_status: done
     verified_by: v2-semantics
     evidence: >
+      SPEC: .kiro/specs/abstract-type-unification/requirements.md, Requirement 13 for the slot
+      against default distinction the parser draws, and Requirement 16.1 for this emission. 16.1 is
+      the whole of what this entry owes and it is satisfied. The rest of Requirement 16 concerns
+      reaching the default from a concrete receiver and belongs to order 72, where two of its clauses
+      are recorded as WRONG.
+
       A bodied member on an abstract type is a default, emitted as a C# default interface method.
 
       SHAPEABSTRACTS EXERCISES IT, which is what makes this `v2-semantics` rather than
@@ -2214,6 +2242,30 @@ capabilities:
       byte-identical to classic on the sample and on a scratch program covering a default that
       calls another default.
 
+      SPEC: .kiro/specs/abstract-type-unification/requirements.md, Requirements 14, 15 and 16.
+      REQUIREMENT 15 IS SATISFIED IN FULL and every clause of it is measured -- callable on the
+      concrete type (15.1), identical behaviour through either reference (15.2), a conformer's own
+      implementation used through either reference (15.3), `this` resolving against the abstract's
+      full member set including inherited members (15.4), a default calling another default (15.5),
+      and only methods having defaults (15.6, enforced by the parser). Of Requirement 14 this entry
+      delivers 14.3 and 14.6 and half of 14.4; the other half, rejecting a near-miss, is order 69's.
+
+      REQUIREMENT 16 IS WRONG WHERE IT IS SPECIFIC, AND THAT IS PROVEN RATHER THAN ARGUED. 16.1 and
+      16.4 are satisfied -- the default emits as a C# default interface method, and a conformer that
+      answers for itself gets only its own member. But 16.2 and 16.5 prescribe a FORWARDING STUB
+      USING AN EXPLICIT INTERFACE CAST, spelling it `public string Greet() =>
+      ((IGreeting)this).Greet();`, and that construct does not terminate. Compiled and run as C#
+      exactly as written, it dies with a stack overflow at 261298 frames of `P.Greet()`: the public
+      method is the implicit implementation of the interface member, so the cast dispatches back
+      into the method it sits in. 16.3 states the goal the stub was meant to reach and is satisfied
+      by restating the body instead.
+
+      NEITHER PIPELINE IMPLEMENTS 16.2, and classic never did -- it emits the body verbatim onto the
+      conformer, which is what this entry matches. So the CAPABILITY NAME is the spec's word rather
+      than a description of the mechanism; nothing here forwards. Requirement 16 wants amending to
+      say the body is restated, and until it is, the spec and both implementations disagree on
+      paper.
+
       SUPPRESSION IS BY THE CONFORMER'S OWN MEMBERS ONLY, matched on name and parameter count, and
       that is measured against classic rather than assumed. A member reached through a concrete
       BASE does NOT suppress the restatement, so the restatement hides that base member: classic
@@ -2222,6 +2274,16 @@ capabilities:
       have been the natural guess and would not match. A DIAMOND resolves to the nearest abstract
       in base-list order, one member emitted rather than two, which is also what keeps C# from
       seeing a duplicate declaration.
+
+      NAME AND PARAMETER COUNT IS WEAKER THAN 14.5, WHICH ALSO REQUIRES THE RETURN TYPE, and that is
+      a KNOWN GAP recorded on order 69 rather than a test to tighten here. Tightening it in the
+      emitter makes the failure worse, not better: a conformer declaring `int Summary()` against a
+      `string Summary()` default would stop suppressing, so both would be emitted and C# would
+      refuse the DECLARATION for redeclaring one parameter list, where today it refuses the missing
+      implementation only if something calls it. The program is invalid either way and 14.4 says a
+      mismatch is to be REJECTED, which is a check and belongs with the other checks. So the loose
+      test is deliberate: it keeps the emitter from turning an unreported semantic error into a
+      syntactic one ahead of the analyzer that should have caught it.
 
       FOUR MORE SHAPES MEASURED, all byte-identical to classic on both pipelines, because the
       sample reaches none of them. A STRUCT conformer gets the restatement, which is the case the

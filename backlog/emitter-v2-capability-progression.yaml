@@ -933,7 +933,6 @@ capabilities:
     order: 33
     layer: declaration-boundaries
     requires: [top-level-statements]
-    v2_status: broken
     v2_status: done
     verified_by: v2-semantics
     evidence: >
@@ -1918,10 +1917,26 @@ capabilities:
     order: 67
     layer: abstract-types
     requires: [methods-static-and-instance, type-parameters-and-constructed-types]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      TypeKeyword is CLASS, STRUCT or ABSTRACT, so an abstract type is a unified type
-      declaration that emits a C# interface. TypeEmitter has no abstract-type path.
+      An abstract type emits a C# interface, its bodiless members as interface members, and
+      ShapeAbstracts is banked in AllFeaturesV2 on the strength of it.
+
+      RECORDED MISSING ON A CLAIM THAT WAS ALREADY FALSE WHEN WRITTEN -- "TypeEmitter has no
+      abstract-type path" -- while TWO BANKED SAMPLES were exercising the path the whole time.
+      GenericTypes declares `public abstract IGenericContainer<T>` with a slot and conforms
+      GenericBox to it; Properties declares ILabeled and IEditable and reads a slot through an
+      abstract-typed local. Both were green on v2 before this entry was looked at again.
+
+      Measured directly as well, on a non-generic abstract type with one method slot, conformed
+      and dispatched through an abstract-typed local. The emission is `public interface IGreeter`
+      with `string Greet(string name);`.
+
+      This is the THIRD instance of the file's own recurring failure, and the second in this
+      direction: indexer-declarations was called done from reading the emitter and was not,
+      generic-indexers was called missing without a reading and was fine, and this was called
+      missing against a reading that had gone stale. Reading settles nothing either way.
     unlocks: []
 
   - id: abstract-type-inheritance
@@ -1929,8 +1944,15 @@ capabilities:
     order: 68
     layer: abstract-types
     requires: [abstract-type-declaration]
-    v2_status: missing
-    evidence: ShapeAbstracts declares a resizable abstract type extending a shape abstract type.
+    v2_status: done
+    verified_by: v2-semantics
+    evidence: >
+      Two banked samples cover it. Properties declares `IEditable : ILabeled` and reads the
+      INHERITED slot through the derived abstract type, `editable.Label`. ShapeAbstracts declares
+      `IResizable : IShape` and calls the inherited `Describe()` through an IResizable reference.
+
+      Measured on methods as well: `IResizable : IShape` emits as `public interface IResizable :
+      AbsB.IShape`, and the inherited `Area()` dispatches through the derived abstract type.
     unlocks: []
 
   - id: nominal-conformance-and-slot-checking
@@ -1938,10 +1960,31 @@ capabilities:
     order: 69
     layer: abstract-types
     requires: [abstract-type-declaration]
-    v2_status: missing
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
-      The base-list form is what GenericTypes, ShapeAbstracts, GenericConstraints,
-      AssociatedTypes and Iterators all use. Requires proving every slot is filled.
+      The base-list form binds and emits. A conforming class emits `: IGreeter`, an instance
+      assigns to an abstract-typed local, and slot calls dispatch -- across GenericTypes,
+      Properties and ShapeAbstracts, all banked.
+
+      THE CHECKING HALF IS ABSENT, which is the whole of what remains and the reason this is not
+      done. A class that claims an abstract type and fills none of its slots is bound and emitted
+      without complaint; Roslyn is what refuses it, as MIST_CS_ERROR "'Silent' does not implement
+      interface member 'IGreeter.Greet(string)'" against the GENERATED file. Classic reports
+      MIST_SM_0022 at the class declaration instead.
+
+      UNLIKE THE OBJECT-INITIALIZER CHECKS, THIS ONE CANNOT BE DEFERRED TO THE ANALYSIS PHASE.
+      MIST_SM_0022 is declared at PipelineStage.SemanticModelConstruction, which is the stage v2's
+      program-model construction already occupies, so it belongs in this capability rather than in
+      a later pass.
+
+      Every banked sample fills its slots, so the residue is unreachable from all three -- which is
+      what makes GenericTypes green over a partial rather than green over a hole.
+    tasks:
+      - >
+        Prove every slot of every declared abstract type is filled, reporting at the conforming
+        type's declaration. Port of classic MIST_SM_0022, which distinguishes a name found nowhere
+        from a name whose overloads all mismatch on signature.
     unlocks: [GenericConstraints, GenericTypes]
 
   - id: abstract-type-property-slots
@@ -1949,10 +1992,25 @@ capabilities:
     order: 70
     layer: abstract-types
     requires: [abstract-type-declaration, property-declarations-and-accessors]
-    v2_status: missing
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
-      ShapeAbstracts declares a get-only slot and a get-set slot; conformance must check the
-      accessor shape, not just the name and type.
+      Declaration and conformance both work, and two banked samples prove it. Properties declares
+      a get-only slot on ILabeled and a get-set slot on IEditable, satisfies both from
+      LabeledItem, then reads the get-only and WRITES the get-set through an abstract-typed local.
+      ShapeAbstracts reads a slot property through IShape and reads and writes one through
+      IResizable.
+
+      ACCESSOR-SHAPE CHECKING IS ABSENT, mirroring the slot check missing at order 69. A get-only
+      property offered against a get-set slot is emitted, and Roslyn refuses the generated file
+      with "'ReadOnlyItem' does not implement interface member 'IEditable.Value.set'". Classic
+      reports MIST_MISSING_ABSTRACT_PROPERTY_ACCESSOR, naming the accessor and the abstract type
+      -- and at SemanticModelConstruction, so it belongs here rather than in the analysis phase
+      for the same reason 69's does.
+    tasks:
+      - >
+        Check the ACCESSOR SHAPE at conformance, not just that a property of the name and type
+        exists. Port of classic MIST_MISSING_ABSTRACT_PROPERTY_ACCESSOR.
     unlocks: [ShapeAbstracts]
 
   - id: abstract-type-default-members
@@ -1960,10 +2018,30 @@ capabilities:
     order: 71
     layer: abstract-types
     requires: [abstract-type-declaration]
-    v2_status: missing
+    v2_status: broken
     evidence: >
-      A bodied member on an abstract type is a default. The classic pipeline emits it as a
-      C# default interface method.
+      A bodied member on an abstract type is a default. The classic pipeline emits it as a C#
+      default interface method.
+
+      V2 SILENTLY DROPS THE BODY AND EMITS THE MEMBER AS A SLOT. `string Describe() { return
+      $"[{this.Name()}]"; }` on an abstract type comes out as `string Describe();`, so every
+      conformer is then short one implementation and Roslyn refuses the generated file with
+      "'Widget' does not implement interface member 'IDescribable.Describe()'". No Mist diagnostic,
+      no sentinel: the emission looks like a well-formed interface, and what is wrong about it is
+      the absence of something.
+
+      BROKEN RATHER THAN MISSING, and the distinction is load-bearing here. Missing would mean no
+      path exists; the path exists, runs, and produces output that does not compile. It is also a
+      REGRESSION AGAINST CLASSIC, which prints `[widget]` for the same program -- so this is the
+      one entry in the layer where v2 is behind rather than merely unfinished.
+
+      Measured on a scratch program with one slot and one default calling it, run on both
+      pipelines.
+    tasks:
+      - >
+        Emit the body of a bodied abstract-type member instead of discarding it. C# has had
+        default interface methods since 8.0, so the target construct needs no lowering -- which
+        makes this narrower than order 72, where Rust-style semantics do need one.
     unlocks: []
 
   - id: default-member-forwarding-stubs
@@ -4219,8 +4297,14 @@ samples:
                nominal-conformance-and-slot-checking, instance-fields, constructors,
                operators-arithmetic-comparison-logical, string-interpolation]
     untested:
-      - A get-only slot and a get-set slot are both declared, but nothing attempts to satisfy
-        one with the wrong accessor shape, so accessor-shape checking is unexercised.
+      - A get-only slot and a get-set slot are both declared, and NEITHER CHECK EXISTS on v2 --
+        confirmed rather than suspected. Nothing here satisfies a slot with the wrong accessor
+        shape, or leaves one unfilled, and both would be emitted and left to Roslyn. See the
+        tasks on orders 69 and 70.
+      - No default member anywhere, which is why this sample banks over a BROKEN order 71. One
+        bodied member on IShape would fail to compile on v2 today.
+      - Every conformer declares its abstract types in its own base list, so nothing exercises
+        retroactive conformance at order 73.
 
   - name: AbstractTypes
     intro_order: 78
@@ -4678,6 +4762,11 @@ samples:
         them would not compile. See order 60.
       - The indexer parameter refinement erases entirely and only in-range indices are
         exercised, so the missing bounds check never shows.
+      - This sample is HOW ORDERS 67, 68 AND 70 ARE COVERED, through ILabeled, `IEditable :
+        ILabeled` and a read of the inherited slot -- but LabeledItem fills every slot with the
+        right accessor shape, so neither the slot check nor the accessor-shape check is exercised.
+        Both are confirmed absent on v2, not merely unexercised. See orders 69 and 70.
+      - No default member on either abstract type, which is why this banks over a BROKEN order 71.
 
   - name: RefinementTypes
     intro_order: 37

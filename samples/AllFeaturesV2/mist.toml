@@ -18,3 +18,4 @@ Properties = { path = "../Properties" }
 TypeArgumentInference = { path = "../TypeArgumentInference" }
 TargetTypedNew = { path = "../TargetTypedNew" }
 PropertyInitializers = { path = "../PropertyInitializers" }
+ShapeAbstracts = { path = "../ShapeAbstracts" }

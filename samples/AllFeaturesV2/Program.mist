@@ -36,5 +36,6 @@ public class Program
         TypeArgumentInference.Program.RunDemo();
         TargetTypedNew.Program.RunDemo();
         PropertyInitializers.Program.RunDemo();
+        ShapeAbstracts.Program.RunDemo();
     }
 }

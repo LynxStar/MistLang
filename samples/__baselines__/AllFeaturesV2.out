@@ -262,3 +262,19 @@ explicit=explicit
 --- Mixed init/set properties ---
   MixedProps: MixedProps(ReadOnlyName=immutable, MutableCount=99)
 Done!
+circle=Circle(radius=5) area=25
+rect=Rectangle(width=3, height=4) area=12
+shape1=Circle(radius=5) area=25
+shape2=Rectangle(width=3, height=4) area=12
+resizable area=48
+resizable desc=Rectangle(width=3, height=4)
+helper circle: Circle(radius=5) has area 25
+helper rect: Rectangle(width=3, height=4) has area 12
+--- Properties ---
+circle.Name=Circle
+circle.Radius=5
+circle.Radius after set=10
+circle.Diameter=20
+shape1.Name=Circle
+rect.Scale=3
+resizable.Scale=3

@@ -36,4 +36,10 @@ public class Rectangle : IResizable
     {
         return (_width * factor) * (_height * factor);
     }
+
+    // Answers IShape.Kind itself, so the default is not restated here. Circle takes the default.
+    public string Kind()
+    {
+        return "rectangle";
+    }
 }

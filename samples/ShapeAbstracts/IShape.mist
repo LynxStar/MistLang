@@ -16,6 +16,11 @@ public abstract IShape
     {
         return $"{this.Name} -> {this.Describe()} area={this.Area()}";
     }
+
+    string Kind()
+    {
+        return "shape";
+    }
 }
 
 public abstract IResizable : IShape

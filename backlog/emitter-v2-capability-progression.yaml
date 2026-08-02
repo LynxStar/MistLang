@@ -1493,6 +1493,15 @@ capabilities:
       STILL `partial`, for the inheritance half. `Derived<A, B> : Base<B>` composes correctly if
       asked, since Extend unions two maps, but nothing asks: member lookup does not reach a
       generic ancestor at all, so substitution is never consulted there. See the remaining tasks.
+
+      NOW BLOCKING A NAMED CONSUMER, which it was not when this was written. Order 72 restates an
+      abstract's default members onto each conformer, and for a GENERIC abstract the restatement is
+      emitted correctly and then cannot be called: `IntHold.Show` on a conformer of `IHold<T>`
+      reports MIST_PM_UNRESOLVED_MEMBER. Independently reproduced against two controls in one
+      program -- the same shape on a NON-generic abstract resolves, and so does the same member on
+      a constructed-abstract-typed receiver, since MemberResolution unwraps a receiver even though
+      EnqueueBases does not unwrap a base. So the first task below is the whole of what 72's
+      generic residue is waiting on, not merely of what this entry is.
     tasks:
       - Walk a constructed base's chain in member lookup. TypeMemberLookup.EnqueueBases enqueues
         the ConstructedType itself, which then matches nothing because it is not a MemberType, so
@@ -2187,18 +2196,56 @@ capabilities:
     order: 72
     layer: abstract-types
     requires: [abstract-type-default-members, nominal-conformance-and-slot-checking]
-    v2_status: missing
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
       Rust-style semantics. A C# default interface method is callable only through an
-      interface-typed reference, so the classic pipeline DUPLICATES the default body onto
-      every conformer that does not override it. A forwarding stub that casts to the
-      interface would recurse infinitely, because the public method on the concrete type
-      becomes the implicit implementation.
+      interface-typed reference, so the body is RESTATED on every conformer that does not answer
+      for itself. A forwarding stub casting to the interface would recurse infinitely, because the
+      public method it sits in becomes the implicit implementation and the cast dispatches back
+      into it -- so restating is forced rather than chosen. DefaultMemberDuplication collects what
+      a conformer owes and TypeEmitter emits it after the type's own methods, which is also the
+      order classic emits in.
+
+      ALL THREE TASKS LAND AND SHAPEABSTRACTS EXERCISES ALL THREE. Circle takes IShape's `Summary`
+      DIRECTLY. Rectangle takes it TRANSITIVELY, conforming to IResizable which inherits it from
+      IShape. And Rectangle answers `Kind` itself while Circle takes the default, which is the
+      SUPPRESSION case -- so a regression in any of the three fails a Tier 6 baseline. Measured
+      byte-identical to classic on the sample and on a scratch program covering a default that
+      calls another default.
+
+      SUPPRESSION IS BY THE CONFORMER'S OWN MEMBERS ONLY, matched on name and parameter count, and
+      that is measured against classic rather than assumed. A member reached through a concrete
+      BASE does NOT suppress the restatement, so the restatement hides that base member: classic
+      emits `Hello` onto `InheritsImpl : BaseSaysHello, IGreet` even though BaseSaysHello declares
+      one, and prints the default's body rather than the base's. Suppressing there instead would
+      have been the natural guess and would not match. A DIAMOND resolves to the nearest abstract
+      in base-list order, one member emitted rather than two, which is also what keeps C# from
+      seeing a duplicate declaration.
+
+      `partial` FOR GENERIC ABSTRACTS ONLY, and the blocking half is not here. A default whose
+      SIGNATURE names its abstract's type parameter is deliberately skipped, because restating `T
+      Echo()` verbatim puts `T` where the conformer has nothing to bind it to -- and that is an
+      error on the DECLARATION, so it would break a build that never called the member. Closing it
+      needs the type arguments applied to the body as well as the signature, which is a rewrite of
+      a bound block that nothing in the backend does.
+
+      A default whose signature is closed already works: `string Show()` on `IHold<T>` is restated
+      onto `IntHold : IHold<int>` as valid C#, verified by reading the emitted file. So the
+      EMISSION side is complete for everything the model can present to it. What stops the
+      concrete-receiver call is order 53's inheritance half -- member lookup does not reach a
+      generic ancestor, reporting MIST_PM_UNRESOLVED_MEMBER for `IntHold.Show` -- which that entry
+      records as the whole of what keeps IT off `done`. Measured against a non-generic control in
+      the same program, and against a constructed-abstract-typed receiver, which both resolve. So
+      this entry needs no further emitter work for that case; it needs 53.
     tasks:
-      - Duplicate the default body onto each non-overriding conformer.
-      - Suppress the duplicate when the conformer supplies its own implementation, matched
-        on name and arity.
-      - Cover defaults inherited transitively through the abstract type hierarchy.
+      - >
+        Substitute a generic abstract's type arguments into a restated default, in the BODY as well
+        as the signature, and drop the skip in DefaultMemberDuplication.NamesATypeParameter.
+        Blocked behind order 53's first task, which has to make the member reachable before
+        restating it can be observed. LIVE DEFECT IN CLASSIC to not copy: classic substitutes the
+        signature and NOT the body, emitting `T held = this.Item();` into a conformer where no T is
+        in scope, so the generated file does not compile.
     unlocks: []
 
   - id: retroactive-conformance-with-blocks
@@ -4439,11 +4486,12 @@ samples:
         here satisfies a slot with the wrong accessor shape or leaves one unfilled, so the rejection
         surface of orders 69 and 70 is entirely unexercised -- and no such check exists on v2 today,
         by design. See their analysis_phase_tasks.
-      - IShape's default `Summary()` is called only through abstract-typed references, deliberately,
-        since a concrete-typed receiver is order 72 and unbuilt. So the sample covers a default's
-        emission and dispatch and says nothing about the half that is still missing.
-      - No conformer OVERRIDES the default, so nothing checks that a conformer's own implementation
-        wins over it -- which is the case order 72's second task turns on.
+      - Both abstract types are NON-GENERIC, so nothing here reaches order 72's residue, which is a
+        default on a generic abstract whose restatement needs the type arguments applied to its
+        body. That path is measured on scratch programs only.
+      - Every default is reached from the conformer or through an abstract-typed local in the same
+        method. Nothing passes a conformer to a function typed by the abstract and calls a default
+        there, so the restatement and the interface's own copy are never observed to disagree.
       - Every conformer declares its abstract types in its own base list, so nothing exercises
         retroactive conformance at order 73.
 

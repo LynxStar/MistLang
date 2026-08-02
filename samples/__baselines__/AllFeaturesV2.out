@@ -270,6 +270,8 @@ resizable area=48
 resizable desc=Rectangle(width=3, height=4)
 shape1 summary=Circle -> Circle(radius=5) area=25
 resizable summary=Rectangle -> Rectangle(width=3, height=4) area=12
+circle summary=Circle -> Circle(radius=5) area=25 kind=shape
+rect summary=Rectangle -> Rectangle(width=3, height=4) area=12 kind=rectangle
 helper circle: Circle(radius=5) has area 25
 helper rect: Rectangle(width=3, height=4) has area 12
 --- Properties ---

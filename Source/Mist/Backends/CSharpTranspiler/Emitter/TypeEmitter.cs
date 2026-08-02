@@ -106,7 +106,9 @@ internal static class TypeEmitter
                 IndexerEmitter.Emit(indexer, writer, diagnostics);
             }
 
-            foreach(var method in flattened?.Methods ?? (IReadOnlyList<Method>)type.MethodsList)
+            var methods = flattened?.Methods ?? (IReadOnlyList<Method>)type.MethodsList;
+
+            foreach(var method in methods)
             {
                 SeparateMember(writer, ref anyEmitted);
                 if(type is AbstractType)
@@ -118,6 +120,21 @@ internal static class TypeEmitter
                     MethodEmitter.Emit(method, type.DeclarationNode, writer, diagnostics);
                 }
             }
+
+            foreach(var inherited in concrete is null ? [] : DefaultMemberDuplication.For(concrete, methods))
+            {
+                SeparateMember(writer, ref anyEmitted);
+                EmitRestatedDefault(inherited, writer, diagnostics);
+            }
+        }
+    }
+
+    private static void EmitRestatedDefault(Method method, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        writer.WriteLine($"public {MethodEmitter.EmitSignature(method)}");
+        using(writer.Block())
+        {
+            BodyEmitter.EmitBlock(method.Body!, writer, diagnostics);
         }
     }
 

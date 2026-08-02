@@ -43,6 +43,12 @@ public class Program
         Console.WriteLine($"shape1 summary={shape1.Summary()}");
         Console.WriteLine($"resizable summary={resizable.Summary()}");
 
+        // The same defaults on a CONCRETE receiver, which a C# default interface method cannot
+        // serve, so each conformer restates the body. Circle takes IShape's directly, Rectangle
+        // takes it through IResizable, and Rectangle's own Kind wins over the default Circle gets.
+        Console.WriteLine($"circle summary={circle.Summary()} kind={circle.Kind()}");
+        Console.WriteLine($"rect summary={rect.Summary()} kind={rect.Kind()}");
+
         // Static helper accepting IShape parameter
         Console.WriteLine($"helper circle: {DescribeShape(circle)}");
         Console.WriteLine($"helper rect: {DescribeShape(rect)}");

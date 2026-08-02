@@ -56,6 +56,37 @@ x=2
 3. **The expected output MUST match exactly.** If the actual output differs from the expected output, the task is not complete.
 4. **If a proof code block cannot be made to work**, the implementer MUST stop and report the gap to the user. Do not silently skip it, comment it out, or replace it with a weaker demonstration.
 
+## When the Proof Code and Its Sample Disagree
+
+Rule 1 above assumes the proof code is the fresher artifact. Often it is not. The specs were
+written organically, feature by feature, and then left; the samples have been maintained. So a
+disagreement is usually spec drift, not an implementation gap.
+
+**The sample is authoritative. Fix the spec.**
+
+Decide which case you are in by running the sample:
+
+| The sample | The proof code | Then |
+|---|---|---|
+| compiles and runs | does not match it | The proof code is STALE. Update the spec to match the sample. |
+| does not compile either | — | A real gap. Rule 1 holds: fix the compiler, report to the user, change nothing. |
+
+The distinction matters because the two look identical in a diff. A stale block and an
+unimplemented block both "fail to match", and only running the sample tells them apart.
+
+This does NOT license watering proof code down, which is what rule 1 exists to prevent. Lifting a
+working sample's content into the spec makes the proof STRONGER, because it becomes a statement of
+what demonstrably runs. Weakening a block so it stops exercising the feature is still forbidden,
+and so is editing one because the compiler cannot do what it asks.
+
+Measured on 2026-08-02, so the scale is known rather than assumed: of 28 proof-code blocks across
+specs that designate a sample, 12 had every non-blank line present in that sample and 16 did not,
+the worst at 33 lines of 129. Two specific failures show what drift looks like — the
+abstract-type-unification proof code omitted `public` on six abstract declarations and therefore
+could not compile at all, and Requirement 16 of the same spec specified a forwarding stub that
+recurses infinitely. Neither was an implementation gap; both were the document going stale beside
+working code.
+
 ## Applies To
 
 - All `requirements.md` files inside `.kiro/specs/*/` that include a sample application requirement

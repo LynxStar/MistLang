@@ -161,6 +161,7 @@ internal sealed class BaseTypeResolver
             }
 
             var typeArgs = scopeResolver.ResolveTypeArguments(typeArgList, typeDef.Scope);
+            context.ProgramModel.ConstructorConstraintClosures.RecordType(definition, typeArgs, baseTypeRef);
             return context.ProgramModel.TypeInterner.GetOrCreateConstructedType(definition, typeArgs);
         }
 

@@ -158,6 +158,25 @@ public static class BackendDiagnostics
         "Field '{0}' is declared on both '{1}' and '{2}'. Inherited struct fields are flattened into the derived struct, so a name cannot be reused across the inheritance chain.");
 
     /// <summary>
+    /// A type not declared in Mist was used to close a parameterized constructor constraint. C# has
+    /// no such constraint, so the backend lowers it to a synthesized interface carrying a static
+    /// abstract factory, and adds that interface to the closing type's declaration. A precompiled
+    /// type has no declaration to add to, and nothing emitted can change the interface list recorded
+    /// in another assembly's metadata.
+    /// <para>
+    /// A backend that emits its own code for the type argument -- monomorphizing, or targeting
+    /// something other than the CLR -- has no such limit, so this is a limitation of THIS BACKEND
+    /// rather than of the language. The parameterless <c>new()</c> form is unaffected: C# has it, so
+    /// it is emitted as a real constraint and any type may close it.
+    /// </para>
+    /// </summary>
+    public static readonly DiagnosticDescriptor ForeignConstructorConstraintClosure = new(
+        new DiagnosticId("MIST_BE_FOREIGN_CTOR_CONSTRAINT"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Backend,
+        "Type '{0}' is not declared in Mist, so it cannot close the constructor constraint 'new({1})'. The C# backend satisfies that constraint by adding an interface to the closing type, which a precompiled type cannot receive.");
+
+    /// <summary>
     /// A method group reached emission. Unreachable by construction, since a group is not a value and
     /// there is no C# to write for one.
     /// <para>

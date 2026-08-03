@@ -1,5 +1,6 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -17,8 +18,11 @@ internal static class TypeEmitter
     /// belong to the file, not the type, so <see cref="CSharpEmitterV2"/> writes those once per
     /// compilation unit and calls this for each type the unit declares.
     /// </summary>
-    public static void EmitTypeBody(MemberType type, CSharpWriter writer, DiagnosticBag diagnostics)
+    public static void EmitTypeBody(
+        MemberType type, ConstraintClosureMap closures, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        var closedConstraints = closures.For(type);
+
         var typeKeyword = type switch
         {
             AbstractType => "interface",
@@ -44,7 +48,7 @@ internal static class TypeEmitter
                 "[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]");
         }
 
-        writer.WriteLine($"{accessibility}{typeKeyword} {typeName}{EmitBaseList(type)}");
+        writer.WriteLine($"{accessibility}{typeKeyword} {typeName}{EmitBaseList(type, closedConstraints)}");
         ConstraintEmitter.Emit(type.TypeParametersList, writer);
         using(writer.Block())
         {
@@ -127,6 +131,31 @@ internal static class TypeEmitter
                 SeparateMember(writer, ref anyEmitted);
                 EmitRestatedDefault(inherited, writer, diagnostics);
             }
+
+            foreach(var signature in closedConstraints)
+            {
+                SeparateMember(writer, ref anyEmitted);
+                EmitConstraintFactory(type, signature, writer);
+            }
+        }
+    }
+
+    /// <summary>
+    /// The static abstract member that satisfies a synthesized constructor constraint interface: an
+    /// ordinary constructor call, which is what lets the constraint be granted without the CLR
+    /// needing a way to invoke a type parameter's constructor.
+    /// </summary>
+    private static void EmitConstraintFactory(
+        MemberType type, IReadOnlyList<IMistType> signature, CSharpWriter writer)
+    {
+        var self = EmitTypeName(type);
+        var parameters = ConstructorConstraintInterfaces.Parameters(signature);
+        var arguments = ConstructorConstraintInterfaces.Arguments(signature);
+
+        writer.WriteLine($"public static {self} {ConstructorConstraintInterfaces.MemberName}({parameters})");
+        using(writer.Block())
+        {
+            writer.WriteLine($"return new {self}({arguments});");
         }
     }
 
@@ -148,7 +177,7 @@ internal static class TypeEmitter
     /// so the ordering does not depend on how the declaration was written.
     /// </para>
     /// </summary>
-    private static string EmitBaseList(MemberType type)
+    private static string EmitBaseList(MemberType type, IReadOnlyList<IReadOnlyList<IMistType>> closedConstraints)
     {
         var bases = new List<string>();
 
@@ -162,6 +191,11 @@ internal static class TypeEmitter
         foreach(var abstractBase in type.BaseAbstractTypes)
         {
             bases.Add(TypeNameEmitter.Emit(abstractBase));
+        }
+
+        foreach(var signature in closedConstraints)
+        {
+            bases.Add(ConstructorConstraintInterfaces.Closed(signature, EmitTypeName(type)));
         }
 
         return bases.Count > 0 ? $" : {string.Join(", ", bases)}" : "";

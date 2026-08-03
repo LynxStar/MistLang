@@ -1657,7 +1657,7 @@ capabilities:
     layer: generics
     requires: [type-parameters-and-constructed-types]
     v2_status: done
-    verified_by: unexercised
+    verified_by: v2-semantics
     evidence: >
       GenericConstraints covers all four nominal forms plus multiple constraints on one
       parameter, multiple where clauses, method-level constraints, propagation through
@@ -1684,10 +1684,11 @@ capabilities:
       HAS are spelled; readonly, mutable, owned and the three substructural kinds are Mist's alone and
       govern checks rather than emission.
 
-      `unexercised` BECAUSE NO BANKED SAMPLE REACHES IT. GenericConstraints is still blocked by order
-      57, so all of the above is measured against classic on an unbanked sample rather than protected
-      by a baseline. It banks the moment 57's factory lowering lands, and the sample's remaining
-      failures are now exactly two shapes, both 57's.
+      BANKED, VIA ORDER 57. This entry was `unexercised` while GenericConstraints was blocked on the
+      factory lowering, so all of the above was measured against classic on an unbanked sample. That
+      landed and the sample is now in AllFeaturesV2, so the 19 `where` clauses and the constraint arm
+      of member lookup are held by a baseline. What the sample still does not reach is the REJECTION
+      surface -- see the untested notes on it, and the analysis task below.
       ENFORCEMENT SPLITS IN TWO, and only half of it is a gap. Measured on a program that violates
       one nominal and one Mist-only constraint. The NOMINAL kinds are enforced today because the
       `where` clause is emitted and Roslyn reads it: `Sorter<Plain>` where Plain lacks IOrderable is
@@ -1715,11 +1716,15 @@ capabilities:
     order: 57
     layer: generics
     requires: [generic-constraints-nominal]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      Mist allows a parameterized constructor constraint, which the classic pipeline lowers
-      to synthesized factory delegate parameters threaded through constructors and call
-      sites. C# has only the parameterless form.
+      GenericConstraints is BANKED in AllFeaturesV2, and its 16 printed lines are byte-identical to
+      classic's. That also flips order 56 off `unexercised`: the constraint resolution and `where`
+      emission it delivered are now covered by a baseline rather than measured on an unbanked sample.
+
+      Mist allows a parameterized constructor constraint, which lowers to synthesized factory delegate
+      parameters threaded through constructors and call sites. C# has only the parameterless form.
 
       THE ONE CONSTRAINT THAT CANNOT BE ERASED, and the reason is worth stating because every other
       one can. A constraint normally RESTRICTS what a type argument may be, so dropping it from
@@ -1728,30 +1733,78 @@ capabilities:
       granting the right to write `new T(value)` inside the generic body. Erase it and the body has no
       way to construct, so the emitted C# does not compile rather than merely going unchecked.
 
-      THIS IS WHAT KEEPS GENERICCONSTRAINTS OFF V2 with order 56 complete. The sample's failures are
-      now exactly two shapes, both from here: "cannot provide arguments when creating an instance of a
-      variable type", and "does not have the new() constraint" for a parameter whose only constructor
-      constraint is parameterized, so order 56 emitted no `new()` for it.
+      A SYNTHESIZED STATIC ABSTRACT INTERFACE, one per distinct signature, added to the declaration of
+      each type that closes the constraint. `where T : new(int)` emits as
+      `where T : Mist.Emission.CSharp.__IConstruct_int<T>`, and `new T(value)` in the body emits as
+      `T.__New(value)`. The generic's own shape is UNTOUCHED: same arity, same constructor, no field,
+      no delegate, no allocation, and a construction site is byte-identical to the Mist source. The
+      constraint is a real C# constraint again, so Roslyn enforces it rather than it being erased.
+
+      THE MEMBER IS ONE OVERLOADED NAME, `__New`, not one per signature. MultiFactory carries
+      `new(int)` and `new(bool)` on one parameter, so two constraints share arity one, and naming them
+      apart would put signature matching in the emitter -- which cannot tell equal arities apart
+      without reimplementing overload resolution. One name hands that to C#. Case 8 is what proves it
+      works, printing `int=Widget(5), bool=Widget(1)`.
+
+      THE CLOSING TYPE MUST BE DECLARED IN MIST, and that is the whole cost of this shape. The
+      interface is added to a declaration, and a precompiled type has none to add to -- nothing emitted
+      can change the interface list recorded in another assembly's metadata. Enforced at STAGE 6 by
+      MIST_BE_FOREIGN_CTOR_CONSTRAINT, reported on the Mist source, because it is this BACKEND that
+      cannot express the program rather than Mist that forbids it. A monomorphizing or non-CLR backend
+      would have no such limit. Measured before choosing: ZERO of the repository's constructor
+      constraints are closed by a foreign type -- all eleven live in GenericConstraints and close with
+      Widget or OrderableInt. Parameterless `new()` is untouched and any type may still close it.
+
+      APPENDING TO THE DECLARATION IS WHAT MAKES DEPTH IRRELEVANT. `Box<T> : __IConstruct_int<Box<T>>`
+      substitutes to cover `Box<Widget>`, `Box<Box<Widget>>` and any depth from one append, so the
+      lowering needs no instantiation-depth guard. Monomorphizing the generic would have needed one,
+      because polymorphic recursion enumerates unboundedly many instantiations for a program that
+      terminates -- that is why the generic is left open and only the capability is specialized.
+
+      DISCOVERY NEEDS A REGISTRY, NOT THE INTERNER, and this is the part most likely to be got wrong.
+      A generic TYPE closure interns a ConstructedType, but a generic METHOD closure does not: a call's
+      type arguments live on the expression denoting the callee and are never interned, so `Foo(7)`
+      resolved to `Foo of Widget` is invisible to the interner. ConstraintClosureRegistry records both,
+      from the four resolution sites that have a node plus PostfixBinder for the method case.
+      A closure reached through substitution is deliberately not recorded, because an outer generic
+      that constructs an inner one must carry the constraint itself, so the concrete type reaches the
+      inner only by closing the outer, which is already a recorded site.
+
+      METHOD-LEVEL CONSTRAINTS COME FREE HERE, where the earlier delegate lowering left them unbuilt.
+      The constraint is just a `where` clause on the method, so there is no arity change and no
+      call-site change; only discovery needed the registry.
 
       CLASSIC'S TARGET SHAPE IS MEASURED. A `Func<int, T>` field per parameterized constraint, named
       for the parameter and its argument types; a constructor parameter supplying it; `new T(value)`
       rewritten to invoke it; and a factory passed at every construction of the generic type. So this
       is field synthesis plus call-site rewriting rather than an emitter tweak.
 
-      DECIDED: THREAD A FACTORY, and the deciding requirement is FOREIGN TYPES -- a type argument may
-      come from a referenced assembly the compiler cannot modify. Three shapes were weighed and only
-      this one satisfies every requirement:
+      DECIDED: A STATIC ABSTRACT INTERFACE ON THE CLOSING TYPE, after first shipping a threaded factory
+      and replacing it. Four shapes were weighed:
 
-      A THREADED FACTORY works on a foreign type because the synthesized factory lives on the
-      CONSUMER's side. At a construction site the compiler emits its own static method,
-      `static Widget __factory_Widget_int(int v) => new Widget(v);`, where `new Widget(v)` is an
-      ordinary constructor call -- so Widget may be foreign and is never touched. Everything stays
-      statically checked and AOT-safe.
+      A C# 11 STATIC ABSTRACT INTERFACE MEMBER is the most faithful, keeping the constraint a
+      constraint rather than re-expressing it as data. It requires the interface on the type argument
+      itself, so a foreign argument is impossible -- which is a LANGUAGE decision about what may close
+      the constraint, not a fact about C#, and it was originally mistaken for the latter.
 
-      A C# 11 STATIC ABSTRACT INTERFACE MEMBER would be the most faithful, keeping the constraint a
-      constraint rather than re-expressing it, and is RULED OUT for exactly the foreign-type case: it
-      requires an interface on the type argument itself, which cannot be added to a referenced
-      assembly's type.
+      A THREADED FACTORY works on a foreign type, because the synthesized factory lives at the
+      construction site rather than on the argument. Shipped first, then replaced: it appends a
+      parameter to the user's constructor, synthesizes one where there was none, adds a readonly field,
+      and costs an allocation and an indirection per call. Correct but it rewrites declarations the user
+      wrote.
+
+      A WITNESS TYPE PARAMETER keeps foreign types AND leaves the constructor alone -- a separate
+      `IConstructFromInt<T>` implemented by a generated struct, passed as an extra type parameter, so
+      `T` stays the real type and nothing is wrapped. Verified working on a foreign type and under
+      polymorphic recursion. Costs one type parameter per constrained parameter, observable at every
+      mention of the type. The fallback if foreign closure is ever wanted.
+
+      VALUE-WRAPPING THE FOREIGN TYPE was weighed and is WRONG, worth recording because it is the
+      obvious move. Making the wrapper be `T` satisfies the constraint but changes what `T` IS, so every
+      field, return, parameter and array of `T` holds a wrapper and the emitter must unwrap at every
+      boundary -- and inside the generic `T` is open, so there is nothing to unwrap to. A witness
+      changes only what the type is CALLED, which one function emits; a wrapper changes what it is,
+      which every value flows through.
 
       `Activator.CreateInstance` WITH A CAST is the cheapest to build, a purely local rewrite of the
       `new T(...)` expression that changes no signature, and is REJECTED on three counts. It erases
@@ -1762,26 +1815,42 @@ capabilities:
       `Activator.CreateInstance(typeof(T), ...)` on an open parameter is not statically analyzable, so
       it makes any program using the constraint trim-hostile and AOT-hostile.
 
-      PREFER A STATIC METHOD GROUP TO CLASSIC'S INLINE LAMBDA. Classic passes a closure at each site;
-      a generated static method is allocation-free, cacheable per type-and-signature pair rather than
-      per site, and reads far better in the emitted file.
+      CLASSIC DIVERGES AND IS LEFT ALONE. It threads a closure per construction site, which is the
+      shape v2 shipped first and then replaced. Nothing in this entry applies to the classic pipeline.
 
-      NOTE FOR WHOEVER BUILDS IT: classic checks this constraint itself rather than leaning on the
-      target language, reporting MIST_CONSTRAINT_0015 "Type 'NoIntCtor' must have a public constructor
-      with parameters '(Int32)'" at the Mist source. V2 has no such check, so until Stage 5 a
-      violating program would reach the emitter; the threaded shape at least hands Roslyn a lambda it
-      will refuse, which Activator would not. That is an inference from the shape rather than a
-      measurement, and worth confirming once the lowering exists.
+      NOTE ON CHECKING THE CONSTRAINT ITSELF: classic checks it rather than leaning on the target
+      language, reporting MIST_CONSTRAINT_0015 "Type 'NoIntCtor' must have a public constructor with
+      parameters '(Int32)'" at the Mist source. V2 has no such check and does not need one to stay
+      sound under this lowering -- a closing type without the matching constructor fails to satisfy the
+      synthesized interface and Roslyn refuses it. That is `roslyn-downstream`, so the diagnostic lands
+      on a generated file and porting the check is worth doing for the location alone.
+    analysis_phase_tasks:
+      - >
+        REPORT A MISSING CONSTRUCTOR ON THE CLOSING TYPE AT THE MIST SOURCE. The synthesized `__New`
+        body is an ordinary `new Widget(arg0)` call, so a type closing `new(int)` with no `(int)`
+        constructor is refused by Roslyn against the generated file rather than named at the Mist site.
+        Port of classic's MIST_CONSTRAINT_0015. Correctness does not depend on it; the location does.
     tasks:
-      - Support the parameterless form and the parameterized forms together on one parameter.
       - >
-        Thread the synthesized factory parameters through every construction site, emitting a static
-        method group rather than a closure.
+        THE STAGE 6 RESTRICTION IS THE THING TO REVISIT, and it is a decision rather than a defect. A
+        parameterized constructor constraint can only be closed by a Mist-declared type, because the
+        lowering adds an interface to the closing type's declaration. Measured as costing nothing
+        today: ZERO of the repository's eleven constructor constraints are closed by a foreign type.
+        If one is ever wanted, the witness-type-parameter shape described above is the drop-in -- it
+        keeps the constructor untouched and works on foreign types, for one extra type parameter per
+        constrained parameter. Do NOT reach for value-wrapping, for the reason recorded above.
       - >
-        PROPAGATION IS THE CASE THAT DOES NOT FIT THE PATTERN. Where the type argument is itself a
-        TYPE PARAMETER -- an outer generic constructing an inner one that carries the same constraint
-        -- there is no concrete type to write a static factory over, so the outer's own incoming
-        factory parameter is forwarded instead. The sample exercises this at case 12.
+        A GENERIC CLOSING TYPE IS UNEXERCISED. `Box<T> : __IConstruct_int<Box<T>>` is what makes
+        instantiation depth irrelevant, and it is reasoned from substitution rather than measured --
+        every closure in the repository is a NON-generic type, Widget or OrderableInt. Worth a scratch
+        program before relying on it.
+      - >
+        PROPAGATION NEEDS NOTHING, which is worth stating because the delegate lowering needed a
+        subtask for it. Where the type argument is itself a type parameter, the outer declaration
+        carries the same `where` clause and C# forwards it; there is no factory to thread and no
+        instantiation chain to bound. An earlier draft of this entry claimed case 12 exercised
+        propagation -- it does not, being the parameterless form -- and under this lowering the question
+        does not arise at all.
     unlocks: []
 
   # ===================================================================

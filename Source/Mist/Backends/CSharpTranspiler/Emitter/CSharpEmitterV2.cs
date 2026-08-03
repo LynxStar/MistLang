@@ -1,5 +1,7 @@
+using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.Driver.Contracts;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -68,6 +70,9 @@ internal sealed class CSharpEmitterV2
         _ = Directory.CreateDirectory(outputDir);
 
         var emittedFiles = new List<string>();
+        var closures = ConstraintClosureMap.Build((ProgramModel.Model.ProgramModel)programModel, diagnostics);
+
+        EmitConstructorConstraintInterfaces(outputDir, emittedFiles);
 
         // The standard library is provided by the runtime, so its declarations are resolved
         // against but never emitted.
@@ -80,7 +85,8 @@ internal sealed class CSharpEmitterV2
 
             foreach(var unit in ((MistAssembly)assembly).CompilationUnits)
             {
-                EmitCompilationUnit(unit, (MistAssembly)assembly, isTopLevelEntry, outputDir, emittedFiles);
+                EmitCompilationUnit(
+                    unit, (MistAssembly)assembly, isTopLevelEntry, closures, outputDir, emittedFiles);
             }
         }
 
@@ -126,6 +132,7 @@ internal sealed class CSharpEmitterV2
         CompilationUnit unit,
         MistAssembly assembly,
         bool isTopLevelEntry,
+        ConstraintClosureMap closures,
         string outputDir,
         List<string> emittedFiles)
     {
@@ -158,7 +165,7 @@ internal sealed class CSharpEmitterV2
                 writer.WriteBlankLine();
             }
 
-            EmitFileTypes(emittableTypes, unit.HasTopLevelStatements && isTopLevelEntry, writer);
+            EmitFileTypes(emittableTypes, unit.HasTopLevelStatements && isTopLevelEntry, closures, writer);
         }
 
         // Determine output path: {outputDir}/{Assembly.Name}/{RelativePath}/{FileName}.cs
@@ -180,6 +187,94 @@ internal sealed class CSharpEmitterV2
 
         File.WriteAllText(fullPath, writer.ToString());
         emittedFiles.Add(fullPath);
+    }
+
+    /// <summary>
+    /// One interface per distinct parameterized constructor constraint signature, in its own file
+    /// because the declaration that constrains and the type that closes may sit in any namespace and
+    /// each emitted file carries only its own unit's usings.
+    /// <para>
+    /// Collected from the CONSTRAINTS rather than from what closes them, because a <c>where</c> clause
+    /// names the interface whether or not the generic is ever instantiated.
+    /// </para>
+    /// </summary>
+    private void EmitConstructorConstraintInterfaces(string outputDir, List<string> emittedFiles)
+    {
+        var signatures = new Dictionary<string, IReadOnlyList<IMistType>>(StringComparer.Ordinal);
+
+        foreach(var type in EmittableTypes())
+        {
+            foreach(var parameter in type.TypeParametersList)
+            {
+                Collect(parameter, signatures);
+            }
+
+            foreach(var method in type.MethodsList)
+            {
+                foreach(var parameter in method.TypeParametersList)
+                {
+                    Collect(parameter, signatures);
+                }
+            }
+        }
+
+        if(signatures.Count == 0)
+        {
+            return;
+        }
+
+        var writer = new CSharpWriter();
+        writer.WriteLine($"namespace {ConstructorConstraintInterfaces.Namespace};");
+        writer.WriteBlankLine();
+
+        var first = true;
+        foreach(var (name, signature) in signatures.OrderBy(entry => entry.Key, StringComparer.Ordinal))
+        {
+            if(!first)
+            {
+                writer.WriteBlankLine();
+            }
+
+            first = false;
+            writer.WriteLine($"public interface {name}<T>");
+            using(writer.Block())
+            {
+                var parameters = ConstructorConstraintInterfaces.Parameters(signature);
+                writer.WriteLine(
+                    $"static abstract T {ConstructorConstraintInterfaces.MemberName}({parameters});");
+            }
+        }
+
+        var path = Path.Combine(outputDir, "__ConstructorConstraints.g.cs");
+        File.WriteAllText(path, writer.ToString());
+        emittedFiles.Add(path);
+    }
+
+    private static void Collect(TypeParameter parameter, Dictionary<string, IReadOnlyList<IMistType>> signatures)
+    {
+        foreach(var signature in ConstraintClosureRegistry.Parameterized(parameter))
+        {
+            signatures[ConstructorConstraintInterfaces.InterfaceName(signature)] = signature;
+        }
+    }
+
+    private IEnumerable<MemberType> EmittableTypes()
+    {
+        foreach(var assembly in programModel.Assemblies)
+        {
+            if(!assembly.HasMistSource || assembly.Kind == MistAssemblyKind.Standard)
+            {
+                continue;
+            }
+
+            foreach(var unit in ((MistAssembly)assembly).CompilationUnits)
+            {
+                foreach(var type in unit.Types)
+                {
+                    yield return type;
+                }
+            }
+        }
     }
 
     private static void EmitUsings(CompilationUnit unit, CSharpWriter writer)
@@ -221,7 +316,8 @@ internal sealed class CSharpEmitterV2
         }
     }
 
-    private void EmitFileTypes(List<MemberType> types, bool hasTopLevelStatements, CSharpWriter writer)
+    private void EmitFileTypes(
+        List<MemberType> types, bool hasTopLevelStatements, ConstraintClosureMap closures, CSharpWriter writer)
     {
         var fileNamespace = types[0].NamespaceName;
 
@@ -241,7 +337,7 @@ internal sealed class CSharpEmitterV2
                     }
 
                     first = false;
-                    TypeEmitter.EmitTypeBody(type, writer, diagnostics);
+                    TypeEmitter.EmitTypeBody(type, closures, writer, diagnostics);
                 }
             }
         }
@@ -259,7 +355,7 @@ internal sealed class CSharpEmitterV2
                 }
 
                 first = false;
-                TypeEmitter.EmitTypeBody(type, writer, diagnostics);
+                TypeEmitter.EmitTypeBody(type, closures, writer, diagnostics);
             }
         }
     }

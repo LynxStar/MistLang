@@ -1,3 +1,4 @@
+using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Types;
@@ -13,10 +14,10 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// emitted as they were declared. Mist's own order is free.
 /// </para>
 /// <para>
-/// Only the constraints C# HAS are spelled. The substructural and readonly kinds are Mist's alone and
-/// govern checks rather than emission, so they contribute nothing here. A PARAMETERIZED
-/// <c>new(int)</c> is likewise absent, because C# has only the parameterless form and standing one in
-/// for the other needs the factory lowering of <c>generic-constraints-constructor</c>.
+/// The substructural and readonly kinds are Mist's alone and govern checks rather than emission, so
+/// they contribute nothing here. A PARAMETERIZED <c>new(int)</c> becomes a synthesized interface
+/// instead, which is a type constraint and so joins that bucket -- see
+/// <see cref="ConstructorConstraintInterfaces"/>.
 /// </para>
 /// </summary>
 internal static class ConstraintEmitter
@@ -62,6 +63,11 @@ internal static class ConstraintEmitter
 
                 case ConstructorConstraint { ParameterTypes.Count: 0 }:
                     parameterless = true;
+                    break;
+
+                case ConstructorConstraint constructorConstraint:
+                    types.Add(ConstructorConstraintInterfaces.Closed(
+                        constructorConstraint.ParameterTypes, parameter.Name));
                     break;
             }
         }

@@ -65,6 +65,12 @@ public sealed class ProgramModel : IProgramModel
     internal TypeInterner TypeInterner { get; } = new();
 
     /// <summary>
+    /// Every type that closes a parameterized constructor constraint, collected as construction and
+    /// resolution encounter them.
+    /// </summary>
+    internal ConstraintClosureRegistry ConstructorConstraintClosures { get; } = new();
+
+    /// <summary>
     /// Retroactive conformance declarations collected during Phase 2c.
     /// </summary>
     internal List<ConformanceDeclaration> ConformancesList { get; } = [];

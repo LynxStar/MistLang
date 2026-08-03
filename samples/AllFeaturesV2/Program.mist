@@ -37,5 +37,6 @@ public class Program
         TargetTypedNew.Program.RunDemo();
         PropertyInitializers.Program.RunDemo();
         ShapeAbstracts.Program.RunDemo();
+        GenericConstraints.Program.RunDemo();
     }
 }

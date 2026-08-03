@@ -111,6 +111,8 @@ internal static class PostfixBinder
         var methodTypeArguments = selected.TypeParametersList
             .ConvertAll(parameter => choice.Substitution.Apply(parameter, interner));
 
+        context.ProgramModel.ConstructorConstraintClosures.RecordMethod(selected, methodTypeArguments, node);
+
         var callee = group.Receiver is null
             ? new MethodReferenceExpression(node, selected, methodTypeArguments)
             : (Expression)new MemberAccessExpression(

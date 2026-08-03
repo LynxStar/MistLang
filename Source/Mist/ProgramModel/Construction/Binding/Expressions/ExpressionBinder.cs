@@ -148,6 +148,7 @@ internal static class ExpressionBinder
             }
 
             var typeArgs = context.Resolver.ResolveTypeArguments(typeArgList, ctx.Scope);
+            context.ProgramModel.ConstructorConstraintClosures.RecordType(definition, typeArgs, node);
             type = context.ProgramModel.TypeInterner.GetOrCreateConstructedType(definition, typeArgs);
         }
         else

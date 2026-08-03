@@ -227,6 +227,7 @@ internal sealed class ScopeResolver
         if(namedRef.TypeArgs is { } typeArgList)
         {
             var typeArgs = ResolveTypeArguments(typeArgList, scope);
+            context.ProgramModel.ConstructorConstraintClosures.RecordType(baseType, typeArgs, namedRef);
             return context.ProgramModel.TypeInterner.GetOrCreateConstructedType(baseType, typeArgs);
         }
 

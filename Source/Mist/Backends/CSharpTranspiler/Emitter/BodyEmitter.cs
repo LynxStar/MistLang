@@ -1,3 +1,4 @@
+using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
@@ -309,10 +310,7 @@ internal static class BodyEmitter
                 break;
 
             case NewExpression newExpression:
-                writer.Append($"new {TypeNameEmitter.Emit(newExpression.Type)}(");
-                EmitList.Separated(newExpression.Arguments, ", ", writer, argument => EmitExpression(argument, writer, diagnostics));
-                writer.Append(")");
-                EmitObjectInitializer(newExpression.Initializer, writer, diagnostics);
+                EmitNew(newExpression, writer, diagnostics);
                 break;
 
             case LiteralExpression literal:
@@ -336,6 +334,22 @@ internal static class BodyEmitter
                 writer.Append($"/* unsupported: {unsupportedKind} */");
                 break;
         }
+    }
+
+    private static void EmitNew(NewExpression newExpression, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        // A parameterized construction on a type parameter calls the factory the constraint grants.
+        // C# picks between its overloads by argument type, which is what lets one parameter carry
+        // new(int) and new(bool) at once without this emitter choosing between them.
+        var target = newExpression.Type is TypeParameter && newExpression.Arguments.Count > 0
+            ? $"{TypeNameEmitter.Emit(newExpression.Type)}.{ConstructorConstraintInterfaces.MemberName}("
+            : $"new {TypeNameEmitter.Emit(newExpression.Type)}("
+            ;
+
+        writer.Append(target);
+        EmitList.Separated(newExpression.Arguments, ", ", writer, argument => EmitExpression(argument, writer, diagnostics));
+        writer.Append(")");
+        EmitObjectInitializer(newExpression.Initializer, writer, diagnostics);
     }
 
     private static void EmitObjectInitializer(

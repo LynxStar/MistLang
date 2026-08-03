@@ -44,6 +44,9 @@ public sealed class MistAssembly(
     /// order. Populated during Stage 4 as each file is processed.
     /// </summary>
     internal List<CompilationUnit> CompilationUnits { get; } = [];
+
+    IReadOnlyList<CompilationUnit> IAssembly.CompilationUnits => CompilationUnits;
+
     /// <summary>
     /// The implicit usings every file in this assembly resolves through, from the project's
     /// <c>mist.toml</c>. Empty for the standard library, which has no mechanism to declare any, and

@@ -1,3 +1,5 @@
+using Mist.ProgramModel.Model;
+
 namespace Mist.ProgramModel.Contracts.Types;
 
 /// <summary>
@@ -44,4 +46,6 @@ public interface IAssembly
     /// The type declaring this assembly's entry point, or null if it has none.
     /// </summary>
     IMistType? EntryPoint { get; }
+
+    IReadOnlyList<CompilationUnit> CompilationUnits { get; }
 }

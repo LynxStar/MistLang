@@ -4,7 +4,6 @@ using Mist.Driver.Contracts;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
-using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 using CompilationUnit = Mist.ProgramModel.Model.CompilationUnit;
 
@@ -83,10 +82,10 @@ internal sealed class CSharpEmitterV2
                 continue;
             }
 
-            foreach(var unit in ((MistAssembly)assembly).CompilationUnits)
+            foreach(var unit in assembly.CompilationUnits)
             {
                 EmitCompilationUnit(
-                    unit, (MistAssembly)assembly, isTopLevelEntry, closures, outputDir, emittedFiles);
+                    unit, assembly, isTopLevelEntry, closures, outputDir, emittedFiles);
             }
         }
 
@@ -130,7 +129,7 @@ internal sealed class CSharpEmitterV2
     /// </summary>
     private void EmitCompilationUnit(
         CompilationUnit unit,
-        MistAssembly assembly,
+        IAssembly assembly,
         bool isTopLevelEntry,
         ConstraintClosureMap closures,
         string outputDir,
@@ -267,7 +266,7 @@ internal sealed class CSharpEmitterV2
                 continue;
             }
 
-            foreach(var unit in ((MistAssembly)assembly).CompilationUnits)
+            foreach(var unit in assembly.CompilationUnits)
             {
                 foreach(var type in unit.Types)
                 {

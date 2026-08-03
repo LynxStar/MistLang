@@ -9,7 +9,7 @@ namespace Mist.ProgramModel.Model;
 /// emission: the file's using directives, its types in declaration order, and its
 /// top-level statements if any.
 /// </summary>
-internal sealed class CompilationUnit
+public sealed class CompilationUnit
 {
     /// <summary>
     /// The path to the source file on disk. The emitted C# file takes its name from this,
@@ -34,7 +34,7 @@ internal sealed class CompilationUnit
     /// <summary>
     /// Member types declared in this file, in declaration order.
     /// </summary>
-    public List<MemberType> Types { get; } = [];
+    internal List<MemberType> Types { get; } = [];
 
     /// <summary>
     /// Whether this unit contains top-level statements.
@@ -50,5 +50,5 @@ internal sealed class CompilationUnit
     /// path as any other body, with no special case.
     /// </para>
     /// </summary>
-    public Method? TopLevelMethod { get; init; }
+    internal Method? TopLevelMethod { get; init; }
 }

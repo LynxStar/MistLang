@@ -20,8 +20,16 @@ public sealed class DiagnosticBag
     }
 
     /// <summary>
-    /// Reports a diagnostic using a descriptor. Formats the message template
-    /// with the supplied arguments and appends the constructed Diagnostic.
+    /// Reports a diagnostic using a descriptor, formatting the message template with the supplied
+    /// arguments.
+    /// <para>
+    /// There is deliberately no analyzer-name parameter here, and adding one is unsafe: a lone
+    /// <see langword="string"/> argument binds to it ahead of the params array, since an exact match
+    /// beats params expansion, so a caller's first format argument would silently be taken as the
+    /// name. Analyzers carry a name through
+    /// <see cref="DiagnosticBagExtensions.ReportAtNode"/> instead, where a mandatory parameter leaves
+    /// overload resolution no such choice to make.
+    /// </para>
     /// </summary>
     public void Report(
         DiagnosticDescriptor descriptor,
@@ -41,31 +49,6 @@ public sealed class DiagnosticBag
             location,
             compilationUnitPath,
             AnalyzerName: null));
-    }
-
-    /// <summary>
-    /// Reports a diagnostic using a descriptor with an explicit analyzer name.
-    /// Used by named analyzers (OwnershipAnalyzer, TypeChecker, etc.).
-    /// </summary>
-    public void Report(
-        DiagnosticDescriptor descriptor,
-        LinePositionSpan location,
-        string compilationUnitPath,
-        string? analyzerName,
-        params ReadOnlySpan<object?> args)
-    {
-        var message = args.Length > 0
-            ? string.Format(descriptor.MessageTemplate, args.ToArray())
-            : descriptor.MessageTemplate;
-
-        diagnostics.Add(new Diagnostic(
-            descriptor.Id,
-            descriptor.DefaultSeverity,
-            descriptor.Stage,
-            message,
-            location,
-            compilationUnitPath,
-            analyzerName));
     }
 
     /// <summary>

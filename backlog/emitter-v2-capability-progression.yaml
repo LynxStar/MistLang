@@ -1774,6 +1774,15 @@ capabilities:
       The constraint is just a `where` clause on the method, so there is no arity change and no
       call-site change; only discovery needed the registry.
 
+      BOTH OF THOSE ARE MEASURED, NOT REASONED, on a scratch program because nothing in the repository
+      reaches either. A GENERIC closing type gets ONE append on its open declaration --
+      `class Box<T> : Mist.Emission.CSharp.__IConstruct_int<Box<T>>` -- and that single append served
+      `IntFactory<Box<int>>` and `IntFactory<Box<Box<int>>>` together, which is the substitution
+      argument holding at two depths. A METHOD-LEVEL constraint emitted as
+      `static T Make<T>(int seed) where T : Mist.Emission.CSharp.__IConstruct_int<T>` with a body of
+      `return T.__New(seed);`, and its call site stayed `Maker.Make<Widget>(33)` with nothing threaded
+      in. Five cases across both shapes compiled with zero diagnostics and printed correct values.
+
       CLASSIC'S TARGET SHAPE IS MEASURED. A `Func<int, T>` field per parameterized constraint, named
       for the parameter and its argument types; a constructor parameter supplying it; `new T(value)`
       rewritten to invoke it; and a factory passed at every construction of the generic type. So this
@@ -1840,10 +1849,12 @@ capabilities:
         keeps the constructor untouched and works on foreign types, for one extra type parameter per
         constrained parameter. Do NOT reach for value-wrapping, for the reason recorded above.
       - >
-        A GENERIC CLOSING TYPE IS UNEXERCISED. `Box<T> : __IConstruct_int<Box<T>>` is what makes
-        instantiation depth irrelevant, and it is reasoned from substitution rather than measured --
-        every closure in the repository is a NON-generic type, Widget or OrderableInt. Worth a scratch
-        program before relying on it.
+        NO SAMPLE COVERS A GENERIC CLOSING TYPE OR A METHOD-LEVEL CONSTRAINT, though both are measured
+        working on a scratch program -- see the evidence above. Every closure in the repository is a
+        NON-generic type, Widget or OrderableInt, and all eleven constraints are on TYPES. So the two
+        shapes are verified but unprotected: nothing would catch a regression in either. Enriching
+        GenericConstraints with a generic closer and a `Make<T>(int) where T : new(int)` would bank
+        them, and it is a sample change rather than compiler work.
       - >
         PROPAGATION NEEDS NOTHING, which is worth stating because the delegate lowering needed a
         subtask for it. Where the type argument is itself a type parameter, the outer declaration

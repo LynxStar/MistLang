@@ -19,13 +19,25 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// </summary>
 /// <param name="Fields">
 /// Every field the struct carries, its ancestors' first and each level in declaration order.
-/// Together with the sequential layout <see cref="Emitter.TypeEmitter"/> requests, that places an
-/// ancestor's fields at the same offsets in the derived struct, making it well defined to
-/// reinterpret a derived value as one of its ancestors.
+/// <para>
+/// THIS ORDER DOES NOT MAKE REINTERPRETATION SAFE, and the sequential layout
+/// <see cref="Emitter.TypeEmitter"/> requests does not either. The CLR honours that request only
+/// for a struct holding no managed reference, transitively; with one anywhere inside it, references
+/// are grouped first for GC tracking and the declared order is discarded. A derived struct adding a
+/// reference of its own therefore displaces its ancestor's fields, so a shared prefix does NOT sit
+/// at shared offsets. Generic structs are auto-laid-out regardless. Measured both ways.
+/// </para>
+/// <para>
+/// Which is why <see cref="Emitter.StructConversionEmitter"/> copies rather than reinterprets. A
+/// reinterpreting path would be sound only where every field in the whole chain is an unmanaged
+/// value type and no type parameter is involved -- decidable here, but not yet needed, since the
+/// only thing that requires aliasing is <c>ref</c> widening and this backend has no <c>ref</c> yet.
+/// </para>
 /// </param>
 internal sealed record FlattenedStruct(
     ImmutableArray<FlattenedField> Fields,
-    ImmutableArray<Method> Methods)
+    ImmutableArray<Method> Methods,
+    ImmutableArray<Property> Properties)
 {
     /// <summary>
     /// The ancestors this struct absorbed, root first.

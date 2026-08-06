@@ -243,3 +243,41 @@ flakes:
       NEXT SIGHTING: run `dotnet test Mist.slnx --no-build --logger "trx;LogFileName=x.trx"` and read
       the trx, or capture the whole stream to a file before filtering it. Do not filter a test run's
       output to summary lines only.
+  - id: unidentified-storm-single-failure-2026-08-04
+    test: >
+      NOT CAPTURED. One test of 664 in Storm.SourceGenerator.Tests. The name was never recorded --
+      see evidence.
+    file: unknown
+    discovered: 2026-08-04
+    status: unreproduced
+    symptom: >
+      A single failure in Storm.SourceGenerator.Tests.dll on a full-solution
+      `dotnet test Mist.slnx --no-build` (663 passed, 1 failed). Mist.CLI.Tests was green at 68/68
+      and Mist.Tests at 4666/4666 in the same run. Five subsequent runs were green: four isolated
+      runs of the project at 664/664, and one full-solution run at 5398/5398.
+    cause: unknown
+    evidence: >
+      FOURTH SIGHTING IN THIS PROJECT and the third whose name was lost. The shape matches
+      storm-memo-propagation-property and storm-trait-field-type-resolution-property exactly: one of
+      664 fails in Storm.SourceGenerator.Tests under the three-project concurrent run, passes in
+      isolation, against a change with no path into the project. Whether it is the same underlying
+      flake remains unknown, and it is recorded separately rather than folded into either entry
+      because attributing an unnamed failure to a named test would retire a real entry against the
+      wrong one.
+
+      NOT THE CHANGE UNDER TEST. The working tree held v2 struct-inheritance emitter changes only --
+      StructFlattener, FlattenedStruct, StructAncestorFactory, TypeEmitter, StructInitEmitter,
+      StructConversionEmitter, CSharpEmitterV2. None is referenced by Storm.SourceGenerator, and
+      `git status` showed nothing modified under Source/Storm.SourceGenerator or
+      Test/Storm.SourceGenerator.Tests.
+
+      THE NAME WAS LOST TO THE OUTPUT FILTER AGAIN. The run was piped through
+      `grep -E 'Passed!|Failed!|error|Failed:|Passed:'`, which keeps the per-assembly summary and
+      discards the failing test's name and message. Three prior entries close with a note asking the
+      next sighting to avoid exactly this, and this sighting did not. Recovery was not attempted
+      beyond reruns; no trx logger was attached to the failing run.
+
+      NEXT SIGHTING: attach `--logger "trx;LogFileName=x.trx"` and read the trx, or capture the whole
+      stream to a file and grep the file. Do not pipe a test run through a summary filter. Given this
+      project has now produced four sightings, it may be worth running it under a trx logger by
+      default until one is caught with its message intact.

@@ -300,3 +300,12 @@ resizable.Scale=3
 15. struct with constraint: holds a Widget
 16. generic abstract type: transformed=Widget(42), default=Widget(0)
 --- Generic Constraints Done ---
+=== FullAccessibilityModel Mist Sample ===
+square: 4 sides, fingerprint 10
+sides via same-compilation access: 4
+balance after deposit: 125
+currency (internal): USD
+north: magnitude 1
+frozen: value 21, checksum 42
+vector name (internal): north
+Done!

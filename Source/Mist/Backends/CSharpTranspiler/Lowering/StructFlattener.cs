@@ -28,10 +28,11 @@ internal sealed class StructFlattener
     {
         var fields = ImmutableArray.CreateBuilder<FlattenedField>();
         var methods = ImmutableArray.CreateBuilder<Method>();
+        var properties = ImmutableArray.CreateBuilder<Property>();
 
-        CollectInto(structType, fields, methods);
+        CollectInto(structType, fields, methods, properties);
 
-        return new FlattenedStruct(fields.ToImmutable(), methods.ToImmutable())
+        return new FlattenedStruct(fields.ToImmutable(), methods.ToImmutable(), properties.ToImmutable())
         {
             Ancestors = CollectAncestors(structType),
         };
@@ -50,15 +51,17 @@ internal sealed class StructFlattener
     private void CollectInto(
         StructType structType,
         ImmutableArray<FlattenedField>.Builder fields,
-        ImmutableArray<Method>.Builder methods)
+        ImmutableArray<Method>.Builder methods,
+        ImmutableArray<Property>.Builder properties)
     {
         var (baseStruct, constructedBase) = UnwrapBase(structType.BaseType);
         if(baseStruct is not null)
         {
             var inheritedFields = ImmutableArray.CreateBuilder<FlattenedField>();
             var inheritedMethods = ImmutableArray.CreateBuilder<Method>();
+            var inheritedProperties = ImmutableArray.CreateBuilder<Property>();
 
-            CollectInto(baseStruct, inheritedFields, inheritedMethods);
+            CollectInto(baseStruct, inheritedFields, inheritedMethods, inheritedProperties);
 
             // Before this struct's own fields, which is the ordering FlattenedStruct.Fields
             // guarantees.
@@ -80,6 +83,14 @@ internal sealed class StructFlattener
                     methods.Add(inheritedMethod);
                 }
             }
+
+            foreach(var inheritedProperty in inheritedProperties)
+            {
+                if(!DeclaresProperty(structType, inheritedProperty))
+                {
+                    properties.Add(Inheritable(inheritedProperty));
+                }
+            }
         }
 
         foreach(var field in structType.FieldsList)
@@ -96,6 +107,50 @@ internal sealed class StructFlattener
         {
             methods.Add(method);
         }
+
+        foreach(var property in structType.PropertiesList)
+        {
+            properties.Add(property);
+        }
+    }
+
+    private static bool DeclaresProperty(StructType structType, Property candidate)
+    {
+        foreach(var declared in structType.PropertiesList)
+        {
+            if(string.Equals(declared.Name, candidate.Name, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// The property as the absorbing struct must declare it. An ancestor's constructor becomes an
+    /// ordinary initializer METHOD on that struct (see <see cref="Emitter.StructInitEmitter"/>), and
+    /// C# allows writing a get-only or init-only auto-property only from a constructor -- so an
+    /// inherited one needs a plain setter for that initializer to reach, private because nothing
+    /// outside the struct gained the right to write it.
+    /// </summary>
+    private static Property Inheritable(Property property)
+    {
+        if(property.Setter is { IsInit: false })
+        {
+            return property;
+        }
+
+        return new Property(property.Name, property.Type, property.Modifiers)
+        {
+            Getter = property.Getter,
+            Setter = new PropertyAccessor
+            {
+                IsAuto = true,
+                Accessibility = Accessibility.Private,
+            },
+            Initializer = property.Initializer,
+        };
     }
 
     /// <summary>
@@ -197,12 +252,40 @@ internal sealed class StructFlattener
     /// </summary>
     private static (StructType? BaseStruct, ConstructedType? Constructed) UnwrapBase(MistType? baseType)
     {
+        // An intrinsic ancestor is dropped rather than flattened, so no fields are collected from it
+        // and no conversion to it is emitted. Reported by ReportIntrinsicBase, which runs once per
+        // struct rather than once per flatten.
         return baseType switch
         {
+            StructType { IsIntrinsic: true } => (null, null),
+            ConstructedType { Definition: StructType { IsIntrinsic: true } } => (null, null),
             StructType direct => (direct, null),
             ConstructedType constructed when constructed.Definition is StructType definition
                 => (definition, constructed),
             _ => (null, null),
         };
+    }
+
+    /// <summary>
+    /// Reports a struct that inherits an intrinsic struct. The immediate base only: every struct in a
+    /// chain is flattened in its own right, so a deeper intrinsic ancestor is reported against the
+    /// struct that names it, which is where the declaration a reader has to change actually sits.
+    /// </summary>
+    public static void ReportIntrinsicBase(StructType structType, DiagnosticBag diagnostics)
+    {
+        var declared = structType.BaseType switch
+        {
+            StructType direct => direct,
+            ConstructedType { Definition: StructType definition } => definition,
+            _ => null,
+        };
+
+        if(declared is not { IsIntrinsic: true } || structType.DeclarationNode is not { } node)
+        {
+            return;
+        }
+
+        diagnostics.ReportAtNode(
+            BackendDiagnostics.IntrinsicStructBase, node, null, structType.Name, declared.Name);
     }
 }

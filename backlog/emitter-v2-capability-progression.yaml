@@ -1125,17 +1125,22 @@ capabilities:
     order: 39
     layer: accessibility
     requires: [instance-fields, base-member-lookup]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
-      MemberModifierEmitter maps all four levels. What is missing is the DEFAULT rule --
-      FullAccessibilityModel relies on an omitted modifier resolving to private, in
-      Shape.SecretSalt and Frozen.checksum.
-    tasks:
-      - Confirm an omitted member modifier resolves to private.
-      - Permit same-type, derived-type and same-compilation non-derived access. The sample
-        only ever exercises permissive paths; the rejection cases belong in unit tests, not
-        here.
+      MemberModifierEmitter maps all four levels, and the DEFAULT rule holds: FullAccessibilityModel
+      relies on an omitted modifier resolving to private in Shape.SecretSalt and Frozen.checksum, and
+      both read correctly on v2 -- `fingerprint 10` is tag 7 plus SecretSalt 3, and `checksum 42` is a
+      modifier-less struct field. Banked through that sample.
+
+      PERMISSIVE PATHS ONLY, which is what keeps the rejection work in analysis_phase_tasks rather
+      than here. Every access in the sample is legal under "everything is public", so a compiler that
+      recorded the modifiers and never checked them passes it unchanged.
+    analysis_phase_tasks:
+      - >
+        Permit same-type, derived-type and same-compilation non-derived access, and reject the rest.
+        No sample can carry the rejection cases, since a sample must build clean -- they belong in
+        unit tests.
     unlocks: []
 
   - id: non-public-type-accessibility
@@ -1160,8 +1165,17 @@ capabilities:
       MemberModifiers.IsSealed exists and ModifierBuilder sets it, but neither
       MemberModifierEmitter nor TypeEmitter emits it. FullAccessibilityModel declares one
       sealed class and one sealed struct.
+
+      NOT WHAT GATED THAT SAMPLE, and it was wrongly listed among its requirements until the sample
+      was banked without this. CLASSIC DROPS SEALED TOO -- its committed out/Ledger.cs is
+      `public class Ledger`, not `public sealed class Ledger` -- and Tier 6 compares stdout, where a
+      sealed modifier is invisible. So the two pipelines already agree here by both omitting it.
+
+      WHEN IT IS BUILT, IT IS CLASS-ONLY. `sealed struct` is CS0106 in C#, and a Mist struct is
+      sealed in the C# sense the moment it is emitted as a struct at all, so the modifier has nothing
+      to add there.
     tasks:
-      - Emit sealed on type declarations.
+      - Emit sealed on CLASS declarations. Not on structs; see above.
       - Keep the sealed-with-protected-member warning from firing on Frozen, which
         deliberately has no protected member.
     unlocks: []
@@ -1170,17 +1184,65 @@ capabilities:
     name: Struct inheriting from another struct
     order: 42
     layer: accessibility
-    requires: [struct-declaration, base-member-lookup, sealed-modifier,
+    requires: [struct-declaration, base-member-lookup,
                accessibility-full-model, constructor-chain-base,
                constructor-chain-args-referencing-parameters,
                operators-arithmetic-comparison-logical, string-interpolation,
                var-type-inference, standard-library-binding]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       Mist-specific. Structs are inheritable, which is what makes protected and sealed
       meaningful on struct members. FullAccessibilityModel declares a struct with a struct
       base, a base chain, and inherited protected and internal field reads from the derived
-      struct.
+      struct. Banked in AllFeaturesV2, output byte-identical to classic.
+
+      TWO DEFECTS CLOSED TO GET THERE, both in the flattening lowering rather than here, and both
+      of which classic handled correctly.
+
+      PROPERTIES WERE NOT FLATTENED AT ALL. StructFlattener collected FieldsList and MethodsList
+      and never PropertiesList, so a derived struct inherited an ancestor's METHODS but not the
+      state they read -- the emitted struct carried a `Describe()` whose body named an `Amount`
+      that was never emitted, and every error landed on generated C#. The Mist binder had bound
+      those reads happily, so nothing upstream reported it. Fixed by collecting properties
+      ancestor-first under the same override-skipping rule as methods.
+      An inherited property needs a settable accessor the derived struct can reach: an ancestor's
+      constructor becomes an ordinary initializer METHOD (StructInitEmitter), and C# permits
+      writing a get-only or init-only auto-property only from a constructor. So a flattened
+      property carries a PRIVATE plain setter. Its own declaration is untouched, and nothing
+      outside the struct gains the right to write it.
+
+      ENCAPSULATED ANCESTOR STATE REFUSED TO BUILD. The conversion did `Ancestor result = default;`
+      then assigned each field, which cannot reach a field the ancestor keeps private -- so
+      MIST_BE_STRUCT_CONVERSION_FIELD refused the whole program. Not a corner case: `protected` is
+      remapped to private by the flattener, and an ordinary `private` field on a base struct hit it
+      too, with no `protected` anywhere. Measured refusing a program classic compiles and runs.
+      Fixed by routing construction through a generated private constructor plus an internal
+      `__FromParts` factory on every struct, so the READS happen on the derived struct's own members
+      and the WRITES happen inside the ancestor -- the one context C# allows for a private field, a
+      readonly field or a get-only auto-property. No cross-type access, no widened member, no layout
+      assumption, and it works on generic ancestors. See StructAncestorFactory.
+      Emitted unconditionally rather than only where something derives today, because a struct's own
+      compilation cannot see a derivation in a later one and a C# partial cannot span assemblies.
+      The constructor is discriminated from user signatures by a marker parameter type rather than a
+      dummy bool: its other parameters are the struct's own members, so a plausible user constructor
+      can match them exactly, and a constructor cannot be renamed out of the way.
+      MIST_BE_STRUCT_CONVERSION_FIELD is deleted; nothing can now reach it.
+
+      AN INTRINSIC STRUCT BASE IS NOW REFUSED, which was the worst of the three because it was
+      SILENT. `struct TaggedRange : Range` compiled clean and widened to a zeroed value: an intrinsic
+      type declares no fields for the flattener to find, so the conversion ignored its argument and
+      returned `default`. Mist cannot model an intrinsic struct's representation -- `Range` is
+      declared `intrinsic public struct Range { }` while System.Range holds `_start` and `_end` -- and
+      the base is not ours to emit a factory onto, so there is no mechanism that would make it
+      correct. Refused with MIST_BE_INTRINSIC_STRUCT_BASE at the derived declaration, and the base is
+      dropped from flattening so no bogus conversion is emitted either. Classic also fails here, but
+      as a Roslyn error on generated C# ("cannot derive from sealed type 'Range'"), so v2 now reports
+      it better rather than merely differently.
+    analysis_phase_tasks:
+      - >
+        Nothing here checks the accessibility it records. See accessibility-full-model (order 39),
+        whose tasks own that, and note FullAccessibilityModel exercises only permissive paths.
     unlocks: [FullAccessibilityModel]
 
   # ===================================================================
@@ -4289,8 +4351,29 @@ capabilities:
       - Prove generic substitution with a CONCRETE type argument, a struct extending
         `Container<int>` rather than `Container<T>`. The substitution is implemented but no
         sample reaches it.
-      - Copy a private or readonly ancestor field in the conversion operator. Refused with
-        MIST_BE_STRUCT_CONVERSION_FIELD rather than silently emitting a partial copy.
+      - >
+        DONE. A private or readonly ancestor field, and an ancestor property, now copy correctly:
+        the conversion calls a generated factory on the ancestor instead of assigning its fields from
+        outside. MIST_BE_STRUCT_CONVERSION_FIELD is deleted. See order 42.
+      - >
+        REINTERPRETATION IS NOT AVAILABLE AS A SHORTCUT HERE, and FlattenedStruct's doc comment
+        claimed otherwise until this was measured. The CLR honours LayoutKind.Sequential only for a
+        struct holding no managed reference, transitively; with one anywhere inside, references are
+        grouped first and a derived struct adding a reference of its own DISPLACES its ancestor's
+        fields, so a shared prefix does not sit at shared offsets. Generic structs are auto-laid-out
+        regardless. A struct with `int a; string s;` and a derived one appending `string t` was
+        measured moving `a` from offset 8 to 16, non-generic, with Sequential declared on both.
+        Reinterpretation is sound only where every field in the whole chain is an unmanaged value
+        type and no type parameter is involved -- `bool`, `char`, `nint` and nested value structs
+        qualify, so the predicate is `unmanaged` rather than blittable, and it is decidable at emit
+        time. Nothing needs it yet, because a copy serves by-value widening.
+      - >
+        `ref` WIDENING WILL NEED IT, and cannot use the copy. C# refuses a user-defined conversion at
+        a `ref` position (CS1503) because the callee needs the caller's storage, so widening a
+        `ref Derived` to a `ref Ancestor` requires aliasing, which only reinterpretation gives. That
+        makes the unmanaged predicate above a USER-VISIBLE LANGUAGE RULE rather than an optimization
+        switch: a struct with one `string` in its ancestry can be widened by value and not by `ref`.
+        Blocked behind ref-parameters-and-ref-locals (order 132), which is `broken`.
       - Name a generic ancestor more than one level up by its own arguments rather than the
         parent's. Correct only where the arguments pass straight through unchanged.
     unlocks: [AsOperator, StructInheritance]
@@ -4624,11 +4707,15 @@ samples:
                constructor-chain-this, struct-declaration, base-type-list,
                base-member-lookup, constructor-chain-base,
                constructor-chain-args-referencing-parameters, accessibility-full-model,
-               sealed-modifier, struct-inheritance]
+               struct-inheritance]
     untested:
       - Every accessibility level is exercised only on its permissive path. Every access in
         the sample is legal under "everything is public". A compiler that parsed, recorded
         and emitted the modifiers and never checked them passes the whole sample.
+      - >
+        sealed-modifier was listed as a requirement and is not one -- neither pipeline emits sealed,
+        and stdout cannot see it. Removed from `requires` when the sample was banked without it. See
+        order 41.
       - protected is indistinguishable from internal or public here. Both protected reads are
         from a derived type in the same compilation.
       - internal is indistinguishable from public -- single compilation, assembly boundary

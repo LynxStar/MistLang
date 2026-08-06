@@ -72,6 +72,7 @@ internal sealed class CSharpEmitterV2
         var closures = ConstraintClosureMap.Build((ProgramModel.Model.ProgramModel)programModel, diagnostics);
 
         EmitConstructorConstraintInterfaces(outputDir, emittedFiles);
+        EmitStructInitMarker(outputDir, emittedFiles);
 
         // The standard library is provided by the runtime, so its declarations are resolved
         // against but never emitted.
@@ -186,6 +187,21 @@ internal sealed class CSharpEmitterV2
 
         File.WriteAllText(fullPath, writer.ToString());
         emittedFiles.Add(fullPath);
+    }
+
+    private static void EmitStructInitMarker(string outputDir, List<string> emittedFiles)
+    {
+        var writer = new CSharpWriter();
+        writer.WriteLine($"namespace {ConstructorConstraintInterfaces.Namespace};");
+        writer.WriteBlankLine();
+        writer.WriteLine($"public readonly struct {StructAncestorFactory.MarkerTypeName}");
+        using(writer.Block())
+        {
+        }
+
+        var path = Path.Combine(outputDir, "__StructInit.g.cs");
+        File.WriteAllText(path, writer.ToString());
+        emittedFiles.Add(path);
     }
 
     /// <summary>

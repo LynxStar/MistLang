@@ -194,13 +194,19 @@ public static class BackendDiagnostics
         "Internal compiler error: the method group '{0}' reached emission without having been resolved to a single overload. This is a bug in the compiler, not an error in your source.");
 
     /// <summary>
-    /// A derived-to-base struct conversion cannot copy one of the base's fields, because the field
-    /// is private to the base or is readonly. Emitting the conversion anyway would produce a base
-    /// value missing part of its state.
+    /// A struct inherits an intrinsic struct. Flattening carries an ancestor's state into the
+    /// derived struct, and an intrinsic type declares no state to carry -- its representation is the
+    /// backend's, not the model's -- so the derived struct would silently drop whatever the ancestor
+    /// actually holds and widen to a zeroed value.
+    /// <para>
+    /// Refused rather than approximated. The state could only be reached by guessing at the runtime
+    /// type's private field names, which are undocumented and free to change, and the base is not
+    /// ours to emit a factory onto in any case.
+    /// </para>
     /// </summary>
-    public static readonly DiagnosticDescriptor StructConversionFieldInaccessible = new(
-        new DiagnosticId("MIST_BE_STRUCT_CONVERSION_FIELD"),
+    public static readonly DiagnosticDescriptor IntrinsicStructBase = new(
+        new DiagnosticId("MIST_BE_INTRINSIC_STRUCT_BASE"),
         DiagnosticSeverity.Error,
         PipelineStage.Backend,
-        "Cannot emit the conversion from '{1}' to '{0}' because field '{2}' is private or readonly and cannot be copied.");
+        "Struct '{0}' cannot inherit intrinsic struct '{1}'. An intrinsic type's representation belongs to the backend, so its state cannot be flattened into a derived struct.");
 }

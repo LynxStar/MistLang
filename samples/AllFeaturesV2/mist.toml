@@ -20,3 +20,4 @@ TargetTypedNew = { path = "../TargetTypedNew" }
 PropertyInitializers = { path = "../PropertyInitializers" }
 ShapeAbstracts = { path = "../ShapeAbstracts" }
 GenericConstraints = { path = "../GenericConstraints" }
+FullAccessibilityModel = { path = "../FullAccessibilityModel" }

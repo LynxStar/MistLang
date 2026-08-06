@@ -38,5 +38,6 @@ public class Program
         PropertyInitializers.Program.RunDemo();
         ShapeAbstracts.Program.RunDemo();
         GenericConstraints.Program.RunDemo();
+        FullAccessibilityModel.Program.RunDemo();
     }
 }

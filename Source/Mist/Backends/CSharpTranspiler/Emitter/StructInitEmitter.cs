@@ -43,6 +43,11 @@ internal static class StructInitEmitter
             _ = taken.Add(field.Name);
         }
 
+        foreach(var property in flattened.Properties)
+        {
+            _ = taken.Add(property.Name);
+        }
+
         var names = new Dictionary<StructType, string>();
         foreach(var ancestor in flattened.Ancestors)
         {

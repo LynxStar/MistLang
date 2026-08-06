@@ -35,9 +35,12 @@ internal static class TypeEmitter
 
         // Every struct, not only the ones with a base: flattening is also what remaps a struct's
         // own protected members, which C# rejects outright.
-        var flattened = type is StructType structType
-            ? new StructFlattener(diagnostics).Flatten(structType)
-            : null;
+        FlattenedStruct? flattened = null;
+        if(type is StructType structType)
+        {
+            StructFlattener.ReportIntrinsicBase(structType, diagnostics);
+            flattened = new StructFlattener(diagnostics).Flatten(structType);
+        }
 
         if(type is StructType)
         {
@@ -93,13 +96,20 @@ internal static class TypeEmitter
                 StructInitEmitter.EmitFor(ancestor, initNames!, writer, diagnostics, ref anyEmitted);
             }
 
+            if(flattened is not null)
+            {
+                EmitAncestorFactory((StructType)type, flattened, writer, ref anyEmitted);
+            }
+
             foreach(var ancestor in flattened?.Ancestors ?? [])
             {
                 SeparateMember(writer, ref anyEmitted);
                 StructConversionEmitter.Emit((StructType)type, ancestor, writer, diagnostics);
             }
 
-            foreach(var property in type.PropertiesList)
+            var properties = flattened?.Properties ?? (IReadOnlyList<Property>)type.PropertiesList;
+
+            foreach(var property in properties)
             {
                 SeparateMember(writer, ref anyEmitted);
                 PropertyEmitter.Emit(property, writer, diagnostics);
@@ -137,6 +147,33 @@ internal static class TypeEmitter
                 SeparateMember(writer, ref anyEmitted);
                 EmitConstraintFactory(type, signature, writer);
             }
+        }
+    }
+
+    private static void EmitAncestorFactory(
+        StructType type, FlattenedStruct flattened, CSharpWriter writer, ref bool anyEmitted)
+    {
+        var self = EmitTypeName(type);
+        var members = StructAncestorFactory.Members(flattened);
+        var parameters = StructAncestorFactory.Parameters(members);
+        var arguments = StructAncestorFactory.Arguments(members);
+        var name = StructAncestorFactory.Name(flattened);
+
+        SeparateMember(writer, ref anyEmitted);
+        writer.WriteLine($"private {CleanName(type)}({parameters})");
+        using(writer.Block())
+        {
+            for(var i = 0; i < members.Length; i++)
+            {
+                writer.WriteLine($"this.{members[i].Name} = p{i};");
+            }
+        }
+
+        SeparateMember(writer, ref anyEmitted);
+        writer.WriteLine($"internal static {self} {name}({parameters})");
+        using(writer.Block())
+        {
+            writer.WriteLine($"return new {self}({arguments});");
         }
     }
 

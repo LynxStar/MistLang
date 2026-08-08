@@ -199,6 +199,12 @@ internal sealed class CSharpEmitterV2
         {
         }
 
+        writer.WriteBlankLine();
+        writer.WriteLine($"public readonly struct {DefaultSynthesis.MarkerTypeName}");
+        using(writer.Block())
+        {
+        }
+
         var path = Path.Combine(outputDir, "__StructInit.g.cs");
         File.WriteAllText(path, writer.ToString());
         emittedFiles.Add(path);

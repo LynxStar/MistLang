@@ -98,7 +98,11 @@ internal static class StructAncestorFactory
     public static string Arguments(ImmutableArray<FactoryMember> members)
     {
         var arguments = members.Select((_, i) => $"p{i}").ToList();
-        arguments.Add("default");
+
+        // TYPED rather than a bare `default`, which converts to every one-parameter constructor. On a
+        // struct with no members this call passes the marker alone, so a bare default would leave it
+        // ambiguous against any single-argument constructor the struct declares.
+        arguments.Add($"default({MarkerType})");
         return string.Join(", ", arguments);
     }
 }

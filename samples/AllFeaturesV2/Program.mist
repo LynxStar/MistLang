@@ -40,5 +40,6 @@ public class Program
         GenericConstraints.Program.RunDemo();
         FullAccessibilityModel.Program.RunDemo();
         CastOperators.Program.RunDemo();
+        DefaultKeyword.Program.RunDemo();
     }
 }

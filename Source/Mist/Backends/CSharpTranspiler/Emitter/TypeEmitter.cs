@@ -146,6 +146,11 @@ internal static class TypeEmitter
                 CastOperatorEmitter.Emit(castOperator, type.DeclarationNode, writer, diagnostics);
             }
 
+            if(concrete is not null && DefaultSynthesis.IsDefaultable(type))
+            {
+                DefaultEmitter.Emit(concrete, writer, diagnostics, ref anyEmitted);
+            }
+
             foreach(var inherited in concrete is null ? [] : DefaultMemberDuplication.For(concrete, methods))
             {
                 SeparateMember(writer, ref anyEmitted);

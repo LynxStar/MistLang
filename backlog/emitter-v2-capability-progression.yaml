@@ -1628,7 +1628,7 @@ capabilities:
     order: 49
     layer: initialization
     requires: [field-initializers]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
       Neither form bound: both DefaultExpression and DefaultLiteralExpression are Primary alternatives
@@ -1653,10 +1653,8 @@ capabilities:
       compile -- the difference between `missing` and `broken` in this file's own terms. DefaultKeyword
       went from 8 errors to 5, the survivors being exactly the five class and struct defaults.
       A type parameter with a default constraint lands in the same arm; see default-generic-constraint.
-    tasks:
-      - >
-        Emit a class or struct default as the synthesized factory call. Blocked on order 50, which is
-        what emits the factory, and the two land together.
+      CLOSED BY ORDER 50, which supplied the factory the class and struct arm needed. That arm now emits
+      the factory call, and DefaultKeyword's remaining five errors went with it.
     unlocks: []
 
   - id: default-value-synthesis
@@ -1666,19 +1664,69 @@ capabilities:
     requires: [default-expression, readonly-struct, explicit-this-member-read,
                object-creation, string-interpolation, var-type-inference,
                standard-library-binding]
-    v2_status: missing
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
-      From DefaultKeyword/out/Main.cs -- every class gets a parameterless constructor
-      assigning each field its type default plus a static factory; field initializers are
-      replayed into that constructor; a default block replaces field-default synthesis; and
-      when the parameterless slot is already taken the block routes through a private
-      sentinel constructor taking a dummy parameter.
+      PARTIAL, and the residue is reachable in two lines of Mist rather than exotic: a class holding
+      another class cannot be defaulted. `default(Outer)` where Outer has an Inner field reports the
+      backend sentinel on v2 and prints `Outer(Count=0, Child=Inner(Value=0, Tag=))` on classic. See the
+      first task -- a field with no LITERAL default currently makes the whole type non-defaultable, and
+      the recursion that would give it one is unbuilt. This was recorded `done` first, on the strength of
+      the sample being byte-identical, which is exactly the false-green this file exists to prevent.
+
+      What IS delivered: every defaultable type gets a parameterless initializer assigning each field its
+      default plus a static __CreateDefault factory, so `default(T)` becomes an ordinary call. Banked in
+      AllFeaturesV2, output byte-identical to classic, including the three cases that distinguish the
+      layers: Settings replaying its field initializers, AppState's block REPLACING the field defaults
+      rather than adding to them, and Container diverging between `new` (99, constructed) and `default`
+      (42, defaulted).
+
+      THE MODEL ALREADY HELD THE BLOCK, unbound. ConcreteTypeBuilder.ResolveDefaultBlock parked each
+      entry's value as an UnresolvedExpression, so the block parsed and nothing could read it. Now bound
+      in Phase 3 against the type of the field each entry names, through the same BodyBinder.BindInitializer
+      a field initializer takes. An entry naming no declared field is left unbound rather than reported:
+      whether a block may name a member the type does not declare is a judgement on a finished model.
+
+      DEFAULTABILITY IS A GATE, NOT A DIAGNOSTIC. A type is defaultable only if it declares no
+      constructor or declares a parameterless one, its base is defaultable, and every field has an
+      answer. Requiring arguments is the author saying there is no sensible zero, and for a derived type
+      it is a hard limit besides -- a synthesized parameterless constructor would need a base call that
+      does not exist. Classic REPORTS the bad cases (MIST_BASE_CTOR_UNSATISFIED and
+      MIST_DEFAULT_BASE_NOT_DEFAULTABLE, measured); v2 declines to emit and stays silent, because
+      refusing a program is analysis-phase work. The predicate was verified against both banked samples
+      rather than derived: DefaultKeyword's six types all qualify, and CastOperators' five
+      parameterized-constructor types do not, which is exactly the set classic skips.
+
+      A SEPARATE MARKER FROM THE ANCESTOR FACTORY, and that is required rather than tidy. On a struct
+      with no fields and no properties StructAncestorFactory's constructor takes its marker ALONE, so one
+      marker serving both lowerings would put two identical signatures on the same type.
+
+      A BARE `default` ARGUMENT WAS AMBIGUOUS, and this is the one that broke a banked sample before it
+      was caught. `new T(default)` converts to EVERY one-parameter constructor, so the factory call was
+      ambiguous on any type declaring one -- three errors across Overloading and GenericConstraints,
+      naming Printer(string), OrderableInt(int) and Widget(int)/Widget(bool). The marker argument is now
+      typed. Classic avoids this only by passing a dummy `true`, which is the collision hazard order 42
+      rejected.
     tasks:
-      - Synthesize a parameterless constructor and a default factory per type.
-      - Replay field initializers into the synthesized constructor.
-      - Let a default block override field-default synthesis.
-      - Route through a sentinel constructor when the type already declares a parameterless
-        one, so construction and defaulting diverge correctly.
+      - >
+        Recurse into a field whose type is itself defaultable, which classic calls NestedTypeDefault and
+        emits as a nested __CreateDefault call. THE ONE THAT MAKES THIS PARTIAL: such a field currently
+        makes the whole type non-defaultable, so no synthesis is emitted and `default` on it reports the
+        sentinel. Safe rather than wrong -- nothing uncompilable is emitted -- but it refuses a program
+        classic runs, and it needs only a class holding a class. No sample reaches it, DefaultKeyword's
+        fields all being intrinsic, which is why the sample going green did not catch it.
+        OptionalDefaultability is the sample that will force it: its OptionalHolder holds an `int?`, a
+        field with no literal default, so under the current rule that type is non-defaultable too. That
+        sample needs unions and enums first, so a probe is the only check until then.
+      - >
+        Support a default block's TYPE BINDING form, `field : Type { nested }`, which the model already
+        parses into DefaultBindingEntry and nothing reads. It is how classic gives a non-defaultable
+        field an answer, so it and the recursion above are one piece of work.
+    analysis_phase_tasks:
+      - >
+        Report a type that cannot be defaulted where something defaults it, rather than silently emitting
+        no factory and letting the use site fall to the backend sentinel. Classic's two diagnostics are
+        the model. Also report a default block entry naming a member the type does not declare.
     unlocks: [DefaultKeyword]
 
   # ===================================================================

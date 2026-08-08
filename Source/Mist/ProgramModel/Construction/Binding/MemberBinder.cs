@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Binding;
@@ -52,12 +53,38 @@ internal static class MemberBinder
                 field.Initializer = BodyBinder.BindInitializer(
                     field.Initializer, field.Type, memberType.Scope, context);
             }
+
+            BindDefaultBlock(concreteType, context);
         }
 
         foreach(var property in memberType.PropertiesList)
         {
             property.Initializer = BodyBinder.BindInitializer(
                 property.Initializer, property.Type, memberType.Scope, context);
+        }
+    }
+
+    /// <summary>
+    /// Binds a default block's overrides against the type of the field each names. An entry naming no
+    /// declared field is left unbound rather than reported: whether a default block may name something
+    /// the type does not declare is a rule about a finished model, and nothing here refuses one.
+    /// </summary>
+    private static void BindDefaultBlock(ConcreteType concreteType, BuilderContext context)
+    {
+        if(concreteType.DefaultBlock is null)
+        {
+            return;
+        }
+
+        foreach(var entry in concreteType.DefaultBlock.Entries.OfType<DefaultValueEntry>())
+        {
+            var field = concreteType.FieldsList.Find(f => f.Name == entry.FieldName);
+
+            if(field is not null)
+            {
+                entry.Value = BodyBinder.BindInitializer(
+                    entry.Value, field.Type, concreteType.Scope, context)!;
+            }
         }
     }
 

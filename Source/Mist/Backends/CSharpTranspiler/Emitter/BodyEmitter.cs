@@ -328,8 +328,13 @@ internal static class BodyEmitter
                 writer.Append(EmitLiteral(literal));
                 break;
 
-            case DefaultExpression @default when EmitDefaultOrNull(@default.Type) is { } value:
+            case DefaultExpression @default when EmitTypeDefault(@default.Type) is { } value:
                 writer.Append(value);
+                break;
+
+            case DefaultExpression @default when @default.Type is MemberType memberType
+                && DefaultSynthesis.IsDefaultable(memberType):
+                writer.Append($"{TypeNameEmitter.Emit(@default.Type)}.{DefaultSynthesis.FactoryName}()");
                 break;
 
             default:
@@ -357,7 +362,7 @@ internal static class BodyEmitter
     /// not emitted yet; returning null leaves the expression to the sentinel below, so the gap is
     /// reported against Mist source instead of emitted as C# that would not compile.
     /// </summary>
-    private static string? EmitDefaultOrNull(IMistType type)
+    internal static string? EmitTypeDefault(IMistType type)
     {
         if(type is not ConcreteType { IsIntrinsic: true })
         {

@@ -27,9 +27,10 @@ internal abstract class DefaultEntry
 internal sealed class DefaultValueEntry : DefaultEntry
 {
     /// <summary>
-    /// The initializer expression.
+    /// The initializer expression. Parked unbound by the type builder and replaced in Phase 3, the
+    /// same two-step a field initializer takes, because binding it needs the enclosing type's scope.
     /// </summary>
-    public Expression Value { get; }
+    public Expression Value { get; internal set; }
 
     public DefaultValueEntry(string fieldName, Expression value) : base(fieldName)
     {

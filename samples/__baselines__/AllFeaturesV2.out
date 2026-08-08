@@ -319,3 +319,18 @@ Done!
 --- Explicit cast on derived type ---
   Weight 72.5 as Kelvin: 72.5 K
 Done!
+=== Default Keyword Sample ===
+--- Primitive Defaults ---
+int=0 bool=False string=
+--- Class Default (zero-init) ---
+Config(MaxRetries=0, Verbose=False, Label=)
+--- Class Default (field initializers) ---
+Settings(Timeout=30, Enabled=True, Mode=auto)
+--- Bare Default (inferred) ---
+Config(MaxRetries=0, Verbose=False, Label=)
+--- Explicit Default Block ---
+AppState(ErrorCount=5, Ready=True, Status=initialized)
+--- Readonly Struct: new vs default ---
+new Container() = Container(Code=99, Label=constructed)
+default(Container) = Container(Code=42, Label=defaulted)
+Done!

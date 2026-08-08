@@ -91,6 +91,58 @@ public class OptionalHolder
     public int? MaybeValue;
 }
 
+// ─── Default block type binding ──────────────────────────────────────────────
+// PROOF: an abstract-typed field has no default of its own, so the block names the
+//        concrete type to build for it: `field : ConcreteType`
+// PROOF: the braced form also overrides that concrete type's own fields
+// PROOF: two fields of the SAME abstract type bind to DIFFERENT concrete types, so
+//        the binding is per-field and not per-abstract-type
+// PROOF: a binding with no braces falls back to the bound type's own defaults
+public abstract Shape
+{
+    string Describe();
+}
+
+public class Circle : Shape
+{
+    public int Radius;
+    public string Label;
+
+    public string Describe()
+    {
+        return $"Circle(Radius={Radius}, Label={Label})";
+    }
+}
+
+public class Square : Shape
+{
+    public int Side;
+
+    public string Describe()
+    {
+        return $"Square(Side={Side})";
+    }
+}
+
+public class Scene
+{
+    public int Layers;
+    public Shape Primary;
+    public Shape Secondary;
+
+    // A braceless binding must come LAST. Putting a further entry after one makes the
+    // classic pipeline collect that entry as a nested override of the bound type as well
+    // as a sibling, so `Layers = 3` after `Secondary : Square` emits
+    // `__temp_Secondary.Layers = 3` and fails to compile. The parse is correct -- the
+    // entry is a sibling -- so this is nested-override collection over-reaching, and the
+    // shape below avoids it rather than relying on it.
+    default {
+        Layers = 3
+        Primary : Circle { Radius = 7 Label = "primary" }
+        Secondary : Square
+    }
+}
+
 // ─── Array stampable-vs-initializer model ────────────────────────────────────
 // PROOF: int[] works because int is stampable (primitive) — bare new int[N] accepted
 // PROOF: Point[] requires initializer construction because Point is a class (reference type)
@@ -156,6 +208,13 @@ public class Program
         // 7. Arrays — stampable vs. initializer construction
         Console.WriteLine("--- Array Stampability ---");
         ArrayDemo.ShowArrays();
+
+        // 8. Default block type binding — abstract-typed fields bound to concrete types
+        Console.WriteLine("--- Default Block Type Binding ---");
+        Scene scene = default(Scene);
+        Console.WriteLine($"  layers={scene.Layers}");
+        Console.WriteLine($"  primary={scene.Primary.Describe()}");
+        Console.WriteLine($"  secondary={scene.Secondary.Describe()}");
 
         Console.WriteLine("Done!");
     }

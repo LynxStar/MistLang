@@ -1721,7 +1721,17 @@ capabilities:
       - >
         Support a default block's TYPE BINDING form, `field : Type { nested }`, which the model already
         parses into DefaultBindingEntry and nothing reads. It is how classic gives a non-defaultable
-        field an answer, so it and the recursion above are one piece of work.
+        field an answer, so it and the recursion above are one piece of work. NOW HAS A SAMPLE:
+        OptionalDefaultability.Scene, added because nothing exercised the construct at all.
+
+        LIVE DEFECT IN CLASSIC, which v2 must not reproduce. A BRACELESS binding collects every
+        FOLLOWING entry in the block as its own nested override, on top of that entry applying
+        normally. `First : Square` then `Layers = 3` emits both `__temp_First.Layers = 3` and
+        `this.Layers = 3`, and the first does not compile. The parse is correct -- the entry is a
+        sibling -- so this is nested-override collection over-reaching. v2 is structurally immune
+        because ConcreteTypeBuilder.ResolveNestedOverrides reads NestedEntries off the AST node, which
+        is empty when no braces are written. The sample puts its braceless binding last to avoid the
+        shape, with a comment saying why.
     analysis_phase_tasks:
       - >
         Report a type that cannot be defaulted where something defaults it, rather than silently emitting
@@ -5997,9 +6007,14 @@ uncovered_constructs:
 
   - construct: DefaultTypeBindingDefaultFieldInitializerNode
     what: The type-binding form inside a default block
-    disposition: needs-sample
+    disposition: covered
     capability: default-value-synthesis
-    note: DefaultKeyword covers the field-override form only.
+    note: >
+      DefaultKeyword covers the field-override form only, so OptionalDefaultability was extended to
+      cover this one. Scene binds two fields of the SAME abstract type to DIFFERENT concrete types,
+      one braced with two nested overrides and one braceless falling back to the bound type's own
+      defaults, alongside a plain override in the same block. Runs on classic; v2 does not implement
+      type bindings yet, and the sample is not banked in AllFeaturesV2.
 
   - construct: ExpressionInitAccessorAccessorDeclarationNode
     what: An expression-bodied init accessor

@@ -1533,6 +1533,10 @@ absent ?? 42: 42
 --- Array Stampability ---
   ints[0]=0 ints[1]=0 ints[2]=0
   points[0].X=0 points[0].Y=0
+--- Default Block Type Binding ---
+  layers=3
+  primary=Circle(Radius=7, Label=primary)
+  secondary=Square(Side=0)
 Done!
 === Substructural Field Discipline Sample ===
 --- 1. Linear container holds linear field ---

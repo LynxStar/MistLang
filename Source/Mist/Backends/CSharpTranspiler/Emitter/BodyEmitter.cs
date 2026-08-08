@@ -1,5 +1,6 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Statements;
@@ -327,6 +328,10 @@ internal static class BodyEmitter
                 writer.Append(EmitLiteral(literal));
                 break;
 
+            case DefaultExpression @default when EmitDefaultOrNull(@default.Type) is { } value:
+                writer.Append(value);
+                break;
+
             default:
                 // Still written, invalid though it is, so the emitted file stays readable for whoever
                 // is diagnosing the gap. The build stops before Roslyn ever parses it.
@@ -344,6 +349,27 @@ internal static class BodyEmitter
                 writer.Append($"/* unsupported: {unsupportedKind} */");
                 break;
         }
+    }
+
+    /// <summary>
+    /// The default of a type as C# text, or null where that default is a CONSTRUCTED value rather than a
+    /// literal one. A class or struct defaults to an instance built by a synthesized factory, which is
+    /// not emitted yet; returning null leaves the expression to the sentinel below, so the gap is
+    /// reported against Mist source instead of emitted as C# that would not compile.
+    /// </summary>
+    private static string? EmitDefaultOrNull(IMistType type)
+    {
+        if(type is not ConcreteType { IsIntrinsic: true })
+        {
+            return null;
+        }
+
+        // Mist's string default is the empty string where C#'s is null, so this is the one intrinsic
+        // whose default cannot be spelled by deferring to C#. The rest agree, and naming the C# form
+        // keeps their widths and signedness in one place rather than restating a zero per type.
+        return type.FullyQualifiedName == WellKnownTypes.String.FullyQualifiedName
+            ? "\"\""
+            : $"default({TypeNameEmitter.Emit(type)})";
     }
 
     private static void EmitNew(NewExpression newExpression, CSharpWriter writer, DiagnosticBag diagnostics)

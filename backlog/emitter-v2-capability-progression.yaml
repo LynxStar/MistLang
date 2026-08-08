@@ -1628,14 +1628,35 @@ capabilities:
     order: 49
     layer: initialization
     requires: [field-initializers]
-    v2_status: missing
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
-      No BodyEmitter case. Mist diverges from C# here -- the default of string is the empty
-      string, and the default of a CLASS yields a live instance via a synthesized factory
-      rather than null.
+      Neither form bound: both DefaultExpression and DefaultLiteralExpression are Primary alternatives
+      with no case in BindPrimary, so each fell to a sentinel. Closed with a DefaultExpression model
+      node carrying the resolved type and nothing else -- what the default OF that type is belongs to
+      whoever consumes it, since a class default is a constructed instance rather than a value the
+      expression can hold.
+
+      EVERY INTRINSIC CATEGORY NOW EMITS, measured byte-identical to classic across int, long, byte,
+      double, float, decimal, bool, char and string, in both the named and the bare form. STRING IS THE
+      ONE THAT CANNOT DEFER: Mist's default is the empty string where C#'s is null, so it emits `""`
+      while the rest emit `default(T)` and let C# supply a zero it already agrees on. Naming the C# form
+      for those keeps their widths and signedness in one place rather than restating a zero per type.
+
+      A BARE default TAKES THE TYPE FROM ITS POSITION, and one with no position to take it from is
+      refused at the Mist source as MIST_PM_DEFAULT_NO_TARGET, with a message naming the remedy. Classic
+      reports the same case TWICE, so v2 is one report better rather than merely different.
+
+      PARTIAL because a class or struct default is not emitted: it is an instance built by the
+      synthesized factory that order 50 supplies. That arm deliberately returns null and falls to the
+      sentinel, so the gap is reported against Mist source rather than emitted as C# that would not
+      compile -- the difference between `missing` and `broken` in this file's own terms. DefaultKeyword
+      went from 8 errors to 5, the survivors being exactly the five class and struct defaults.
+      A type parameter with a default constraint lands in the same arm; see default-generic-constraint.
     tasks:
-      - Determine a type's default per category, with string defaulting to the empty string.
-      - Target-type a bare default from the declaration.
+      - >
+        Emit a class or struct default as the synthesized factory call. Blocked on order 50, which is
+        what emits the factory, and the two land together.
     unlocks: []
 
   - id: default-value-synthesis

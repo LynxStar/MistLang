@@ -67,9 +67,27 @@ internal static class ExpressionBinder
             ObjectCreationExpressionNoArgsPrimaryNode noArgs => BindObjectCreationNoArgs(noArgs, ctx, context),
             TargetTypedNewExpressionPrimaryNode targetTypedNew => BindTargetTypedNew(targetTypedNew, ctx, context),
             FieldKeywordExpressionPrimaryNode fieldKeyword => BindFieldKeyword(fieldKeyword, ctx, context),
+            DefaultExpressionPrimaryNode named => new DefaultExpression(
+                named, context.Resolver.Resolve(named.Type, ctx.Scope)),
+            DefaultLiteralExpressionPrimaryNode bare => BindBareDefault(bare, ctx, context),
 
             _ => new UnresolvedExpression(node),
         };
+    }
+
+    /// <summary>
+    /// Binds a bare <c>default</c>, whose type is the one the position expects.
+    /// </summary>
+    private static Expression BindBareDefault(
+        DefaultLiteralExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
+    {
+        if(ctx.TargetType is not { } target || target is ErrorType)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.DefaultNeedsTargetType, node, null);
+            return new ErrorExpression(node);
+        }
+
+        return new DefaultExpression(node, target);
     }
 
     private static Expression BindFieldKeyword(FieldKeywordExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)

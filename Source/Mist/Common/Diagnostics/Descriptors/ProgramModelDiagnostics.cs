@@ -452,6 +452,13 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "The type of 'new(...)' cannot be determined at this position. Name it, as in 'new Point(...)'.");
 
+    /// <summary>A bare <c>default</c> appears where nothing supplies the type to default.</summary>
+    public static readonly DiagnosticDescriptor DefaultNeedsTargetType = new(
+        new DiagnosticId("MIST_PM_DEFAULT_NO_TARGET"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "The type of 'default' cannot be determined at this position. Name it, as in 'default(int)'.");
+
     /// <summary>A <c>new(...)</c> is targeted at something no constructor can produce.</summary>
     public static readonly DiagnosticDescriptor TargetTypeNotConstructible = new(
         new DiagnosticId("MIST_PM_TARGET_TYPE_NOT_CONSTRUCTIBLE"),

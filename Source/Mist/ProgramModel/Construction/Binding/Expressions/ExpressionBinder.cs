@@ -242,7 +242,7 @@ internal static class ExpressionBinder
         {
             var name = MistType.StripArity(definition.Name);
 
-            OverloadResolution.ReportFailure(
+            OverloadFailure.Report(
                 choice, concrete.ConstructorsList, arguments.Count,
                 $"constructor '{name}'", node, context.Diagnostics);
         }

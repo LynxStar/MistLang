@@ -8,50 +8,10 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramModel.Construction.Binding;
 
 /// <summary>
-/// What a call's arguments picked out of its candidates. A null <see cref="Selected"/> leaves exactly
-/// one of the five failure members non-empty, since each carries a different diagnostic.
-/// </summary>
-internal sealed class OverloadChoice<T>
-    where T : Method
-{
-    public required T? Selected { get; init; }
-
-    public bool NoArityMatch { get; init; }
-
-    /// <summary>
-    /// The receiver's type arguments and the method's own, together. <see cref="Selected"/> is the
-    /// declaration, so its signature has to be read through this.
-    /// </summary>
-    public TypeSubstitution Substitution { get; init; } = TypeSubstitution.Empty;
-
-    /// <summary>
-    /// The candidates that tied, empty unless the call is ambiguous. Each is applicable and none is
-    /// beaten by another, so choosing between them would be arbitrary.
-    /// </summary>
-    public IReadOnlyList<T> Ambiguous { get; init; } = [];
-
-    /// <summary>
-    /// The arity matches, empty unless every one of them failed applicability. Distinct from
-    /// <see cref="Ambiguous"/> in what it rests on: a tie is several positive results, this is none.
-    /// </summary>
-    public IReadOnlyList<T> Unresolvable { get; init; } = [];
-
-    /// <summary>
-    /// The arity matches, empty unless every one of them is generic and left a type parameter
-    /// undetermined.
-    /// </summary>
-    public IReadOnlyList<T> Uninferred { get; init; } = [];
-
-    /// <summary>
-    /// The arity matches, empty unless the call stated type arguments and no candidate declares that
-    /// many type parameters.
-    /// </summary>
-    public IReadOnlyList<T> TypeArgumentMismatch { get; init; } = [];
-}
-
-/// <summary>
-/// Chooses which overload a call selects, in C#'s three stages: filter by arity, keep the candidates
-/// every argument is convertible to, then take the best of those.
+/// Chooses which overload a call selects, in three stages: filter by arity, keep the candidates every
+/// argument can reach, then take the best of those. Reporting a failed choice belongs to
+/// <see cref="OverloadFailure"/>; the applicability and betterness rules stay here, since they are what
+/// <see cref="Select"/> does rather than a separate concern it consults.
 /// <para>
 /// <see cref="ConversionRelation"/> is partial and documents the obligation that comes with it: it may
 /// narrow and rank, never refuse. That bars selection from reading an eliminated candidate as proof
@@ -214,123 +174,6 @@ internal static class OverloadResolution
     }
 
     /// <summary>
-    /// Reports whichever failure a null <see cref="OverloadChoice{T}.Selected"/> stands for. Called
-    /// only where selection failed; with a winner in hand there is nothing here to say.
-    /// <para>
-    /// Lives here rather than at the two call sites because the states have to be told apart together.
-    /// <see cref="OverloadChoice{T}.Ambiguous"/> is empty for every other failure, so a site testing
-    /// only some of them reports a tie between no candidates at all.
-    /// </para>
-    /// </summary>
-    /// <param name="description">
-    /// Names the callee, and appears mid-sentence in every message, so it is lower case and carries
-    /// its own kind: <c>method 'Format'</c>.
-    /// </param>
-    public static void ReportFailure<T>(
-        OverloadChoice<T> choice,
-        IReadOnlyList<T> candidates,
-        int argumentCount,
-        string description,
-        Storm.Runtime.SyntaxNode node,
-        DiagnosticBag diagnostics)
-        where T : Method
-    {
-        if(choice.NoArityMatch)
-        {
-            diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.NoApplicableOverload, node, null,
-                description, argumentCount, DescribeArities(candidates));
-
-            return;
-        }
-
-        if(choice.TypeArgumentMismatch.Count > 0)
-        {
-            diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.TypeArgumentCountMismatch, node, null,
-                description, DescribeTypeArities(choice.TypeArgumentMismatch));
-
-            return;
-        }
-
-        if(choice.Uninferred.Count > 0)
-        {
-            diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.TypeArgumentsNotInferred, node, null,
-                description, DescribeTypeParameters(choice.Uninferred));
-
-            return;
-        }
-
-        if(choice.Unresolvable.Count > 0)
-        {
-            diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.UnresolvableOverload, node, null,
-                description, DescribeSignatures(choice.Unresolvable));
-
-            return;
-        }
-
-        diagnostics.ReportAtNode(
-            ProgramModelDiagnostics.AmbiguousOverload, node, null,
-            description, DescribeSignatures(choice.Ambiguous));
-    }
-
-    private static string DescribeTypeArities<T>(IReadOnlyList<T> candidates)
-        where T : Method
-    {
-        var arities = new SortedSet<int>();
-        foreach(var candidate in candidates)
-        {
-            _ = arities.Add(candidate.TypeParametersList.Count);
-        }
-
-        return string.Join(", ", arities);
-    }
-
-    /// <summary>
-    /// Every type parameter the first candidate declares, determined or not, because a call states all
-    /// of a method's type arguments or none and so all of them are what the user has to write. Which
-    /// ones went undetermined is therefore not worth carrying out of selection.
-    /// </summary>
-    private static string DescribeTypeParameters<T>(IReadOnlyList<T> candidates)
-        where T : Method
-    {
-        var names = candidates[0].TypeParametersList.Select(parameter => $"'{parameter.Name}'");
-
-        return string.Join(", ", names);
-    }
-
-    /// <summary>
-    /// The parameter counts on offer, ascending and deduplicated, for a diagnostic that would
-    /// otherwise say the call was wrong without saying what would be right.
-    /// </summary>
-    public static string DescribeArities<T>(IReadOnlyList<T> candidates)
-        where T : Method
-    {
-        var arities = new SortedSet<int>();
-        foreach(var candidate in candidates)
-        {
-            _ = arities.Add(candidate.ParametersList.Count);
-        }
-
-        return string.Join(", ", arities);
-    }
-
-    /// <summary>
-    /// The tied candidates as parameter lists, spelled the way source spells types, so the reader can
-    /// match them against what they wrote.
-    /// </summary>
-    public static string DescribeSignatures<T>(IReadOnlyList<T> candidates)
-        where T : Method
-    {
-        var signatures = candidates
-            .Select(c => $"({string.Join(", ", c.ParametersList.Select(p => TypeDisplay.Mist(p.Type)))})");
-
-        return string.Join(", ", signatures);
-    }
-
-    /// <summary>
     /// The candidates no other candidate beats. One means a winner; several mean a tie.
     /// <para>
     /// Every candidate is compared against every other rather than against a running winner, because
@@ -382,7 +225,7 @@ internal static class OverloadResolution
 
         foreach(var candidate in tied)
         {
-            if(!seen.Add(DescribeSignatures(new[] { candidate })))
+            if(!seen.Add(OverloadFailure.DescribeSignatures(new[] { candidate })))
             {
                 return false;
             }
@@ -409,9 +252,9 @@ internal static class OverloadResolution
     /// Whether <paramref name="left"/> beats <paramref name="right"/>: no argument converts worse to
     /// it, and at least one converts better. Both are already applicable, so this only orders them.
     /// <para>
-    /// A non-generic candidate wins an otherwise-exact tie, as it does in C#: closing a generic
-    /// candidate can make its parameter types identical to a non-generic sibling's, and the call would
-    /// then be refused as ambiguous between a method and its own specialisation.
+    /// A non-generic candidate wins an otherwise-exact tie: closing a generic candidate can make its
+    /// parameter types identical to a non-generic sibling's, and the call would then be refused as
+    /// ambiguous between a method and its own specialisation.
     /// </para>
     /// </summary>
     private static bool IsBetter<T>(
@@ -445,10 +288,10 @@ internal static class OverloadResolution
     /// Which of two parameter types is the better destination for the same argument. Negative for
     /// <paramref name="left"/>, positive for <paramref name="right"/>, zero when neither is better.
     /// <para>
-    /// Exact beats converted. Otherwise the narrower target wins, established by asking which
-    /// direction converts: <c>int</c> beats <c>long</c> because int widens to long and long does not
-    /// narrow to int. Two mutually unconvertible targets tie, which is what an ambiguous call is
-    /// made of.
+    /// Exact beats converted. Otherwise the narrower target wins, established by asking which CONTAINS
+    /// the other rather than which is reachable from it -- see <see cref="ConversionRelation.IsWithin"/>.
+    /// Two mutually uncontained targets tie, which is what an ambiguous call is made of, and DIVERGES
+    /// FROM CLASSIC where a user-declared operator between them resolves the call instead.
     /// </para>
     /// </summary>
     private static int CompareConversions(IMistType argument, IMistType left, IMistType right)
@@ -466,9 +309,6 @@ internal static class OverloadResolution
             return leftIsExact ? -1 : 1;
         }
 
-        // Which target contains the other, not which is reachable from it -- see
-        // ConversionRelation.IsWithin. DIVERGES FROM CLASSIC, which resolves such a call rather than
-        // refusing it.
         var leftToRight = ConversionRelation.IsWithin(left, right);
         var rightToLeft = ConversionRelation.IsWithin(right, left);
 

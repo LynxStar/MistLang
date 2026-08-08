@@ -16,7 +16,7 @@ internal static class CastOperatorEmitter
     {
         ParameterEmitter.ReportUnsupportedRef(castOperator.ParametersList, locationNode, diagnostics);
 
-        var modifiers = MemberModifierEmitter.Emit(castOperator.Modifiers);
+        var modifiers = MemberModifierEmitter.Emit(castOperator.Modifiers, emitReadonly: false);
         var kind = castOperator.IsImplicit ? "implicit" : "explicit";
         var targetType = TypeNameEmitter.Emit(castOperator.TargetType);
         var parameters = ParameterEmitter.Emit(castOperator.ParametersList);

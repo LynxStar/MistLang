@@ -31,6 +31,7 @@ internal static class TypeEmitter
             _ => throw new InvalidOperationException($"ICE: unexpected MemberType kind '{type.GetType().Name}' in TypeEmitter"),
         };
         var accessibility = type.Modifiers.Accessibility == Accessibility.Public ? "public " : "";
+        var readonlyModifier = type.IsReadonly && type is StructType ? "readonly " : "";
         var typeName = EmitTypeName(type);
 
         // Every struct, not only the ones with a base: flattening is also what remaps a struct's
@@ -51,12 +52,15 @@ internal static class TypeEmitter
                 "[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]");
         }
 
-        writer.WriteLine($"{accessibility}{typeKeyword} {typeName}{EmitBaseList(type, closedConstraints)}");
+        writer.WriteLine(
+            $"{accessibility}{readonlyModifier}{typeKeyword} {typeName}{EmitBaseList(type, closedConstraints)}");
         ConstraintEmitter.Emit(type.TypeParametersList, writer);
         using(writer.Block())
         {
             var concrete = type as ConcreteType;
             var anyEmitted = false;
+            var inStruct = type is StructType;
+            var inReadonlyStruct = inStruct && type.IsReadonly;
 
             // Fields first so they read as the type's state before the members that use
             // it, and because C# requires nothing of the order. Each is a single line, so
@@ -66,7 +70,7 @@ internal static class TypeEmitter
             {
                 foreach(var field in flattened.Fields)
                 {
-                    FieldEmitter.Emit(field, writer, diagnostics);
+                    FieldEmitter.Emit(field, inReadonlyStruct, writer, diagnostics);
                     anyEmitted = true;
                 }
             }
@@ -74,7 +78,7 @@ internal static class TypeEmitter
             {
                 foreach(var field in concrete?.FieldsList ?? [])
                 {
-                    FieldEmitter.Emit(field, writer, diagnostics);
+                    FieldEmitter.Emit(field, inReadonlyStruct, writer, diagnostics);
                     anyEmitted = true;
                 }
             }
@@ -112,13 +116,13 @@ internal static class TypeEmitter
             foreach(var property in properties)
             {
                 SeparateMember(writer, ref anyEmitted);
-                PropertyEmitter.Emit(property, writer, diagnostics);
+                PropertyEmitter.Emit(property, inStruct, writer, diagnostics);
             }
 
             foreach(var indexer in type.IndexersList)
             {
                 SeparateMember(writer, ref anyEmitted);
-                IndexerEmitter.Emit(indexer, writer, diagnostics);
+                IndexerEmitter.Emit(indexer, inStruct, writer, diagnostics);
             }
 
             var methods = flattened?.Methods ?? (IReadOnlyList<Method>)type.MethodsList;
@@ -132,7 +136,7 @@ internal static class TypeEmitter
                 }
                 else
                 {
-                    MethodEmitter.Emit(method, type.DeclarationNode, writer, diagnostics);
+                    MethodEmitter.Emit(method, type.DeclarationNode, inStruct, writer, diagnostics);
                 }
             }
 

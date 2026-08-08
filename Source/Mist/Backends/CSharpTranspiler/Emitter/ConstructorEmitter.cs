@@ -76,6 +76,7 @@ internal static class ConstructorEmitter
             ;
 
 
-        return MemberModifierEmitter.Emit(new MemberModifiers { Accessibility = accessibility });
+        return MemberModifierEmitter.Emit(
+            new MemberModifiers { Accessibility = accessibility }, emitReadonly: false);
     }
 }

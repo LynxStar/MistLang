@@ -1585,19 +1585,42 @@ capabilities:
     order: 48
     layer: initialization
     requires: [struct-declaration]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      TypeEmitter emits no readonly on the type. Per DefaultKeyword/out/Main.cs, readonly
-      must also distribute onto the fields and methods of a readonly struct. Related hazard
-      -- MemberModifierEmitter now emits readonly for METHODS, which the deleted
-      MethodEmitter.BuildModifiers erased. That is valid on a struct method and CS0106 on a
-      class method, and the helper receives only MemberModifiers so it cannot tell the two
-      apart.
-    tasks:
-      - Emit readonly on the type declaration.
-      - Distribute readonly to the fields and methods of a readonly struct.
-      - Pass the declaring type to MemberModifierEmitter, or filter at the call site, so a
-        readonly class method does not emit an invalid modifier.
+      TypeEmitter emitted no readonly on the type, so `readonly struct Container` came out as
+      `public struct Container`.
+
+      THE RECORDED HAZARD WAS LIVE, not latent, and worse than the note implied. MemberModifierEmitter
+      emitted readonly for METHODS from MemberModifiers alone, and the Modifier grammar rule is shared
+      across all declarations, so `public readonly int Peek()` on a CLASS parsed, bound, and emitted --
+      measured refusing a program classic compiles and runs, as MIST_CS_ERROR "The modifier 'readonly'
+      is not valid for this item" against generated C# with no Mist location. Classic erases readonly on
+      methods, which is why it never showed there.
+
+      FIELD DISTRIBUTION IS REQUIRED and was measured rather than inferred: without it C# reports
+      CS8340, "Instance fields of readonly structs must be readonly", once per field. So the type's
+      modifier has to reach every field it declares.
+
+      METHOD DISTRIBUTION IS NOT REQUIRED, and this entry previously said it was, inferring it from
+      classic's out/Main.cs emitting `public readonly string Describe()`. Measured: a readonly struct
+      with an undecorated method compiles and runs with fields distributed and methods left alone,
+      because C# already treats every member of a readonly struct as readonly. Classic emits it
+      redundantly. v2 does not, and the two produce identical stdout.
+
+      readonly IS NOW THE CALL SITE'S DECISION rather than MemberModifierEmitter's, which is the shape
+      the defect argued for: whether C# accepts the modifier depends on the POSITION, not the
+      declaration -- any field, a struct's methods and properties, and nothing in a class but a field.
+      A MemberModifiers holds neither the member kind nor the declaring type, so it cannot answer.
+      Emit now takes an explicit emitReadonly with no default, so each of the six callers states its own
+      rule: a field ORs in the enclosing readonly struct, a method, property and indexer require a
+      struct, and a constructor and cast operator pass false outright.
+    analysis_phase_tasks:
+      - >
+        Decide what `readonly` on a CLASS method should MEAN, rather than dropping it at emission. Mist
+        admits the modifier there and nothing rejects it, so the declaration is silently ignored. Either
+        it constrains the method not to mutate `this` and wants enforcing, or it is invalid and wants a
+        diagnostic. Dropping it keeps the emitted C# valid, which is all order 48 needed.
     unlocks: []
 
   - id: default-expression

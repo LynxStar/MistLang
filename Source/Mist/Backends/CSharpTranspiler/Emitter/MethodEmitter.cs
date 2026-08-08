@@ -8,11 +8,19 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// </summary>
 internal static class MethodEmitter
 {
-    public static void Emit(Method method, Storm.Runtime.SyntaxNode? locationNode, CSharpWriter writer, DiagnosticBag diagnostics)
+    public static void Emit(
+        Method method,
+        Storm.Runtime.SyntaxNode? locationNode,
+        bool inStruct,
+        CSharpWriter writer,
+        DiagnosticBag diagnostics)
     {
         ParameterEmitter.ReportUnsupportedRef(method.ParametersList, locationNode, diagnostics);
 
-        var modifiers = MemberModifierEmitter.Emit(method.Modifiers);
+        // A readonly method is a struct-only concept in C#, so on a class the modifier is dropped
+        // rather than passed through -- Mist admits it there and CS0106 refuses it.
+        var modifiers = MemberModifierEmitter.Emit(
+            method.Modifiers, emitReadonly: inStruct && method.Modifiers.IsReadonly);
 
         writer.WriteLine($"{modifiers}{EmitSignature(method)}");
         ConstraintEmitter.Emit(method.TypeParametersList, writer);

@@ -8,9 +8,10 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// </summary>
 internal static class IndexerEmitter
 {
-    public static void Emit(Indexer indexer, CSharpWriter writer, DiagnosticBag diagnostics)
+    public static void Emit(Indexer indexer, bool inStruct, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        var modifiers = MemberModifierEmitter.Emit(indexer.Modifiers);
+        var modifiers = MemberModifierEmitter.Emit(
+            indexer.Modifiers, emitReadonly: inStruct && indexer.Modifiers.IsReadonly);
         var type = TypeNameEmitter.Emit(indexer.Type);
         var parameters = ParameterEmitter.Emit(indexer.ParametersList);
 

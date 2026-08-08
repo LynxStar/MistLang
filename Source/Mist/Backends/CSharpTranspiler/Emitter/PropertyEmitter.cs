@@ -8,9 +8,11 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// </summary>
 internal static class PropertyEmitter
 {
-    public static void Emit(Property property, CSharpWriter writer, DiagnosticBag diagnostics)
+    public static void Emit(Property property, bool inStruct, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        var declaration = $"{MemberModifierEmitter.Emit(property.Modifiers)}{TypeNameEmitter.Emit(property.Type)} {property.Name}";
+        var modifiers = MemberModifierEmitter.Emit(
+            property.Modifiers, emitReadonly: inStruct && property.Modifiers.IsReadonly);
+        var declaration = $"{modifiers}{TypeNameEmitter.Emit(property.Type)} {property.Name}";
 
         if(AccessorEmitter.IsBodiless(property.Getter) && AccessorEmitter.IsBodiless(property.Setter))
         {

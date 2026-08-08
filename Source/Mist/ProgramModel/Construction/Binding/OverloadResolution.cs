@@ -466,8 +466,11 @@ internal static class OverloadResolution
             return leftIsExact ? -1 : 1;
         }
 
-        var leftToRight = ConversionRelation.IsImplicit(left, right);
-        var rightToLeft = ConversionRelation.IsImplicit(right, left);
+        // Which target contains the other, not which is reachable from it -- see
+        // ConversionRelation.IsWithin. DIVERGES FROM CLASSIC, which resolves such a call rather than
+        // refusing it.
+        var leftToRight = ConversionRelation.IsWithin(left, right);
+        var rightToLeft = ConversionRelation.IsWithin(right, left);
 
         if(leftToRight == rightToLeft)
         {

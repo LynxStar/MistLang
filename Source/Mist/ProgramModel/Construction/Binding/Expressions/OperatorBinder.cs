@@ -153,6 +153,24 @@ internal static class OperatorBinder
                     return new UnaryExpression(node, UnaryOperatorKind.LogicalNot, operand, operand.Type);
                 }
 
+            case CastExpressionUnaryNode cast:
+                {
+                    // The target type is pushed away rather than through: an operand that reads its
+                    // position's expected type would take the cast's own target for it, which is the
+                    // one type a cast says the operand is NOT already.
+                    Expression operand;
+                    using(ctx.PushTargetType(null))
+                    {
+                        operand = BindUnary(cast.Operand, ctx, context);
+                    }
+
+                    var targetType = context.Resolver.Resolve(cast.TargetType, ctx.Scope);
+                    var conversion = ConversionRelation.FindOperator(
+                        operand.Type, targetType, includeExplicit: true);
+
+                    return new CastExpression(node, operand, targetType, conversion);
+                }
+
             default:
                 return new UnresolvedExpression(node);
         }

@@ -136,6 +136,12 @@ internal static class TypeEmitter
                 }
             }
 
+            foreach(var castOperator in concrete?.CastOperatorsList ?? [])
+            {
+                SeparateMember(writer, ref anyEmitted);
+                CastOperatorEmitter.Emit(castOperator, type.DeclarationNode, writer, diagnostics);
+            }
+
             foreach(var inherited in concrete is null ? [] : DefaultMemberDuplication.For(concrete, methods))
             {
                 SeparateMember(writer, ref anyEmitted);

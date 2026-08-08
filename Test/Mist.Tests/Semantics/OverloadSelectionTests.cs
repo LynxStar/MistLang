@@ -1,34 +1,16 @@
 // Tier 3 (Component): which overload a call selects, asserted against a real ProgramModelBuilder run
-// over minimal source. Real ambient shells, real scope chain, real interner; no Roslyn and no process
-// spawning.
-//
-// WHY THESE ASSERT ON THE MODEL RATHER THAN ON OUTPUT. Emission re-writes a call the way source
-// spelled it and lets Roslyn resolve it again, so a program that prints the right answer is equally
-// consistent with Mist having chosen nothing.
+// over minimal source. See ProgramModelProbe for the harness and for why these assert on the model
+// rather than on output.
 //
 // Several fixtures below declare the wanted overload SECOND on purpose. Taking the first candidate is
 // what selection replaced, so a fixture that happens to want the first one passes either way.
 
-using System.Collections.Immutable;
-using Mist.Backends.Contracts;
-using Mist.Common.Diagnostics;
-using Mist.Common.Source;
-using Mist.Driver.Contracts;
-using Mist.Lexing;
-using Mist.Parsing;
-using Mist.ProgramModel.Construction;
-using Mist.ProgramModel.Contracts;
-using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
-using Mist.ProgramModel.Model.Statements;
-using Mist.ProgramModel.Model.Types;
-using Mist.Tests.Backend;
-using CompilationUnit = Mist.Driver.Contracts.CompilationUnit;
-using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
+using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Semantics;
 
-public sealed class OverloadSelectionTests : IDisposable
+public sealed class OverloadSelectionTests : ProgramModelProbe
 {
     private const string NoOverloadId = "MIST_PM_NO_APPLICABLE_OVERLOAD";
     private const string AmbiguousId = "MIST_PM_AMBIGUOUS_OVERLOAD";
@@ -44,7 +26,7 @@ public sealed class OverloadSelectionTests : IDisposable
         }
         """;
 
-    private const string Fixtures = """
+    private const string FixtureTypes = """
         public class Printer
         {
             public Printer() { }
@@ -75,23 +57,20 @@ public sealed class OverloadSelectionTests : IDisposable
         }
         """;
 
-    private readonly string outputDir;
-
     public OverloadSelectionTests()
+        : base("MistOverload_")
     {
-        outputDir = Path.Combine(Path.GetTempPath(), "MistOverload_" + Guid.NewGuid().ToString("N"));
-        _ = Directory.CreateDirectory(outputDir);
     }
 
-    public void Dispose()
-    {
-        if(Directory.Exists(outputDir))
-        {
-            try { Directory.Delete(outputDir, recursive: true); } catch { /* a leaked temp dir is not worth failing a test over */ }
-        }
+    protected override string Fixtures { get; } = FixtureTypes;
 
-        GC.SuppressFinalize(this);
-    }
+    protected override string Preamble { get; } = """
+        int i = 1;
+        bool b = true;
+        double d = 1.5;
+        string s = "text";
+        var p = new Printer();
+        """;
 
     /// <summary>
     /// Arguments are explicitly typed locals rather than literals, so a wrong answer here cannot be
@@ -403,142 +382,120 @@ public sealed class OverloadSelectionTests : IDisposable
         Assert.Contains("Once", reported.Message, StringComparison.Ordinal);
     }
 
-    // ── Harness ──────────────────────────────────────────────────────────
-
-    private static IEnumerable<Diagnostic> Errors(ImmutableArray<Diagnostic> diagnostics, string id)
+    /// <summary>
+    /// TWO overloads on purpose. A lone candidate is returned without applicability being consulted at
+    /// all, so a single-overload fixture passes whether or not the conversion is seen -- which is why
+    /// the CastOperators sample cannot cover this and this fixture can.
+    /// </summary>
+    [Fact]
+    public void AUserDefinedImplicitConversion_MakesAnOverloadApplicable()
     {
-        return diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error && d.Id.Value == id);
+        var invocation = SingleInvocation("var chosen = Sink.Take(src);", ConversionTypes, "var src = new Source();");
+
+        Assert.NotNull(invocation.Method);
+        var parameter = Assert.Single(invocation.Method.ParametersList);
+        Assert.Equal("Probe.Wanted", parameter.Type.FullyQualifiedName);
     }
 
-    private InvocationExpression SingleInvocation(string statement, string extraTypes = "")
+    /// <summary>
+    /// The same fixture with the operator declared explicit. An explicit conversion does not happen on
+    /// its own, so no candidate is applicable and the call is refused rather than silently taking the
+    /// one whose arity fits.
+    /// </summary>
+    [Fact]
+    public void AUserDefinedExplicitConversion_DoesNotMakeAnOverloadApplicable()
     {
-        return Assert.IsType<InvocationExpression>(InitializerOf(statement, extraTypes));
+        var diagnostics = BuildRun(
+            "var chosen = Sink.Take(src);",
+            ConversionTypes.Replace("implicit operator", "explicit operator", StringComparison.Ordinal),
+            "var src = new Source();");
+
+        var reported = Assert.Single(Errors(diagnostics, UnresolvableId));
+        Assert.Contains("Take", reported.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A DELIBERATE DIVERGENCE FROM CLASSIC, which compiles this call and resolves it to <c>Take(A)</c>
+    /// on the strength of A declaring an operator to B. Mist refuses it: an <c>implicit operator</c>
+    /// asserts no containment, so it cannot say which parameter is the narrower home, and a call whose
+    /// meaning would turn on an operator declared elsewhere between two parameter types is one the
+    /// caller should disambiguate. See ConversionRelation.IsWithin.
+    /// </summary>
+    [Fact]
+    public void TwoCandidatesSeparatedOnlyByAUserDefinedConversion_AreAmbiguous()
+    {
+        var diagnostics = BuildRun("var chosen = Pick.Take(s2);", RankingTypes, "var s2 = new S2();");
+
+        var reported = Assert.Single(Errors(diagnostics, AmbiguousId));
+        Assert.Contains("(A)", reported.Message, StringComparison.Ordinal);
+        Assert.Contains("(B)", reported.Message, StringComparison.Ordinal);
+    }
+
+    // ── Harness ──────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// S2 reaches both A and B, and is neither. A reaches B, so a relation that ranked on user-defined
+    /// conversions would make A the narrower home and pick it.
+    /// </summary>
+    private const string RankingTypes = """
+        public class B
+        {
+            public B() { }
+        }
+
+        public class A
+        {
+            public A() { }
+
+            public static implicit operator B(A a) { return new B(); }
+        }
+
+        public class S2
+        {
+            public S2() { }
+
+            public static implicit operator A(S2 s) { return new A(); }
+
+            public static implicit operator B(S2 s) { return new B(); }
+        }
+
+        public class Pick
+        {
+            public static int Take(A a) { return 1; }
+
+            public static int Take(B b) { return 2; }
+        }
+        """;
+
+    private const string ConversionTypes = """
+        public class Wanted
+        {
+            public Wanted() { }
+        }
+
+        public class Source
+        {
+            public Source() { }
+
+            public static implicit operator Wanted(Source s) { return new Wanted(); }
+        }
+
+        public class Sink
+        {
+            public static int Take(Wanted w) { return 1; }
+
+            public static int Take(bool b) { return 2; }
+        }
+        """;
+
+    private InvocationExpression SingleInvocation(
+        string statement, string extraTypes = "", string extraPreamble = "")
+    {
+        return InitializerOf<InvocationExpression>(statement, extraTypes, extraPreamble);
     }
 
     private NewExpression SingleNew(string statement, string extraTypes = "")
     {
-        return Assert.IsType<NewExpression>(InitializerOf(statement, extraTypes));
-    }
-
-    private LocalVariable SingleLocal(string statement, string extraTypes = "")
-    {
-        return DeclarationIn(statement, extraTypes).Local;
-    }
-
-    private Expression InitializerOf(string statement, string extraTypes)
-    {
-        var initializer = DeclarationIn(statement, extraTypes).Initializer;
-        Assert.NotNull(initializer);
-        return initializer;
-    }
-
-    /// <summary>
-    /// The LAST local declaration in <c>Run</c>, since the preamble declares several before the one
-    /// the test supplied.
-    /// </summary>
-    private LocalDeclarationStatement DeclarationIn(string statement, string extraTypes)
-    {
-        var model = BuildModel(statement, extraTypes, out _);
-
-        var probe = Assert.IsType<ClassType>(model.TypesByFQN["Probe.Probe"]);
-        var run = probe.MethodsList.Single(m => m.Name == "Run");
-
-        Assert.NotNull(run.Body);
-        return run.Body.Statements.OfType<LocalDeclarationStatement>().Last();
-    }
-
-    private ImmutableArray<Diagnostic> BuildRun(string statement, string extraTypes = "")
-    {
-        _ = BuildModel(statement, extraTypes, out var diagnostics);
-        return diagnostics;
-    }
-
-    /// <summary>
-    /// Wraps the statement in a method whose preamble supplies the typed locals and receiver the tests
-    /// draw on, so a test states only the call it is about.
-    /// </summary>
-    private ProgramModelClass BuildModel(string statement, string extraTypes, out ImmutableArray<Diagnostic> diagnostics)
-    {
-        var source = $$"""
-            namespace Probe;
-
-            {{Fixtures}}
-
-            {{extraTypes}}
-
-            public class Probe
-            {
-                public static void Run()
-                {
-                    int i = 1;
-                    bool b = true;
-                    double d = 1.5;
-                    string s = "text";
-                    var p = new Printer();
-                    {{statement}}
-                }
-            }
-            """;
-
-        return Build(source, out diagnostics);
-    }
-
-    /// <summary>
-    /// Lexes, parses and builds the program model, returning the BUILD diagnostics. Parsing is
-    /// asserted clean separately so a malformed fixture fails as itself rather than as a missing or
-    /// unexpected diagnostic.
-    /// </summary>
-    private ProgramModelClass Build(string source, out ImmutableArray<Diagnostic> diagnostics)
-    {
-        var fileName = Path.Combine(outputDir, "Program.mist");
-        var parseDiagnostics = new DiagnosticBag();
-
-        var sourceText = new SourceText(fileName, source);
-        var tokens = new MistLexer().Lex(sourceText, parseDiagnostics);
-        var parseResult = new MistParser().Parse(tokens, parseDiagnostics);
-
-        Assert.NotNull(parseResult.Root);
-        Assert.Empty(parseDiagnostics.ToImmutableArray().Where(d => d.Severity == DiagnosticSeverity.Error));
-
-        var options = new CompilerOptions(
-            ProjectFolder: outputDir,
-            SourcePaths: ImmutableArray.Create(fileName),
-            Backend: new BackendId("csharp"),
-            OutputDirectory: outputDir,
-            BinDirectory: Path.Combine(outputDir, "bin"),
-            ProjectName: "Probe",
-            NamespaceRoot: "Probe",
-            EnabledAnalyzerIds: ImmutableArray<string>.Empty);
-
-        var buildDiagnostics = new DiagnosticBag();
-        var programModel = ProgramModelBuilder.Build(
-            new MistCompilation(ImmutableArray.Create(new CompilationUnit(sourceText))),
-            ImmutableArray.Create(parseResult.Root),
-            options,
-            buildDiagnostics,
-            new StandardTypesAmbientProvider());
-
-        diagnostics = buildDiagnostics.ToImmutableArray();
-        return Assert.IsType<ProgramModelClass>(programModel);
-    }
-
-    /// <summary>
-    /// Registers the Standard type shells only, so primitive aliases resolve without loading any CLR
-    /// assembly.
-    /// </summary>
-    private sealed class StandardTypesAmbientProvider : IAmbientTypeProvider
-    {
-        public void BuildAndRegister(ProgramModelClass programModel)
-        {
-            AmbientProviderTestHelper.RegisterStandardTypes(programModel);
-
-            foreach(var type in programModel.TypesByFQN.Values)
-            {
-                if(type is DeclaredType { NamespaceName: "Standard" } standardType)
-                {
-                    standardType.Assembly = MistAssembly.Ambient;
-                }
-            }
-        }
+        return InitializerOf<NewExpression>(statement, extraTypes);
     }
 }

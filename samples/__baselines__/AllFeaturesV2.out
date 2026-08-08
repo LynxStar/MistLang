@@ -309,3 +309,13 @@ north: magnitude 1
 frozen: value 21, checksum 42
 vector name (internal): north
 Done!
+=== Cast Operators Sample ===
+--- Implicit cast (assignment) ---
+  100 C = 212 F
+--- Implicit cast (argument) ---
+  Temperature: 32 F
+--- Explicit cast ---
+  37 C = 310.15 K
+--- Explicit cast on derived type ---
+  Weight 72.5 as Kelvin: 72.5 K
+Done!

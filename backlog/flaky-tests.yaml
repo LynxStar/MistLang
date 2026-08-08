@@ -199,6 +199,31 @@ flakes:
       produced it was reverted and rerun green (4647/4647), then REAPPLIED and rerun green
       (4647/4647), so the identical source both failed and passed. The family is inferred from the
       count and from the mid-write build, not read off a message.
+
+      THIRD SIGHTING, 432 of 4677, during the user-defined conversions change, and it is the first to
+      confirm the parallel-format trigger by having plainly done it: the failing
+      `dotnet test Mist.slnx --no-build` was issued in the SAME parallel tool batch as a command whose
+      third element was `dotnet format Mist.slnx --verify-no-changes`. The fix note below already said
+      not to do that, so this sighting is evidence for the note rather than a new question.
+
+      DURATION IS A USABLE SIGNAL, newly noted here. The failing run took 49s against 90-111s for the
+      five green runs of the same command. A mass failure that finishes in HALF the time of a green run
+      has collapsed early rather than failed 432 assertions on their merits, and the ratio is visible
+      in the summary line without capturing anything.
+
+      Message NOT captured, again, so the Standard-namespace signature is inferred from the count and
+      the trigger rather than read. An attempt to recover it by rerunning with a grep for the failure
+      detail returned nothing because that rerun was green -- which is the trap: once it goes green the
+      evidence is gone, so the capture has to be on the failing run or not at all.
+
+      NOT THE CHANGE UNDER TEST, with one caveat worth stating rather than glossing. Five subsequent
+      runs were green on identical source: two `dotnet test Mist.slnx --no-build`, one single-project
+      run, one slnx run deliberately issued alongside `dotnet format` in an attempt to reproduce, and
+      one final full run. The caveat is that this working tree DOES refactor shared test
+      infrastructure -- Test/Mist.Tests/Helpers/ProgramModelProbe.cs, extracted from
+      OverloadSelectionTests -- so a test-infrastructure change cannot be dismissed on the usual
+      "nothing I touched is referenced" grounds. It is ruled out on scale instead: only two classes
+      derive from it, 42 tests between them, which cannot produce 432 failures.
     fix: >
       Do not batch `dotnet format` in parallel with `dotnet test`. Chain them, or run the tests first.
       Do not pipe `dotnet build` into `head` either, or into anything else that closes the pipe early;

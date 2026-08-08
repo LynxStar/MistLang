@@ -1,49 +1,42 @@
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Binding;
 
 /// <summary>
-/// Whether a value of one type is accepted where another is expected, by identity, numeric widening,
-/// or inheritance.
+/// Whether a value of one type is accepted where another is expected.
 /// <para>
-/// KNOWINGLY INCOMPLETE, and safe only because of how callers are required to use it. User-defined
-/// cast operators and variance are not modelled at all, and generic inference is deliberately declined
-/// (see <see cref="IsIndeterminate"/>). So a false answer means "no conversion is KNOWN", which is not
-/// the claim "no conversion exists", and the two must not be conflated. A caller may use this to
-/// PREFER one candidate over another; none may use it to refuse a program. Refusing on an unknown
-/// conversion is how a relation this partial would start rejecting code that compiles.
+/// A false answer means no conversion is KNOWN, not that none exists -- variance, constructed generics
+/// and open type parameters are all declined. So a caller may use this to PREFER one candidate over
+/// another, and none may use it to refuse a program.
 /// </para>
 /// </summary>
 internal static class ConversionRelation
 {
     /// <summary>
-    /// The implicit numeric conversions, source type to every type it widens into. Mist lowers to C#,
-    /// so this is C#'s table: it has to agree with what Roslyn will do to the emitted call, or
-    /// selection and emission would disagree about the same program.
+    /// Source type to every type it widens into. Must agree with what Roslyn does to the emitted code,
+    /// and is spelled out rather than derived from widths because the signed and unsigned families do
+    /// not form one ordering.
     /// <para>
-    /// Written out rather than derived from a size ordering because the signed and unsigned families
-    /// do not form one: <c>int</c> and <c>uint</c> convert to neither each other, so the widths alone
-    /// would not say which of the two a value may reach.
-    /// </para>
-    /// <para>
-    /// TEMPORARY, and a duplicate of the standard library. <c>Source/Standard/Bootstrap/</c> declares
-    /// every conversion below as an <c>implicit operator</c> member -- <c>Int32</c> to <c>Int64</c>,
-    /// <c>Single</c>, <c>Double</c> and <c>Decimal</c>, and so on for each numeric type -- written
-    /// transitively closed exactly as they are here, so <c>ConcreteType.CastOperatorsList</c> already
-    /// holds the whole table. This exists only because cast operators are not consulted yet. Delete it
-    /// when they are: scanning them reproduces these entries and admits user-defined conversions in
-    /// the same step. Until then nothing forces the two to agree, which is the cost of keeping both.
+    /// DO NOT DELETE in favour of the equivalent operators the stdlib declares. <see cref="IsWithin"/>
+    /// has to hold without consulting an operator, so a numeric widening must be expressible as
+    /// containment; removing this fails four overload tests.
     /// </para>
     /// </summary>
     private static readonly Dictionary<string, string[]> NumericWidening = BuildNumericWidening();
 
-    /// <summary>
-    /// Whether <paramref name="from"/> is accepted where <paramref name="to"/> is expected. False
-    /// where nothing here can establish it -- see the type-level note on what that does and does not
-    /// mean.
-    /// </summary>
     public static bool IsImplicit(IMistType from, IMistType to)
+    {
+        return IsWithin(from, to) || FindOperator(from, to, includeExplicit: false) is not null;
+    }
+
+    /// <summary>
+    /// Whether every value of <paramref name="from"/> is already a value of <paramref name="to"/>. Not a
+    /// weaker <see cref="IsImplicit"/>: an <c>implicit operator</c> may be lossy or a change of units, so
+    /// it declares reachability without asserting containment, and cannot rank two candidate types.
+    /// </summary>
+    public static bool IsWithin(IMistType from, IMistType to)
     {
         if(IsIndeterminate(from) || IsIndeterminate(to))
         {
@@ -57,15 +50,44 @@ internal static class ConversionRelation
     }
 
     /// <summary>
-    /// Two types are the same, compared by fully qualified name rather than by reference, since
-    /// interning holds for most pairs but not for every construction path.
-    /// <para>
-    /// A name is not a reliable identity everywhere, which is why <see cref="IsIndeterminate"/>
-    /// excludes the types whose names collide outright. One case survives that guard: a constructed
-    /// type interpolates its arguments' names, so the same lifted value over an <c>int</c> and over
-    /// a <c>byte</c> produces the same name and compares equal here. Separating those needs
-    /// structural comparison.
-    /// </para>
+    /// Searches BOTH ends and each end's base chain, since either type may declare the conversion. The
+    /// ends are bracketed by <see cref="IsWithin"/> rather than <see cref="IsImplicit"/>, so a match
+    /// cannot chain a second user-declared conversion. Null means none was found, not that one is built in.
+    /// </summary>
+    public static CastOperator? FindOperator(IMistType from, IMistType to, bool includeExplicit)
+    {
+        return DeclaredBy(from, from, to, includeExplicit)
+            ?? DeclaredBy(to, from, to, includeExplicit)
+            ;
+    }
+
+    private static CastOperator? DeclaredBy(IMistType declaring, IMistType from, IMistType to, bool includeExplicit)
+    {
+        var current = declaring as ConcreteType;
+
+        while(current is not null)
+        {
+            foreach(var castOperator in current.CastOperatorsList)
+            {
+                if((castOperator.IsImplicit || includeExplicit)
+                    && IsWithin(from, castOperator.SourceParameter.Type)
+                    && IsWithin(castOperator.TargetType, to))
+                {
+                    return castOperator;
+                }
+            }
+
+            current = current.BaseType as ConcreteType;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Compared by name rather than by reference, since interning holds for most pairs but not every
+    /// construction path. One hole survives <see cref="IsIndeterminate"/>: a constructed type
+    /// interpolates its arguments' names, so the same lifted value over an int and over a byte compares
+    /// equal here.
     /// </summary>
     public static bool IsIdentity(IMistType left, IMistType right)
     {
@@ -78,22 +100,11 @@ internal static class ConversionRelation
     }
 
     /// <summary>
-    /// A type this relation declines to reason about, each for its own reason. An open type parameter
-    /// awaits generic inference. An error type has no identity worth comparing. <c>unknown</c> admits
-    /// everything, which makes it useless as a discriminator, and an unknown dependent VALUE is not a
-    /// type of value at all. A <see cref="MethodGroupType"/> is refused because conversion is the
-    /// wrong question to put to a group: it holds several signatures, and choosing among them against
-    /// a target is selection rather than conversion, so answering here at all would mean answering
-    /// for one signature picked arbitrarily.
-    /// <para>
-    /// <see cref="LiftedType"/> and <see cref="RefinedType"/> are here for a different reason: their
-    /// names are not identities. A lifted type is named for its value alone, so <c>255</c> as an
-    /// <c>int</c> and as a <c>byte</c> share a name; a refined type's name omits its predicate
-    /// entirely, so every refinement of <c>int</c> is spelled alike. Comparing either by name would
-    /// call two different types the same, which is the one direction of error this relation must not
-    /// make -- a false identity is a false APPLICABILITY, and applicability is what the ambiguity
-    /// report rests on.
-    /// </para>
+    /// Types this relation declines to reason about. <see cref="LiftedType"/> and
+    /// <see cref="RefinedType"/> are here because their names are not identities -- a lift is named for
+    /// its value alone, a refinement omits its predicate -- and a false identity is a false
+    /// applicability. A <see cref="MethodGroupType"/> holds several signatures, so choosing among them
+    /// against a target is selection rather than conversion.
     /// </summary>
     private static bool IsIndeterminate(IMistType type)
     {
@@ -115,10 +126,6 @@ internal static class ConversionRelation
             ;
     }
 
-    /// <summary>
-    /// Whether <paramref name="from"/> reaches <paramref name="to"/> through its base chain, walking
-    /// concrete bases and the abstract types each level declares.
-    /// </summary>
     private static bool Inherits(IMistType from, IMistType to)
     {
         var current = from as MemberType;

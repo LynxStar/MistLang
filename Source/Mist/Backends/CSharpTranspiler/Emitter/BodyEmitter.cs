@@ -224,6 +224,16 @@ internal static class BodyEmitter
                 EmitExpression(unary.Operand, writer, diagnostics);
                 break;
 
+            case CastExpression cast:
+                // The operand needs no parentheses of its own because the grammar bounds it to a
+                // Unary, every form of which binds tighter than any binary operator in C# as well.
+                // So `(Kelvin)a + b` arrives already shaped as a cast of `a`, and emitting the
+                // operand bare cannot capture the `+ b`.
+                writer.Append($"(({TypeNameEmitter.Emit(cast.Type)})");
+                EmitExpression(cast.Operand, writer, diagnostics);
+                writer.Append(")");
+                break;
+
             case AssignmentExpression assignment:
                 EmitExpression(assignment.Target, writer, diagnostics);
                 writer.Append(" = ");

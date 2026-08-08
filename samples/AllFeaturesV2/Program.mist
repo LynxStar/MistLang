@@ -39,5 +39,6 @@ public class Program
         ShapeAbstracts.Program.RunDemo();
         GenericConstraints.Program.RunDemo();
         FullAccessibilityModel.Program.RunDemo();
+        CastOperators.Program.RunDemo();
     }
 }

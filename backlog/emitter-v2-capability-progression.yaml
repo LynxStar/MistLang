@@ -1254,13 +1254,20 @@ capabilities:
     order: 43
     layer: conversions
     requires: [class-declaration]
-    v2_status: needs-verification
-    verified_by: unexercised
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       CastOperators/Program.mist declares six classes in one file, and Celsius names two
       types in its operator declarations before either is declared. Requires declaration
       collection to complete before member signatures bind. DefaultKeyword also holds six
       types in one file but references only backwards.
+
+      VERIFIED BY MEASUREMENT rather than by implementing anything: nothing was built for this, the
+      status was simply behind the code. Before the cast work below, CastOperators on the experimental
+      pipeline reported exactly two MIST_BE_UNSUPPORTED_EXPRESSION errors at the two explicit-cast
+      lines and NOTHING ELSE -- so all six types resolved, including Celsius's forward references to
+      Fahrenheit and Kelvin. A backend diagnostic is what proves it: reaching Stage 4 at all means
+      construction finished, so no forward reference went unresolved. Banked through the sample.
     unlocks: []
 
   - id: cast-expression
@@ -1268,12 +1275,60 @@ capabilities:
     order: 44
     layer: conversions
     requires: [same-file-forward-type-references]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      BodyEmitter has no cast case, so a cast falls through to the sentinel default. Measured:
-      CastOperators on --pipeline experimental reports MIST_BE_UNSUPPORTED_EXPRESSION at the two
-      explicit-cast lines and nothing else, which makes this the only one of the sample's three
-      conversion requirements that ANNOUNCES itself. The other two fail silently.
+      Was the only one of the sample's three conversion requirements that ANNOUNCED itself:
+      MIST_BE_UNSUPPORTED_EXPRESSION at the two explicit-cast lines and nothing else. The other two
+      failed silently.
+
+      THE BINDER WAS THE MISSING HALF, not just the emitter, and the earlier note here was wrong to
+      put it all on BodyEmitter. OperatorBinder.BindUnary had cases for Postfix, Negate and LogicalNot
+      and fell to `default => UnresolvedExpression` for everything else, so a cast never bound at all
+      -- which is why the local degraded to ErrorType and emitted as `/* error */ bodyK =`. The
+      emitter's missing case was real but downstream of that.
+
+      Closed with a CastExpression model node carrying operand, target type and the selected
+      CastOperator, a BindUnary case, and a BodyEmitter case emitting `((T)operand)`. Matches what
+      classic emits.
+
+      THE OPERATOR IS RESOLVED IN MIST, and the first version of this did not do that -- it recorded no
+      operator, on the reasoning that C# resolves the same cast against the same declarations anyway so
+      a choice made here could only disagree with the one that runs. That reasoning is backwards, and
+      it is recorded rather than deleted because it is an easy trap to fall into twice. A disagreement
+      between Mist's answer and Roslyn's is a defect worth surfacing, not a reason to decline to hold
+      an answer. Deferring also put C#'s conversion rules in the language's place, left any backend
+      that is not the transpiler with nothing to read, and pushed failures onto generated code.
+      It also broke this file's own convention: var-type-inference (order 8) emits the INFERRED type
+      rather than C# `var`, and array-literals (order 12) emits an explicit element type rather than
+      leaning on a target type. Both are cases where C# could have worked it out and Mist decides
+      regardless. See also the header of Test/Mist.Tests/Semantics/OverloadSelectionTests.cs, which
+      makes the same argument for overload selection: a program that prints the right answer is equally
+      consistent with Mist having chosen nothing.
+
+      GUARDED BY Test/Mist.Tests/Semantics/CastSelectionTests.cs, which asserts on CastExpression.Operator
+      because no sample can: emission writes `((T)operand)` whatever was selected, so the generated code
+      and the output are identical whether Mist chose the right operator, the wrong one, or none. Eight
+      cases -- the explicit operator on the source, an implicit operator at an explicit cast site, an
+      operator declared by the TARGET rather than the source, a derived source reaching its base's
+      operator, a downcast selecting none, an unrelated pair selecting none without being refused, the
+      target type flowing into an inferred local, and the operator on the ACTUAL source where a second
+      type declares one to the same target.
+      Each branch was confirmed to be load-bearing by mutation: dropping the target-end search fails only
+      the target-declared case, matching the parameter by identity instead of standard convertibility
+      fails only the derived-source case, and binding the cast with includeExplicit false fails only the
+      two explicit-cast cases.
+
+      THE C# BACKEND CANNOT BE MADE TO HONOUR THE SELECTION, so the two answers agree by coincidence
+      rather than by construction. C# refuses to call a conversion operator by name (CS0571), leaving a
+      cast as the only spelling available, and Roslyn resolves it again from the same declarations.
+      Nothing detects a disagreement. That is a limit of this backend rather than of the model, and it
+      is exactly why the selection is recorded: a second backend would have no other source for it.
+
+      NO PARENTHESES AROUND THE OPERAND, and that is a grammar fact rather than an omission. Unary's
+      CastExpression alternative binds its operand to a Unary, every form of which binds tighter than
+      any binary operator in C# too, so `(Kelvin)a + b` arrives already shaped as a cast of `a` and
+      cannot capture the `+ b`.
     unlocks: []
 
   - id: cast-operator-declarations
@@ -1281,19 +1336,27 @@ capabilities:
     order: 45
     layer: conversions
     requires: [cast-expression]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      TypeEmitter has no cast operator path yet -- it walks fields, constructors and
-      methods only, so CastOperatorsList is never reached. The stdlib declares cast
-      operators in 12 files and the emitted stdlib contains none of them. Their bodies
-      DO bind: Phase 3 walks MemberType.EnumerateDelegates, which includes cast
-      operators, so the remaining work is emission alone.
-    tasks:
-      - Emit cast operator declarations.
-      - Key lookup on the declaring type, kind and target type together. Celsius declares
-        one implicit and one explicit operator with different targets, so target alone is
-        not enough; and two different classes both declare an explicit operator to the same
-        target.
+      TypeEmitter walked fields, constructors and methods only, so CastOperatorsList was never
+      reached. Emission alone, as recorded: the bodies already bound, Phase 3 walking
+      MemberType.EnumerateDelegates which yields cast operators after constructors.
+
+      Closed with CastOperatorEmitter, modelled on MethodEmitter, and a walk after the methods loop.
+      The signature is built from IsImplicit and TargetType, NOT from Method.Name: CastOperator names
+      itself `op_Implicit_{Target}` so that the two kinds and the several targets stay distinct in a
+      list keyed by name, and that name is not a C# identifier. That naming is also what already
+      satisfies the lookup requirement noted here before -- kind and target are both in the key.
+
+      THE STDLIB IS NOT A SECOND DRIVER, and the earlier claim that "the stdlib declares cast
+      operators in 12 files and the emitted stdlib contains none of them" reads as a defect but is not
+      one. ELEVEN of those twelve declare them `intrinsic` -- the ten numeric Bootstrap types plus
+      Char and Regex -- and an intrinsic's implementation is the backend's, so emitting a declaration
+      would collide with the real one. CSharpEmitterV2 filters `ConcreteType { IsIntrinsic: true }` and
+      skips the Standard assembly outright, so none of them is reachable. Only Source/Standard/Void.mist
+      declares a cast operator with a BODY, and it is gated behind void-unit-type (order 80), which is
+      missing. So this capability is driven by the sample and nothing else.
     unlocks: []
 
   - id: user-defined-conversion-insertion
@@ -1305,20 +1368,130 @@ capabilities:
                operators-arithmetic-comparison-logical, string-interpolation,
                var-type-inference, standard-library-binding,
                implicit-instance-field-access]
-    v2_status: missing
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
+      PARTIAL, on its own name: no conversion is INSERTED at an implicit site. What exists is the
+      relation that decides whether one is available, which is enough for overload selection and enough
+      for CastOperators to run. The residue is unreachable from that sample -- see the first task.
+
       Nothing in the syntax marks these. An assignment from Celsius to Fahrenheit requires
       searching the SOURCE type for an implicit operator to the target, and an argument
       passed to a Fahrenheit parameter requires the same search driven by the parameter
       type. Casts must resolve against the static type only.
 
-      MEASURED, AND A FALSE GREEN IN WAITING: the sample's two implicit sites -- `Fahrenheit
-      boilingF = boiling;` and a Celsius passed to PrintTemperature's Fahrenheit parameter -- bind
-      with no diagnostic on v2 already, and neither is evidence of anything working. No
-      assignability rule exists, because RunAnalyzers is still a stub; and the argument site's
-      method declares one overload, so a lone arity match is returned before applicability is ever
-      consulted. Both sites would bind exactly as they do now if the operator were deleted
-      outright, which is why this capability cannot be verified by the sample reaching green.
+      THE SAMPLE CANNOT VERIFY THIS, and that still holds. Its two implicit sites bind with no
+      diagnostic whether or not the operator exists: no assignability rule runs, because RunAnalyzers
+      is a stub, and PrintTemperature declares ONE overload, so OverloadResolution returns the lone
+      closed candidate without consulting applicability at all. Both sites would bind identically with
+      the operator deleted. So the sample going green is not the evidence here; the probes below are.
+
+      AND IT WAS WORSE THAN A FALSE GREEN. With TWO overloads, applicability does run, and v2 REFUSED
+      a program classic compiles and runs: `Show(Fahrenheit)` and `Show(string)` called with a Celsius
+      reported MIST_PM_UNRESOLVABLE_OVERLOAD, "No conversion is known from the given arguments to any
+      of: (Fahrenheit), (string)". ConversionRelation knew identity, numeric widening and inheritance
+      and nothing else, so the one conversion that made the call work was the one it could not see.
+      Not a missing feature so much as a live defect that no sample was shaped to reach.
+
+      Closed by admitting user-defined conversions into ConversionRelation, which is the single funnel
+      OverloadResolution.IsApplicable already went through, so no per-site change was needed at either
+      the assignment or the argument site. Both ends of a conversion are searched and each end's base
+      chain with it, since either type may declare it. An operator matches on standard convertibility
+      TO its parameter and FROM its return rather than on identity with either, which is what lets a
+      derived source reach an operator its base declares -- measured working, and matching classic.
+
+      EXPLICIT OPERATORS ARE EXCLUDED, and that is checked rather than assumed: the same two-overload
+      probe with `explicit operator Fahrenheit` instead of `implicit` is still refused, as it must be.
+      Classic refuses it too but only as a Roslyn error against generated C# ("cannot convert from
+      'Celsius' to 'Fahrenheit'"), so v2 now reports it at the Mist source location instead.
+
+      BOTH DIRECTIONS ARE GUARDED in OverloadSelectionTests -- one test that a user-defined implicit
+      conversion makes an overload applicable, one that an explicit one does not, and a third pinning the
+      ranking decision below. Two overloads in each fixture on purpose, since a lone candidate is
+      returned without applicability being consulted at all. Confirmed discriminating by mutation:
+      removing the operator search from IsImplicit fails the first, and admitting explicit operators into
+      it fails the second.
+
+      NO CONVERSION IS INSERTED AT AN IMPLICIT SITE, and this capability's name overstates what is
+      built. An earlier note here said "nothing was needed in the emitter", which measured only whether
+      the output RUNS. It does, because C# performs the conversion itself once the operator declarations
+      are emitted, and classic relies on the same thing. But no node is inserted, so the model holds no
+      record that a conversion happens at `Fahrenheit boilingF = boiling;` or at the argument site --
+      the initializer is typed Celsius, the local is typed Fahrenheit, and nothing connects them.
+
+      WHAT MIST ACTUALLY DECIDES IS ONE THING: whether an implicit conversion EXISTS, via
+      ConversionRelation, consulted only by OverloadResolution.IsApplicable, which runs only where two
+      or more candidates match on arity. That is the whole reach. Measured: with an explicit-only
+      operator, an assignment `Fahrenheit f = c;` and a SINGLE-overload call `Show(c)` both pass Mist
+      unremarked and are refused by Roslyn against generated C# with no line number -- CS0266 and "cannot
+      convert from 'Celsius' to 'Fahrenheit'". So the implicit-versus-explicit distinction is enforced
+      by the C# compiler at every site except a multi-overload call.
+
+      RANKING DELIBERATELY DOES NOT USE THEM, and this is a LANGUAGE DECISION rather than a C# one. The
+      relation answers two different questions. Whether an argument can REACH a parameter is exactly what
+      an `implicit operator` declares, so applicability asks the full relation. Which of two parameters is
+      the BETTER home needs specificity, and only a built-in conversion carries it -- `int` reaches `long`
+      because every int IS a long, so int is the narrower home. A user-declared operator asserts no
+      containment; it may be lossy, costly, or a change of units, as Celsius to Fahrenheit is. Ranking on
+      it would read a claim the declaration does not make, and would let a call's meaning turn on an
+      operator declared elsewhere between two parameter types.
+
+      SO THE TWO ARE NOT ONE RELATION AT TWO STRENGTHS, and naming them as though they were cost a round
+      of confusion. IsImplicit asks whether a conversion may happen unwritten; IsWithin asks whether every
+      value of one type is already a value of the other. The second was first called IsStandardImplicit,
+      which implied a non-existent "non-standard implicit" and made the superset calling the subset read
+      backwards. CompareConversions and TypeArgumentInference.Wider ask IsWithin, IsApplicable asks
+      IsImplicit, and FindOperator brackets an operator's ends with IsWithin so it cannot chain a second
+      user-defined conversion.
+
+      THE FIRST VERSION OF THIS ENTRY JUSTIFIED THE SPLIT BY THE C# SPEC AND HAD THE SPEC BACKWARDS.
+      C# considers user-defined conversions when comparing conversion targets, so it RESOLVES the case
+      below rather than refusing it -- measured, not read. Recorded because the error was appealing to C#
+      at all: what Mist should do here is not settled by what C# does, and the appeal hid the fact that
+      no one had asked the language question.
+
+      SO THIS DIVERGES FROM CLASSIC, in the direction of v2 being stricter. Two overloads `Take(A)` and
+      `Take(B)`, an argument reaching both by user-defined conversion and being neither, and `A` declaring
+      an operator to `B`: classic compiles it and prints "took A", v2 reports MIST_PM_AMBIGUOUS_OVERLOAD
+      and the message already names the remedy -- "Cast an argument to choose one". No sample reaches the
+      shape, which needs all three conditions at once, and the full suite is green. Pinned by
+      OverloadSelectionTests.TwoCandidatesSeparatedOnlyByAUserDefinedConversion_AreAmbiguous so the
+      decision is guarded rather than incidental.
+    tasks:
+      - >
+        Insert a conversion node at the implicit sites -- variable declaration, assignment, argument and
+        return -- carrying the operator Mist selected, as CastExpression now does for an explicit cast.
+        Four binder sites: StatementBinder.BindVariableDeclaration and BindReturn, ExpressionBinder's
+        assignment path, and ArgumentBinder.Bind, each of which already pushes a target type and then
+        discards the relationship. Needs no emitter change for the C# backend, for the CS0571 reason on
+        order 44. THIS IS WHAT THE CAPABILITY IS NAMED FOR and it is the half still outstanding.
+      - >
+        Report an implicit site with no implicit conversion, which is what the two probes above show
+        landing on generated C# today. Mist has the information at an argument site already and does not
+        use it outside multi-overload selection. NOT a free change: it is a REFUSAL built on
+        ConversionRelation, which carries a standing prohibition on exactly that while it stays partial
+        -- so it waits on the relation being complete enough, as does the constructed-generic gap below.
+      - >
+        Search a CONSTRUCTED generic type's cast operators. Its operators are declared in terms of its
+        type parameters and would have to be substituted through its arguments before they could be
+        compared, so it is skipped rather than mismatched. No sample reaches it.
+      - >
+        DO NOT DELETE ConversionRelation.NumericWidening, which its own doc comment used to invite once
+        cast operators were consulted, on the reasoning that scanning the stdlib's implicit operators
+        reproduces the table. MEASURED FALSE: suppressing the table fails four overload tests, the
+        narrower-target and genuine-tie cases among them. Ranking asks the standard-only relation on
+        purpose, so a numeric widening has to be expressible WITHOUT consulting an operator, and being
+        expressible that way is what the table IS. The comment is corrected in place.
+    analysis_phase_tasks:
+      - >
+        Refuse a cast for which no conversion exists, which is what the sample's commented-out
+        compile-time-safety case is about: `(Kelvin)m` where m is typed Measurement must fail even
+        though the runtime value is a Weight that declares the operator. CastExpression now RESOLVES the
+        operator, so the information is present -- a null Operator on a cast between unrelated types is
+        the case to refuse. Deferred anyway, and not for want of the answer: null there means no
+        operator was FOUND rather than none exists, since FindOperator brackets the ends more narrowly
+        than C# does, so refusing on it is a refusal built on a partial relation. Classic's equivalent
+        is TypeCheckerAnalyzer.CheckCastExpression.
     unlocks: [CastOperators]
 
   # ===================================================================
@@ -4743,12 +4916,19 @@ samples:
                constructor-chain-args-referencing-parameters,
                same-file-forward-type-references, cast-expression,
                cast-operator-declarations, user-defined-conversion-insertion]
+    note: >
+      BANKED on v2, output byte-identical to classic. Both explicit-cast sites and both implicit ones
+      run. What the sample does NOT establish is order 46, for the reason recorded there: its single
+      overload means applicability is never consulted, so the implicit sites bind whether or not the
+      operator exists. That capability rests on separate two-overload probes instead.
     untested:
-      - The sample has no Main. Standalone it has no entry point; it is reachable only via
-        AllFeatures calling its RunDemo.
+      - >
+        The Main/entry-point entry that stood here was wrong: the sample DOES declare
+        `static void Main(string[] args)` calling RunDemo, and runs standalone on both pipelines.
       - The compile-time-safety case is commented out. Nothing verifies that a cast through a
         base-typed variable is REJECTED, so an implementation resolving casts against the
-        runtime type passes identically.
+        runtime type passes identically. Still true, and now recorded as an analysis_phase_task
+        on order 46.
       - Measurement is never instantiated and GetUnit is never called, so the base chain in
         the Weight constructor has no observable runtime effect.
       - Celsius's two operators have different target types, so an implementation that

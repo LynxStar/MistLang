@@ -104,11 +104,11 @@ internal static class TypeArgumentInference
     /// </summary>
     private static IMistType Wider(IMistType existing, IMistType candidate)
     {
-        if(ConversionRelation.IsImplicit(candidate, existing))
+        if(ConversionRelation.IsWithin(candidate, existing))
         {
             return existing;
         }
 
-        return ConversionRelation.IsImplicit(existing, candidate) ? candidate : existing;
+        return ConversionRelation.IsWithin(existing, candidate) ? candidate : existing;
     }
 }

@@ -334,3 +334,26 @@ AppState(ErrorCount=5, Ready=True, Status=initialized)
 new Container() = Container(Code=99, Label=constructed)
 default(Container) = Container(Code=42, Label=defaulted)
 Done!
+=== Abstract type with slots only ===
+Person: Alice, age 30
+=== Property slot filled ===
+  Label: person
+=== Default implementation taken (Rust-style) ===
+Hello, I am Alice
+=== Default implementation overridden ===
+Beep boop, I am T-800
+=== Polymorphic variable assignment ===
+  Person: Alice, age 30
+=== Transitive interface assignability ===
+  Robot: T-800
+=== Polymorphic parameter passing ===
+  Person: Alice, age 30
+  Robot: T-800
+=== Default via abstract-typed reference ===
+Hello, I am Alice
+=== Late binding via with block ===
+  SystemLogger
+=== With block overrides default ===
+  Tag: widget-tag
+  DisplayTag: <Widget>
+Done!

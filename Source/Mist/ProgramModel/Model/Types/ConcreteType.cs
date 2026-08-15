@@ -72,6 +72,15 @@ internal abstract class ConcreteType : MemberType, IConcreteType
     public DefaultBlock? DefaultBlock { get; internal set; }
 
     /// <summary>
+    /// Abstracts this type conforms to RETROACTIVELY, through a with block. Deliberately NOT folded
+    /// into <see cref="MemberType.BaseAbstractTypes"/>, which every consumer already walks: a
+    /// retroactive conformance is answered by explicit interface implementations, and C# does not
+    /// admit one of those on a concrete-typed receiver. Folding it in would let member lookup resolve
+    /// <c>logger.Name()</c> against a slot the emitted C# gives no way to call.
+    /// </summary>
+    public List<ConformanceDeclaration> ConformancesList { get; } = [];
+
+    /// <summary>
     /// Adds the delegates only classes and structs can declare — constructors and
     /// cast operators — to the methods and operators every member type has.
     /// </summary>

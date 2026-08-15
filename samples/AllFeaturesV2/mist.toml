@@ -23,3 +23,4 @@ GenericConstraints = { path = "../GenericConstraints" }
 FullAccessibilityModel = { path = "../FullAccessibilityModel" }
 CastOperators = { path = "../CastOperators" }
 DefaultKeyword = { path = "../DefaultKeyword" }
+AbstractTypes = { path = "../AbstractTypes" }

@@ -2880,34 +2880,144 @@ capabilities:
     order: 73
     layer: abstract-types
     requires: [nominal-conformance-and-slot-checking, abstract-type-default-members]
-    v2_status: missing
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
-      A with block declares that an existing type conforms, mapping its members onto slots.
-      Scoped to its declaring namespace, so it is only active when that namespace is
-      imported. Recorded in ConformanceMap keyed on the concrete and abstract type pair.
+      A with block declares that an existing type conforms, mapping its members onto slots. Every
+      mapping is now resolved to a real member at both ends, assignability honours the conformance,
+      and emission makes it real in C#. AbstractTypes is banked in AllFeaturesV2, byte-identical to
+      classic, including both with-block sections -- `Logger : INamed` mapping `GetLabel as Name`, and
+      `TaggedWidget : ITaggable` where the mapped `DisplayTag` BEATS the slot's default, printing
+      `<Widget>` and not `[widget-tag]`.
 
-      LIVE DEFECT IN CLASSIC, measured while wiring samples/AbstractTypes into AllFeatures, which v2
-      must not reproduce when it builds this: THE WITH-BLOCK TARGET NAME DOES NOT RESOLVE AGAINST ITS
-      DECLARING NAMESPACE. `with Widget : ITaggable` inside `namespace AbstractTypes` bound to a
-      `Widget` from another namespace entirely -- GenericConstraints and Ownership each declare one --
-      and failed with MIST_WITH_0004 reporting the RIGHT member names against the WRONG type, which
-      reads like a broken mapping rather than a misresolved target. An ordinary type reference in that
-      position would have preferred the enclosing namespace.
+      THE STORAGE DECISION IS THE WHOLE DESIGN, and it was measured rather than argued. Conformances
+      live on `ConcreteType.ConformancesList`, deliberately NOT folded into
+      `MemberType.BaseAbstractTypes` which every consumer already walks. Folding them in is one line
+      and looks strictly better -- it fixes ConversionRelation, TypeMemberLookup, TypeEmitter and
+      DefaultMemberDuplication at a stroke -- and it REPRODUCES CLASSIC'S DEFECT VERBATIM. Tried:
+      AbstractTypes then fails with "'TaggedWidget' does not contain a definition for 'Tag'", because
+      DefaultMemberDuplication restates the abstract's default as a PUBLIC method whose body calls
+      `this.Tag()`, and `Tag` exists only as an explicit interface implementation, which C# does not
+      admit on a concrete-typed receiver. Keeping the two lists apart is what buys the correct
+      behaviour, and it is pinned by two tests asserting the ABSENCE -- that the abstract is not in
+      BaseAbstractTypes, and that the slot does not resolve on the concrete type.
 
-      UNSPECIFIED RATHER THAN A VIOLATION. Requirement 19.2 gives the syntax as `with TypeName :
-      AbstractType` and Requirement 20 covers what conformance then means, but neither says how
-      TypeName resolves; order 73's own "scoped to its declaring namespace" is about where the
-      conformance is ACTIVE, which is a different question. So the rule wants stating before it is
-      implemented. Worked around in the sample by renaming the type.
+      THE FIFTH TASK THEREFORE NEEDED NO CODE, and that is a consequence of the decision above rather
+      than luck. DefaultMemberDuplication is driven off BaseAbstractTypes, so it never sees a
+      retroactive conformance and never restates its defaults -- the same structural immunity order 50
+      recorded against the braceless-binding defect. Measured on both sides: a mapping over a defaulted
+      slot emits only the explicit implementation, and a defaulted slot left UNMAPPED still works,
+      C#'s default interface method serving the abstract-typed call and its `this.Tag()` resolving
+      inside the interface where the slot lives.
+
+      AN EXPLICIT IMPLEMENTATION IS QUALIFIED BY THE ABSTRACT THAT DECLARES THE SLOT, not by the one
+      the with block names. Found by probe rather than reasoned: mapping onto a slot `IWithArgs`
+      inherits from `IBase` emitted `string IWithArgs.Inherited()` and C# refused it outright --
+      "not found among members of the interface that can be implemented" -- rather than resolving
+      through the inheritance. So the declaring abstract is resolved during construction and recorded
+      on the mapping, which is also why the slot search is a breadth-first walk of the abstract chain
+      here rather than a TypeMemberLookup call: that answers what a name MEANS on a type, and this
+      needs to know WHERE it was declared.
+
+      REPORTED AT STAGE 6 FOR A CLR CONFORMER, and this is a backend limit rather than a language rule.
+      C# cannot add an interface to a type whose metadata is already compiled, there is nothing to
+      duck-type an interface onto, and no lowering reaches the same effect -- so MIST_BE_FOREIGN_CONFORMANCE
+      refuses it at EMISSION while the model still builds the edge and assignability still honours it.
+      Verified end to end on `with MemoryStream : IReadable`: the abstract-typed assignment binds
+      unremarked and only the backend declines. Classic reports the equivalent at
+      SemanticModelConstruction, which puts a C# restriction in the language's mouth. The sibling
+      MIST_BE_FOREIGN_CTOR_CONSTRAINT at order 57 is the same limitation for the same reason, so the
+      two now read alike.
+
+      THE FIRST TASK WAS ALREADY SATISFIED, and is now measured rather than assumed -- TypeBuilder
+      stashes the file's NamespaceScope, so the target resolves the way any other type reference in
+      that position does. CLASSIC'S DEFECT REPRODUCED, and it is narrower than recorded: it is
+      CROSS-PROJECT, not cross-namespace. Two namespaces declaring one name inside a single project
+      resolve correctly on BOTH pipelines. With a REFERENCED project declaring the same name, v2 binds
+      the local type and classic binds the referenced one, reporting the right member names against
+      the wrong type. That is why AbstractTypes needed `Widget` renamed to `TaggedWidget` to enter
+      AllFeatures, and the rename is what makes the sample unable to test the resolution -- a probe is
+      the only check.
+
+      FOUR MORE LIVE DEFECTS IN CLASSIC, all measured, all of which v2 handles. An INHERITED SLOT is
+      refused: MIST_WITH_0004 "'IWithArgs' does not have a member named 'Inherited'" where IWithArgs
+      inherits it from IBase. An INHERITED SOURCE MEMBER is refused the same way, "'Derived' does not
+      have a public member named 'Label'" where Derived gets it from a base class. Classic's slot
+      lookup walks neither chain; v2's walks both. Classic emits UNCOMPILABLE C# for the unmapped
+      default described above. And classic cannot resolve a CLR type in with-block position at all,
+      failing MIST_WITH_0001 before reaching its own MIST_WITH_0006, so the CLR refusal it declares is
+      unreachable.
+
+      THE SAMPLE IS A FALSE GREEN FOR ASSIGNABILITY, which is why the tests exist. AbstractTypes
+      passes with the conformance consult in ConversionRelation.Inherits DELETED: its only use is a
+      plain assignment, and ConversionRelation's contract forbids refusing a program, so the
+      assignment binds either way and the C# compiles on the base-list append alone. Applicability
+      only runs when a call has TWO candidates, which the sample has none of. Suppressing the consult
+      makes v2 refuse a program classic runs -- MIST_PM_UNRESOLVABLE_OVERLOAD naming
+      `(INamed), (bool)` -- which is exactly the order 46 pattern. Pinned in
+      Test/Mist.Tests/Semantics/ConformanceResolutionTests.cs, 14 tests on the ProgramModelProbe
+      harness.
+
+      A CONFORMANCE RANKS, deliberately, and this is the opposite call from order 46's on user-defined
+      conversions. It sits under IsWithin because a with block asserts the type IS an instance of the
+      abstract, so every value of it is already a value of the abstract -- a subtyping claim of the
+      same strength as naming the abstract in a base list. An `implicit operator` asserts nothing of
+      the kind, being possibly lossy, which is why that one is excluded from ranking and this one is not.
+
+      A DUPLICATE CONFORMANCE IS REFUSED, NOT COLLAPSED, and the first attempt at this got it wrong in
+      a way worth recording. A type reaching one abstract twice has two spellings -- a with block
+      restating what the base list already declares, and two with blocks naming the same pair -- and the
+      first version deduplicated the emitted base list, which made the first spelling COMPILE AND RUN.
+      That is source Requirement 19.7 names as an error and classic refuses with MIST_WITH_0003, so the
+      dedupe was buying a running program for a program the language forbids; it also did nothing for
+      the second spelling, where each conformance still emitted its own explicit member and C# reported
+      the slot implemented more than once. BOTH PIPELINES failed that second spelling identically, so it
+      was a shared gap rather than a v2 regression. Now one check, seeded from BaseAbstractTypes and fed
+      the conformances, catches both and reports MIST_BE_REDUNDANT_CONFORMANCE against the with block.
+
+      THAT REPORT IS IN THE WRONG STAGE AND IS THERE KNOWINGLY. It walks a finished model and finds
+      nothing wrong with how the model was BUILT, which is the test that otherwise keeps a rule out of
+      construction, so it is an analyzer's judgement and Stage 5 is where it belongs. It sits in emission
+      because Stage 5 is an empty stub and because emission has no valid C# to write instead -- CS0528
+      for the repeated interface, CS0557 for the repeated slot. Reported as a USER error rather than an
+      ICE: it is reachable from ordinary source and the source really is wrong, so blaming the compiler
+      would send the reader looking in the wrong place. Logged for relocation rather than left implicit.
+
+      PARTIAL FOR THE GENERIC ABSTRACT. The arity path builds and interns a ConstructedType, so
+      `with Widget : IHold<int>` records and emits, but a slot inherited from a GENERIC base of the
+      named abstract records the base as written rather than with the named abstract's type arguments
+      applied. That is the same open-generic residue orders 53 and 72 carry, and it is unreachable
+      from any sample: every abstract in the repository that a with block names is non-generic.
     tasks:
       - >
-        Resolve the with-block's TARGET type through the declaring namespace's scope, the way any
-        other type reference in that position resolves, rather than by simple name across the whole
-        compilation. See the live defect above.
-      - Record the conformance and validate every mapping against a real slot.
-      - Append the interface to the conforming type's base list at emission.
-      - Emit explicit interface members forwarding to the mapped source member.
-      - Let a mapping over a slot that has a default suppress the default stub.
+        Apply the named abstract's type arguments when the slot is inherited from a GENERIC base
+        abstract, so the explicit implementation is qualified by the closed form. Shares its blocker
+        with order 53's remaining task, which has to compose substitutions along the base chain before
+        anything here can name the right type.
+    analysis_phase_tasks:
+      - >
+        Report a conformance that leaves a slot UNANSWERED. Classic's MIST_WITH_0004 aggregate check
+        is the model. Deliberately not built here: counting the slots of a finished conformance is a
+        judgement on a completed model, and the four diagnostics this order does add each stop an edge
+        being BUILT. Today an unfilled slot surfaces as CS0535 against generated C#, which is the same
+        state order 69 records for nominal conformance.
+      - >
+        MOVE the redundant-conformance report from emission to the analysis phase. It is reported today
+        as MIST_BE_REDUNDANT_CONFORMANCE, so the rule is ENFORCED and this task is a relocation rather
+        than an implementation -- see the evidence above for why emission is the wrong home and holds it
+        anyway. Deciding it needs only the finished model, so nothing about the move is hard; what it
+        waits on is Stage 5 existing at all.
+      - >
+        Report a mapping onto a NON-PUBLIC source member. Classic requires public via IsMemberPublic;
+        v2 does not check, and C# accepts a forwarding body reaching a private member of the same type,
+        so nothing is emitted that fails to compile. Whether conformance being a public claim should
+        forbid it is a language question nobody has asked.
+      - >
+        Decide and then state how a conformance's NAMESPACE SCOPING behaves.
+        IConformanceDeclaration.NamespaceName is recorded and nothing reads it, so the documented rule
+        that a conformance is active only where its namespace is imported is currently a no-op on both
+        pipelines -- ConcreteType.ConformancesList is unconditional. Requirement 19.2 gives the syntax
+        and Requirement 20 what conformance means; neither settles this.
     unlocks: [AbstractTypes]
 
   - id: associated-type-slots
@@ -5169,8 +5279,9 @@ samples:
       - Every default is reached from the conformer or through an abstract-typed local in the same
         method. Nothing passes a conformer to a function typed by the abstract and calls a default
         there, so the restatement and the interface's own copy are never observed to disagree.
-      - Every conformer declares its abstract types in its own base list, so nothing exercises
-        retroactive conformance at order 73.
+      - Every conformer declares its abstract types in its own base list, so nothing HERE exercises
+        retroactive conformance at order 73. AbstractTypes is now banked on both pipelines and covers
+        it; before that, nothing did.
 
   - name: AbstractTypes
     intro_order: 78
@@ -5180,30 +5291,46 @@ samples:
                derived-to-base-conversion, string-interpolation, var-type-inference]
     untested:
       - >
-        RUNS ON CLASSIC ONLY. It is now in samples/AllFeatures, which satisfies Requirement 29.4 and
-        puts all thirteen of its sections under the classic Tier 6 baseline, with-blocks included. It
-        is absent from AllFeaturesV2 and correctly so -- its threshold is order 73, which v2 has not
-        built -- so nothing here covers the v2 pipeline. For most of this file's life nothing ran it
-        at all, on either pipeline, so the spec's own proof code for the feature was protected by
-        nothing.
+        IT DOES NOT TEST THAT A CONFORMANCE IS VISIBLE TO ASSIGNABILITY, though it is the only sample
+        that uses one, and this is measured rather than suspected. Deleting the conformance consult in
+        ConversionRelation.Inherits leaves this sample GREEN: its two with-block uses are plain
+        assignments, and ConversionRelation's contract forbids refusing a program, so the assignment
+        binds whether or not the conformance is known and the emitted C# compiles on the base-list
+        append alone. Applicability only runs where a call has TWO candidates and this sample has none,
+        so `Show(INamed)` against `Show(string)` is the shape that bites. Covered instead by
+        Test/Mist.Tests/Semantics/ConformanceResolutionTests.cs, which is where the whole order-73
+        model surface is asserted.
       - >
         WIRING IT IN NEEDED A RENAME, which is worth knowing before wiring in any other sample. Its
         with-block target was `Widget`, and GenericConstraints and Ownership each declare a `Widget`
         too; inside one AllFeatures compilation the with-block resolved to the wrong one and failed
         with MIST_WITH_0004 naming the RIGHT members against the WRONG type. Renamed to
         `TaggedWidget` in the sample and in Requirement 29's proof code together, so the two still
-        match verbatim. See order 73 for the underlying resolution hazard.
+        match verbatim. THE RENAME IS ALSO WHAT MAKES THE RESOLUTION UNTESTABLE HERE -- with no
+        collision left, neither orchestrator can observe which `Widget` a with block picks. Order 73
+        records the probe that does.
       - >
         THIS IS THE SPEC'S DESIGNATED SAMPLE for the abstract-types feature, carrying Requirement
         29's proof code verbatim with its `// PROOF:` markers. The Phase 3 default-implementation
         demonstrations the Build-Up Plan assigns to it -- default taken as-is, default overridden,
         dispatch through both reference types -- were instead added to ShapeAbstracts by the order 72
-        work, because ShapeAbstracts is banked in both orchestrators and this sample can be banked in
-        neither until order 73. The v2 coverage is real; it is just not where the spec puts it.
+        work, when this sample could be banked in neither orchestrator. That coverage was NOT moved
+        back on banking, so it is now duplicated across the two samples rather than misplaced.
       - No slot is ever left unfilled, so the whole conformance rejection surface is
         unexercised.
-      - The with-block namespace scoping rule is never tested from a file that does NOT
-        import the declaring namespace, so the scoping could be a no-op.
+      - >
+        EVERY SLOT IT MAPS IS A METHOD DECLARED DIRECTLY ON THE NAMED ABSTRACT, so three of the paths
+        order 73 builds are invisible here: a PROPERTY slot, a slot the named abstract INHERITS, and a
+        source member the conformer inherits from a base class. All three are covered by tests and
+        probes only.
+      - >
+        BOTH ITS CONFORMANCES MAP EVERY SLOT, so the unmapped-default path never runs -- which is the
+        one classic gets wrong, emitting C# that does not compile. A sample reaching it would have to
+        leave a defaulted slot unmapped.
+      - >
+        The with-block namespace scoping rule is never tested from a file that does NOT import the
+        declaring namespace, so the scoping could be a no-op -- and it IS one. Nothing reads
+        IConformanceDeclaration.NamespaceName on either pipeline. Logged on order 73.
 
   - name: AssociatedTypes
     intro_order: 54

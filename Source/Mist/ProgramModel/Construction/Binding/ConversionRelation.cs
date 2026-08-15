@@ -126,6 +126,13 @@ internal static class ConversionRelation
             ;
     }
 
+    /// <summary>
+    /// A RETROACTIVE conformance counts here alongside a declared one, and belongs under
+    /// <see cref="IsWithin"/> rather than beside a cast operator: a with block asserts that the type
+    /// IS an instance of the abstract, so every value of it is already a value of the abstract. That
+    /// is a subtyping claim of the same strength as naming the abstract in the base list, unlike an
+    /// <c>implicit operator</c>, which may be lossy and so cannot rank anything.
+    /// </summary>
     private static bool Inherits(IMistType from, IMistType to)
     {
         var current = from as MemberType;
@@ -135,6 +142,14 @@ internal static class ConversionRelation
             foreach(var abstractBase in current.BaseAbstractTypes)
             {
                 if(IsIdentity(abstractBase, to) || Inherits(abstractBase, to))
+                {
+                    return true;
+                }
+            }
+
+            foreach(var conformance in (current as ConcreteType)?.ConformancesList ?? [])
+            {
+                if(IsIdentity(conformance.AbstractType, to) || Inherits(conformance.AbstractType, to))
                 {
                     return true;
                 }

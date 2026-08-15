@@ -71,6 +71,8 @@ internal sealed class CSharpEmitterV2
         var emittedFiles = new List<string>();
         var closures = ConstraintClosureMap.Build((ProgramModel.Model.ProgramModel)programModel, diagnostics);
 
+        ReportForeignConformances();
+
         EmitConstructorConstraintInterfaces(outputDir, emittedFiles);
         EmitStructInitMarker(outputDir, emittedFiles);
 
@@ -187,6 +189,33 @@ internal sealed class CSharpEmitterV2
 
         File.WriteAllText(fullPath, writer.ToString());
         emittedFiles.Add(fullPath);
+    }
+
+    /// <summary>
+    /// Walked over every conformance in the program rather than per emitted type, because the type
+    /// this refuses is one no emitted file declares: a foreign conformer is skipped by the assembly
+    /// filter above, so a check placed at its declaration would never run.
+    /// <para>
+    /// See <see cref="BackendDiagnostics.ForeignConformance"/> for why the refusal belongs to this
+    /// backend and not to the language.
+    /// </para>
+    /// </summary>
+    private void ReportForeignConformances()
+    {
+        foreach(var conformance in ((ProgramModel.Model.ProgramModel)programModel).ConformancesList)
+        {
+            if(conformance.ConformingType.Assembly.HasMistSource)
+            {
+                continue;
+            }
+
+            diagnostics.ReportAtNode(
+                BackendDiagnostics.ForeignConformance,
+                conformance.DeclarationNode,
+                null,
+                TypeDisplay.Mist(conformance.ConformingType),
+                TypeDisplay.Mist(conformance.AbstractType));
+        }
     }
 
     private static void EmitStructInitMarker(string outputDir, List<string> emittedFiles)

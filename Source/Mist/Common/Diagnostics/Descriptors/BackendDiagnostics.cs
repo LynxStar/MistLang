@@ -209,4 +209,59 @@ public static class BackendDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.Backend,
         "Struct '{0}' cannot inherit intrinsic struct '{1}'. An intrinsic type's representation belongs to the backend, so its state cannot be flattened into a derived struct.");
+
+    /// <summary>
+    /// A with block declares that a type not written in Mist conforms to an abstract. The C# backend
+    /// makes a retroactive conformance real by adding the interface to the conforming type's own
+    /// declaration, and a precompiled type has no declaration to add to -- nothing emitted here can
+    /// change the interface list already recorded in another assembly's metadata. C# offers no second
+    /// route either: an interface cannot be attached structurally, so there is nothing to duck-type
+    /// onto, and no lowering reaches the same effect.
+    /// <para>
+    /// A BACKEND LIMITATION AND NOT A LANGUAGE RULE, which is why it is refused HERE rather than
+    /// during construction. Nothing about Mist prevents adapting a foreign type, and a backend that
+    /// owns its runtime can record the conformance outside the type -- so the model builds the edge,
+    /// assignability honours it, and only emission has to decline. The classic pipeline reports the
+    /// same input at SemanticModelConstruction, which puts a C# restriction in the language's mouth.
+    /// </para>
+    /// <para>
+    /// Refused rather than dropped. Dropping it leaves every abstract-typed use of the type failing
+    /// in generated C# with no Mist-level cause, which is the shape of error this whole family exists
+    /// to replace.
+    /// </para>
+    /// </summary>
+    public static readonly DiagnosticDescriptor ForeignConformance = new(
+        new DiagnosticId("MIST_BE_FOREIGN_CONFORMANCE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Backend,
+        "Type '{0}' is not declared in Mist, so it cannot be declared to conform to '{1}'. The C# backend satisfies a retroactive conformance by adding the interface to the conforming type's declaration, which a precompiled type cannot receive.");
+
+    /// <summary>
+    /// A type reaches one abstract twice, through its own base list and a with block, or through two
+    /// with blocks. The language names both spellings as errors.
+    /// <para>
+    /// PROPERLY AN ANALYZER'S JUDGEMENT, and reported here only because Stage 5 is an empty stub. It
+    /// walks a finished model and finds nothing wrong with how the model was BUILT, which is what
+    /// otherwise keeps a rule out of the construction stage. Emission reports it because emission is
+    /// where the absence starts to matter and because there is no valid C# to write instead: naming an
+    /// interface twice is CS0528 and implementing a slot twice is CS0557. Expect this to MOVE once the
+    /// analysis phase exists.
+    /// </para>
+    /// <para>
+    /// A USER ERROR AND NOT AN ICE, which is the distinction against
+    /// <see cref="MethodGroupReachedEmission"/>. That one is unreachable by construction, so arriving
+    /// there means the compiler faulted. This is reachable from ordinary source, and the source really
+    /// is wrong, so blaming the compiler would send the reader looking in the wrong place.
+    /// </para>
+    /// <para>
+    /// REFUSED RATHER THAN COLLAPSED. Deduplicating the base list instead runs a program the language
+    /// forbids, and where two blocks map one slot to different members it also picks a winner on the
+    /// author's behalf.
+    /// </para>
+    /// </summary>
+    public static readonly DiagnosticDescriptor RedundantConformance = new(
+        new DiagnosticId("MIST_BE_REDUNDANT_CONFORMANCE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Backend,
+        "'{0}' is already declared to conform to '{1}', so this with block is redundant. A type reaches an abstract once: remove the with block, or remove '{1}' from the base list, or drop the duplicate with block.");
 }

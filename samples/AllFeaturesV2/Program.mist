@@ -41,5 +41,6 @@ public class Program
         FullAccessibilityModel.Program.RunDemo();
         CastOperators.Program.RunDemo();
         DefaultKeyword.Program.RunDemo();
+        AbstractTypes.Program.RunDemo();
     }
 }

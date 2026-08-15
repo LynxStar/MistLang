@@ -157,6 +157,11 @@ internal static class TypeEmitter
                 EmitRestatedDefault(inherited, writer, diagnostics);
             }
 
+            if(concrete is not null)
+            {
+                ConformanceEmitter.Emit(concrete, writer, diagnostics, ref anyEmitted);
+            }
+
             foreach(var signature in closedConstraints)
             {
                 SeparateMember(writer, ref anyEmitted);
@@ -243,6 +248,11 @@ internal static class TypeEmitter
         foreach(var abstractBase in type.BaseAbstractTypes)
         {
             bases.Add(TypeNameEmitter.Emit(abstractBase));
+        }
+
+        foreach(var conformance in (type as ConcreteType)?.ConformancesList ?? [])
+        {
+            bases.Add(TypeNameEmitter.Emit(conformance.AbstractType));
         }
 
         foreach(var signature in closedConstraints)

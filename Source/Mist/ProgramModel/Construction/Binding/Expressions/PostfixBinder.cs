@@ -139,6 +139,13 @@ internal static class PostfixBinder
             return new MethodGroupExpression(node, receiver, memberName, group.Methods, constructed);
         }
 
+        // DeclaredType and not every resolved type: `Length` on an array is a type PARAMETER, and it
+        // reaches C# only as a member access emitting `arr.Length` -- a type reference drops the receiver.
+        if(found is TypeResult { Type: DeclaredType nested })
+        {
+            return new TypeReferenceExpression(node, nested);
+        }
+
         var resolved = TypeSubstitution
             .ForReceiver(constructed)
             .Apply(MemberTypeOf(found), context.ProgramModel.TypeInterner);

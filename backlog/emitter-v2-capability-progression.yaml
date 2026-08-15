@@ -892,26 +892,46 @@ capabilities:
     order: 30
     layer: declaration-boundaries
     requires: [using-import-resolution, operators-arithmetic-comparison-logical]
-    v2_status: done
-    verified_by: sample
+    v2_status: broken
+    verified_by: v2-semantics
     evidence: >
-      Needed no work. The recorded claim -- that DetermineFileNamespace scans only for a file-scoped
-      namespace and otherwise falls back to path inference, so a block-namespace file's types land in
-      the inferred namespace -- does not hold. NamespaceBuilder registers block namespaces in its own
-      pass over ast.Items.
-      Measured on the sample, whose output is byte-identical to classic. The emitted layout is the
-      proof, since v2 files are pathed from the resolved namespace: BlockExample.mist yields
-      Namespaces/Helpers/MathHelper.cs, and MixedExample.mist yields Namespaces/MixedA/AlphaType.cs
-      alongside Namespaces/MixedB/BetaType.cs. That covers four of the five recorded tasks at once --
-      block namespaces recognised, two siblings in one file kept apart, the name treated as absolute
-      rather than doubled onto the inferred segment (Namespaces.Helpers, not
-      Namespaces.Namespaces.Helpers), and a file whose inferred namespace ends up empty tolerated,
-      which BlockExample.mist is.
-      The fifth task, emitting block namespaces as block namespaces, is obsolete rather than
-      outstanding: v2 emits one type per file under a file-scoped namespace, so there is no file in
-      which two namespaces could appear as blocks. It was written when output shape was thought to be
-      this capability's only observable; the namespace-derived output path is a better one, and it is
-      what the measurement above rests on.
+      THE MODEL SIDE HOLDS. The original claim -- that DetermineFileNamespace scans only for a
+      file-scoped namespace and otherwise falls back to path inference, so a block-namespace file's
+      types land in the inferred namespace -- does not hold. NamespaceBuilder registers block
+      namespaces in its own pass over ast.Items, the name is treated as absolute rather than doubled
+      onto the inferred segment, and a file whose inferred namespace is empty is tolerated.
+
+      SEVERAL PER FILE IS BROKEN, WHICH IS HALF THIS CAPABILITY'S NAME. Measured while landing order
+      66. A file declaring two block namespaces emits ONE file-scoped namespace, taken from its first
+      type, and every type in the file lands under it. In the banked Namespaces sample,
+      MixedExample.mist declares Namespaces.MixedA and Namespaces.MixedB and the emitted
+      MixedExample.cs reads `namespace Namespaces.MixedA;` with BOTH AlphaType and BetaType inside it,
+      so Namespaces.MixedB.BetaType does not exist in the assembly at all. CSharpEmitterV2.EmitFileTypes
+      takes types[0].NamespaceName for the whole file.
+
+      IT WAS RECORDED done ON EVIDENCE THAT DOES NOT EXIST, and the mistake is worth keeping. The old
+      entry argued from the emitted LAYOUT, claiming BlockExample.mist yields
+      Namespaces/Helpers/MathHelper.cs and MixedExample.mist yields Namespaces/MixedA/AlphaType.cs
+      beside Namespaces/MixedB/BetaType.cs. No such files are produced. v2 emits one C# file per SOURCE
+      file, named after it and pathed from its RELATIVE PATH -- Namespaces/MixedExample.cs, and
+      Models/Game/GameState.cs only because the source sits at Models/Game/GameState.mist. The layout
+      mirrors the source tree and says nothing whatever about namespaces, so the proof was reading a
+      directory structure as evidence of a property it cannot carry.
+
+      GREEN ONLY BECAUSE NOTHING LOOKS. AlphaType, BetaType and MathHelper are declared by the sample
+      and referenced by nothing in it, so the Tier 6 stdout comparison cannot see that two of them are
+      in the wrong namespace. That is the false green this file exists to prevent, and `untested` is
+      where it should have been caught.
+
+      THE FIFTH TASK IS THE FIX, not obsolete as recorded. Types have to be GROUPED by namespace, with
+      the file-scoped form kept only where a file holds exactly one -- which is what the great majority
+      of files are, so the existing baselines are unaffected.
+    tasks:
+      - >
+        Group a file's types by namespace and emit a block namespace per group, keeping the file-scoped
+        form for the single-namespace case so no existing output moves. Also blocks NestedScoping, whose
+        BlockNamespaces.mist declares three block namespaces and accounts for 3 of its 9 remaining
+        errors.
     unlocks: [Namespaces]
 
   - id: global-usings-from-manifest
@@ -1732,6 +1752,16 @@ capabilities:
         because ConcreteTypeBuilder.ResolveNestedOverrides reads NestedEntries off the AST node, which
         is empty when no braces are written. The sample puts its braceless binding last to avoid the
         shape, with a comment saying why.
+      - >
+        FIXED WHILE LANDING ORDER 66, recorded because it was a live defect this entry did not predict.
+        Synthesis walked EVERY field, so a static one was assigned from the synthesized parameterless
+        constructor as `this.Seed = 7`, which is CS0176 and refused the whole program -- reproduced with
+        no nested type and no default block, on a class holding one static field with an initializer.
+        A static field belongs to the type rather than to any instance and its initializer is already
+        emitted on its own declaration, so synthesis now answers for INSTANCE fields only. It also no
+        longer gates defaultability, since a static field the type cannot zero says nothing about
+        whether an instance can be defaulted. No banked sample declares a static field on a defaultable
+        type, which is why DefaultKeyword going green did not catch it.
     analysis_phase_tasks:
       - >
         Report a type that cannot be defaulted where something defaults it, rather than silently emitting
@@ -2491,24 +2521,83 @@ capabilities:
     order: 66
     layer: nested-declarations
     requires: [class-declaration, struct-declaration]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      TypeEmitter has no nested type path yet, so NestedTypes is never read. NestedScoping
-      goes four levels deep and nests inside a generic parent, a struct and an abstract
-      type.
-    tasks:
+      All four recorded tasks land. Two needed code, one was already satisfied and one could not
+      happen. NestedScoping goes from 29 C# errors to 9, and every one of the 9 remaining names a
+      DIFFERENT capability -- see the sample's record.
+
+      THE MODEL ALREADY HELD EVERY NESTED TYPE, registered in TypesByFQN under its dotted path and on
+      its parent's NestedTypes, at any depth, and resolving in type POSITIONS. TypeBuilder's
+      FinalizeRegistration excludes a nested type from the list that becomes CompilationUnit.Types,
+      with a comment saying it does so because the emitter emits it inside the parent body -- and the
+      emitter had no such path, so the exclusion dropped it entirely. The dotted registration is also
+      why the failure was CS0426 against generated C# rather than a Mist diagnostic: a reference
+      resolved and emitted a nesting path that nothing declared.
+
+      EMITTED LAST INSIDE THE PARENT BODY, by recursion, so depth costs nothing -- four levels
+      measured. A nested type is a declaration that happens to live there rather than part of what the
+      type IS, so members come first; C# requires no order.
+
+      THE SPURIOUS READONLY COULD NOT HAPPEN, which is a property of v2's shape rather than work done.
+      Classic carries an ambient insideStruct flag that EmitClassDeclaration never clears, so a class
+      nested in a struct gets readonly on its methods and C# refuses it. v2 computes inStruct as a
+      local per type, so the recursive call recomputes it. Measured: a class nested in a struct WITH
+      methods emits clean, which is the shape NestedInStruct.mist was written methodless to avoid.
+
+      TYPE PARAMETERS THROUGH THE SCOPE CHAIN WERE ALREADY THERE, and this is now measured rather than
+      assumed. TypeBuilder passes the enclosing type's own scope as the nested type's parent scope, so
+      the outer type's parameters are simply in scope -- a nested class holding a field of the outer's
+      T resolves it to that parameter with nothing redeclared.
+
+      THE ONE REAL RESOLUTION BUG WAS QUALIFICATION LOSING TYPE-REFERENCE-NESS. PostfixBinder folded a
+      resolved nested type into a MemberAccessExpression that merely happened to be TYPED as that type,
+      so the next segment asked it for an INSTANCE member and a static one could not be found. That is
+      the recorded MIST_PM_UNRESOLVED_MEMBER exactly, reproduced and then fixed by returning a type
+      reference, which chains to any depth. BindQualifiedName already did this for a namespace
+      receiver; the type receiver did not.
+
+      NARROWED TO DECLARED TYPES, AND THE NARROWING IS LOAD-BEARING. Returning a type reference for
+      EVERY resolved type broke four banked samples: `Length` on an array resolves to the second TYPE
+      PARAMETER of Standard.Array<ElementType, Length>, and it reaches C# only by staying a member
+      access that emits `numbers.Length` for Roslyn to resolve. TypeSlot derives from TypeParameter and
+      is excluded with it. Caught by the AllFeaturesV2 baseline test, and now pinned by its own test so
+      the next person does not re-widen it.
+
+      A REFERENCE UNDER A GENERIC ENCLOSING TYPE NEEDED ITS OWN FIX. FullyQualifiedName records a
+      generic segment under the arity marker it is registered with, so a nested reference emitted
+      `Box<>.Wrapper`, which is not C# at all. TypeNameEmitter now builds the path segment by segment
+      and respells a generic segment with its own PARAMETER names -- the only answer a definition can
+      give, and the right one everywhere a definition can be named, which is inside its own body where
+      those parameters are in scope. Only nested types change; a top-level generic still emits bare.
+
+      SEVEN LIVE DEFECTS IN CLASSIC, all measured, none reproduced here. Classic cannot resolve a
+      DOTTED nested type in a type position at all -- `new Holder.Point(3)` and `Holder.IAction x =
+      ...` both give MIST_UNDEFINED_TYPE. It cannot reach a nested type inside an ABSTRACT by
+      qualification (MIST_UNDEFINED_MEMBER on IFactory.DefaultProduct). It has the SAME
+      qualification bug this order fixed, reported as MIST_TC_0016 plus MIST_TC_0015 rather than as an
+      unresolved member, so `Outer.Inner.Read()`, a four-level chain and a nested type reading an
+      enclosing static are all refused. And the spurious readonly above. That classic refuses so much
+      of this is WHY the sample only reaches nested types from inside their enclosing type and
+      hardcodes the rest -- so the sample is not evidence that classic supports what it declares.
+
+      OUT OF SCOPE, MEASURED, AND NOT THIS ORDER'S: reaching a nested type through a CONSTRUCTED
+      generic. `Box<int>.Wrapper.Info()` is MIST_PARSE_INCOMPLETE on BOTH pipelines -- the parser is
+      shared and v2 does not touch it -- so it is a grammar gap rather than a model or emitter one.
+      Logged under uncovered_constructs.
+
+      EMISSION IS UNPROTECTED, and that is a property of this order unlocking nothing. Nothing in the
+      test suite drives the v2 emitter except the AllFeaturesV2 baseline, and no banked sample declares
+      a nested type, so a regression in the emission path would be caught by nothing until NestedScoping
+      or AssociatedTypes banks. The model side is covered by
+      Test/Mist.Tests/Semantics/NestedTypeResolutionTests.cs, six tests.
+    analysis_phase_tasks:
       - >
-        Resolve a member reached through a nested type name. `Outer.Inner.Read()` reports
-        MIST_PM_UNRESOLVED_MEMBER: 'Inner' has no member named 'Read' -- so qualification arrives at
-        the nested type and then finds nothing on it. Measured on a scratch program with a static
-        method on a nested class. This blocks reaching the bare-name field emission gap recorded on
-        implicit-instance-field-access (order 16), whose only stated reproduction is a nested type
-        reading an enclosing static; that reproduction cannot be constructed until this resolves.
-      - Emit nested types in place rather than hoisting them.
-      - Let a nested type see the enclosing type's type parameters through the scope chain
-        without redeclaring them.
-      - Do not emit a spurious readonly on methods of a class nested in a struct, which the
-        classic pipeline does and NestedScoping routes around.
+        Report a nested newtype or type alias that something references. Both are ERASED at the C#
+        level, which is what classic does too, so a reference to one emits a name nothing declares and
+        Roslyn reports it against generated code. Not an emission bug -- there is no C# for an erased
+        type -- but the program is wrong and nothing says so in Mist terms.
     unlocks: []
 
   # ===================================================================
@@ -5004,8 +5093,15 @@ samples:
       - Models/Item.mist claims to demonstrate same-namespace scoping inside Models, but Item
         and Player never reference each other.
       - MathHelper.Add is the sample's only arithmetic and is never called.
-      - Nothing observes emitted namespace structure, so emitting every type into one
-        namespace passes.
+      - >
+        Nothing observes emitted namespace structure, so emitting every type into one namespace
+        passes. NO LONGER HYPOTHETICAL -- that is exactly what v2 does, measured while landing order
+        66: MixedExample.cs declares `namespace Namespaces.MixedA;` and holds BetaType too, so
+        Namespaces.MixedB.BetaType is absent from the assembly and this sample stays green anyway.
+        WORTH NOTICING HOW LONG IT SURVIVED: this line and order 30's evidence flatly contradicted
+        each other, one saying nothing observes the namespaces and the other calling the emitted
+        layout the proof that they work, and nobody reconciled them. Two halves of the register
+        disagreeing is the cheapest defect signal there is.
 
   - name: GlobalUsings
     intro_order: 49
@@ -5355,10 +5451,27 @@ samples:
     untested:
       - Patterns 6, 7, 8 and 10 print HARDCODED STRINGS rather than touching the declared
         nested types, so four of the sixteen advertised patterns verify nothing.
-      - The sample documents two live emitter defects it routes around -- nested block
-        namespaces double the prefix, and methods on a class nested in a struct get a
-        spurious readonly.
+      - >
+        THE HARDCODING IS NOT INCIDENTAL, established by probing rather than read off the sample.
+        Classic REFUSES most ways of naming a nested type from outside its enclosing type -- a dotted
+        type position, qualification into an abstract, and a qualified static chain are all errors on
+        classic. So the patterns printing literals are the ones classic cannot run, and this sample is
+        evidence of what the shared PARSER accepts rather than of what classic supports. Order 66 lists
+        all seven measured defects; v2 handles every one.
+      - >
+        The sample documents two live emitter defects it routes around -- nested block namespaces
+        double the prefix, and methods on a class nested in a struct get a spurious readonly. The
+        second is CLASSIC-ONLY and v2 is structurally immune, so NestedInStruct.mist could carry
+        methods against v2. Left methodless, since the file is shared.
       - One file exists only to dodge an entry-point detection bug with constructed generics.
+      - >
+        WHAT IT STILL WAITS ON, measured once order 66 landed: 9 C# errors, none of them nested types.
+        SIX are nested ENUM member reads (Outer.Status, Registry.Category) and need the enum
+        capability, v2 emitting no enum at all, nested or top-level. THREE are
+        `NestedScoping.Utilities` not existing, which is a v2 defect of its own and NOT order 75: a
+        file declaring more than one block namespace emits ONE file-scoped namespace taken from its
+        first type, so BlockNamespaces.cs puts StringHelper and MathHelper under
+        NestedScoping.Networking.Protocol. Logged on namespace-block-form.
 
   - name: VoidType
     intro_order: 10
@@ -6081,6 +6194,18 @@ orphan_capabilities:
 # =====================================================================
 
 uncovered_constructs:
+
+  - construct: A nested type reached through a CONSTRUCTED generic
+    what: >
+      `Box<int>.Wrapper.Info()` -- naming a nested type through an instantiation of its generic
+      enclosing type. MIST_PARSE_INCOMPLETE on BOTH pipelines, measured while landing order 66, so it
+      is a gap in the SHARED grammar rather than in either backend. Not a node kind the census counted;
+      recorded here because it is the one nested-type shape order 66 cannot reach, and because a reader
+      of that order would otherwise expect it to work.
+      NestedScoping dodges it by naming `Wrapper` only from inside `Box<T>`, where the simple name
+      suffices. That is also the only position from which a definition CAN be named, so the parse gap and
+      the emitter's respell-with-parameter-names rule are two views of the same limit.
+    disposition: needs-sample
 
   - construct: OperatorMemberMemberDeclarationNode
     what: User-declared operator overloads

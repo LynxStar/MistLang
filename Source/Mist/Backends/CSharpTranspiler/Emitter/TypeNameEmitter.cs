@@ -51,6 +51,12 @@ internal static class TypeNameEmitter
         // Generic types: Definition<Arg1, Arg2, ...>
         var baseName = MistType.StripArity(constructed.Definition.Name);
         var args = string.Join(", ", constructed.TypeArguments.Select(Emit));
+
+        if(constructed.Definition is MemberType { DeclaringType: MemberType declaring })
+        {
+            return $"{Qualified(declaring)}.{baseName}<{args}>";
+        }
+
         return $"{baseName}<{args}>";
     }
 
@@ -82,10 +88,31 @@ internal static class TypeNameEmitter
 
         if(ShouldQualify(memberType))
         {
-            return memberType.FullyQualifiedName;
+            return Qualified(memberType);
         }
 
         return memberType.Name;
+    }
+
+    /// <summary>
+    /// Built segment by segment because <see cref="IMistType.FullyQualifiedName"/> keeps the arity
+    /// marker a generic segment is registered under, leaving a nesting path that is not a C# name.
+    /// </summary>
+    private static string Qualified(MemberType type)
+    {
+        var segment = type.TypeParametersList.Count > 0
+            ? $"{MistType.StripArity(type.Name)}<{string.Join(", ", type.TypeParametersList.Select(p => p.Name))}>"
+            : type.Name;
+
+        if(type.DeclaringType is MemberType declaring)
+        {
+            return $"{Qualified(declaring)}.{segment}";
+        }
+
+        return string.IsNullOrEmpty(type.NamespaceName)
+            ? segment
+            : $"{type.NamespaceName}.{segment}"
+            ;
     }
 
     /// <summary>

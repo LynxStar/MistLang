@@ -38,7 +38,7 @@ internal static class DefaultSynthesis
         return type is ConcreteType { IsIntrinsic: false } concrete
             && HasParameterlessSlot(concrete)
             && BaseIsDefaultable(concrete)
-            && concrete.FieldsList.TrueForAll(field => CanDefault(concrete, field))
+            && InstanceFields(concrete).All(field => CanDefault(concrete, field))
             ;
     }
 
@@ -61,7 +61,7 @@ internal static class DefaultSynthesis
     {
         var assignments = new List<(Field, Expression?)>();
 
-        foreach(var field in type.FieldsList)
+        foreach(var field in InstanceFields(type))
         {
             assignments.Add((field, BlockEntry(type, field)?.Value ?? field.Initializer));
         }
@@ -80,6 +80,16 @@ internal static class DefaultSynthesis
             || field.Initializer is not null
             || BodyEmitter.EmitTypeDefault(field.Type) is not null
             ;
+    }
+
+    /// <summary>
+    /// <see cref="DefaultEmitter"/> assigns each of these through a <c>this.</c> prefix, which on a static
+    /// field is CS0176. Statics must not gate defaultability either: one the type cannot zero says nothing
+    /// about whether an INSTANCE can be defaulted.
+    /// </summary>
+    private static IEnumerable<Field> InstanceFields(ConcreteType type)
+    {
+        return type.FieldsList.Where(field => !field.Modifiers.IsStatic);
     }
 
     private static DefaultValueEntry? BlockEntry(ConcreteType type, Field field)

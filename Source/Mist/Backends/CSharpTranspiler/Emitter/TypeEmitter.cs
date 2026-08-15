@@ -167,6 +167,17 @@ internal static class TypeEmitter
                 SeparateMember(writer, ref anyEmitted);
                 EmitConstraintFactory(type, signature, writer);
             }
+
+            foreach(var nested in type.NestedTypes)
+            {
+                if(nested is not MemberType nestedType || nestedType is ConcreteType { IsIntrinsic: true })
+                {
+                    continue;
+                }
+
+                SeparateMember(writer, ref anyEmitted);
+                EmitTypeBody(nestedType, closures, writer, diagnostics);
+            }
         }
     }
 

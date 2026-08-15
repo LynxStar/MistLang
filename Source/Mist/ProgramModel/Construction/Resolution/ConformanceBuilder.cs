@@ -63,8 +63,6 @@ internal sealed class ConformanceBuilder
             abstractType = scopeResolver.ResolveNamedType(abstractName, pending.Scope, decl);
         }
 
-        // Either end already failed to resolve and was reported as such. Naming it again as the wrong
-        // KIND of type would describe a consequence of that failure as a second fault.
         if(conformingType is ErrorType || abstractType is ErrorType)
         {
             return;
@@ -101,10 +99,7 @@ internal sealed class ConformanceBuilder
         var conformance = new ConformanceDeclaration(
             conformer, abstractType, pending.NamespaceName, mappings, decl);
 
-        // Recorded in two places on purpose, holding the one instance. The conforming type answers
-        // "what does THIS type conform to", which is what assignability and emission ask starting
-        // from a type; the flat list answers "what conformances exist", which is the only way to
-        // reach one whose conforming type this backend never emits.
+        // Dropping the flat registration silently disables CSharpEmitterV2.ReportForeignConformances.
         conformer.ConformancesList.Add(conformance);
         context.ProgramModel.ConformancesList.Add(conformance);
     }
@@ -127,8 +122,6 @@ internal sealed class ConformanceBuilder
             return null;
         }
 
-        // The conformer's own lookup walks its base CLASSES, which is what lets a with block map a
-        // member the conforming type inherits rather than declares.
         var source = TypeMemberLookup.Find(
             conformer, LookupRequest.Member(sourceName, MemberVisibility.InstanceAndStatic, node));
 
@@ -145,10 +138,8 @@ internal sealed class ConformanceBuilder
     }
 
     /// <summary>
-    /// A source member paired with the slot, on kind and then on parameter count. Parameter count is
-    /// as far as the with-block syntax can reach: a mapping names two members and nothing else, so an
-    /// abstract declaring one slot name at two arities gives no way to say which is meant, and that is
-    /// refused rather than guessed at.
+    /// A mapping names two members and nothing else, so a slot the abstract declares twice
+    /// cannot be picked out, and is refused rather than guessed at.
     /// </summary>
     private static MemberMapping? Pair(Slot slot, LookupResult source)
     {
@@ -175,16 +166,6 @@ internal sealed class ConformanceBuilder
         return null;
     }
 
-    /// <summary>
-    /// The slot, and the abstract that declares it. Walked here rather than through
-    /// <see cref="TypeMemberLookup"/> because that answers what a name MEANS on a type and this needs
-    /// to know WHERE it was declared, which the method result does not carry.
-    /// <para>
-    /// Breadth-first with the nearest declaration winning, matching how
-    /// <c>DefaultMemberDuplication</c> resolves a diamond, so the two agree about which of two
-    /// abstracts owns a shared name.
-    /// </para>
-    /// </summary>
     private static Slot? FindSlot(IMistType named, AbstractType definition, string name)
     {
         var queue = new Queue<(IMistType Named, AbstractType Definition)>();

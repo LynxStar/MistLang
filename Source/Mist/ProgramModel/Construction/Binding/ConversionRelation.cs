@@ -127,11 +127,9 @@ internal static class ConversionRelation
     }
 
     /// <summary>
-    /// A RETROACTIVE conformance counts here alongside a declared one, and belongs under
-    /// <see cref="IsWithin"/> rather than beside a cast operator: a with block asserts that the type
-    /// IS an instance of the abstract, so every value of it is already a value of the abstract. That
-    /// is a subtyping claim of the same strength as naming the abstract in the base list, unlike an
-    /// <c>implicit operator</c>, which may be lossy and so cannot rank anything.
+    /// A with block's conformance counts, though member lookup skips it
+    /// (<see cref="ConcreteType.ConformancesList"/>): asserting the type IS an instance of the abstract
+    /// is containment, with or without a callable slot.
     /// </summary>
     private static bool Inherits(IMistType from, IMistType to)
     {

@@ -211,24 +211,12 @@ public static class BackendDiagnostics
         "Struct '{0}' cannot inherit intrinsic struct '{1}'. An intrinsic type's representation belongs to the backend, so its state cannot be flattened into a derived struct.");
 
     /// <summary>
-    /// A with block declares that a type not written in Mist conforms to an abstract. The C# backend
-    /// makes a retroactive conformance real by adding the interface to the conforming type's own
-    /// declaration, and a precompiled type has no declaration to add to -- nothing emitted here can
-    /// change the interface list already recorded in another assembly's metadata. C# offers no second
-    /// route either: an interface cannot be attached structurally, so there is nothing to duck-type
-    /// onto, and no lowering reaches the same effect.
-    /// <para>
-    /// A BACKEND LIMITATION AND NOT A LANGUAGE RULE, which is why it is refused HERE rather than
-    /// during construction. Nothing about Mist prevents adapting a foreign type, and a backend that
-    /// owns its runtime can record the conformance outside the type -- so the model builds the edge,
-    /// assignability honours it, and only emission has to decline. The classic pipeline reports the
-    /// same input at SemanticModelConstruction, which puts a C# restriction in the language's mouth.
-    /// </para>
-    /// <para>
-    /// Refused rather than dropped. Dropping it leaves every abstract-typed use of the type failing
-    /// in generated C# with no Mist-level cause, which is the shape of error this whole family exists
-    /// to replace.
-    /// </para>
+    /// A BACKEND LIMITATION AND NOT A LANGUAGE RULE, so it is refused here rather than during
+    /// construction: the model builds the conformance edge and assignability honours it, and a backend
+    /// owning its runtime could record it outside the type. This one adds an interface to a
+    /// declaration, so it is blocked as <see cref="ForeignConstructorConstraintClosure"/> is. Refused
+    /// rather than dropped: dropping leaves every abstract-typed use of the type failing in generated
+    /// C# with no Mist-level cause.
     /// </summary>
     public static readonly DiagnosticDescriptor ForeignConformance = new(
         new DiagnosticId("MIST_BE_FOREIGN_CONFORMANCE"),
@@ -237,27 +225,13 @@ public static class BackendDiagnostics
         "Type '{0}' is not declared in Mist, so it cannot be declared to conform to '{1}'. The C# backend satisfies a retroactive conformance by adding the interface to the conforming type's declaration, which a precompiled type cannot receive.");
 
     /// <summary>
-    /// A type reaches one abstract twice, through its own base list and a with block, or through two
-    /// with blocks. The language names both spellings as errors.
-    /// <para>
-    /// PROPERLY AN ANALYZER'S JUDGEMENT, and reported here only because Stage 5 is an empty stub. It
-    /// walks a finished model and finds nothing wrong with how the model was BUILT, which is what
-    /// otherwise keeps a rule out of the construction stage. Emission reports it because emission is
-    /// where the absence starts to matter and because there is no valid C# to write instead: naming an
-    /// interface twice is CS0528 and implementing a slot twice is CS0557. Expect this to MOVE once the
-    /// analysis phase exists.
-    /// </para>
-    /// <para>
-    /// A USER ERROR AND NOT AN ICE, which is the distinction against
-    /// <see cref="MethodGroupReachedEmission"/>. That one is unreachable by construction, so arriving
-    /// there means the compiler faulted. This is reachable from ordinary source, and the source really
-    /// is wrong, so blaming the compiler would send the reader looking in the wrong place.
-    /// </para>
-    /// <para>
-    /// REFUSED RATHER THAN COLLAPSED. Deduplicating the base list instead runs a program the language
-    /// forbids, and where two blocks map one slot to different members it also picks a winner on the
-    /// author's behalf.
-    /// </para>
+    /// An analyzer's judgement under the test
+    /// <see cref="ProgramModelDiagnostics.ConformanceSourceNotConcrete"/> records, reported at
+    /// emission because Stage 5 is an empty stub and because there is no valid C# to write
+    /// instead -- the interface ends up named twice, or the slot implemented twice. Refused
+    /// rather than collapsed: deduplicating the emitted base list runs a program the language
+    /// forbids, and where two blocks map one slot to different members it also picks a winner on
+    /// the author's behalf.
     /// </summary>
     public static readonly DiagnosticDescriptor RedundantConformance = new(
         new DiagnosticId("MIST_BE_REDUNDANT_CONFORMANCE"),

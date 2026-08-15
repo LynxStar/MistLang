@@ -607,17 +607,12 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "{0} cannot have type '{1}': 'unknown' is not permitted as the declared type of writable storage. Use a concrete type, or accept 'unknown' as a parameter and pattern-match it.");
 
-    // ── Retroactive conformance (with blocks) ─────────────────────────────
+    // ── Retroactive conformance ──────────────────────────────────────────
 
     /// <summary>
-    /// A with block names something other than a class or a struct as the conforming type. An
-    /// abstract declares what it conforms to in its own base list, and no other kind of type has
-    /// members to map.
-    /// <para>
-    /// These four stop a conformance edge being BUILT, which is what puts them here. Whether a
-    /// FINISHED conformance leaves a slot unanswered is a judgement on a completed model, so nothing
-    /// among them counts slots.
-    /// </para>
+    /// An abstract is excluded too: it declares its conformances in its own base list, and no other
+    /// kind of type has members to map. None of these four counts slots -- coverage is a judgement on
+    /// a completed model.
     /// </summary>
     public static readonly DiagnosticDescriptor ConformanceSourceNotConcrete = new(
         new DiagnosticId("MIST_PM_CONFORMANCE_NOT_CONCRETE"),
@@ -625,18 +620,12 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "'{0}' cannot be declared to conform retroactively: only a class or a struct can be the subject of a with block.");
 
-    /// <summary>
-    /// A with block's target is not an abstract type, so it declares no slots to map onto.
-    /// </summary>
     public static readonly DiagnosticDescriptor ConformanceTargetNotAbstract = new(
         new DiagnosticId("MIST_PM_CONFORMANCE_NOT_ABSTRACT"),
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
         "'{0}' is not an abstract type, so '{1}' cannot be declared to conform to it.");
 
-    /// <summary>
-    /// A mapping names a slot the abstract type does not declare, counting the ones it inherits.
-    /// </summary>
     public static readonly DiagnosticDescriptor ConformanceUnresolvedSlot = new(
         new DiagnosticId("MIST_PM_CONFORMANCE_UNRESOLVED_SLOT"),
         DiagnosticSeverity.Error,
@@ -644,10 +633,8 @@ public static class ProgramModelDiagnostics
         "Abstract type '{0}' declares no member named '{1}'.");
 
     /// <summary>
-    /// The mapping's two ends do not pair: the conforming type declares no such member, or declares
-    /// one of the other kind, or declares a method taking a different number of parameters than the
-    /// slot. One descriptor for all three, because the remedy is the same in each case and the
-    /// message names both ends.
+    /// One descriptor for every way a mapping's two ends fail to pair: the remedy is the same in
+    /// each, and the message names both ends.
     /// </summary>
     public static readonly DiagnosticDescriptor ConformanceMappingUnsatisfied = new(
         new DiagnosticId("MIST_PM_CONFORMANCE_MAPPING_UNSATISFIED"),

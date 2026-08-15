@@ -192,13 +192,8 @@ internal sealed class CSharpEmitterV2
     }
 
     /// <summary>
-    /// Walked over every conformance in the program rather than per emitted type, because the type
-    /// this refuses is one no emitted file declares: a foreign conformer is skipped by the assembly
-    /// filter above, so a check placed at its declaration would never run.
-    /// <para>
-    /// See <see cref="BackendDiagnostics.ForeignConformance"/> for why the refusal belongs to this
-    /// backend and not to the language.
-    /// </para>
+    /// Per program rather than per emitted type: a foreign conformer is never emitted, so a check
+    /// placed at its declaration would never run.
     /// </summary>
     private void ReportForeignConformances()
     {

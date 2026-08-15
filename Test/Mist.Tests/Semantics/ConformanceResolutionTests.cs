@@ -1,15 +1,5 @@
-// Tier 3: what a with block resolves to, asserted on a real ProgramModelBuilder run. See
-// ProgramModelProbe for the harness.
-//
-// WHY THESE CANNOT BE SAMPLES, and this was measured rather than assumed. samples/AbstractTypes goes
-// green with the conformance consult in ConversionRelation.Inherits DELETED: its only use of a
-// conformance is a plain assignment, and ConversionRelation's contract forbids refusing a program, so
-// the assignment binds whether or not the conformance is visible and the emitted C# compiles on the
-// strength of the base-list append alone. Applicability only runs when a call has TWO candidates,
-// which the sample has none of.
-//
-// The rest assert placements no output can distinguish: which abstract an explicit interface
-// implementation is qualified by, and that a conformance stays OUT of BaseAbstractTypes.
+// samples/AbstractTypes is a false green for conformance assignability, measured -- see its
+// `untested` entry in backlog/emitter-v2-capability-progression.yaml.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model;
@@ -57,8 +47,8 @@ public sealed class ConformanceResolutionTests : ProgramModelProbe
         """;
 
     /// <summary>
-    /// The bool overload is declared SECOND deliberately, so the fixture would still pass if nothing
-    /// were selected -- what makes it bite is that two candidates force applicability to run.
+    /// The bool overload is here to make TWO candidates. With one, OverloadResolution returns it
+    /// without running applicability, so the test would pass with the conformance invisible.
     /// </summary>
     [Fact]
     public void ARetroactiveConformance_MakesAnAbstractTypedOverloadApplicable()
@@ -79,12 +69,6 @@ public sealed class ConformanceResolutionTests : ProgramModelProbe
         Assert.Equal("Name", mapping.Target.Name);
     }
 
-    /// <summary>
-    /// The decision the whole design rests on. A conformance is answered by an explicit interface
-    /// implementation, which C# does not admit on a concrete-typed receiver, so folding it into the
-    /// base list would let a name resolve here that the emitted C# gives no way to call. The next test
-    /// is the other half of it.
-    /// </summary>
     [Fact]
     public void ARetroactiveConformance_StaysOutOfTheBaseAbstractTypes()
     {
@@ -101,12 +85,6 @@ public sealed class ConformanceResolutionTests : ProgramModelProbe
         _ = Assert.IsType<NotFoundResult>(found);
     }
 
-    /// <summary>
-    /// An inherited slot is qualified by the abstract that DECLARES it. C# rejects an explicit
-    /// interface implementation naming the inheriting interface outright rather than resolving through
-    /// it, and nothing in the emitted output distinguishes the two -- the program simply does not
-    /// compile.
-    /// </summary>
     [Fact]
     public void AnInheritedSlot_RecordsTheDeclaringAbstractRatherThanTheNamedOne()
     {
@@ -136,7 +114,7 @@ public sealed class ConformanceResolutionTests : ProgramModelProbe
         Assert.Equal("Label", mapping.Source.Name);
     }
 
-    // ── Refusals. Each stops a conformance edge being BUILT. ──────────────
+    // ── What construction refuses, and what it records anyway ────────────
 
     [Fact]
     public void AMappingNamingNoSlot_IsRefused()
@@ -154,11 +132,6 @@ public sealed class ConformanceResolutionTests : ProgramModelProbe
             "MIST_PM_CONFORMANCE_MAPPING_UNSATISFIED"));
     }
 
-    /// <summary>
-    /// A property cannot answer a method slot. Refused here rather than left to C#, because the
-    /// forwarding body the emitter would write names a real member and so fails as a syntax error on
-    /// generated code.
-    /// </summary>
     [Fact]
     public void AMappingAcrossMemberKinds_IsRefused()
     {
@@ -196,10 +169,7 @@ public sealed class ConformanceResolutionTests : ProgramModelProbe
     }
 
     /// <summary>
-    /// Both spellings of reaching one abstract twice are recorded on the model, because refusing them
-    /// is emission's job today and not construction's. What the model holds is what
-    /// TypeEmitter and ConformanceEmitter then see; see BackendDiagnostics.RedundantConformance for
-    /// why the refusal lives where it does.
+    /// Refused at emission, not here: <see cref="BackendDiagnostics.RedundantConformance"/>.
     /// </summary>
     [Fact]
     public void AConformanceRestatingTheBaseList_IsRecordedAndLeavesTheAbstractReachableTwice()
@@ -218,10 +188,6 @@ public sealed class ConformanceResolutionTests : ProgramModelProbe
         Assert.Equal(2, Conformer("Probe.Twice", DuplicateBlockTypes).ConformancesList.Count);
     }
 
-    /// <summary>
-    /// A target that does not resolve is reported ONCE, as the unresolved name it is. Naming it again
-    /// as the wrong kind of type would describe a consequence of that failure as a second fault.
-    /// </summary>
     [Fact]
     public void AnUnresolvableTarget_IsReportedOnlyAsUnresolved()
     {
@@ -308,8 +274,8 @@ public sealed class ConformanceResolutionTests : ProgramModelProbe
     }
 
     /// <summary>
-    /// The conformance recorded on the named type, read from the TYPE rather than from the program
-    /// model's flat list, since the type-keyed one is what assignability and emission consult.
+    /// Asserts on the TYPE's list, not the program model's flat one: both hold the same instance,
+    /// so the flat one would pass without proving what emission consults.
     /// </summary>
     private ConformanceDeclaration Conformance(string fullyQualifiedName, string extraTypes = "")
     {
@@ -322,10 +288,6 @@ public sealed class ConformanceResolutionTests : ProgramModelProbe
         return Assert.IsAssignableFrom<ConcreteType>(model.TypesByFQN[fullyQualifiedName]);
     }
 
-    /// <summary>
-    /// Builds a source file whose with block is stated in full, for the cases whose whole content is a
-    /// malformed declaration the shared fixture cannot carry.
-    /// </summary>
     private System.Collections.Immutable.ImmutableArray<Diagnostic> BuildFixture(
         string withBlock, string extraTypes = "")
     {

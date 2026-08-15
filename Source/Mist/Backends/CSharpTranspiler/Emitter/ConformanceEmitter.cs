@@ -5,24 +5,14 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
 /// <summary>
-/// The members that make a retroactive conformance real in C#: one per mapping, typed from the SLOT
-/// and bodied by a call to the member mapped onto it.
-/// <para>
-/// EXPLICIT rather than public, which is what keeps Mist and the emitted C# reachable through the
-/// same names. A with block does not add the slot to what the conforming type answers to -- Mist
-/// member lookup does not walk
-/// <see cref="ConcreteType.ConformancesList"/> and neither does classic -- so a public member would
-/// make <c>logger.Name()</c> compile in C# while failing in Mist. It also has to be explicit
-/// whenever the mapped member differs from the slot only in name, since a public method of the
-/// slot's own signature would collide with nothing and simply not implement it.
-/// </para>
+/// EXPLICIT rather than public: a mapping may carry the slot's own name, where a public forwarder
+/// would redeclare the member it forwards to. Why the Mist-visible and C#-visible member sets have to
+/// agree is at <see cref="ConcreteType.ConformancesList"/>.
 /// </summary>
 internal static class ConformanceEmitter
 {
     public static void Emit(ConcreteType type, CSharpWriter writer, DiagnosticBag diagnostics, ref bool anyEmitted)
     {
-        // Seeded from the declared abstracts, so one comparison catches both spellings of the same
-        // fault: a with block restating what the base list says, and two blocks naming one pair.
         var reached = new HashSet<string>(type.BaseAbstractTypes.Select(TypeNameEmitter.Emit), StringComparer.Ordinal);
 
         foreach(var conformance in type.ConformancesList)

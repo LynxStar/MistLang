@@ -135,6 +135,9 @@ w=True
 Player: Alice, HP: 100
 Level: 1, Active: True
 App: Namespace Demo v1.0
+MixedA: AlphaType
+MixedB: BetaType
+Helpers: MathHelper.Add(2, 3) = 5
 Done!
 === GlobalUsings Demo ===
 [Global using only] LOG: hello from services

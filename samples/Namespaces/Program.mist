@@ -1,6 +1,9 @@
 using Standard;
 using Namespaces.Models;
 using Namespaces.Models.Game;
+using Namespaces.Helpers;
+using Namespaces.MixedA;
+using Namespaces.MixedB;
 
 // No explicit namespace — inferred as "Namespaces" (matches NamespaceRoot)
 // Demonstrates: Inferred namespace at project root (Req 10.2)
@@ -26,6 +29,14 @@ public class Program
         // Use type from same namespace (Namespaces) — no using needed
         var config = new AppConfig("Namespace Demo", "1.0");
         Console.WriteLine(config.Display());
+
+        // MixedA and MixedB are declared in ONE file, so these two resolve only if a file's
+        // namespaces are emitted separately rather than folded into the first one seen.
+        var alpha = new AlphaType();
+        Console.WriteLine($"MixedA: {alpha.Name()}");
+        var beta = new BetaType();
+        Console.WriteLine($"MixedB: {beta.Name()}");
+        Console.WriteLine($"Helpers: MathHelper.Add(2, 3) = {MathHelper.Add(2, 3)}");
 
         Console.WriteLine("Done!");
     }

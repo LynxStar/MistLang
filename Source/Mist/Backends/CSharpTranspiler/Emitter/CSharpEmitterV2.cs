@@ -348,10 +348,19 @@ internal sealed class CSharpEmitterV2
 
     private void EmitTopLevelStatements(CompilationUnit unit, CSharpWriter writer)
     {
-        var fileNamespace = unit.Types.FirstOrDefault()?.NamespaceName ?? "";
-        if(!string.IsNullOrEmpty(fileNamespace))
+        var declared = unit.Types
+            .Select(type => type.NamespaceName)
+            .Where(name => !string.IsNullOrEmpty(name))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        foreach(var name in declared)
         {
-            writer.WriteLine($"using {fileNamespace};");
+            writer.WriteLine($"using {name};");
+        }
+
+        if(declared.Count > 0)
+        {
             writer.WriteBlankLine();
         }
 
@@ -361,47 +370,58 @@ internal sealed class CSharpEmitterV2
         }
     }
 
+    /// <summary>
+    /// A file's types under the namespaces that declare them, one Mist file to one C# file.
+    /// <para>
+    /// The file-scoped form can be written ONCE and must precede every other member, so it serves
+    /// exactly the file that declares one namespace and no top-level statements. Anything else needs
+    /// blocks: a second namespace has nowhere to go, and statements already emitted are members the
+    /// file-scoped form may not follow.
+    /// </para>
+    /// </summary>
     private void EmitFileTypes(
         List<MemberType> types, bool hasTopLevelStatements, ConstraintClosureMap closures, CSharpWriter writer)
     {
-        var fileNamespace = types[0].NamespaceName;
+        var groups = types.GroupBy(type => type.NamespaceName, StringComparer.Ordinal).ToList();
 
-        if(hasTopLevelStatements)
+        if(groups.Count == 1 && !hasTopLevelStatements)
         {
-            // C# requires a file-scoped namespace to precede every other member, which the
-            // top-level statements already emitted violate. A block namespace has no such rule.
-            writer.WriteLine($"namespace {fileNamespace}");
+            writer.WriteLine($"namespace {groups[0].Key};");
+            writer.WriteBlankLine();
+            EmitTypes(groups[0], closures, writer);
+            return;
+        }
+
+        var first = true;
+        foreach(var group in groups)
+        {
+            if(!first)
+            {
+                writer.WriteBlankLine();
+            }
+
+            first = false;
+            writer.WriteLine($"namespace {group.Key}");
             using(writer.Block())
             {
-                var first = true;
-                foreach(var type in types)
-                {
-                    if(!first)
-                    {
-                        writer.WriteBlankLine();
-                    }
-
-                    first = false;
-                    TypeEmitter.EmitTypeBody(type, closures, writer, diagnostics);
-                }
+                EmitTypes(group, closures, writer);
             }
         }
-        else
+    }
+
+    private void EmitTypes(
+        IEnumerable<MemberType> types, ConstraintClosureMap closures, CSharpWriter writer)
+    {
+        var first = true;
+        foreach(var type in types)
         {
-            writer.WriteLine($"namespace {fileNamespace};");
-            writer.WriteBlankLine();
-
-            var first = true;
-            foreach(var type in types)
+            if(!first)
             {
-                if(!first)
-                {
-                    writer.WriteBlankLine();
-                }
-
-                first = false;
-                TypeEmitter.EmitTypeBody(type, closures, writer, diagnostics);
+                writer.WriteBlankLine();
             }
+
+            first = false;
+            TypeEmitter.EmitTypeBody(type, closures, writer, diagnostics);
         }
     }
 

@@ -892,25 +892,26 @@ capabilities:
     order: 30
     layer: declaration-boundaries
     requires: [using-import-resolution, operators-arithmetic-comparison-logical]
-    v2_status: broken
-    verified_by: v2-semantics
+    v2_status: done
+    verified_by: sample
     evidence: >
-      THE MODEL SIDE HOLDS. The original claim -- that DetermineFileNamespace scans only for a
+      THE MODEL SIDE ALWAYS HELD. The original claim -- that DetermineFileNamespace scans only for a
       file-scoped namespace and otherwise falls back to path inference, so a block-namespace file's
       types land in the inferred namespace -- does not hold. NamespaceBuilder registers block
       namespaces in its own pass over ast.Items, the name is treated as absolute rather than doubled
       onto the inferred segment, and a file whose inferred namespace is empty is tolerated.
 
-      SEVERAL PER FILE IS BROKEN, WHICH IS HALF THIS CAPABILITY'S NAME. Measured while landing order
-      66. A file declaring two block namespaces emits ONE file-scoped namespace, taken from its first
-      type, and every type in the file lands under it. In the banked Namespaces sample,
-      MixedExample.mist declares Namespaces.MixedA and Namespaces.MixedB and the emitted
-      MixedExample.cs reads `namespace Namespaces.MixedA;` with BOTH AlphaType and BetaType inside it,
-      so Namespaces.MixedB.BetaType does not exist in the assembly at all. CSharpEmitterV2.EmitFileTypes
-      takes types[0].NamespaceName for the whole file.
+      SEVERAL PER FILE, WHICH IS HALF THIS CAPABILITY'S NAME, WAS BROKEN UNTIL IT WAS FIXED HERE.
+      EmitFileTypes took types[0].NamespaceName for the whole file, so a file declaring two block
+      namespaces emitted ONE and every type in it landed under the first. Types are now GROUPED by
+      namespace, in first-declaration order, with a block namespace per group. The file-scoped form is
+      kept for the file that declares one namespace and no top-level statements, which is nearly every
+      file, so no existing output moved -- both baselines changed by exactly the three lines the sample
+      gained. A file's top-level statements now import every namespace it declares rather than only the
+      first, for the same reason.
 
-      IT WAS RECORDED done ON EVIDENCE THAT DOES NOT EXIST, and the mistake is worth keeping. The old
-      entry argued from the emitted LAYOUT, claiming BlockExample.mist yields
+      IT WAS RECORDED done ON EVIDENCE THAT DOES NOT EXIST, and the mistake is the part worth keeping.
+      The old entry argued from the emitted LAYOUT, claiming BlockExample.mist yields
       Namespaces/Helpers/MathHelper.cs and MixedExample.mist yields Namespaces/MixedA/AlphaType.cs
       beside Namespaces/MixedB/BetaType.cs. No such files are produced. v2 emits one C# file per SOURCE
       file, named after it and pathed from its RELATIVE PATH -- Namespaces/MixedExample.cs, and
@@ -918,20 +919,17 @@ capabilities:
       mirrors the source tree and says nothing whatever about namespaces, so the proof was reading a
       directory structure as evidence of a property it cannot carry.
 
-      GREEN ONLY BECAUSE NOTHING LOOKS. AlphaType, BetaType and MathHelper are declared by the sample
-      and referenced by nothing in it, so the Tier 6 stdout comparison cannot see that two of them are
-      in the wrong namespace. That is the false green this file exists to prevent, and `untested` is
-      where it should have been caught.
+      AND IT WAS GREEN BECAUSE NOTHING LOOKED. AlphaType, BetaType and MathHelper were declared by the
+      sample and referenced by nothing in it, so the Tier 6 stdout comparison could not see that two of
+      them were in the wrong namespace. The sample now reaches all three through their declared
+      namespaces, which is what makes the namespace observable at all rather than merely declared.
+      Mutation-checked: restoring the old single-namespace emission fails the sample with
+      "the type or namespace name 'MixedB' does not exist in the namespace 'Namespaces'".
 
-      THE FIFTH TASK IS THE FIX, not obsolete as recorded. Types have to be GROUPED by namespace, with
-      the file-scoped form kept only where a file holds exactly one -- which is what the great majority
-      of files are, so the existing baselines are unaffected.
-    tasks:
-      - >
-        Group a file's types by namespace and emit a block namespace per group, keeping the file-scoped
-        form for the single-namespace case so no existing output moves. Also blocks NestedScoping, whose
-        BlockNamespaces.mist declares three block namespaces and accounts for 3 of its 9 remaining
-        errors.
+      WHAT MADE IT SURVIVE IS THE CHEAPEST DEFECT SIGNAL THERE IS. The Namespaces sample's own
+      `untested` list already said "emitting every type into one namespace passes", while this entry
+      called the emitted layout proof that it does not. Two halves of this file asserted opposite
+      things and neither was checked against the other.
     unlocks: [Namespaces]
 
   - id: global-usings-from-manifest
@@ -5094,14 +5092,13 @@ samples:
         and Player never reference each other.
       - MathHelper.Add is the sample's only arithmetic and is never called.
       - >
-        Nothing observes emitted namespace structure, so emitting every type into one namespace
-        passes. NO LONGER HYPOTHETICAL -- that is exactly what v2 does, measured while landing order
-        66: MixedExample.cs declares `namespace Namespaces.MixedA;` and holds BetaType too, so
-        Namespaces.MixedB.BetaType is absent from the assembly and this sample stays green anyway.
-        WORTH NOTICING HOW LONG IT SURVIVED: this line and order 30's evidence flatly contradicted
-        each other, one saying nothing observes the namespaces and the other calling the emitted
-        layout the proof that they work, and nobody reconciled them. Two halves of the register
-        disagreeing is the cheapest defect signal there is.
+        CLOSED. This entry used to read "nothing observes emitted namespace structure, so emitting
+        every type into one namespace passes", and that turned out to be exactly what v2 did --
+        MixedExample.cs declared `namespace Namespaces.MixedA;` and held BetaType too, so
+        Namespaces.MixedB.BetaType was absent from the assembly while this sample stayed green.
+        RunDemo now reaches AlphaType, BetaType and MathHelper through their declared namespaces, so
+        the structure is observed and order 30 is covered by more than its own claim. The two remaining
+        block-namespace types are no longer unreferenced.
 
   - name: GlobalUsings
     intro_order: 49
@@ -5465,13 +5462,12 @@ samples:
         methods against v2. Left methodless, since the file is shared.
       - One file exists only to dodge an entry-point detection bug with constructed generics.
       - >
-        WHAT IT STILL WAITS ON, measured once order 66 landed: 9 C# errors, none of them nested types.
-        SIX are nested ENUM member reads (Outer.Status, Registry.Category) and need the enum
-        capability, v2 emitting no enum at all, nested or top-level. THREE are
-        `NestedScoping.Utilities` not existing, which is a v2 defect of its own and NOT order 75: a
-        file declaring more than one block namespace emits ONE file-scoped namespace taken from its
-        first type, so BlockNamespaces.cs puts StringHelper and MathHelper under
-        NestedScoping.Networking.Protocol. Logged on namespace-block-form.
+        WHAT IT STILL WAITS ON IS ENUMS, AND ONLY ENUMS. Measured once order 66 and order 30's
+        several-per-file fix had both landed: 6 C# errors, every one a nested enum member read
+        (Outer.Status, Registry.Category). v2 emits no enum at all, nested or top-level. Nothing to do
+        with nested types or namespaces is left, so this sample banks on the enum capability alone --
+        which makes its recorded threshold, enum-variant-value-inference, now literally the last thing
+        standing rather than merely the highest-ordered.
 
   - name: VoidType
     intro_order: 10

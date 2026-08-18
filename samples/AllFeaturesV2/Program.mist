@@ -42,5 +42,6 @@ public class Program
         CastOperators.Program.RunDemo();
         DefaultKeyword.Program.RunDemo();
         AbstractTypes.Program.RunDemo();
+        NestedScoping.Program.RunDemo();
     }
 }

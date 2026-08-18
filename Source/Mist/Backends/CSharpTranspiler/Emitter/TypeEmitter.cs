@@ -14,11 +14,63 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 internal static class TypeEmitter
 {
     /// <summary>
+    /// Narrows a file's declarations to the ones this backend writes, at the boundary where it takes
+    /// its input. The model holds every declared kind on purpose, including the ones erased here, so
+    /// the filtering belongs to the backend rather than to the model. Not a general question about a
+    /// type -- <see cref="Emit"/> is total, and anything walking declarations should call that.
+    /// </summary>
+    public static bool ProducesDeclaration(DeclaredType type)
+    {
+        return type is (MemberType or EnumType) and not ConcreteType { IsIntrinsic: true };
+    }
+
+    /// <summary>
+    /// Total over every declaration kind, and it OWNS the blank line that precedes what it writes --
+    /// so a kind that writes nothing leaves no separator behind and no caller has to ask first. An
+    /// intrinsic is skipped because the backend supplies its implementation, and a newtype or alias
+    /// because each names an existing type and its uses emit as that type.
+    /// <para>
+    /// The arms that write must agree with <see cref="ProducesDeclaration"/>; the throwing default is
+    /// what keeps that agreement honest, failing the first program that declares a kind only one of
+    /// them knows.
+    /// </para>
+    /// </summary>
+    public static void Emit(
+        DeclaredType type,
+        ConstraintClosureMap closures,
+        CSharpWriter writer,
+        DiagnosticBag diagnostics,
+        ref bool anyEmitted)
+    {
+        switch(type)
+        {
+            case ConcreteType { IsIntrinsic: true }:
+            case Newtype:
+            case TypeAlias:
+                break;
+
+            case EnumType enumType:
+                SeparateMember(writer, ref anyEmitted);
+                EnumEmitter.Emit(enumType, writer, diagnostics);
+                break;
+
+            case MemberType memberType:
+                SeparateMember(writer, ref anyEmitted);
+                EmitTypeBody(memberType, closures, writer, diagnostics);
+                break;
+
+            default:
+                throw new InvalidOperationException(
+                    $"ICE: unexpected DeclaredType kind '{type.GetType().Name}' in TypeEmitter.Emit");
+        }
+    }
+
+    /// <summary>
     /// Emits one type declaration into an open file. The using directives and the namespace
     /// belong to the file, not the type, so <see cref="CSharpEmitterV2"/> writes those once per
     /// compilation unit and calls this for each type the unit declares.
     /// </summary>
-    public static void EmitTypeBody(
+    internal static void EmitTypeBody(
         MemberType type, ConstraintClosureMap closures, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var closedConstraints = closures.For(type);
@@ -168,15 +220,9 @@ internal static class TypeEmitter
                 EmitConstraintFactory(type, signature, writer);
             }
 
-            foreach(var nested in type.NestedTypes)
+            foreach(var nested in type.NestedTypes.OfType<DeclaredType>())
             {
-                if(nested is not MemberType nestedType || nestedType is ConcreteType { IsIntrinsic: true })
-                {
-                    continue;
-                }
-
-                SeparateMember(writer, ref anyEmitted);
-                EmitTypeBody(nestedType, closures, writer, diagnostics);
+                Emit(nested, closures, writer, diagnostics, ref anyEmitted);
             }
         }
     }

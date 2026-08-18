@@ -32,9 +32,15 @@ public sealed class CompilationUnit
     public ImmutableArray<string> Usings { get; init; } = [];
 
     /// <summary>
-    /// Member types declared in this file, in declaration order.
+    /// Types declared at this file's top level, in declaration order. Every DECLARED kind, not only
+    /// the ones with members: an enum is emitted too, and a newtype or alias has to be seen in order
+    /// to be deliberately erased rather than silently missed.
+    /// <para>
+    /// Nested types are absent by design, reached instead through their declaring type's
+    /// <see cref="MistType.NestedTypes"/>, since emitting one means emitting it INSIDE that type.
+    /// </para>
     /// </summary>
-    internal List<MemberType> Types { get; } = [];
+    internal List<DeclaredType> Types { get; } = [];
 
     /// <summary>
     /// Whether this unit contains top-level statements.

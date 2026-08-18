@@ -32,7 +32,7 @@ internal sealed class TypeBuilder
     /// </para>
     /// </summary>
     private MistAssembly currentAssembly = MistAssembly.Synthetic;
-    private readonly List<MemberType> registeredTypes = [];
+    private readonly List<DeclaredType> registeredTypes = [];
 
     public TypeBuilder(BuilderContext context)
     {
@@ -353,11 +353,11 @@ internal sealed class TypeBuilder
         {
             declaringType.NestedTypes.Add(typeDef);
         }
-        else if(typeDef is MemberType memberType)
+        else
         {
             // Only the top level is collected: a nested type is emitted inside its declaring
             // type's body, so listing it again would emit it twice.
-            registeredTypes.Add(memberType);
+            registeredTypes.Add(typeDef);
         }
     }
 

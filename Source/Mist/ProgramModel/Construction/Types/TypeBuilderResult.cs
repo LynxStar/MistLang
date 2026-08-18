@@ -8,12 +8,10 @@ namespace Mist.ProgramModel.Construction.Types;
 /// The output of <see cref="TypeBuilder.Build"/> for a single compilation unit.
 /// </summary>
 /// <param name="Types">
-/// Top-level <see cref="MemberType"/>s only. Nested types are reachable through their
-/// declaring type, and enums, newtypes and type aliases are absent because the emitter
-/// cannot emit them yet -- adding them here without emitter support would produce a unit
-/// claiming to describe declarations that never reach the output.
+/// Top-level declarations only, of every kind. Nested types are reachable through their declaring
+/// type instead, since emitting one means emitting it inside that type.
 /// </param>
 /// <param name="TopLevelMethod">The synthetic TLS <c>Main</c>, or null when the file has none.</param>
 internal sealed record TypeBuilderResult(
-    ImmutableArray<MemberType> Types,
+    ImmutableArray<DeclaredType> Types,
     Method? TopLevelMethod);

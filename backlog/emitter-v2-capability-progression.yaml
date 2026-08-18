@@ -336,6 +336,19 @@ capabilities:
     evidence: >
       BodyEmitter.MapBinaryOperator, MapUnaryOperator (negate and logical-not only), and
       EmitSubExpression which parenthesizes a lower-precedence child.
+
+      A COMPARISON OVER OPERANDS WITH NO DECLARED OPERATOR IS TYPED WRONG, found while probing enum
+      equality for order 89. `a == b` over two user CLASS instances, or two enum values, binds to an
+      expression typed as the OPERAND rather than as bool, so `var eq = a == b;` gives the local the
+      operand's type and Roslyn refuses the assignment against generated C#. Not enum-specific and not
+      a live defect in any valid program: classic refuses both inputs with MIST_TC_0005, so Mist has no
+      `==` over a reference type for a user to write. The gap is that v2 types it instead of refusing
+      it. Left unbuilt because the fix is a diagnostic and refusing a program is analysis-phase work.
+    analysis_phase_tasks:
+      - >
+        Report a comparison whose operands have no operator that admits them, rather than typing the
+        result as the operand type. Classic's MIST_TC_0005 is the model. Until then the failure lands on
+        generated C# as a conversion error naming the operand type.
     unlocks: []
 
   - id: control-flow-basic
@@ -3487,12 +3500,51 @@ capabilities:
     order: 87
     layer: enums
     requires: [nested-type-declarations, instance-fields]
-    v2_status: missing
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
-      The base may be a primitive, a readonly struct, a readonly class or a union, and must
-      be proven deeply readonly including every union constituent. Emits as a record carrier
-      with a value parameter plus a public static readonly singleton per variant, always
-      public regardless of the enum's own accessibility.
+      The base may be a primitive, a readonly struct, a readonly class or a union, and must be proven
+      deeply readonly including every union constituent. Emits as a record carrier with a value
+      parameter plus a public static readonly singleton per variant, always public regardless of the
+      enum's own accessibility.
+
+      DELIVERED FOR EVERY BASE BUT THE UNION. String, integral and byte-by-default all emit and run
+      byte-identical to classic, nested and top-level, measured on a probe covering eight shapes.
+      A union base needs UnionHelperGenerator's carrier name, which orders 76 to 78 have not built, so
+      it is the one arm left.
+
+      REACHABILITY WAS THE FIRST BLOCKER AND IT WAS STRUCTURAL. EnumType derives DeclaredType, not
+      MemberType, so it could not sit in CompilationUnit.Types -- a List of MemberType -- and
+      FinalizeRegistration dropped every top-level enum on the floor. That list now holds DeclaredType,
+      which is what a file DECLARES rather than what happens to have members, and a new
+      DeclaredTypeEmitter routes each kind. Nested enums needed only that routing, having always been
+      on their parent's NestedTypes.
+
+      A NEWTYPE AND AN ALIAS ARE NOW VISIBLE AND DELIBERATELY ERASED, where before they were invisible.
+      Both name an existing type, so there is nothing of their own to declare -- the same answer
+      classic reaches, but reached by a decision recorded in one place rather than by never arriving.
+
+      THE READONLY REQUIREMENT IS NOT ENFORCED, and no sample would notice: EnumReadonlyRestriction
+      never attempts a non-readonly base, so the restriction it is named for is untriggered on both
+      pipelines. Logged as an analysis-phase task rather than built blind.
+
+      `default` ON AN ENUM REACHES THE DESIGNATED VARIANT, which took one arm in the default-expression
+      emitter and was missing at first: the factory was emitted and nothing called it, so
+      `default(Direction)` reported the backend sentinel while classic printed the variant. Caught by
+      checking a claim this entry had made without measuring it. An enum is defaultable exactly when it
+      designates a variant, there being no other way to choose between them -- where a class is
+      defaultable when each field has a zero of its own. An enum designating none falls to the sentinel,
+      which is what a non-defaultable class does.
+    tasks:
+      - >
+        Emit a union-backed enum, whose carrier parameter is the union helper struct rather than a
+        named type. Blocked on union-types-and-carriers at order 76; the rest of this order does not
+        wait on it.
+    analysis_phase_tasks:
+      - >
+        Report a base type that is not deeply readonly, including every constituent of a union base.
+        Walks a finished model and judges it, so it is an analyzer's; nothing about it stops the enum
+        being built or emitted. No sample reaches it on either pipeline.
     unlocks: []
 
   - id: enum-variant-value-inference
@@ -3500,12 +3552,73 @@ capabilities:
     order: 88
     layer: enums
     requires: [enum-declaration-over-readonly-base]
-    v2_status: missing
+    v2_status: done
+    verified_by: sample
     evidence: >
-      Two different inference rules by base kind -- a string base infers the variant's own
-      name, an integral base infers the previous explicit value plus one. Default base is
-      byte filling from zero. Variant initializers that construct a base instance must be
-      evaluated at declaration time. Duplicate values must be detected.
+      Two inference rules by base kind -- a string base takes the variant's own name, an integral base
+      counts on from the previous variant. Default base is byte filling from zero. NestedScoping is
+      banked in AllFeaturesV2 and byte-identical to classic.
+
+      EVERY VARIANT LEAVES CONSTRUCTION WITH AN EXPRESSION, which is where this DIVERGES FROM CLASSIC
+      and is the more consequential of the two divergences taken here. Classic emits a WRITTEN value by
+      re-emitting the syntax and an OMITTED one from a resolved constant on the model, so the two
+      halves of one question are answered from two different places and only one of them is in the
+      model. v2 binds a written value in Phase 3 the way a field initializer is bound, and SYNTHESIZES
+      a literal for an omitted one in the same walk. Emission then has a single path and no backend has
+      to know the inference rules or reach back to the syntax. Measured across eight shapes: string
+      inferred, explicit and mixed; integral explicit, inferred and mixed; no annotation; and nested.
+
+      COUNTING ON IS RELATIVE TO THE PREVIOUS VARIANT, NOT THE PREVIOUS EXPLICIT ONE, which this
+      entry had stated as "previous explicit value plus one". Those differ for three or more
+      consecutive omissions and the register's wording would have produced repeats. Mutation-checked:
+      resetting the running value makes 401 become 0 and turns an unannotated enum into three aliases
+      of zero.
+
+      COUNTING SURVIVES A NEGATIVE VALUE, WHICH IS A THIRD DELIBERATE DIVERGENCE and a LIVE DEFECT IN
+      CLASSIC, found by semantic review after this entry was first written done. A negative value
+      binds as negation over a literal, not as a literal, so a constant tracker reading only literals
+      loses it -- and classic's does: `Freezing = -10, Cold` gives Cold = 0 on classic, measured,
+      silently landing on whatever value 0 collides with. v2 folds negation and gives Cold = -9. A
+      written value the binder genuinely cannot fold -- a const reference, arithmetic -- REFUSES the
+      NEXT omitted variant as MIST_PM_ENUM_VALUE_NOT_COUNTABLE rather than guessing, because a wrong
+      guess merges variants the author believes are distinct.
+
+      A SYNTHESIZED VALUE IS RANGE-CHECKED AGAINST THE BASE, same review, same day. The unannotated
+      default base is byte, so `A = 255, B` -- or any plain enum past 256 variants -- walked off the
+      base by the compiler's OWN arithmetic and died as CS1503 against generated C#, the exact failure
+      the emitter's contract promises to prevent. Now MIST_PM_ENUM_VALUE_OUT_OF_RANGE at the variant,
+      naming the value it would have taken. WRITTEN values are deliberately not checked: that is
+      general initializer type-checking, which belongs to whatever v2 grows for every initializer
+      rather than to an enum special case. Recorded as the third analysis-phase task.
+
+      A BASE WITH NO SUCCESSOR REPORTS RATHER THAN GUESSING. A struct or class base has no next
+      instance, so a variant omitting its value over one is MIST_PM_ENUM_VALUE_NOT_INFERABLE.
+      Reported at construction because it stops the variant getting a value at all. LIVE DEFECT IN
+      CLASSIC, measured: it infers an integral zero whatever the base and emits `new Vec2(0)`,
+      failing as CS1503 against generated C# with no Mist-level cause. Found by mutation --
+      suppressing the string arm crashed the v2 emitter on a null value, which is what showed the
+      null was reachable at all. All three diagnostics land on the VARIANT's own node, stashed for
+      the purpose; the enum's node is only the fallback for members with no syntax behind them.
+
+      DUPLICATE VALUES ARE NOT DETECTED, and the consequence is now decided rather than latent. Under
+      one structural equality notion two variants sharing a value are ALIASES and the first one
+      declared names them both, which is what C# enums do with a repeated value -- measured, `Second`
+      prints `First`. Classic refuses the program outright with MIST_SB_0085, so its own recorded
+      print-versus-match inconsistency turns out UNREACHABLE there; the inconsistency was real only in
+      the emitted shape, never in a program classic would compile. Detection is logged below.
+    analysis_phase_tasks:
+      - >
+        Report two variants sharing an underlying value. Classic's MIST_SB_0085 is the model. Deferred
+        rather than built because it judges a finished set of variants and nothing about it stops one
+        being built -- and because the emitted behaviour without it is coherent rather than broken,
+        aliases naming the first variant. Landing it makes the alias case unreachable, which is what
+        makes the equality decision on order 89 permanent rather than provisional.
+      - >
+        Type-check a WRITTEN variant value against the base. `A = 300` over byte and `A = 5` over a
+        string base both bind unremarked and die in Roslyn. Not an enum rule: it is initializer
+        type-checking, the same judgement every field initializer wants, so it belongs to that
+        machinery when v2 grows it rather than to a per-construct check here. The SYNTHESIZED path is
+        already range-checked, that arithmetic being the compiler's own.
     unlocks: [NestedScoping]
 
   - id: enum-conversion-operators
@@ -3513,13 +3626,37 @@ capabilities:
     order: 89
     layer: enums
     requires: [enum-variant-value-inference, optional-union-representation]
-    v2_status: missing
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
-      Enum to underlying is TOTAL and implicit; underlying to enum is PARTIAL and therefore
-      returns an optional, lowered to a per-variant equality chain. Interpolation must print
-      the variant name, which the classic pipeline does with a reference-equality lookup --
-      while the pattern form uses record structural equality on the value, so two variants
-      sharing a value would print and match inconsistently.
+      Enum to underlying is TOTAL and implicit; underlying to enum is PARTIAL and therefore returns an
+      optional, lowered to a per-variant equality chain.
+
+      BOTH OPERATORS EMIT AND THE TOTAL ONE IS EXERCISED. Reading a variant's underlying value is
+      measured over string, int and byte bases. The partial direction emits its equality chain but
+      nothing consumes the optional it returns, which is what leaves this partial: the result is
+      `T?` in C# and Mist has no optional to receive it until order 78.
+
+      ONE EQUALITY NOTION, STRUCTURAL, AND THIS DIVERGES FROM CLASSIC DELIBERATELY. Interpolation must
+      print the variant name, and classic finds that name by REFERENCE identity while comparing values
+      structurally. v2's ToString compares on the value, so printing agrees with comparison by
+      construction. THE DIVERGENCE IS CURRENTLY UNOBSERVABLE and was taken anyway: classic refuses
+      duplicate values (MIST_SB_0085), so the inconsistency it records cannot arise in a program it
+      compiles, and Mist has no `==` on an enum for a user to write -- classic reports MIST_TC_0005 for
+      it. The only reader today is interpolation. It is settled now so that order 99's pattern
+      lowering, which compares values, agrees with printing without anything having to be reconciled
+      afterwards.
+
+      WHAT THE CHOICE COSTS is that v2, which does not yet detect duplicates, treats two variants
+      sharing a value as ALIASES naming the first -- coherent, and what C# enums do, where classic
+      would have printed two names for one value. See order 88.
+    tasks:
+      - >
+        Consume the optional the partial conversion returns, once optional-union-representation exists.
+        The operator is emitted; nothing can receive its result.
+      - >
+        Print the variant name for a UNION-backed enum, whose ToString chain compares against a
+        carrier. Shares its blocker with order 87's remaining task.
     unlocks: []
 
   # ===================================================================
@@ -5462,12 +5599,12 @@ samples:
         methods against v2. Left methodless, since the file is shared.
       - One file exists only to dodge an entry-point detection bug with constructed generics.
       - >
-        WHAT IT STILL WAITS ON IS ENUMS, AND ONLY ENUMS. Measured once order 66 and order 30's
-        several-per-file fix had both landed: 6 C# errors, every one a nested enum member read
-        (Outer.Status, Registry.Category). v2 emits no enum at all, nested or top-level. Nothing to do
-        with nested types or namespaces is left, so this sample banks on the enum capability alone --
-        which makes its recorded threshold, enum-variant-value-inference, now literally the last thing
-        standing rather than merely the highest-ordered.
+        BANKED, and its threshold was the last thing standing rather than merely the highest-ordered.
+        After orders 66 and 30 it had 6 errors left, every one a nested enum member read; order 88
+        closed all six and it now runs byte-identical to classic on both pipelines. Its two enums are
+        both string-backed with every value written explicitly, so it does NOT exercise the inference
+        its threshold is named for -- what it needed from order 88 was declaration-time evaluation and
+        variant-name printing. The inference rules are covered by probe and register evidence only.
 
   - name: VoidType
     intro_order: 10

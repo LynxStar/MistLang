@@ -138,11 +138,7 @@ internal sealed class CSharpEmitterV2
         string outputDir,
         List<string> emittedFiles)
     {
-        // An intrinsic's implementation is supplied by the backend, so a declaration for it
-        // would collide with the real one.
-        var emittableTypes = unit.Types
-            .Where(t => t is not ConcreteType { IsIntrinsic: true })
-            .ToList();
+        var emittableTypes = unit.Types.Where(TypeEmitter.ProducesDeclaration).ToList();
 
         // A file that declares nothing emittable would produce a .cs holding only usings,
         // which Roslyn accepts but which adds a file to the compilation for no reason.
@@ -314,7 +310,7 @@ internal sealed class CSharpEmitterV2
 
             foreach(var unit in assembly.CompilationUnits)
             {
-                foreach(var type in unit.Types)
+                foreach(var type in unit.Types.OfType<MemberType>())
                 {
                     yield return type;
                 }
@@ -380,7 +376,7 @@ internal sealed class CSharpEmitterV2
     /// </para>
     /// </summary>
     private void EmitFileTypes(
-        List<MemberType> types, bool hasTopLevelStatements, ConstraintClosureMap closures, CSharpWriter writer)
+        List<DeclaredType> types, bool hasTopLevelStatements, ConstraintClosureMap closures, CSharpWriter writer)
     {
         var groups = types.GroupBy(type => type.NamespaceName, StringComparer.Ordinal).ToList();
 
@@ -410,18 +406,12 @@ internal sealed class CSharpEmitterV2
     }
 
     private void EmitTypes(
-        IEnumerable<MemberType> types, ConstraintClosureMap closures, CSharpWriter writer)
+        IEnumerable<DeclaredType> types, ConstraintClosureMap closures, CSharpWriter writer)
     {
-        var first = true;
+        var anyEmitted = false;
         foreach(var type in types)
         {
-            if(!first)
-            {
-                writer.WriteBlankLine();
-            }
-
-            first = false;
-            TypeEmitter.EmitTypeBody(type, closures, writer, diagnostics);
+            TypeEmitter.Emit(type, closures, writer, diagnostics, ref anyEmitted);
         }
     }
 

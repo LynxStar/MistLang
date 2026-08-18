@@ -39,15 +39,15 @@ internal sealed class EnumTypeBuilder
     }
 
     /// <summary>
-    /// Resolves the explicit type annotation if present. When absent, the underlying
-    /// type will be inferred during a later phase (expression evaluation).
+    /// Settled in Phase 2 because Phase 3 reads the base to infer each omitted variant value, so it
+    /// must already have an answer by then.
     /// </summary>
     private void ResolveUnderlyingType(EnumDeclarationNode enumDecl, EnumType typeDef)
     {
-        if(enumDecl.Type is { } typeAnnotation)
-        {
-            typeDef.UnderlyingType = scopeResolver.Resolve(typeAnnotation, typeDef.Scope);
-        }
+        typeDef.UnderlyingType = enumDecl.Type is { } typeAnnotation
+            ? scopeResolver.Resolve(typeAnnotation, typeDef.Scope)
+            : scopeResolver.LookupWellKnown(WellKnownTypes.Byte)
+            ;
     }
 
     /// <summary>
@@ -77,6 +77,6 @@ internal sealed class EnumTypeBuilder
         var isDefault = memberNode.IsDefault is not null;
         var value = memberNode.Value is { } valueExpr ? new UnresolvedExpression(valueExpr) : null;
 
-        typeDef.MembersList.Add(new EnumMember(name, isDefault, value));
+        typeDef.MembersList.Add(new EnumMember(name, isDefault, value, memberNode));
     }
 }

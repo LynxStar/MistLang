@@ -30,6 +30,11 @@ internal static class MemberBinder
             BindInitializers(memberType, context);
             BindAccessors(memberType, context);
         }
+
+        foreach(var enumType in sourceTypes.OfType<EnumType>())
+        {
+            EnumMemberBinder.BindAll(enumType, context);
+        }
     }
 
     private static void BindDelegates(MemberType memberType, BuilderContext context)

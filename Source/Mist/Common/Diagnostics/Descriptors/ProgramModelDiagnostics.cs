@@ -626,6 +626,39 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "'{0}' is not an abstract type, so '{1}' cannot be declared to conform to it.");
 
+    /// <summary>
+    /// Reported at construction because it stops the variant getting a value at all, which every
+    /// later stage depends on having -- not because a finished program is judged wrong on inspection.
+    /// </summary>
+    public static readonly DiagnosticDescriptor EnumVariantValueNotInferable = new(
+        new DiagnosticId("MIST_PM_ENUM_VALUE_NOT_INFERABLE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "Enum variant '{0}' needs an explicit value: none can be inferred over base type '{1}'. Only a string base, which uses the variant name, and an integral base, which counts up from the previous variant, can supply one.");
+
+    /// <summary>
+    /// Counting on needs the previous variant's constant, and a written value the binder cannot fold
+    /// -- a const reference, arithmetic -- withholds it. Refused rather than guessed: the classic
+    /// pipeline restarts counting at zero here, silently merging variants the author believes are
+    /// distinct, since variants sharing a value are aliases under this lowering.
+    /// </summary>
+    public static readonly DiagnosticDescriptor EnumVariantValueNotCountable = new(
+        new DiagnosticId("MIST_PM_ENUM_VALUE_NOT_COUNTABLE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "Enum variant '{0}' needs an explicit value: the previous variant's value is not a compile-time constant this phase can count on from.");
+
+    /// <summary>
+    /// The compiler's own arithmetic walked outside the base type. Reported in Mist terms because the
+    /// author wrote no value here -- an overflow error against generated C# would name a number they
+    /// never typed.
+    /// </summary>
+    public static readonly DiagnosticDescriptor EnumVariantValueOutOfRange = new(
+        new DiagnosticId("MIST_PM_ENUM_VALUE_OUT_OF_RANGE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "Enum variant '{0}' would take inferred value {1}, which does not fit base type '{2}'. Give it an explicit value, or widen the base type.");
+
     public static readonly DiagnosticDescriptor ConformanceUnresolvedSlot = new(
         new DiagnosticId("MIST_PM_CONFORMANCE_UNRESOLVED_SLOT"),
         DiagnosticSeverity.Error,

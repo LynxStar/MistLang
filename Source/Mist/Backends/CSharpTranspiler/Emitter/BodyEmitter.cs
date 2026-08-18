@@ -337,6 +337,13 @@ internal static class BodyEmitter
                 writer.Append($"{TypeNameEmitter.Emit(@default.Type)}.{DefaultSynthesis.FactoryName}()");
                 break;
 
+            // An enum is defaultable exactly when it designates a variant, there being no other way
+            // to choose between them -- unlike a class, whose fields each have a zero of their own.
+            case DefaultExpression @default when @default.Type is EnumType { MembersList: { } variants }
+                && variants.Exists(variant => variant.IsDefault):
+                writer.Append($"{TypeNameEmitter.Emit(@default.Type)}.{DefaultSynthesis.FactoryName}()");
+                break;
+
             default:
                 // Still written, invalid though it is, so the emitted file stays readable for whoever
                 // is diagnosing the gap. The build stops before Roslyn ever parses it.

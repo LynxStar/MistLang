@@ -46,6 +46,7 @@ internal static class ConversionRelation
         return IsIdentity(from, to)
             || WidensNumerically(from, to)
             || Inherits(from, to)
+            || WidensIntoUnion(from, to)
             ;
     }
 
@@ -124,6 +125,28 @@ internal static class ConversionRelation
         return NumericWidening.TryGetValue(from.FullyQualifiedName, out var targets)
             && Array.IndexOf(targets, to.FullyQualifiedName) >= 0
             ;
+    }
+
+    /// <summary>
+    /// Containment into a union: a value of a constituent is already a value of the union, and
+    /// a union is within another whose constituents cover its own. Each arm recurses through
+    /// <see cref="IsWithin"/> so numeric widening and inheritance reach INTO the constituent
+    /// test -- a byte is within <c>int | string</c>.
+    /// </summary>
+    private static bool WidensIntoUnion(IMistType from, IMistType to)
+    {
+        if(to is not UnionType toUnion)
+        {
+            return false;
+        }
+
+        if(from is UnionType fromUnion)
+        {
+            return fromUnion.Constituents.All(
+                constituent => toUnion.Constituents.Any(target => IsWithin(constituent, target)));
+        }
+
+        return toUnion.Constituents.Any(constituent => IsWithin(from, constituent));
     }
 
     /// <summary>

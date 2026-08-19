@@ -40,6 +40,12 @@ internal sealed class TypeSubstitution
         return ByOrdinal(method.TypeParametersList, typeArguments);
     }
 
+    public static TypeSubstitution ForParameters(
+        IReadOnlyList<TypeParameter> parameters, IReadOnlyList<IMistType?> typeArguments)
+    {
+        return ByOrdinal(parameters, typeArguments);
+    }
+
     /// <summary>
     /// The ordinal indexes the arguments, not the parameter's position in
     /// <paramref name="parameters"/>. They part for a projected extension block, whose parameters keep
@@ -88,10 +94,9 @@ internal sealed class TypeSubstitution
     }
 
     /// <summary>
-    /// An array needs no arm of its own, being a construction of <c>Standard.Array</c>. Nothing but a
-    /// construction is descended into, so a parameter reachable solely through a union, a tuple or a
-    /// refinement survives untouched and unreported -- a union over a type parameter does resolve, so
-    /// that is a reachable gap rather than an unreachable one.
+    /// An array needs no arm of its own, being a construction of <c>Standard.Array</c>. Only
+    /// constructions and unions are descended into, so a parameter reachable solely through a
+    /// tuple or a refinement survives untouched and unreported.
     /// </summary>
     /// <param name="interner">
     /// Null from the emitter's struct flattening, which has none: the interner belongs to construction
@@ -109,6 +114,11 @@ internal sealed class TypeSubstitution
         if(type is TypeParameter parameter)
         {
             return bindings.TryGetValue(parameter, out var argument) ? argument : type;
+        }
+
+        if(type is UnionType union)
+        {
+            return ApplyToUnion(union, interner);
         }
 
         if(type is not ConstructedType constructed)
@@ -134,6 +144,32 @@ internal sealed class TypeSubstitution
             ? new ConstructedType(constructed.Definition, substituted)
             : interner.GetOrCreateConstructedType(constructed.Definition, substituted)
             ;
+    }
+
+    private IMistType ApplyToUnion(UnionType union, TypeInterner? interner)
+    {
+        var substituted = new IMistType[union.Constituents.Count];
+        var changed = false;
+
+        for(var i = 0; i < substituted.Length; i++)
+        {
+            substituted[i] = Apply(union.Constituents[i], interner);
+            changed |= !ReferenceEquals(substituted[i], union.Constituents[i]);
+        }
+
+        if(!changed)
+        {
+            return union;
+        }
+
+        if(interner is not null)
+        {
+            return interner.GetOrCreateUnionType(substituted);
+        }
+
+        var normalized = UnionType.NormalizeConstituents(substituted);
+
+        return normalized.Count == 1 ? normalized[0] : new UnionType(normalized);
     }
 
     public IReadOnlyList<TypeParameter> Unbound(IReadOnlyList<TypeParameter> parameters)

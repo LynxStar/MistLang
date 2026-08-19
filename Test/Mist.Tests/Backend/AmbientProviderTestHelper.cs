@@ -33,16 +33,31 @@ internal static class AmbientProviderTestHelper
             _ = programModel.RegisterType(type);
         }
 
-        // Primitive types + structural types (Task, ValueTask, Void, etc.)
+        // Primitive types + structural types (Task, ValueTask, Void, etc.). Each shell keeps
+        // the kind its Standard/*.mist declaration has, because the optional lowering picks
+        // Nullable-versus-null by that kind: String, Regex and the Task family are classes,
+        // the rest are structs.
+        var classKinds = new HashSet<string>(StringComparer.Ordinal)
+        {
+            WellKnownTypes.String.Name,
+            WellKnownTypes.Regex.Name,
+            WellKnownTypes.Task.Name,
+            WellKnownTypes.TaskGeneric.Name,
+            WellKnownTypes.ValueTask.Name,
+            WellKnownTypes.ValueTaskGeneric.Name,
+        };
+
         foreach(var wellKnown in WellKnownTypes.AllStandardTypes)
         {
-            register(new ClassType(wellKnown.Name, wellKnown.Namespace, scope, null, null!));
+            register(classKinds.Contains(wellKnown.Name)
+                ? new ClassType(wellKnown.Name, wellKnown.Namespace, scope, null, null!)
+                : new StructType(wellKnown.Name, wellKnown.Namespace, scope, null, null!));
         }
 
         // Index/Range (ranges feature) are Standard shells needed by ambient projection
         // but are not part of AllStandardTypes; register them explicitly.
-        register(new ClassType("Index", "Standard", scope, null, null!));
-        register(new ClassType("Range", "Standard", scope, null, null!));
+        register(new StructType("Index", "Standard", scope, null, null!));
+        register(new StructType("Range", "Standard", scope, null, null!));
 
         // Interfaces used for interface mapping.
         register(new AbstractType(WellKnownTypes.IEnumerable.Name, WellKnownTypes.IEnumerable.Namespace, scope, null, null));

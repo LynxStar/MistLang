@@ -108,6 +108,17 @@ public sealed class ProgramModelBuilder
             .ToList()
             ;
 
+        // Aliases resolve ahead of every other kind because alias expansion happens at
+        // resolution (ScopeResolver.ExpandAlias): a member signature naming Optional<int>
+        // needs the alias's target already in place when the signature is resolved.
+        foreach(var typeDef in sourceTypes)
+        {
+            if(typeDef is TypeAlias typeAliasDef)
+            {
+                typeAliasBuilder.Build(typeAliasDef);
+            }
+        }
+
         foreach(var typeDef in sourceTypes)
         {
             switch(typeDef)
@@ -123,9 +134,6 @@ public sealed class ProgramModelBuilder
                     break;
                 case Newtype newtypeDef:
                     newtypeBuilder.Build(newtypeDef);
-                    break;
-                case TypeAlias typeAliasDef:
-                    typeAliasBuilder.Build(typeAliasDef);
                     break;
             }
         }

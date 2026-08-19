@@ -1,6 +1,7 @@
 using System.Globalization;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
@@ -150,10 +151,36 @@ internal sealed class ScopeResolver
         // in a constructed Standard.Array<TValue, Length>.
         if(HasArrayRank(singleRef))
         {
-            return ResolveArrayType(singleRef, inner);
+            inner = ResolveArrayType(singleRef, inner);
+        }
+
+        if(HasOptionalToken(singleRef) && inner is not ErrorType)
+        {
+            return WrapOptional(inner);
         }
 
         return inner;
+    }
+
+    private static bool HasOptionalToken(SingleTypeRefNode singleRef)
+    {
+        return singleRef switch
+        {
+            PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef => primitiveRef.Optional is not null,
+            NamedSingleTypeRefSingleTypeRefNode namedRef => namedRef.Optional is not null,
+            _ => false,
+        };
+    }
+
+    /// <summary>
+    /// Desugars the optional suffix: <c>T?</c> IS the union of T with void, one construct with
+    /// no type of its own. Applied after the array wrap, so <c>int[]?</c> is an optional array
+    /// rather than an array of optionals.
+    /// </summary>
+    private IMistType WrapOptional(IMistType inner)
+    {
+        return context.ProgramModel.TypeInterner.GetOrCreateUnionType(
+            [inner, LookupWellKnown(WellKnownTypes.Void)]);
     }
 
     /// <summary>
@@ -223,6 +250,11 @@ internal sealed class ScopeResolver
             return ErrorType.Instance;
         }
 
+        if(baseType is TypeAlias alias)
+        {
+            return ExpandAlias(alias, namedRef, scope);
+        }
+
         // If type arguments are present, resolve them and wrap in a ConstructedType.
         if(namedRef.TypeArgs is { } typeArgList)
         {
@@ -232,6 +264,32 @@ internal sealed class ScopeResolver
         }
 
         return baseType;
+    }
+
+    /// <summary>
+    /// A type alias is transparent: a use names the aliased type, never the alias. Expanding
+    /// here, at resolution, is what makes <c>Optional&lt;int&gt;</c> and <c>int?</c> reach the
+    /// same interned union, so every later phase sees one type. An alias whose own target is
+    /// not resolved yet -- an alias naming another alias, ahead of it in the Phase 2a pass --
+    /// is returned unexpanded rather than guessed at.
+    /// </summary>
+    private IMistType ExpandAlias(TypeAlias alias, NamedSingleTypeRefSingleTypeRefNode namedRef, Scope scope)
+    {
+        if(alias.AliasedType is not { } aliased)
+        {
+            return alias;
+        }
+
+        if(namedRef.TypeArgs is not { } typeArgList)
+        {
+            return aliased;
+        }
+
+        var typeArgs = ResolveTypeArguments(typeArgList, scope);
+
+        return TypeSubstitution
+            .ForParameters(alias.TypeParametersList, typeArgs)
+            .Apply(aliased, context.ProgramModel.TypeInterner);
     }
 
     /// <summary>

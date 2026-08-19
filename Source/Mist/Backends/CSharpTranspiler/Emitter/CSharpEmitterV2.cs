@@ -77,6 +77,7 @@ internal sealed class CSharpEmitterV2
         EmitConstructorConstraintInterfaces(outputDir, emittedFiles);
         EmitStructInitMarker(outputDir, emittedFiles);
         EmitUnionCarriers(outputDir, emittedFiles);
+        EmitVoidStruct(outputDir, emittedFiles);
 
         // The standard library is provided by the runtime, so its declarations are resolved
         // against but never emitted.
@@ -272,6 +273,45 @@ internal sealed class CSharpEmitterV2
         }
 
         var path = Path.Combine(outputDir, "__Unions.g.cs");
+        File.WriteAllText(path, writer.ToString());
+        emittedFiles.Add(path);
+    }
+
+    /// <summary>
+    /// The CLR shape of Standard.Void, generated because System.Void is refused in every
+    /// position a unit type needs, and the stdlib's own Void.mist cannot be transpiled until
+    /// properties and operator declarations emit -- at which point this method should be
+    /// deleted in its favour. Members follow Void.mist; ToString and the equality overrides
+    /// are backend additions so interpolation prints "Void" and the operators compile clean.
+    /// </summary>
+    private static void EmitVoidStruct(string outputDir, List<string> emittedFiles)
+    {
+        var writer = new CSharpWriter();
+        writer.WriteLine("namespace Standard;");
+        writer.WriteBlankLine();
+        writer.WriteLine("[System.Runtime.CompilerServices.CompilerGenerated]");
+        writer.WriteLine("public readonly struct Void : System.IEquatable<Void>");
+
+        using(writer.Block())
+        {
+            writer.WriteLine("public static readonly Void Instance = default;");
+            writer.WriteBlankLine();
+            writer.WriteLine("public bool Equals(Void other) => true;");
+            writer.WriteBlankLine();
+            writer.WriteLine("public override bool Equals(object? obj) => obj is Void;");
+            writer.WriteBlankLine();
+            writer.WriteLine("public override int GetHashCode() => 0;");
+            writer.WriteBlankLine();
+            writer.WriteLine("public static bool operator ==(Void left, Void right) => true;");
+            writer.WriteBlankLine();
+            writer.WriteLine("public static bool operator !=(Void left, Void right) => false;");
+            writer.WriteBlankLine();
+            writer.WriteLine("public override string ToString() => \"Void\";");
+            writer.WriteBlankLine();
+            writer.WriteLine("public static implicit operator System.Type(Void v) => typeof(Void);");
+        }
+
+        var path = Path.Combine(outputDir, "__Void.g.cs");
         File.WriteAllText(path, writer.ToString());
         emittedFiles.Add(path);
     }

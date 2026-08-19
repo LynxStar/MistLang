@@ -112,7 +112,12 @@ internal static class TypeNameEmitter
                 "Boolean" => "bool",
                 "Char" => "char",
                 "String" => "string",
-                "Void" => "void",
+
+                // Standard.Void is a real emitted struct (__Void.g.cs), because System.Void
+                // is unusable in every position a unit type needs. The one place the C#
+                // `void` keyword appears is a method's return type, and that exception is
+                // MethodEmitter.EmitSignature's, not this map's.
+                "Void" => "Standard.Void",
                 _ => memberType.Name,
             };
         }

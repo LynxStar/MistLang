@@ -42,6 +42,7 @@ internal static class WellKnownTypes
 
     // ── Structural types ──────────────────────────────────────────────────
     public static readonly WellKnownType Void = new("Void", "Standard", "void");
+    public static readonly WellKnownType Type = new("Type", "Standard", Keyword: null);
     public static readonly WellKnownType Task = new("Task", "Standard", Keyword: null);
     public static readonly WellKnownType TaskGeneric = new("Task<>", "Standard", Keyword: null);
     public static readonly WellKnownType ValueTask = new("ValueTask", "Standard", Keyword: null);
@@ -70,7 +71,7 @@ internal static class WellKnownTypes
     [
         Int32, Int64, Int16, UInt32, UInt64, UInt16,
         Byte, SByte, Single, Double, Decimal,
-        Boolean, Char, String, Regex, Void,
+        Boolean, Char, String, Regex, Void, Type,
         Task, TaskGeneric, ValueTask, ValueTaskGeneric,
     ];
 }

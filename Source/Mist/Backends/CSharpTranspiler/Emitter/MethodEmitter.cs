@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel;
 using Mist.ProgramModel.Model.Members;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
@@ -40,7 +41,12 @@ internal static class MethodEmitter
     /// </summary>
     internal static string EmitSignature(Method method)
     {
-        var returnType = TypeNameEmitter.Emit(method.ReturnType);
+        // The one deliberate exception to Void emitting as Standard.Void: a return type takes
+        // the native C# form, and the call-site lowering in BodyEmitter reconstructs the unit
+        // value wherever a caller consumes it -- exact, because the type has one inhabitant.
+        var returnType = OptionalUnion.IsVoid(method.ReturnType)
+            ? "void"
+            : TypeNameEmitter.Emit(method.ReturnType);
         var typeParams = method.TypeParametersList.Count > 0
             ? $"<{string.Join(", ", method.TypeParametersList.Select(tp => tp.Name))}>"
             : "";

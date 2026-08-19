@@ -41,6 +41,7 @@ internal static class AmbientProviderTestHelper
         {
             WellKnownTypes.String.Name,
             WellKnownTypes.Regex.Name,
+            WellKnownTypes.Type.Name,
             WellKnownTypes.Task.Name,
             WellKnownTypes.TaskGeneric.Name,
             WellKnownTypes.ValueTask.Name,

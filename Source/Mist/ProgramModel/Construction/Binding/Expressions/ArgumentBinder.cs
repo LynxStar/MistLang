@@ -1,6 +1,7 @@
 using Mist.Generated;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Binding.Expressions;
 
@@ -21,25 +22,38 @@ internal static class ArgumentBinder
     internal static IReadOnlyList<Expression> Bind(
         ArgumentListNode? argumentList, BindingContext ctx, BuilderContext context)
     {
-        return Bind(argumentList, parameters: null, ctx, context);
+        return Bind(argumentList, parameters: null, TypeSubstitution.Empty, ctx, context);
     }
 
     /// <summary>
     /// Binds each argument with the corresponding parameter type as its target, where
-    /// <paramref name="candidates"/> holds exactly one member of the right arity.
+    /// <paramref name="candidates"/> holds exactly one member of the right arity. The target is
+    /// substituted against <paramref name="receiverConstructed"/>, so an argument to
+    /// <c>new Result&lt;void&gt;(...)</c> sees Void, not T -- target-typed forms such as the void
+    /// literal read the slot's CLOSED type.
     /// </summary>
     internal static IReadOnlyList<Expression> Bind<T>(
-        ArgumentListNode? argumentList, IReadOnlyList<T> candidates, BindingContext ctx, BuilderContext context)
+        ArgumentListNode? argumentList,
+        IReadOnlyList<T> candidates,
+        BindingContext ctx,
+        BuilderContext context,
+        ConstructedType? receiverConstructed = null)
         where T : Method
     {
         var count = argumentList?.GetAllExpressions().Length ?? 0;
 
-        return Bind(argumentList, SoleByArity(candidates, count), ctx, context);
+        return Bind(
+            argumentList,
+            SoleByArity(candidates, count),
+            TypeSubstitution.ForReceiver(receiverConstructed),
+            ctx,
+            context);
     }
 
     private static IReadOnlyList<Expression> Bind(
         ArgumentListNode? argumentList,
         IReadOnlyList<Parameter>? parameters,
+        TypeSubstitution substitution,
         BindingContext ctx,
         BuilderContext context)
     {
@@ -53,7 +67,9 @@ internal static class ArgumentBinder
 
         for(var i = 0; i < expressions.Length; i++)
         {
-            var target = parameters is not null && i < parameters.Count ? parameters[i].Type : null;
+            var target = parameters is not null && i < parameters.Count
+                ? substitution.Apply(parameters[i].Type, context.ProgramModel.TypeInterner)
+                : null;
 
             // Pushed even when null, so that an enclosing target type stops here rather than
             // reaching an argument it has nothing to say about.

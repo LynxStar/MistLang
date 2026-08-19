@@ -104,7 +104,7 @@ internal static class PostfixBinder
             return new InvocationExpression(node, receiver, value, receiver.Type, null);
         }
 
-        var bound = ArgumentBinder.Bind(arguments, group.Candidates, ctx, context);
+        var bound = ArgumentBinder.Bind(arguments, group.Candidates, ctx, context, group.ReceiverConstructed);
         var interner = context.ProgramModel.TypeInterner;
 
         var choice = OverloadResolution.Select(

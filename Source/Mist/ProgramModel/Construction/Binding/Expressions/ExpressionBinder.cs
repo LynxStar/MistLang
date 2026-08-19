@@ -79,8 +79,42 @@ internal static class ExpressionBinder
                 named, context.Resolver.Resolve(named.Type, ctx.Scope)),
             DefaultLiteralExpressionPrimaryNode bare => BindBareDefault(bare, ctx, context),
 
+            TypeLiteralExpressionPrimaryNode typeLiteral => BindTypeLiteral(typeLiteral, ctx, context),
+
             _ => new UnresolvedExpression(node),
         };
+    }
+
+    /// <summary>
+    /// Binds a type spelled in value position. For <c>void</c> the target type decides among
+    /// three readings -- the unit value where a void is expected, absence where an optional
+    /// is, and the type literal everywhere else -- so one token never needs three spellings.
+    /// </summary>
+    private static Expression BindTypeLiteral(
+        TypeLiteralExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
+    {
+        var referenced = context.Resolver.Resolve(node.TypeRef, ctx.Scope);
+
+        if(referenced is ErrorType)
+        {
+            return new ErrorExpression(node);
+        }
+
+        if(OptionalUnion.IsVoid(referenced) && ctx.TargetType is { } target)
+        {
+            if(OptionalUnion.IsVoid(target))
+            {
+                return new VoidLiteralExpression(node, VoidReading.Singleton, target);
+            }
+
+            if(OptionalUnion.ContainsVoid(target))
+            {
+                return new VoidLiteralExpression(node, VoidReading.Absence, target);
+            }
+        }
+
+        return new TypeLiteralExpression(
+            node, referenced, context.Resolver.LookupWellKnown(WellKnownTypes.Type));
     }
 
     /// <summary>
@@ -217,7 +251,8 @@ internal static class ExpressionBinder
         BindingContext ctx,
         BuilderContext context)
     {
-        var arguments = ArgumentBinder.Bind(argumentList, ConstructorsOf(type), ctx, context);
+        var arguments = ArgumentBinder.Bind(
+            argumentList, ConstructorsOf(type), ctx, context, type as ConstructedType);
 
         return new NewExpression(
             node,

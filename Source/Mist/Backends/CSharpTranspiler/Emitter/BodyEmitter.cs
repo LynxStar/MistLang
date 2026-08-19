@@ -39,7 +39,19 @@ internal static class BodyEmitter
                 break;
 
             case ReturnStatement returnStmt:
-                if(returnStmt.Value is not null)
+                if(returnStmt.Value is { } value && OptionalUnion.IsVoid(value.Type))
+                {
+                    if(value is InvocationExpression)
+                    {
+                        writer.Write("");
+                        EmitExpression(value, writer, diagnostics);
+                        writer.Append(";");
+                        writer.AppendLine();
+                    }
+
+                    writer.WriteLine("return;");
+                }
+                else if(returnStmt.Value is not null)
                 {
                     writer.Write("return ");
                     EmitExpression(returnStmt.Value, writer, diagnostics);
@@ -117,6 +129,17 @@ internal static class BodyEmitter
     private static void EmitLocalDeclaration(LocalDeclarationStatement localDecl, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var typeName = TypeNameEmitter.Emit(localDecl.Local.Type);
+
+        if(localDecl.Initializer is InvocationExpression call && OptionalUnion.IsVoid(call.Type))
+        {
+            writer.Write("");
+            EmitExpression(call, writer, diagnostics);
+            writer.Append(";");
+            writer.AppendLine();
+            writer.WriteLine($"{typeName} {localDecl.Local.Name} = Standard.Void.Instance;");
+            return;
+        }
+
         writer.Write($"{typeName} {localDecl.Local.Name}");
         if(localDecl.Initializer is not null)
         {
@@ -346,6 +369,15 @@ internal static class BodyEmitter
 
             case LiteralExpression literal:
                 writer.Append(EmitLiteral(literal));
+                break;
+
+            case VoidLiteralExpression voidLiteral:
+                writer.Append(
+                    voidLiteral.Reading == VoidReading.Absence ? "null" : "Standard.Void.Instance");
+                break;
+
+            case TypeLiteralExpression typeLiteral:
+                writer.Append($"typeof({TypeNameEmitter.Emit(typeLiteral.ReferencedType)})");
                 break;
 
             case DefaultExpression @default when EmitTypeDefault(@default.Type) is { } value:

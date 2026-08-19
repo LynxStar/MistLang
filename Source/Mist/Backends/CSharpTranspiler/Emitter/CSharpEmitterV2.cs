@@ -1,6 +1,7 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.Driver.Contracts;
+using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
@@ -75,6 +76,7 @@ internal sealed class CSharpEmitterV2
 
         EmitConstructorConstraintInterfaces(outputDir, emittedFiles);
         EmitStructInitMarker(outputDir, emittedFiles);
+        EmitUnionCarriers(outputDir, emittedFiles);
 
         // The standard library is provided by the runtime, so its declarations are resolved
         // against but never emitted.
@@ -228,6 +230,95 @@ internal sealed class CSharpEmitterV2
         var path = Path.Combine(outputDir, "__StructInit.g.cs");
         File.WriteAllText(path, writer.ToString());
         emittedFiles.Add(path);
+    }
+
+    /// <summary>
+    /// One tag-and-payload carrier struct per distinct non-optional union, top-level in a single
+    /// generated file so it is reachable from every emitted namespace. The interner is read
+    /// rather than the emitted surface walked, because every union a program mentions passes
+    /// through it exactly once -- locals, signatures and casts alike. Optionals never get a
+    /// carrier; <see cref="TypeNameEmitter"/> lowers them to Nullable or the bare type.
+    /// </summary>
+    private void EmitUnionCarriers(string outputDir, List<string> emittedFiles)
+    {
+        var interner = ((ProgramModel.Model.ProgramModel)programModel).TypeInterner;
+        var carriers = new SortedDictionary<string, UnionType>(StringComparer.Ordinal);
+
+        foreach(var union in interner.UnionTypes)
+        {
+            if(!OptionalUnion.IsOptional(union))
+            {
+                carriers[UnionCarrierNames.CarrierName(union)] = union;
+            }
+        }
+
+        if(carriers.Count == 0)
+        {
+            return;
+        }
+
+        var writer = new CSharpWriter();
+        var first = true;
+
+        foreach(var (name, union) in carriers)
+        {
+            if(!first)
+            {
+                writer.WriteBlankLine();
+            }
+
+            first = false;
+            EmitCarrierStruct(name, union, writer);
+        }
+
+        var path = Path.Combine(outputDir, "__Unions.g.cs");
+        File.WriteAllText(path, writer.ToString());
+        emittedFiles.Add(path);
+    }
+
+    private static void EmitCarrierStruct(string name, UnionType union, CSharpWriter writer)
+    {
+        writer.WriteLine("[System.Runtime.CompilerServices.CompilerGenerated]");
+        writer.WriteLine($"public readonly struct {name}");
+
+        using(writer.Block())
+        {
+            writer.WriteLine("private readonly byte _tag;");
+            writer.WriteLine("private readonly object _value;");
+            writer.WriteBlankLine();
+            writer.WriteLine($"private {name}(byte tag, object value)");
+
+            using(writer.Block())
+            {
+                writer.WriteLine("_tag = tag;");
+                writer.WriteLine("_value = value;");
+            }
+
+            for(var i = 0; i < union.Constituents.Count; i++)
+            {
+                var constituentName = UnionCarrierNames.ConstituentName(union.Constituents[i]);
+                var typeName = TypeNameEmitter.Emit(union.Constituents[i]);
+                var tag = i + 1;
+
+                writer.WriteBlankLine();
+                writer.WriteLine($"public bool Is{constituentName} => _tag == {tag};");
+                writer.WriteBlankLine();
+                writer.WriteLine($"public {typeName} As{constituentName} => _tag == {tag}");
+                writer.WriteLine($"    ? ({typeName})_value");
+                writer.WriteLine(
+                    $"    : throw new System.InvalidOperationException(\"Union does not hold {constituentName}\");");
+            }
+
+            for(var i = 0; i < union.Constituents.Count; i++)
+            {
+                var typeName = TypeNameEmitter.Emit(union.Constituents[i]);
+                var tag = i + 1;
+
+                writer.WriteBlankLine();
+                writer.WriteLine($"public static implicit operator {name}({typeName} value)");
+                writer.WriteLine($"    => new {name}({tag}, value);");
+            }
+        }
     }
 
     /// <summary>

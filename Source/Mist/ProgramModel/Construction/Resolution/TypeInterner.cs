@@ -103,22 +103,38 @@ internal sealed class TypeInterner
     }
 
     /// <summary>
-    /// Returns the canonical <see cref="UnionType"/> for the given constituents.
-    /// Constituents are compared as a sorted set so that order does not affect identity.
+    /// Returns the canonical union for the given constituents: nested unions are flattened,
+    /// duplicates dropped, and the rest sorted by qualified name, so <c>int | string</c>,
+    /// <c>string | int</c> and <c>(int | string) | string</c> are one interned type. A single
+    /// surviving constituent is returned bare rather than wrapped, which is why the result is
+    /// not typed <see cref="UnionType"/>.
     /// </summary>
-    public UnionType GetOrCreateUnionType(IReadOnlyList<IMistType> constituents)
+    public IMistType GetOrCreateUnionType(IReadOnlyList<IMistType> constituents)
     {
-        var key = new UnionTypeKey(constituents);
+        var normalized = UnionType.NormalizeConstituents(constituents);
+
+        if(normalized.Count == 1)
+        {
+            return normalized[0];
+        }
+
+        var key = new UnionTypeKey(normalized);
 
         if(unionTypes.TryGetValue(key, out var existing))
         {
             return existing;
         }
 
-        var union = new UnionType(constituents);
+        var union = new UnionType(normalized);
         unionTypes[key] = union;
         return union;
     }
+
+    /// <summary>
+    /// Every distinct union interned so far; the backend reads this to synthesize the
+    /// carrier structs program-wide.
+    /// </summary>
+    public IReadOnlyCollection<UnionType> UnionTypes => unionTypes.Values;
 
     /// <summary>
     /// Returns the canonical <see cref="TupleType"/> for the given element types.
@@ -241,23 +257,21 @@ internal sealed class TypeInterner
     }
 
     /// <summary>
-    /// Key for union types: sorted set of constituent identities (order-independent).
+    /// Key for union types: the normalized constituent list, compared positionally by
+    /// reference. Order-independence is the normalization's doing, not the key's.
     /// </summary>
     private readonly struct UnionTypeKey : IEquatable<UnionTypeKey>
     {
-        private readonly IMistType[] sortedConstituents;
+        private readonly IReadOnlyList<IMistType> constituents;
         private readonly int hashCode;
 
         public UnionTypeKey(IReadOnlyList<IMistType> constituents)
         {
-            // Sort by identity hash code for canonical ordering.
-            sortedConstituents = constituents.ToArray();
-            Array.Sort(sortedConstituents, (a, b) =>
-                RuntimeHelpers.GetHashCode(a).CompareTo(RuntimeHelpers.GetHashCode(b)));
+            this.constituents = constituents;
 
             var hash = new HashCode();
 
-            foreach(var c in sortedConstituents)
+            foreach(var c in constituents)
             {
                 hash.Add(RuntimeHelpers.GetHashCode(c));
             }
@@ -267,14 +281,14 @@ internal sealed class TypeInterner
 
         public bool Equals(UnionTypeKey other)
         {
-            if(sortedConstituents.Length != other.sortedConstituents.Length)
+            if(constituents.Count != other.constituents.Count)
             {
                 return false;
             }
 
-            for(var i = 0; i < sortedConstituents.Length; i++)
+            for(var i = 0; i < constituents.Count; i++)
             {
-                if(!ReferenceEquals(sortedConstituents[i], other.sortedConstituents[i]))
+                if(!ReferenceEquals(constituents[i], other.constituents[i]))
                 {
                     return false;
                 }

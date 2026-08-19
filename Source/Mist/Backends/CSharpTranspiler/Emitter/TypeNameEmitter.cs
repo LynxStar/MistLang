@@ -1,3 +1,4 @@
+using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Types;
@@ -32,10 +33,40 @@ internal static class TypeNameEmitter
             ConstructedType constructed => EmitConstructed(constructed),
             LiftedType lifted => Emit(lifted.Type),
             UnknownValueType unknownValue => Emit(unknownValue.Domain),
+            UnionType union => EmitUnion(union),
             MemberType memberType => MapMemberType(memberType),
             ErrorType => "/* error */",
             UnknownType => "object",
             _ => type.Name,
+        };
+    }
+
+    /// <summary>
+    /// An optional (<c>T | void</c>) bypasses the carrier: Nullable of T for value kinds, the
+    /// bare type for reference kinds with null as absence. Every other union is spelled as its
+    /// generated carrier struct, whose name <see cref="UnionCarrierNames"/> owns.
+    /// </summary>
+    private static string EmitUnion(UnionType union)
+    {
+        if(OptionalUnion.InnerType(union) is { } inner)
+        {
+            var innerName = Emit(inner);
+
+            return IsValueKind(inner) ? $"{innerName}?" : innerName;
+        }
+
+        return UnionCarrierNames.CarrierName(union);
+    }
+
+    private static bool IsValueKind(IMistType type)
+    {
+        return type switch
+        {
+            StructType => true,
+            EnumType => true,
+            RefinedType refined => IsValueKind(refined.BaseType),
+            ConstructedType constructed => IsValueKind(constructed.Definition),
+            _ => false,
         };
     }
 

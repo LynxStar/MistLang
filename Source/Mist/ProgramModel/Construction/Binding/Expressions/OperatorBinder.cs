@@ -14,12 +14,30 @@ internal static class OperatorBinder
 {
     internal static Expression BindVoidCoalescing(VoidCoalescingNode node, BindingContext ctx, BuilderContext context)
     {
+        var left = BindLogicalOr(node.Left, ctx, context);
+
         if(IsBare(node.LogicalOrs, node.Left, node.Right))
         {
-            return BindLogicalOr(node.Left, ctx, context);
+            return left;
         }
 
-        return new UnresolvedExpression(node);
+        // Each link un-lifts: the result is the non-void portion of its left operand, and the
+        // right operand binds against that portion, since it supplies a value exactly when the
+        // left holds absence.
+        foreach(var operand in node.LogicalOrs)
+        {
+            var resultType = OptionalLifting.NonVoidPortion(left.Type, context.ProgramModel.TypeInterner);
+
+            Expression right;
+            using(ctx.PushTargetType(resultType))
+            {
+                right = BindLogicalOr(operand, ctx, context);
+            }
+
+            left = new CoalesceExpression(node, left, right, resultType);
+        }
+
+        return left;
     }
 
     private static Expression BindLogicalOr(LogicalOrNode node, BindingContext ctx, BuilderContext context)

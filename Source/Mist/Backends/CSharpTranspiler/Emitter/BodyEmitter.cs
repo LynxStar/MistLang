@@ -211,7 +211,14 @@ internal static class BodyEmitter
 
             case MemberAccessExpression memberAccess:
                 EmitExpression(memberAccess.Receiver, writer, diagnostics);
-                writer.Append($".{memberAccess.MemberName}{EmitTypeArguments(memberAccess.TypeArguments)}");
+                writer.Append(memberAccess.IsConditional ? "?." : ".");
+                writer.Append($"{memberAccess.MemberName}{EmitTypeArguments(memberAccess.TypeArguments)}");
+                break;
+
+            case CoalesceExpression coalesce:
+                EmitExpression(coalesce.Left, writer, diagnostics);
+                writer.Append(" ?? ");
+                EmitExpression(coalesce.Right, writer, diagnostics);
                 break;
 
             case BinaryExpression binary:
@@ -237,7 +244,7 @@ internal static class BodyEmitter
 
             case AssignmentExpression assignment:
                 EmitExpression(assignment.Target, writer, diagnostics);
-                writer.Append(" = ");
+                writer.Append(assignment.IsCoalescing ? " ??= " : " = ");
                 EmitExpression(assignment.Value, writer, diagnostics);
                 break;
 
@@ -279,7 +286,20 @@ internal static class BodyEmitter
                             break;
                         case InterpolatedStringHole hole:
                             writer.Append("{");
-                            EmitExpression(hole.Expression, writer, diagnostics);
+
+                            // An optional's absence lowers to null, which interpolation prints
+                            // as the empty string; Mist prints it as the unit value's name.
+                            if(OptionalUnion.IsOptional(hole.Expression.Type))
+                            {
+                                writer.Append("(object?)");
+                                EmitExpression(hole.Expression, writer, diagnostics);
+                                writer.Append(" ?? \"Void\"");
+                            }
+                            else
+                            {
+                                EmitExpression(hole.Expression, writer, diagnostics);
+                            }
+
                             writer.Append("}");
                             break;
                     }

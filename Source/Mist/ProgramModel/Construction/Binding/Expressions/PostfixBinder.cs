@@ -57,6 +57,21 @@ internal static class PostfixBinder
                     return BindInvocation(suffix, memberExpr, methodCall.Arguments, typeArguments, ctx, context);
                 }
 
+            case OptionalMemberAccessSuffixPostfixSuffixNode optionalMemberAccess:
+                return BindConditionalAccess(suffix, receiver, optionalMemberAccess.Name.Lexeme, context);
+
+            case OptionalMethodCallSuffixPostfixSuffixNode optionalMethodCall:
+                {
+                    var memberExpr = BindConditionalAccess(
+                        suffix, receiver, optionalMethodCall.Name.Lexeme, context);
+                    var typeArguments = optionalMethodCall.TypeArgs is { } stated
+                        ? context.Resolver.ResolveTypeArguments(stated, ctx.Scope)
+                        : null
+                        ;
+
+                    return BindInvocation(suffix, memberExpr, optionalMethodCall.Arguments, typeArguments, ctx, context);
+                }
+
             case IndexSuffixPostfixSuffixNode indexSuffix:
                 {
                     var index = ExpressionBinder.BindExpression(indexSuffix.Index, ctx, context);
@@ -106,6 +121,12 @@ internal static class PostfixBinder
 
         var returnType = choice.Substitution.Apply(selected.ReturnType, interner);
 
+        if(group.IsConditional)
+        {
+            returnType = OptionalLifting.Lift(
+                returnType, context.Resolver.LookupWellKnown(WellKnownTypes.Void), interner);
+        }
+
         // The receiver's type arguments are already spelled in the receiver expression, and
         // repeating them on the member would be C# for something else entirely.
         var methodTypeArguments = selected.TypeParametersList
@@ -116,9 +137,41 @@ internal static class PostfixBinder
         var callee = group.Receiver is null
             ? new MethodReferenceExpression(node, selected, methodTypeArguments)
             : (Expression)new MemberAccessExpression(
-                node, group.Receiver, group.MemberName, returnType, methodTypeArguments);
+                node, group.Receiver, group.MemberName, returnType, methodTypeArguments, group.IsConditional);
 
         return new InvocationExpression(node, callee, bound, returnType, selected);
+    }
+
+    /// <summary>
+    /// Binds <c>receiver?.member</c>: the member is looked up on the receiver's non-void
+    /// PORTION rather than its type, and the result is lifted back to optional, since the
+    /// receiver's absence short-circuits into the result. A non-optional receiver projects to
+    /// itself and binds as if the access were unconditional -- reporting that misuse is an
+    /// analyzer's, as nothing stops the model building.
+    /// </summary>
+    private static Expression BindConditionalAccess(
+        Storm.Runtime.SyntaxNode node, Expression receiver, string memberName, BuilderContext context)
+    {
+        var interner = context.ProgramModel.TypeInterner;
+        var projected = OptionalLifting.NonVoidPortion(receiver.Type, interner);
+
+        var (found, constructed) = MemberResolution.Resolve(
+            projected, memberName, MemberVisibility.InstanceOnly, node, context);
+
+        if(found is MethodGroupResult { Methods.Count: > 0 } group)
+        {
+            return new MethodGroupExpression(
+                node, receiver, memberName, group.Methods, constructed, isConditional: true);
+        }
+
+        var resolved = TypeSubstitution
+            .ForReceiver(constructed)
+            .Apply(MemberTypeOf(found), interner);
+
+        var lifted = OptionalLifting.Lift(
+            resolved, context.Resolver.LookupWellKnown(WellKnownTypes.Void), interner);
+
+        return new MemberAccessExpression(node, receiver, memberName, lifted, isConditional: true);
     }
 
     private static Expression BindMemberAccess(Storm.Runtime.SyntaxNode node, Expression receiver, string memberName, BuilderContext context)

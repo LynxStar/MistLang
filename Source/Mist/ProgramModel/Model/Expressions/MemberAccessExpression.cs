@@ -12,12 +12,19 @@ internal sealed class MemberAccessExpression(
     Expression receiver,
     string memberName,
     IMistType type,
-    IReadOnlyList<IMistType>? typeArguments = null) : Expression(node)
+    IReadOnlyList<IMistType>? typeArguments = null,
+    bool isConditional = false) : Expression(node)
 {
     /// <summary>
     /// The expression whose member is being accessed.
     /// </summary>
     public Expression Receiver { get; } = receiver;
+
+    /// <summary>
+    /// Whether the access is conditional (<c>receiver?.member</c>), short-circuiting to
+    /// absence when the receiver is absent. The <see cref="Type"/> is then already lifted.
+    /// </summary>
+    public bool IsConditional { get; } = isConditional;
 
     /// <summary>
     /// The name of the member being accessed.

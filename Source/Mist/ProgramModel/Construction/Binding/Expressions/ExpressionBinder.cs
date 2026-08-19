@@ -25,17 +25,25 @@ internal static class ExpressionBinder
 
         if(assignment.Group0 is { } assignmentOp)
         {
-            if(assignmentOp.Operator.Lexeme == "=")
+            var isCoalescing = assignmentOp.Operator.Lexeme == "??=";
+
+            if(assignmentOp.Operator.Lexeme == "=" || isCoalescing)
             {
                 var target = OperatorBinder.BindVoidCoalescing(assignment.Target, ctx, context);
 
+                // A coalescing assignment's value fills the target's ABSENCE, so it binds
+                // against the non-void portion rather than the optional itself.
+                var valueTarget = isCoalescing
+                    ? OptionalLifting.NonVoidPortion(target.Type, context.ProgramModel.TypeInterner)
+                    : target.Type;
+
                 Expression value;
-                using(ctx.PushTargetType(target.Type))
+                using(ctx.PushTargetType(valueTarget))
                 {
                     value = BindExpression(assignmentOp.Value, ctx, context);
                 }
 
-                return new AssignmentExpression(expression, target, value, value.Type);
+                return new AssignmentExpression(expression, target, value, value.Type, isCoalescing);
             }
 
             return new UnresolvedExpression(expression);

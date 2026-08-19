@@ -28,13 +28,15 @@ internal sealed class MethodGroupExpression : Expression
         Expression? receiver,
         string memberName,
         IReadOnlyList<Method> candidates,
-        ConstructedType? receiverConstructed)
+        ConstructedType? receiverConstructed,
+        bool isConditional = false)
         : base(node)
     {
         Receiver = receiver;
         MemberName = memberName;
         Candidates = candidates;
         ReceiverConstructed = receiverConstructed;
+        IsConditional = isConditional;
     }
 
     /// <summary>
@@ -52,6 +54,12 @@ internal sealed class MethodGroupExpression : Expression
     /// <c>OverloadResolution.ParameterType</c>.
     /// </summary>
     public ConstructedType? ReceiverConstructed { get; }
+
+    /// <summary>
+    /// Whether the group was reached through <c>?.</c>, in which case the invocation that
+    /// consumes it lifts its result and emits conditionally.
+    /// </summary>
+    public bool IsConditional { get; }
 
     public override IMistType Type { get; } = MethodGroupType.Instance;
 }

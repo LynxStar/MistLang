@@ -25,3 +25,6 @@ CastOperators = { path = "../CastOperators" }
 DefaultKeyword = { path = "../DefaultKeyword" }
 AbstractTypes = { path = "../AbstractTypes" }
 NestedScoping = { path = "../NestedScoping" }
+OptionalTypes = { path = "../OptionalTypes" }
+VoidType = { path = "../VoidType" }
+VoidValueLiteral = { path = "../VoidValueLiteral" }

@@ -390,20 +390,20 @@ expressions:
     - [~] implicit-this instance/inherited member resolution (walk base chain, classes AND structs) -- MISSING: the base chain, and everything but fields. FindEnclosingField covers class and struct (both are ConcreteType) but searches only the declaring type's FieldsList
     - [~] ThisExpression (error in static context) -- MISSING: the error. The only rejection is EnclosingType being null, which cannot happen for a bound delegate; BindingContext carries no staticness flag and the binder never receives the Method
     - [ ] FieldKeywordExpression (`field`) -> backing field of enclosing property accessor -- no case in BindPrimary; moot until accessor bodies bind
-    - [ ] TypeLiteralExpression (type in expression position) -- no case in BindPrimary -> UnresolvedExpression. NOTE: `Console.WriteLine(...)` still works by a different route (identifier -> TypeResult -> TypeReferenceExpression), but a KEYWORD type such as `string.IsNullOrEmpty(...)` parses as TypeLiteralExpression and does not bind:
-      - [ ] as metatype (Standard.Type) for reflection (`int.Name` -> typeof(int).Name)
-      - [ ] redirect to referenced type for static member access (`string.IsNullOrEmpty(...)`)
-      - [ ] as `void` value when target type is void/optional (void value literal)
+    - [~] TypeLiteralExpression (type in expression position) -- BindTypeLiteral (order 80). NOTE: `Console.WriteLine(...)` still works by a different route (identifier -> TypeResult -> TypeReferenceExpression):
+      - [x] as metatype (Standard.Type) for reflection -- typed Standard.Type, emitted typeof(T); member reads resolve through the intrinsic Type shell's instance members (measured via locals in VoidValueLiteral; the direct `int.Name` spelling is untested)
+      - [ ] redirect to referenced type for static member access (`string.IsNullOrEmpty(...)`) -- the literal now binds as a VALUE, so a static call through a keyword type resolves against Standard.Type's instance members and misses
+      - [x] as `void` value when target type is void/optional (void value literal) -- the trichotomy in BindTypeLiteral: unit value on a void target, absence on an optional target, type literal otherwise
   assignment:
     - [~] simple assignment (`=`) -> result type is target type; bind RHS with target-type context -- MISSING: the result type only, which is value.Type rather than the target's. The RHS IS bound under the assignment target's type now, which is what lets a target-typed new stand on the right of one
-    - [ ] void-coalescing assignment (`??=`) -- any operator other than "=" -> UnresolvedExpression
+    - [~] void-coalescing assignment (`??=`) -- binds as AssignmentExpression with IsCoalescing, RHS targeted at the non-void portion, emitted as C# ??= (order 79). MISSING: flow narrowing of the target afterwards (order 79's open task); the statement-only and mutable-target rules are analyzer work
     - [ ] note: assignable-target validation is a CHECK (out_of_scope); binding still resolves target/value/result -- informational; target, value and result are all resolved, modulo the result-type issue above
   operators:
     # No operator RESOLUTION exists at any precedence level. OperatorsList is populated in
     # Phase 2 and Operator.MapOperatorName synthesizes op_Addition and friends, but
     # nothing in Binding/ ever queries it. InferBinaryResultType returns left.Type for
     # every operator, including the comparisons, with an in-code "Should be Boolean" note.
-    - [ ] void-coalescing (`??`) -- BindVoidCoalescing -> UnresolvedExpression when not bare
+    - [x] void-coalescing (`??`) -- folds into CoalesceExpression per link; the result is the left type's non-void portion and the right operand binds against it (order 79)
     - [~] logical or / and (`||`, `&&`) -> bool -- MISSING: the bool result. Folds correctly into BinaryExpression; result type is left.Type
     - [~] equality (`==`, `!=`) -> operator resolution + bool result -- MISSING: both. Folds into BinaryExpression; result type is left.Type
     - [~] relational comparison (`<`, `>`, `<=`, `>=`) -> operator resolution + bool result -- MISSING: both, as with equality
@@ -419,9 +419,9 @@ expressions:
     - [ ] AsExpression `x as T` -> classify as provable (identity/widening) vs runtime-checked (narrowing/union-extraction/unknown-narrowing); store the classification on the node -- BindRelational rejects any node that is not RelationalComparison, so both `is` and `as` become UnresolvedExpression
   postfix:
     - [~] MemberAccessSuffix (`.name`) -> instance/static member type -- MISSING: a resolved SYMBOL (the node carries only a string MemberName) and the base chain. Static/instance enforcement IS done, by splitting the request rather than resolving and then rejecting. ConstructedType receivers ARE handled: the receiver is unwrapped to its definition for the lookup and the definition's type arguments substituted into what it found, so `list.Count` and `arr.Length` resolve. EnumType, Newtype, TypeAlias, TupleType, NamedTupleType and UnionType receivers still yield ErrorType
-    - [ ] OptionalMemberAccessSuffix (`?.name`) -> lifted to `T | void` -- no case -> UnresolvedExpression
+    - [x] OptionalMemberAccessSuffix (`?.name`) -- member looked up on the receiver's non-void portion, result lifted flattened, IsConditional on the bound node (order 79)
     - [x] MethodCallSuffix (`.name<T>(args)`) -> method resolution + overload + return type -- TypeArgs is resolved and suppresses inference; a generic callee without them has them inferred from the arguments. Overload resolution closes each candidate, filters by arity and applicability, takes the best, and records both the choice and its type arguments on the call. The return type is read through the winner's substitution, so `var` binds concretely
-    - [ ] OptionalMethodCallSuffix (`?.name(args)`) -- no case -> UnresolvedExpression
+    - [x] OptionalMethodCallSuffix (`?.name(args)`) -- same projection through a conditional method group; the invocation lifts the selected overload's return type (order 79)
     - [~] InvocationSuffix (`(args)`) -> call on method group / Func / delegate value -- MISSING: the delegate case. A method-group receiver now selects an overload and takes ITS return type; a non-group receiver still falls back to receiver.Type, which is WRONG for a delegate value: invoking a Func<int,int> local yields the Func type, not int
     - [~] IndexSuffix (`[i]`) -> indexer resolution / array-element / span-element -- MISSING: overload resolution (IndexersList[0] wins), index-type checking, get/set distinction, resolved symbol. Array and span element access DO work: ResolveIndexerType unwraps a ConstructedType receiver and applies a TypeSubstitution built from its definition, and Array.mist/Span.mist declare the intrinsic indexer. An indexer on a user-declared generic type works by the same path -- `items[0]` on a `List<T>` answers T
     - [ ] SwitchExpressionSuffix (`switch { arms }`) -> see patterns.switch_expression -- no case -> UnresolvedExpression
@@ -519,10 +519,10 @@ name_and_symbol_resolution:
     - [ ] default-method-in-abstract fallback (Rust-style defaults callable on the concrete type)
     - [ ] special-cased member access: tuple (ItemN + named), anonymous type, enum member, array (.Length/.AsSpan), span (.Length/.Slice), string -- no special cases exist. `string` works only incidentally, because Standard.String is a ClassType with declared members; array and span do NOT, because they are ConstructedTypes and hit the gap above even though Array.mist declares `intrinsic public Int32 Length`
     - [ ] type-alias transparency (unwrap before member lookup) -- TypeAlias is not a MemberType -> ErrorType
-    - [ ] union projection for member access (`T | void` -> member resolved on T) -- UnionType is not a MemberType -> ErrorType
+    - [~] union projection for member access (`T | void` -> member resolved on T) -- CONDITIONAL access projects and lifts (order 79); a PLAIN `.` on an optional receiver still resolves nothing (UnionType is not a MemberType -> ErrorType), and refusing that spelling with "use ?." is analyzer work
   methods_and_overloads:
     - [~] method-group collection (own scope + inherited + ambient) -- MISSING: ambient/extension methods, which never enter the group. Inherited ones DO: CandidateSet.MergeMethods spans the base chain nearest-first and shadows by signature, so a derived override hides the base and a different signature accumulates. Both consumers now carry the group through to the call rather than discarding it
-    - [~] overload resolution (applicability, most-specific, left-operand tiebreak, ref exact-match filtering, non-generic preference) -- OverloadResolution.Select runs arity -> closing -> applicability -> pairwise betterness (exact over converted, then narrower target, then non-generic over generic). ConversionRelation covers identity, implicit numeric widening and inheritance. MISSING: the left-operand tiebreak, ref exact-match filtering, and conversions outside that relation -- user-defined casts, unions, tuples, variance. Non-generic preference is DONE, and was not optional once generic candidates could be closed: closing makes a generic signature identical to a non-generic sibling's, so `Tag<U>(U)` beside `Tag(int)` tied for `Tag(3)` and the call was refused as ambiguous between a method and its own specialisation. Every failure is now reported rather than guessed at -- no arity match, wrong stated type-argument count, undetermined type arguments, no applicable candidate, or a tie
+    - [~] overload resolution (applicability, most-specific, left-operand tiebreak, ref exact-match filtering, non-generic preference) -- OverloadResolution.Select runs arity -> closing -> applicability -> pairwise betterness (exact over converted, then narrower target, then non-generic over generic). ConversionRelation covers identity, implicit numeric widening, inheritance and union containment (order 77: constituent -> union and union -> covering union, with exact-beats-union ranking falling out of the containment comparison). MISSING: the left-operand tiebreak, ref exact-match filtering, and conversions outside that relation -- user-defined casts, tuples, variance. Non-generic preference is DONE, and was not optional once generic candidates could be closed: closing makes a generic signature identical to a non-generic sibling's, so `Tag<U>(U)` beside `Tag(int)` tied for `Tag(3)` and the call was refused as ambiguous between a method and its own specialisation. Every failure is now reported rather than guessed at -- no arity match, wrong stated type-argument count, undetermined type arguments, no applicable candidate, or a tie
     - [x] resolved method symbol recorded as an intrinsic property of the bound call node -- InvocationExpression.Method and NewExpression.Constructor. Null on each means "no member was resolved" rather than "not implemented": invoking a delegate value selects nothing, and a type declaring no constructor has nothing to select
   generic_inference:
     - [~] generic method type-argument inference (unify parameter types against argument types) -- MISSING: unification against a BASE of the declared parameter type, so `F<T>(IEnumerable<T>)` called with a `List<int>` answers nothing; it requires the same definition. Gated on the base-chain walk above. Matching descends a construction, so T is read through a `List<T>` parameter, and arrays come through the same arm. A parameter answered twice takes the widening answer -- `F<T>(T, T)` on `(1, 2L)` gives long -- but two answers neither of which converts keep the earlier one and let applicability eliminate the candidate, where C# rejects the call itself
@@ -556,11 +556,11 @@ type_inference_and_conversions:
     - [x] variable-declaration target type -- TypedVariableDeclaration only; for-initializers do not push
     - [x] return-statement target type (method/lambda return)
     - [x] assignment-RHS target type -- the assignment target is bound first, so its type targets the value
-    - [~] argument target type (from resolved parameter type) -- MISSING: the several-candidates case, which needs the argument to take part in applicability before it has a type. One candidate of the right arity supplies its parameter types; several supply none
+    - [~] argument target type (from resolved parameter type) -- MISSING: the several-candidates case, which needs the argument to take part in applicability before it has a type. One candidate of the right arity supplies its parameter types, now SUBSTITUTED against a constructed receiver so an argument to `new Result<void>(...)` sees Void rather than T (order 80); several supply none
     - [x] object-creation / target-typed-new (constructor parameter types) -- both go through ArgumentBinder with the target's constructors, so a nested `new(new(...))` reaches the inner parameter's type
     - [x] empty-array element target type -- LiteralBinder.ArrayElementType + PushTargetType
     - [ ] lambda parameter target types
-    - [ ] void-value-literal + default-literal target type
+    - [x] void-value-literal + default-literal target type -- the void literal reads it for its three-way resolution (order 80); the bare default already did
   best_common_type:
     - [ ] switch-expression arm unification
     - [~] array-literal element unification -- MISSING: unification. CommonElementType is a reference-identity uniformity check plus a diagnostic
@@ -583,7 +583,7 @@ type_inference_and_conversions:
     - [ ] constructed-generic identity + covariant unknown-widening (class-only restriction)
     - [ ] tuple structural (arity + element assignability; name erasure)
     - [ ] array / span sizing (known-length -> unknown-length; kind must match for spans)
-    - [ ] union widening (constituent -> union; union -> wider union) and narrowing (via `is`)
+    - [~] union widening (constituent -> union; union -> wider union) and narrowing (via `is`) -- widening is ConversionRelation.WidensIntoUnion, containment recursing through IsWithin (order 77); narrowing waits on patterns (order 90+). Like everything here, no bound conversion node records it
     - [ ] dependent-type-parameter <-> value type
     - [ ] newtype nominal distinctness (only same newtype; explicit cast required otherwise)
     - [ ] delegate / func signature compatibility + method-group conversion

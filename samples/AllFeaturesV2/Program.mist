@@ -43,5 +43,8 @@ public class Program
         DefaultKeyword.Program.RunDemo();
         AbstractTypes.Program.RunDemo();
         NestedScoping.Program.RunDemo();
+        OptionalTypes.Program.RunDemo();
+        VoidType.VoidDemo.RunDemo();
+        VoidValueLiteral.Program.RunDemo();
     }
 }

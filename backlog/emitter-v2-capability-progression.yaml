@@ -3167,13 +3167,28 @@ capabilities:
     order: 76
     layer: unions-and-unknown
     requires: [class-declaration]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      UnionType is structural and canonicalized by sorted constituent name, so constituent
-      order does not affect identity. A general union emits a generated tag-and-payload
-      carrier struct with per-constituent implicit conversions and discriminator members,
-      deduplicated program-wide. Constituents can be unrelated value types with no common
-      base, so a runtime discriminator is required -- a subtype test cannot serve.
+      UnionType is structural and canonical BY CONSTRUCTION: the interner flattens nested
+      unions, drops duplicates, collapses a single survivor to the bare type, and sorts
+      constituents by qualified name, so spelling order never reaches identity and
+      GetOrCreateUnionType returns IMistType rather than UnionType. The union's qualified
+      name is built from constituent QUALIFIED names because ConversionRelation compares by
+      that name, and two unions over same-named types from different namespaces must not
+      collide. TypeSubstitution shares the normalization on its interner-less path.
+
+      A general union emits one tag-and-payload carrier struct program-wide (__Unions.g.cs),
+      collected from the INTERNER rather than a surface walk, since every union a program
+      mentions passes through it exactly once -- locals, signatures and casts alike. The
+      shape mirrors classic (byte tag, boxed payload, Is*/As* discriminators, per-constituent
+      implicit conversions), and UnionCarrierNames is the one authority on the mangled name,
+      so the generator and every use-site spelling agree by construction.
+
+      Verified by twelve model-level tests in UnionTypeResolutionTests (identity, flattening,
+      collapse, the C# spelling split) and a scratch probe running byte-identical to classic.
+      NO BANKED SAMPLE declares a general union yet -- TypeUnions waits on pattern narrowing
+      at order 98 -- so the carrier generator is absent from AllFeaturesV2's own output.
     unlocks: []
 
   - id: union-widening-at-use-sites
@@ -3181,10 +3196,23 @@ capabilities:
     order: 77
     layer: unions-and-unknown
     requires: [union-types-and-carriers]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      TypeUnions widens at declaration, reassignment, argument and return positions, and
-      infers a union type through var.
+      Containment, not an operator: WidensIntoUnion is a fourth disjunct in
+      ConversionRelation.IsWithin -- a value of a constituent is already a value of the
+      union, and a union is within another whose constituents cover its own. Each arm
+      recurses through IsWithin, so numeric widening and inheritance reach INTO the
+      constituent test (a byte is within int | string), and exact-beats-union overload
+      ranking falls out of CompareConversions for free.
+
+      MUTATION-CHECKED: suppressing the disjunct fails exactly the three widening tests
+      (constituent argument, numeric-into-constituent, union-into-union) and nothing else --
+      the identity and optional tests survive on interning alone, which is precisely the
+      false-green shape this register warns about. Emission needs no wrapping at any site:
+      the carrier's implicit operators carry the conversion downstream, exactly as numeric
+      widening rides Roslyn. Declaration, reassignment, argument and return positions plus
+      var inference all probe byte-identical to classic; TypeUnions itself banks at order 98.
     unlocks: []
 
   - id: optional-union-representation
@@ -3192,12 +3220,31 @@ capabilities:
     order: 78
     layer: unions-and-unknown
     requires: [union-types-and-carriers]
-    v2_status: missing
+    v2_status: done
+    verified_by: sample
     evidence: >
-      The optional spelling desugars to a union of the type with void, and the generic
-      spelling must unify with it. Optional unions BYPASS the carrier struct -- value types
-      emit as Nullable and reference types as the plain type with null for absence. So one
-      Mist construct has two CLR representations chosen by the constituent's kind.
+      T? IS the union of T with void -- ScopeResolver desugars the optional token through
+      the interner after the array wrap, so an optional array is the array that is optional.
+      The generic spelling unifies by CONSTRUCTION rather than by equivalence: ResolveNamed
+      expands a type alias at resolution, substituting type arguments into its target
+      (TypeSubstitution gained a union arm), so Optional of int and int? reach the SAME
+      interned instance and overloads across the two spellings resolve by identity. That
+      expansion is a slice of orders 84/85 pulled forward; cycle detection,
+      alias-naming-alias chains and constructible aliases remain theirs, and an alias whose
+      own target is not yet resolved is returned unexpanded rather than guessed at.
+
+      Optionals BYPASS the carrier: TypeNameEmitter spells Nullable for struct and enum
+      inners and the bare type for the rest, with null as absence -- one construct, two CLR
+      representations chosen by constituent kind. A type-parameter inner emits bare, a gap
+      shared with classic. A double optional flattens to one level in the interner where
+      classic reports MIST_TC_0045; construction stays coherent and the diagnostic is
+      recorded below. OptionalTypes is banked in AllFeaturesV2, line-identical to classic.
+    analysis_phase_tasks:
+      - >
+        Report applying '?' to a type that already contains void (classic MIST_TC_0045,
+        error) and to void itself (classic MIST_TC_0046, warning). Normalization flattens
+        both into a coherent model, so nothing stops construction; the judgement is an
+        analyzer's.
     unlocks: []
 
   - id: optional-operators
@@ -3205,11 +3252,42 @@ capabilities:
     order: 79
     layer: unions-and-unknown
     requires: [optional-union-representation]
-    v2_status: missing
+    v2_status: partial
+    verified_by: sample
     evidence: >
-      Conditional invocation must LIFT its result to an optional and coalescing must UN-lift
-      it, with short-circuit on absence, composed in one expression, plus the compound
-      coalescing assignment form.
+      All three operators bind and emit as C#'s own ?. / ?? / ??=, legal for both optional
+      representations. Conditional access looks the member up on the receiver's non-void
+      PORTION and LIFTS the result, flattened, so one level of absence is all an expression
+      carries; coalescing UN-lifts per link, its right operand bound against the portion it
+      fills; the compound assignment reuses the assignment node with a flag. Interpolation
+      wraps optional-typed holes so absence prints as the unit value's name, matching
+      classic byte-for-byte. OptionalTypes composes lift and un-lift in one expression and
+      is banked in AllFeaturesV2.
+
+      NO FLOW NARROWING after a coalescing assignment, where classic destructively rewrites
+      the symbol's declared type in its checker. The divergence is invisible in every banked
+      sample -- a present value prints identically wrapped or not -- but it is a residue
+      with teeth, recorded as the task below.
+    tasks:
+      - >
+        Narrow a coalescing-assigned local to its non-void portion for subsequent reads.
+        Without it, assigning the variable to the bare type after coalescing binds but emits
+        a Nullable where C# wants the bare type. Classic narrows by mutating the symbol; v2
+        wants flow typing that leaves the model alone, which pattern narrowing at order 90
+        will need anyway.
+    analysis_phase_tasks:
+      - >
+        Report conditional access on a receiver that is not optional (classic MIST_TC_0111).
+        Binding projects a non-optional receiver to itself and proceeds; nothing stops
+        construction.
+      - >
+        Report a coalescing right operand not assignable to the left's non-void portion,
+        and a second un-lift in a chain once the void is gone (classic folds these into its
+        MIST_TC_0041 to 0044 family).
+      - >
+        Report the compound coalescing assignment outside statement position and on an
+        immutable target (classic MIST_TC_0047 plus the readonly-local rule). C# accepts the
+        expression form, so emission compiles either way; the restriction is Mist's own.
     unlocks: []
 
   - id: void-unit-type
@@ -3217,7 +3295,8 @@ capabilities:
     order: 80
     layer: unions-and-unknown
     requires: [optional-union-representation]
-    v2_status: missing
+    v2_status: partial
+    verified_by: sample
     evidence: >
       `void` is a reserved alias for Standard.Void -- one type, two spellings. It doubles as the
       optional absence value and overlaps the type-literal rule, so one token resolves three ways
@@ -3263,20 +3342,41 @@ capabilities:
       A RUNTIME OF OUR OWN WOULD NEED NONE OF THIS. All of the above is a concession to the CLR's
       treatment of System.Void. A backend targeting our own runtime can use its unit type in every
       position and drop both lowerings.
+
+      DELIVERED TO THE DESIGN ABOVE, three residues below. The trichotomy is one binder arm
+      deciding by target type; absence and the singleton are distinct expression kinds and the
+      type-literal reading is the general typeof expression, typed Standard.Type. Every type
+      receiver takes Standard.Void, the return-type exception lives in one place
+      (MethodEmitter.EmitSignature), and the call-site lowering reconstructs the unit at ROOT
+      value receivers -- a local's initializer and a return value -- by evaluating the call as a
+      statement and supplying the instance. Type argument, parameter and field positions all
+      emit and run. The struct itself is a generated __Void.g.cs whose members follow Void.mist,
+      plus ToString and the equality overrides as backend additions so interpolation prints the
+      unit's name and the constant operators compile clean.
+
+      ONE IDENTITY, DELIBERATELY: the type literal, and the generated implicit conversion to
+      Type, both produce typeof(Standard.Void) -- where classic splits between typeof(void) and
+      a MistVoid struct. One type, two spellings, one reflection object; output-identical to
+      classic because the short name is Void either way. VoidType runs byte-identical to
+      classic, VoidValueLiteral runs for the FIRST TIME ON ANY PIPELINE and matches classic
+      line-for-line; all three unlocked samples are banked in AllFeaturesV2.
     tasks:
-      - Resolve the void token to a singleton value, a type literal, or optional absence,
-        from the target type.
-      - Emit Standard.Void by transpiling Standard/Void.mist rather than hand-writing the C#,
-        so the language stays the one authority on what Void is and a later backend inherits the
-        definition instead of reimplementing it. Waits on properties, operator declarations and
-        cast operator declarations, all of which Void.mist uses.
-      - Hoist a unit-valued call out of an enclosing expression when a value receiver needs it,
-        preserving evaluation order against the other operands -- in `g(f(), h())`, f must still
-        run before h. This is the only genuinely awkward part of the lowering and the part that
-        looks smaller than it is.
-      - Wrap rather than convert where a unit-returning method is used as a function value, since
-        Func<Standard.Void> cannot bind a void-returning method.
-      - Support void as a type argument, a parameter type and a field type.
+      - >
+        Emit Standard.Void by transpiling Standard/Void.mist rather than generating the C#
+        (delete CSharpEmitterV2.EmitVoidStruct in its favour), so the language stays the one
+        authority on what Void is and a later backend inherits the definition instead of
+        reimplementing it. Still waits on properties, operator declarations and cast operator
+        declarations, all of which Void.mist uses.
+      - >
+        Hoist a unit-valued call out of NESTED value receivers -- an argument, an interpolation
+        hole, an assignment right side -- preserving evaluation order against the other
+        operands, in `g(f(), h())` f still running before h. Root receivers are done; the
+        nested case is the part that looks smaller than it is, because every side-effectful
+        operand sequenced before the call must hoist with it.
+      - >
+        Wrap rather than convert where a unit-returning method is used as a function value,
+        since Func<Standard.Void> cannot bind a void-returning method. Waits on lambdas and
+        method-group conversion, orders 104 to 109.
     unlocks: [OptionalTypes, VoidType, VoidValueLiteral]
 
   - id: unknown-top-type
@@ -3500,7 +3600,7 @@ capabilities:
     order: 87
     layer: enums
     requires: [nested-type-declarations, instance-fields]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
       The base may be a primitive, a readonly struct, a readonly class or a union, and must be proven
@@ -3508,10 +3608,17 @@ capabilities:
       parameter plus a public static readonly singleton per variant, always public regardless of the
       enum's own accessibility.
 
-      DELIVERED FOR EVERY BASE BUT THE UNION. String, integral and byte-by-default all emit and run
-      byte-identical to classic, nested and top-level, measured on a probe covering eight shapes.
-      A union base needs UnionHelperGenerator's carrier name, which orders 76 to 78 have not built, so
-      it is the one arm left.
+      DELIVERED FOR EVERY BASE INCLUDING THE UNION. String, integral and byte-by-default all emit and
+      run byte-identical to classic, nested and top-level, measured on a probe covering eight shapes.
+      The union arm arrived BY CONSTRUCTION when order 76 landed: EnumEmitter already routed the
+      underlying type through TypeNameEmitter, whose union arm spells the carrier, and the probe enum
+      over int | string declares, resolves variants and prints identically to classic.
+
+      ONE NOTED DIFFERENCE, not a defect on either side: classic REFUSES assigning an enum value into
+      its own underlying union (MIST_TC_0070, enum is not a constituent), where v2 binds it -- the
+      enum's implicit conversion to its underlying type reaches the union slot through
+      ConversionRelation legitimately, and the emitted C# runs. Whether Mist wants classic's stricter
+      rule is an analyzer decision for later; construction has no grounds to refuse it.
 
       REACHABILITY WAS THE FIRST BLOCKER AND IT WAS STRUCTURAL. EnumType derives DeclaredType, not
       MemberType, so it could not sit in CompilationUnit.Types -- a List of MemberType -- and
@@ -3523,6 +3630,7 @@ capabilities:
       A NEWTYPE AND AN ALIAS ARE NOW VISIBLE AND DELIBERATELY ERASED, where before they were invisible.
       Both name an existing type, so there is nothing of their own to declare -- the same answer
       classic reaches, but reached by a decision recorded in one place rather than by never arriving.
+      (Since order 78, an alias USE also expands at resolution -- see optional-union-representation.)
 
       THE READONLY REQUIREMENT IS NOT ENFORCED, and no sample would notice: EnumReadonlyRestriction
       never attempts a non-readonly base, so the restriction it is named for is untriggered on both
@@ -3535,11 +3643,6 @@ capabilities:
       designates a variant, there being no other way to choose between them -- where a class is
       defaultable when each field has a zero of its own. An enum designating none falls to the sentinel,
       which is what a non-defaultable class does.
-    tasks:
-      - >
-        Emit a union-backed enum, whose carrier parameter is the union helper struct rather than a
-        named type. Blocked on union-types-and-carriers at order 76; the rest of this order does not
-        wait on it.
     analysis_phase_tasks:
       - >
         Report a base type that is not deeply readonly, including every constituent of a union base.
@@ -3626,16 +3729,22 @@ capabilities:
     order: 89
     layer: enums
     requires: [enum-variant-value-inference, optional-union-representation]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
       Enum to underlying is TOTAL and implicit; underlying to enum is PARTIAL and therefore returns an
       optional, lowered to a per-variant equality chain.
 
-      BOTH OPERATORS EMIT AND THE TOTAL ONE IS EXERCISED. Reading a variant's underlying value is
-      measured over string, int and byte bases. The partial direction emits its equality chain but
-      nothing consumes the optional it returns, which is what leaves this partial: the result is
-      `T?` in C# and Mist has no optional to receive it until order 78.
+      BOTH DIRECTIONS NOW RUN. Reading a variant's underlying value is measured over string, int and
+      byte bases. The partial direction became consumable when order 78 landed: a probe casts a
+      matching and a non-matching value to an optional enum over int, prints the variant and the
+      absence, and coalesces the miss back to a variant -- identical to classic line for line.
+
+      THE UNION-BACKED ENUM'S PARTIAL CAST FAILS ON BOTH PIPELINES, a shared limit rather than a v2
+      gap: `(MixedResult?)0` needs the int to become the carrier and the carrier to become the enum,
+      and C# will not chain two user-defined conversions. Classic emits the same refusal. Whether the
+      cast should lower through an explicit carrier construction is a question for the patterns
+      layer, which is where narrowing a union-backed enum becomes reachable at all.
 
       ONE EQUALITY NOTION, STRUCTURAL, AND THIS DIVERGES FROM CLASSIC DELIBERATELY. Interpolation must
       print the variant name, and classic finds that name by REFERENCE identity while comparing values
@@ -3650,13 +3759,6 @@ capabilities:
       WHAT THE CHOICE COSTS is that v2, which does not yet detect duplicates, treats two variants
       sharing a value as ALIASES naming the first -- coherent, and what C# enums do, where classic
       would have printed two names for one value. See order 88.
-    tasks:
-      - >
-        Consume the optional the partial conversion returns, once optional-union-representation exists.
-        The operator is emitted; nothing can receive its result.
-      - >
-        Print the variant name for a UNION-backed enum, whose ToString chain compares against a
-        carrier. Shares its blocker with order 87's remaining task.
     unlocks: []
 
   # ===================================================================
@@ -5623,10 +5725,14 @@ samples:
     requires: [void-unit-type, optional-operators, nested-type-declarations,
                type-argument-substitution, string-interpolation, var-type-inference]
     untested:
-      - This sample has NO entry point and no build output, so it has never been run. Nothing
-        in it is verified.
       - One token must resolve three ways from context, but every result is only interpolated,
-        so a wrong reading that still prints the same name would pass.
+        so a wrong reading that still prints the same name would pass. (The old note here that
+        the sample had no entry point was stale -- it declares Main, and banking at order 80
+        was its first execution on either pipeline.)
+      - The void field inside Result<void> is only ever reported through IsSuccess, a bool, so
+        the stored unit value is never read back out.
+      - The implicit Void-to-Type conversion is observed only through Name, which the type
+        literal reading would print identically.
 
   - name: OptionalTypes
     intro_order: 57
@@ -5635,9 +5741,11 @@ samples:
                string-interpolation, var-type-inference]
     untested:
       - Every optional is observed only through interpolation, so confusions between the
-        bare, optional and generic spellings never surface.
+        bare, optional and generic spellings never surface. The model-level spelling and
+        unification tests in UnionTypeResolutionTests exist because of this hole.
       - The claimed narrowing after a coalescing assignment is never used -- no assignment to
-          a plain value type and no call on the narrowed value.
+        a plain value type and no call on the narrowed value. v2 does not narrow AT ALL
+        (order 79's open task) and this sample stays green regardless.
       - No dereference-without-conditional-access negative case.
 
   - name: Newtypes
@@ -6522,10 +6630,11 @@ uncovered_constructs:
 #      its attribute types come from the BCL. If a sample used only Mist-declared
 #      attributes it would unlock much earlier.
 #
-# THREE SAMPLES HAVE NEVER BEEN RUN, on the classic pipeline either. VoidValueLiteral and
-# DisposableDropInterop have no build output at all, and VoidValueLiteral has no entry
-# point. ArrayLiterals and CastOperators have no committed out/ directory. A sample with no
-# build output cannot be an acceptance test for anything.
+# SAMPLES THAT HAVE NEVER BEEN RUN: DisposableDropInterop has no build output at all.
+# ArrayLiterals and CastOperators have no committed out/ directory. A sample with no build
+# output cannot be an acceptance test for anything. (VoidValueLiteral used to head this list
+# -- its "no entry point" note was stale, and banking it at order 80 was its first execution
+# on either pipeline; both pipelines agree on its output.)
 #
 # MEASURED GAP ORDERING. Every construct the v2 binder leaves unbound, counted across the whole
 # sample suite. Prefer this to the requires lists below when choosing what to do next: those are

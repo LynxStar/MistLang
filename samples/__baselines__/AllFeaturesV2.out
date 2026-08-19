@@ -401,3 +401,42 @@ Done!
   class: Widget x5, Gadget x3
   struct: Bolt:100
 === Nested Scoping Done ===
+=== OptionalTypes Sample ===
+maybeInt=42
+maybeInner=10
+optInt=99 fromOpt=99
+present?.GetValue()=5
+absent?.GetValue()=Void
+outerPresent.GetChild()?.GetValue()=7
+outerAbsent.GetChild()?.GetValue()=Void
+hasValue ?? 0=10
+noValue ?? 42=42
+a ?? 99=99, b ?? 99=77
+forCombo?.GetValue() ?? -1=-1
+forCombo2?.GetValue() ?? -1=33
+after x ??= 100: x=100
+after y ??= 200: y=50
+after z ??= 7: z=7
+Done!
+--- Void Unit Type ---
+void value obtained: Void
+typed void variable: Void
+void == void: True
+void != void: False
+DoNothing() returned: Void
+fire-and-forget call
+DescribeVoid: received void
+Result of void: Result(Ok: Void)
+IsSuccess: True
+GenericBox of void: GenericBox(Void)
+--- Void Value Literal ---
+void variable: Void
+Type variable: Void
+var inferred type name: Void
+DescribeVoid(void): received void
+DoNothing() returned: Void
+Result<void>.IsSuccess: True
+implicit Void->Type: Void
+void == void: True
+void != void: False
+absent ?? 42: 42

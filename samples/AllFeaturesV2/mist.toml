@@ -28,3 +28,5 @@ NestedScoping = { path = "../NestedScoping" }
 OptionalTypes = { path = "../OptionalTypes" }
 VoidType = { path = "../VoidType" }
 VoidValueLiteral = { path = "../VoidValueLiteral" }
+TypeAliases = { path = "../TypeAliases" }
+Newtypes = { path = "../Newtypes" }

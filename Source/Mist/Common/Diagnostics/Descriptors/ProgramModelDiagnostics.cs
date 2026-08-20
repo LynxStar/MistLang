@@ -90,6 +90,17 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "The type name '{0}' is ambiguous between imported namespaces '{1}' and '{2}'. Use a fully-qualified name to disambiguate.");
 
+    /// <summary>
+    /// A type alias's expansion reaches itself (e.g., <c>type A = B; type B = A;</c>), so no
+    /// finite target exists. Reported once, at the declaration where the on-demand build
+    /// re-entered itself; the alias resolves to an error type to stop the recursion.
+    /// </summary>
+    public static readonly DiagnosticDescriptor CyclicTypeAlias = new(
+        new DiagnosticId("MIST_PM_CYCLIC_TYPE_ALIAS"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "Type alias '{0}' forms a cycle.");
+
     /// <summary>A qualified member access named nothing on the receiver's type or its bases.</summary>
     public static readonly DiagnosticDescriptor UnresolvedMember = new(
         new DiagnosticId("MIST_PM_UNRESOLVED_MEMBER"),

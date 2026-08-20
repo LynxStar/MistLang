@@ -35,5 +35,14 @@ internal sealed class Newtype(
     /// </summary>
     public IMistType? SourceType { get; internal set; }
 
+    /// <summary>
+    /// The synthesized <c>Value</c> field exposing the wrapped representation. Present only
+    /// when the source is intrinsic: an intrinsic declares no Mist members to forward, so this
+    /// field is the wrapper's one bridge to its value, and the emitted wrapper struct carries
+    /// it. A user-defined source forwards its own members instead and emits as a duplicate
+    /// that stores no separate value.
+    /// </summary>
+    internal Field? ValueField { get; set; }
+
     IMistType? INewtype.SourceType => SourceType;
 }

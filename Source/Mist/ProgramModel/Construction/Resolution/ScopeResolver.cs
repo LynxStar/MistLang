@@ -22,6 +22,14 @@ internal sealed class ScopeResolver
 
     private readonly BuilderContext context;
 
+    /// <summary>
+    /// Builds an alias whose target is not resolved yet, so <see cref="ExpandAlias(TypeAlias,
+    /// IReadOnlyList{IMistType}?)"/> can expand chains regardless of declaration order. Set by
+    /// <see cref="ProgramModelBuilder"/> to the Phase 2a alias builder; cycle detection lives
+    /// with the builder, which is why this completes rather than merely tolerates a null target.
+    /// </summary>
+    internal Action<TypeAlias>? AliasCompleter { get; set; }
+
     public ScopeResolver(BuilderContext context)
     {
         this.context = context;
@@ -266,26 +274,39 @@ internal sealed class ScopeResolver
         return baseType;
     }
 
+    private IMistType ExpandAlias(TypeAlias alias, NamedSingleTypeRefSingleTypeRefNode namedRef, Scope scope)
+    {
+        var typeArgs = namedRef.TypeArgs is { } typeArgList
+            ? ResolveTypeArguments(typeArgList, scope)
+            : null;
+
+        return ExpandAlias(alias, typeArgs);
+    }
+
     /// <summary>
     /// A type alias is transparent: a use names the aliased type, never the alias. Expanding
     /// here, at resolution, is what makes <c>Optional&lt;int&gt;</c> and <c>int?</c> reach the
     /// same interned union, so every later phase sees one type. An alias whose own target is
     /// not resolved yet -- an alias naming another alias, ahead of it in the Phase 2a pass --
-    /// is returned unexpanded rather than guessed at.
+    /// is completed on demand through <see cref="AliasCompleter"/>, so an expansion never
+    /// returns another alias: a chain bottoms out and a cycle resolves to an error type.
     /// </summary>
-    private IMistType ExpandAlias(TypeAlias alias, NamedSingleTypeRefSingleTypeRefNode namedRef, Scope scope)
+    internal IMistType ExpandAlias(TypeAlias alias, IReadOnlyList<IMistType>? typeArgs)
     {
+        if(alias.AliasedType is null)
+        {
+            AliasCompleter?.Invoke(alias);
+        }
+
         if(alias.AliasedType is not { } aliased)
         {
             return alias;
         }
 
-        if(namedRef.TypeArgs is not { } typeArgList)
+        if(typeArgs is null)
         {
             return aliased;
         }
-
-        var typeArgs = ResolveTypeArguments(typeArgList, scope);
 
         return TypeSubstitution
             .ForParameters(alias.TypeParametersList, typeArgs)

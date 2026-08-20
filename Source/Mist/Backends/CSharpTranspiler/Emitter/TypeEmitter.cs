@@ -21,14 +21,14 @@ internal static class TypeEmitter
     /// </summary>
     public static bool ProducesDeclaration(DeclaredType type)
     {
-        return type is (MemberType or EnumType) and not ConcreteType { IsIntrinsic: true };
+        return type is (MemberType or EnumType or Newtype) and not ConcreteType { IsIntrinsic: true };
     }
 
     /// <summary>
     /// Total over every declaration kind, and it OWNS the blank line that precedes what it writes --
     /// so a kind that writes nothing leaves no separator behind and no caller has to ask first. An
-    /// intrinsic is skipped because the backend supplies its implementation, and a newtype or alias
-    /// because each names an existing type and its uses emit as that type.
+    /// intrinsic is skipped because the backend supplies its implementation, and an alias because
+    /// it names an existing type and its uses emit as that type.
     /// <para>
     /// The arms that write must agree with <see cref="ProducesDeclaration"/>; the throwing default is
     /// what keeps that agreement honest, failing the first program that declares a kind only one of
@@ -45,8 +45,12 @@ internal static class TypeEmitter
         switch(type)
         {
             case ConcreteType { IsIntrinsic: true }:
-            case Newtype:
             case TypeAlias:
+                break;
+
+            case Newtype newtype:
+                SeparateMember(writer, ref anyEmitted);
+                NewtypeEmitter.Emit(newtype, writer, diagnostics);
                 break;
 
             case EnumType enumType:

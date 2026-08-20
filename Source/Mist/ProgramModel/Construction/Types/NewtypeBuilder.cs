@@ -1,5 +1,7 @@
 using Mist.ProgramModel.Construction.Members;
 using Mist.ProgramModel.Construction.Resolution;
+using Mist.ProgramModel.Model.Enums;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Types;
@@ -29,5 +31,14 @@ internal sealed class NewtypeBuilder
 
         typeDef.Modifiers = modifiers;
         typeDef.SourceType = scopeResolver.Resolve(decl.SourceType, typeDef.Scope);
+
+        if(typeDef.SourceType is ConcreteType { IsIntrinsic: true } intrinsicSource)
+        {
+            typeDef.ValueField = new Field(
+                "Value",
+                intrinsicSource,
+                OwnershipKind.Unrestricted,
+                new MemberModifiers { Accessibility = Accessibility.Public, IsReadonly = true });
+        }
     }
 }

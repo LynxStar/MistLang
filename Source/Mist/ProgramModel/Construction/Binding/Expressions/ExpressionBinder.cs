@@ -196,6 +196,9 @@ internal static class ExpressionBinder
     {
         var typeName = QualifiedNameHelper.Build(typeNode);
 
+        // The `new` grammar names the type as a qualified identifier rather than a type
+        // reference, so the lookup here bypasses ScopeResolver.ResolveNamed and its alias
+        // expansion; a constructible alias (`new IntBox(42)`) must therefore expand here.
         IMistType type;
         if(typeArgList is not null)
         {
@@ -208,12 +211,23 @@ internal static class ExpressionBinder
             }
 
             var typeArgs = context.Resolver.ResolveTypeArguments(typeArgList, ctx.Scope);
-            context.ProgramModel.ConstructorConstraintClosures.RecordType(definition, typeArgs, node);
-            type = context.ProgramModel.TypeInterner.GetOrCreateConstructedType(definition, typeArgs);
+            if(definition is TypeAlias alias)
+            {
+                type = context.Resolver.ExpandAlias(alias, typeArgs);
+            }
+            else
+            {
+                context.ProgramModel.ConstructorConstraintClosures.RecordType(definition, typeArgs, node);
+                type = context.ProgramModel.TypeInterner.GetOrCreateConstructedType(definition, typeArgs);
+            }
         }
         else
         {
             type = context.Resolver.ResolveNamedType(typeName, ctx.Scope, node);
+            if(type is TypeAlias alias)
+            {
+                type = context.Resolver.ExpandAlias(alias, null);
+            }
         }
 
         return BindConstruction(node, type, argumentList, initializer, ctx, context);
@@ -271,9 +285,26 @@ internal static class ExpressionBinder
         return (type as ConstructedType)?.Definition ?? type;
     }
 
+    /// <summary>
+    /// The type whose constructors a construction selects from: a newtype declares none of its
+    /// own, so construction reaches through to its source's -- the emitted wrapper carries the
+    /// source's constructors under the newtype's name. The expression's type stays the newtype.
+    /// </summary>
+    private static IMistType ConstructionTarget(IMistType type)
+    {
+        var definition = Definition(type);
+
+        if(definition is Newtype { SourceType: { } newtypeSource })
+        {
+            return Definition(newtypeSource);
+        }
+
+        return definition;
+    }
+
     private static IReadOnlyList<Constructor> ConstructorsOf(IMistType type)
     {
-        return Definition(type) is ConcreteType concrete ? concrete.ConstructorsList : [];
+        return ConstructionTarget(type) is ConcreteType concrete ? concrete.ConstructorsList : [];
     }
 
     /// <summary>
@@ -289,7 +320,7 @@ internal static class ExpressionBinder
     private static Constructor? SelectConstructor(IMistType type, IReadOnlyList<Expression> arguments, Storm.Runtime.SyntaxNode node, BuilderContext context)
     {
         var constructed = type as ConstructedType;
-        var definition = Definition(type);
+        var definition = ConstructionTarget(type);
 
         if(definition is not ConcreteType { ConstructorsList.Count: > 0 } concrete)
         {

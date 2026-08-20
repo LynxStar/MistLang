@@ -1,3 +1,4 @@
+using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Members;
 using Mist.ProgramModel.Construction.Resolution;
@@ -16,6 +17,7 @@ internal sealed class TypeAliasBuilder
 {
     private readonly ScopeResolver scopeResolver;
     private readonly BuilderContext context;
+    private readonly HashSet<TypeAlias> building = [];
 
     public TypeAliasBuilder(BuilderContext context, ScopeResolver scopeResolver)
     {
@@ -24,9 +26,40 @@ internal sealed class TypeAliasBuilder
     }
 
     /// <summary>
-    /// Resolves the type alias's modifiers and target type reference.
+    /// Resolves the type alias's modifiers and target type reference. Re-entrant: an alias
+    /// whose target names a later-declared alias is completed on demand from
+    /// <see cref="ScopeResolver.ExpandAlias(TypeAlias, IReadOnlyList{IMistType}?)"/>, so a
+    /// second call for an already-built alias returns without work, and re-entering an alias
+    /// still being built is the definition of a cycle -- reported at that alias's declaration,
+    /// which resolves to an error type to stop the recursion.
     /// </summary>
     public void Build(TypeAlias typeDef)
+    {
+        if(typeDef.AliasedType is not null)
+        {
+            return;
+        }
+
+        if(!building.Add(typeDef))
+        {
+            context.Diagnostics.ReportAtNode(
+                ProgramModelDiagnostics.CyclicTypeAlias, typeDef.DeclarationNode, null,
+                MistType.StripArity(typeDef.Name));
+            typeDef.AliasedType = ErrorType.Instance;
+            return;
+        }
+
+        try
+        {
+            BuildCore(typeDef);
+        }
+        finally
+        {
+            _ = building.Remove(typeDef);
+        }
+    }
+
+    private void BuildCore(TypeAlias typeDef)
     {
         var decl = typeDef.DeclarationNode;
         var modifiers = ModifierBuilder.Build(decl, context.Diagnostics, typeDef.DeclaringType);
@@ -48,11 +81,21 @@ internal sealed class TypeAliasBuilder
                 constituents.Add(ResolvePossiblyRefined(constituent, typeDef.Scope));
             }
 
-            typeDef.AliasedType = context.ProgramModel.TypeInterner.GetOrCreateUnionType(constituents);
+            SetAliasedType(typeDef, context.ProgramModel.TypeInterner.GetOrCreateUnionType(constituents));
             return;
         }
 
-        typeDef.AliasedType = ResolvePossiblyRefined(refinableExpr.First, typeDef.Scope);
+        SetAliasedType(typeDef, ResolvePossiblyRefined(refinableExpr.First, typeDef.Scope));
+    }
+
+    /// <summary>
+    /// A cycle detected while resolving the target has already assigned <see cref="ErrorType"/>
+    /// to THIS alias and reported it; overwriting that with the resolution result would let the
+    /// cyclic alias masquerade as its (error-tainted) target.
+    /// </summary>
+    private static void SetAliasedType(TypeAlias typeDef, IMistType resolved)
+    {
+        typeDef.AliasedType ??= resolved;
     }
 
     /// <summary>

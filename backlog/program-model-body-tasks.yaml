@@ -414,11 +414,11 @@ expressions:
     - [~] unary negate (`-`), logical not (`!`) -> operator resolution (builtin + user-defined) -- MISSING: all resolution. Both produce UnaryExpression with result type operand.Type
     - [ ] resolved operator symbol recorded as an intrinsic property of the bound binary/unary node -- the nodes carry only a kind enum, with no Method/Operator field
   cast_and_as:
-    - [ ] CastExpression `(T)x` -> target type; classify conversion (see conversions) -- CastExpressionUnaryNode is not in BindUnary's switch -> UnresolvedExpression
+    - [~] CastExpression `(T)x` -> target type; classify conversion (see conversions) -- the node IS bound (OperatorBinder resolves the target through the full type-ref path and records a FindOperator match on the CastExpression), and newtype casts ride it as plain C# casts against the emitted wrapper's operators (order 86). MISSING: validation -- a null conversion is not an error, so an impossible cast reaches Roslyn
     - [ ] enum cast is fallible -> result type `Enum | void`
     - [ ] AsExpression `x as T` -> classify as provable (identity/widening) vs runtime-checked (narrowing/union-extraction/unknown-narrowing); store the classification on the node -- BindRelational rejects any node that is not RelationalComparison, so both `is` and `as` become UnresolvedExpression
   postfix:
-    - [~] MemberAccessSuffix (`.name`) -> instance/static member type -- MISSING: a resolved SYMBOL (the node carries only a string MemberName) and the base chain. Static/instance enforcement IS done, by splitting the request rather than resolving and then rejecting. ConstructedType receivers ARE handled: the receiver is unwrapped to its definition for the lookup and the definition's type arguments substituted into what it found, so `list.Count` and `arr.Length` resolve. EnumType, Newtype, TypeAlias, TupleType, NamedTupleType and UnionType receivers still yield ErrorType
+    - [~] MemberAccessSuffix (`.name`) -> instance/static member type -- MISSING: a resolved SYMBOL (the node carries only a string MemberName) and the base chain. Static/instance enforcement IS done, by splitting the request rather than resolving and then rejecting. ConstructedType receivers ARE handled: the receiver is unwrapped to its definition for the lookup and the definition's type arguments substituted into what it found, so `list.Count` and `arr.Length` resolve. A Newtype receiver forwards to its source (TypeMemberLookup.EnqueueBases walks SourceType as a pseudo-base, order 86) and a TypeAlias can no longer BE a receiver type (expansion at resolution, order 84). EnumType, TupleType, NamedTupleType and UnionType receivers still yield ErrorType
     - [x] OptionalMemberAccessSuffix (`?.name`) -- member looked up on the receiver's non-void portion, result lifted flattened, IsConditional on the bound node (order 79)
     - [x] MethodCallSuffix (`.name<T>(args)`) -> method resolution + overload + return type -- TypeArgs is resolved and suppresses inference; a generic callee without them has them inferred from the arguments. Overload resolution closes each candidate, filters by arity and applicability, takes the best, and records both the choice and its type arguments on the call. The return type is read through the winner's substitution, so `var` binds concretely
     - [x] OptionalMethodCallSuffix (`?.name(args)`) -- same projection through a conditional method group; the invocation lifts the selected overload's return type (order 79)
@@ -518,7 +518,7 @@ name_and_symbol_resolution:
     - [ ] associated-type-slot member access -- Model/TypeSlot.cs exists from Phase 2; binding never consults it
     - [ ] default-method-in-abstract fallback (Rust-style defaults callable on the concrete type)
     - [ ] special-cased member access: tuple (ItemN + named), anonymous type, enum member, array (.Length/.AsSpan), span (.Length/.Slice), string -- no special cases exist. `string` works only incidentally, because Standard.String is a ClassType with declared members; array and span do NOT, because they are ConstructedTypes and hit the gap above even though Array.mist declares `intrinsic public Int32 Length`
-    - [ ] type-alias transparency (unwrap before member lookup) -- TypeAlias is not a MemberType -> ErrorType
+    - [x] type-alias transparency (unwrap before member lookup) -- satisfied by construction rather than by an unwrap: since order 84 an alias never survives resolution (chains complete on demand, AliasedType is never another alias), so no receiver is ever alias-typed and member lookup needs no arm
     - [~] union projection for member access (`T | void` -> member resolved on T) -- CONDITIONAL access projects and lifts (order 79); a PLAIN `.` on an optional receiver still resolves nothing (UnionType is not a MemberType -> ErrorType), and refusing that spelling with "use ?." is analyzer work
   methods_and_overloads:
     - [~] method-group collection (own scope + inherited + ambient) -- MISSING: ambient/extension methods, which never enter the group. Inherited ones DO: CandidateSet.MergeMethods spans the base chain nearest-first and shadows by signature, so a derived override hides the base and a different signature accumulates. Both consumers now carry the group through to the call rather than discarding it
@@ -585,11 +585,11 @@ type_inference_and_conversions:
     - [ ] array / span sizing (known-length -> unknown-length; kind must match for spans)
     - [~] union widening (constituent -> union; union -> wider union) and narrowing (via `is`) -- widening is ConversionRelation.WidensIntoUnion, containment recursing through IsWithin (order 77); narrowing waits on patterns (order 90+). Like everything here, no bound conversion node records it
     - [ ] dependent-type-parameter <-> value type
-    - [ ] newtype nominal distinctness (only same newtype; explicit cast required otherwise)
+    - [x] newtype nominal distinctness (only same newtype; explicit cast required otherwise) -- falls out of ConversionRelation having no newtype arm (FQN identity only), mutation-checked by NewtypeResolutionTests (order 86); the "cast required" DIAGNOSTIC on a mixing assignment is analyzer work, like everything here
     - [ ] delegate / func signature compatibility + method-group conversion
     - [ ] refinement subtyping (predicate implication) + widening to base type
     - [ ] enum -> underlying type
-    - [ ] type-alias transparency (unwrap both sides)
+    - [x] type-alias transparency (unwrap both sides) -- nothing to unwrap since order 84: aliases are expanded at resolution, so no type reaching a conversion is an alias
     - [ ] unknown top-type rules (any non-void -> unknown ok; unknown -> concrete rejected; narrow via `is`)
     - [ ] user-defined implicit / explicit cast operator resolution (record the operator on the node)
 
@@ -621,7 +621,7 @@ mist_specific_semantics:
     - [ ] union narrowing to a constituent
     - [ ] NOTE: refinement SATISFACTION solving is a check (out_of_scope); binding tracks narrowed types
   newtypes:
-    - [ ] newtype wrap / unwrap in expressions (member access unwraps to source; assignment stays nominal) -- Newtype is not a MemberType, so member access on one yields ErrorType
+    - [x] newtype wrap / unwrap in expressions (member access unwraps to source; assignment stays nominal) -- member access forwards through TypeMemberLookup.EnqueueBases (SourceType walks as a pseudo-base, private members hidden by depth), the synthesized Value field covers intrinsic sources, construction forwards via ExpressionBinder.ConstructionTarget, and the expression's type stays the Newtype throughout (order 86)
   async_await:
     # All four async/await AST nodes (Await, Async, AsyncBlock, AsyncHintBlock) hit
     # BindUnary's `default:` -> UnresolvedExpression.

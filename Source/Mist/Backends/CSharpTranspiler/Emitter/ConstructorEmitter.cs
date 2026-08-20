@@ -16,12 +16,18 @@ internal static class ConstructorEmitter
     /// not just <c>base</c>, so a struct constructor's shape does not depend on which it used.
     /// Null for a class, which keeps its real chain clause.
     /// </param>
+    /// <param name="nameOverride">
+    /// The emitted constructor name when the constructor is written into a type other than the
+    /// one that declared it -- a newtype duplicating its source's members emits them under its
+    /// own name. Null emits under the declaring type's name.
+    /// </param>
     public static void Emit(
         Constructor constructor,
         MemberType declaringType,
         CSharpWriter writer,
         DiagnosticBag diagnostics,
-        IReadOnlyDictionary<StructType, string>? structInitNames = null)
+        IReadOnlyDictionary<StructType, string>? structInitNames = null,
+        string? nameOverride = null)
     {
         ParameterEmitter.ReportUnsupportedRef(constructor.ParametersList, declaringType.DeclarationNode, diagnostics);
 
@@ -31,7 +37,7 @@ internal static class ConstructorEmitter
         // The name comes from the declaring type rather than the constructor, so it matches
         // whatever the type was emitted as -- bare, because a C# constructor carries no type
         // parameters even when its type declares them. See TypeEmitter.CleanName.
-        writer.Write($"{modifiers}{TypeEmitter.CleanName(declaringType)}({parameters})");
+        writer.Write($"{modifiers}{nameOverride ?? TypeEmitter.CleanName(declaringType)}({parameters})");
 
         var loweredToCall = declaringType is StructType && structInitNames is not null;
 

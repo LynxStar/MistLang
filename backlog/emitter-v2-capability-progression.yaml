@@ -3555,12 +3555,41 @@ capabilities:
     order: 84
     layer: aliases
     requires: [type-parameters-and-constructed-types]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      An alias introduces no nominal identity, so it is assignment-compatible in both
-      directions. Resolved before type checking, usable in every type position and as a
-      constructible name, with cycle detection and diagnostics reported against the alias
-      spelling rather than the expansion.
+      An alias introduces no nominal identity, and the model can prove it where output cannot --
+      an alias-typed local's type IS the interned underlying type (TypeAliasResolutionTests
+      asserts Same, and a two-candidate overload resolves through the alias spelling). Expansion
+      stays where order 78 put it, at resolution, and CHAINS now bottom out there regardless of
+      declaration order: ExpandAlias completes an unbuilt alias on demand through
+      ScopeResolver.AliasCompleter, wired to TypeAliasBuilder.Build, which is idempotent and
+      keeps a building-set so re-entering an alias mid-build IS the cycle test. The invariant
+      that erased the classic pipeline's ~30 scattered lazy unwraps: AliasedType is never
+      another alias -- a chain flattens at construction and a cycle resolves to ErrorType.
+
+      Cycles report MIST_PM_CYCLIC_TYPE_ALIAS once, at the declaration where the build
+      re-entered itself. DIVERGENCE from classic, deliberate: classic reports its MIST_SB_0060
+      plus a cascade of MIST_SB_0062 unresolved-target errors for the same cycle (measured on
+      /tmp/cycle: 5 diagnostics for two cycles where v2 reports 2), and classic's name-only
+      ThreadStatic stack would confuse arity-overloaded aliases sharing a name where v2's set
+      is keyed by identity.
+
+      CONSTRUCTIBLE aliases close the last gap the classic emitter plugged with name-scan
+      fallbacks: the `new` grammar names its type as a qualified identifier, bypassing
+      ResolveNamed, so ExpressionBinder.BindNamedCreation expands an alias itself -- through
+      the same ExpandAlias, substituting call-site type arguments for generic aliases -- and
+      constructor selection then runs against the real target. No emitter fallback exists or
+      is needed; the expansion is in the model before emission ever looks.
+    analysis_phase_tasks:
+      - >
+        Report a duplicate alias name in the same scope at the declaration (classic
+        MIST_SB_0061, arity-aware). Both aliases register and construction proceeds; use
+        sites see an AmbiguousResult, so nothing stops building.
+      - >
+        Report `sealed` on a type alias (classic MIST_TC_0179) and an alias exposing a less
+        accessible target (classic folds aliases into MIST_TC_0173). Modifiers are parsed and
+        stored; judging them is an analyzer's.
     unlocks: []
 
   - id: generic-type-aliases
@@ -3568,11 +3597,26 @@ capabilities:
     order: 85
     layer: aliases
     requires: [type-alias-declarations]
-    v2_status: missing
+    v2_status: done
+    verified_by: sample
     evidence: >
-      TypeAliases aliases a union, a closed generic instantiation, and declares generic
-      aliases whose parameters substitute into the target. The stdlib's Action is a generic
-      alias over a variadic Func.
+      Almost all of this arrived with order 78's slice: TypeAliasBuilder resolves union and
+      refined targets through the interner, and ExpandAlias substitutes call-site type
+      arguments by ordinal, so Box<int> and GenericBox<int> are the SAME interned construction
+      (TypeAliasResolutionTests asserts Same) and a generic chain (Outer<T> = Inner<T> =
+      GenericBox<T>) expands through the order-84 completer. What this order added is the
+      constructible half -- new IntBox(42) and new Box<int>(7) select GenericBox's constructor
+      with the substitution applied. The starting error list was measured before writing
+      anything: the sample failed on exactly its four construction sites and nothing else.
+      TypeAliases is banked in AllFeaturesV2, byte-identical to classic.
+
+      RESIDUES, recorded not owned: the stdlib's Action (`type Action<params TArgs> =
+      Func<TArgs..., void>`) registers as fixed arity-1 `Action<>`, so `Action<T>` expands
+      correctly by coincidence while bare `Action` (arity 0) and `Action<T1, T2>` (arity 2+)
+      fail lookup -- pack folding at alias use sites belongs to the variadics layer, and no
+      banked sample uses Func or Action at a use site. ExpandAlias substitutes only through
+      constructions and unions (TypeSubstitution's arms), so a parameter reachable solely
+      through a tuple or refinement survives unsubstituted, as before.
     unlocks: [TypeAliases]
 
   - id: newtype-declarations
@@ -3580,12 +3624,56 @@ capabilities:
     order: 86
     layer: aliases
     requires: [type-alias-declarations]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      A newtype is a distinct nominal type over a representation, with NO implicit
-      conversion either way, plus a synthesized value accessor, explicit casts in both
-      directions, and constructor and member forwarding through to the representation.
-      Newtypes over a primitive, a struct and a class all behave differently.
+      DISTINCTNESS COSTS NOTHING AND IS PROVEN, not assumed. ConversionRelation.IsWithin has
+      no newtype arm, so a newtype relates to nothing but itself by FQN identity -- where
+      classic needs a ReferenceEquals guard ordered before its identity checks and a second
+      copy in IsDirectlyAssignable. The proof is NewtypeResolutionTests: IsWithin refuses all
+      four mixings (both directions, both cross-newtype directions), and a TWO-candidate
+      overload -- one candidate would skip applicability and hide transparency -- rejects a
+      newtype argument for source-typed parameters while selecting a newtype-typed one.
+      MUTATION-CHECKED: an arm making a newtype within its source fails exactly those two
+      tests; deleting the member-forwarding arm fails exactly the three forwarding tests.
+
+      The model carries the wrapper's whole surface. Member lookup forwards by walking
+      SourceType as a pseudo-base in TypeMemberLookup.EnqueueBases -- depth-based visibility
+      then hides the source's private members for free. The synthesized Value accessor is a
+      real Field on the Newtype, present only for intrinsic sources (an intrinsic declares no
+      Mist members to forward). Construction forwards through
+      ExpressionBinder.ConstructionTarget, so new Position(3, 7) selects Point's constructor
+      while the expression keeps the newtype's type. Casts need no binder arm at all: the
+      bound CastExpression emits as a plain C# cast, and the emitted wrapper's explicit
+      operators carry it.
+
+      EMISSION SPLITS BY SOURCE KIND (NewtypeEmitter). An intrinsic source emits a readonly
+      struct wrapping a Value field with explicit conversion operators both ways -- string
+      included, so a newtype-over-class can emit as a C# struct. A user-defined source emits
+      a full member duplicate under the newtype's name, constructors renamed via
+      ConstructorEmitter's name override; accessibility follows the declaration where classic
+      hardcodes public. Cast operators are NOT duplicated -- they name their declaring type
+      structurally, so a copy could not compile. LIVE DEFECT in classic, reproduced
+      deliberately and unreachably: neither pipeline puts conversion operators on a
+      struct/class-sourced duplicate, so casting one to its source emits C# that cannot
+      compile; no sample casts a non-intrinsic newtype. Newtypes is banked in AllFeaturesV2,
+      byte-identical to classic.
+
+      Untested beyond the sample and model tests: a newtype over another newtype (source
+      resolves to the Newtype object; no chain semantics defined), over a constructed generic
+      (constructor selection would miss the substitution context), and cross-assembly use of
+      an internal-by-default newtype.
+    analysis_phase_tasks:
+      - >
+        Report assigning a newtype to its source, the source to the newtype, or across
+        newtypes without a cast (classic MIST_TC_0001 via TryEmitNewtypeAssignabilityDiagnostic).
+        v2 construction checks no assignments at all -- the model is coherent either way and
+        emission's nominal wrapper makes Roslyn reject the mixing downstream, but the
+        judgement and its message belong to an analyzer.
+      - >
+        Report a newtype over a sealed type (classic MIST_TC_0178) and a duplicate newtype
+        name (classic's MIST_SB_0063, the half not colliding with alias arity mismatch).
+        Neither stops construction.
     unlocks: [Newtypes]
 
   # ===================================================================
@@ -5754,11 +5842,16 @@ samples:
     requires: [newtype-declarations, cast-expression, struct-declaration, instance-fields,
                constructors, string-interpolation, var-type-inference]
     untested:
-      - Distinctness is never negatively exercised. Nothing assigns a newtype to its
-        representation or the reverse without a cast, so a TRANSPARENT alias would pass every
-        line of this sample.
-      - No newtype appears as a field, parameter or return type, and no two newtypes share a
-        representation, so non-interchangeability is unproven.
+      - >
+        Distinctness is never negatively exercised BY THE SAMPLE. Nothing assigns a newtype
+        to its representation or the reverse without a cast, so a TRANSPARENT alias would
+        pass every line of it. The negative proof lives in NewtypeResolutionTests instead:
+        IsWithin refuses all four mixings, a two-candidate overload rejects a newtype for a
+        source-typed parameter, and both were mutation-checked (order 86's evidence).
+      - >
+        No newtype appears as a field or return type in the sample. Parameter position and
+        two newtypes sharing a representation are covered at the model level
+        (NewtypeResolutionTests), not here.
 
   - name: TypeAliases
     intro_order: 27
@@ -5766,9 +5859,15 @@ samples:
     requires: [generic-type-aliases, union-widening-at-use-sites, instance-fields,
                constructors, string-interpolation]
     untested:
-      - No negative case, so nothing proves an alias fails to introduce nominal identity.
-      - Expansion depth is one everywhere; nested and recursive aliases are unexercised, so
-        the cycle detection never runs.
+      - >
+        No negative case IN THE SAMPLE, so the sample alone cannot prove an alias adds no
+        nominal identity. TypeAliasResolutionTests carries that proof on the model -- the
+        alias-typed local IS the interned underlying type, and a two-candidate overload
+        resolves through the alias spelling.
+      - >
+        Expansion depth is one everywhere in the sample. Chains, declaration-order
+        independence and cycle detection are exercised by TypeAliasResolutionTests, whose
+        completer and cycle tests were mutation-checked (order 84's evidence).
 
   - name: ArityOverloads
     intro_order: 64

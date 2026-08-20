@@ -30,6 +30,16 @@ internal static class AmbientProviderTestHelper
         void register(MistType type)
         {
             type.Assembly = standard;
+
+            // The real Standard declarations carry `intrinsic` (Boolean.mist, Int32.mist, ...),
+            // and construction branches on it -- NewtypeBuilder synthesizes the Value accessor
+            // only for intrinsic sources -- so an unflagged shell would diverge from a real
+            // compilation exactly where a test is trying to observe it.
+            if(type is ConcreteType concrete)
+            {
+                concrete.Modifiers = concrete.Modifiers with { IsIntrinsic = true };
+            }
+
             _ = programModel.RegisterType(type);
         }
 

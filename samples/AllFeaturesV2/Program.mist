@@ -46,5 +46,7 @@ public class Program
         OptionalTypes.Program.RunDemo();
         VoidType.VoidDemo.RunDemo();
         VoidValueLiteral.Program.RunDemo();
+        TypeAliases.Program.RunDemo();
+        Newtypes.Program.RunDemo();
     }
 }

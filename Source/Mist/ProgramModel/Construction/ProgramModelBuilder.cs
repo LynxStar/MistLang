@@ -111,6 +111,8 @@ public sealed class ProgramModelBuilder
         // Aliases resolve ahead of every other kind because alias expansion happens at
         // resolution (ScopeResolver.ExpandAlias): a member signature naming Optional<int>
         // needs the alias's target already in place when the signature is resolved.
+        context.Resolver.AliasCompleter = typeAliasBuilder.Build;
+
         foreach(var typeDef in sourceTypes)
         {
             if(typeDef is TypeAlias typeAliasDef)

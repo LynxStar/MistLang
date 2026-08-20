@@ -95,6 +95,14 @@ internal static class TypeMemberLookup
                 }
             }
         }
+
+        // A newtype forwards its source's members, so the source walks as a base does --
+        // which is also what hides the source's private members, exactly as a base's are.
+        // The newtype stays nominally distinct; only member LOOKUP reaches through.
+        if(type is Newtype { SourceType: MistType newtypeSource })
+        {
+            Enqueue(newtypeSource, depth, open, queue, seen);
+        }
     }
 
     private static void Enqueue(
@@ -204,6 +212,7 @@ internal static class TypeMemberLookup
             ConcreteType concrete => concrete.FieldsList,
             TupleType tuple => tuple.PositionalFields,
             NamedTupleType named => named.Fields,
+            Newtype { ValueField: { } valueField } => [valueField],
             _ => [],
         };
     }

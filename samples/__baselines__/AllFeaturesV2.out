@@ -440,3 +440,50 @@ implicit Void->Type: Void
 void == void: True
 void != void: False
 absent ?? 42: 42
+=== Type Aliases Sample ===
+--- Simple aliases ---
+id=42 name=Alice score=98.5 active=True
+--- Transparency ---
+rawId=42 aliasedId=100 rawName=Alice
+--- Methods ---
+  User ID: 7
+  User ID: 100
+defaultName=Anonymous
+--- Union aliases ---
+x=42 y=hello
+r1=99 r2=success r3=True
+--- Closed generic aliases ---
+intBox=Box(42) strBox=Box(Mist)
+intBox.value=42 strBox.value=Mist
+--- Generic alias with type param ---
+boxInt=Box(7) boxStr=Box(world)
+boxInt.value=7 boxStr.value=world
+Done!
+=== Newtypes Sample ===
+--- Newtype from int ---
+uid=42
+rawId=42
+--- Newtype from string ---
+lbl=hello
+rawLabel=hello
+--- Newtype from bool ---
+flag=True
+rawFlag=True
+--- Newtype from struct ---
+pos.X=3
+pos.Y=7
+pos.Describe=(3, 7)
+--- Newtype from class ---
+actor.GetName=Hero
+actor.GetId=1
+actor.Describe=Entity(Hero, 1)
+--- Member access ---
+xVal=10
+yVal=20
+actorName=Villain
+actorId=2
+--- Explicit casting ---
+sourceInt=99
+castToNewtype=99
+castBack=99
+Done!

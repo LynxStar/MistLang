@@ -4115,16 +4115,60 @@ capabilities:
     order: 97
     layer: patterns
     requires: [switch-expressions, union-types-and-carriers]
-    v2_status: missing
+    v2_status: done
     evidence: >
-      ExhaustivenessChecker has exactly three real rules -- unguarded catch-all, bool
-      true-and-false coverage, and union constituent coverage. It returns exhaustive
-      UNCONDITIONALLY for a tuple scrutinee and has NO enum rule, which is why
-      TuplePatternMatching's quadrant switch is accepted with no catch-all.
-    tasks:
-      - Implement catch-all, bool and union coverage.
-      - Decide deliberately whether tuple and enum scrutinees get real rules or a documented
-        waiver, rather than inheriting the current silent pass.
+      RECLASSIFIED WHOLESALE: this order has no capability content, and the entry is kept only so the
+      order numbering stays contiguous and SwitchExpressions keeps a `requires` id that resolves.
+      NO `verified_by`, deliberately -- that field records how a done claim is satisfied, and there is
+      nothing here to satisfy it. `done` says construction and emission owe this order nothing, which is
+      what the status measures.
+
+      Applying this file's own test: exhaustiveness checking takes a FINISHED switch expression --
+      scrutinee type, arm patterns, guard flags -- and answers whether the arms are collectively total.
+      It makes no program representable that was not, emits no C# that differs, and lets no program run
+      that could not run before. That is the shape the header describes as analysis-phase, and building it
+      as a capability would repeat orders 69 and 70 exactly: a checker that made nothing new
+      representable or emittable, which was reverted.
+
+      THE OTHER REGISTER ALREADY SAID SO. program-model-body-tasks.yaml lists "switch exhaustiveness
+      (ExhaustivenessChecker)" under out_of_scope and its patterns section header reads "exhaustiveness
+      is a CHECK (out_of_scope)". The two files disagreed until now; this entry is the one that was wrong.
+
+      THE HONEST COST, recorded rather than hidden: classic DOES enforce this and v2 does not, so unlike
+      the rest of the patterns layer v2 is behind here. A non-exhaustive switch compiles clean and throws
+      SwitchExpressionException at runtime -- measured, not assumed. Roslyn's own CS8509 does not cover
+      for it either, because CSharpCompilationDriver collects Roslyn diagnostics of severity Error only.
+      Loud at runtime rather than silently wrong, and no sample reaches it: SwitchExpressions is not
+      banked, and its own `untested` list records that the no-match path stays unexercised when it is.
+
+      WHAT ACTUALLY BLOCKS IT is not the rule but the absence of a v2 analyzer contract.
+      ExperimentalPipeline.RunAnalyzers exists and is wired -- it runs even when Stage 4 reported errors,
+      so binding and analysis both have their say before a user is asked to act -- but its body is a TODO
+      with three discards. Writing this rule means being v2's FIRST analyzer and therefore designing what
+      an analyzer is, how it registers, how EnabledAnalyzerIds selects it, and how it tolerates the
+      ErrorType and unresolved sentinels that stage's own comment warns it will see. That contract wants
+      designing deliberately with several rules in view, not reverse-engineering from one.
+
+      Orders 94 and 96 already built what the rule will need: SwitchArm.Guard distinguishes a guarded arm
+      from an unguarded one, and CatchAllPattern classifies all three catch-all forms as one kind, so
+      "unguarded catch-all" is one property and one type test rather than a syntax walk. Classic reaches
+      the same answers through TryGetSinglePrimaryPattern over raw PatternNodes, which is also why its
+      checker cannot be ported under the clean-room rule.
+    analysis_phase_tasks:
+      - >
+        Implement unguarded-catch-all, bool true-and-false, and union-constituent coverage. These are
+        classic's three real rules and the three worth keeping.
+      - >
+        Decide deliberately what a TUPLE scrutinee gets. Classic returns exhaustive UNCONDITIONALLY for
+        one, which is why TuplePatternMatching's quadrant switch is accepted with no catch-all -- an
+        accident, not a rule, and the sample depends on it.
+      - >
+        Decide deliberately what an ENUM scrutinee gets. Classic has no enum rule, so an enum falls to its
+        unbounded-type rule and is told it needs a catch-all even where every variant is covered. Note the
+        two defects point OPPOSITE ways: under-strict for tuples, over-strict for enums.
+      - >
+        Design the v2 analyzer contract first, with this rule as its first customer rather than its
+        motivation. Stage 5 is wired and empty; what is missing is what fills it.
     unlocks: []
 
   - id: union-narrowing-through-patterns

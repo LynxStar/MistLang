@@ -702,7 +702,11 @@ out_of_scope:
     - drop / use-after-drop discipline (DropAnalyzer)
     - readonly discipline enforcement (ReadonlyAnalyzer)
     - refinement satisfaction solving (RefinementSolver)
-    - switch exhaustiveness (ExhaustivenessChecker)
+    - switch exhaustiveness (ExhaustivenessChecker) -- the capability register's order 97 asserted this was
+      capability work until it was reclassified to agree with this list. Its analysis_phase_tasks now hold
+      the three rules worth keeping, the tuple and enum decisions classic gets wrong in opposite
+      directions, and the reason none of it has started: v2 has no analyzer contract yet, so this rule
+      would be designing one
     - accessibility enforcement
     - frame / stack escape (FrameEscapeAnalyzer)
     - structured-context discipline (ContextCheckerAnalyzer)

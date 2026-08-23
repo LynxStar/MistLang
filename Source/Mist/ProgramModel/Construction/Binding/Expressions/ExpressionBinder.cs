@@ -56,11 +56,15 @@ internal static class ExpressionBinder
     {
         return node switch
         {
-            IntegerLiteralExpressionPrimaryNode integer => LiteralBinder.BindIntegerLiteral(integer, context),
-            HexLiteralExpressionPrimaryNode hex => LiteralBinder.BindHexLiteral(hex, context),
-            FloatLiteralExpressionPrimaryNode floatLit => LiteralBinder.BindFloatLiteral(floatLit, context),
-            StringLiteralExpressionPrimaryNode stringLit => LiteralBinder.BindStringLiteral(stringLit, context),
-            CharLiteralExpressionPrimaryNode charLit => LiteralBinder.BindCharLiteral(charLit, context),
+            IntegerLiteralExpressionPrimaryNode integer => LiteralBinder.BindIntegerLiteral(
+                integer, integer.IntegerLiteral.Lexeme, context),
+            HexLiteralExpressionPrimaryNode hex => LiteralBinder.BindHexLiteral(hex, hex.HexLiteral.Lexeme, context),
+            FloatLiteralExpressionPrimaryNode floatLit => LiteralBinder.BindFloatLiteral(
+                floatLit, floatLit.FloatLiteral.Lexeme, context),
+            StringLiteralExpressionPrimaryNode stringLit => LiteralBinder.BindStringLiteral(
+                stringLit, stringLit.StringLiteral.Lexeme, context),
+            CharLiteralExpressionPrimaryNode charLit => LiteralBinder.BindCharLiteral(
+                charLit, charLit.CharLiteral.Lexeme, context),
             TrueLiteralExpressionPrimaryNode trueLit => LiteralBinder.BindBoolLiteral(trueLit, true, context),
             FalseLiteralExpressionPrimaryNode falseLit => LiteralBinder.BindBoolLiteral(falseLit, false, context),
             ArrayLiteralExpressionPrimaryNode arrayLiteral => LiteralBinder.BindArrayLiteral(arrayLiteral, ctx, context),

@@ -24,6 +24,12 @@ internal static class BodyEmitter
 
     private const int PrefixPrecedence = 7;
 
+    private const int DisjunctionPrecedence = 1;
+
+    private const int ConjunctionPrecedence = 2;
+
+    private const int NegationPrecedence = 3;
+
     public static void EmitBlock(Block block, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         foreach(var statement in block.Statements)
@@ -458,11 +464,25 @@ internal static class BodyEmitter
 
         EmitSubExpression(isPattern.Scrutinee, RelationalPrecedence, writer, diagnostics);
         writer.Append(" is ");
-        EmitPattern(isPattern.Pattern, writer);
+        EmitPattern(isPattern.Pattern, 0, writer, diagnostics);
     }
 
-    private static void EmitPattern(Pattern pattern, CSharpWriter writer)
+    /// <summary>
+    /// Emits a pattern, parenthesizing it when it binds looser than the combinator applying to it.
+    /// Needed for the same reason the expression side needs it: the model carries no grouping, so
+    /// <c>(a or b) and c</c> arrives as a conjunction OF a disjunction and written bare would be C# for
+    /// <c>a or (b and c)</c>. Mist and C# rank these identically -- or, then and, then not.
+    /// </summary>
+    private static void EmitPattern(
+        Pattern pattern, int combinatorPrecedence, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        var parenthesize = PatternPrecedence(pattern) < combinatorPrecedence;
+
+        if(parenthesize)
+        {
+            writer.Append("(");
+        }
+
         switch(pattern)
         {
             case TypeTestPattern typeTest:
@@ -477,7 +497,59 @@ internal static class BodyEmitter
             case CatchAllPattern catchAll:
                 writer.Append(catchAll.Binding is { } caught ? $"var {caught.Name}" : "var _");
                 break;
+
+            case ComparisonPattern comparison:
+                if(comparison.Kind != ComparisonKind.Equal)
+                {
+                    writer.Append($"{MapComparison(comparison.Kind)} ");
+                }
+
+                EmitExpression(comparison.Bound, writer, diagnostics);
+                break;
+
+            case NegatedPattern negated:
+                writer.Append("not ");
+                EmitPattern(negated.Operand, NegationPrecedence, writer, diagnostics);
+                break;
+
+            case ConjunctionPattern conjunction:
+                EmitList.Separated(conjunction.Operands, " and ", writer, operand =>
+                    EmitPattern(operand, ConjunctionPrecedence, writer, diagnostics));
+                break;
+
+            case DisjunctionPattern disjunction:
+                EmitList.Separated(disjunction.Operands, " or ", writer, operand =>
+                    EmitPattern(operand, DisjunctionPrecedence, writer, diagnostics));
+                break;
         }
+
+        if(parenthesize)
+        {
+            writer.Append(")");
+        }
+    }
+
+    private static int PatternPrecedence(Pattern pattern)
+    {
+        return pattern switch
+        {
+            DisjunctionPattern => DisjunctionPrecedence,
+            ConjunctionPattern => ConjunctionPrecedence,
+            NegatedPattern => NegationPrecedence,
+            _ => int.MaxValue,
+        };
+    }
+
+    private static string MapComparison(ComparisonKind kind)
+    {
+        return kind switch
+        {
+            ComparisonKind.LessThan => "<",
+            ComparisonKind.GreaterThan => ">",
+            ComparisonKind.LessThanOrEqual => "<=",
+            ComparisonKind.GreaterThanOrEqual => ">=",
+            _ => "==",
+        };
     }
 
     private static void EmitNew(NewExpression newExpression, CSharpWriter writer, DiagnosticBag diagnostics)

@@ -408,6 +408,22 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "A member cannot have the same name as its enclosing type '{0}'. Rename the member.");
 
+    /// <summary>
+    /// A pattern under <c>or</c> or <c>not</c> introduces a binding. Matching such a pattern does not
+    /// establish the binding -- a disjunction proves only that SOME operand matched, and a negation
+    /// proves that its operand did not -- so there is no value for the name to hold.
+    /// <para>
+    /// Reported rather than deferred to an analyzer because the model would otherwise be incoherent:
+    /// the local would be declared in the guarded block's scope while emission wrote no C# pattern to
+    /// produce it, so a branch reading the name would emit C# naming a variable that does not exist.
+    /// </para>
+    /// </summary>
+    public static readonly DiagnosticDescriptor PatternBindingNotEstablished = new(
+        new DiagnosticId("MIST_PM_PATTERN_BINDING_NOT_ESTABLISHED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "The pattern variable '{0}' cannot be introduced inside 'or' or 'not', because matching there does not establish a value for it.");
+
     /// <summary>A local variable with the same name is already declared in this scope.</summary>
     public static readonly DiagnosticDescriptor DuplicateLocalVariable = new(
         new DiagnosticId("MIST_PM_DUPLICATE_LOCAL"),

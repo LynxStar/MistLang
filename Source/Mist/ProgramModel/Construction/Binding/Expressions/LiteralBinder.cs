@@ -12,25 +12,23 @@ namespace Mist.ProgramModel.Construction.Binding.Expressions;
 /// </summary>
 internal static class LiteralBinder
 {
-    internal static Expression BindIntegerLiteral(IntegerLiteralExpressionPrimaryNode node, BuilderContext context)
+    internal static Expression BindIntegerLiteral(SyntaxNode node, string lexeme, BuilderContext context)
     {
-        var (value, wellKnown) = ParseIntegerLiteral(node.IntegerLiteral.Lexeme);
+        var (value, wellKnown) = ParseIntegerLiteral(lexeme);
         var type = context.Resolver.LookupWellKnown(wellKnown);
         return new LiteralExpression(node, value, type);
     }
 
-    internal static Expression BindHexLiteral(HexLiteralExpressionPrimaryNode node, BuilderContext context)
+    internal static Expression BindHexLiteral(SyntaxNode node, string lexeme, BuilderContext context)
     {
-        var lexeme = node.HexLiteral.Lexeme;
         var hexStr = lexeme.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? lexeme[2..] : lexeme;
         var value = long.TryParse(hexStr, System.Globalization.NumberStyles.HexNumber, null, out var parsed) ? parsed : 0L;
         var type = context.Resolver.LookupWellKnown(WellKnownTypes.Int32);
         return new LiteralExpression(node, value, type);
     }
 
-    internal static Expression BindFloatLiteral(FloatLiteralExpressionPrimaryNode node, BuilderContext context)
+    internal static Expression BindFloatLiteral(SyntaxNode node, string lexeme, BuilderContext context)
     {
-        var lexeme = node.FloatLiteral.Lexeme;
         var upper = lexeme.ToUpperInvariant();
 
         if(upper.EndsWith("M", StringComparison.Ordinal))
@@ -55,9 +53,8 @@ internal static class LiteralBinder
         return new LiteralExpression(node, dValue, dType);
     }
 
-    internal static Expression BindCharLiteral(CharLiteralExpressionPrimaryNode node, BuilderContext context)
+    internal static Expression BindCharLiteral(SyntaxNode node, string lexeme, BuilderContext context)
     {
-        var lexeme = node.CharLiteral.Lexeme;
         var value = lexeme.Length >= 3 ? lexeme[1] : '\0';
         var type = context.Resolver.LookupWellKnown(WellKnownTypes.Char);
         return new LiteralExpression(node, value, type);
@@ -69,10 +66,9 @@ internal static class LiteralBinder
         return new LiteralExpression(node, value, type);
     }
 
-    internal static Expression BindStringLiteral(StringLiteralExpressionPrimaryNode node, BuilderContext context)
+    internal static Expression BindStringLiteral(SyntaxNode node, string lexeme, BuilderContext context)
     {
         // Strip surrounding quotes to get the string value.
-        var lexeme = node.StringLiteral.Lexeme;
         var value = lexeme.Length >= 2 ? lexeme[1..^1] : lexeme;
         var type = context.Resolver.LookupWellKnown(WellKnownTypes.String);
         return new LiteralExpression(node, value, type);

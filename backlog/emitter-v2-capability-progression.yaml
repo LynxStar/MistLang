@@ -3911,10 +3911,45 @@ capabilities:
     order: 91
     layer: patterns
     requires: [pattern-matching-core]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      Relational constants must be comparability-checked against the scrutinee's static
-      type. Constant patterns cover int, string, bool, char and float forms.
+      ONE MODEL KIND CARRIES BOTH. ComparisonPattern holds a ComparisonKind and a bound expression, and
+      a constant pattern is the Equal case rather than a kind of its own -- `42` and `< 42` differ only
+      in the operator, and emission spells Equal by writing no operator at all. Future consumers get one
+      kind to switch over instead of two: order 97's bool coverage rule reads Kind == Equal.
+
+      All five constant forms bind (int, float, string, char, bool) and all four relational operators
+      carry their own kind, each pinned in PatternResolutionTests. The two literal node hierarchies now
+      share their parsing rather than duplicating it: ConstantLiteralNode is a separate hierarchy from
+      PrimaryNode, so LiteralBinder's five entry points were changed to take a lexeme instead of a node,
+      which is what lets the suffix and quote handling have one home.
+
+      A COMPARISON NARROWS NOTHING, deliberately: a value test says nothing about which type holds the
+      value. The one case where it could -- picking a constituent out of a union -- is order 98's, and
+      the emitter's union guard from order 90 already refuses that scrutinee. An optional scrutinee needs
+      nothing special; `int?` compares directly in C#.
+
+      REGEX CONSTANTS ARE NOT HERE. The grammar admits one in constant-pattern position, and it is the
+      one ConstantLiteral alternative that answers null and parks the `is`, because a regex test is not a
+      C# pattern at all -- classic lowers it to a Regex.IsMatch call. It belongs with the rest of the
+      regex layer rather than being half-built here.
+
+      RECLASSIFIED, and the original wording is the reason to say so: this record used to read
+      "relational constants MUST be comparability-checked against the scrutinee's static type", which is
+      a rule that walks a finished pattern and judges it. Applying the file's own test -- is the model or
+      the emission wrong without it? -- the answer is no, so it moved to analysis_phase_tasks alongside
+      order 90's impossible-type-test rule, which is the same rule for a different pattern kind.
+    analysis_phase_tasks:
+      - >
+        Report a relational pattern whose bound is not comparable to the scrutinee's static type, and a
+        constant pattern whose constant is not. Both bind coherently and emit as written; Roslyn then
+        rejects the C#, which puts the error on a generated file rather than on Mist source. That is a
+        message-quality argument, not a representability one.
+      - >
+        Report a relational bound that is not a compile-time constant. The grammar admits a full
+        expression there (`constant:VoidCoalescing`), so `n is < f()` binds and emits; C# requires a
+        constant and rejects it downstream.
     unlocks: []
 
   - id: logical-patterns
@@ -3922,18 +3957,50 @@ capabilities:
     order: 92
     layer: patterns
     requires: [constant-and-relational-patterns]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      Conjunction, disjunction, negation and parenthesized grouping of patterns. The TRAVERSAL is
-      already there from order 90 -- PatternBinder walks the grammar's or/and/unary levels and detects
-      a bare level with the same OperatorBinder.IsBare the precedence chain uses. What is missing is
-      the fold: all four forms answer null at those levels, so the whole `is` parks unresolved and
-      emission reports it. Each combinator has to say what its own NarrowedType and Binding are, and
-      that is where the work is -- a disjunction narrows to the union of its branches and can only
-      keep a binding both branches agree on, and a negation narrows to nothing and must keep none.
-      MIND THE REPETITION LISTS: the generated Right slot holds the LAST repeated operand and is also
-      present in the array, so a fold that reads Left and Right drops the middle operand of a
-      three-way chain, which is a live defect in the classic emitter's EmitOrPattern.
+      THE REPETITION-LIST TRAP IS AVOIDED AND THE PROOF NEEDS THREE OPERANDS. The generated Right slot
+      holds the LAST repeated operand and that operand is ALSO in the array, so a fold reading Left and
+      Right drops everything between them -- and passes every two-operand test, which is why the classic
+      emitter's EmitOrPattern still loses the `b` of `a or b or c`. PatternBinder.Flatten is the single
+      home for that hazard, used by both folds, and the two three-operand tests fail exactly when it is
+      mutated to the classic shape.
+
+      A CONJUNCTION NARROWS AS IT GOES: each operand binds against what its predecessors proved, not
+      against the original scrutinee, so `a is Dog and var d` types d as Dog. This was found by running
+      the emitted C# rather than by reading: C# narrows a conjunction's input the same way, and since
+      emission hands it the pattern verbatim, answering the wider type would have put the model at odds
+      with the C# it produced. Mutation-checked.
+
+      A DISJUNCTION DECLINES TO NARROW to the union of its operands, even though a match proves exactly
+      that. Interning that union would be a side effect with an observable cost -- the emitter discovers
+      carrier structs by reading the interner, so writing a pattern would add a struct to __Unions.g.cs
+      for a type the program never names. With no binding permitted under `or` there is nothing to type,
+      so nothing is lost. The test asserts the interner stays empty AND that a union spelled in source
+      does reach it, so the assertion is not vacuous.
+
+      BINDINGS ARE REFUSED UNDER `or` AND `not`, reported as MIST_PM_PATTERN_BINDING_NOT_ESTABLISHED, and
+      this one IS construction's rather than an analyzer's: matching a disjunction proves only that SOME
+      operand did, and matching a negation proves its operand did not, so there is no value for the name
+      to hold. Left alone the model would declare a local in the guarded block's scope while emission
+      wrote no C# pattern to produce it, and a branch reading the name would emit C# naming a variable
+      that does not exist. Permission travels down the walk as a flag, so the ban reaches through
+      grouping and through a nesting conjunction. A refused binding does not stop the pattern being
+      built, so a use site adds an unresolved-name error behind the first -- a cascade, recorded rather
+      than defended.
+
+      GROUPING IS NOT MODELLED. A parenthesized pattern binds to whatever it wraps and emission
+      re-derives the parentheses from precedence, as the expression side does since order 90. Mist and C#
+      rank these identically, so the mapping is 1:1: `(1 or 2) and > 1` re-parenthesizes and
+      `1 or 2 and > 1` does not, and the two disagree on 1, which the sample run checks by output rather
+      than by inspecting the C#.
+    analysis_phase_tasks:
+      - >
+        Report a conjunct that cannot match what its predecessors narrowed to -- `a is Dog and not Cat`
+        binds and emits, and Roslyn then rejects it, because progressive narrowing makes Cat unreachable
+        inside Dog. Reachable today and hit while writing the sample for this order, which is the
+        clearest evidence yet for order 90's impossible-type-test task; they are one rule.
     unlocks: []
 
   - id: property-patterns

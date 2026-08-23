@@ -488,17 +488,22 @@ patterns:
   # `switch { }` IS STILL CLOSED -- it dies in BindPostfixSuffix's `default:`, so every item under
   # switch_expression remains untestable. A pattern form not yet carried answers null from
   # PatternBinder, which parks the whole `is` as UnresolvedExpression rather than half-binding it.
+  #
+  # WHETHER A BINDING MAY BE INTRODUCED travels down the walk as a flag (orders 91-92). `or` and `not`
+  # clear it and a binding attempted under either is reported, because matching there establishes no
+  # value for the name -- and left alone the local would be declared in the guarded block's scope while
+  # emission wrote no C# pattern to produce it.
   combinators:
-    - [ ] OrPattern / AndPattern -- the LEVELS are walked and a bare one passes through (OperatorBinder.IsBare, shared with the precedence chain); a multi-operand chain answers null. Each needs to state its own NarrowedType and Binding: a disjunction narrows to the union of its branches and may keep only a binding both agree on. MIND the generated Right slot -- it holds the LAST repeated operand AND appears in the array, which is how the classic emitter drops the middle operand of a three-way chain
-    - [ ] UnaryPattern: NotPattern / DirectPattern -- DirectPattern passes through to the primary. NotPattern answers null; it narrows to nothing and must keep no binding
-    - [ ] ParenthesizedPattern -- answers null. Grouping has nothing to group until the combinators above land, so it was left with them rather than done for its own sake
+    - [x] OrPattern / AndPattern -- DisjunctionPattern and ConjunctionPattern, both FLAT lists however source grouped them. Operands come from PatternBinder.Flatten, which is Left plus the whole repetition array: the generated Right slot holds the LAST repeated operand AND appears in the array, so a fold reading Left and Right drops the middle operand of a three-way chain, as the classic emitter's EmitOrPattern does. A conjunction narrows AS IT GOES -- each operand binds against what its predecessors proved, matching how C# narrows and therefore matching the C# emission hands it. A disjunction narrows to the scrutinee and NOT to the union of its operands, because interning that union would add a carrier struct to __Unions.g.cs for a type the program never names
+    - [x] UnaryPattern: NotPattern / DirectPattern -- NegatedPattern narrows to the scrutinee and keeps no binding, both because failing a test establishes nothing positive. DirectPattern passes through to the primary
+    - [x] ParenthesizedPattern -- NOT modelled, deliberately: it binds to whatever it wraps and emission re-derives the parentheses from pattern precedence (or < and < not, which Mist and C# rank identically). Same treatment the expression side gives source parens
   primary_patterns:
     - [x] TypePattern (`T name`) -- TypeTestPattern, resolved through the full type-ref path so a constructed generic keeps its type argument. GRAMMAR NOTE, and it is load-bearing: the rule is name:(IDENTIFIER | DISCARD), so `T _` is a TypePattern carrying a discard TOKEN, not a DiscardPattern -- PatternBinder separates the two readings on the token's kind, and reading it the other way would drop the type test
     - [~] BareTypePattern (`T`) -> type test -- TypeTestPattern with no binding. MISSING: the enum-member reading (EnumName.Member), which is order 99 and resolves as a VALUE rather than a type
     - [x] VarPattern (`var name`) -> binds scrutinee's static type -- CatchAllPattern. The static type, not the runtime one, so on an `unknown` scrutinee the binding is honestly still un-narrowed
     - [x] DiscardPattern (`_`) -- CatchAllPattern with no binding, the same kind `var _` binds to. Emitted as `var _`, valid C# where a bare `_` is not
-    - [ ] relational patterns (`< > <= >=` const)
-    - [ ] ConstantPattern (int / float / string / char / regex / true / false)
+    - [x] relational patterns (`< > <= >=` const) -- ComparisonPattern, the same kind a constant pattern binds to; the bound is a full expression through OperatorBinder.BindVoidCoalescing, since the grammar admits one there. Narrows nothing: a value test says nothing about which type holds the value
+    - [~] ConstantPattern (int / float / string / char / regex / true / false) -- ComparisonPattern with ComparisonKind.Equal, so a constant pattern is not its own kind. All five primitive forms bind through LiteralBinder, whose entry points now take a lexeme rather than a node so ConstantLiteralNode and PrimaryNode share the suffix and quote parsing. MISSING: regex, the one alternative that answers null -- a regex test is not a C# pattern at all (classic lowers it to Regex.IsMatch) and belongs with the regex layer
     - [ ] PropertyPattern (`Type? { sub: pat, ... } name?`) -> recurse subpatterns; optional trailing binding
     - [ ] TuplePositionalPattern (`(p, p, ...)`) -> per-element scrutinee types
     - [ ] ListPattern (`[ ... ]`) with slice element (`.. name`)

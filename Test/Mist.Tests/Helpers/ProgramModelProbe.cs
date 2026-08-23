@@ -14,10 +14,13 @@ using Mist.Common.Source;
 using Mist.Driver.Contracts;
 using Mist.Lexing;
 using Mist.Parsing;
+using Mist.ProgramModel;
 using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Backend;
@@ -189,6 +192,30 @@ public abstract class ProgramModelProbe : IDisposable
                     standardType.Assembly = MistAssembly.Ambient;
                 }
             }
+
+            DeclareStringLength(programModel);
+        }
+
+        /// <summary>
+        /// The shells carry no members, and this one is needed to state anything about a PRIMITIVE
+        /// scrutinee: <c>s is { Length: &gt; 3 }</c> resolves only because Standard.String really does
+        /// declare Length (Bootstrap/String.mist), so a fixture without it would make the claim
+        /// untestable rather than false.
+        /// </summary>
+        private static void DeclareStringLength(ProgramModelClass programModel)
+        {
+            if(programModel.TypesByFQN[WellKnownTypes.String.FullyQualifiedName] is not ClassType stringType)
+            {
+                return;
+            }
+
+            stringType.PropertiesList.Add(new Property(
+                "Length",
+                programModel.TypesByFQN[WellKnownTypes.Int32.FullyQualifiedName],
+                new MemberModifiers { Accessibility = Accessibility.Public, IsIntrinsic = true })
+            {
+                Getter = new PropertyAccessor(),
+            });
         }
     }
 }

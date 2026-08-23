@@ -376,11 +376,10 @@ public sealed class PatternResolutionTests : ProgramModelProbe
     [Fact]
     public void PatternsOverStructure_ParkUnresolvedWithoutADiagnostic()
     {
-        _ = InitializerOf<UnresolvedExpression>("var ok = u is { };");
         _ = InitializerOf<UnresolvedExpression>("var ok = u is (1, 2);");
         _ = InitializerOf<UnresolvedExpression>("var ok = u is [1];");
 
-        Assert.Empty(Errors(BuildRun("var ok = u is { };"), "MIST_PM_UNRESOLVED_IDENTIFIER"));
+        Assert.Empty(Errors(BuildRun("var ok = u is (1, 2);"), "MIST_PM_UNRESOLVED_IDENTIFIER"));
     }
 
     [Fact]

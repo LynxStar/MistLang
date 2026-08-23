@@ -464,6 +464,17 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "The pattern variable '{0}' cannot be introduced inside 'or' or 'not', because matching there does not establish a value for it.");
 
+    /// <summary>
+    /// A property pattern's subpattern names something other than a field or a property. Its sibling
+    /// <see cref="InitializerTargetNotAssignable"/> is worded for assignment; this one is worded for
+    /// matching, since a method or a nested type holds no value for a subpattern to be tested against.
+    /// </summary>
+    public static readonly DiagnosticDescriptor PatternSubpatternNotStorage = new(
+        new DiagnosticId("MIST_PM_PATTERN_SUBPATTERN_NOT_STORAGE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{1}' on '{0}' is not a field or a property, so a property pattern cannot match against it.");
+
     /// <summary>A local variable with the same name is already declared in this scope.</summary>
     public static readonly DiagnosticDescriptor DuplicateLocalVariable = new(
         new DiagnosticId("MIST_PM_DUPLICATE_LOCAL"),

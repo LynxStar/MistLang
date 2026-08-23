@@ -8,9 +8,9 @@ namespace Mist.ProgramModel.Construction.Binding;
 
 /// <summary>
 /// What a name means on a type, for every caller that already knows which type to ask -- a
-/// qualified <c>receiver.X</c> and a member named in an initializer block. Both go through the same
-/// lookup an unqualified name uses, so none of the three can disagree about what exists, what is
-/// inherited, or what is reachable.
+/// qualified <c>receiver.X</c>, a member named in an initializer block, and a property pattern's
+/// subpattern. All go through the same lookup an unqualified name uses, so none of them can disagree
+/// about what exists, what is inherited, or what is reachable.
 /// <para>
 /// The answer is returned unreduced, since a method group has no single type until a call decides
 /// between its overloads, and the callers differ on which kinds they accept at all.
@@ -44,12 +44,48 @@ internal static class MemberResolution
         return (found, constructed);
     }
 
+    internal readonly record struct StorageLookup(IMistType? Type, LookupResult Found);
+
+    /// <summary>
+    /// The type of a field or property reached on an instance of <paramref name="type"/>, for the two
+    /// callers that want storage and nothing else: an initializer block assigns to it and a property
+    /// pattern matches against it, so neither has any use for a method group or a nested type.
+    /// <para>
+    /// <see cref="StorageLookup.Found"/> comes back alongside because a null type conflates two
+    /// outcomes the callers must separate -- a name that resolved to something unusable, which each
+    /// reports in its own words, and one <see cref="Resolve"/> has already reported on.
+    /// </para>
+    /// </summary>
+    public static StorageLookup ResolveStorage(
+        IMistType type, string memberName, SyntaxNode node, BuilderContext context)
+    {
+        var (found, constructed) = Resolve(type, memberName, MemberVisibility.InstanceOnly, node, context);
+
+        var memberType = found switch
+        {
+            FieldResult field => field.Field.Type,
+            PropertyResult property => property.Property.Type,
+            _ => null,
+        };
+
+        return new StorageLookup(
+            memberType is null
+                ? null
+                : TypeSubstitution.ForReceiver(constructed).Apply(memberType, context.ProgramModel.TypeInterner),
+            found);
+    }
+
+    public static bool AnswersMembers(IMistType type)
+    {
+        return type is not (ErrorType or UnknownType or NotProjectedType);
+    }
+
     /// <summary>
     /// Reports a name that resolved to nothing, or to more than one kind of thing.
     /// <para>
-    /// Suppressed when the type is itself unresolved. A type that already failed has already been
-    /// reported on, and it has no members to speak of, so every access through it would otherwise
-    /// add a second error saying so -- one mistake, a cascade of complaints.
+    /// Suppressed when the type is itself unresolved, because a type that already failed has already
+    /// been reported on: every access through it would otherwise add a second error saying so -- one
+    /// mistake, a cascade of complaints.
     /// </para>
     /// </summary>
     private static void Report(
@@ -59,7 +95,7 @@ internal static class MemberResolution
         SyntaxNode node,
         BuilderContext context)
     {
-        if(declaring is ErrorType or UnknownType or NotProjectedType)
+        if(!AnswersMembers(declaring))
         {
             return;
         }

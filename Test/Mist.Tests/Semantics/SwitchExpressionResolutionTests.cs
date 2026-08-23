@@ -116,7 +116,7 @@ public sealed class SwitchExpressionResolutionTests : ProgramModelProbe
     [Fact]
     public void AnArmWithAnUnmodelledPattern_ParksTheWholeSwitch()
     {
-        _ = InitializerOf<UnresolvedExpression>("var label = u switch { { } => 1, _ => 0 };");
+        _ = InitializerOf<UnresolvedExpression>("var label = u switch { (1, 2) => 1, _ => 0 };");
     }
 
     // ── How far an arm's binding reaches ─────────────────────────────────

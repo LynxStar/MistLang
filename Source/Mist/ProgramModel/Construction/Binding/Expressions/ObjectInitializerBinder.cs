@@ -66,24 +66,14 @@ internal static class ObjectInitializerBinder
 
     private static IMistType? ResolveTargetType(IMistType type, string memberName, SyntaxNode node, BuilderContext context)
     {
-        var (found, constructed) = MemberResolution.Resolve(type, memberName, MemberVisibility.InstanceOnly, node, context);
-
-        var memberType = found switch
-        {
-            FieldResult field => field.Field.Type,
-            PropertyResult property => property.Property.Type,
-            _ => null,
-        };
+        var (memberType, found) = MemberResolution.ResolveStorage(type, memberName, node, context);
 
         if(memberType is null)
         {
             ReportNotStorage(found, type, memberName, node, context);
-            return null;
         }
 
-        return TypeSubstitution
-            .ForReceiver(constructed)
-            .Apply(memberType, context.ProgramModel.TypeInterner);
+        return memberType;
     }
 
     /// <summary>

@@ -578,12 +578,36 @@ internal static class BodyEmitter
                 EmitList.Separated(disjunction.Operands, " or ", writer, operand =>
                     EmitPattern(operand, DisjunctionPrecedence, writer, diagnostics));
                 break;
+
+            case PropertyPattern property:
+                EmitPropertyPattern(property, writer, diagnostics);
+                break;
         }
 
         if(parenthesize)
         {
             writer.Append(")");
         }
+    }
+
+    private static void EmitPropertyPattern(
+        PropertyPattern property, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        if(property.Subpatterns.Count == 0)
+        {
+            writer.Append("{ }");
+            return;
+        }
+
+        writer.Append("{ ");
+
+        EmitList.Separated(property.Subpatterns, ", ", writer, subpattern =>
+        {
+            writer.Append($"{subpattern.MemberName}: ");
+            EmitPattern(subpattern.Pattern, 0, writer, diagnostics);
+        });
+
+        writer.Append(" }");
     }
 
     private static int PatternPrecedence(Pattern pattern)

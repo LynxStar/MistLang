@@ -120,7 +120,7 @@ infrastructure:
     # internal-only, and IMethod does not expose Body.
     - [~] IBoundStatement base contract + Model base -- MISSING: the contract. Model base is Model/Statements/Statement.cs, an empty marker class; kinds are matched by type test
     - [~] IBoundExpression base contract (carries resolved Type: IMistType) -- MISSING: the contract. Model/Expressions/Expression.cs has the abstract non-nullable Type
-    - [ ] IBoundPattern base contract (carries input/narrowed type + bound variables) -- no pattern type exists in Model/ or Contracts/
+    - [~] IBoundPattern base contract (carries input/narrowed type + bound variables) -- the MODEL base exists, Model/Patterns/Pattern.cs, carrying NarrowedType and Binding. MISSING: the contract, exactly as for Expression and Statement, which have none either -- expressions and statements are matched by type from Model/, so a pattern contract would be the first of its kind rather than the last
     - [~] IBoundBlock (ordered statements + owning Scope) -- MISSING: the owning Scope. Block.Statements is ordered and populated; the scope object is a binder transient and Block still exposes BlockNode Node
     - [ ] every bound expression exposes:
       - [x] Type (IMistType, resolved, never null; ErrorType sentinel for failures)
@@ -349,7 +349,7 @@ statements:
     - [~] IfStatement (condition bound to bool) -- MISSING: the "to bool" half. The condition is bound but not target-typed, not converted, and not checked; there is no conversion machinery to do it with
     - [x] ElseIf chain (ElseIfElseClause) -- recursive BindIf; IfStatement.ElseBranch holds either a Block or a nested IfStatement
     - [x] ElseBlock (ElseBlockElseClause)
-    - [ ] pattern variables from `is` in the condition are in scope in the THEN branch only (not else) -- `is` does not bind, so there are no pattern variables to scope
+    - [x] pattern variables from `is` in the condition are in scope in the THEN branch only (not else) -- and in the rest of the CONDITION too, which is the half worth naming: BindConditionInto builds the then-block's scope first and binds the condition into it, so one mechanism gives both (order 90)
     - [ ] refinement/union narrowing applied inside the THEN branch (see mist_specific.narrowing)
   loops:
     - [~] WhileStatement (condition bound to bool) -- MISSING: the "to bool" half, as with if
@@ -416,7 +416,7 @@ expressions:
   cast_and_as:
     - [~] CastExpression `(T)x` -> target type; classify conversion (see conversions) -- the node IS bound (OperatorBinder resolves the target through the full type-ref path and records a FindOperator match on the CastExpression), and newtype casts ride it as plain C# casts against the emitted wrapper's operators (order 86). MISSING: validation -- a null conversion is not an error, so an impossible cast reaches Roslyn
     - [ ] enum cast is fallible -> result type `Enum | void`
-    - [ ] AsExpression `x as T` -> classify as provable (identity/widening) vs runtime-checked (narrowing/union-extraction/unknown-narrowing); store the classification on the node -- BindRelational rejects any node that is not RelationalComparison, so both `is` and `as` become UnresolvedExpression
+    - [ ] AsExpression `x as T` -> classify as provable (identity/widening) vs runtime-checked (narrowing/union-extraction/unknown-narrowing); store the classification on the node -- BindRelational is now a switch with an `is` arm (order 90), but AsExpressionRelationalNode still falls to its `default:` and becomes UnresolvedExpression
   postfix:
     - [~] MemberAccessSuffix (`.name`) -> instance/static member type -- MISSING: a resolved SYMBOL (the node carries only a string MemberName) and the base chain. Static/instance enforcement IS done, by splitting the request rather than resolving and then rejecting. ConstructedType receivers ARE handled: the receiver is unwrapped to its definition for the lookup and the definition's type arguments substituted into what it found, so `list.Count` and `arr.Length` resolve. A Newtype receiver forwards to its source (TypeMemberLookup.EnqueueBases walks SourceType as a pseudo-base, order 86) and a TypeAlias can no longer BE a receiver type (expansion at resolution, order 84). EnumType, TupleType, NamedTupleType and UnionType receivers still yield ErrorType
     - [x] OptionalMemberAccessSuffix (`?.name`) -- member looked up on the receiver's non-void portion, result lifted flattened, IsConditional on the bound node (order 79)
@@ -479,26 +479,31 @@ patterns:
   # Used by `is` expressions and switch-expression arms. Binding introduces pattern
   # variables and computes the narrowed type; exhaustiveness is a CHECK (out_of_scope).
   #
-  # THE WHOLE SECTION IS UNSTARTED, and doubly blocked: there is no pattern model in
-  # Model/ and no pattern binder, AND no reachable entry point -- `is` dies in
-  # BindRelational and `switch { }` dies in BindPostfixSuffix's `default:`. Both entry
-  # points must open before any item below is testable.
+  # THE `is` ENTRY POINT IS OPEN (order 90). Model/Patterns/ holds the hierarchy -- an abstract
+  # Pattern carrying NarrowedType and Binding, with TypeTestPattern and CatchAllPattern under it --
+  # and PatternBinder walks the grammar's or/and/unary/primary chain. Binding is singular per
+  # pattern node ON PURPOSE: a property or tuple pattern's several binders live on its subpatterns,
+  # so multiplicity comes from the recursion and no list is needed here.
+  #
+  # `switch { }` IS STILL CLOSED -- it dies in BindPostfixSuffix's `default:`, so every item under
+  # switch_expression remains untestable. A pattern form not yet carried answers null from
+  # PatternBinder, which parks the whole `is` as UnresolvedExpression rather than half-binding it.
   combinators:
-    - [ ] OrPattern / AndPattern
-    - [ ] UnaryPattern: NotPattern / DirectPattern
-    - [ ] ParenthesizedPattern
+    - [ ] OrPattern / AndPattern -- the LEVELS are walked and a bare one passes through (OperatorBinder.IsBare, shared with the precedence chain); a multi-operand chain answers null. Each needs to state its own NarrowedType and Binding: a disjunction narrows to the union of its branches and may keep only a binding both agree on. MIND the generated Right slot -- it holds the LAST repeated operand AND appears in the array, which is how the classic emitter drops the middle operand of a three-way chain
+    - [ ] UnaryPattern: NotPattern / DirectPattern -- DirectPattern passes through to the primary. NotPattern answers null; it narrows to nothing and must keep no binding
+    - [ ] ParenthesizedPattern -- answers null. Grouping has nothing to group until the combinators above land, so it was left with them rather than done for its own sake
   primary_patterns:
-    - [ ] TypePattern (`T name`) -- GRAMMAR NOTE: the rule is name:(IDENTIFIER | DISCARD), so `T _` is a TypePattern, not a DiscardPattern -> introduces `name : T`
-    - [ ] BareTypePattern (`T`) -> type test; also enum-member pattern (EnumName.Member)
-    - [ ] VarPattern (`var name`) -> binds scrutinee's static type
-    - [ ] DiscardPattern (`_`)
+    - [x] TypePattern (`T name`) -- TypeTestPattern, resolved through the full type-ref path so a constructed generic keeps its type argument. GRAMMAR NOTE, and it is load-bearing: the rule is name:(IDENTIFIER | DISCARD), so `T _` is a TypePattern carrying a discard TOKEN, not a DiscardPattern -- PatternBinder separates the two readings on the token's kind, and reading it the other way would drop the type test
+    - [~] BareTypePattern (`T`) -> type test -- TypeTestPattern with no binding. MISSING: the enum-member reading (EnumName.Member), which is order 99 and resolves as a VALUE rather than a type
+    - [x] VarPattern (`var name`) -> binds scrutinee's static type -- CatchAllPattern. The static type, not the runtime one, so on an `unknown` scrutinee the binding is honestly still un-narrowed
+    - [x] DiscardPattern (`_`) -- CatchAllPattern with no binding, the same kind `var _` binds to. Emitted as `var _`, valid C# where a bare `_` is not
     - [ ] relational patterns (`< > <= >=` const)
     - [ ] ConstantPattern (int / float / string / char / regex / true / false)
     - [ ] PropertyPattern (`Type? { sub: pat, ... } name?`) -> recurse subpatterns; optional trailing binding
     - [ ] TuplePositionalPattern (`(p, p, ...)`) -> per-element scrutinee types
     - [ ] ListPattern (`[ ... ]`) with slice element (`.. name`)
   variable_binding:
-    - [ ] introduce pattern variables into the correct scope (if-then / switch arm)
+    - [~] introduce pattern variables into the correct scope -- DONE for if-then and while: StatementBinder.BindConditionInto builds the guarded block's BodyScope BEFORE the condition and binds the condition into it, so a binding reaches the rest of its own condition and the block, and neither the else nor anything after. That ordering is the whole point -- it is what makes `x is Foo f && f.Bar` expressible, where hoisting the binding into the branch does not. MISSING: the switch arm, which has no entry point yet
     - [ ] named-tuple element destructuring binds each named element (C#-style; whole-binding uses unnamed tuple type)
   switch_expression:
     - [ ] SwitchArm: pattern + optional `when` guard (bound at VoidCoalescing precedence) + result expression
@@ -583,7 +588,7 @@ type_inference_and_conversions:
     - [ ] constructed-generic identity + covariant unknown-widening (class-only restriction)
     - [ ] tuple structural (arity + element assignability; name erasure)
     - [ ] array / span sizing (known-length -> unknown-length; kind must match for spans)
-    - [~] union widening (constituent -> union; union -> wider union) and narrowing (via `is`) -- widening is ConversionRelation.WidensIntoUnion, containment recursing through IsWithin (order 77); narrowing waits on patterns (order 90+). Like everything here, no bound conversion node records it
+    - [~] union widening (constituent -> union; union -> wider union) and narrowing (via `is`) -- widening is ConversionRelation.WidensIntoUnion, containment recursing through IsWithin (order 77). Narrowing via `is` now works for every scrutinee C# can test directly, OPTIONALS INCLUDED, because an optional bypasses the carrier for Nullable or the bare type (order 90). A non-optional union does not: its carrier relates to no constituent, so narrowing must read the tag, which is order 98. Like everything here, no bound conversion node records it
     - [ ] dependent-type-parameter <-> value type
     - [x] newtype nominal distinctness (only same newtype; explicit cast required otherwise) -- falls out of ConversionRelation having no newtype arm (FQN identity only), mutation-checked by NewtypeResolutionTests (order 86); the "cast required" DIAGNOSTIC on a mixing assignment is analyzer work, like everything here
     - [ ] delegate / func signature compatibility + method-group conversion
@@ -615,7 +620,7 @@ mist_specific_semantics:
   refinement_and_union_narrowing:
     # RefinedType and UnionType exist and are produced by ScopeResolver; no narrowing
     # happens during binding, and the `is` entry point is closed.
-    - [ ] narrow from `is` pattern (then-branch / arm scope)
+    - [~] narrow from `is` pattern (then-branch / arm scope) -- the narrowed type is Pattern.NarrowedType, intrinsic to the bound pattern, and the binding it types is declared into the guarded block's scope (order 90). MISSING: the arm scope, which needs the switch entry point; and narrowing the SCRUTINEE itself rather than a binding, so a bare `u` after `u is int i` is still unknown
     - [ ] narrow from comparisons / conditions
     - [ ] for-loop bound narrowing (array-bounds-flow-analysis feeds this; decide scope) -- STILL UNDECIDED
     - [ ] union narrowing to a constituent

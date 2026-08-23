@@ -3,6 +3,7 @@ using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 
@@ -19,6 +20,10 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// </summary>
 internal static class BodyEmitter
 {
+    private const int RelationalPrecedence = 4;
+
+    private const int PrefixPrecedence = 7;
+
     public static void EmitBlock(Block block, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         foreach(var statement in block.Statements)
@@ -245,14 +250,18 @@ internal static class BodyEmitter
                 break;
 
             case BinaryExpression binary:
-                EmitSubExpression(binary.Left, binary, writer, diagnostics);
+                EmitSubExpression(binary.Left, GetPrecedence(binary.OperatorKind), writer, diagnostics);
                 writer.Append($" {MapBinaryOperator(binary.OperatorKind)} ");
-                EmitSubExpression(binary.Right, binary, writer, diagnostics);
+                EmitSubExpression(binary.Right, GetPrecedence(binary.OperatorKind), writer, diagnostics);
                 break;
 
             case UnaryExpression unary:
                 writer.Append(MapUnaryOperator(unary.OperatorKind));
-                EmitExpression(unary.Operand, writer, diagnostics);
+                EmitSubExpression(unary.Operand, PrefixPrecedence, writer, diagnostics);
+                break;
+
+            case IsPatternExpression isPattern:
+                EmitIsPattern(isPattern, writer, diagnostics);
                 break;
 
             case CastExpression cast:
@@ -436,6 +445,41 @@ internal static class BodyEmitter
             : $"default({TypeNameEmitter.Emit(type)})";
     }
 
+    private static void EmitIsPattern(
+        IsPatternExpression isPattern, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        if(isPattern.Scrutinee.Type is UnionType union && !OptionalUnion.IsOptional(union))
+        {
+            diagnostics.ReportAtNode(
+                BackendDiagnostics.UnsupportedUnionPattern, isPattern.Node, null, union.Name);
+            writer.Append($"/* unsupported: pattern against union {union.Name} */");
+            return;
+        }
+
+        EmitSubExpression(isPattern.Scrutinee, RelationalPrecedence, writer, diagnostics);
+        writer.Append(" is ");
+        EmitPattern(isPattern.Pattern, writer);
+    }
+
+    private static void EmitPattern(Pattern pattern, CSharpWriter writer)
+    {
+        switch(pattern)
+        {
+            case TypeTestPattern typeTest:
+                writer.Append(TypeNameEmitter.Emit(typeTest.NarrowedType));
+                if(typeTest.Binding is { } tested)
+                {
+                    writer.Append($" {tested.Name}");
+                }
+
+                break;
+
+            case CatchAllPattern catchAll:
+                writer.Append(catchAll.Binding is { } caught ? $"var {caught.Name}" : "var _");
+                break;
+        }
+    }
+
     private static void EmitNew(NewExpression newExpression, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         // A parameterized construction on a type parameter calls the factory the constraint grants.
@@ -536,21 +580,34 @@ internal static class BodyEmitter
     }
 
     /// <summary>
-    /// Emits a sub-expression of a binary expression, wrapping it in parentheses when
-    /// the child has lower precedence than the parent to preserve evaluation order.
+    /// Emits an operand, parenthesizing it when it binds looser than the operator applying to it.
+    /// Required because binding drops the parentheses source wrote, so they have to be re-derived
+    /// here: a negated conjunction arrives as a negation OF a conjunction, and written bare it is C#
+    /// for a conjunction of a negation. A type test is ranked with C#'s relational operators, the
+    /// precedence no <see cref="BinaryOperatorKind"/> names.
     /// </summary>
-    private static void EmitSubExpression(Expression child, BinaryExpression parent, CSharpWriter writer, DiagnosticBag diagnostics)
+    private static void EmitSubExpression(
+        Expression child, int operatorPrecedence, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        if(child is BinaryExpression childBinary && GetPrecedence(childBinary.OperatorKind) < GetPrecedence(parent.OperatorKind))
+        if(GetPrecedence(child) < operatorPrecedence)
         {
             writer.Append("(");
             EmitExpression(child, writer, diagnostics);
             writer.Append(")");
+            return;
         }
-        else
+
+        EmitExpression(child, writer, diagnostics);
+    }
+
+    private static int GetPrecedence(Expression expression)
+    {
+        return expression switch
         {
-            EmitExpression(child, writer, diagnostics);
-        }
+            BinaryExpression binary => GetPrecedence(binary.OperatorKind),
+            IsPatternExpression => RelationalPrecedence,
+            _ => int.MaxValue,
+        };
     }
 
     private static int GetPrecedence(BinaryOperatorKind kind)
@@ -561,7 +618,7 @@ internal static class BodyEmitter
             BinaryOperatorKind.LogicalAnd => 2,
             BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual => 3,
             BinaryOperatorKind.LessThan or BinaryOperatorKind.GreaterThan or
-            BinaryOperatorKind.LessThanOrEqual or BinaryOperatorKind.GreaterThanOrEqual => 4,
+            BinaryOperatorKind.LessThanOrEqual or BinaryOperatorKind.GreaterThanOrEqual => RelationalPrecedence,
             BinaryOperatorKind.Add or BinaryOperatorKind.Subtract or
             BinaryOperatorKind.Concatenate => 5,
             BinaryOperatorKind.Multiply or BinaryOperatorKind.Divide or

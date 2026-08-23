@@ -98,10 +98,11 @@ internal static class StatementBinder
 
     private static IfStatement BindIf(IfStatementNode node, BindingContext ctx, BuilderContext context)
     {
-        var condition = ExpressionBinder.BindExpression(node.Condition, ctx, context);
+        var thenScope = new BodyScope(ctx.Scope);
+        var condition = BindConditionInto(node.Condition, thenScope, ctx, context);
 
         var thenBlock = new Block(node.ThenBranch);
-        BodyBinder.BindNestedBlock(thenBlock, new BodyScope(ctx.Scope), ctx, context);
+        BodyBinder.BindNestedBlock(thenBlock, thenScope, ctx, context);
 
         Statement? elseBranch = null;
         if(node.ElseBranch is not null)
@@ -119,12 +120,32 @@ internal static class StatementBinder
 
     private static WhileStatement BindWhile(WhileStatementNode node, BindingContext ctx, BuilderContext context)
     {
-        var condition = ExpressionBinder.BindExpression(node.Condition, ctx, context);
+        var bodyScope = new BodyScope(ctx.Scope);
+        var condition = BindConditionInto(node.Condition, bodyScope, ctx, context);
 
         var body = new Block(node.Body);
-        BodyBinder.BindNestedBlock(body, new BodyScope(ctx.Scope), ctx, context);
+        BodyBinder.BindNestedBlock(body, bodyScope, ctx, context);
 
         return new WhileStatement(condition, body);
+    }
+
+    /// <summary>
+    /// Binds a condition into the scope of the body it guards, which is built BEFORE it rather than
+    /// after. That ordering is what a pattern's binding needs: declared as the condition binds, it
+    /// reaches the rest of the condition and the guarded block, and nothing else -- not the else
+    /// branch, not the statements following. Binding the condition in the enclosing scope and
+    /// grafting the variable onto the block afterwards is the scheme that makes
+    /// <c>x is Foo f &amp;&amp; f.Bar</c> impossible to express.
+    /// </summary>
+    private static Expression BindConditionInto(
+        ExpressionNode node, BodyScope scope, BindingContext ctx, BuilderContext context)
+    {
+        var enclosing = ctx.Scope;
+        ctx.Scope = scope;
+        var condition = ExpressionBinder.BindExpression(node, ctx, context);
+        ctx.Scope = enclosing;
+
+        return condition;
     }
 
     private static ForStatement BindFor(ForStatementNode node, BindingContext ctx, BuilderContext context)

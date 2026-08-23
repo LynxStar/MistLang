@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Mist.Generated;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Binding.Expressions;
 
@@ -94,21 +95,55 @@ internal static class OperatorBinder
 
     private static Expression BindRelational(RelationalNode node, BindingContext ctx, BuilderContext context)
     {
-        if(node is not RelationalComparisonRelationalNode comparison)
+        switch(node)
+        {
+            case IsExpressionRelationalNode isExpression:
+                return BindIs(isExpression, ctx, context);
+
+            case RelationalComparisonRelationalNode comparison:
+                {
+                    var left = BindAdditive(comparison.Left, ctx, context);
+
+                    foreach(var group in comparison.Group0)
+                    {
+                        var op = MapOperator(group.Operator.Lexeme);
+                        var right = BindAdditive(group.Right, ctx, context);
+                        left = MakeBinary(node, left, op, right);
+                    }
+
+                    return left;
+                }
+
+            default:
+                return new UnresolvedExpression(node);
+        }
+    }
+
+    private static Expression BindIs(
+        IsExpressionRelationalNode node, BindingContext ctx, BuilderContext context)
+    {
+        // The target type is pushed away for the same reason the cast arm pushes it away: a test asks
+        // what the scrutinee already is, so the boolean this position expects is the one type it is not.
+        Expression scrutinee;
+        using(ctx.PushTargetType(null))
+        {
+            scrutinee = BindAdditive(node.Left, ctx, context);
+        }
+
+        var pattern = PatternBinder.Bind(node.Pattern, scrutinee.Type, ctx, context);
+
+        if(pattern is null)
         {
             return new UnresolvedExpression(node);
         }
 
-        var left = BindAdditive(comparison.Left, ctx, context);
-
-        foreach(var group in comparison.Group0)
+        if(pattern.NarrowedType is ErrorType)
         {
-            var op = MapOperator(group.Operator.Lexeme);
-            var right = BindAdditive(group.Right, ctx, context);
-            left = MakeBinary(node, left, op, right);
+            return new ErrorExpression(node);
         }
 
-        return left;
+        return new IsPatternExpression(
+            node, scrutinee, pattern, context.Resolver.LookupWellKnown(WellKnownTypes.Boolean));
     }
 
     private static Expression BindAdditive(AdditiveNode node, BindingContext ctx, BuilderContext context)
@@ -242,9 +277,10 @@ internal static class OperatorBinder
     }
 
     /// <summary>
-    /// Determines whether a precedence-chain node has no operator applied.
+    /// Determines whether a precedence-chain node has no operator applied. Shared with
+    /// <see cref="PatternBinder"/>, whose or/and levels repeat their operands the same way.
     /// </summary>
-    private static bool IsBare<T>(ImmutableArray<T> repeatedOperands, T left, T? right)
+    internal static bool IsBare<T>(ImmutableArray<T> repeatedOperands, T left, T? right)
         where T : class
     {
         return repeatedOperands.IsDefaultOrEmpty && (right is null || ReferenceEquals(right, left));

@@ -143,6 +143,23 @@ public static class BackendDiagnostics
         "Parameter '{0}' is declared ref, which is not yet supported by the experimental emitter.");
 
     /// <summary>
+    /// A pattern was tested against a union-typed scrutinee. A union lowers to a generated carrier
+    /// struct that stands in no relation to its own constituents, so a C# type test against one
+    /// answers false for every constituent rather than narrowing: matching has to read the carrier's
+    /// tag and take the value through the matching accessor, which is not built yet.
+    /// <para>
+    /// Reported rather than emitted because the C# would be rejected by Roslyn, moving the error onto
+    /// a generated file the user never wrote. Optionals do not reach here -- they bypass the carrier
+    /// for Nullable or the bare type, both of which C# tests directly.
+    /// </para>
+    /// </summary>
+    public static readonly DiagnosticDescriptor UnsupportedUnionPattern = new(
+        new DiagnosticId("MIST_BE_UNSUPPORTED_UNION_PATTERN"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Backend,
+        "Matching a pattern against the union type '{0}' is not yet supported by the experimental emitter.");
+
+    /// <summary>
     /// A struct and one of its ancestors declare a field of the same name. Legal Mist, because two
     /// levels declaring a private field cannot see each other, but the C# backend flattens
     /// inherited fields into one struct where the name can only resolve to one of them.

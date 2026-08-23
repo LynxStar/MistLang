@@ -3858,10 +3858,52 @@ capabilities:
     order: 90
     layer: patterns
     requires: [unknown-top-type]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      A type test against a base-typed or unknown-typed operand, introducing a binding whose
-      scope reaches the then-branch and the right operand of a following conjunction.
+      A BINDING IS PART OF THE EXPRESSION, not a statement grafted onto the branch, and that is the
+      whole design decision. Pattern.NarrowedType and Pattern.Binding are intrinsic properties of the
+      bound pattern, so `u is int i && i > 0` binds and emits as itself -- the case the classic
+      pipeline structurally cannot express, since it emits the discriminator as the condition and
+      hoists the binding to the top of the then-branch, where the conjunction has already been
+      resolved (order 98 records the same fact from the union side).
+
+      SCOPE IS THE GUARDED BLOCK'S, chosen by making that block's scope FIRST and binding the
+      condition into it: StatementBinder.BindConditionInto, used by both BindIf and BindWhile. So a
+      binding reaches the rest of its own condition and the block it guards, and nothing else -- not
+      the else branch, not the statements after, and sibling conditions may reuse a name because each
+      owns its own scope. This is the load-bearing claim and it is the half no sample can carry: a
+      sample that compiles proves a binding IS reachable somewhere, where the claim is about where it
+      stops. Those cases are compile failures, so they live in PatternResolutionTests, MUTATION-CHECKED
+      both ways -- binding the condition in the enclosing scope fails exactly the three scope tests,
+      suppressing the declaration fails exactly the seven positive ones.
+
+      Type tests resolve through the full type-ref path (ScopeResolver.Resolve), so a constructed
+      generic (`u is Box<int> bx`) narrows with its type argument intact, and `u is Nonexistent n`
+      reports UnresolvedType once and binds an ErrorExpression rather than parking a sentinel that
+      emission would report a second time. Emission writes an inline C# pattern; BodyEmitter's
+      precedence helper now ranks a type test with C#'s relational operators, which is what keeps
+      `!(a is Dog)` from emitting as C# for `(!a) is Dog`.
+
+      OPTIONAL SCRUTINEES CAME FREE and are exercised: `int? is int present` and `Box? is Box b` both
+      narrow, and absence fails the test, because an optional bypasses the union carrier for Nullable
+      or the bare type. A non-optional union does NOT -- its carrier stands in no relation to its
+      constituents, so a C# type test against one answers false for everything. That is reported as
+      MIST_BE_UNSUPPORTED_UNION_PATTERN at emission rather than emitted as C# Roslyn would reject; the
+      tag test that replaces it is order 98's.
+
+      NOT banked as a sample: UnknownType needs order 82 (unknown-covariant-generic-widening) as well,
+      which is untouched. Its three narrowing sites would compile today.
+    analysis_phase_tasks:
+      - >
+        Report a type test that can never succeed -- a pattern type with no conversion relation to the
+        scrutinee's static type. Construction binds it happily and emission writes valid C#, so
+        nothing is wrong with either; the judgement is about a finished model. Order 98 carries the
+        union-specific half of the same rule.
+      - >
+        Report a test that is always true, where the scrutinee's static type is already within the
+        pattern's. Roslyn's own CS0183 covers the emitted form, but Roslyn WARNINGS are not collected
+        (CSharpCompilationDriver reads Errors only), so nothing surfaces it today.
     unlocks: [UnknownType]
 
   - id: constant-and-relational-patterns
@@ -3881,7 +3923,17 @@ capabilities:
     layer: patterns
     requires: [constant-and-relational-patterns]
     v2_status: missing
-    evidence: Conjunction, disjunction, negation and parenthesized grouping of patterns.
+    evidence: >
+      Conjunction, disjunction, negation and parenthesized grouping of patterns. The TRAVERSAL is
+      already there from order 90 -- PatternBinder walks the grammar's or/and/unary levels and detects
+      a bare level with the same OperatorBinder.IsBare the precedence chain uses. What is missing is
+      the fold: all four forms answer null at those levels, so the whole `is` parks unresolved and
+      emission reports it. Each combinator has to say what its own NarrowedType and Binding are, and
+      that is where the work is -- a disjunction narrows to the union of its branches and can only
+      keep a binding both branches agree on, and a negation narrows to nothing and must keep none.
+      MIND THE REPETITION LISTS: the generated Right slot holds the LAST repeated operand and is also
+      present in the array, so a fold that reads Left and Right drops the middle operand of a
+      three-way chain, which is a live defect in the classic emitter's EmitOrPattern.
     unlocks: []
 
   - id: property-patterns
@@ -3900,10 +3952,28 @@ capabilities:
     order: 94
     layer: patterns
     requires: [pattern-matching-core]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      Three surface forms of catch-all must all be classified as such, and a var pattern
-      binds the scrutinee for use in the arm body.
+      All three catch-all forms bind to ONE model kind, CatchAllPattern, which is what "classified as
+      such" means here: `var x`, `var _` and a bare `_` are the same pattern differing only in whether
+      a binding survives, so a later consumer cannot accidentally treat one of them as a test.
+      PatternResolutionTests asserts the kind for all three and the binding for each.
+
+      A FOURTH FORM IS NOT ONE. The grammar spells the discard in the same slot as a name
+      (`name:(IDENTIFIER | DISCARD)`), so `int _` arrives as a TYPE pattern carrying a discard token,
+      not as a discard pattern -- reading it the other way would drop the type test. PatternBinder
+      separates the two readings on the token's kind, and a test pins that `int _` still narrows to
+      Int32 while keeping nothing.
+
+      A var pattern narrows to the scrutinee's STATIC type, not to whatever the value turns out to be:
+      on an `unknown` scrutinee `is var v` leaves v unknown, so it is honestly still un-narrowed.
+      Emission spells a discard as `var _`, which is valid C# in every position a bare `_` is not.
+
+      RESIDUE, recorded not owned: "binds the scrutinee for use in the ARM body" awaits switch
+      expressions at order 95. The binding mechanism is the same one, exercised here through `is` and
+      its guarded block. Classifying an unguarded catch-all as covering, which is what makes the
+      distinction matter, is order 97's consumer and no consumer exists yet.
     unlocks: []
 
   - id: switch-expressions
@@ -3958,6 +4028,15 @@ capabilities:
       which means a narrowed binding cannot be used in the same condition -- the conjunction
       form is inexpressible under that scheme. A pattern type that is not a constituent must
       be reported as unreachable.
+
+      THE SCHEME IS ALREADY REJECTED rather than waiting to be: order 90 made the binding part of the
+      expression and scoped it to the guarded block, so the conjunction form binds and emits today for
+      every scrutinee C# can test directly. What remains here is only the CARRIER -- a union struct
+      relates to none of its constituents, so `u is int i` on one must lower to the tag check plus the
+      matching accessor, and the binding has to come out of the accessor rather than out of a C#
+      pattern. Until then BodyEmitter reports MIST_BE_UNSUPPORTED_UNION_PATTERN rather than emitting
+      C# Roslyn would reject. Optionals never needed this: they bypass the carrier for Nullable or the
+      bare type and narrow correctly since order 90.
     unlocks: [TypeUnions]
 
   - id: enum-member-patterns

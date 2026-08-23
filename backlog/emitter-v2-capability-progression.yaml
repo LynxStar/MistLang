@@ -4176,22 +4176,52 @@ capabilities:
     order: 98
     layer: patterns
     requires: [pattern-matching-core, union-types-and-carriers]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      A tag test on the carrier, not a subtype test. The classic pipeline emits the
-      discriminator as the condition and HOISTS the binding to the top of the then-branch,
-      which means a narrowed binding cannot be used in the same condition -- the conjunction
-      form is inexpressible under that scheme. A pattern type that is not a constituent must
-      be reported as unreachable.
+      A tag test, and it STILL BINDS INLINE -- which is the whole point and the thing classic cannot do.
+      Classic emits the discriminator as the condition and HOISTS the binding to the top of the
+      then-branch, so a narrowed binding cannot be read in the condition that introduced it. The obstacle
+      is real: C# can bind inside a pattern but not inside a property test, so `u.IsInt32` discriminates
+      and gives nowhere to put the binding.
 
-      THE SCHEME IS ALREADY REJECTED rather than waiting to be: order 90 made the binding part of the
-      expression and scoped it to the guarded block, so the conjunction form binds and emits today for
-      every scrutinee C# can test directly. What remains here is only the CARRIER -- a union struct
-      relates to none of its constituents, so `u is int i` on one must lower to the tag check plus the
-      matching accessor, and the binding has to come out of the accessor rather than out of a C#
-      pattern. Until then BodyEmitter reports MIST_BE_UNSUPPORTED_UNION_PATTERN rather than emitting
-      C# Roslyn would reject. Optionals never needed this: they bypass the carrier for Nullable or the
-      bare type and narrow correctly since order 90.
+      THE WAY OUT is to make the tag check produce a pattern-testable VALUE rather than a bool. Each
+      carrier gained a nullable per-constituent accessor -- `public int? AsInt32OrNull => _tag == 1 ?
+      (int)_value : null;` -- and the check is folded into the SCRUTINEE, leaving an ordinary C# pattern
+      to test and bind what comes back: `u is int i` emits as `u.AsInt32OrNull is int i`. So
+      `u is int n && n > 40` works on a union, the form TypeUnions' own untested list recorded as
+      structurally unreachable. Testing the boxed `_value` instead would also have bound inline but would
+      NOT have been a tag test: two constituents erasing to the same CLR type -- an int and a refinement
+      over int -- are distinguishable by tag and not by runtime type.
+
+      The accessor's spelling reuses the value/reference split optionals already lower through
+      (TypeNameEmitter.EmitOptional, now the one home for it): Nullable for a value kind, the bare type
+      with null as absence for a reference kind, UNANNOTATED because the generated files carry no
+      nullable context and a `?` on a reference type there is a warning.
+
+      WHICH CONSTITUENT is resolved during binding and recorded on the pattern, because the same lookup
+      answers two questions: which accessor to name, and whether the test has any lowering at all.
+      Identity is tried across every constituent before containment is tried at all, so an exact
+      constituent is never answered by a wider one that merely also contains it; containment then lets
+      `Animal | int` narrow to Dog through the Animal accessor. Both halves mutation-checked.
+
+      A TYPE NO CONSTITUENT HOLDS is reported at construction (MIST_PM_PATTERN_TYPE_NOT_A_CONSTITUENT),
+      not deferred, and the distinction matters: this is not "a test that will always fail" but a test
+      with no accessor to name and therefore no C# to write. It is the one place in the patterns layer
+      where unreachability is construction's business.
+
+      WHAT IS NOT DONE, and why the guard survives in narrowed form: a combinator or a value comparison
+      over a union still reports MIST_BE_UNSUPPORTED_UNION_PATTERN. `u is int or string` needs a DIFFERENT
+      accessor per operand and a C# pattern has one scrutinee, so it has to become two tests joined by
+      `||` -- an expression rather than a pattern, which is a second emission shape. A catch-all needs no
+      narrowing and matches the carrier as it stands. Optionals never reach any of this.
+
+      TypeUnions is banked in AllFeaturesV2, byte-identical to classic.
+    analysis_phase_tasks:
+      - >
+        Report a narrowing that is unreachable for a reason other than the type belonging to no
+        constituent -- a second test of a constituent an earlier arm or branch already took. Order 95's
+        unreachable-arm task is the same rule seen from the switch side.
     unlocks: [TypeUnions]
 
   - id: enum-member-patterns
@@ -6145,11 +6175,21 @@ samples:
     requires: [union-narrowing-through-patterns, union-widening-at-use-sites,
                string-interpolation, var-type-inference, control-flow-basic]
     untested:
-      - Every type test takes the true branch, so a discriminator that always answered true
-        would pass.
-      - Nothing uses a narrowed binding inside the same condition -- a form the hoisted-
-        binding emission scheme structurally cannot express, so the sample cannot reveal
-        that limitation.
+      - >
+        Every type test in the sample takes the TRUE branch, so a discriminator that always answered
+        true would pass every line of it. The negative proof lives in UnionNarrowingResolutionTests
+        instead, and the false-branch cases were exercised outside the sample when order 98 landed.
+      - >
+        THIS ENTRY USED TO NAME A LIMITATION THAT NO LONGER EXISTS. It read that nothing uses a
+        narrowed binding inside the same condition, "a form the hoisted-binding emission scheme
+        structurally cannot express". v2 does not hoist -- the tag check goes into the scrutinee and the
+        binding comes out of a C# pattern (order 98) -- so `u is int n && n > 40` is expressible and
+        tested. The sample still does not contain it, which is why this is recorded here rather than
+        deleted.
+      - >
+        No union appears whose constituents erase to the same CLR type, such as an int beside a
+        refinement over int. That is the case a tag test decides and a runtime-type test could not, so
+        the choice between them is unexercised by output.
 
   - name: UnknownType
     intro_order: 23

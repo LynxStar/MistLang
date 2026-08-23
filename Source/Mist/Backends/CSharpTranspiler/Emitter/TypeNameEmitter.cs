@@ -42,20 +42,27 @@ internal static class TypeNameEmitter
     }
 
     /// <summary>
-    /// An optional (<c>T | void</c>) bypasses the carrier: Nullable of T for value kinds, the
-    /// bare type for reference kinds with null as absence. Every other union is spelled as its
-    /// generated carrier struct, whose name <see cref="UnionCarrierNames"/> owns.
+    /// The C# spelling of "a T, or absent": Nullable of T for a value kind, and the bare type for a
+    /// reference kind with null standing for absence. Reference kinds are left UNANNOTATED because the
+    /// generated files carry no nullable context, where a <c>?</c> on a reference type is a warning.
+    /// </summary>
+    internal static string EmitOptional(IMistType type)
+    {
+        var name = Emit(type);
+
+        return IsValueKind(type) ? $"{name}?" : name;
+    }
+
+    /// <summary>
+    /// An optional (<c>T | void</c>) bypasses the carrier and lowers to the spelling above. Every other
+    /// union is spelled as its generated carrier struct, whose name <see cref="UnionCarrierNames"/> owns.
     /// </summary>
     private static string EmitUnion(UnionType union)
     {
-        if(OptionalUnion.InnerType(union) is { } inner)
-        {
-            var innerName = Emit(inner);
-
-            return IsValueKind(inner) ? $"{innerName}?" : innerName;
-        }
-
-        return UnionCarrierNames.CarrierName(union);
+        return OptionalUnion.InnerType(union) is { } inner
+            ? EmitOptional(inner)
+            : UnionCarrierNames.CarrierName(union)
+            ;
     }
 
     private static bool IsValueKind(IMistType type)

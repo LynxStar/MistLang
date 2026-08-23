@@ -347,6 +347,11 @@ internal sealed class CSharpEmitterV2
                 writer.WriteLine($"    ? ({typeName})_value");
                 writer.WriteLine(
                     $"    : throw new System.InvalidOperationException(\"Union does not hold {constituentName}\");");
+                writer.WriteBlankLine();
+                writer.WriteLine(
+                    $"public {TypeNameEmitter.EmitOptional(union.Constituents[i])} "
+                    + $"{UnionCarrierNames.NarrowingAccessor(union.Constituents[i])} "
+                    + $"=> _tag == {tag} ? ({typeName})_value : null;");
             }
 
             for(var i = 0; i < union.Constituents.Count; i++)

@@ -143,21 +143,22 @@ public static class BackendDiagnostics
         "Parameter '{0}' is declared ref, which is not yet supported by the experimental emitter.");
 
     /// <summary>
-    /// A pattern was tested against a union-typed scrutinee. A union lowers to a generated carrier
-    /// struct that stands in no relation to its own constituents, so a C# type test against one
-    /// answers false for every constituent rather than narrowing: matching has to read the carrier's
-    /// tag and take the value through the matching accessor, which is not built yet.
+    /// A COMBINATOR or a value comparison was tested against a union-typed scrutinee. A type test is
+    /// fine: it narrows through the carrier accessor for its constituent, which is one scrutinee and one
+    /// pattern. These are not, because each operand would need a DIFFERENT accessor and a C# pattern has
+    /// only one scrutinee -- so `u is int or string` has to become two tests joined by <c>||</c>, an
+    /// expression rather than a pattern, which is a second emission shape that is not built.
     /// <para>
-    /// Reported rather than emitted because the C# would be rejected by Roslyn, moving the error onto
-    /// a generated file the user never wrote. Optionals do not reach here -- they bypass the carrier
-    /// for Nullable or the bare type, both of which C# tests directly.
+    /// Reported rather than emitted because the C# would be rejected by Roslyn, moving the error onto a
+    /// generated file the user never wrote. Optionals never reach here: they bypass the carrier for
+    /// Nullable or the bare type, both of which C# tests directly.
     /// </para>
     /// </summary>
     public static readonly DiagnosticDescriptor UnsupportedUnionPattern = new(
         new DiagnosticId("MIST_BE_UNSUPPORTED_UNION_PATTERN"),
         DiagnosticSeverity.Error,
         PipelineStage.Backend,
-        "Matching a pattern against the union type '{0}' is not yet supported by the experimental emitter.");
+        "Only a type test can narrow the union type '{0}' yet. Combining patterns or comparing against a constant is not supported by the experimental emitter.");
 
     /// <summary>
     /// A struct and one of its ancestors declare a field of the same name. Legal Mist, because two

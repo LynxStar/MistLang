@@ -48,5 +48,6 @@ public class Program
         VoidValueLiteral.Program.RunDemo();
         TypeAliases.Program.RunDemo();
         Newtypes.Program.RunDemo();
+        TypeUnions.Program.RunDemo();
     }
 }

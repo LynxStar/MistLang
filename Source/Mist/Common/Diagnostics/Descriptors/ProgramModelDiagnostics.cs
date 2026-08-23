@@ -409,6 +409,21 @@ public static class ProgramModelDiagnostics
         "A member cannot have the same name as its enclosing type '{0}'. Rename the member.");
 
     /// <summary>
+    /// A pattern tests a union-typed scrutinee for a type no constituent of it can hold.
+    /// <para>
+    /// Reported by construction rather than deferred because it decides whether emission has anything
+    /// to write: narrowing a union goes through the carrier's accessor for the matching constituent, and
+    /// a type belonging to none names no accessor. So this is not "a test that will always fail" -- it is
+    /// a test with no lowering.
+    /// </para>
+    /// </summary>
+    public static readonly DiagnosticDescriptor PatternTypeNotAConstituent = new(
+        new DiagnosticId("MIST_PM_PATTERN_TYPE_NOT_A_CONSTITUENT"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}' is not one of the types '{1}' can hold, so this pattern can never match.");
+
+    /// <summary>
     /// A switch expression declares no arms. Reported rather than deferred because an expression must
     /// have a type and there is no arm to take one from: the grammar admits <c>x switch { }</c>, and an
     /// expression that can never produce a value has nothing for the model to say about it.

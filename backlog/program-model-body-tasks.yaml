@@ -350,7 +350,7 @@ statements:
     - [x] ElseIf chain (ElseIfElseClause) -- recursive BindIf; IfStatement.ElseBranch holds either a Block or a nested IfStatement
     - [x] ElseBlock (ElseBlockElseClause)
     - [x] pattern variables from `is` in the condition are in scope in the THEN branch only (not else) -- and in the rest of the CONDITION too, which is the half worth naming: BindConditionInto builds the then-block's scope first and binds the condition into it, so one mechanism gives both (order 90)
-    - [ ] refinement/union narrowing applied inside the THEN branch (see mist_specific.narrowing)
+    - [~] refinement/union narrowing applied inside the THEN branch (see mist_specific.narrowing) -- a pattern's BINDING carries the narrowed type into the branch (orders 90, 98). MISSING: narrowing the scrutinee itself, so `u` stays the union inside a branch guarded by `u is int i`, and refinement narrowing entirely
   loops:
     - [~] WhileStatement (condition bound to bool) -- MISSING: the "to bool" half, as with if
     - [x] ForStatement: initializer (typed-var-decl / var-decl / expression), condition, iterator, own for-scope -- all three ForInitializer alternatives handled. NOTE: initializer variables get no target-type push, unlike statement-level typed declarations
@@ -593,7 +593,7 @@ type_inference_and_conversions:
     - [ ] constructed-generic identity + covariant unknown-widening (class-only restriction)
     - [ ] tuple structural (arity + element assignability; name erasure)
     - [ ] array / span sizing (known-length -> unknown-length; kind must match for spans)
-    - [~] union widening (constituent -> union; union -> wider union) and narrowing (via `is`) -- widening is ConversionRelation.WidensIntoUnion, containment recursing through IsWithin (order 77). Narrowing via `is` now works for every scrutinee C# can test directly, OPTIONALS INCLUDED, because an optional bypasses the carrier for Nullable or the bare type (order 90). A non-optional union does not: its carrier relates to no constituent, so narrowing must read the tag, which is order 98. Like everything here, no bound conversion node records it
+    - [~] union widening (constituent -> union; union -> wider union) and narrowing (via `is`) -- widening is ConversionRelation.WidensIntoUnion, containment recursing through IsWithin (order 77). Narrowing via `is` works for EVERY union now: an optional bypasses the carrier for Nullable or the bare type and C# tests it directly (order 90), and a non-optional union narrows through the carrier's nullable per-constituent accessor, which keeps the test and the binding in one C# pattern (order 98). MISSING, and the reason this stays partial: no bound conversion node records any of it, as with everything else here
     - [ ] dependent-type-parameter <-> value type
     - [x] newtype nominal distinctness (only same newtype; explicit cast required otherwise) -- falls out of ConversionRelation having no newtype arm (FQN identity only), mutation-checked by NewtypeResolutionTests (order 86); the "cast required" DIAGNOSTIC on a mixing assignment is analyzer work, like everything here
     - [ ] delegate / func signature compatibility + method-group conversion
@@ -623,12 +623,12 @@ mist_specific_semantics:
     - [ ] dependent value arguments in expressions (e.g. `N:int` type params carrying values) -- TypeInterner.LiftLiteral and ScopeResolver's literal-lifting exist, but only for type-reference positions
     - [ ] dependent-parameter references / forwarding in bodies
   refinement_and_union_narrowing:
-    # RefinedType and UnionType exist and are produced by ScopeResolver; no narrowing
-    # happens during binding, and the `is` entry point is closed.
-    - [~] narrow from `is` pattern (then-branch / arm scope) -- the narrowed type is Pattern.NarrowedType, intrinsic to the bound pattern, and the binding it types is declared into the guarded block's scope (order 90). MISSING: the arm scope, which needs the switch entry point; and narrowing the SCRUTINEE itself rather than a binding, so a bare `u` after `u is int i` is still unknown
+    # UNION narrowing is done (orders 90 and 98); REFINEMENT narrowing is not started, and neither is
+    # narrowing anything other than a pattern's own binding.
+    - [~] narrow from `is` pattern (then-branch / arm scope) -- the narrowed type is Pattern.NarrowedType, intrinsic to the bound pattern, and the binding it types is declared into the scope of whatever the pattern guards: a branch (order 90) or a switch arm (order 95). MISSING: narrowing the SCRUTINEE itself rather than a binding, so a bare `u` after `u is int i` is still the union
     - [ ] narrow from comparisons / conditions
     - [ ] for-loop bound narrowing (array-bounds-flow-analysis feeds this; decide scope) -- STILL UNDECIDED
-    - [ ] union narrowing to a constituent
+    - [x] union narrowing to a constituent -- resolved during binding and recorded on the pattern as TypeTestPattern.Constituent, because the same lookup answers which carrier accessor to name AND whether the test has any lowering at all. Identity across every constituent is tried before containment, so an exact constituent is never answered by a wider one containing it; containment then lets `Animal | int` narrow to Dog through the Animal accessor. A type no constituent holds is reported by construction rather than an analyzer -- it is a test with no accessor to name, not merely one that always fails (order 98)
     - [ ] NOTE: refinement SATISFACTION solving is a check (out_of_scope); binding tracks narrowed types
   newtypes:
     - [x] newtype wrap / unwrap in expressions (member access unwraps to source; assignment stays nominal) -- member access forwards through TypeMemberLookup.EnqueueBases (SourceType walks as a pseudo-base, private members hidden by depth), the synthesized Value field covers intrinsic sources, construction forwards via ExpressionBinder.ConstructionTarget, and the expression's type stays the Newtype throughout (order 86)

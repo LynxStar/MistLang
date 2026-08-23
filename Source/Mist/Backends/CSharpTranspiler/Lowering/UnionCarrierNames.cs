@@ -13,6 +13,16 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// </summary>
 internal static class UnionCarrierNames
 {
+    /// <summary>
+    /// The accessor a pattern narrows THROUGH, answering the constituent or absent. A test needs to
+    /// discriminate and bind at once, and C# can bind inside a pattern but not inside a property test --
+    /// so the tag check has to be the thing that produces a pattern-testable value rather than a bool.
+    /// </summary>
+    public static string NarrowingAccessor(IMistType constituent)
+    {
+        return $"As{ConstituentName(constituent)}OrNull";
+    }
+
     public static string CarrierName(UnionType union)
     {
         var names = union.Constituents

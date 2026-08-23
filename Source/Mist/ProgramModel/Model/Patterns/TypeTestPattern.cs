@@ -8,8 +8,16 @@ namespace Mist.ProgramModel.Model.Patterns;
 /// and a bare <c>int</c> are all this one kind, differing only in whether a binding survives.
 /// </summary>
 internal sealed class TypeTestPattern(
-    SyntaxNode node, IMistType testedType, LocalVariable? binding) : Pattern(node)
+    SyntaxNode node, IMistType testedType, LocalVariable? binding, IMistType? constituent = null) : Pattern(node)
 {
+    /// <summary>
+    /// Which constituent of a union-typed scrutinee the test goes through, or null where the scrutinee is
+    /// not a union with a carrier. Resolved here rather than left to emission because the SAME lookup
+    /// decides whether the test has any lowering at all: a type belonging to no constituent names no
+    /// accessor, and that is reported.
+    /// </summary>
+    public IMistType? Constituent { get; } = constituent;
+
     public override IMistType NarrowedType { get; } = testedType;
 
     public override LocalVariable? Binding { get; } = binding;

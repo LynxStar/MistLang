@@ -460,14 +460,44 @@ internal static class BodyEmitter
     {
         if(isPattern.Scrutinee.Type is UnionType union && !OptionalUnion.IsOptional(union))
         {
+            EmitUnionNarrowing(isPattern, union, writer, diagnostics);
+            return;
+        }
+
+        EmitSubExpression(isPattern.Scrutinee, RelationalPrecedence, writer, diagnostics);
+        writer.Append(" is ");
+        EmitPattern(isPattern.Pattern, 0, writer, diagnostics);
+    }
+
+    /// <summary>
+    /// A union carrier stands in no relation to its own constituents, so a C# type test against one
+    /// answers false for every one of them. The tag check goes into the SCRUTINEE instead, through the
+    /// carrier accessor for the constituent the test picked out, which leaves an ordinary C# pattern to
+    /// test and BIND the accessor's result -- so a narrowed binding is usable in the condition that
+    /// introduced it, where hoisting it into the branch would put it out of reach.
+    /// </summary>
+    private static void EmitUnionNarrowing(
+        IsPatternExpression isPattern, UnionType union, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        // A catch-all discriminates nothing, so it matches the carrier as it stands.
+        if(isPattern.Pattern is CatchAllPattern)
+        {
+            EmitSubExpression(isPattern.Scrutinee, RelationalPrecedence, writer, diagnostics);
+            writer.Append(" is ");
+            EmitPattern(isPattern.Pattern, 0, writer, diagnostics);
+            return;
+        }
+
+        if(isPattern.Pattern is not TypeTestPattern { Constituent: { } constituent })
+        {
             diagnostics.ReportAtNode(
                 BackendDiagnostics.UnsupportedUnionPattern, isPattern.Node, null, union.Name);
             writer.Append($"/* unsupported: pattern against union {union.Name} */");
             return;
         }
 
-        EmitSubExpression(isPattern.Scrutinee, RelationalPrecedence, writer, diagnostics);
-        writer.Append(" is ");
+        EmitSubExpression(isPattern.Scrutinee, PrefixPrecedence, writer, diagnostics);
+        writer.Append($".{UnionCarrierNames.NarrowingAccessor(constituent)} is ");
         EmitPattern(isPattern.Pattern, 0, writer, diagnostics);
     }
 

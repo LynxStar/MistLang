@@ -5,6 +5,7 @@ using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Patterns;
+using Mist.ProgramModel.Model.Types;
 using Storm.Runtime;
 
 namespace Mist.ProgramModel.Construction.Binding.Expressions;
@@ -123,13 +124,17 @@ internal static class PatternBinder
             case TypePatternPrimaryPatternNode typePattern:
                 {
                     var tested = context.Resolver.Resolve(typePattern.Type, ctx.Scope);
-                    return new TypeTestPattern(
-                        node, tested, Declare(node, typePattern.Name, tested, bindingsPermitted, ctx, context));
+                    var binding = Declare(node, typePattern.Name, tested, bindingsPermitted, ctx, context);
+                    return BindTypeTest(node, tested, binding, scrutineeType, context);
                 }
 
             case BareTypePatternPrimaryPatternNode bareType:
-                return new TypeTestPattern(
-                    node, context.Resolver.Resolve(bareType.Type, ctx.Scope), binding: null);
+                return BindTypeTest(
+                    node,
+                    context.Resolver.Resolve(bareType.Type, ctx.Scope),
+                    binding: null,
+                    scrutineeType,
+                    context);
 
             case VarPatternPrimaryPatternNode varPattern:
                 return new CatchAllPattern(
@@ -165,6 +170,57 @@ internal static class PatternBinder
             default:
                 return null;
         }
+    }
+
+    private static Pattern BindTypeTest(
+        PrimaryPatternNode node,
+        IMistType tested,
+        LocalVariable? binding,
+        IMistType scrutineeType,
+        BuilderContext context)
+    {
+        if(scrutineeType is not UnionType union || OptionalUnion.IsOptional(union))
+        {
+            return new TypeTestPattern(node, tested, binding);
+        }
+
+        if(MatchConstituent(union, tested) is { } constituent)
+        {
+            return new TypeTestPattern(node, tested, binding, constituent);
+        }
+
+        context.Diagnostics.ReportAtNode(
+            ProgramModelDiagnostics.PatternTypeNotAConstituent, node, null, tested.Name, union.Name);
+
+        // ErrorType rather than the tested type, so BindIs answers with an ErrorExpression through the
+        // check it already makes instead of needing a second channel for "reported but shaped fine".
+        return new TypeTestPattern(node, ErrorType.Instance, binding, constituent: null);
+    }
+
+    /// <summary>
+    /// The constituent a test narrows through. Identity is tried across ALL constituents before
+    /// containment is tried at all: <c>Animal | int</c> narrows to Dog through the Animal accessor, but
+    /// an exact constituent must never be answered by a wider one that merely also contains it.
+    /// </summary>
+    private static IMistType? MatchConstituent(UnionType union, IMistType tested)
+    {
+        foreach(var constituent in union.Constituents)
+        {
+            if(ReferenceEquals(constituent, tested))
+            {
+                return constituent;
+            }
+        }
+
+        foreach(var constituent in union.Constituents)
+        {
+            if(ConversionRelation.IsWithin(tested, constituent))
+            {
+                return constituent;
+            }
+        }
+
+        return null;
     }
 
     private static Pattern? BindConstant(

@@ -4037,10 +4037,10 @@ capabilities:
       on an `unknown` scrutinee `is var v` leaves v unknown, so it is honestly still un-narrowed.
       Emission spells a discard as `var _`, which is valid C# in every position a bare `_` is not.
 
-      RESIDUE, recorded not owned: "binds the scrutinee for use in the ARM body" awaits switch
-      expressions at order 95. The binding mechanism is the same one, exercised here through `is` and
-      its guarded block. Classifying an unguarded catch-all as covering, which is what makes the
-      distinction matter, is order 97's consumer and no consumer exists yet.
+      The "binds the scrutinee for use in the ARM body" half arrived with order 95: an arm's catch-all
+      binds in that arm's own scope, reaching its guard and result and nothing else. RESIDUE, recorded not
+      owned: classifying an unguarded catch-all as COVERING, which is what makes the distinction matter,
+      is order 97's consumer and no consumer exists yet.
     unlocks: []
 
   - id: switch-expressions
@@ -4048,11 +4048,42 @@ capabilities:
     order: 95
     layer: patterns
     requires: [logical-patterns, discard-and-var-patterns]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      A switch expression is an expression, so all arm results unify into one type, and it
-      must work in initializer and argument positions. Arm order is load-bearing for
-      relational arms.
+      THE SECOND PATTERN ENTRY POINT IS OPEN. `switch { }` reached BindPostfixSuffix's `default:` until
+      now, which is what made every item under the body register's switch_expression section untestable.
+      The scrutinee is whatever the postfix fold accumulated to the left, so it arrives already bound.
+
+      EACH ARM OWNS A SCOPE, built before its pattern binds into it -- the same ordering order 90 gave a
+      guarded branch, and for the same reason. So an arm's bindings reach that arm's GUARD and its result
+      and nothing else: not a sibling arm, not a sibling's guard, not the expression around the switch,
+      and two arms may reuse a name because neither is declaring into shared ground. Five tests fail
+      exactly when the per-arm scope is removed.
+
+      RESULT TYPE: a target type is an answer, so when one is in effect the arms are not asked to supply
+      one and are left to Roslyn to check -- assignability is not construction's here as it is not
+      anywhere else. With no target the arms must AGREE, by interned identity, following the precedent
+      LiteralBinder.CommonElementType set for array literals: there is no conversion or numeric promotion
+      infrastructure to compute a best common type, so disagreement reports rather than guesses. An arm
+      whose result failed to bind is SKIPPED rather than compared, because pairing it with a sound arm
+      would report that same failure a second time as a disagreement between them; mutation-checked.
+
+      ARM ORDER IS KEPT and recorded as load-bearing on the model, since the first arm whose pattern
+      matches and whose guard holds wins. An empty arm list is reported: the grammar admits
+      `x switch { }` and an expression must have a type, which there is no arm to take one from.
+
+      Emission writes one line, matching how array literals emit rather than introducing a second
+      multi-line-expression style. Exercised in every position that matters -- initializer, argument,
+      interpolation hole, a target-typed local, and an arm result that is itself a switch expression.
+    analysis_phase_tasks:
+      - >
+        Report an arm whose result type cannot convert to the target type. Construction accepts it on the
+        target's word and emission hands Roslyn a C# switch expression, which rejects it -- the same
+        deferral every other assignability question gets.
+      - >
+        Report an unreachable arm -- one whose pattern is subsumed by an earlier arm's. Order is already
+        modelled, so the information is there; nothing judges it.
     unlocks: []
 
   - id: when-guards
@@ -4060,10 +4091,23 @@ capabilities:
     order: 96
     layer: patterns
     requires: [switch-expressions]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      Evaluated after the pattern, able to reference the arm's own bindings, and guarded arms
-      must NEVER count toward exhaustiveness coverage.
+      A guard binds inside its arm's own scope, after the pattern, which is what lets it read the
+      pattern's bindings -- and the ban on reading a SIBLING arm's bindings holds for guards too, tested
+      separately from the result case since a guard is bound on a different path. The target type is
+      pushed away for it: a guard is a condition, and the type the switch as a whole is expected to
+      produce is the one thing a guard is not.
+
+      The grammar bounds a guard to VoidCoalescing rather than a full Expression so the arm's `=>` is
+      never swallowed by a lambda inside the guard, so binding goes through
+      OperatorBinder.BindVoidCoalescing rather than the expression entry point. A guard is recorded only
+      where one is written; the arm carries null otherwise, which is the shape a coverage rule will read.
+
+      RESIDUE, recorded not owned: "guarded arms must NEVER count toward exhaustiveness coverage" is
+      order 97's, and there is no coverage rule yet to be wrong about it. What this order owes that rule
+      is the ability to tell a guarded arm from an unguarded one, and SwitchArm.Guard is it.
     unlocks: []
 
   - id: exhaustiveness-checking

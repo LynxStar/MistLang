@@ -270,6 +270,10 @@ internal static class BodyEmitter
                 EmitIsPattern(isPattern, writer, diagnostics);
                 break;
 
+            case SwitchExpression switchExpression:
+                EmitSwitch(switchExpression, writer, diagnostics);
+                break;
+
             case CastExpression cast:
                 // The operand needs no parentheses of its own because the grammar bounds it to a
                 // Unary, every form of which binds tighter than any binary operator in C# as well.
@@ -473,6 +477,29 @@ internal static class BodyEmitter
     /// <c>(a or b) and c</c> arrives as a conjunction OF a disjunction and written bare would be C# for
     /// <c>a or (b and c)</c>. Mist and C# rank these identically -- or, then and, then not.
     /// </summary>
+    private static void EmitSwitch(
+        SwitchExpression switchExpression, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        EmitExpression(switchExpression.Scrutinee, writer, diagnostics);
+        writer.Append(" switch { ");
+
+        EmitList.Separated(switchExpression.Arms, ", ", writer, arm =>
+        {
+            EmitPattern(arm.Pattern, 0, writer, diagnostics);
+
+            if(arm.Guard is { } guard)
+            {
+                writer.Append(" when ");
+                EmitExpression(guard, writer, diagnostics);
+            }
+
+            writer.Append(" => ");
+            EmitExpression(arm.Result, writer, diagnostics);
+        });
+
+        writer.Append(" }");
+    }
+
     private static void EmitPattern(
         Pattern pattern, int combinatorPrecedence, CSharpWriter writer, DiagnosticBag diagnostics)
     {

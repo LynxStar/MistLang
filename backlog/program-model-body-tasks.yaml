@@ -424,7 +424,7 @@ expressions:
     - [x] OptionalMethodCallSuffix (`?.name(args)`) -- same projection through a conditional method group; the invocation lifts the selected overload's return type (order 79)
     - [~] InvocationSuffix (`(args)`) -> call on method group / Func / delegate value -- MISSING: the delegate case. A method-group receiver now selects an overload and takes ITS return type; a non-group receiver still falls back to receiver.Type, which is WRONG for a delegate value: invoking a Func<int,int> local yields the Func type, not int
     - [~] IndexSuffix (`[i]`) -> indexer resolution / array-element / span-element -- MISSING: overload resolution (IndexersList[0] wins), index-type checking, get/set distinction, resolved symbol. Array and span element access DO work: ResolveIndexerType unwraps a ConstructedType receiver and applies a TypeSubstitution built from its definition, and Array.mist/Span.mist declare the intrinsic indexer. An indexer on a user-declared generic type works by the same path -- `items[0]` on a `List<T>` answers T
-    - [ ] SwitchExpressionSuffix (`switch { arms }`) -> see patterns.switch_expression -- no case -> UnresolvedExpression
+    - [x] SwitchExpressionSuffix (`switch { arms }`) -> see patterns.switch_expression -- bound since order 95; the receiver the fold accumulated is the scrutinee, already bound
     - [ ] SpreadSuffix (`...`) -- not previously listed here; also falls into BindPostfixSuffix's `default:`
   object_creation:
     - [~] ObjectCreationExpression (`new T<...>(args) { init }`) -> constructor overload resolution -- MISSING: the initializer form only (present initializer -> UnresolvedExpression). GENERICS WORK: node.TypeArgs is resolved, the definition looked up under its arity-bearing name, and the constructed type interned, so `new List<int>()` binds. The constructor is selected and recorded on NewExpression, through the same resolution methods use
@@ -485,9 +485,9 @@ patterns:
   # pattern node ON PURPOSE: a property or tuple pattern's several binders live on its subpatterns,
   # so multiplicity comes from the recursion and no list is needed here.
   #
-  # `switch { }` IS STILL CLOSED -- it dies in BindPostfixSuffix's `default:`, so every item under
-  # switch_expression remains untestable. A pattern form not yet carried answers null from
-  # PatternBinder, which parks the whole `is` as UnresolvedExpression rather than half-binding it.
+  # BOTH ENTRY POINTS ARE NOW OPEN -- `switch { }` since order 95, through a BindPostfixSuffix arm. A
+  # pattern form not yet carried answers null from PatternBinder, which parks the whole `is` or the whole
+  # switch as UnresolvedExpression rather than half-binding it.
   #
   # WHETHER A BINDING MAY BE INTRODUCED travels down the walk as a flag (orders 91-92). `or` and `not`
   # clear it and a binding attempted under either is reported, because matching there establishes no
@@ -511,9 +511,9 @@ patterns:
     - [~] introduce pattern variables into the correct scope -- DONE for if-then and while: StatementBinder.BindConditionInto builds the guarded block's BodyScope BEFORE the condition and binds the condition into it, so a binding reaches the rest of its own condition and the block, and neither the else nor anything after. That ordering is the whole point -- it is what makes `x is Foo f && f.Bar` expressible, where hoisting the binding into the branch does not. MISSING: the switch arm, which has no entry point yet
     - [ ] named-tuple element destructuring binds each named element (C#-style; whole-binding uses unnamed tuple type)
   switch_expression:
-    - [ ] SwitchArm: pattern + optional `when` guard (bound at VoidCoalescing precedence) + result expression
-    - [ ] arm scope holds the arm's pattern variables
-    - [ ] result-type unification across arms (best-common-type / common base)
+    - [x] SwitchArm: pattern + optional `when` guard (bound at VoidCoalescing precedence) + result expression -- Model/Expressions/SwitchExpression.cs holds SwitchExpression and SwitchArm. The guard goes through OperatorBinder.BindVoidCoalescing, matching the grammar's floor, and binds with the target type pushed AWAY: a guard is a condition, and the type the switch is expected to produce is the one thing it is not. Recorded only where written, which is the shape order 97's coverage rule will read to tell a guarded arm from an unguarded one
+    - [x] arm scope holds the arm's pattern variables -- PostfixBinder.BindArm swaps ctx.Scope to a fresh BodyScope around the arm, built BEFORE the pattern binds into it, so bindings reach that arm's guard and result and nothing else: not a sibling arm, not a sibling's guard, not after the switch. Two arms may reuse a name because neither declares into shared ground
+    - [~] result-type unification across arms (best-common-type / common base) -- a TARGET type wins outright when one is in effect, leaving assignability to Roslyn as everywhere else. With no target the arms must agree by interned identity, following LiteralBinder.CommonElementType's precedent, and an arm whose result failed to bind is skipped rather than compared so its failure is not re-reported as a disagreement. MISSING: best-common-type proper, which needs the conversion and numeric-promotion infrastructure nothing here has yet -- so `1 or 2 => 1, _ => 2L` reports instead of widening to long
 
 # =============================================================================
 name_and_symbol_resolution:

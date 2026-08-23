@@ -79,9 +79,113 @@ internal static class PostfixBinder
                     return new IndexExpression(suffix, receiver, index, resultType);
                 }
 
+            case SwitchExpressionSuffixPostfixSuffixNode switchSuffix:
+                return BindSwitch(switchSuffix, receiver, ctx, context);
+
             default:
                 return new UnresolvedExpression(suffix);
         }
+    }
+
+    private static Expression BindSwitch(
+        SwitchExpressionSuffixPostfixSuffixNode node, Expression scrutinee, BindingContext ctx, BuilderContext context)
+    {
+        if(node.Arms is null)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.SwitchExpressionNeedsAnArm, node, null);
+            return new ErrorExpression(node);
+        }
+
+        var armNodes = new List<SwitchArmNode>(1 + node.Arms.SwitchArms.Length) { node.Arms.SwitchArm };
+        armNodes.AddRange(node.Arms.SwitchArms);
+
+        var arms = new List<SwitchArm>(armNodes.Count);
+        foreach(var armNode in armNodes)
+        {
+            if(BindArm(armNode, scrutinee.Type, ctx, context) is not { } arm)
+            {
+                return new UnresolvedExpression(node);
+            }
+
+            arms.Add(arm);
+        }
+
+        var resultType = ctx.TargetType ?? CommonArmType(arms, node, context);
+
+        return resultType is ErrorType
+            ? new ErrorExpression(node)
+            : new SwitchExpression(node, scrutinee, arms, resultType)
+            ;
+    }
+
+    /// <summary>
+    /// Binds one arm inside a scope of its own, so the bindings its pattern introduces reach that arm's
+    /// guard and result and nothing else -- not a sibling arm, and not the expression around the switch.
+    /// The same ordering <see cref="StatementBinder"/> uses for a branch: the scope exists before the
+    /// pattern binds into it.
+    /// </summary>
+    private static SwitchArm? BindArm(
+        SwitchArmNode node, IMistType scrutineeType, BindingContext ctx, BuilderContext context)
+    {
+        var enclosing = ctx.Scope;
+        ctx.Scope = new BodyScope(enclosing);
+        var arm = BindArmParts(node, scrutineeType, ctx, context);
+        ctx.Scope = enclosing;
+
+        return arm;
+    }
+
+    private static SwitchArm? BindArmParts(
+        SwitchArmNode node, IMistType scrutineeType, BindingContext ctx, BuilderContext context)
+    {
+        if(PatternBinder.Bind(node.Pattern, scrutineeType, ctx, context) is not { } pattern)
+        {
+            return null;
+        }
+
+        Expression? guard = null;
+        if(node.Guard is { } when)
+        {
+            using(ctx.PushTargetType(null))
+            {
+                guard = OperatorBinder.BindVoidCoalescing(when.Condition, ctx, context);
+            }
+        }
+
+        return new SwitchArm(node, pattern, guard, ExpressionBinder.BindExpression(node.Result, ctx, context));
+    }
+
+    private static IMistType CommonArmType(
+        IReadOnlyList<SwitchArm> arms, Storm.Runtime.SyntaxNode node, BuilderContext context)
+    {
+        IMistType? candidate = null;
+
+        foreach(var arm in arms)
+        {
+            // An arm whose result failed to bind was reported where it failed, and pairing it with a
+            // sound arm would report that same failure again as a disagreement between them.
+            if(arm.Result.Type is ErrorType)
+            {
+                continue;
+            }
+
+            if(candidate is null)
+            {
+                candidate = arm.Result.Type;
+                continue;
+            }
+
+            if(!ReferenceEquals(arm.Result.Type, candidate))
+            {
+                context.Diagnostics.ReportAtNode(
+                    ProgramModelDiagnostics.SwitchArmsNoCommonType, node, null,
+                    candidate.Name, arm.Result.Type.Name);
+
+                return ErrorType.Instance;
+            }
+        }
+
+        return candidate ?? ErrorType.Instance;
     }
 
     /// <summary>

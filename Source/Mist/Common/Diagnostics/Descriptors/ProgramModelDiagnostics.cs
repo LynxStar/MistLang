@@ -409,6 +409,31 @@ public static class ProgramModelDiagnostics
         "A member cannot have the same name as its enclosing type '{0}'. Rename the member.");
 
     /// <summary>
+    /// A switch expression declares no arms. Reported rather than deferred because an expression must
+    /// have a type and there is no arm to take one from: the grammar admits <c>x switch { }</c>, and an
+    /// expression that can never produce a value has nothing for the model to say about it.
+    /// </summary>
+    public static readonly DiagnosticDescriptor SwitchExpressionNeedsAnArm = new(
+        new DiagnosticId("MIST_PM_SWITCH_NO_ARMS"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "A switch expression must declare at least one arm, because its type comes from what its arms produce.");
+
+    /// <summary>
+    /// A switch expression's arms produce different types and no target type says which one is wanted.
+    /// <para>
+    /// Reported rather than widened for the reason given on
+    /// <see cref="ArrayLiteralNoCommonElementType"/>: there is no conversion or numeric promotion
+    /// infrastructure to compute a best common type yet, so guessing would be worse than asking.
+    /// </para>
+    /// </summary>
+    public static readonly DiagnosticDescriptor SwitchArmsNoCommonType = new(
+        new DiagnosticId("MIST_PM_SWITCH_ARMS_NO_COMMON_TYPE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "The arms of the switch expression have no common type ('{0}' and '{1}'). Annotate the target with the type you want.");
+
+    /// <summary>
     /// A pattern under <c>or</c> or <c>not</c> introduces a binding. Matching such a pattern does not
     /// establish the binding -- a disjunction proves only that SOME operand matched, and a negation
     /// proves that its operand did not -- so there is no value for the name to hold.

@@ -17,6 +17,14 @@ internal static class ExpressionBinder
 {
     public static Expression BindExpression(ExpressionNode expression, BindingContext ctx, BuilderContext context)
     {
+        // Ahead of the assignment unwrap because a lambda is an Expression ALTERNATIVE rather than
+        // something reached through the precedence chain -- the grammar puts it at the loosest binding
+        // there is, so `x => a = b` is a lambda whose body assigns and not an assignment of a lambda.
+        if(expression is LambdaFormExpressionNode { Lambda: { } lambda })
+        {
+            return LambdaBinder.Bind(lambda, ctx, context);
+        }
+
         var assignment = expression.AsAssignmentOrNull();
         if(assignment is null)
         {

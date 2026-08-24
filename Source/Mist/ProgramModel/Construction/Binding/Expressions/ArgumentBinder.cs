@@ -1,4 +1,5 @@
 using Mist.Generated;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -22,7 +23,41 @@ internal static class ArgumentBinder
     internal static IReadOnlyList<Expression> Bind(
         ArgumentListNode? argumentList, BindingContext ctx, BuilderContext context)
     {
-        return Bind(argumentList, parameters: null, TypeSubstitution.Empty, ctx, context);
+        return BindTargeted(argumentList, targets: null, ctx, context);
+    }
+
+    /// <summary>
+    /// Binds each argument against the target at its position, for a caller whose slots are TYPES rather
+    /// than declared parameters: invoking a function-typed value has a signature but no
+    /// <see cref="Parameter"/> objects to read one off.
+    /// </summary>
+    internal static IReadOnlyList<Expression> BindTargeted(
+        ArgumentListNode? argumentList,
+        IReadOnlyList<IMistType>? targets,
+        BindingContext ctx,
+        BuilderContext context)
+    {
+        if(argumentList is null)
+        {
+            return [];
+        }
+
+        var expressions = argumentList.GetAllExpressions();
+        var bound = new List<Expression>(expressions.Length);
+
+        for(var i = 0; i < expressions.Length; i++)
+        {
+            var target = targets is not null && i < targets.Count ? targets[i] : null;
+
+            // Pushed even when null, so that an enclosing target type stops here rather than
+            // reaching an argument it has nothing to say about.
+            using(ctx.PushTargetType(target))
+            {
+                bound.Add(ExpressionBinder.BindExpression(expressions[i], ctx, context));
+            }
+        }
+
+        return bound;
     }
 
     /// <summary>
@@ -41,45 +76,14 @@ internal static class ArgumentBinder
         where T : Method
     {
         var count = argumentList?.GetAllExpressions().Length ?? 0;
+        var substitution = TypeSubstitution.ForReceiver(receiverConstructed);
+        var interner = context.ProgramModel.TypeInterner;
 
-        return Bind(
-            argumentList,
-            SoleByArity(candidates, count),
-            TypeSubstitution.ForReceiver(receiverConstructed),
-            ctx,
-            context);
-    }
+        var targets = SoleByArity(candidates, count)?
+            .Select(parameter => substitution.Apply(parameter.Type, interner))
+            .ToList();
 
-    private static IReadOnlyList<Expression> Bind(
-        ArgumentListNode? argumentList,
-        IReadOnlyList<Parameter>? parameters,
-        TypeSubstitution substitution,
-        BindingContext ctx,
-        BuilderContext context)
-    {
-        if(argumentList is null)
-        {
-            return [];
-        }
-
-        var expressions = argumentList.GetAllExpressions();
-        var bound = new List<Expression>(expressions.Length);
-
-        for(var i = 0; i < expressions.Length; i++)
-        {
-            var target = parameters is not null && i < parameters.Count
-                ? substitution.Apply(parameters[i].Type, context.ProgramModel.TypeInterner)
-                : null;
-
-            // Pushed even when null, so that an enclosing target type stops here rather than
-            // reaching an argument it has nothing to say about.
-            using(ctx.PushTargetType(target))
-            {
-                bound.Add(ExpressionBinder.BindExpression(expressions[i], ctx, context));
-            }
-        }
-
-        return bound;
+        return BindTargeted(argumentList, targets, ctx, context);
     }
 
     /// <summary>

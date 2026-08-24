@@ -497,6 +497,48 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "'{0}' is not a tuple, so a tuple pattern has no elements to match against it.");
 
+    /// <summary>
+    /// A function type names no type arguments at all. The result occupies the last slot, so there is no
+    /// spelling of a function type without one -- <c>func&lt;bool&gt;</c> is the zero-parameter form.
+    /// </summary>
+    public static readonly DiagnosticDescriptor FunctionTypeNeedsAResult = new(
+        new DiagnosticId("MIST_PM_FUNCTION_TYPE_NO_RESULT"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "A function type must name its result as the last type argument, for example 'func<bool>' or 'func<int, bool>'.");
+
+    /// <summary>A lambda declares a different number of parameters than the function type it is assigned to.</summary>
+    public static readonly DiagnosticDescriptor LambdaArityMismatch = new(
+        new DiagnosticId("MIST_PM_LAMBDA_ARITY"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}' takes {1} parameters but the lambda declares {2}.");
+
+    /// <summary>
+    /// A lambda parameter is neither annotated nor supplied a type by a target. Reported rather than
+    /// inferred from the body: a parameter's type is what the body is read AGAINST, so there is nothing
+    /// to infer it from without circularity.
+    /// </summary>
+    public static readonly DiagnosticDescriptor LambdaParameterNeedsAType = new(
+        new DiagnosticId("MIST_PM_LAMBDA_PARAMETER_NO_TYPE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "The type of lambda parameter '{0}' cannot be inferred. Annotate it, or assign the lambda to a function type.");
+
+    /// <summary>The return statements of a block-bodied lambda produce different types.</summary>
+    public static readonly DiagnosticDescriptor LambdaReturnsNoCommonType = new(
+        new DiagnosticId("MIST_PM_LAMBDA_RETURNS_NO_COMMON_TYPE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "The lambda's returns have no common type ('{0}' and '{1}'). Annotate the target with a function type to select the result.");
+
+    /// <summary>A call on a function-typed value passes a different number of arguments than it takes.</summary>
+    public static readonly DiagnosticDescriptor FunctionCallArityMismatch = new(
+        new DiagnosticId("MIST_PM_FUNCTION_CALL_ARITY"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}' takes {1} arguments but {2} were passed.");
+
     /// <summary>A deconstruction declares a different number of targets than the tuple it reads holds.</summary>
     public static readonly DiagnosticDescriptor DeconstructionArityMismatch = new(
         new DiagnosticId("MIST_PM_DECONSTRUCTION_ARITY"),

@@ -96,6 +96,25 @@ internal sealed class ScopeResolver
         return structural;
     }
 
+    /// <summary>
+    /// Resolves a function type reference. The LAST type argument is the result and the rest are the
+    /// parameters, so <c>func&lt;bool&gt;</c> takes nothing -- one syntax across every arity, which is
+    /// what makes the grammar need no separate zero-parameter form.
+    /// </summary>
+    private IMistType ResolveFunction(FuncSingleTypeRefSingleTypeRefNode funcRef, Scope scope)
+    {
+        var typeArguments = ResolveTypeArguments(funcRef.TypeArgs, scope);
+
+        if(typeArguments.Count == 0)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.FunctionTypeNeedsAResult, funcRef, null);
+            return ErrorType.Instance;
+        }
+
+        return context.ProgramModel.TypeInterner.GetOrCreateFunctionType(
+            [.. typeArguments.Take(typeArguments.Count - 1)], typeArguments[^1]);
+    }
+
     private void ResolveTupleElement(TupleTypeElementNode element, Scope scope, List<IMistType> types, List<string?> names)
     {
         types.Add(Resolve(element.Type, scope));
@@ -151,6 +170,7 @@ internal sealed class ScopeResolver
             NamedSingleTypeRefSingleTypeRefNode namedRef => ResolveNamed(namedRef, scope),
             ParenthesizedTypeRefSingleTypeRefNode parenRef => Resolve(parenRef.Inner, scope),
             TupleSingleTypeRefSingleTypeRefNode tupleRef => ResolveTuple(tupleRef, scope),
+            FuncSingleTypeRefSingleTypeRefNode funcRef => ResolveFunction(funcRef, scope),
             SpreadSingleTypeRefSingleTypeRefNode spread => ResolveSpread(spread, scope),
             _ => ReportUnsupported(singleRef),
         };

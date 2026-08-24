@@ -4643,11 +4643,38 @@ capabilities:
     order: 104
     layer: functions
     requires: [type-parameters-and-constructed-types]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      Mist spells function types structurally with the result last, arity-generic, mapped
-      onto the CLR's Func and Action families. The stdlib declares them as a single variadic
-      type rather than an overload family.
+      NOT A CONSTRUCTION OF Standard.Func, though that is what it emits as, and the reason is a
+      dependency this entry's own `requires` already implies. Func is declared
+      `Func<params TArgs, TResult>` -- one variadic type rather than an overload family -- so resolving
+      that declaration needs TYPE PACKS, which are orders 149-153 and all missing. Requiring only order
+      51 is therefore only satisfiable by a structural type: FunctionType is interned by its parameters
+      and result, exactly as TupleType is by its elements, and the CLR family becomes an EMISSION
+      concern. Had the model gone through Func, this layer would have been unreachable until order 153.
+
+      THE RESULT IS THE LAST TYPE ARGUMENT, which is what lets one syntax serve every arity --
+      `func<bool>` takes nothing and returns a bool, so the grammar needs no separate niladic form. The
+      split is made once, at resolution, so nothing downstream re-derives which slot the result is in.
+      Mutation-checked by reading the result off the FRONT instead: exactly the five tests that assert
+      the ordering fail.
+
+      EMISSION PICKS Action FOR A VOID RESULT and Func otherwise, which is the CLR drawing a distinction
+      Mist does not -- void is an ordinary unit type here, so `func<int, void>` and `func<int, bool>`
+      differ only in their result while Action<int> and Func<int, bool> are unrelated families. Neither
+      family spells its no-argument case with an empty argument list, so arity does the rest.
+
+      INVOCATION OF A FUNCTION-TYPED VALUE is part of this order rather than the next: the type is what
+      says a call is possible and what it produces. BindInvocation previously answered a call on any
+      non-method-group with the RECEIVER's own type, which its own comment recorded as wrong for a
+      delegate; a function type now answers with its result, and an argument count that does not match
+      is refused. Chained invocation falls out -- `curried(3)(4)` needs nothing beyond the result of the
+      first call being a function type too.
+
+      One interner key serves tuples and functions, both being an ordered list of type identities. They
+      key separate dictionaries, so `func<int, int>` and `(int, int)` never collide despite keying
+      equal, and a test pins that.
     unlocks: []
 
   - id: lambda-expressions
@@ -4655,10 +4682,36 @@ capabilities:
     order: 105
     layer: functions
     requires: [func-structural-function-types]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      Expression-bodied and block-bodied forms, parameter types inferred from the target
-      type, return type inferred from all return paths.
+      Both bodies, and the two are different C# forms rather than one form spelled two ways, so the
+      model keeps separate slots and exactly one is set.
+
+      THE TARGET SAYS WHAT IT CAN AND INFERENCE SUPPLIES THE REST, which splits cleanly by position. A
+      PARAMETER is typed by its annotation or by the target's parameter at that position, and by
+      nothing else -- a parameter's type is what the body is read AGAINST, so inferring it from the body
+      would be circular, and an untyped parameter with no target is refused rather than guessed.
+      Mutation-checked: dropping the target's contribution fails exactly the three tests that assert an
+      inferred parameter. A RESULT is the target's where there is one, and otherwise the body's -- for a
+      block body, read back off its `return` statements, which is why the block is bound before the type
+      is known. A body that returns nothing is void; returns that disagree are refused for the same
+      reason a switch's arms would be.
+
+      LAMBDA IS AN EXPRESSION ALTERNATIVE, not something reached through the precedence chain, so the
+      binder dispatches ahead of the assignment unwrap. That ordering is the grammar's: a lambda binds
+      looser than everything, so `x => a = b` is a lambda whose body assigns.
+
+      RETURNS ARE COLLECTED WITHOUT DESCENDING A NESTED LAMBDA, whose returns answer to it instead. That
+      is the only reason the walk cannot simply visit every statement.
+
+      PARAMETERS ARE EMITTED WITH THEIR TYPES even where source left them implicit, so C# never infers
+      its own from the target and reaches a different answer. It costs nothing -- C# accepts an explicit
+      list wherever it accepts an implicit one.
+
+      AN ASYNC LAMBDA IS PARKED, not reported: the modifier changes what the body's type MEANS, so
+      binding it as a synchronous lambda would answer confidently with the wrong result. It belongs to
+      the async layer, orders 169-175.
     unlocks: []
 
   - id: lambda-closure-capture
@@ -4666,8 +4719,18 @@ capabilities:
     order: 106
     layer: functions
     requires: [lambda-expressions]
-    v2_status: missing
-    evidence: FirstClassFunctions mutates a captured variable and observes it outside.
+    v2_status: done
+    verified_by: v2-semantics
+    evidence: >
+      Free, and worth recording WHY it was free rather than leaving that to be rediscovered. A lambda's
+      body binds in a BodyScope chained to the enclosing one, so a captured name resolves to the very
+      same LocalVariable the enclosing scope declared -- nothing copies, and a test asserts the identity
+      on the model rather than trusting the output. C# closures then carry the semantics through.
+
+      MEASURED both ways round: a counter incremented twice inside a lambda reads 2 outside it, and a
+      lambda reading a captured local sees a value ASSIGNED AFTER the lambda was created. The second is
+      what distinguishes capture by reference from capture by value; the first alone would pass either
+      way.
     unlocks: []
 
   - id: static-lambdas
@@ -4675,8 +4738,26 @@ capabilities:
     order: 107
     layer: functions
     requires: [lambda-expressions]
-    v2_status: missing
-    evidence: A capture-free lambda form whose whole point is the rejection.
+    v2_status: partial
+    verified_by: v2-semantics
+    evidence: >
+      The modifier is carried on the model and emitted, and a static lambda drawing only on its
+      parameters works. THE REJECTION HAPPENS but not where this entry wants it: C# refuses the capture
+      (CS8820) and it surfaces as MIST_CS_ERROR against the GENERATED file rather than as a diagnostic
+      against Mist source. Measured -- "A static anonymous function cannot contain a reference to
+      'outside'".
+
+      LEFT PARTIAL DELIBERATELY, because reporting it in Mist is analysis-phase work by the same rule
+      that put order 97's coverage rule there: deciding whether a lambda body reaches a name declared
+      outside it is a judgement on a FINISHED model, not something construction knows while building it.
+      Construction would have to either thread a capture boundary through every identifier lookup or
+      re-walk the bound body, and the second is an analyzer wearing a binder's clothes. Order 22 records
+      the same shape of residue for static member access.
+    analysis_phase_tasks:
+      - >
+        Report a capture inside a static lambda against Mist source. The bound body is walkable and the
+        lambda's own locals are known from its parameters and declarations, so a reference to anything
+        else is a capture. Until then C# reports it against the generated file.
     unlocks: []
 
   - id: method-group-conversion
@@ -4684,8 +4765,30 @@ capabilities:
     order: 108
     layer: functions
     requires: [func-structural-function-types]
-    v2_status: missing
-    evidence: Arity, parameter and return compatibility checked against the target type.
+    v2_status: done
+    verified_by: v2-semantics
+    evidence: >
+      The hook already existed and said so. MethodGroupExpression's own doc names exactly two consumers
+      -- "an invocation selects on its bound argument types, and a conversion to a function type selects
+      on the target signature" -- and PostfixBinder already had the point where an unconsumed group was
+      reported, described in place as the last point that still knows one went unconsumed. This order
+      fills the second consumer at that point, so a group is converted before it can be reported.
+
+      IDENTITY PER POSITION RATHER THAN ASSIGNABILITY, which is the CLR's rule for binding a delegate
+      and not the rule for passing an argument: a method taking an `int` does NOT convert to a
+      `func<long, ...>` even though the argument would widen at a call. Mutation-checked by relaxing to
+      containment -- exactly the one test asserting that fails, which is what makes the distinction
+      recorded rather than incidental.
+
+      SELECTION IS BY THE TARGET AND NOTHING ELSE, there being no arguments to rank on, so two
+      candidates matching one signature is ambiguity and declines rather than picking. A GENERIC method
+      is declined too: its type arguments are inferable only from the target, which is inference this
+      does not do.
+
+      A converted group is a FunctionReferenceExpression rather than a MethodReferenceExpression,
+      because the latter's type is the method's RESULT -- it exists to be an invocation's receiver --
+      where here the whole function is the value and the type is the function type. An instance group
+      keeps its receiver, so `d.Twice` emits as `d.Twice`.
     unlocks: []
 
   - id: delegate-func-conversion
@@ -4695,9 +4798,21 @@ capabilities:
     requires: [method-group-conversion]
     v2_status: missing
     evidence: >
-      Two nominally distinct delegate types with identical signatures are inter-convertible
-      in Mist, in BOTH directions, plus conversion to the delegate base type. Neither C# nor
-      the CLR offers an implicit conversion, so the compiler must synthesize a wrapper.
+      NOT ATTEMPTED, and the `requires` above understates what it needs. Mist has no delegate
+      DECLARATION syntax -- the `Delegate` in Mist.storm is a Storm trait for members carrying a body,
+      unrelated -- so a named delegate type can only enter a Mist program by being PROJECTED from a CLR
+      assembly. That is clr-assembly-type-projection, order 126, seventeen orders later, and
+      DelegateFuncConversion confirms it: the sample needs orders 121, 126, 129 and 131 besides this
+      one, and its first line imports Microsoft.AspNetCore.Http.
+
+      So this order cannot be reached from within the functions layer whatever effort is spent on it,
+      and its requires should name order 126 rather than implying the layer is self-contained. Recorded
+      here rather than acted on, because renumbering to put it after 126 would move a whole layer.
+    tasks:
+      - >
+        Correct this entry's requires to include clr-assembly-type-projection, or move the order after
+        it. Left as a task rather than done silently because the fix changes the layer's shape and the
+        invariant check does not catch it -- a dependency that is real but unrecorded resolves fine.
     unlocks: []
 
   - id: func-type-aliases-and-currying
@@ -4705,10 +4820,27 @@ capabilities:
     order: 110
     layer: functions
     requires: [func-structural-function-types, type-alias-declarations]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      An alias over a function type usable as a target type, and a function type returning a
-      function type with chained invocation.
+      Aliases needed one thing and currying needed nothing. A type alias is already transparent and
+      expands at resolution (order 84), but expansion SUBSTITUTES, and TypeSubstitution.Apply descended
+      only constructions and unions -- so `type Transform<TIn, TOut> = func<TIn, TOut>` expanded to a
+      function type still stated in terms of TIn and TOut, and emitted C# naming type parameters that
+      were not in scope. This is the gap order 53's own task named as "descend unions and tuples"; it
+      is now closed for FUNCTIONS and TUPLES both, the two being the same mechanism, leaving refinements
+      as the remaining undescended kind.
+
+      THE RESULT IS SUBSTITUTED ALONGSIDE THE PARAMETERS, which is what an alias needs in both
+      positions; substituting only the parameters would have left `Transform<int, string>` returning
+      TOut. A test asserts an alias reaches the SAME interned type as spelling the function type out,
+      which is the strongest form the claim has -- transparency means there is one type, not two that
+      agree.
+
+      CURRYING WAS ALREADY DONE by orders 104 and 105 between them: a function type nests because its
+      result is an ordinary type, chained invocation works because the first call's result is a function
+      type, and `a => b => a + b` binds because the inner lambda's target is the outer's result type.
+      Recorded as verified rather than as work.
     unlocks: []
 
   # ===================================================================

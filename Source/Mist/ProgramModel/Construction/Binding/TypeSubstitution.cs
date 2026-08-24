@@ -138,9 +138,9 @@ internal sealed class TypeSubstitution
     }
 
     /// <summary>
-    /// An array needs no arm of its own, being a construction of <c>Standard.Array</c>. Only
-    /// constructions and unions are descended into, so a parameter reachable solely through a
-    /// tuple or a refinement survives untouched and unreported.
+    /// An array needs no arm of its own, being a construction of <c>Standard.Array</c>. Constructions,
+    /// unions, tuples and function types are descended into, so a parameter reachable solely through a
+    /// refinement is the remaining case that survives untouched and unreported.
     /// </summary>
     /// <param name="interner">
     /// Null from the emitter's struct flattening, which has none: the interner belongs to construction
@@ -165,6 +165,25 @@ internal sealed class TypeSubstitution
             return ApplyToUnion(union, interner);
         }
 
+        if(type is FunctionType function)
+        {
+            return ApplyToFunction(function, interner);
+        }
+
+        if(type is TupleType tuple)
+        {
+            return ApplyToTuple(tuple, interner);
+        }
+
+        if(type is NamedTupleType namedTuple)
+        {
+            return ApplyToTuple(namedTuple.Underlying, interner) is TupleType closed
+                && !ReferenceEquals(closed, namedTuple.Underlying)
+                    ? new NamedTupleType(closed, namedTuple.ElementNames)
+                    : type
+                    ;
+        }
+
         if(type is not ConstructedType constructed)
         {
             return type;
@@ -187,6 +206,58 @@ internal sealed class TypeSubstitution
         return interner is null
             ? new ConstructedType(constructed.Definition, substituted)
             : interner.GetOrCreateConstructedType(constructed.Definition, substituted)
+            ;
+    }
+
+    /// <summary>
+    /// The result is substituted alongside the parameters, so an alias over a function type closes in
+    /// BOTH positions -- <c>type Transform&lt;TIn, TOut&gt; = func&lt;TIn, TOut&gt;</c> being the case
+    /// that needs it, where substituting only the parameters would leave the result open.
+    /// </summary>
+    private IMistType ApplyToFunction(FunctionType function, TypeInterner? interner)
+    {
+        var parameters = new IMistType[function.ParameterTypes.Count];
+        var changed = false;
+
+        for(var i = 0; i < parameters.Length; i++)
+        {
+            parameters[i] = Apply(function.ParameterTypes[i], interner);
+            changed |= !ReferenceEquals(parameters[i], function.ParameterTypes[i]);
+        }
+
+        var returnType = Apply(function.ReturnType, interner);
+        changed |= !ReferenceEquals(returnType, function.ReturnType);
+
+        if(!changed)
+        {
+            return function;
+        }
+
+        return interner is null
+            ? new FunctionType(parameters, returnType)
+            : interner.GetOrCreateFunctionType(parameters, returnType)
+            ;
+    }
+
+    private IMistType ApplyToTuple(TupleType tuple, TypeInterner? interner)
+    {
+        var elements = new IMistType[tuple.ElementTypes.Count];
+        var changed = false;
+
+        for(var i = 0; i < elements.Length; i++)
+        {
+            elements[i] = Apply(tuple.ElementTypes[i], interner);
+            changed |= !ReferenceEquals(elements[i], tuple.ElementTypes[i]);
+        }
+
+        if(!changed)
+        {
+            return tuple;
+        }
+
+        return interner is null
+            ? new TupleType(elements)
+            : interner.GetOrCreateTupleType(elements)
             ;
     }
 

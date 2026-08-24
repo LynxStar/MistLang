@@ -36,6 +36,7 @@ internal static class TypeNameEmitter
             UnionType union => EmitUnion(union),
             NamedTupleType named => EmitTuple(named.ElementTypes, named.ElementNames),
             TupleType tuple => EmitTuple(tuple.ElementTypes, elementNames: null),
+            FunctionType function => EmitFunction(function),
             MemberType memberType => MapMemberType(memberType),
             ErrorType => "/* error */",
             UnknownType => "object",
@@ -102,6 +103,29 @@ internal static class TypeNameEmitter
             ConstructedType constructed => IsValueKind(constructed.Definition),
             _ => false,
         };
+    }
+
+    /// <summary>
+    /// A void result picks Action and any other picks Func, which is the CLR drawing a distinction Mist
+    /// does not: void is an ordinary unit type here, so <c>func&lt;int, void&gt;</c> and
+    /// <c>func&lt;int, bool&gt;</c> differ only in their result, while <c>Action&lt;int&gt;</c> and
+    /// <c>Func&lt;int, bool&gt;</c> are unrelated families. Arity does the rest -- neither family spells
+    /// its no-argument case with an empty argument list.
+    /// </summary>
+    private static string EmitFunction(FunctionType function)
+    {
+        var parameters = function.ParameterTypes.Select(Emit).ToList();
+
+        if(OptionalUnion.IsVoid(function.ReturnType))
+        {
+            return parameters.Count == 0
+                ? "System.Action"
+                : $"System.Action<{string.Join(", ", parameters)}>"
+                ;
+        }
+
+        parameters.Add(Emit(function.ReturnType));
+        return $"System.Func<{string.Join(", ", parameters)}>";
     }
 
     private static string EmitTuple(IReadOnlyList<IMistType> elementTypes, IReadOnlyList<string?>? elementNames)

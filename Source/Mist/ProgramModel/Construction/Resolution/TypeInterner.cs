@@ -14,7 +14,8 @@ internal sealed class TypeInterner
 {
     private readonly Dictionary<ConstructedTypeKey, ConstructedType> constructedTypes = [];
     private readonly Dictionary<UnionTypeKey, UnionType> unionTypes = [];
-    private readonly Dictionary<TupleTypeKey, TupleType> tupleTypes = [];
+    private readonly Dictionary<TypeListKey, TupleType> tupleTypes = [];
+    private readonly Dictionary<TypeListKey, FunctionType> functionTypes = [];
     private readonly Dictionary<LiftedTypeKey, LiftedType> liftedTypes = [];
     private readonly Dictionary<IMistType, UnknownValueType> unknownValueTypes = new(ReferenceEqualityComparer.Instance);
 
@@ -141,7 +142,7 @@ internal sealed class TypeInterner
     /// </summary>
     public TupleType GetOrCreateTupleType(IReadOnlyList<IMistType> elementTypes)
     {
-        var key = new TupleTypeKey(elementTypes);
+        var key = new TypeListKey(elementTypes);
 
         if(tupleTypes.TryGetValue(key, out var existing))
         {
@@ -151,6 +152,23 @@ internal sealed class TypeInterner
         var tuple = new TupleType(elementTypes);
         tupleTypes[key] = tuple;
         return tuple;
+    }
+
+    /// <summary>
+    /// Returns the canonical <see cref="FunctionType"/> for the given parameter types and result.
+    /// </summary>
+    public FunctionType GetOrCreateFunctionType(IReadOnlyList<IMistType> parameterTypes, IMistType returnType)
+    {
+        var function = new FunctionType(parameterTypes, returnType);
+        var key = new TypeListKey(function.TypeArgumentsInSourceOrder());
+
+        if(functionTypes.TryGetValue(key, out var existing))
+        {
+            return existing;
+        }
+
+        functionTypes[key] = function;
+        return function;
     }
 
     /// <summary>
@@ -309,14 +327,17 @@ internal sealed class TypeInterner
     }
 
     /// <summary>
-    /// Key for tuple types: ordered element type identities (names are ignored for identity).
+    /// Key for a structural type identified by an ordered list of type identities, which is both a
+    /// tuple's elements and a function's parameters-then-result. Shared because the two agree on what
+    /// identity means and not because they are alike: each keys its OWN dictionary, so a
+    /// <c>func&lt;int, int&gt;</c> and an <c>(int, int)</c> never collide despite keying equal.
     /// </summary>
-    private readonly struct TupleTypeKey : IEquatable<TupleTypeKey>
+    private readonly struct TypeListKey : IEquatable<TypeListKey>
     {
         private readonly IMistType[] elementTypes;
         private readonly int hashCode;
 
-        public TupleTypeKey(IReadOnlyList<IMistType> elementTypes)
+        public TypeListKey(IReadOnlyList<IMistType> elementTypes)
         {
             this.elementTypes = elementTypes.ToArray();
 
@@ -330,7 +351,7 @@ internal sealed class TypeInterner
             hashCode = hash.ToHashCode();
         }
 
-        public bool Equals(TupleTypeKey other)
+        public bool Equals(TypeListKey other)
         {
             if(elementTypes.Length != other.elementTypes.Length)
             {
@@ -350,7 +371,7 @@ internal sealed class TypeInterner
 
         public override bool Equals(object? obj)
         {
-            return obj is TupleTypeKey other && Equals(other);
+            return obj is TypeListKey other && Equals(other);
         }
 
         public override int GetHashCode()

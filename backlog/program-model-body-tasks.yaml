@@ -449,21 +449,20 @@ expressions:
     # NET-NEW: no prior body binding to lean on. Specify from the first-class-functions
     # / delegate-func-conversion / func-async-auto-await-fix specs.
     #
-    # ONE LINE BLOCKS ALL TEN. The grammar is
-    #   Expression = lambda:LambdaExpression as LambdaForm | assignment:Assignment as AssignmentForm
-    # and ExpressionBinder.BindExpression opens with
+    # THE ONE LINE THAT BLOCKED ALL TEN is gone. ExpressionBinder.BindExpression used to open with
     #   var assignment = expression.AsAssignmentOrNull(); if(assignment is null) return new UnresolvedExpression(...)
-    # so every lambda becomes a sentinel before any lambda-specific code could run.
-    # Unblocking the section starts there, not with parameter inference.
-    - [ ] LambdaExpression BlockLambda + ExpressionLambda
-    - [ ] parameter lists: ParenthesizedLambdaParams (typed + untyped) + SingleImplicitParam
-    - [ ] target-type-driven parameter inference (from Func / Action / DelegateType)
-    - [ ] explicit-typed-parameter lambdas without target type -> construct Func type
-    - [ ] body binding in a child scope; return-type inference (expression body, or collect block returns -> common type)
-    - [ ] `static` and `async` lambda modifiers
-    - [ ] async lambda return-type wrapping (-> Task<T>)
-    - [ ] method-group -> delegate / Func conversion (single-overload selection against target)
-    - [ ] closure-capture analysis (record captured symbols for the future emitter)
+    # which turned every lambda into a sentinel before any lambda-specific code could run. The dispatch
+    # now tests LambdaForm FIRST, ahead of the assignment unwrap, which is also the grammar's ordering:
+    # a lambda binds looser than everything, so `x => a = b` is a lambda whose body assigns.
+    - [x] LambdaExpression BlockLambda + ExpressionLambda -- LambdaBinder, orders 104-105. Both bodies are kept in separate slots on Model/Expressions/LambdaExpression.cs, exactly one set, because they are different C# forms rather than one form spelled two ways
+    - [x] parameter lists: ParenthesizedLambdaParams (typed + untyped) + SingleImplicitParam -- all three, normalized to a (name, optional type ref, node) triple so no AST node has to be fabricated for the bare-identifier form
+    - [x] target-type-driven parameter inference -- from a structural FunctionType, positionally. NOT from Func or a DelegateType: `Func<params TArgs, TResult>` needs type packs (orders 149-153, missing), so the model type is structural and interned, and the CLR family is chosen at emission. A parameter is typed by its annotation or by the target and by nothing else -- inferring it from the body would be circular, the body being what the parameter's type is read against
+    - [x] explicit-typed-parameter lambdas without target type -> construct the function type from the annotations plus the inferred result
+    - [x] body binding in a child scope; return-type inference (expression body, or collect block returns -> common type) -- the block is bound BEFORE the type is known, which is what lets the result be read off its returns. The walk does not descend a NESTED lambda, whose returns answer to it instead. A body returning nothing is void; returns that disagree are refused
+    - [~] `static` and `async` lambda modifiers -- static is carried and emitted, and C# enforces the capture ban (CS8820) against the generated file; reporting it against Mist source is analysis-phase work, see order 107. ASYNC is PARKED rather than ignored: the modifier changes what the body's type means, so binding it synchronously would answer confidently with the wrong result
+    - [ ] async lambda return-type wrapping (-> Task<T>) -- the async layer's, orders 169-175
+    - [x] method-group -> delegate / Func conversion (single-overload selection against target) -- order 108, at the point PostfixBinder already had for reporting an unconsumed group. Selection is by IDENTITY per position, the CLR's rule for binding a delegate rather than for passing an argument, so a method taking an int does not convert to a `func<long, ...>`. A generic method is declined, its type arguments being inferable only from the target
+    - [ ] closure-capture analysis (record captured symbols for the future emitter) -- not needed for capture to WORK: a lambda body binds in a scope chained to the enclosing one, so a captured name resolves to the very same LocalVariable and nothing copies (order 106). A recorded capture set is what an analyzer would need, which is the same thing order 107's rejection wants
   arguments:
     - [~] ValueArgument -- MISSING: nothing for the value case itself; argument expressions bind in both BindArguments overloads. Listed partial because it shares GetAllExpressions() with the ref case below
     - [ ] RefArgument (`ref x`) -- ref-ness is ERASED. Generated/ArgumentListNodeExtensions.cs unwraps RefArgument and ValueArgument to the same ExpressionNode, so the bound tree cannot distinguish `f(x)` from `f(ref x)`. That file's own header calls itself a shim until it handles ref arguments
@@ -598,7 +597,7 @@ type_inference_and_conversions:
     - [~] union widening (constituent -> union; union -> wider union) and narrowing (via `is`) -- widening is ConversionRelation.WidensIntoUnion, containment recursing through IsWithin (order 77). Narrowing via `is` works for EVERY union now: an optional bypasses the carrier for Nullable or the bare type and C# tests it directly (order 90), and a non-optional union narrows through the carrier's nullable per-constituent accessor, which keeps the test and the binding in one C# pattern (order 98). MISSING, and the reason this stays partial: no bound conversion node records any of it, as with everything else here
     - [ ] dependent-type-parameter <-> value type
     - [x] newtype nominal distinctness (only same newtype; explicit cast required otherwise) -- falls out of ConversionRelation having no newtype arm (FQN identity only), mutation-checked by NewtypeResolutionTests (order 86); the "cast required" DIAGNOSTIC on a mixing assignment is analyzer work, like everything here
-    - [ ] delegate / func signature compatibility + method-group conversion
+    - [~] delegate / func signature compatibility + method-group conversion -- method-group conversion against a structural function type is done (order 108), by identity per parameter position and on the result. A FunctionType is interned, so compatibility between two function types is reference identity and needs no arm of its own. MISSING: named DELEGATE types, which Mist cannot declare at all -- they enter only by CLR projection (order 126), so order 109 is unreachable from the functions layer
     - [ ] refinement subtyping (predicate implication) + widening to base type
     - [ ] enum -> underlying type
     - [x] type-alias transparency (unwrap both sides) -- nothing to unwrap since order 84: aliases are expanded at resolution, so no type reaching a conversion is an alias

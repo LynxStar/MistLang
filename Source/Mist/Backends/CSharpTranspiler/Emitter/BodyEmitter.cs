@@ -375,6 +375,10 @@ internal static class BodyEmitter
                 EmitTupleLiteral(tupleLiteral, writer, diagnostics);
                 break;
 
+            case LambdaExpression lambda:
+                EmitLambda(lambda, writer, diagnostics);
+                break;
+
             case InterpolatedStringExpression interpolated:
                 writer.Append("$\"");
                 foreach(var part in interpolated.Parts)
@@ -414,6 +418,16 @@ internal static class BodyEmitter
 
             case MethodReferenceExpression methodRef:
                 writer.Append($"{methodRef.Method.Name}{EmitTypeArguments(methodRef.TypeArguments)}");
+                break;
+
+            case FunctionReferenceExpression functionRef:
+                if(functionRef.Receiver is { } functionTarget)
+                {
+                    EmitExpression(functionTarget, writer, diagnostics);
+                    writer.Append(".");
+                }
+
+                writer.Append(functionRef.Method.Name);
                 break;
 
             case MethodGroupExpression methodGroup:
@@ -534,6 +548,38 @@ internal static class BodyEmitter
         }
 
         writer.Append(")");
+    }
+
+    /// <summary>
+    /// Parameters are always spelled with their types, even where source left them implicit. The types
+    /// are the ones the MODEL resolved, so this stops C# inferring its own from the target and reaching a
+    /// different answer -- and it costs nothing, C# accepting an explicit list wherever it accepts an
+    /// implicit one.
+    /// </summary>
+    private static void EmitLambda(
+        LambdaExpression lambda, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        var parameters = lambda.Parameters.Select(
+            parameter => $"{TypeNameEmitter.Emit(parameter.Type)} {parameter.Name}");
+
+        writer.Append(lambda.IsStatic ? "static (" : "(");
+        writer.Append($"{string.Join(", ", parameters)}) => ");
+
+        if(lambda.Result is { } result)
+        {
+            EmitExpression(result, writer, diagnostics);
+            return;
+        }
+
+        writer.AppendLine();
+
+        using(writer.Block())
+        {
+            if(lambda.Body is { } body)
+            {
+                EmitBlock(body, writer, diagnostics);
+            }
+        }
     }
 
     private static void EmitIsPattern(

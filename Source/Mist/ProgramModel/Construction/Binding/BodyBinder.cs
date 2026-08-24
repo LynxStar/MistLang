@@ -191,11 +191,21 @@ internal static class BodyBinder
     /// field is what let <c>field</c> resolve at the top of a setter and fail one <c>if</c> deeper.
     /// </para>
     /// </summary>
-    public static void BindNestedBlock(Block block, BodyScope scope, BindingContext enclosing, BuilderContext context)
+    /// <param name="returnType">
+    /// What a <c>return</c> in this block returns, where that differs from the enclosing member's --
+    /// a lambda body being the case, since its returns answer to the lambda and not to the method
+    /// around it. Null inherits the enclosing one.
+    /// </param>
+    public static void BindNestedBlock(
+        Block block,
+        BodyScope scope,
+        BindingContext enclosing,
+        BuilderContext context,
+        IMistType? returnType = null)
     {
         BindStatements(
             block,
-            new BindingContext(scope, enclosing.ReturnType) { EnclosingProperty = enclosing.EnclosingProperty },
+            new BindingContext(scope, returnType ?? enclosing.ReturnType) { EnclosingProperty = enclosing.EnclosingProperty },
             context);
     }
 

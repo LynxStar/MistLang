@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
@@ -130,12 +131,7 @@ internal static class PatternBinder
                 }
 
             case BareTypePatternPrimaryPatternNode bareType:
-                return BindTypeTest(
-                    node,
-                    context.Resolver.Resolve(bareType.Type, ctx.Scope),
-                    binding: null,
-                    scrutineeType,
-                    context);
+                return BindBareType(node, bareType, scrutineeType, ctx, context);
 
             case VarPatternPrimaryPatternNode varPattern:
                 return new CatchAllPattern(
@@ -174,6 +170,71 @@ internal static class PatternBinder
             default:
                 return null;
         }
+    }
+
+    /// <summary>
+    /// A DOTTED bare name reads as an enum variant before it reads as a type, and that order is forced:
+    /// a Mist enum variant is a VALUE, so <c>Direction.North</c> names no type at all, and resolving it
+    /// as one reports an unresolved type before the value reading is ever tried. The probe therefore
+    /// goes through the scope's own lookup rather than <see cref="ScopeResolver.ResolveNamedType"/>,
+    /// which reports what it cannot find.
+    /// <para>
+    /// What comes out is an ordinary equality comparison, because that is what matching a variant IS --
+    /// the same <see cref="ComparisonPattern"/> a constant pattern binds to, differing only in what the
+    /// bound expression is. Emission owns the consequence: a variant lowers to a static readonly field,
+    /// which C# will not admit as a constant pattern.
+    /// </para>
+    /// </summary>
+    private static Pattern BindBareType(
+        PrimaryPatternNode node,
+        BareTypePatternPrimaryPatternNode bareType,
+        IMistType scrutineeType,
+        BindingContext ctx,
+        BuilderContext context)
+    {
+        if(EnumVariant(node, bareType.Type, ctx) is { } variant)
+        {
+            return new ComparisonPattern(node, scrutineeType, ComparisonKind.Equal, variant);
+        }
+
+        return BindTypeTest(
+            node,
+            context.Resolver.Resolve(bareType.Type, ctx.Scope),
+            binding: null,
+            scrutineeType,
+            context);
+    }
+
+    private static Expression? EnumVariant(
+        PrimaryPatternNode node, TypeReferenceNode typeRef, BindingContext ctx)
+    {
+        if(typeRef.SingleTypeRefs.Length > 0
+            || typeRef.First is not NamedSingleTypeRefSingleTypeRefNode
+            { TypeArgs: null, ArrayRank: null, Optional: null } named
+            || named.Name.IDENTIFIERs.IsDefaultOrEmpty)
+        {
+            return null;
+        }
+
+        var qualifiedName = QualifiedNameHelper.Build(named.Name);
+        var lastDot = qualifiedName.LastIndexOf('.');
+
+        if(lastDot <= 0)
+        {
+            return null;
+        }
+
+        var variantName = qualifiedName[(lastDot + 1)..];
+
+        if(ctx.Scope.Lookup(new LookupRequest(qualifiedName[..lastDot], MemberVisibility.None, node))
+            is not TypeResult { Type: EnumType enumType }
+            || !enumType.MembersList.Exists(member => member.Name == variantName))
+        {
+            return null;
+        }
+
+        return new MemberAccessExpression(
+            node, new TypeReferenceExpression(node, enumType), variantName, enumType);
     }
 
     private static Pattern BindTypeTest(

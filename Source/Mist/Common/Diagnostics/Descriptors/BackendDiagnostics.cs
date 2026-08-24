@@ -161,6 +161,25 @@ public static class BackendDiagnostics
         "Only a type test can narrow the union type '{0}' yet. Combining patterns or comparing against a constant is not supported by the experimental emitter.");
 
     /// <summary>
+    /// An enum variant appeared under a pattern combinator. A Mist enum lowers to a record class whose
+    /// variants are static readonly FIELDS, and C# admits only a compile-time constant in a pattern, so
+    /// the test has to become an equality comparison. That is an expression, and an expression cannot
+    /// sit inside a C# pattern -- so <c>d is Direction.North or Direction.South</c> would have to become
+    /// two comparisons joined by <c>||</c>, a second emission shape that is not built.
+    /// <para>
+    /// The bare form does emit, in both positions it can occupy: an <c>is</c> becomes the comparison
+    /// outright, and a switch arm binds the scrutinee and compares in a <c>when</c> guard. Reported
+    /// rather than emitted for <see cref="UnsupportedUnionPattern"/>'s reason -- Roslyn would reject the
+    /// C#, moving the error onto a generated file the user never wrote.
+    /// </para>
+    /// </summary>
+    public static readonly DiagnosticDescriptor UnsupportedEnumPattern = new(
+        new DiagnosticId("MIST_BE_UNSUPPORTED_ENUM_PATTERN"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Backend,
+        "The enum variant '{0}' cannot be combined with 'and', 'or' or 'not' yet, because matching one is an equality comparison rather than a C# pattern.");
+
+    /// <summary>
     /// A struct and one of its ancestors declare a field of the same name. Legal Mist, because two
     /// levels declaring a private field cannot see each other, but the C# backend flattens
     /// inherited fields into one struct where the name can only resolve to one of them.

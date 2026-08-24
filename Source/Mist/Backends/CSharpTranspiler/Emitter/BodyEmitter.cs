@@ -464,9 +464,25 @@ internal static class BodyEmitter
             return;
         }
 
+        if(EnumVariantTested(isPattern.Pattern) is { } variant)
+        {
+            EmitVariantComparison(isPattern.Scrutinee, variant, writer, diagnostics);
+            return;
+        }
+
         EmitSubExpression(isPattern.Scrutinee, RelationalPrecedence, writer, diagnostics);
         writer.Append(" is ");
         EmitPattern(isPattern.Pattern, 0, writer, diagnostics);
+    }
+
+    private static void EmitVariantComparison(
+        Expression scrutinee, Expression variant, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        writer.Append("(");
+        EmitSubExpression(scrutinee, GetPrecedence(BinaryOperatorKind.Equal), writer, diagnostics);
+        writer.Append(" == ");
+        EmitExpression(variant, writer, diagnostics);
+        writer.Append(")");
     }
 
     /// <summary>
@@ -513,21 +529,61 @@ internal static class BodyEmitter
         EmitExpression(switchExpression.Scrutinee, writer, diagnostics);
         writer.Append(" switch { ");
 
-        EmitList.Separated(switchExpression.Arms, ", ", writer, arm =>
-        {
-            EmitPattern(arm.Pattern, 0, writer, diagnostics);
-
-            if(arm.Guard is { } guard)
-            {
-                writer.Append(" when ");
-                EmitExpression(guard, writer, diagnostics);
-            }
-
-            writer.Append(" => ");
-            EmitExpression(arm.Result, writer, diagnostics);
-        });
+        EmitList.Separated(switchExpression.Arms, ", ", writer, arm => EmitArm(arm, writer, diagnostics));
 
         writer.Append(" }");
+    }
+
+    private static void EmitArm(SwitchArm arm, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        var variant = EnumVariantTested(arm.Pattern);
+
+        if(variant is null)
+        {
+            EmitPattern(arm.Pattern, 0, writer, diagnostics);
+        }
+        else
+        {
+            var bound = $"__e{arm.Pattern.Node.Span.Start}";
+            writer.Append($"var {bound} when {bound} == ");
+            EmitExpression(variant, writer, diagnostics);
+        }
+
+        if(arm.Guard is { } guard)
+        {
+            writer.Append(variant is null ? " when " : " && ");
+            EmitSubExpression(guard, GetPrecedence(BinaryOperatorKind.LogicalAnd), writer, diagnostics);
+        }
+
+        writer.Append(" => ");
+        EmitExpression(arm.Result, writer, diagnostics);
+    }
+
+    /// <summary>
+    /// The enum variant a pattern tests BARE, which the two positions a pattern can occupy then lower
+    /// differently -- an <c>is</c> becomes the comparison outright, an arm binds the scrutinee and
+    /// compares in a <c>when</c> guard, because an arm admits a pattern and only a pattern. The arm's
+    /// binding names what the switch already evaluated, so a side-effecting scrutinee is not run twice,
+    /// and its name carries the pattern's SOURCE OFFSET: an arm ordinal would be unique within one
+    /// switch and collide with the enclosing one's for a switch nested inside an arm's result, which C#
+    /// rejects outright rather than shadowing.
+    /// <para>
+    /// The <c>is</c> form is parenthesized because the equality replaces an <c>is</c> and the two do NOT
+    /// rank alike in C#: type testing outranks equality, so <c>flag == d is Direction.North</c> -- which
+    /// Mist parses with the test on the right -- would re-associate to
+    /// <c>(flag == d) == Direction.North</c> written bare.
+    /// </para>
+    /// <para>
+    /// A combinator answers null here and falls through to <see cref="EmitComparison"/>, which refuses
+    /// it: the comparison is an expression and an expression cannot sit inside a C# pattern.
+    /// </para>
+    /// </summary>
+    private static Expression? EnumVariantTested(Pattern pattern)
+    {
+        return pattern is ComparisonPattern { Kind: ComparisonKind.Equal, Bound.Type: EnumType } comparison
+            ? comparison.Bound
+            : null
+            ;
     }
 
     private static void EmitPattern(
@@ -556,12 +612,7 @@ internal static class BodyEmitter
                 break;
 
             case ComparisonPattern comparison:
-                if(comparison.Kind != ComparisonKind.Equal)
-                {
-                    writer.Append($"{MapComparison(comparison.Kind)} ");
-                }
-
-                EmitExpression(comparison.Bound, writer, diagnostics);
+                EmitComparison(comparison, writer, diagnostics);
                 break;
 
             case NegatedPattern negated:
@@ -588,6 +639,34 @@ internal static class BodyEmitter
         {
             writer.Append(")");
         }
+    }
+
+    private static void EmitComparison(
+        ComparisonPattern comparison, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        if(comparison.Bound.Type is EnumType)
+        {
+            diagnostics.ReportAtNode(
+                BackendDiagnostics.UnsupportedEnumPattern, comparison.Node, null,
+                VariantName(comparison.Bound));
+            writer.Append("/* unsupported: enum variant in a C# pattern */");
+            return;
+        }
+
+        if(comparison.Kind != ComparisonKind.Equal)
+        {
+            writer.Append($"{MapComparison(comparison.Kind)} ");
+        }
+
+        EmitExpression(comparison.Bound, writer, diagnostics);
+    }
+
+    private static string VariantName(Expression variant)
+    {
+        return variant is MemberAccessExpression access
+            ? $"{access.Receiver.Type.Name}.{access.MemberName}"
+            : variant.Type.Name
+            ;
     }
 
     private static void EmitPropertyPattern(

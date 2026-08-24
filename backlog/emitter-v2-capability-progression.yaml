@@ -4322,12 +4322,81 @@ capabilities:
     order: 99
     layer: patterns
     requires: [constant-and-relational-patterns, enum-declaration-over-readonly-base]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      An enum member in pattern position must resolve as a VALUE, not a type reference. Mist
-      enums are not CLR enums and their members are not compile-time constants, so they
-      cannot occupy a constant-pattern slot. The classic pipeline rewrites a bare form to an
-      equality comparison and a tuple-element form to a var binding plus a synthesized guard.
+      A VARIANT IS A VALUE, so `Direction.North` names no type at all, and the reading has to be tried
+      BEFORE type resolution rather than after it: ScopeResolver.ResolveNamedType reports what it cannot
+      find, so the fallback ordering would emit MIST_PM_UNRESOLVED_TYPE alongside a correctly bound
+      pattern. The probe therefore goes through the scope's own Lookup, which answers without reporting.
+      Mutation-checked by resolving first: exactly the five tests that assert a clean bind fail, and the
+      pattern they inspect is still right, which is the point -- the defect would have been an extra
+      diagnostic, not a wrong model.
+
+      IT IS AN EQUALITY COMPARISON AND NOT A NEW KIND. What comes out is the ComparisonPattern a constant
+      pattern binds to, differing only in what the bound expression is -- order 91's "a constant pattern
+      is the Equal case rather than a kind of its own" extends to cover this without alteration. The bound
+      is the same MemberAccessExpression over a TypeReferenceExpression that `Direction.North` binds to in
+      EXPRESSION position, so one shape means one reference to a variant wherever it appears, and emission
+      of the bound needed nothing new. Narrows nothing and keeps nothing, as every comparison does.
+
+      READ OFF THE QUALIFIER, NEVER THE SCRUTINEE. Consulting the scrutinee's type would have been
+      cheaper and is wrong twice over: it accepts a variant of some OTHER enum whose name happens to
+      match, and it refuses a variant on an `unknown` scrutinee, which has no enum to consult. So
+      `u is Direction.North` binds. The qualifier must resolve to an EnumType AND the trailing segment
+      must be a variant that enum declares; dropping the second half fails exactly the test that says a
+      name the enum does not declare still reports an unresolved type.
+
+      WHAT THE READING MUST NOT CLAIM is pinned separately, because a dotted name in pattern position is
+      usually a nested TYPE: `u is Outer.Inner` stays a TypeTestPattern, and a dotted name qualified by a
+      non-enum falls through to reporting an unresolved type exactly as before.
+
+      TWO EMISSION SHAPES, because a variant lowers to a static readonly field on a record class and C#
+      admits only a compile-time constant in a pattern. An `is` becomes the comparison outright,
+      PARENTHESIZED -- type testing outranks equality in C#, so `flag == (d is Direction.North)`, which
+      Mist parses with the test on the right, would re-associate to `(flag == d) == Direction.North`
+      written bare. A switch arm becomes `var __e751 when __e751 == Direction.North`, binding what the
+      switch already evaluated so a side-effecting scrutinee is not run twice, and combining with the
+      arm's own guard by `&&` at the right precedence.
+
+      THE TEMPORARY IS NAMED FROM THE PATTERN'S SOURCE OFFSET, not from the arm's ordinal, and that was
+      measured rather than reasoned: an ordinal is unique within one switch and collides with the
+      enclosing one's for a switch nested inside an arm's RESULT, which C# rejects outright (CS0136)
+      rather than shadowing. A three-line nested switch reproduced it. Classic's `__e` and `__eN` have the
+      same defect and no sample reaches it.
+
+      A COMBINATOR IS REFUSED at emission, MIST_BE_UNSUPPORTED_ENUM_PATTERN, naming the variant at the
+      Mist source position. `d is Direction.North or Direction.South` would have to become two
+      comparisons joined by `||` -- an expression rather than a pattern, the same second emission shape
+      order 98 declined for union combinators, and declined here for the same reason. The refusal tests
+      the BOUND's type rather than the comparison's kind, so `d is > Direction.North` is caught by it too.
+      Construction is indifferent: the disjunction binds, nothing about the model is wrong, and a test
+      records that division so it stays visible.
+
+      AN OPTIONAL ENUM WORKS, measured: `Direction? maybe` emits as an annotated reference type and
+      `maybe is Direction.North` emits `(maybe == Direction.North)`, which runs. No projection was needed,
+      unlike order 93's property patterns -- equality against null is well defined where a member lookup
+      is not.
+
+      NOT BANKED, AND EMISSION IS THEREFORE NOT REGRESSION-LOCKED. All three samples that require this
+      order bottom out far past it: Enums and EnumReadonlyRestriction at order 134
+      (readonly-member-and-type-contexts), TuplePatternMatching at order 103 (tuple-patterns). Emission
+      was verified by hand end to end on the experimental pipeline -- bare `is` on an int-backed and a
+      string-backed enum, an `is` as a branch condition, an `is` on the right of an `==`, switch arms with
+      and without a guard, an arm mixed with a var pattern, a nested switch, and both refusals -- all
+      correct. What is missing is a test that would notice if it stopped being true.
+
+      THE TUPLE-ELEMENT FORM IS ORDER 103's, not deferred residue: v2's PatternBinder has no
+      TuplePositionalPattern case at all, so there is no element position for a variant to occupy yet.
+      When there is, the `var __e when` machinery this order built is what it extends -- which is the
+      reason the arm form is here despite no sample needing it.
+    analysis_phase_tasks:
+      - >
+        Report a switch over an enum whose arms cover every variant but declare no catch-all, or rather
+        do NOT: classic has no enum rule, so an enum falls to its unbounded-type rule and is told it needs
+        a catch-all even where coverage is total. Order 97 already records this as one of the two
+        opposite-facing defects its coverage rule must decide deliberately; noted here because an enum
+        scrutinee is now expressible in arm position, which is what makes the decision reachable.
     unlocks: []
 
   # ===================================================================

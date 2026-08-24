@@ -475,6 +475,46 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "'{1}' on '{0}' is not a field or a property, so a property pattern cannot match against it.");
 
+    /// <summary>
+    /// A tuple pattern spells a different number of elements than the tuple it matches against holds.
+    /// Reported rather than deferred because the arity is what pairs each element pattern with the
+    /// element type it narrows, so a mismatch leaves every position after the first typed by nothing.
+    /// </summary>
+    public static readonly DiagnosticDescriptor TuplePatternArityMismatch = new(
+        new DiagnosticId("MIST_PM_TUPLE_PATTERN_ARITY"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "The pattern spells {2} elements but '{0}' holds {1}, so this pattern can never match.");
+
+    /// <summary>
+    /// A tuple pattern matches against a scrutinee that is neither a tuple nor <c>unknown</c>. Mist has
+    /// no user-declared deconstruction, so unlike C# -- which would look for a <c>Deconstruct</c> method
+    /// -- there is nothing for the element positions to be read out of.
+    /// </summary>
+    public static readonly DiagnosticDescriptor TuplePatternScrutineeNotATuple = new(
+        new DiagnosticId("MIST_PM_TUPLE_PATTERN_SCRUTINEE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}' is not a tuple, so a tuple pattern has no elements to match against it.");
+
+    /// <summary>A deconstruction declares a different number of targets than the tuple it reads holds.</summary>
+    public static readonly DiagnosticDescriptor DeconstructionArityMismatch = new(
+        new DiagnosticId("MIST_PM_DECONSTRUCTION_ARITY"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "The deconstruction declares {2} targets but '{0}' holds {1} elements.");
+
+    /// <summary>
+    /// A deconstruction reads from something that is not a tuple. Mist has no user-declared
+    /// deconstruction, so unlike C# -- which would look for a <c>Deconstruct</c> method -- a
+    /// non-tuple has no elements to distribute among the targets.
+    /// </summary>
+    public static readonly DiagnosticDescriptor DeconstructionSourceNotATuple = new(
+        new DiagnosticId("MIST_PM_DECONSTRUCTION_SOURCE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}' is not a tuple, so it cannot be deconstructed.");
+
     /// <summary>A local variable with the same name is already declared in this scope.</summary>
     public static readonly DiagnosticDescriptor DuplicateLocalVariable = new(
         new DiagnosticId("MIST_PM_DUPLICATE_LOCAL"),

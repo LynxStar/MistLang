@@ -68,6 +68,7 @@ internal static class ExpressionBinder
             TrueLiteralExpressionPrimaryNode trueLit => LiteralBinder.BindBoolLiteral(trueLit, true, context),
             FalseLiteralExpressionPrimaryNode falseLit => LiteralBinder.BindBoolLiteral(falseLit, false, context),
             ArrayLiteralExpressionPrimaryNode arrayLiteral => LiteralBinder.BindArrayLiteral(arrayLiteral, ctx, context),
+            TupleLiteralExpressionPrimaryNode tupleLiteral => LiteralBinder.BindTupleLiteral(tupleLiteral, ctx, context),
 
             IdentifierExpressionPrimaryNode identifier => IdentifierBinder.BindIdentifier(identifier, ctx, context),
 

@@ -75,6 +75,53 @@ internal static class LiteralBinder
     }
 
     /// <summary>
+    /// Binds a tuple literal (<c>(42, "text")</c>, <c>(x: 3, y: 4)</c>). Each element binds against the
+    /// corresponding element of the target tuple, so an element flows into an <c>unknown</c> slot or
+    /// widens numerically exactly as it would in an assignment. A target of another arity supplies no
+    /// element target at all, since it says nothing about what any one element should be.
+    /// </summary>
+    internal static Expression BindTupleLiteral(
+        TupleLiteralExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
+    {
+        var targetElements = (ctx.TargetType as ITupleType)?.ElementTypes;
+        var elements = new List<Expression>();
+        var elementNames = new List<string?>();
+
+        var elementNodes = GrammarRepetition.TwoLeadsAndRepeated(
+            node.First, node.Rest, node.TupleLiteralElements);
+
+        var targets = targetElements?.Count == elementNodes.Count ? targetElements : null;
+
+        for(var i = 0; i < elementNodes.Count; i++)
+        {
+            var (value, name) = elementNodes[i] switch
+            {
+                NamedTupleLiteralElementTupleLiteralElementNode named => (named.Value, named.Name.Lexeme),
+                UnnamedTupleLiteralElementTupleLiteralElementNode unnamed => (unnamed.Value, null),
+                _ => (null, null),
+            };
+
+            elementNames.Add(name);
+
+            if(value is null)
+            {
+                elements.Add(new UnresolvedExpression(elementNodes[i]));
+                continue;
+            }
+
+            using(ctx.PushTargetType(targets?[i]))
+            {
+                elements.Add(ExpressionBinder.BindExpression(value, ctx, context));
+            }
+        }
+
+        var tupleType = context.ProgramModel.TypeInterner.GetOrCreateTupleType(
+            elements.ConvertAll(element => element.Type));
+
+        return new TupleLiteralExpression(node, elements, elementNames, tupleType);
+    }
+
+    /// <summary>
     /// Binds an array literal, empty (<c>[]</c>) or not (<c>[a, b, c]</c>).
     /// <para>
     /// The element type comes from the target type when the surrounding construct

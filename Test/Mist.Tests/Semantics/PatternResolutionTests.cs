@@ -374,12 +374,11 @@ public sealed class PatternResolutionTests : ProgramModelProbe
     // ── Forms deferred to later orders ───────────────────────────────────
 
     [Fact]
-    public void PatternsOverStructure_ParkUnresolvedWithoutADiagnostic()
+    public void AListPattern_ParksUnresolvedWithoutADiagnostic()
     {
-        _ = InitializerOf<UnresolvedExpression>("var ok = u is (1, 2);");
         _ = InitializerOf<UnresolvedExpression>("var ok = u is [1];");
 
-        Assert.Empty(Errors(BuildRun("var ok = u is (1, 2);"), "MIST_PM_UNRESOLVED_IDENTIFIER"));
+        Assert.Empty(Errors(BuildRun("var ok = u is [1];"), "MIST_PM_UNRESOLVED_IDENTIFIER"));
     }
 
     [Fact]

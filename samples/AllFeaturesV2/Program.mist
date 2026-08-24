@@ -49,5 +49,7 @@ public class Program
         TypeAliases.Program.RunDemo();
         Newtypes.Program.RunDemo();
         TypeUnions.Program.RunDemo();
+        TuplePatternMatching.Program.RunDemo();
+        Tuples.Program.RunDemo();
     }
 }

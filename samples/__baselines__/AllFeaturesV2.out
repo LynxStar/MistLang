@@ -509,3 +509,63 @@ y assigned string: world
   before: assigned int
   after: switched
 Done!
+=== Tuple Pattern Matching Sample ===
+--- Constant subpatterns ---
+origin is (0, 0)
+point1 is (3, 4)
+--- Relational subpatterns ---
+point2 is in quadrant I
+point3 is in quadrant II
+--- Logical subpatterns ---
+both scores are in [80, 100]
+--- Var subpatterns ---
+n=42 s=hello
+--- Discard subpatterns ---
+second element > 15
+--- Type subpatterns ---
+i=123 str=world
+--- Nested tuple patterns ---
+nested: both positive with label
+--- Switch expression ---
+(0,5) => on y-axis
+--- When guard ---
+(100,200) => large
+--- 3-element tuple ---
+red-ish color with no blue
+--- Enum tuple switch ---
+(North,East) => right turn
+--- String-backed enum tuple switch ---
+(Error,Security) => page oncall immediately
+--- Three-element tuple switch ---
+(Post,Forbidden,False) => escalate to auth
+--- Mixed enum and discard ---
+(North,West) => heading north
+--- Enum with var binding ---
+(East,West) => leaving east, heading West
+--- Cross-type tuple (enum + int) ---
+(Warning,429) => rate limited - slow down
+Done!
+=== Tuples Sample ===
+--- Positional tuples ---
+pair.Item1=42 pair.Item2=forty-two
+--- Named tuples ---
+point.x=3 point.y=4
+positional: Item1=3 Item2=4
+--- Deconstruction ---
+var: a=10 b=20
+typed: u=100 v=200
+--- Nested tuples ---
+nested: inner=(1, 2) outer=label
+--- Unknown element ---
+tag=1
+payload: Hello, Mist!
+--- Deconstruct with unknown ---
+num=7
+data narrowed to string: seven
+--- Whole tuple in unknown ---
+narrowed: Item1=10 Item2=ten
+--- Named deconstruction from unknown ---
+x=100 y=200 positional=100
+--- Bare type pattern ---
+mystery is a (int, string) tuple
+Done!

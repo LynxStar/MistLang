@@ -103,13 +103,19 @@ public abstract class ProgramModelProbe : IDisposable
     private protected LocalDeclarationStatement DeclarationIn(
         string statement, string extraTypes, string extraPreamble = "")
     {
+        return BodyIn(statement, extraTypes, extraPreamble)
+            .Statements.OfType<LocalDeclarationStatement>().Last();
+    }
+
+    private protected Block BodyIn(string statement, string extraTypes = "", string extraPreamble = "")
+    {
         var model = BuildModel(statement, extraTypes, extraPreamble, out _);
 
         var probe = Assert.IsType<ClassType>(model.TypesByFQN["Probe.Probe"]);
         var run = probe.MethodsList.Single(m => m.Name == "Run");
 
         Assert.NotNull(run.Body);
-        return run.Body.Statements.OfType<LocalDeclarationStatement>().Last();
+        return run.Body;
     }
 
     private protected ProgramModelClass BuildModel(

@@ -34,11 +34,36 @@ internal static class TypeNameEmitter
             LiftedType lifted => Emit(lifted.Type),
             UnknownValueType unknownValue => Emit(unknownValue.Domain),
             UnionType union => EmitUnion(union),
+            NamedTupleType named => EmitTuple(named.ElementTypes, named.ElementNames),
+            TupleType tuple => EmitTuple(tuple.ElementTypes, elementNames: null),
             MemberType memberType => MapMemberType(memberType),
             ErrorType => "/* error */",
             UnknownType => "object",
             _ => type.Name,
         };
+    }
+
+    /// <summary>
+    /// The C# spelling of a tuple where a PATTERN is expected, which is NOT the spelling
+    /// <see cref="Emit"/> gives it. C# reads <c>(int, string)</c> in pattern position as a positional
+    /// pattern rather than as a type, so a type test emitted through <see cref="Emit"/> silently becomes
+    /// a deconstruction OF the scrutinee -- and fails outright on an <c>unknown</c>, which has no
+    /// Deconstruct. Naming the ValueTuple is the only spelling C# reads as a type here. Anything that is
+    /// not a tuple is spelled as it always is.
+    /// </summary>
+    internal static string EmitAsPatternType(IMistType type)
+    {
+        var elementTypes = type switch
+        {
+            NamedTupleType named => named.Underlying.ElementTypes,
+            TupleType tuple => tuple.ElementTypes,
+            _ => null,
+        };
+
+        return elementTypes is null
+            ? Emit(type)
+            : $"System.ValueTuple<{string.Join(", ", elementTypes.Select(Emit))}>"
+            ;
     }
 
     /// <summary>
@@ -71,10 +96,29 @@ internal static class TypeNameEmitter
         {
             StructType => true,
             EnumType => true,
+            TupleType => true,
+            NamedTupleType => true,
             RefinedType refined => IsValueKind(refined.BaseType),
             ConstructedType constructed => IsValueKind(constructed.Definition),
             _ => false,
         };
+    }
+
+    private static string EmitTuple(IReadOnlyList<IMistType> elementTypes, IReadOnlyList<string?>? elementNames)
+    {
+        var parts = new string[elementTypes.Count];
+
+        for(var i = 0; i < elementTypes.Count; i++)
+        {
+            var spelled = Emit(elementTypes[i]);
+
+            parts[i] = elementNames is not null && i < elementNames.Count && elementNames[i] is { } name
+                ? $"{spelled} {name}"
+                : spelled
+                ;
+        }
+
+        return $"({string.Join(", ", parts)})";
     }
 
     private static string EmitConstructed(ConstructedType constructed)

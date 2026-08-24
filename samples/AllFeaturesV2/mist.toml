@@ -31,3 +31,5 @@ VoidValueLiteral = { path = "../VoidValueLiteral" }
 TypeAliases = { path = "../TypeAliases" }
 Newtypes = { path = "../Newtypes" }
 TypeUnions = { path = "../TypeUnions" }
+TuplePatternMatching = { path = "../TuplePatternMatching" }
+Tuples = { path = "../Tuples" }

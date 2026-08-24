@@ -1,3 +1,4 @@
+using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Binding.Expressions;
 using Mist.ProgramModel.Contracts.Types;
@@ -5,6 +6,7 @@ using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
+using StormSyntaxNode = Storm.Runtime.SyntaxNode;
 
 namespace Mist.ProgramModel.Construction.Binding;
 
@@ -75,9 +77,109 @@ internal static class StatementBinder
                     return new LocalDeclarationStatement(local, initializer);
                 }
 
+            case VarTupleDeconstructionVariableDeclarationStatementNode inferredTuple:
+                return BindInferredDeconstruction(inferredTuple, ctx, context);
+
+            case TypedTupleDeconstructionVariableDeclarationStatementNode typedTuple:
+                return BindTypedDeconstruction(typedTuple, ctx, context);
+
             default:
                 return new UnsupportedStatement(statement);
         }
+    }
+
+    /// <summary>
+    /// <c>var (a, b) = source;</c>. Each target takes the type of the element it reads, so a target over
+    /// an <c>unknown</c> element is itself <c>unknown</c> and narrows from there.
+    /// </summary>
+    private static Statement BindInferredDeconstruction(
+        VarTupleDeconstructionVariableDeclarationStatementNode node, BindingContext ctx, BuilderContext context)
+    {
+        var initializer = ExpressionBinder.BindExpression(node.Initializer, ctx, context);
+        var names = GrammarRepetition.LeadAndRepeated(node.FirstName, node.RestNames);
+
+        if(ElementTypesFor(initializer, names.Count, node, context) is not { } elementTypes)
+        {
+            return new UnsupportedStatement(node);
+        }
+
+        var targets = new List<LocalVariable>(names.Count);
+
+        for(var i = 0; i < names.Count; i++)
+        {
+            var local = new LocalVariable(names[i].Lexeme, elementTypes[i]);
+            ctx.Scope.DeclareLocal(local, context.Diagnostics);
+            targets.Add(local);
+        }
+
+        return new TupleDeconstructionStatement(targets, initializer);
+    }
+
+    /// <summary>
+    /// <c>(int a, string b) = source;</c>. The declared target types are assembled into a tuple and
+    /// pushed as the initializer's target type, so a tuple LITERAL on the right binds each of its
+    /// elements against the target that will hold it.
+    /// </summary>
+    private static Statement BindTypedDeconstruction(
+        TypedTupleDeconstructionVariableDeclarationStatementNode node, BindingContext ctx, BuilderContext context)
+    {
+        var elementNodes = GrammarRepetition.TwoLeadsAndRepeated(
+            node.First, node.Rest, node.TupleDeconstructionElements);
+
+        var declaredTypes = elementNodes.ConvertAll(
+            element => context.Resolver.Resolve(element.Type, ctx.Scope));
+
+        Expression initializer;
+        using(ctx.PushTargetType(context.ProgramModel.TypeInterner.GetOrCreateTupleType(declaredTypes)))
+        {
+            initializer = ExpressionBinder.BindExpression(node.Initializer, ctx, context);
+        }
+
+        _ = ElementTypesFor(initializer, elementNodes.Count, node, context);
+
+        var targets = new List<LocalVariable>(elementNodes.Count);
+
+        for(var i = 0; i < elementNodes.Count; i++)
+        {
+            var local = new LocalVariable(elementNodes[i].Name.Lexeme, declaredTypes[i]);
+            ctx.Scope.DeclareLocal(local, context.Diagnostics);
+            targets.Add(local);
+        }
+
+        return new TupleDeconstructionStatement(targets, initializer);
+    }
+
+    /// <summary>
+    /// The element types a deconstruction reads, or null where the source cannot supply
+    /// <paramref name="targetCount"/> of them. An error-typed source answers null WITHOUT reporting,
+    /// whatever produced it having reported already.
+    /// </summary>
+    private static IReadOnlyList<IMistType>? ElementTypesFor(
+        Expression initializer, int targetCount, StormSyntaxNode node, BuilderContext context)
+    {
+        if(initializer.Type is Model.Types.ErrorType)
+        {
+            return null;
+        }
+
+        if(initializer.Type is not ITupleType tuple)
+        {
+            context.Diagnostics.ReportAtNode(
+                ProgramModelDiagnostics.DeconstructionSourceNotATuple, node, null, initializer.Type.Name);
+
+            return null;
+        }
+
+        if(tuple.ElementTypes.Count != targetCount)
+        {
+            context.Diagnostics.ReportAtNode(
+                ProgramModelDiagnostics.DeconstructionArityMismatch, node, null,
+                initializer.Type.Name, tuple.ElementTypes.Count, targetCount);
+
+            return null;
+        }
+
+        return tuple.ElementTypes;
     }
 
     private static Statement BindReturn(ReturnStatementNode returnStatement, BindingContext ctx, BuilderContext context)
@@ -100,6 +202,7 @@ internal static class StatementBinder
     {
         var thenScope = new BodyScope(ctx.Scope);
         var condition = BindConditionInto(node.Condition, thenScope, ctx, context);
+        var conditionBinds = thenScope.Locals.Count > 0;
 
         var thenBlock = new Block(node.ThenBranch);
         BodyBinder.BindNestedBlock(thenBlock, thenScope, ctx, context);
@@ -115,18 +218,19 @@ internal static class StatementBinder
             };
         }
 
-        return new IfStatement(condition, thenBlock, elseBranch);
+        return new IfStatement(condition, thenBlock, elseBranch, conditionBinds);
     }
 
     private static WhileStatement BindWhile(WhileStatementNode node, BindingContext ctx, BuilderContext context)
     {
         var bodyScope = new BodyScope(ctx.Scope);
         var condition = BindConditionInto(node.Condition, bodyScope, ctx, context);
+        var conditionBinds = bodyScope.Locals.Count > 0;
 
         var body = new Block(node.Body);
         BodyBinder.BindNestedBlock(body, bodyScope, ctx, context);
 
-        return new WhileStatement(condition, body);
+        return new WhileStatement(condition, body, conditionBinds);
     }
 
     /// <summary>

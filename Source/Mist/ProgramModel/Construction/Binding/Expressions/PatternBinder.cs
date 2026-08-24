@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Resolution;
@@ -51,7 +50,7 @@ internal static class PatternBinder
 
         var operands = new List<Pattern>();
 
-        foreach(var operand in Flatten(node.Left, node.AndPatterns))
+        foreach(var operand in GrammarRepetition.LeadAndRepeated(node.Left, node.AndPatterns))
         {
             if(BindAnd(operand, scrutineeType, bindingsPermitted: false, ctx, context) is not { } bound)
             {
@@ -79,7 +78,7 @@ internal static class PatternBinder
         // binds d as Dog. C# narrows a conjunction's input the same way, and emission hands the pattern
         // straight to it -- typing d against the wider type here would put the model at odds with the C#
         // it produced.
-        foreach(var operand in Flatten(node.Left, node.UnaryPatterns))
+        foreach(var operand in GrammarRepetition.LeadAndRepeated(node.Left, node.UnaryPatterns))
         {
             if(BindUnary(operand, narrowed, bindingsPermitted, ctx, context) is not { } bound)
             {
@@ -126,6 +125,13 @@ internal static class PatternBinder
             case TypePatternPrimaryPatternNode typePattern:
                 {
                     var tested = context.Resolver.Resolve(typePattern.Type, ctx.Scope);
+
+                    if(tested is NamedTupleType namedTuple)
+                    {
+                        return BindNamedTupleDeconstruction(
+                            node, namedTuple, typePattern.Name, scrutineeType, bindingsPermitted, ctx, context);
+                    }
+
                     var binding = Declare(node, typePattern.Name, tested, bindingsPermitted, ctx, context);
                     return BindTypeTest(node, tested, binding, scrutineeType, context);
                 }
@@ -144,6 +150,9 @@ internal static class PatternBinder
 
             case PropertyPatternPrimaryPatternNode propertyPattern:
                 return BindPropertyPattern(propertyPattern, scrutineeType, bindingsPermitted, ctx, context);
+
+            case TuplePositionalPatternPrimaryPatternNode tuplePattern:
+                return BindTuplePattern(tuplePattern, scrutineeType, bindingsPermitted, ctx, context);
 
             case ParenthesizedPatternPrimaryPatternNode paren:
                 return Bind(paren.Inner, scrutineeType, bindingsPermitted, ctx, context);
@@ -318,6 +327,131 @@ internal static class PatternBinder
         return new PropertyPattern(node, narrowed, subpatterns);
     }
 
+    private static Pattern? BindTuplePattern(
+        TuplePositionalPatternPrimaryPatternNode node,
+        IMistType scrutineeType,
+        bool bindingsPermitted,
+        BindingContext ctx,
+        BuilderContext context)
+    {
+        var elementNodes = GrammarRepetition.TwoLeadsAndRepeated(node.First, node.Rest, node.Patterns);
+        var matched = OptionalLifting.NonVoidPortion(scrutineeType, context.ProgramModel.TypeInterner);
+        var scrutineeElements = (matched as ITupleType)?.ElementTypes;
+
+        if(scrutineeElements is { } held && held.Count != elementNodes.Count)
+        {
+            context.Diagnostics.ReportAtNode(
+                ProgramModelDiagnostics.TuplePatternArityMismatch, node, null,
+                matched.Name, held.Count, elementNodes.Count);
+
+            return new TuplePattern(node, [], ErrorType.Instance, testedType: null, binding: null);
+        }
+
+        if(scrutineeElements is null && matched is not (UnknownType or ErrorType))
+        {
+            context.Diagnostics.ReportAtNode(
+                ProgramModelDiagnostics.TuplePatternScrutineeNotATuple, node, null, matched.Name);
+
+            return new TuplePattern(node, [], ErrorType.Instance, testedType: null, binding: null);
+        }
+
+        var elements = new List<Pattern>(elementNodes.Count);
+
+        for(var i = 0; i < elementNodes.Count; i++)
+        {
+            var elementScrutinee = scrutineeElements is null ? UnknownType.Instance : scrutineeElements[i];
+
+            if(Bind(elementNodes[i], elementScrutinee, bindingsPermitted, ctx, context) is not { } bound)
+            {
+                return null;
+            }
+
+            elements.Add(bound);
+        }
+
+        if(scrutineeElements is not null)
+        {
+            return new TuplePattern(node, elements, matched, testedType: null, binding: null);
+        }
+
+        if(matched is ErrorType)
+        {
+            return new TuplePattern(node, elements, ErrorType.Instance, testedType: null, binding: null);
+        }
+
+        return TupleFromElementPatterns(elements, context) is { } tested
+            ? new TuplePattern(node, elements, tested, tested, binding: null)
+            : null
+            ;
+    }
+
+    /// <summary>
+    /// The tuple type a pattern proves its scrutinee holds, read off what each element pattern narrows
+    /// to. Null where any element narrows to nothing nameable, which is every element testing a VALUE
+    /// rather than a type: <c>u is (0, 0)</c> on an <c>unknown</c> says the elements equal zero and not
+    /// which tuple holds them. DO NOT substitute <c>unknown</c> for the unnameable element to get an
+    /// answer -- the test would emit, compile, and never match, the runtime value being a tuple of ints
+    /// and not of objects.
+    /// </summary>
+    private static IMistType? TupleFromElementPatterns(List<Pattern> elements, BuilderContext context)
+    {
+        foreach(var element in elements)
+        {
+            if(element.NarrowedType is UnknownType or ErrorType)
+            {
+                return null;
+            }
+        }
+
+        return context.ProgramModel.TypeInterner.GetOrCreateTupleType(
+            elements.ConvertAll(element => element.NarrowedType));
+    }
+
+    /// <summary>
+    /// <c>(int x, int y) whole</c>, which the grammar hands over as a TYPE pattern over a named tuple
+    /// rather than as a tuple pattern: <c>(int x, int y)</c> is a valid type reference and the type
+    /// alternative is tried first, so the element names arrive as names ON THE TYPE. They mean locals,
+    /// as they do in C#, and lifting them here is what makes the three bindings the source spells
+    /// reachable at all.
+    /// <para>
+    /// The whole-value binding is typed by the UNDERLYING tuple, so <c>whole.x</c> deliberately does not
+    /// resolve -- the names became locals and are not also members of what <c>whole</c> holds.
+    /// </para>
+    /// </summary>
+    private static Pattern BindNamedTupleDeconstruction(
+        PrimaryPatternNode node,
+        NamedTupleType namedTuple,
+        Token name,
+        IMistType scrutineeType,
+        bool bindingsPermitted,
+        BindingContext ctx,
+        BuilderContext context)
+    {
+        var elementTypes = namedTuple.Underlying.ElementTypes;
+        var elements = new List<Pattern>(elementTypes.Count);
+
+        for(var i = 0; i < elementTypes.Count; i++)
+        {
+            var elementName = i < namedTuple.ElementNames.Count ? namedTuple.ElementNames[i] : null;
+
+            var elementBinding = elementName is null
+                ? null
+                : DeclareNamed(node, elementName, elementTypes[i], bindingsPermitted, ctx, context)
+                ;
+
+            elements.Add(new CatchAllPattern(node, elementTypes[i], elementBinding));
+        }
+
+        var matched = OptionalLifting.NonVoidPortion(scrutineeType, context.ProgramModel.TypeInterner);
+
+        return new TuplePattern(
+            node,
+            elements,
+            namedTuple.Underlying,
+            matched is ITupleType ? null : namedTuple.Underlying,
+            Declare(node, name, namedTuple.Underlying, bindingsPermitted, ctx, context));
+    }
+
     private static void ReportSubpatternNotStorage(
         LookupResult found,
         IMistType matched,
@@ -334,7 +468,7 @@ internal static class PatternBinder
 
     private static IReadOnlyList<PropertySubpatternNode> Subpatterns(PropertySubpatternListNode? list)
     {
-        return list is null ? [] : Flatten(list.PropertySubpattern, list.PropertySubpatterns);
+        return list is null ? [] : GrammarRepetition.LeadAndRepeated(list.PropertySubpattern, list.PropertySubpatterns);
     }
 
     /// <summary>
@@ -405,21 +539,6 @@ internal static class PatternBinder
     }
 
     /// <summary>
-    /// Left followed by every repeated operand. The generated Right slot holds the LAST repetition
-    /// element and that element is ALSO in the array, so a fold reading Left and Right silently drops
-    /// everything between them -- which is how the classic emitter loses the <c>b</c> of
-    /// <c>a or b or c</c>.
-    /// </summary>
-    private static List<T> Flatten<T>(T left, ImmutableArray<T> repeated)
-        where T : class
-    {
-        var operands = new List<T>(1 + repeated.Length) { left };
-        operands.AddRange(repeated);
-
-        return operands;
-    }
-
-    /// <summary>
     /// Declares a pattern's binding, or answers null where the pattern keeps nothing. The grammar puts
     /// the discard in the SAME slot as a name (<c>name:(IDENTIFIER | DISCARD)</c>), so <c>int _</c>
     /// arrives as a type pattern carrying a discard token, never as a discard pattern, and the token's
@@ -433,20 +552,29 @@ internal static class PatternBinder
         BindingContext ctx,
         BuilderContext context)
     {
-        if(name.Kind == (int)TokenKind.DISCARD)
-        {
-            return null;
-        }
+        return name.Kind == (int)TokenKind.DISCARD
+            ? null
+            : DeclareNamed(node, name.Lexeme, type, bindingsPermitted, ctx, context)
+            ;
+    }
 
+    private static LocalVariable? DeclareNamed(
+        SyntaxNode node,
+        string name,
+        IMistType type,
+        bool bindingsPermitted,
+        BindingContext ctx,
+        BuilderContext context)
+    {
         if(!bindingsPermitted)
         {
             context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.PatternBindingNotEstablished, node, null, name.Lexeme);
+                ProgramModelDiagnostics.PatternBindingNotEstablished, node, null, name);
 
             return null;
         }
 
-        var local = new LocalVariable(name.Lexeme, type);
+        var local = new LocalVariable(name, type);
         ctx.Scope.DeclareLocal(local, context.Diagnostics);
 
         return local;

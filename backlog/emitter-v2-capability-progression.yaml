@@ -4408,8 +4408,42 @@ capabilities:
     order: 100
     layer: tuples
     requires: [class-declaration]
-    v2_status: missing
-    evidence: Positional tuple types and literals, nested to arbitrary depth.
+    v2_status: done
+    verified_by: v2-semantics
+    evidence: >
+      THE TYPE SIDE WAS ALREADY BUILT AND TESTED -- TupleType with its synthesized Item1..ItemN fields,
+      NamedTupleType decorating it, the interner's arity-sensitive reference-identity key, ScopeResolver's
+      resolution, and TypeMemberLookup answering both `pair.Item1` and `point.x`. What was missing was
+      everything from the literal onwards: no expression node, no binder arm, no conversion arm, and not
+      one mention of a tuple anywhere under the emitter.
+
+      A LITERAL IS TYPED BY THE INTERNED STRUCTURAL TUPLE, never by a NamedTupleType, and the names it
+      spells are use-site metadata on the expression node. Wrapping them into the type would produce one
+      interned tuple per spelling and put two literals of the same shape at different identities. A
+      DECLARATION site is the asymmetric case and does wrap, because there the names are part of what was
+      declared -- so `(x: 3, y: 4)` is a `(Int32, Int32)` while `(int x, int y) p` is a decoration over
+      one.
+
+      ELEMENTS BIND AGAINST THE TARGET'S ELEMENTS, one position at a time, which is what lets a
+      target-typed `new()` sit in an element and what carries a string into an `unknown` slot. A target of
+      another arity supplies no element target at all, saying nothing about what any one element should
+      be. The element push is guarded by the one element form that cannot bind without it: a bare `new()`
+      has no type of its own.
+
+      THE CONVERSION ARM DID NOT EXIST AT ALL, and the hole it left was sharper than arity. Type identity
+      in v2 is compared by fully qualified name, and a NamedTupleType's name INTERPOLATES its element
+      names -- `(Int32 x, Int32 y)` against `(Int32, Int32)` -- so a named tuple was not identical to its
+      own shape and `(int x, int y) p = (x: 3, y: 4)` had no rule to accept it. The unwrap to Underlying
+      therefore goes at the ENTRY of both IsWithin and IsIdentity rather than being an arm of either.
+      Mutation-checked, and the result was more precise than expected: removing it fails the identity
+      assertion ONLY -- containment survives through the element-wise arm, which is the second half of
+      this order and makes a tuple widen wherever its elements do, so `(byte, string)` is within
+      `(int, string)`.
+
+      EMISSION KEEPS ELEMENT NAMES IN TYPE POSITION, because `point.x` is emitted as `.x` and only
+      compiles if the C# type carries the name. Tuples are also value kinds now, so `(int, string)?` spells
+      as Nullable of the tuple rather than as the bare type with null for absence -- a ValueTuple is a
+      struct, and IsValueKind answering false for it was wrong.
     unlocks: []
 
   - id: named-tuple-elements
@@ -4417,11 +4451,22 @@ capabilities:
     order: 101
     layer: tuples
     requires: [tuple-types-and-literals]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      Named and positional member access on one value, with a named literal checked against
-      a declared named tuple type. Element names must NOT leak into the whole-tuple
-      binding's type.
+      Small, because the model types, ScopeResolver's wrapping and TypeMemberLookup's two-armed FieldsOf
+      were finished work before this layer opened. What order 101 adds is the literal's element-name slot,
+      the NamedTupleType arms in the conversion relation and the type name emitter, and the demonstration
+      that names do not leak where they must not.
+
+      NAMES DO NOT REACH THE WHOLE-TUPLE BINDING. `u is (int x, int y) whole` keeps three names, and
+      `whole` is typed by the UNNAMED underlying tuple, so `whole.x` deliberately does not resolve while
+      `whole.Item1` does. Both halves are asserted, the second being what makes the first non-vacuous.
+
+      TRAP 5 IS REAL AND MEASURED: NamedTupleType is not interned, so two declarations of `(int x, int y)`
+      are distinct references sharing one interned Underlying. Recorded as three separate assertions --
+      the decorations differ, the underlyings are the same instance, and that instance is the very same
+      one an equivalent unnamed declaration resolves to.
     unlocks: []
 
   - id: tuple-deconstruction
@@ -4429,10 +4474,29 @@ capabilities:
     order: 102
     layer: tuples
     requires: [tuple-types-and-literals]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      Var form inferring each target and typed form checking each declared target type,
-      including through an unknown element type.
+      ONE MODEL KIND AND ONE EMISSION SHAPE FOR BOTH FORMS, which differ only in where a target's type
+      came from -- inferred from the element it reads, or written at the target -- and not in what the
+      statement does. Emission always spells each target's type explicitly, `(int a, string b) = source`,
+      rather than deferring to C#'s `var (a, b)`: the types are the ones the MODEL resolved, and a `var`
+      form would hand the choice back to C# inference, which types a target by the element as C# sees it.
+      That matters exactly where the two disagree, which is an `unknown` element -- `unknown` is Mist's
+      top type and `object` is not.
+
+      A TARGET OVER AN UNKNOWN ELEMENT IS ITSELF UNKNOWN and narrows from there, which is the property the
+      sample's `var (num, data) = source` then `data is string ds` depends on.
+
+      THE TYPED FORM PUSHES ITS DECLARED TARGETS onto the initializer as a tuple, so a literal on the right
+      binds each element against the target that will hold it. Guarded by a bare `new()` in an element,
+      the one form that cannot bind without the push.
+
+      TRAP 2 CONFIRMED at the generated parser: VarTupleDeconstruction carries FirstName, RestNames and a
+      vestigial IDENTIFIERs array that no parse method ever assigns. RestNames is the array. Its repetition
+      is `*` where the typed sibling's second element is required, so `var (only) = pair;` PARSES -- and
+      then cannot be satisfied by anything, a tuple needing two elements, so the arity it asks for is
+      unreachable rather than merely unmatched. Recorded as a test so the asymmetry stays visible.
     unlocks: []
 
   - id: tuple-patterns
@@ -4440,12 +4504,75 @@ capabilities:
     order: 103
     layer: tuples
     requires: [tuple-types-and-literals, logical-patterns]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      Disambiguated from a parenthesized single pattern at parse time. Arity checked against
-      the tuple type, each element position typed independently, recursively nestable. Whether
-      the pattern is a deconstruction or a runtime type test depends on whether the scrutinee
-      is statically a tuple.
+      THE FIRST REGRESSION GUARD ON ORDERS 90-99. Both samples are banked in AllFeaturesV2, so the
+      patterns layer's emission is now held to a baseline diff instead of to hand verification. Orders 93
+      and 99 were the two that shipped unguarded: TuplePatternMatching exercises order 99's
+      `var __eN when` machinery through enum variants in tuple elements, and SwitchExpressions'
+      `{ Item1: 0, Item2: 0 }` reaches order 93's property patterns over a tuple, which cost nothing extra
+      once a literal existed because member lookup already resolved Item1.
+
+      THREE GRAMMAR ALTERNATIVES, VERIFIED EMPIRICALLY BEFORE ANY DESIGN, because the ordered choice is
+      not obvious from the rules: `(int, string)` is a valid type reference, so the TYPE alternative claims
+      any tuple followed by a name. `u is (int, string)` and `u is (int i, string s)` are tuple patterns;
+      `u is (int, string) whole` and `u is (int x, int y) whole` are type patterns. Nothing but the
+      trailing name decides. Recorded as four tests asserting the MODEL each reading produces, that being
+      the consequence worth pinning.
+
+      WHAT `is (int x, int y) named` BINDS was the open question, and the answer is that the element names
+      mean LOCALS, as they do in C#. It arrives as a type pattern over a NamedTupleType, where the names
+      are names on the TYPE, and the binder lifts them: a TuplePattern whose elements each bind one name at
+      one element type, plus a whole-value binder. THIS IS WHERE `Binding` BEING SINGULAR PER NODE GETS ITS
+      FIRST REAL TEST AT THE PATTERN NODE LEVEL -- order 93 established the subpattern half, and here a
+      node genuinely needs its own binder as well as its subpatterns'. Singular per node, not at most one
+      beneath.
+
+      DECONSTRUCT OR TYPE-TEST IS DECIDED AT CONSTRUCTION and recorded on the pattern, because the two are
+      different C# CONSTRUCTS and not two spellings of one. A scrutinee already typed as a tuple takes a
+      bare positional pattern; one that is not has to name the ValueTuple first. Where the scrutinee is not
+      a tuple, the type to test is read back OFF the element patterns, which works only while every one of
+      them names a type -- `u is (0, 0)` says the elements equal zero and not which tuple holds them, so
+      the whole `is` parks. Substituting `unknown` for the unnameable element would have emitted, compiled,
+      and never matched, the runtime value being a tuple of ints and not of objects.
+
+      OPEN QUESTION 1 WAS SHARPER THAN RECORDED. The guess was that TypeNameEmitter emits near-valid C# by
+      accident. It does not: C# reads `(int, string)` in PATTERN position as a positional pattern, so
+      `box is (int, string) pair2` against an `unknown` is not a near-miss type test but a DECONSTRUCTION
+      of object, which has no Deconstruct (CS8129). A second spelling was needed --
+      `System.ValueTuple<...>` -- and it is the sample that guards it: mutation-checked, collapsing
+      EmitAsPatternType into Emit fails the Tier 6 diff and nothing else.
+
+      ONE HOISTING WALK, NOT TWO. An enum variant lowers to a static readonly field, which C# will not
+      admit in a pattern, so a variant in a tuple element becomes `var __eN` in the pattern plus
+      `__eN == Variant` beside it -- in a `when` guard for an arm, in a trailing `&&` for an `is`. The
+      collect and the rewrite are the SAME walk, threading a list that `or` and `not` clear: two walks
+      agreeing by convention would have emitted a pattern whose comparison silently went nowhere. With the
+      list cleared, the element falls to EmitComparison and is refused there, which is order 99's existing
+      refusal reached rather than duplicated. Unifying this SIMPLIFIED EmitArm: order 99's whole-pattern
+      case is now the same code path with one hoisted test.
+
+      A PRE-EXISTING V2 GAP HAD TO BE FIXED TO BANK ANYTHING, and it is not about tuples. Mist scopes a
+      pattern binding to the branch its condition guards; C# scopes it to the block CONTAINING the `if`.
+      So a name reused later in the same Mist scope collided (CS0136) against a binding Mist considered out
+      of scope. Classic wraps such an `if` in an extra braced block; v2 did not, and `if (a is Dog d) { }`
+      followed by anything else named `d` failed before this order. Construction records whether the
+      condition bound anything -- it is the only party that knows -- and emission contains it. Reproduced
+      on a two-local program with no tuple in it, so the gap is independent of this layer and was merely
+      first reached by it.
+    analysis_phase_tasks:
+      - >
+        Report a tuple pattern whose arity or element types make it unsatisfiable for a reason arity
+        alone does not catch -- an element testing a type no value of that element's type can hold. Arity
+        against a statically-typed tuple IS refused at construction, because the arity is what pairs each
+        element pattern with the type it narrows; unsatisfiability beyond that is a judgement on a
+        finished model.
+      - >
+        Decide exhaustiveness for a tuple scrutinee. TuplePatternMatching's seven-arm quadrant switch has
+        no catch-all and compiles because v2 runs no analyzers and Roslyn's CS8509 is a warning that
+        CSharpCompilationDriver does not collect. Classic accepts it for a different and equally
+        accidental reason, recorded on order 97. Neither is a proof.
     unlocks: [TuplePatternMatching, Tuples]
 
   # ===================================================================
@@ -6406,8 +6533,15 @@ samples:
                unknown-top-type, string-interpolation, var-type-inference]
     untested:
       - Only one test is expected to be false; nothing checks that a wrong-arity or
-        wrong-element-type narrow is rejected.
+        wrong-element-type narrow is rejected. Both refusals now exist and are covered by
+        TuplePatternResolutionTests and TupleDeconstructionResolutionTests, which is where a
+        compile failure has to be recorded -- but the SAMPLE still proves neither.
       - No optional element appears, so absence never interacts with tuples.
+      - Every tuple pattern the sample matches against an unknown either has no element
+        binders or is the named-deconstruction form, so `u is (int i, string s)` -- the form
+        needing a ValueTuple type test AND element binders together -- is reached by no sample.
+        Verified by hand end to end, including a deliberately non-matching shape and a nested
+        case; the type-test decision itself is guarded by a model test.
 
   - name: TuplePatternMatching
     intro_order: 62
@@ -6415,11 +6549,16 @@ samples:
     requires: [tuple-patterns, enum-member-patterns, when-guards, unknown-top-type,
                string-interpolation]
     untested:
-      - The quadrant switch has no catch-all and is accepted ONLY because the exhaustiveness
+      - >
+        The quadrant switch has no catch-all and is accepted ONLY because the exhaustiveness
         checker returns exhaustive unconditionally for a tuple scrutinee. That is an accident,
-        not a proof.
+        not a proof. On v2 it is accepted for a SECOND accidental reason: no analyzer runs at
+        all, and Roslyn's CS8509 is a warning the compilation driver does not collect.
       - Overlapping enum arms never disagree, so first-match ordering is unproven, and no
         scrutinee misses every arm.
+      - Every enum-in-tuple-element arm is a switch arm, so the `is` form of the same
+        lowering -- the hoisted comparison joined by `&&` rather than by `when` -- is
+        exercised by no sample.
 
   - name: AnonymousTypes
     intro_order: 80

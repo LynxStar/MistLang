@@ -80,20 +80,16 @@ internal static class BodyEmitter
                 EmitLocalDeclaration(localDecl, writer, diagnostics);
                 break;
 
+            case TupleDeconstructionStatement deconstruction:
+                EmitDeconstruction(deconstruction, writer, diagnostics);
+                break;
+
             case IfStatement ifStmt:
-                EmitIf(ifStmt, writer, diagnostics);
+                EmitContained(ifStmt.ConditionBinds, writer, () => EmitIf(ifStmt, writer, diagnostics));
                 break;
 
             case WhileStatement whileStmt:
-                writer.Write("while (");
-                EmitExpression(whileStmt.Condition, writer, diagnostics);
-                writer.Append(")");
-                writer.AppendLine();
-                using(writer.Block())
-                {
-                    EmitBlock(whileStmt.Body, writer, diagnostics);
-                }
-
+                EmitContained(whileStmt.ConditionBinds, writer, () => EmitWhile(whileStmt, writer, diagnostics));
                 break;
 
             case ForStatement forStmt:
@@ -162,6 +158,56 @@ internal static class BodyEmitter
         writer.AppendLine();
     }
 
+    /// <summary>
+    /// A statement wrapped in a braced block when its condition introduced a pattern binding. C# scopes
+    /// such a binding to the block CONTAINING the statement, where Mist scopes it to the branch the
+    /// condition guards, so without the wrapper a name reused later in the same Mist scope collides
+    /// (CS0136) against a binding Mist considers out of scope by then.
+    /// </summary>
+    private static void EmitContained(bool contain, CSharpWriter writer, Action emit)
+    {
+        if(!contain)
+        {
+            emit();
+            return;
+        }
+
+        using(writer.Block())
+        {
+            emit();
+        }
+    }
+
+    private static void EmitWhile(WhileStatement whileStmt, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        writer.Write("while (");
+        EmitExpression(whileStmt.Condition, writer, diagnostics);
+        writer.Append(")");
+        writer.AppendLine();
+
+        using(writer.Block())
+        {
+            EmitBlock(whileStmt.Body, writer, diagnostics);
+        }
+    }
+
+    /// <summary>
+    /// Each target spelled with its own type rather than through <c>var</c>, so both Mist forms lower to
+    /// one shape and the types are the ones the MODEL resolved -- a <c>var</c> form would hand the choice
+    /// back to C#'s inference, which types a target by the element as C# sees it and not as Mist does.
+    /// </summary>
+    private static void EmitDeconstruction(
+        TupleDeconstructionStatement deconstruction, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        var targets = deconstruction.Targets.Select(
+            target => $"{TypeNameEmitter.Emit(target.Type)} {target.Name}");
+
+        writer.Write($"({string.Join(", ", targets)}) = ");
+        EmitExpression(deconstruction.Initializer, writer, diagnostics);
+        writer.Append(";");
+        writer.AppendLine();
+    }
+
     private static void EmitIf(IfStatement ifStmt, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         writer.Write("if (");
@@ -173,7 +219,15 @@ internal static class BodyEmitter
             EmitBlock(ifStmt.ThenBranch, writer, diagnostics);
         }
 
-        if(ifStmt.ElseBranch is IfStatement elseIf)
+        if(ifStmt.ElseBranch is IfStatement { ConditionBinds: true } bindingElseIf)
+        {
+            writer.WriteLine("else");
+            using(writer.Block())
+            {
+                EmitIf(bindingElseIf, writer, diagnostics);
+            }
+        }
+        else if(ifStmt.ElseBranch is IfStatement elseIf)
         {
             writer.Write("else ");
             EmitIf(elseIf, writer, diagnostics);
@@ -317,6 +371,10 @@ internal static class BodyEmitter
 
                 break;
 
+            case TupleLiteralExpression tupleLiteral:
+                EmitTupleLiteral(tupleLiteral, writer, diagnostics);
+                break;
+
             case InterpolatedStringExpression interpolated:
                 writer.Append("$\"");
                 foreach(var part in interpolated.Parts)
@@ -455,6 +513,29 @@ internal static class BodyEmitter
             : $"default({TypeNameEmitter.Emit(type)})";
     }
 
+    private static void EmitTupleLiteral(
+        TupleLiteralExpression tupleLiteral, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        writer.Append("(");
+
+        for(var i = 0; i < tupleLiteral.Elements.Count; i++)
+        {
+            if(i > 0)
+            {
+                writer.Append(", ");
+            }
+
+            if(tupleLiteral.ElementNames.Count > i && tupleLiteral.ElementNames[i] is { } name)
+            {
+                writer.Append($"{name}: ");
+            }
+
+            EmitExpression(tupleLiteral.Elements[i], writer, diagnostics);
+        }
+
+        writer.Append(")");
+    }
+
     private static void EmitIsPattern(
         IsPatternExpression isPattern, CSharpWriter writer, DiagnosticBag diagnostics)
     {
@@ -470,9 +551,51 @@ internal static class BodyEmitter
             return;
         }
 
+        var (patternText, hoisted) = RenderPattern(isPattern.Pattern, diagnostics);
+
+        // Parenthesized only when there are hoisted tests to need it, so an `is` without them keeps the
+        // shape and the precedence the surrounding expression was emitted against. With them the whole
+        // thing binds as a conjunction, which C# ranks BELOW the equality an `is` may sit under.
+        if(hoisted.Count > 0)
+        {
+            writer.Append("(");
+        }
+
         EmitSubExpression(isPattern.Scrutinee, RelationalPrecedence, writer, diagnostics);
-        writer.Append(" is ");
-        EmitPattern(isPattern.Pattern, 0, writer, diagnostics);
+        writer.Append($" is {patternText}");
+
+        if(hoisted.Count > 0)
+        {
+            EmitHoistedTests(hoisted, " && ", writer, diagnostics);
+            writer.Append(")");
+        }
+    }
+
+    /// <summary>
+    /// A pattern written to a writer of its own, so a caller can learn what the walk hoisted out of it
+    /// before committing anything ahead of the pattern. Safe because pattern emission never indents or
+    /// breaks a line -- it only appends.
+    /// </summary>
+    private static (string Text, List<HoistedTest> Hoisted) RenderPattern(
+        Pattern pattern, DiagnosticBag diagnostics)
+    {
+        var scratch = new CSharpWriter();
+        var hoisted = new List<HoistedTest>();
+
+        EmitPattern(pattern, 0, hoisted, scratch, diagnostics);
+
+        return (scratch.ToString(), hoisted);
+    }
+
+    private static void EmitHoistedTests(
+        List<HoistedTest> hoisted, string lead, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        foreach(var test in hoisted)
+        {
+            writer.Append($"{lead}{test.Bound} == ");
+            EmitExpression(test.Variant, writer, diagnostics);
+            lead = " && ";
+        }
     }
 
     private static void EmitVariantComparison(
@@ -484,6 +607,14 @@ internal static class BodyEmitter
         EmitExpression(variant, writer, diagnostics);
         writer.Append(")");
     }
+
+    /// <summary>
+    /// An enum variant lifted out of a tuple element into a condition beside the pattern, because C#
+    /// admits only a compile-time constant in a pattern and a Mist variant lowers to a static readonly
+    /// field. <see cref="Bound"/> names what the element position binds instead, so the comparison has
+    /// something to read.
+    /// </summary>
+    private readonly record struct HoistedTest(string Bound, Expression Variant);
 
     /// <summary>
     /// A union carrier stands in no relation to its own constituents, so a C# type test against one
@@ -500,7 +631,7 @@ internal static class BodyEmitter
         {
             EmitSubExpression(isPattern.Scrutinee, RelationalPrecedence, writer, diagnostics);
             writer.Append(" is ");
-            EmitPattern(isPattern.Pattern, 0, writer, diagnostics);
+            EmitPattern(isPattern.Pattern, 0, hoisted: null, writer, diagnostics);
             return;
         }
 
@@ -514,7 +645,7 @@ internal static class BodyEmitter
 
         EmitSubExpression(isPattern.Scrutinee, PrefixPrecedence, writer, diagnostics);
         writer.Append($".{UnionCarrierNames.NarrowingAccessor(constituent)} is ");
-        EmitPattern(isPattern.Pattern, 0, writer, diagnostics);
+        EmitPattern(isPattern.Pattern, 0, hoisted: null, writer, diagnostics);
     }
 
     /// <summary>
@@ -536,27 +667,40 @@ internal static class BodyEmitter
 
     private static void EmitArm(SwitchArm arm, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        var variant = EnumVariantTested(arm.Pattern);
+        var hoisted = new List<HoistedTest>();
 
-        if(variant is null)
+        if(EnumVariantTested(arm.Pattern) is { } variant)
         {
-            EmitPattern(arm.Pattern, 0, writer, diagnostics);
+            var bound = TemporaryName(arm.Pattern);
+            writer.Append($"var {bound}");
+            hoisted.Add(new HoistedTest(bound, variant));
         }
         else
         {
-            var bound = $"__e{arm.Pattern.Node.Span.Start}";
-            writer.Append($"var {bound} when {bound} == ");
-            EmitExpression(variant, writer, diagnostics);
+            var (patternText, nested) = RenderPattern(arm.Pattern, diagnostics);
+            writer.Append(patternText);
+            hoisted.AddRange(nested);
+        }
+
+        if(hoisted.Count > 0)
+        {
+            writer.Append(" when");
+            EmitHoistedTests(hoisted, " ", writer, diagnostics);
         }
 
         if(arm.Guard is { } guard)
         {
-            writer.Append(variant is null ? " when " : " && ");
+            writer.Append(hoisted.Count > 0 ? " && " : " when ");
             EmitSubExpression(guard, GetPrecedence(BinaryOperatorKind.LogicalAnd), writer, diagnostics);
         }
 
         writer.Append(" => ");
         EmitExpression(arm.Result, writer, diagnostics);
+    }
+
+    private static string TemporaryName(Pattern pattern)
+    {
+        return $"__e{pattern.Node.Span.Start}";
     }
 
     /// <summary>
@@ -586,8 +730,19 @@ internal static class BodyEmitter
             ;
     }
 
+    /// <summary>
+    /// <paramref name="hoisted"/> null means an enum variant nested in this pattern may NOT be lifted
+    /// into a condition beside it, which <c>or</c> and <c>not</c> impose: the element position would have
+    /// to bind for the comparison to read it, and neither establishes a binding. Cleared rather than
+    /// checked afterwards so the element falls to <see cref="EmitComparison"/> and is refused there,
+    /// instead of emitting a pattern whose comparison silently went nowhere.
+    /// </summary>
     private static void EmitPattern(
-        Pattern pattern, int combinatorPrecedence, CSharpWriter writer, DiagnosticBag diagnostics)
+        Pattern pattern,
+        int combinatorPrecedence,
+        List<HoistedTest>? hoisted,
+        CSharpWriter writer,
+        DiagnosticBag diagnostics)
     {
         var parenthesize = PatternPrecedence(pattern) < combinatorPrecedence;
 
@@ -599,7 +754,7 @@ internal static class BodyEmitter
         switch(pattern)
         {
             case TypeTestPattern typeTest:
-                writer.Append(TypeNameEmitter.Emit(typeTest.NarrowedType));
+                writer.Append(TypeNameEmitter.EmitAsPatternType(typeTest.NarrowedType));
                 if(typeTest.Binding is { } tested)
                 {
                     writer.Append($" {tested.Name}");
@@ -617,27 +772,69 @@ internal static class BodyEmitter
 
             case NegatedPattern negated:
                 writer.Append("not ");
-                EmitPattern(negated.Operand, NegationPrecedence, writer, diagnostics);
+                EmitPattern(negated.Operand, NegationPrecedence, hoisted: null, writer, diagnostics);
                 break;
 
             case ConjunctionPattern conjunction:
                 EmitList.Separated(conjunction.Operands, " and ", writer, operand =>
-                    EmitPattern(operand, ConjunctionPrecedence, writer, diagnostics));
+                    EmitPattern(operand, ConjunctionPrecedence, hoisted, writer, diagnostics));
                 break;
 
             case DisjunctionPattern disjunction:
                 EmitList.Separated(disjunction.Operands, " or ", writer, operand =>
-                    EmitPattern(operand, DisjunctionPrecedence, writer, diagnostics));
+                    EmitPattern(operand, DisjunctionPrecedence, hoisted: null, writer, diagnostics));
                 break;
 
             case PropertyPattern property:
                 EmitPropertyPattern(property, writer, diagnostics);
+                break;
+
+            case TuplePattern tuple:
+                EmitTuplePattern(tuple, hoisted, writer, diagnostics);
                 break;
         }
 
         if(parenthesize)
         {
             writer.Append(")");
+        }
+    }
+
+    private static void EmitTuplePattern(
+        TuplePattern tuple, List<HoistedTest>? hoisted, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        if(tuple.TestedType is { } tested)
+        {
+            writer.Append(TypeNameEmitter.EmitAsPatternType(tested));
+        }
+
+        writer.Append("(");
+
+        for(var i = 0; i < tuple.Elements.Count; i++)
+        {
+            if(i > 0)
+            {
+                writer.Append(", ");
+            }
+
+            var element = tuple.Elements[i];
+
+            if(hoisted is not null && EnumVariantTested(element) is { } variant)
+            {
+                var bound = TemporaryName(element);
+                writer.Append($"var {bound}");
+                hoisted.Add(new HoistedTest(bound, variant));
+                continue;
+            }
+
+            EmitPattern(element, 0, hoisted, writer, diagnostics);
+        }
+
+        writer.Append(")");
+
+        if(tuple.Binding is { } whole)
+        {
+            writer.Append($" {whole.Name}");
         }
     }
 
@@ -683,7 +880,7 @@ internal static class BodyEmitter
         EmitList.Separated(property.Subpatterns, ", ", writer, subpattern =>
         {
             writer.Append($"{subpattern.MemberName}: ");
-            EmitPattern(subpattern.Pattern, 0, writer, diagnostics);
+            EmitPattern(subpattern.Pattern, 0, hoisted: null, writer, diagnostics);
         });
 
         writer.Append(" }");

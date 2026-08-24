@@ -269,7 +269,7 @@ internal static class PostfixBinder
         }
 
         var resolved = TypeSubstitution
-            .ForReceiver(constructed)
+            .ForMember(constructed, found, interner)
             .Apply(MemberTypeOf(found), interner);
 
         var lifted = OptionalLifting.Lift(
@@ -304,7 +304,7 @@ internal static class PostfixBinder
         }
 
         var resolved = TypeSubstitution
-            .ForReceiver(constructed)
+            .ForMember(constructed, found, context.ProgramModel.TypeInterner)
             .Apply(MemberTypeOf(found), context.ProgramModel.TypeInterner);
 
         return new MemberAccessExpression(node, receiver, memberName, resolved);

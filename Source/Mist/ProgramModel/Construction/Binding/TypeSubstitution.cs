@@ -2,6 +2,7 @@ using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Binding;
@@ -30,6 +31,49 @@ internal sealed class TypeSubstitution
         }
 
         return ByOrdinal(definition.TypeParametersList, receiver.TypeArguments);
+    }
+
+    /// <summary>
+    /// The receiver's own mapping composed with one per constructed base the member was reached
+    /// through, which is what an INHERITED member of a generic base needs: <c>Container.T</c> is bound
+    /// to <c>ExtendedContainer.T</c> by the base clause and only then to <c>int</c> by the receiver, so
+    /// neither step alone answers. Each base's arguments are resolved through the map built so far
+    /// before becoming bindings themselves, so the composition works to any depth and does not assume a
+    /// base reuses its deriver's parameter names or order.
+    /// </summary>
+    public static TypeSubstitution ForMember(
+        ConstructedType? receiver, LookupResult found, TypeInterner? interner)
+    {
+        var substitution = ForReceiver(receiver);
+
+        foreach(var construction in ReachedThrough(found))
+        {
+            if(construction.Definition is not IHasTypeParameters definition)
+            {
+                continue;
+            }
+
+            var arguments = new IMistType?[construction.TypeArguments.Count];
+
+            for(var i = 0; i < arguments.Length; i++)
+            {
+                arguments[i] = substitution.Apply(construction.TypeArguments[i], interner);
+            }
+
+            substitution = substitution.Extend(ByOrdinal(definition.TypeParametersList, arguments));
+        }
+
+        return substitution;
+    }
+
+    private static IReadOnlyList<ConstructedType> ReachedThrough(LookupResult found)
+    {
+        return found switch
+        {
+            FieldResult field => field.BaseConstructions,
+            PropertyResult property => property.BaseConstructions,
+            _ => [],
+        };
     }
 
     /// <param name="typeArguments">

@@ -51,5 +51,6 @@ public class Program
         TypeUnions.Program.RunDemo();
         TuplePatternMatching.Program.RunDemo();
         Tuples.Program.RunDemo();
+        StructInheritance.Program.RunDemo();
     }
 }

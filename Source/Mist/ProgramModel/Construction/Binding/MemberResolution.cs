@@ -71,7 +71,9 @@ internal static class MemberResolution
         return new StorageLookup(
             memberType is null
                 ? null
-                : TypeSubstitution.ForReceiver(constructed).Apply(memberType, context.ProgramModel.TypeInterner),
+                : TypeSubstitution
+                    .ForMember(constructed, found, context.ProgramModel.TypeInterner)
+                    .Apply(memberType, context.ProgramModel.TypeInterner),
             found);
     }
 

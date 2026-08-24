@@ -33,3 +33,4 @@ Newtypes = { path = "../Newtypes" }
 TypeUnions = { path = "../TypeUnions" }
 TuplePatternMatching = { path = "../TuplePatternMatching" }
 Tuples = { path = "../Tuples" }
+StructInheritance = { path = "../StructInheritance" }

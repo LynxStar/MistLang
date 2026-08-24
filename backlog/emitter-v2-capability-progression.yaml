@@ -491,12 +491,40 @@ capabilities:
       scope-chain lookup; the IdentifierBinder fallback is gone. The precedence gap is closed
       -- members are found during the lexical stage, which runs entirely before namespace and
       import resolution -- and inherited fields now resolve through TypeScope's base-chain
-      walk. Still partial for one reason: emission writes the bare name rather than a
-      qualified receiver, so correctness depends on C# resolving the simple name the same way
-      Mist did. That breaks for a nested type reading an enclosing type's static, which
-      resolves in Mist and does not bind in the emitted C#.
+      walk.
+
+      THE REASON THIS ENTRY GAVE FOR BEING PARTIAL DOES NOT HOLD, and was measured rather than
+      re-reasoned. It read that emission writing a bare name "breaks for a nested type reading an
+      enclosing type's static, which resolves in Mist and does not bind in the emitted C#". C#
+      simple-name lookup DOES search enclosing types, so that program compiles and runs. Seven
+      shapes were probed for a divergence between what Mist resolved a bare name to and what C#
+      resolves it to, and none was found: a nested type reading an enclosing static, a field whose
+      name is also a type in the same namespace (the member wins in both), an inherited static by
+      simple name, a field read after a branch-scoped local of the same name, a field read after a
+      PATTERN binding of the same name, a field named `field`, and a nested type reading an
+      enclosing INSTANCE field.
+
+      Two of those are worth keeping. A field named `field` would genuinely collide with the bare
+      `field` emitted for a backing-field reference, but `field` is a Mist keyword so no such field
+      can be declared. And the pattern-binding case DID diverge until order 103: C# scopes a
+      condition's binding to the enclosing block where Mist scopes it to the guarded branch, so a
+      field read after the `if` bound to the pattern variable instead. That was fixed by containing
+      the binding in a block, NOT by qualifying the receiver -- which is the evidence that the
+      qualified receiver was never what the divergence needed.
+
+      Left partial rather than promoted, because "no divergence found" is weaker than "none
+      exists": the argument for qualifying is that it makes the bare name's correctness structural
+      instead of contingent on C# and Mist agreeing, and that argument survives having no
+      reproduction. What does not survive is the stated justification, so the task is re-scoped to
+      say so.
     tasks:
-      - Emit a qualified receiver for field references (shared with static-fields, order 21).
+      - >
+        DECIDE whether to emit a qualified receiver for field references -- this for instance
+        fields, the declaring type for statics -- rather than implement it on the old premise. No
+        program is known to need it; the case is that C# and Mist agreeing on simple-name lookup is
+        currently an unstated invariant rather than something the emitter enforces. Shared with
+        static-fields, order 21. Weigh against the churn: it rewrites every field reference in every
+        generated file.
     unlocks: []
 
   - id: object-creation
@@ -607,10 +635,13 @@ capabilities:
       inside a static method does NOT resolve. Verified on a scratch program, and the miss now
       reports MIST_PM_UNRESOLVED_IDENTIFIER against the Mist source instead of reaching the
       emitter -- see static-context-checking. Still partial only for the qualified receiver
-      below.
+      below, whose justification is now recorded on implicit-instance-field-access as NOT
+      holding: the divergence it was to fix does not reproduce, and the one case that really did
+      diverge was closed by order 103 containing a pattern binding in the block it guards.
     tasks:
-      - Emit a qualified receiver for field references -- this for instance fields, the
-        declaring type for statics -- instead of the bare name.
+      - >
+        DECIDE rather than implement -- see the re-scoped task on implicit-instance-field-access,
+        order 16, which this shares.
     unlocks: []
 
   - id: static-context-checking
@@ -1892,28 +1923,56 @@ capabilities:
       generic ABSTRACT base, which is what made order 72's residue a genuine v2-only gap; that is now
       closed and `Holder.Show()` on a conformer of `IHold<T>` resolves.
 
-      STILL `partial` FOR THE SUBSTITUTED HALF, and the obstacle is layering rather than logic.
-      Composing the chain needs the accumulated map applied to each hop's arguments BEFORE binding --
-      union alone is not enough, since `StringPair -> Pair<string> -> Box<A>` yields
-      {Pair.A: string, Box.T: Pair.A} and one Apply answers Pair.A rather than string. TypeSubstitution
-      does all of that already, but it lives in Construction.Binding while TypeMemberLookup, CandidateSet
-      and LookupResult live in Model.Scopes, and Model must not depend on Construction. So a member
-      found on a generic ancestor has nowhere in the lookup contract to carry its substitution:
-      FieldResult and PropertyResult have a DeclaringType that could hold the closed construction,
-      MethodGroupResult has nothing, and CandidateSet.MergeMethods flattens overloads ACROSS depths so
-      one substitution per group would be wrong. Deciding where that lives is a design call, not a
-      task.
+      THE SUBSTITUTED HALF IS DONE FOR STATE, by a third shape neither option this entry recorded had
+      considered. Both assumed the choice was to carry a MAP through the lookup or to move the walk into
+      Construction; the layering objection dissolves once the walk carries neither. It records the
+      CONSTRUCTED BASES it stepped through -- ConstructedType being a Model type, so no Model-to-
+      Construction dependency appears -- and Construction composes them. FieldResult and PropertyResult
+      gained a BaseConstructions list, outermost first, and TypeSubstitution.ForMember folds it over
+      ForReceiver's map, resolving each hop's arguments through the map built so far before they become
+      bindings themselves. That is exactly the ordering this entry identified as the obstacle:
+      `StringPair -> Pair<string> -> Box<A>` binds Box.T to string rather than to Pair.A.
+
+      WITHHELD IS GONE FOR FIELDS AND PROPERTIES and kept for METHODS, which is the same division the
+      obstacle predicted. A method group spans every depth at once and MergeMethods flattens across them,
+      so one substitution per group would be wrong -- and overload resolution takes its substitution from
+      the receiver alone. So an inherited method naming a type parameter still does not resolve, and a
+      test records that limit rather than leaving it to be rediscovered.
+
+      MEASURED, and v2 is now ahead of classic by a wider margin than the walk alone made it. StructInheritance
+      is banked, and its `ext.Value` on an `ExtendedContainer<int> : Container<int>` prints 42 rather than 0 --
+      the sample's own comment names that as what separates the inherited generic field being INITIALIZED from
+      its name merely resolving. Beyond the sample: a base parameter RENAMED by the deriver
+      (`Renamed<U> : Holder<U>`), base arguments REORDERED (`Swapped<X, Y> : Pair<Y, X>`), two generic levels,
+      and a base argument that is itself a construction (`HoldsAnArray<T> : Holder<T[]>`). CLASSIC FAILS the
+      renamed case -- `'T' does not contain a definition for 'Length'` -- because it matches type parameters
+      by NAME AND ORDINAL, so `Holder.T` and `SameName.T` collide by luck and `Holder.T` against `Renamed.U`
+      does not. v2 keys on parameter IDENTITY, which is why the spelling stops mattering.
+
+      MUTATION-CHECKED, with a result worth recording: discarding the recorded chain fails seven model
+      tests and NOT ONE sample test. With no chain the field is typed as the raw `T`, emission still writes
+      `ext.Value`, and C# resolves it to int and prints 42 -- so the sample passes on a model that is wrong.
+      That is the case for asserting this on the model rather than on output, in the one place it can be
+      demonstrated rather than argued.
+
+      STILL `partial`: the method half above, and an EMITTER gap the renamed case exposed. StructFlattener
+      composes base substitutions correctly for a struct whose base reuses its parameter, which is every
+      struct any sample declares, but a renamed or reordered generic struct base emits C# naming a type
+      parameter that is not in scope. The frontend now types those correctly, so the two halves disagree;
+      no sample reaches it.
     tasks:
       - >
-        DECIDE WHERE AN INHERITED MEMBER'S SUBSTITUTION LIVES, then compose the chain and drop
-        TypeMemberLookup.Withheld. The walk is done; this is the remaining half. Two shapes are
-        open: give the lookup contract somewhere to carry the closed declaring construction per
-        candidate -- which MethodGroupResult lacks and MergeMethods would have to preserve across
-        depths -- or move the generic part of the walk up into Construction, where TypeSubstitution
-        already is. The second avoids a Model-to-Construction dependency and is probably right.
+        Carry a per-depth substitution for an inherited METHOD, which needs MethodGroupResult to hold one
+        per candidate and CandidateSet.MergeMethods to preserve it across depths, or overload resolution to
+        take a substitution per candidate rather than one per receiver. Until then TypeMemberLookup.Withheld
+        stays for methods and an inherited method naming a type parameter does not resolve.
+      - >
+        Substitute a renamed or reordered generic base's parameters in StructFlattener, which composes by
+        position today and emits an out-of-scope parameter name for `Renamed<U> : Container<U>`. The
+        frontend half is done, so this is the emitter catching up rather than a shared gap.
       - Descend unions and tuples in TypeSubstitution.Apply when a signature can be stated in
         terms of one.
-    unlocks: []
+    unlocks: [StructInheritance]
 
   - id: generic-methods
     name: Generic method declaration
@@ -6711,8 +6770,19 @@ samples:
         re-assigns the grandparent fields by hand.
       - The base struct's method is declared and never called, so inherited-method resolution
         is never exercised.
-      - The generic derived struct's inherited field is never read, hiding the generic
-        flattening gap. No base-to-derived negative case.
+      - >
+        THIS ENTRY USED TO READ that the generic derived struct's inherited field is never read,
+        hiding the generic flattening gap. The sample does read it now -- `ext.Value` prints 42 --
+        and that read is what order 53's state half was fixed for. What remains true is the shape of
+        the proof: the printed 42 is satisfied equally by Mist typing the field as the raw `T` and
+        letting C# resolve it, which is measurably what happened before the fix. So the sample
+        cannot distinguish a correct model from a wrong one here, and InheritedGenericMemberTests
+        carries that claim instead.
+      - Every generic base in the sample reuses its deriver's parameter name and order, so neither
+        a renamed base parameter nor a reordered one is exercised -- which is the pair that
+        distinguishes substituting by parameter IDENTITY from matching by name and ordinal, and the
+        pair that still fails in StructFlattener.
+      - No base-to-derived negative case.
 
   - name: AssemblyTypeProvider
     intro_order: 58

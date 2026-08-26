@@ -54,5 +54,7 @@ public class Program
         StructInheritance.Program.RunDemo();
         PatternMatching.Program.RunDemo();
         RangesAndIndices.Program.RunDemo();
+        Enums.Program.RunDemo();
+        EnumReadonlyRestriction.Program.RunDemo();
     }
 }

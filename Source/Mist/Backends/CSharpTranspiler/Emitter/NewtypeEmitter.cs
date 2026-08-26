@@ -59,8 +59,8 @@ internal static class NewtypeEmitter
     private static void EmitDuplicate(Newtype type, ConcreteType source, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var inStruct = source is StructType;
-        var inReadonlyStruct = inStruct && source.IsReadonly;
-        var readonlyModifier = inReadonlyStruct ? "readonly " : "";
+        var inReadonlyType = source.IsReadonly;
+        var readonlyModifier = inStruct && inReadonlyType ? "readonly " : "";
         var keyword = inStruct ? "struct" : "class";
 
         if(inStruct)
@@ -76,7 +76,7 @@ internal static class NewtypeEmitter
 
             foreach(var field in source.FieldsList)
             {
-                FieldEmitter.Emit(field, inReadonlyStruct, writer, diagnostics);
+                FieldEmitter.Emit(field, inReadonlyType, writer, diagnostics);
                 anyEmitted = true;
             }
 

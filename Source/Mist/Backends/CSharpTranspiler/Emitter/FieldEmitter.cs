@@ -9,9 +9,9 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// </summary>
 internal static class FieldEmitter
 {
-    public static void Emit(Field field, bool inReadonlyStruct, CSharpWriter writer, DiagnosticBag diagnostics)
+    public static void Emit(Field field, bool inReadonlyType, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        Emit(field, field.Type, field.Modifiers, inReadonlyStruct, writer, diagnostics);
+        Emit(field, field.Type, field.Modifiers, inReadonlyType, writer, diagnostics);
     }
 
     /// <summary>
@@ -19,24 +19,26 @@ internal static class FieldEmitter
     /// both differ from the declaration -- see <see cref="Lowering.FlattenedField"/>.
     /// </summary>
     public static void Emit(
-        Lowering.FlattenedField field, bool inReadonlyStruct, CSharpWriter writer, DiagnosticBag diagnostics)
+        Lowering.FlattenedField field, bool inReadonlyType, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var modifiers = field.Field.Modifiers with { Accessibility = field.Accessibility };
-        Emit(field.Field, field.Type, modifiers, inReadonlyStruct, writer, diagnostics);
+        Emit(field.Field, field.Type, modifiers, inReadonlyType, writer, diagnostics);
     }
 
     private static void Emit(
         Field field,
         IMistType type,
         MemberModifiers modifiers,
-        bool inReadonlyStruct,
+        bool inReadonlyType,
         CSharpWriter writer,
         DiagnosticBag diagnostics)
     {
-        // C# refuses a writable instance field on a readonly struct (CS8340), so the type's modifier
-        // has to reach every field it declares rather than standing alone on the declaration.
+        // A readonly type's modifier reaches every field it declares rather than standing alone on the
+        // declaration, and for two unrelated reasons. C# REFUSES a writable instance field on a
+        // readonly struct (CS8340). And it has no `readonly class` at all, so on a class the field is
+        // the only place the type's readonly-ness survives emission.
         var emittedModifiers = MemberModifierEmitter.Emit(
-            modifiers, emitReadonly: modifiers.IsReadonly || inReadonlyStruct);
+            modifiers, emitReadonly: modifiers.IsReadonly || inReadonlyType);
         var typeName = TypeNameEmitter.Emit(type);
 
         if(field.Initializer is null)

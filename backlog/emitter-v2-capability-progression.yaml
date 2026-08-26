@@ -5325,13 +5325,60 @@ capabilities:
     order: 134
     layer: readonly-discipline
     requires: [property-declarations-and-accessors, instance-fields]
-    v2_status: missing
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
-      Readonly applies to fields, properties, indexers, methods, constructors, whole TYPES
-      and PARAMETERS. A readonly type makes every member implicitly readonly. Emission
-      differs per position -- a readonly class becomes a plain class with fields promoted, a
-      readonly method survives on a struct and must be dropped on a class, and readonly
-      parameters erase entirely.
+      MOSTLY ALREADY BUILT, by 1c18f5c7 ("Emit readonly where C# accepts it, and only there"), and
+      recorded `missing` only because nobody had re-measured. That commit changed seven emitters and
+      added NO test, which is why this order's residue had to be found by reading output rather than
+      by running anything. Both samples already ran on v2 before a line was written here.
+
+      THE POSITION DECIDES, NOT THE DECLARATION, and MemberModifierEmitter's own doc says why: C#
+      accepts `readonly` on any field, on a struct's methods and properties, and on nothing in a class
+      but a field. So MethodEmitter, PropertyEmitter and IndexerEmitter each gate on `inStruct`, and a
+      readonly method on a class is dropped rather than passed through -- CS0106 refuses it.
+
+      TWO GAPS FOUND AND CLOSED. First, FIELD PROMOTION WAS STRUCT-ONLY: the flag threaded from
+      TypeEmitter was `inStruct && type.IsReadonly`, so `readonly class Color` emitted `public int r`
+      where classic emits `public readonly int r`. Renamed to inReadonlyType and computed from the
+      type alone. The two reasons are unrelated and both belong -- C# REFUSES a writable instance
+      field on a readonly struct (CS8340), and it has no `readonly class` at all, so on a class the
+      field is the only place the type's readonly-ness survives emission at all. NewtypeEmitter had
+      conflated the same two uses in one flag and was split the same way.
+
+      Second, A READONLY PARAMETER WAS SPELLABLE AND SILENTLY DROPPED. Mist.storm line 372 carries
+      `modifier:READONLY?` on every parameter and ParameterBuilder hardcoded `IsReadonly: false`, so
+      the model could not represent one. Now read from the node. Emission is unchanged and that is
+      correct rather than incidental: ParameterEmitter writes only type and name, C# having no
+      readonly parameter, so this order's "parameters erase entirely" was already the behaviour and
+      what was missing was only the model's half of it.
+
+      NEITHER FIX IS OBSERVABLE FROM OUTPUT, measured both ways. Reverting the promotion fails exactly
+      one test and leaves the AllFeaturesV2 baseline GREEN; reverting the parameter fix likewise. A
+      readonly field and a writable one holding the same value print identically, so no sample can
+      guard any of this -- the same situation as order 123's index typing, and the reason
+      Test/Mist.Tests/Backend/ReadonlyTypeEmissionTests.cs exists.
+
+      THAT FILE IS THE FIRST V2 EMISSION UNIT TEST and the seam is worth knowing about:
+      TypeEmitter.EmitTypeBody takes a MemberType and a CSharpWriter, so a ProgramModelProbe model can
+      be emitted to a string with no disk, no Roslyn and no process spawn. Every prior v2 emitter
+      change was verified only through the sample baseline, which is why 1c18f5c7 could ship a
+      struct-only promotion without anything noticing.
+
+      Enums banked BYTE-IDENTICAL to classic. EnumReadonlyRestriction banked with a three-line
+      divergence that is not this order's -- see the sample.
+    tasks:
+      - Propagate a readonly TYPE's modifier onto its members in the MODEL. A readonly struct's method
+        carries `Modifiers.IsReadonly == false` today, so the model does not say what the language
+        does. Unobservable in emission, which is why both samples bank over it -- C# already treats every
+        member of a `readonly struct` as readonly without being told, and on a readonly class no member
+        but a field may carry it. The consumer is order 136, which cannot check a context the model
+        does not record.
+    analysis_phase_tasks:
+      - Enforce what a readonly parameter constrains. The model now records one and nothing reads it,
+        so `readonly int x` is a declaration with no effect. Judging a finished model, so deferred by
+        the same rule as order 97 -- and note 1c18f5c7 filed the equivalent for a readonly method on a
+        class, which is the same shape of unacted-on declaration.
     unlocks: [EnumReadonlyRestriction, Enums]
 
   - id: readonly-inference
@@ -6783,11 +6830,15 @@ samples:
                readonly-member-and-type-contexts, union-types-and-carriers,
                optional-operators, string-interpolation, control-flow-basic]
     untested:
-      - No enum has two variants sharing an underlying value, which would expose that the
-        name lookup uses reference equality while the pattern form uses structural equality
-        on the value.
+      - No enum here has two variants sharing an underlying value. Under v2 that would make them
+        ALIASES naming the first declared, which is EnumEmitter's deliberate choice and not classic's
+        -- classic matches names by reference identity while comparing values structurally, so the two
+        pipelines answer differently. EnumReadonlyRestriction is where the difference actually shows.
       - The abstract-type-underlying-type cases are commented out pending emitter fixes.
       - No enum designates a default variant, so the default factory path is unexercised.
+      - The readonly base types here (Vec2, Label, Animal) are never MUTATED, so nothing observes that
+        their fields emit readonly. A program identical but for the promotion prints the same output;
+        only ReadonlyTypeEmissionTests distinguishes them.
 
   - name: EnumReadonlyRestriction
     intro_order: 39
@@ -6800,6 +6851,18 @@ samples:
         for is never actually triggered.
       - The struct-backed enum deliberately declares no fields to sidestep a known
         default-construction defect, leaving struct-backed enums with state unexercised.
+      - THE V2 BASELINE DIVERGES FROM CLASSIC ON THREE LINES AND THAT IS RECORDED RATHER THAN FIXED.
+        Because Coordinate declares no fields (the entry above), all four Corner variants are
+        value-equal, so v2 prints TopLeft for every one of them where classic prints each name. This is
+        EnumEmitter's alias doctrine working as designed -- one equality notion, structural, so that
+        printing and comparing cannot disagree -- and it is what C# itself does with a repeated enum
+        value. Classic's reference-identity name lookup is the inconsistent one, since its `==` stays
+        structural. Give Coordinate fields and the divergence disappears.
+      - The pattern form is never applied to Corner. Sections 10's `is` tests cover the int, string,
+        byte and class-backed enums, all of which have distinct values, so the value collapse above is
+        never observed through a pattern.
+      - Neither readonly base type is MUTATED, so nothing observes that Color's fields emit readonly or
+        that Coordinate keeps the `readonly struct` keyword; see ReadonlyTypeEmissionTests.
 
   - name: TypeUnions
     intro_order: 25

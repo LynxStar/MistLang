@@ -40,7 +40,10 @@ internal sealed class ParameterBuilder
     {
         var name = param.Name.Lexeme;
         var type = scopeResolver.Resolve(param.Type, scope);
-        var modifier = new ParameterModifier(IsReadonly: false, IsRef: param.RefModifier is not null, Ownership: default);
+        var modifier = new ParameterModifier(
+            IsReadonly: param.Modifier is not null,
+            IsRef: param.RefModifier is not null,
+            Ownership: default);
 
         return new Parameter(name, type, modifier);
     }

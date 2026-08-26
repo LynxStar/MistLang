@@ -638,3 +638,137 @@ first=10,last=50
 middle=3:20
 startsWith10=true
 --- Ranges and Indices Done ---
+=== Enums Sample ===
+--- Explicit type annotation ---
+  Direction.North = North
+  Direction.South = South
+  Direction.East = East
+  Direction.West = West
+--- Inferred type (int) ---
+  Priority.High = High
+  Priority.Medium = Medium
+  Priority.Low = Low
+--- Name-only enum (byte) ---
+  Color.Red = Red
+  Color.Green = Green
+  Color.Blue = Blue
+--- Mixed explicit/implicit ---
+  HttpStatus.Ok = Ok
+  HttpStatus.Created = Created
+  HttpStatus.BadRequest = BadRequest
+  HttpStatus.NotFound = NotFound
+  HttpStatus.InternalError = InternalError
+--- Union underlying type ---
+  MixedResult.Success = Success
+  MixedResult.ErrorMsg = ErrorMsg
+--- Member access (dot notation) ---
+  north = North
+--- Enum as variable type ---
+  favorite = Blue
+--- Enum as parameter type ---
+  Direction value: East
+--- Enum as return type ---
+  default priority = Medium
+--- Enum as field type ---
+  config level = Warn
+--- Implicit conversion ---
+  Priority.High as int = 1
+  Direction.North as string = N
+  Color.Red as byte = 0
+--- Pattern matching ---
+  d is Direction.North = True
+  d is Direction.South = False
+  c is Color.Green = True
+  c is Color.Red = False
+--- Public visibility ---
+  Public enum Direction.North = North
+--- Default visibility ---
+  Default enum LogLevel.Info = Info
+  Default enum LogLevel.Error = Error
+--- Trailing comma ---
+  Season.Spring = Spring
+  Season.Winter = Winter
+--- Struct underlying type ---
+  CardinalDir.Up = Up
+  CardinalDir.Down = Down
+  CardinalDir.Left = Left
+  CardinalDir.Right = Right
+  CardinalDir.Up as Vec2 = (0, 1)
+--- Class underlying type ---
+  Severity.Critical = Critical
+  Severity.Warning = Warning
+  Severity.Info = Info
+  Severity.Critical as Label = Label(CRITICAL, 1)
+--- Abstract Type underlying types ---
+  Pet.Dog = Dog
+  Pet.Cat = Cat
+  Pet.Fish = Fish
+  Pet.Dog as Animal = Animal(Dog)
+--- String auto-inferred variant names ---
+  Permission.Read = Read
+  Permission.Write = Write
+  Permission.Execute = Execute
+  Permission.Read as string = Read
+  Permission.Write as string = Write
+--- String mixed explicit/inferred ---
+  Environment.Development as string = dev
+  Environment.Staging as string = Staging
+  Environment.Production as string = prod
+--- Explicit cast from underlying ---
+  (Priority)1 = High
+  (Priority)99 = no match
+  (Color)0 = Red
+  (Direction)"N" = North
+  (Direction)"X" = no match
+Done!
+=== Enum Readonly Restriction Sample ===
+--- Enum with int base type ---
+  StatusCode.Ok = Ok
+  StatusCode.NotFound = NotFound
+  StatusCode.ServerError = ServerError
+--- Enum with string base type ---
+  Planet.Mercury = Mercury
+  Planet.Venus = Venus
+  Planet.Earth = Earth
+  Planet.Mars = Mars
+--- Enum with byte base type ---
+  Rank.Private = Private
+  Rank.Corporal = Corporal
+  Rank.Sergeant = Sergeant
+--- Enum with readonly struct base type ---
+  Corner.TopLeft = TopLeft
+  Corner.TopRight = TopLeft
+  Corner.BottomLeft = TopLeft
+  Corner.BottomRight = TopLeft
+--- Enum with readonly class base type ---
+  Palette.Red = Red
+  Palette.Green = Green
+  Palette.Blue = Blue
+--- Name-only enum (inferred byte) ---
+  Suit.Hearts = Hearts
+  Suit.Diamonds = Diamonds
+  Suit.Clubs = Clubs
+  Suit.Spades = Spades
+--- Enum with union of readonly types ---
+  Token.NumericId = NumericId
+  Token.TextId = TextId
+--- Member access on readonly-base enums ---
+  Corner.TopRight.Describe() = Coordinate
+  Palette.Red.Describe() = Color(255, 0, 0)
+  Palette.Red.r = 255
+--- Implicit conversion to underlying type ---
+  StatusCode.Ok as int = 200
+  Planet.Earth as string = Earth
+  Suit.Spades as byte = 3
+  Corner.BottomLeft as Coordinate = Coordinate
+  Palette.Green as Color = Color(0, 255, 0)
+--- Pattern matching with readonly-base enums ---
+  code is StatusCode.NotFound = True
+  code is StatusCode.Ok = False
+  p is Planet.Mars = True
+  p is Planet.Earth = False
+  s is Suit.Spades = True
+  s is Suit.Hearts = False
+  pal is Palette.Blue = True
+  pal is Palette.Red = False
+Done!

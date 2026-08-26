@@ -116,7 +116,7 @@ internal static class TypeEmitter
             var concrete = type as ConcreteType;
             var anyEmitted = false;
             var inStruct = type is StructType;
-            var inReadonlyStruct = inStruct && type.IsReadonly;
+            var inReadonlyType = type.IsReadonly;
 
             // Fields first so they read as the type's state before the members that use
             // it, and because C# requires nothing of the order. Each is a single line, so
@@ -126,7 +126,7 @@ internal static class TypeEmitter
             {
                 foreach(var field in flattened.Fields)
                 {
-                    FieldEmitter.Emit(field, inReadonlyStruct, writer, diagnostics);
+                    FieldEmitter.Emit(field, inReadonlyType, writer, diagnostics);
                     anyEmitted = true;
                 }
             }
@@ -134,7 +134,7 @@ internal static class TypeEmitter
             {
                 foreach(var field in concrete?.FieldsList ?? [])
                 {
-                    FieldEmitter.Emit(field, inReadonlyStruct, writer, diagnostics);
+                    FieldEmitter.Emit(field, inReadonlyType, writer, diagnostics);
                     anyEmitted = true;
                 }
             }

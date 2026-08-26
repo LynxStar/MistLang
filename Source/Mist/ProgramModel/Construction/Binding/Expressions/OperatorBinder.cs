@@ -176,15 +176,21 @@ internal static class OperatorBinder
 
     private static Expression BindRange(RangeNode node, BindingContext ctx, BuilderContext context)
     {
-        // Walking skeleton: a non-range node passes through to Unary. An actual range
-        // expression (a..b) is not yet modeled in the ProgramModel and degrades to
-        // Unresolved, matching how other unsupported constructs are handled.
         if(node is NonRangeRangeNode nonRange)
         {
             return BindUnary(nonRange.Operand, ctx, context);
         }
 
-        return new UnresolvedExpression(node);
+        if(node is not RangeExpressionRangeNode range)
+        {
+            return new UnresolvedExpression(node);
+        }
+
+        var start = range.Start is { } startNode ? BindUnary(startNode, ctx, context) : null;
+        var end = range.End is { } endNode ? BindUnary(endNode, ctx, context) : null;
+
+        return new RangeExpression(
+            node, start, end, context.Resolver.LookupWellKnown(WellKnownTypes.Range));
     }
 
     private static Expression BindUnary(UnaryNode node, BindingContext ctx, BuilderContext context)
@@ -204,6 +210,20 @@ internal static class OperatorBinder
                 {
                     var operand = BindUnary(logicalNot.Operand, ctx, context);
                     return new UnaryExpression(node, UnaryOperatorKind.LogicalNot, operand, operand.Type);
+                }
+
+            // Alone among the unary arms this does not answer with its operand's type. `^1` is an
+            // OFFSET FROM THE END and not the integer 1, so an element access has to be able to tell
+            // the two apart to know whether it was handed a position or a count -- which is what makes
+            // the offset a type here rather than a spelling the emitter recovers.
+            case FromEndExpressionUnaryNode fromEnd:
+                {
+                    var operand = BindUnary(fromEnd.Operand, ctx, context);
+                    return new UnaryExpression(
+                        node,
+                        UnaryOperatorKind.FromEnd,
+                        operand,
+                        context.Resolver.LookupWellKnown(WellKnownTypes.Index));
                 }
 
             case CastExpressionUnaryNode cast:

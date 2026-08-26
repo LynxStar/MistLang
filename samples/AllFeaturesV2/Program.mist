@@ -52,5 +52,7 @@ public class Program
         TuplePatternMatching.Program.RunDemo();
         Tuples.Program.RunDemo();
         StructInheritance.Program.RunDemo();
+        PatternMatching.Program.RunDemo();
+        RangesAndIndices.Program.RunDemo();
     }
 }

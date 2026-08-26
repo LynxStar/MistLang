@@ -498,6 +498,41 @@ public static class ProgramModelDiagnostics
         "'{0}' is not a tuple, so a tuple pattern has no elements to match against it.");
 
     /// <summary>
+    /// A range was used to index a receiver that yields no sub-sequence. Reported rather than answered
+    /// with an error type, which is what the INDEX case still does: an index that resolves nothing
+    /// names an indexer that might simply be missing, while a range that resolves nothing has no C# to
+    /// write at all, so leaving it silent would emit an element access typed as an error.
+    /// </summary>
+    public static readonly DiagnosticDescriptor ReceiverNotSliceable = new(
+        new DiagnosticId("MIST_PM_RECEIVER_NOT_SLICEABLE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}' cannot be sliced by a range. Only an array or a string yields a sub-sequence.");
+
+    /// <summary>
+    /// A list pattern matches against a scrutinee that yields no elements. Mist has no user-declared
+    /// deconstruction, so unlike a C# positional pattern there is nothing for the element positions to
+    /// be read out of, and the pattern's own arity would have nothing to constrain.
+    /// </summary>
+    public static readonly DiagnosticDescriptor ListPatternScrutineeNotIndexable = new(
+        new DiagnosticId("MIST_PM_LIST_PATTERN_SCRUTINEE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}' cannot be indexed, so a list pattern has no elements to match against it.");
+
+    /// <summary>
+    /// A list pattern spells more than one slice. The minimum length a list pattern requires is its
+    /// fixed element count, and which elements are counted from the front and which from the back is
+    /// decided by where the single slice sits -- two slices leave that split undetermined, so the
+    /// pattern states no length constraint at all rather than a weaker one.
+    /// </summary>
+    public static readonly DiagnosticDescriptor ListPatternMultipleSlices = new(
+        new DiagnosticId("MIST_PM_LIST_PATTERN_MULTIPLE_SLICES"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "A list pattern can spell at most one '..' slice, because the slice is what divides the elements counted from the front from those counted from the back.");
+
+    /// <summary>
     /// A function type names no type arguments at all. The result occupies the last slot, so there is no
     /// spelling of a function type without one -- <c>func&lt;bool&gt;</c> is the zero-parameter form.
     /// </summary>

@@ -26,4 +26,5 @@ internal enum UnaryOperatorKind
 {
     Negate,
     LogicalNot,
+    FromEnd,
 }

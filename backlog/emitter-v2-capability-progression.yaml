@@ -161,6 +161,14 @@
 #                               they cannot order that cluster.
 #   samples[].untested          what the sample does NOT verify despite appearing to
 #
+#   samples[].blocked_by        OPTIONAL, and present only where derivation gets the sample WRONG:
+#                               its threshold and its whole closure read as satisfied and the sample
+#                               still does not run. That happens when a capability overclaimed, so
+#                               the field names the capability and the reasoning lives THERE, not
+#                               here -- this is a pointer, never a second copy. A sample merely
+#                               waiting on an outstanding capability does NOT get one; the closure
+#                               already says so.
+#
 #   `untested` is the second anti-false-done mechanism. Every sample here has entries. A
 #   green sample means "these capabilities did not regress", never "this feature is
 #   correct".
@@ -4328,7 +4336,7 @@ capabilities:
     order: 98
     layer: patterns
     requires: [pattern-matching-core, union-types-and-carriers]
-    v2_status: done
+    v2_status: partial
     verified_by: v2-semantics
     evidence: >
       A tag test, and it STILL BINDS INLINE -- which is the whole point and the thing classic cannot do.
@@ -4369,6 +4377,34 @@ capabilities:
       narrowing and matches the carrier as it stands. Optionals never reach any of this.
 
       TypeUnions is banked in AllFeaturesV2, byte-identical to classic.
+
+      DOWNGRADED FROM done BY THE ORDER 125 WORK, which found the SWITCH-ARM position had no lowering
+      and, worse, no guard. Everything above is about `is`, and EmitIsPattern is where the union check
+      lives; EmitSwitch had none, so `int | string mixed = 123; mixed switch { int n => ..., string s
+      => ... }` emitted a switch over the carrier and Roslyn rejected every arm --
+      "An expression of type 'Union_Int32_String' cannot be handled by a pattern of type 'int'". Four
+      errors against a generated file the user never wrote. That is the `broken` shape rather than the
+      missing one, which is why this is recorded here rather than left to be rediscovered.
+
+      THE OBSTACLE IS THE SAME ONE, seen from a position that cannot use the same way out. Narrowing
+      folds the tag check into the SCRUTINEE, and a C# switch has exactly one scrutinee for all of its
+      arms while each arm here needs a different constituent accessor. So it is not a variation on the
+      `is` lowering, it is the `||` chain the note above already deferred -- every arm individually
+      narrowable and the construct still without a shape.
+
+      GUARDED, NOT FIXED. EmitSwitch now reports MIST_BE_UNSUPPORTED_UNION_SWITCH, moving the error off
+      the generated file and onto Mist source. Safe to add: no banked sample switches over a union --
+      only SwitchExpressions and the unbanked RegexLiterals contain `switch {` at all, and TypeUnions
+      does not.
+
+      THIS IS WHY SwitchExpressions IS NOT BANKED despite order 125 being its threshold, and the
+      progression could not have predicted it: the sample's closure lists this capability as `done`,
+      so a mechanical readiness computation says it is ready. Same shape as the Overloading failure
+      this file was written to prevent, and worse in kind -- there v2 emitted and Roslyn covered for
+      it, here v2 emitted and Roslyn refused.
+    tasks:
+      - Lower a switch expression over a union as a chain of tests rather than a switch, each arm
+        testing its own constituent accessor. Unblocks SwitchExpressions, which needs nothing else.
     analysis_phase_tasks:
       - >
         Report a narrowing that is unreachable for a reason other than the type belonging to no
@@ -5012,22 +5048,99 @@ capabilities:
     order: 123
     layer: ranges
     requires: [arrays-sized-index-length]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      A from-end index is typed as an index rather than an integer, and a range has
-      independently omittable bounds with a from-end bound nestable inside it.
+      NO GRAMMAR WORK WAS NEEDED and that was the first thing established. Mist.storm already carried
+      `Range` (both bounds `Unary?`) and `FromEndExpression` (`CARET operand:Unary`), and the classic
+      pipeline already consumed both. The `Range` tier sits BETWEEN Multiplicative and Unary, which is
+      where C# ranks `..` too, so independently omittable bounds and a nested from-end bound are
+      structural rather than something either binder arranges.
+
+      Two v2 gaps, both in OperatorBinder. BindRange returned UnresolvedExpression for a real range
+      under a comment calling itself a walking skeleton; it now builds a RangeExpression whose bounds
+      are null where source omitted them. BindUnary had no FromEndExpression arm at all, so `^1` fell
+      to the default and parked. Emission is TypeNameEmitter-free: BodyEmitter's existing
+      IndexExpression arm already delegates its argument to EmitExpression, so a range arm plus
+      `UnaryOperatorKind.FromEnd => "^"` was the whole backend change.
+
+      A FROM-END INDEX IS TYPED Standard.Index, which is the one place this arm departs from every
+      sibling in BindUnary -- Negate and LogicalNot answer with their operand's type. Standard.Index
+      and Standard.Range already existed as `intrinsic public struct` in Source/Standard/Bootstrap and
+      needed only WellKnownTypes entries; AmbientProviderTestHelper had been registering both as
+      shells for some time, with a comment noting they were not in AllStandardTypes. They still are
+      not, so that comment stands and no double registration was introduced.
+
+      NO SAMPLE CAN OBSERVE THE INDEX TYPING, measured rather than assumed. Answering with the
+      operand's type instead fails exactly two model tests -- AFromEndIndexIsAnIndex and
+      AFromEndBoundNestsInsideARange -- and the AllFeaturesV2 baseline still passes, because `^1`
+      emits identically either way and Roslyn types it correctly downstream. This is order 53's
+      finding in miniature and the reason RangeAndIndexResolutionTests exists at all: the sample
+      proves a match happened, only the model proves what was decided.
+
+      EMISSION DELIBERATELY DIFFERS FROM CLASSIC. Classic renders a from-end operand with
+      unconditional parentheses, so it emits `1..^(1)` (samples/RangesAndIndices/out/Program.cs).
+      v2 emits `1..^1`, each bound going through EmitSubExpression at prefix precedence, because v2
+      has a precedence mechanism and classic's belt-and-braces parens predate it. Invisible to
+      acceptance either way: the AllFeaturesV2 baseline compares program stdout, not generated C#.
     unlocks: []
+    analysis_phase_tasks:
+      - Check that an index argument is ADMISSIBLE for its receiver. Array declares
+        `this[ArrayBounds index]` where ArrayBounds refines int, and Standard.Index satisfies no such
+        refinement, so nothing today rejects `numbers[^1]` on those grounds -- the indexer's RETURN
+        type is read and its parameter is not consulted. Judging a finished model, so deferred by the
+        same rule as order 97.
 
   - id: slicing-and-sliceable-classification
     name: Slicing, with receiver indexability classification
     order: 124
     layer: ranges
     requires: [index-and-range-expressions]
-    v2_status: missing
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
-      The result type of an element access depends on whether the argument is an index or a
-      range, and receivers must be classified as indexable or sliceable -- array, span,
-      string, a range-indexer type, or countable plus a slice member.
+      THE GAP WAS NARROWER THAN THE SPEC SENTENCE READS. `numbers[^1]` already typed correctly before
+      any of this work: PostfixBinder.ResolveIndexerType read IndexersList[0]'s return type and
+      Array declares `intrinsic public TValue this[ArrayBounds index]`, so an index access substituted
+      to the element type whatever the argument was. The actual defect was that `numbers[1..3]` typed
+      as int as well, the argument being ignored entirely.
+
+      So the change is that the ARGUMENT asks the question. ResolveIndexerType is replaced by
+      ResolveElementAccessType(receiver, argument, ...), and the classification moved to a new
+      Construction/Binding/Indexability.cs so PatternBinder can reach it too -- order 125 needs the
+      element type and the slice type of one receiver at once, which is what makes its dependency on
+      this order concrete rather than notional.
+
+      A SLICE OF AN ARRAY IS AN ARRAY OF UNKNOWN LENGTH, built through ScopeResolver.ConstructArray
+      with a null length rather than assembled by hand, that being the single place an array type is
+      built. `numbers[1..3]` is statically 2 long but `numbers[a..b]` is not, so no length is claimed.
+      TypeNameEmitter already maps Array<T, L> to `T[]`, so emission needed no change at all, and
+      `numbers[1..3][^1]` types as int because the slice is itself an ordinary indexable array -- the
+      sample exercises exactly that through `trimmed[^1]`.
+
+      ONLY THE RANGE PATH REPORTS. An index that resolves nothing keeps answering ErrorType silently
+      as it always did, because a missing indexer is a member that might simply not be declared; a
+      range that resolves nothing has no C# to write, so it reports MIST_PM_RECEIVER_NOT_SLICEABLE
+      rather than reaching emission as a slice of an error type. Both halves are asserted, the second
+      by a test that the index path stays quiet.
+
+      MUTATION-CHECKED, and this one IS sample-visible. Making IsRange never match fails four model
+      tests AND the AllFeaturesV2 baseline, because `mid.Length` does not resolve on an int. So unlike
+      order 123's index typing, the index-versus-range branch is guarded from both directions.
+    tasks:
+      - Classify SPAN as sliceable. Span<T> and ReadOnlySpan<T> declare `this[SpanBounds index]` so
+        they are already indexable through the ordinary indexer path, but SliceType answers ErrorType
+        for them and a span slice therefore reports. No sample in scope reaches it -- CSharpInteropV2
+        and RefStructs both bottom out at span-projection-and-length-erasure.
+      - Classify a RANGE-INDEXER type and a COUNTABLE-PLUS-SLICE-MEMBER type as sliceable, which the
+        spec sentence names and this does not implement. NOTHING IN THE REPOSITORY DECLARES EITHER --
+        no type in Source/Standard/Bootstrap has an indexer taking Standard.Range, and none declares
+        `Slice(int, int)`. So the branch would be written with no receiver to exercise it, which is
+        why it is a task here rather than code now.
+      - Give Standard.String an indexer. String.mist declares none, so `word[0]` answers ErrorType
+        while `word[1..3]` answers String -- sliceable but not indexable, which is backwards from
+        C# and from every other countable type. The slice arm special-cases String by name to get
+        that far; an indexer would let it fall out of the general path instead.
     unlocks: []
 
   - id: list-and-slice-patterns
@@ -5035,11 +5148,50 @@ capabilities:
     order: 125
     layer: ranges
     requires: [index-and-range-expressions, logical-patterns]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      Positional element subpatterns plus a slice binding the contiguous middle, which
-      imposes a minimum-length constraint derived from the pattern's own arity and slice
-      position.
+      The grammar already carried all of it -- `ListPattern` at Mist.storm 731 and
+      `ListPatternElement` with its PatternElement and SliceElement alternatives at 751-754 -- and
+      both optional slots are optional RULE REFERENCES rather than the optional anonymous group that
+      order 93 found unreachable, so `[]` and a bare `..` both arrive. PatternBinder's BindPrimary
+      simply had no arm and fell to `default: return null`.
+
+      ONE PATTERN, TWO SCRUTINEE TYPES, which is what separates a list pattern from a tuple pattern
+      and the reason this order requires 124. A positional element is scrutineed by the element type
+      and a slice by the SLICE type, so `[var first, .. var middle, var last]` types first and last as
+      int while middle is int[]. Mutation-checked: binding the slice against the element type instead
+      fails ASliceIsTypedByTheSubsequence and the AllFeaturesV2 baseline both, since `middle.Length`
+      does not resolve on an int.
+
+      NO MINIMUM-LENGTH CONSTRAINT IS COMPUTED, which the spec sentence for this order names and is
+      deliberately not done here. C# derives it from the pattern's own shape, so stating it again would
+      be a second authority on one fact. What construction does own is the count of slices: two would
+      leave undetermined which elements are counted from the front and which from the back, so a
+      second slice reports MIST_PM_LIST_PATTERN_MULTIPLE_SLICES rather than yielding a weaker
+      constraint.
+
+      AN UNKNOWN SCRUTINEE IS REFUSED where a tuple pattern type-tests one, and the asymmetry is C#'s
+      rather than a shortfall. TuplePattern.TestedType exists because a tuple pattern can name the
+      ValueTuple ahead of itself; `[...]` is the only spelling C# has for a list pattern and it
+      requires a countable scrutinee, so there is no type to name first. Making it work would mean
+      emitting `is int[] and [1, ..]`, a second emission shape. Reported as
+      MIST_PM_LIST_PATTERN_SCRUTINEE.
+
+      BINDERS ALL LIVE ON THE ELEMENTS, the slice included, and the node carries none. The grammar
+      spells no trailing name here at all, so this is PropertyPattern's situation and not
+      TuplePattern's -- Pattern.Binding stays singular per node with multiplicity coming from the
+      recursion. A positional element threads the order 99 hoisting list as a tuple element does,
+      being the same kind of binding site; a SLICE clears it, since lifting an enum variant out of one
+      would compare a sub-sequence against a variant.
+
+      EVERY REACHABLE PrimaryPattern ALTERNATIVE IS NOW BOUND. All thirteen the grammar generates have
+      arms, so BindPrimary's `default: return null` is unreachable from any spelling and parking now
+      happens only inside an arm -- a property pattern's two unreachable slots, a tuple pattern whose
+      elements name no type, a list pattern whose element fails to bind. Two tests that had used a
+      list pattern AS the unmodelled form were retargeted: PatternResolutionTests lost
+      AListPattern_ParksUnresolvedWithoutADiagnostic outright, and SwitchExpressionResolutionTests'
+      arm-parking test now uses `(0, 0)` on an unknown, which order 103 established still parks.
     unlocks: [PatternMatching, RangesAndIndices, SwitchExpressions]
 
   # ===================================================================
@@ -6701,9 +6853,14 @@ samples:
     untested:
       - Every type test takes the true branch, so an always-true condition passes
         identically.
-      - Arrays are exactly the arity the pattern wants, so the distinction between an exact
-        length constraint and a minimum length constraint is unproven.
+      - No array is ever too SHORT for its pattern. `[> 0, ..]` matching a three-element array does
+        now prove a minimum-length constraint is not read as an exact one, but nothing observes the
+        constraint REFUSING anything, so an implementation with no lower bound at all would pass.
       - No negation and no disjunction pattern appears.
+      - No slice binds. The two list patterns here use an exact arity and a discard slice, so the
+        element-versus-slice typing that order 125 turns on is reached only through RangesAndIndices.
+      - The sample declares no Main, so it runs only through the AllFeaturesV2 orchestrator and its
+        entry-point resolution is never exercised on either pipeline.
 
   - name: SwitchExpressions
     intro_order: 31
@@ -6711,6 +6868,10 @@ samples:
     requires: [exhaustiveness-checking, when-guards, union-narrowing-through-patterns,
                property-patterns, list-and-slice-patterns, tuple-types-and-literals,
                string-interpolation]
+    blocked_by: >
+      union-narrowing-through-patterns (98), whose switch-arm half is unbuilt -- see that order. Its
+      own list-pattern arm binds and emits since order 125, so the ranges layer is not what holds it.
+      The one sample in this file whose threshold is satisfied on paper and blocked in fact.
     untested:
       - No switch ever falls through all arms, so the no-match failure path is unexercised,
         and no arm is subsumed by an earlier one, so ordering is unproven.
@@ -6845,10 +7006,18 @@ samples:
     requires: [list-and-slice-patterns, slicing-and-sliceable-classification,
                array-literals, string-interpolation, var-type-inference]
     untested:
-      - Slices only ever print their first element, so a slice with a correct length but a
-        wrong offset for later elements would still pass.
+      - No slice of length greater than two has all of its elements printed. `mid` and `head` print
+        both, and `trimmed` prints its first and its last, but `tail[1]`, `tail[2]`, `trimmed[1]` and
+        every element of `middle` past the first go unread -- so a slice with a correct length and a
+        correct first element but a wrong interior would still pass. (This entry previously claimed
+        slices print only their first element, which the sample contradicts.)
       - Every bound is a literal against a fixed-length array, so no bound is ever clamped or
         empty.
+      - The doubly-omitted range `..` never appears; only `1..3`, `..2`, `2..` and `1..^1` do.
+      - Nothing is sliced but an array. The string arm of the classification and the refusal for
+        everything else are reached only from RangeAndIndexResolutionTests.
+      - No range or index is ever held in a variable, so `Standard.Range` and `Standard.Index` are
+        never observed as the type of anything the sample names.
 
   - name: Variadics
     intro_order: 86

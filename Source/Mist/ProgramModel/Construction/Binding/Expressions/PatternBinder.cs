@@ -154,6 +154,9 @@ internal static class PatternBinder
             case TuplePositionalPatternPrimaryPatternNode tuplePattern:
                 return BindTuplePattern(tuplePattern, scrutineeType, bindingsPermitted, ctx, context);
 
+            case ListPatternPrimaryPatternNode listPattern:
+                return BindListPattern(listPattern, scrutineeType, bindingsPermitted, ctx, context);
+
             case ParenthesizedPatternPrimaryPatternNode paren:
                 return Bind(paren.Inner, scrutineeType, bindingsPermitted, ctx, context);
 
@@ -386,6 +389,91 @@ internal static class PatternBinder
     }
 
     /// <summary>
+    /// <c>[p, .. q, r]</c>, whose two element kinds scrutinee different types -- see
+    /// <see cref="ListPattern"/>. The minimum length matching requires is NOT computed here: C# derives
+    /// it from the pattern's own shape, so stating it again would be a second authority on the same
+    /// fact.
+    /// <para>
+    /// An <c>unknown</c> scrutinee is REFUSED where a tuple pattern would type-test it, and the
+    /// asymmetry is C#'s rather than a gap here. A tuple pattern can name the ValueTuple ahead of
+    /// itself, but <c>[...]</c> is the only spelling C# has for a list pattern and it requires a
+    /// countable scrutinee at compile time -- so there is no type to name first, and the test would
+    /// have to become <c>is int[] and [...]</c>, a second emission shape.
+    /// </para>
+    /// </summary>
+    private static Pattern? BindListPattern(
+        ListPatternPrimaryPatternNode node,
+        IMistType scrutineeType,
+        bool bindingsPermitted,
+        BindingContext ctx,
+        BuilderContext context)
+    {
+        var matched = OptionalLifting.NonVoidPortion(scrutineeType, context.ProgramModel.TypeInterner);
+        var elementType = Indexability.ElementType(matched, context);
+
+        if(elementType is ErrorType)
+        {
+            context.Diagnostics.ReportAtNode(
+                ProgramModelDiagnostics.ListPatternScrutineeNotIndexable, node, null, matched.Name);
+
+            return new ListPattern(node, [], ErrorType.Instance);
+        }
+
+        var elements = new List<ListPatternElement>();
+        var sliceSeen = false;
+
+        foreach(var elementNode in Elements(node.Elements))
+        {
+            if(elementNode is SliceElementListPatternElementNode slice)
+            {
+                if(sliceSeen)
+                {
+                    context.Diagnostics.ReportAtNode(
+                        ProgramModelDiagnostics.ListPatternMultipleSlices, node, null);
+
+                    return new ListPattern(node, [], ErrorType.Instance);
+                }
+
+                sliceSeen = true;
+
+                if(slice.Subpattern is null)
+                {
+                    elements.Add(new ListPatternElement(Subpattern: null, IsSlice: true));
+                    continue;
+                }
+
+                var sliceType = Indexability.SliceType(matched, context);
+
+                if(sliceType is ErrorType)
+                {
+                    context.Diagnostics.ReportAtNode(
+                        ProgramModelDiagnostics.ReceiverNotSliceable, node, null, matched.Name);
+
+                    return new ListPattern(node, [], ErrorType.Instance);
+                }
+
+                if(Bind(slice.Subpattern, sliceType, bindingsPermitted, ctx, context) is not { } boundSlice)
+                {
+                    return null;
+                }
+
+                elements.Add(new ListPatternElement(boundSlice, IsSlice: true));
+                continue;
+            }
+
+            if(elementNode is not PatternElementListPatternElementNode positional
+                || Bind(positional.Pattern, elementType, bindingsPermitted, ctx, context) is not { } bound)
+            {
+                return null;
+            }
+
+            elements.Add(new ListPatternElement(bound, IsSlice: false));
+        }
+
+        return new ListPattern(node, elements, matched);
+    }
+
+    /// <summary>
     /// The tuple type a pattern proves its scrutinee holds, read off what each element pattern narrows
     /// to. Null where any element narrows to nothing nameable, which is every element testing a VALUE
     /// rather than a type: <c>u is (0, 0)</c> on an <c>unknown</c> says the elements equal zero and not
@@ -469,6 +557,11 @@ internal static class PatternBinder
     private static IReadOnlyList<PropertySubpatternNode> Subpatterns(PropertySubpatternListNode? list)
     {
         return list is null ? [] : GrammarRepetition.LeadAndRepeated(list.PropertySubpattern, list.PropertySubpatterns);
+    }
+
+    private static IReadOnlyList<ListPatternElementNode> Elements(ListPatternElementListNode? list)
+    {
+        return list is null ? [] : GrammarRepetition.LeadAndRepeated(list.ListPatternElement, list.ListPatternElements);
     }
 
     /// <summary>

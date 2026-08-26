@@ -146,7 +146,7 @@ internal static class PostfixBinder
             case IndexSuffixPostfixSuffixNode indexSuffix:
                 {
                     var index = ExpressionBinder.BindExpression(indexSuffix.Index, ctx, context);
-                    var resultType = ResolveIndexerType(receiver.Type, context);
+                    var resultType = ResolveElementAccessType(receiver.Type, index.Type, indexSuffix, context);
                     return new IndexExpression(suffix, receiver, index, resultType);
                 }
 
@@ -472,22 +472,31 @@ internal static class PostfixBinder
     }
 
     /// <summary>
-    /// Resolves the return type of the indexer on the receiver type.
-    /// For constructed types, looks up the indexer on the definition type and
-    /// substitutes type parameters against the constructed type's arguments.
+    /// <c>a[x]</c> yields an element or a sub-sequence depending on what <c>x</c> IS, so the receiver
+    /// alone cannot type it -- <c>numbers[1]</c> and <c>numbers[1..3]</c> differ in result type while
+    /// naming the same indexer. Only the range case reports: an index that resolves nothing keeps
+    /// answering <see cref="ErrorType"/> silently as it always has, where a range that resolves nothing
+    /// has no C# to write and would otherwise reach emission as a slice of an error type.
     /// </summary>
-    private static IMistType ResolveIndexerType(IMistType receiverType, BuilderContext context)
+    private static IMistType ResolveElementAccessType(
+        IMistType receiverType,
+        IMistType argumentType,
+        IndexSuffixPostfixSuffixNode node,
+        BuilderContext context)
     {
-        var constructed = receiverType as ConstructedType;
-        var lookupType = constructed?.Definition ?? receiverType;
-
-        if(lookupType is not MemberType { IndexersList.Count: > 0 } memberType)
+        if(!Indexability.IsRange(argumentType))
         {
-            return ErrorType.Instance;
+            return Indexability.ElementType(receiverType, context);
         }
 
-        return TypeSubstitution
-            .ForReceiver(constructed)
-            .Apply(memberType.IndexersList[0].Type, context.ProgramModel.TypeInterner);
+        var sliced = Indexability.SliceType(receiverType, context);
+
+        if(sliced is ErrorType)
+        {
+            context.Diagnostics.ReportAtNode(
+                ProgramModelDiagnostics.ReceiverNotSliceable, node, null, receiverType.Name);
+        }
+
+        return sliced;
     }
 }

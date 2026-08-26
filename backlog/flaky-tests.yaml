@@ -306,3 +306,38 @@ flakes:
       stream to a file and grep the file. Do not pipe a test run through a summary filter. Given this
       project has now produced four sightings, it may be worth running it under a trx logger by
       default until one is caught with its message intact.
+
+  - id: storm-trait-structural-satisfaction-property
+    test: Storm.SourceGenerator.Tests.StormTraitStructuralSatisfactionPropertyTests.P4c_MismatchedField_EmitsSTORM0021
+    file: Test/Storm.SourceGenerator.Tests/StormTraitStructuralSatisfactionPropertyTests.cs
+    discovered: 2026-08-26
+    status: unreproduced
+    symptom: >
+      Failed once in a full `dotnet test Mist.slnx` run and passed on immediate rerun in isolation
+      with no intervening code change. One sighting only.
+    cause: >
+      Unknown. See the pattern note below before guessing: the candidate worth testing is shared
+      Storm property-test infrastructure rather than anything specific to trait satisfaction, but
+      nothing here establishes that and a fix aimed at it would be a guess.
+    evidence: >
+      NOT THE CHANGE UNDER TEST. The working tree held the v2 ranges layer only -- orders 123-125,
+      confined to Source/Mist/ProgramModel, Source/Mist/Backends/CSharpTranspiler/Emitter,
+      Source/Mist/Common/Diagnostics/Descriptors, Test/Mist.Tests, samples/ and backlog/. Nothing in
+      Storm.SourceGenerator is referenced by any of them, and `git status --short` showed nothing
+      modified under Source/Storm.SourceGenerator or Test/Storm.SourceGenerator.Tests.
+      REPRODUCTION: one isolated rerun of the test alone, green in 41 ms. No further attempts.
+      THE NAME WAS CAPTURED THIS TIME, which the entry above
+      (unidentified-storm-single-failure-2026-08-04) asked the next sighting to do. The run was piped
+      through `grep -E 'Failed!|Passed!|error CS|^\s+Failed '`, and the trailing pattern is what kept
+      the per-test line. The MESSAGE was still lost, so the trx advice in that entry stands.
+      THE PATTERN IS NOW THREE NAMED STORM PROPERTY TESTS, none sharing a subject:
+      StormMemoPropagationPropertyTests.P3_MemoPropagation_RuleIR_IsMemo_MatchesSource,
+      StormTraitFieldTypeResolutionPropertyTests.P3_FragmentFieldType_STORM0018Emitted, and this one
+      -- plus the unidentified 2026-08-04 sighting, which was also in Storm.SourceGenerator.Tests.
+      Three unrelated property tests in one project failing this way is weak evidence for three
+      independent bugs and better evidence for something shared: the FsCheck draw, or process-wide
+      state in the generator harness under the concurrent load of a three-project run. Every sighting
+      so far has been under `dotnet test Mist.slnx`, never under the project alone.
+      NEXT SIGHTING: attach `--logger "trx;LogFileName=x.trx"` and read the failing message and the
+      FsCheck seed. A seed would settle the draw question outright, which is the cheapest of the
+      candidates to rule in or out.

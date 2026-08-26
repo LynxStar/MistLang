@@ -34,3 +34,5 @@ TypeUnions = { path = "../TypeUnions" }
 TuplePatternMatching = { path = "../TuplePatternMatching" }
 Tuples = { path = "../Tuples" }
 StructInheritance = { path = "../StructInheritance" }
+PatternMatching = { path = "../PatternMatching" }
+RangesAndIndices = { path = "../RangesAndIndices" }

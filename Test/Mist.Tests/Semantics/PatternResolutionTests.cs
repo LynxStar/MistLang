@@ -371,15 +371,7 @@ public sealed class PatternResolutionTests : ProgramModelProbe
         _ = Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_IDENTIFIER"));
     }
 
-    // ── Forms deferred to later orders ───────────────────────────────────
-
-    [Fact]
-    public void AListPattern_ParksUnresolvedWithoutADiagnostic()
-    {
-        _ = InitializerOf<UnresolvedExpression>("var ok = u is [1];");
-
-        Assert.Empty(Errors(BuildRun("var ok = u is [1];"), "MIST_PM_UNRESOLVED_IDENTIFIER"));
-    }
+    // ── Error recovery ───────────────────────────────────────────────────
 
     [Fact]
     public void AnUnresolvableTestedType_ErrorsOnceAndDoesNotPark()

@@ -351,6 +351,21 @@ internal static class BodyEmitter
                 writer.Append("]");
                 break;
 
+            case RangeExpression range:
+                if(range.Start is { } rangeStart)
+                {
+                    EmitSubExpression(rangeStart, PrefixPrecedence, writer, diagnostics);
+                }
+
+                writer.Append("..");
+
+                if(range.End is { } rangeEnd)
+                {
+                    EmitSubExpression(rangeEnd, PrefixPrecedence, writer, diagnostics);
+                }
+
+                break;
+
             case ArrayCreationExpression arrayCreation:
                 writer.Append($"new {TypeNameEmitter.Emit(arrayCreation.ElementType)}[");
                 EmitExpression(arrayCreation.Size, writer, diagnostics);
@@ -703,6 +718,14 @@ internal static class BodyEmitter
     private static void EmitSwitch(
         SwitchExpression switchExpression, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        if(switchExpression.Scrutinee.Type is UnionType union && !OptionalUnion.IsOptional(union))
+        {
+            diagnostics.ReportAtNode(
+                BackendDiagnostics.UnsupportedUnionSwitch, switchExpression.Node, null, union.Name);
+            writer.Append($"/* unsupported: switch over union {union.Name} */");
+            return;
+        }
+
         EmitExpression(switchExpression.Scrutinee, writer, diagnostics);
         writer.Append(" switch { ");
 
@@ -838,6 +861,10 @@ internal static class BodyEmitter
             case TuplePattern tuple:
                 EmitTuplePattern(tuple, hoisted, writer, diagnostics);
                 break;
+
+            case ListPattern list:
+                EmitListPattern(list, hoisted, writer, diagnostics);
+                break;
         }
 
         if(parenthesize)
@@ -882,6 +909,58 @@ internal static class BodyEmitter
         {
             writer.Append($" {whole.Name}");
         }
+    }
+
+    /// <summary>
+    /// A positional element threads <paramref name="hoisted"/> as a tuple element does, being the same
+    /// kind of binding site. A SLICE clears it: what a slice matches is a sub-sequence, so lifting an
+    /// enum variant out of one would compare a sub-sequence against a variant, and clearing sends the
+    /// variant to <see cref="EmitComparison"/> to be refused rather than emitting that.
+    /// </summary>
+    private static void EmitListPattern(
+        ListPattern list, List<HoistedTest>? hoisted, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        writer.Append("[");
+
+        for(var i = 0; i < list.Elements.Count; i++)
+        {
+            if(i > 0)
+            {
+                writer.Append(", ");
+            }
+
+            var element = list.Elements[i];
+
+            if(element.IsSlice)
+            {
+                writer.Append("..");
+
+                if(element.Subpattern is { } slice)
+                {
+                    writer.Append(" ");
+                    EmitPattern(slice, 0, hoisted: null, writer, diagnostics);
+                }
+
+                continue;
+            }
+
+            if(element.Subpattern is not { } positional)
+            {
+                continue;
+            }
+
+            if(hoisted is not null && EnumVariantTested(positional) is { } variant)
+            {
+                var bound = TemporaryName(positional);
+                writer.Append($"var {bound}");
+                hoisted.Add(new HoistedTest(bound, variant));
+                continue;
+            }
+
+            EmitPattern(positional, 0, hoisted, writer, diagnostics);
+        }
+
+        writer.Append("]");
     }
 
     private static void EmitComparison(
@@ -1130,6 +1209,7 @@ internal static class BodyEmitter
         {
             UnaryOperatorKind.Negate => "-",
             UnaryOperatorKind.LogicalNot => "!",
+            UnaryOperatorKind.FromEnd => "^",
             _ => "/* unknown unary */",
         };
     }

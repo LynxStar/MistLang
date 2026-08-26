@@ -161,6 +161,25 @@ public static class BackendDiagnostics
         "Only a type test can narrow the union type '{0}' yet. Combining patterns or comparing against a constant is not supported by the experimental emitter.");
 
     /// <summary>
+    /// A switch expression whose scrutinee is a union. Narrowing a union folds the tag check into the
+    /// SCRUTINEE -- <c>u is int i</c> emits as <c>u.AsInt32OrNull is int i</c> -- and a C# switch has one
+    /// scrutinee for all of its arms, while each arm here needs a different constituent accessor. So the
+    /// switch has to become a chain of tests rather than a switch at all, which is a second emission
+    /// shape that is not built.
+    /// <para>
+    /// Distinct from <see cref="UnsupportedUnionPattern"/>, which refuses a PATTERN that cannot narrow:
+    /// every arm below may be individually narrowable and the construct still has no lowering. Reported
+    /// rather than emitted because the C# compiles nowhere -- a carrier stands in no relation to its
+    /// constituents, so Roslyn rejects each arm against a generated file the user never wrote.
+    /// </para>
+    /// </summary>
+    public static readonly DiagnosticDescriptor UnsupportedUnionSwitch = new(
+        new DiagnosticId("MIST_BE_UNSUPPORTED_UNION_SWITCH"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Backend,
+        "A switch expression cannot narrow the union type '{0}' yet, because each arm would need its own constituent accessor and a C# switch admits only one scrutinee. Use a chain of 'is' tests instead.");
+
+    /// <summary>
     /// An enum variant appeared under a pattern combinator. A Mist enum lowers to a record class whose
     /// variants are static readonly FIELDS, and C# admits only a compile-time constant in a pattern, so
     /// the test has to become an equality comparison. That is an expression, and an expression cannot

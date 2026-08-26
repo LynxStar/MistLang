@@ -56,5 +56,6 @@ public class Program
         RangesAndIndices.Program.RunDemo();
         Enums.Program.RunDemo();
         EnumReadonlyRestriction.Program.RunDemo();
+        UnknownType.Program.RunDemo();
     }
 }

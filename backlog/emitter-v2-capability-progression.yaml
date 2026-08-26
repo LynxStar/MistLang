@@ -3591,13 +3591,55 @@ capabilities:
     order: 82
     layer: unions-and-unknown
     requires: [unknown-top-type, type-argument-substitution]
-    v2_status: missing
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
-      Covariance is keyed on the top type rather than a declared variance annotation, and
-      soundness comes from FILTERING members that write storage typed by the parameter.
-      Restricted to class generic definitions, with its own diagnostic for struct generics.
-      A constructed generic transitively closed with unknown lowers to C# dynamic, so the
-      filtering is a compile-time-only guarantee.
+      THE SAMPLE FAILED IN ROSLYN, NOT IN MIST, and the two errors named the whole problem --
+      "Cannot implicitly convert type 'MyList<int>' to 'MyList<object>'" and "An expression of type
+      'MyList<object>' cannot be handled by a pattern of type 'MyList<int>'". v2 had emitted the
+      widening happily; C# class generics are invariant, so the `object` spelling is a type Roslyn will
+      not convert into.
+
+      A CONSTRUCTION REACHING unknown IS SPELLED `dynamic`, transitively and at any depth, which is the
+      only C# spelling that both accepts the conversion and dispatches members against the runtime
+      type. A BARE unknown is untouched and stays `object` -- it is the user-facing top type with a
+      domain of its own, and only the CONSTRUCTION changes spelling. Array is deliberately outside the
+      rule: the Array<T, Length> special case runs first, so `unknown[]` stays `object[]`, C# arrays
+      being covariant already. No sample reaches that and the choice is recorded rather than defended.
+
+      THE FRONTEND HAD NEVER ASKED WHETHER THE WIDENING WAS LEGAL, which is the finding worth keeping.
+      ConversionRelation declines constructed generics by design and its own doc says a false answer
+      "may not be used to refuse a program" -- and nothing checks the assignability of a local
+      declaration at all, so `MyList<unknown> w = ints;` bound because the question never came up, not
+      because the answer was yes. The relation now HOLDS, which is what this order is named for.
+
+      COVARIANCE KEYED ON THE TOP TYPE AND NOTHING ELSE. An argument position may widen to `unknown`
+      and to no other supertype, so `MyList<int>` stays outside `MyList<long>` even though int is
+      within long -- general covariance is unsound without a declared variance annotation and Mist has
+      no syntax for one. Asserted as the pair, since the int-to-long half is what makes the refusal
+      meaningful. One-directional, and CLASS definitions only: a struct generic widened this way would
+      box to reach its `dynamic`, discarding the value semantics that made it a struct.
+
+      THE TWO HALVES ARE GUARDED DIFFERENTLY, measured rather than assumed. Disabling the `dynamic`
+      spelling fails two model tests AND the AllFeaturesV2 baseline, because the emitted C# stops
+      compiling. Removing the containment arm fails ONE model test and leaves the baseline GREEN --
+      necessarily, since nothing refuses a program on containment, so the sample runs identically
+      whether the relation holds or not. That is the third capability in a row whose model half no
+      sample can see (orders 123 and 134 being the others), and the reason each carries its own
+      resolution tests.
+
+      UnknownType banked, byte-identical to classic.
+    tasks:
+      - FILTER members that write storage typed by the parameter. This is the soundness half named in
+        this order's own description and it is not built -- `widened.Add(99)` still resolves on a
+        `MyList<unknown>` receiver, where the language hides it because Add writes a T-typed field and T
+        is bound to the top type. Construction's business rather than the analysis phase's, because it
+        changes what a name RESOLVES to rather than judging a finished model -- and testable as a
+        refusal even though no sample can contain one, the sample's own rejection being a comment.
+      - Report a struct generic widened at an unknown position. The relation already declines it, but
+        declining is not reporting and there is NOWHERE to report from -- v2 checks the assignability of
+        no declaration anywhere, which is the same absence that let the class case through untested.
+        A site has to exist before the diagnostic can.
     unlocks: []
 
   - id: unknown-readonly-member-filtering
@@ -6896,6 +6938,15 @@ samples:
         never actually applied.
       - The widened receiver is always backed by a runtime type that has the member, so no
         binder failure is ever observed under the dynamic lowering.
+      - THE CONTAINMENT RELATION IS INVISIBLE HERE, mutation-measured -- removing the covariant arm from
+        ConversionRelation leaves this sample green, because nothing in v2 refuses a program on
+        containment. What the sample proves is the `dynamic` SPELLING; the relation is carried by
+        UnknownCovariantWideningTests alone.
+      - No struct generic is widened, so the class-only restriction is never triggered from a sample.
+      - Only one argument position is ever widened, and only to unknown directly -- no construction
+        nests unknown, and no partially-widened form (one argument unknown, another concrete) appears.
+      - No array ever has unknown as its element type, so the deliberate exclusion of Array from the
+        dynamic rule is unexercised.
 
   - name: UnknownReadonlySemantics
     intro_order: 36

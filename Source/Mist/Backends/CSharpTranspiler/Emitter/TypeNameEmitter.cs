@@ -154,6 +154,18 @@ internal static class TypeNameEmitter
             return $"{elementType}[]";
         }
 
+        // A construction reaching `unknown` anywhere in its arguments is spelled `dynamic`, NOT
+        // `Definition<object, ...>`. Mist admits `MyList<int>` where `MyList<unknown>` is expected
+        // because unknown is the top type, and C# class generics are invariant, so the `object`
+        // spelling is a type Roslyn refuses to convert into. `dynamic` erases to object with the
+        // conversion allowed and dispatches members against the runtime type instead -- which is why
+        // the member filtering that makes this sound is a COMPILE-TIME guarantee with nothing
+        // enforcing it downstream. A BARE unknown is unaffected and stays `object`.
+        if(ContainsUnknown(constructed))
+        {
+            return "dynamic";
+        }
+
         // Generic types: Definition<Arg1, Arg2, ...>
         var baseName = MistType.StripArity(constructed.Definition.Name);
         var args = string.Join(", ", constructed.TypeArguments.Select(Emit));
@@ -164,6 +176,20 @@ internal static class TypeNameEmitter
         }
 
         return $"{baseName}<{args}>";
+    }
+
+    private static bool ContainsUnknown(IMistType type)
+    {
+        return type switch
+        {
+            UnknownType => true,
+            ConstructedType constructed => constructed.TypeArguments.Any(ContainsUnknown),
+            UnionType union => union.Constituents.Any(ContainsUnknown),
+            ITupleType tuple => tuple.ElementTypes.Any(ContainsUnknown),
+            FunctionType function =>
+                function.ParameterTypes.Any(ContainsUnknown) || ContainsUnknown(function.ReturnType),
+            _ => false,
+        };
     }
 
     private static string MapMemberType(MemberType memberType)

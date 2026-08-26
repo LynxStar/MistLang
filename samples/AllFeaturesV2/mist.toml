@@ -38,3 +38,4 @@ PatternMatching = { path = "../PatternMatching" }
 RangesAndIndices = { path = "../RangesAndIndices" }
 Enums = { path = "../Enums" }
 EnumReadonlyRestriction = { path = "../EnumReadonlyRestriction" }
+UnknownType = { path = "../UnknownType" }

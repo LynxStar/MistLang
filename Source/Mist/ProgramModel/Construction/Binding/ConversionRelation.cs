@@ -51,6 +51,7 @@ internal static class ConversionRelation
             || Inherits(from, to)
             || WidensIntoUnion(from, to)
             || WidensElementwise(from, to)
+            || WidensToUnknownArguments(from, to)
             ;
     }
 
@@ -117,6 +118,39 @@ internal static class ConversionRelation
     private static IMistType Structural(IMistType type)
     {
         return type is INamedTupleType named ? named.Underlying : type;
+    }
+
+    /// <summary>
+    /// <c>MyList&lt;int&gt;</c> into <c>MyList&lt;unknown&gt;</c>. Covariance keyed on the TOP TYPE and on
+    /// nothing else: an argument position may only widen to <c>unknown</c>, never to another supertype,
+    /// so <c>MyList&lt;int&gt;</c> stays outside <c>MyList&lt;long&gt;</c> -- general covariance would be
+    /// unsound without a declared variance annotation, which Mist has no syntax for.
+    /// <para>
+    /// A CLASS definition only. A struct generic widened this way would have to box to reach the
+    /// <c>dynamic</c> its emission uses, losing the value semantics that made it a struct.
+    /// </para>
+    /// </summary>
+    private static bool WidensToUnknownArguments(IMistType from, IMistType to)
+    {
+        if(from is not ConstructedType source
+            || to is not ConstructedType target
+            || source.Definition is not ClassType
+            || !IsIdentity(source.Definition, target.Definition)
+            || source.TypeArguments.Count != target.TypeArguments.Count)
+        {
+            return false;
+        }
+
+        for(var i = 0; i < source.TypeArguments.Count; i++)
+        {
+            if(target.TypeArguments[i] is not UnknownType
+                && !IsIdentity(source.TypeArguments[i], target.TypeArguments[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static bool WidensElementwise(IMistType from, IMistType to)

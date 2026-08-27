@@ -6098,15 +6098,55 @@ capabilities:
     order: 182
     layer: conversions-advanced
     requires: [pattern-matching-core, union-types-and-carriers]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      The as operator's RESULT TYPE depends on the classification -- a bare type for a
-      provable conversion, an optional for a runtime-checked one. Covers identity, reference
-      widening, reference narrowing, struct widening and union constituent extraction. C#
-      always yields a nullable, so this is a divergence.
+      The as operator's RESULT TYPE depends on the classification -- a bare type for a provable
+      conversion, an optional for a runtime-checked one. C# always yields a nullable, so this is a
+      divergence, and it is why the classification is RECORDED ON THE MODEL rather than recomputed at
+      emission: one lookup answers both what the expression's type is and which C# spelling produces it.
+      TypeTestPattern.Constituent's reason, at the same layer.
+
+      FOUR KINDS, and the ORDER is forced. Identity answers first, then containment as WIDENING, so a
+      conversion that cannot fail is never classified as one that can; the union arm precedes
+      containment-in-reverse, because a constituent has to be reached through its own carrier accessor and
+      a carrier stands in no relation to what it holds; NARROWING closes it. `unknown` is an arm of its own
+      because ConversionRelation declines to reason about it, answering false in both directions -- every
+      value inhabits it, so narrowing out of it is checked rather than unrelated.
+
+      THE OPERAND IS EVALUATED ONCE in every form, which is the thing classic gets wrong: it re-emits the
+      operand twice for a reference constituent and three times for a value one, inside a ternary. Both of
+      C#'s runtime-checked spellings already bind what they tested -- `as` answers the value or null, an
+      `is` pattern binds it -- so neither wants the operand again. Measured rather than assumed: a
+      side-effecting operand counted exactly one evaluation for unknown narrowing, union extraction and
+      reference narrowing alike.
+
+      A UNION NEEDS NO TEST AT ALL, which is order 98's accessor paying for itself a second time.
+      `AsInt32OrNull` already answers the constituent or absent, and that IS the lifted result type this
+      expression carries, so `union as int` emits as `union.AsInt32OrNull` -- no conditional, nothing that
+      could be re-evaluated. Where the target sits INSIDE a constituent rather than equal to it the
+      accessor answers wider, so exactly one further test composes onto it and `Animal | int as Dog` emits
+      as `(wide.AsAnimalOrNull as Dog)`.
+
+      TWO RELATIONSHIPS ARE REFUSED, and that is a SPELLING problem rather than a classification one. Two
+      siblings under one base, and a struct against an abstract it does not declare, are both reachable in
+      principle; neither is expressible as C#'s `as`, which demands a reference conversion that sibling
+      classes do not have and a struct cannot acquire by subclassing. Admitting them would report nothing
+      and put a CS0039 in a generated file, so they report MIST_PM_AS_NO_RELATIONSHIP instead. Classic
+      classifies both as non-provable and would emit the broken C#; no sample reaches it. An abstract is
+      otherwise unaffected -- a declared conformance IS containment, so widening to one and narrowing from
+      one both go through the ordinary arms, verified by hand.
+
+      ONE DIAGNOSTIC where classic has three. Classic words a void source and a void target separately;
+      nothing converts to or from the unit type, so "no relationship" is already the true answer there and
+      the extra descriptors would only say it more specifically.
+
+      AsOperator is banked in AllFeaturesV2, output identical to classic.
     tasks:
-      - Evaluate the operand once. The classic pipeline re-emits it two or three times inside
-        a conditional, which double-evaluates a side-effecting operand.
+      - >
+        Find a spelling for the two refused relationships, or settle that they stay refused. A sibling
+        narrow could go through a common base and a struct-to-abstract through boxing, and both change
+        what the operand COSTS, so this is a language decision rather than an emitter one.
     unlocks: []
 
   - id: struct-inheritance-flattening
@@ -7051,6 +7091,8 @@ samples:
         is not observable.
       - Each failure branch is fed a statically obvious wrong type, so an always-fails
         implementation would print the same lines.
+      - Every union target IS a constituent, so the composed form for a target sitting inside one
+        is not what this sample proves. Order 182 records where that was measured instead.
 
   - name: DelegateFuncConversion
     intro_order: 74

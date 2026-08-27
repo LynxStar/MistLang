@@ -569,7 +569,7 @@ internal static class PatternBinder
     /// containment is tried at all: <c>Animal | int</c> narrows to Dog through the Animal accessor, but
     /// an exact constituent must never be answered by a wider one that merely also contains it.
     /// </summary>
-    private static IMistType? MatchConstituent(UnionType union, IMistType tested)
+    internal static IMistType? MatchConstituent(UnionType union, IMistType tested)
     {
         foreach(var constituent in union.Constituents)
         {

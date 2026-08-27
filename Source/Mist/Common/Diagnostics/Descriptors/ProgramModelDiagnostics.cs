@@ -869,4 +869,21 @@ public static class ProgramModelDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
         "No member named '{0}' on '{1}' can answer slot '{2}' of '{3}'. A mapping needs a member of the same kind, and for a method one taking the same number of parameters.");
+
+    /// <summary>
+    /// An <c>as</c> names a target the source can never reach, in either direction. Reported by
+    /// construction rather than deferred because the classification is what gives the expression its
+    /// TYPE: an unreachable target leaves nothing to answer with, neither the bare type a provable
+    /// conversion yields nor the optional a checked one does.
+    /// <para>
+    /// A void end reaches here too, rather than through a message of its own. Nothing converts to or from
+    /// the unit type, so "no relationship" is already the true answer and a second descriptor would only
+    /// word it more specifically.
+    /// </para>
+    /// </summary>
+    public static readonly DiagnosticDescriptor AsConversionNoRelationship = new(
+        new DiagnosticId("MIST_PM_AS_NO_RELATIONSHIP"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "No conversion relates '{0}' to '{1}', so 'as' has no result type to produce. One must contain the other, or the source must be a union or unknown holding it.");
 }

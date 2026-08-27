@@ -338,6 +338,10 @@ internal static class BodyEmitter
                 writer.Append(")");
                 break;
 
+            case AsExpression asExpression:
+                EmitAs(asExpression, writer, diagnostics);
+                break;
+
             case AssignmentExpression assignment:
                 EmitExpression(assignment.Target, writer, diagnostics);
                 writer.Append(assignment.IsCoalescing ? " ??= " : " = ");
@@ -807,6 +811,77 @@ internal static class BodyEmitter
         writer.Append($"{{ {UnionCarrierNames.NarrowingAccessor(constituent)}: ");
         EmitPattern(pattern, 0, hoisted: null, writer, diagnostics);
         writer.Append(" }");
+    }
+
+    /// <summary>
+    /// The operand is emitted ONCE in every form, which is what makes a side-effecting one safe. C#'s two
+    /// runtime-checked spellings each bind what they tested -- <c>as</c> answers the value or null, an
+    /// <c>is</c> pattern binds it -- so neither wants the operand again; and a union needs no test at all,
+    /// because the carrier's narrowing accessor already answers the constituent or absent, which is
+    /// exactly what this expression's type says it produces.
+    /// <para>
+    /// Two spellings rather than one because C#'s <c>as</c> demands a reference or nullable target, so a
+    /// value target goes through a pattern instead. <see cref="TypeNameEmitter.IsValueKind"/> decides,
+    /// being the same authority that spells the optional this produces.
+    /// </para>
+    /// </summary>
+    private static void EmitAs(
+        AsExpression asExpression, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        if(asExpression.Kind is AsConversionKind.Identity)
+        {
+            EmitExpression(asExpression.Operand, writer, diagnostics);
+            return;
+        }
+
+        var target = TypeNameEmitter.Emit(asExpression.TargetType);
+
+        if(asExpression.Kind is AsConversionKind.Widening)
+        {
+            writer.Append($"(({target})");
+            EmitExpression(asExpression.Operand, writer, diagnostics);
+            writer.Append(")");
+            return;
+        }
+
+        var accessor = asExpression.Constituent is { } constituent
+            ? $".{UnionCarrierNames.NarrowingAccessor(constituent)}"
+            : null
+            ;
+
+        var checkedAtRuntime = accessor is null
+            || asExpression.Constituent?.FullyQualifiedName != asExpression.TargetType.FullyQualifiedName
+            ;
+
+        if(checkedAtRuntime)
+        {
+            writer.Append("(");
+        }
+
+        EmitSubExpression(
+            asExpression.Operand,
+            accessor is null ? RelationalPrecedence : PrefixPrecedence,
+            writer,
+            diagnostics);
+
+        if(accessor is not null)
+        {
+            writer.Append(accessor);
+        }
+
+        if(!checkedAtRuntime)
+        {
+            return;
+        }
+
+        if(!TypeNameEmitter.IsValueKind(asExpression.TargetType))
+        {
+            writer.Append($" as {target})");
+            return;
+        }
+
+        var bound = $"__as{asExpression.Node.Span.Start}";
+        writer.Append($" is {target} {bound} ? {bound} : default({target}?))");
     }
 
     private static string TemporaryName(Pattern pattern)

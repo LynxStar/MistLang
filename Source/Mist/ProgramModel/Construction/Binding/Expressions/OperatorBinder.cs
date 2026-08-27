@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
@@ -100,6 +101,9 @@ internal static class OperatorBinder
             case IsExpressionRelationalNode isExpression:
                 return BindIs(isExpression, ctx, context);
 
+            case AsExpressionRelationalNode asExpression:
+                return BindAs(asExpression, ctx, context);
+
             case RelationalComparisonRelationalNode comparison:
                 {
                     var left = BindAdditive(comparison.Left, ctx, context);
@@ -144,6 +148,91 @@ internal static class OperatorBinder
 
         return new IsPatternExpression(
             node, scrutinee, pattern, context.Resolver.LookupWellKnown(WellKnownTypes.Boolean));
+    }
+
+    private static Expression BindAs(
+        AsExpressionRelationalNode node, BindingContext ctx, BuilderContext context)
+    {
+        Expression operand;
+        using(ctx.PushTargetType(null))
+        {
+            operand = BindAdditive(node.Left, ctx, context);
+        }
+
+        var target = context.Resolver.Resolve(node.TargetType, ctx.Scope);
+
+        if(operand.Type is ErrorType || target is ErrorType)
+        {
+            return new ErrorExpression(node);
+        }
+
+        var (kind, constituent) = Classify(operand.Type, target);
+
+        if(kind is not { } classified)
+        {
+            context.Diagnostics.ReportAtNode(
+                ProgramModelDiagnostics.AsConversionNoRelationship, node, null,
+                operand.Type.Name, target.Name);
+
+            return new ErrorExpression(node);
+        }
+
+        var resultType = classified is AsConversionKind.Identity or AsConversionKind.Widening
+            ? target
+            : OptionalLifting.Lift(
+                target,
+                context.Resolver.LookupWellKnown(WellKnownTypes.Void),
+                context.ProgramModel.TypeInterner)
+            ;
+
+        return new AsExpression(node, operand, target, classified, constituent, resultType);
+    }
+
+    /// <summary>
+    /// How the conversion reaches its target, or null where nothing relates the two. The ORDER is forced.
+    /// Containment answers PROVABLE before anything answers checked, so a conversion that cannot fail is
+    /// never classified as one that can; and the union arm precedes containment-in-reverse because a
+    /// constituent has to be reached through its own carrier accessor, a carrier standing in no relation
+    /// to what it holds.
+    /// <para>
+    /// <c>unknown</c> is an arm of its own because <see cref="ConversionRelation"/> declines to reason
+    /// about it, answering false in both directions. Every value inhabits it, so narrowing out of it is
+    /// checked rather than unrelated.
+    /// </para>
+    /// <para>
+    /// TWO RELATIONSHIPS ARE DELIBERATELY REFUSED, and adding them means finding a spelling first rather
+    /// than just widening this. Two siblings under one base, and a struct against an abstract it does not
+    /// declare, are both reachable in principle and neither is expressible as C#'s <c>as</c>: it demands a
+    /// reference conversion, which sibling classes do not have and a struct cannot acquire by subclassing.
+    /// So admitting them here would report nothing and emit C# that Roslyn rejects.
+    /// </para>
+    /// </summary>
+    private static (AsConversionKind? Kind, IMistType? Constituent) Classify(
+        IMistType source, IMistType target)
+    {
+        if(ConversionRelation.IsIdentity(source, target))
+        {
+            return (AsConversionKind.Identity, null);
+        }
+
+        if(ConversionRelation.IsWithin(source, target))
+        {
+            return (AsConversionKind.Widening, null);
+        }
+
+        if(source is UnionType union
+            && !OptionalUnion.IsOptional(union)
+            && PatternBinder.MatchConstituent(union, target) is { } constituent)
+        {
+            return (AsConversionKind.UnionExtraction, constituent);
+        }
+
+        if(source is UnknownType || ConversionRelation.IsWithin(target, source))
+        {
+            return (AsConversionKind.Narrowing, null);
+        }
+
+        return (null, null);
     }
 
     private static Expression BindAdditive(AdditiveNode node, BindingContext ctx, BuilderContext context)

@@ -91,7 +91,7 @@ internal static class TypeNameEmitter
             ;
     }
 
-    private static bool IsValueKind(IMistType type)
+    internal static bool IsValueKind(IMistType type)
     {
         return type switch
         {

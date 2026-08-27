@@ -58,5 +58,6 @@ public class Program
         EnumReadonlyRestriction.Program.RunDemo();
         UnknownType.Program.RunDemo();
         SwitchExpressions.Program.RunDemo();
+        AsOperator.Program.RunDemo();
     }
 }

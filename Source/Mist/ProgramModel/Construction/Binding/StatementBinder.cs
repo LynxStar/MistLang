@@ -1,6 +1,7 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Binding.Expressions;
+using Mist.ProgramModel.Construction.Types;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
@@ -63,7 +64,10 @@ internal static class StatementBinder
                         }
                     }
 
-                    var local = new LocalVariable(typed.Name.Lexeme, declaredType);
+                    var local = new LocalVariable(typed.Name.Lexeme, declaredType)
+                    {
+                        IsRef = MemberTypeBuilder.IsRefSpecifier(typed.OwnershipSpecifier),
+                    };
                     ctx.Scope.DeclareLocal(local, context.Diagnostics);
                     return new LocalDeclarationStatement(local, initializer);
                 }
@@ -72,7 +76,10 @@ internal static class StatementBinder
                 {
                     var initializer = ExpressionBinder.BindExpression(inferred.Initializer, ctx, context);
                     var inferredType = initializer.Type;
-                    var local = new LocalVariable(inferred.Name.Lexeme, inferredType);
+                    var local = new LocalVariable(inferred.Name.Lexeme, inferredType)
+                    {
+                        IsRef = MemberTypeBuilder.IsRefSpecifier(inferred.OwnershipSpecifier),
+                    };
                     ctx.Scope.DeclareLocal(local, context.Diagnostics);
                     return new LocalDeclarationStatement(local, initializer);
                 }

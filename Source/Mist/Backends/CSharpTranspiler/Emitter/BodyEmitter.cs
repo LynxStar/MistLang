@@ -135,6 +135,14 @@ internal static class BodyEmitter
 
     private static void EmitLocalDeclaration(LocalDeclarationStatement localDecl, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        // The initializer's node, because a local carries none of its own and the grammar requires an
+        // initializer on every form that admits a ref specifier.
+        if(localDecl.Local.IsRef && localDecl.Initializer is { } aliased)
+        {
+            diagnostics.ReportAtNode(
+                BackendDiagnostics.UnsupportedRefLocal, aliased.Node, null, localDecl.Local.Name);
+        }
+
         var typeName = TypeNameEmitter.Emit(localDecl.Local.Type);
 
         if(localDecl.Initializer is InvocationExpression call && OptionalUnion.IsVoid(call.Type))

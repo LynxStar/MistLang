@@ -5388,26 +5388,60 @@ capabilities:
     order: 132
     layer: clr-interop
     requires: [clr-byref-parameter-projection]
-    v2_status: broken
+    v2_status: missing
     evidence: >
-      BROKEN RATHER THAN MISSING, and the distinction is the point: RefParameters compiles and RUNS
-      on v2, printing wrong answers. `ref` is dropped entirely from emission -- the whole v2 output
-      contains no occurrence of the keyword, where classic emits
-      `private static void MutatePoint(ref Point p)` and `return ref this.Field`. Mutation through a
-      ref parameter therefore fails to propagate: classic prints `after: Point(100, 200)` and
-      `[ref-return-field] 77`, v2 prints `after: Point(1, 2)` and `10`.
-      Nothing catches it and nothing can as things stand. No name is unresolved, so no sentinel is
-      parked; the binder discards ref-ness and the emitter has nothing to notice. A sample that
-      passes a compile-based screen while computing the wrong result is the failure this file exists
-      to prevent, which puts it ahead of anything merely missing.
-      Also needs an lvalue check for ref arguments, escape analysis for ref returns, and alias
-      liveness for ref locals whose referent is a field or an element. Mist omits the second
-      ref keyword C# requires at a ref-local initializer, so the emitter reinstates it.
+      NO LONGER BROKEN: every form is now REFUSED rather than dropped, so nothing runs and lies.
+      MIST_BE_UNSUPPORTED_REF already covered a parameter; MIST_BE_UNSUPPORTED_REF_RETURN and
+      MIST_BE_UNSUPPORTED_REF_LOCAL cover the rest. Emission is still entirely unbuilt, which is what
+      `missing` means -- the status moved because the silence did, not because the feature landed.
+      samples/RefParameters reports 12 diagnostics where it previously reported 4 and RAN.
+
+      THE ENTRY WAS RIGHT THAT IT WAS BROKEN AND WRONG ABOUT THE REACH, and the reach is what made it
+      dangerous. By the time this was picked up the parameter guard existed, so RefParameters already
+      failed to build -- which hid the live defect rather than fixing it, because the sample could no
+      longer reach the ref-return and ref-local paths that still lied. A program with a ref return and
+      a ref local and NO ref parameter still printed 10 where classic printed 77, and 5 where classic
+      printed 42, with no diagnostic. A partial guard that stops the only sample exercising a defect
+      is worse than no guard, and this file's compile-based screen cannot see the difference.
+
+      TWO GRAMMAR FACTS THAT COST AN ITERATION, both worth keeping. `Modifier` admits `ref`
+      (Mist.storm:212) and every rule with an ownership specifier except a local's puts `Modifier*`
+      AHEAD of it and matches greedily. So a method's `ref` never reaches
+      `MethodDeclarationNode.ReturnOwnership` -- it arrives as a modifier and lands on
+      `MemberModifiers.IsRef`, which `ModifierBuilder` was already populating and nothing was reading.
+      A ref return therefore needed no model change at all. A LOCAL is the one form whose specifier
+      really does carry it, because its rule has only `READONLY?` in front. `readonly ref` splits into
+      a modifier plus a bare ref specifier in both positions, so testing only the combined
+      `ReadonlyRefSpecifier` node matches nothing the parser produces.
+
+      A REF PARAMETER ON AN ABSTRACT'S METHOD SLOT WAS ALSO BEING DROPPED, unguarded, because
+      TypeEmitter.EmitInterfaceMethod spelled the signature through MethodEmitter.EmitSignature and
+      never called the report. It could not print a wrong answer -- any implementor is itself refused
+      -- but the guard's coverage rested on that coincidence rather than on anything checked, so the
+      report now sits on both paths.
+
+      A REF ARGUMENT IS DELIBERATELY NOT GUARDED, and this is the one place the refusal is transitive
+      rather than direct. ArgumentBinder erases ref-ness at
+      ArgumentListNodeExtensions.GetAllExpressions, so `f(x)` and `f(ref x)` bind identically and the
+      REF token is not reachable from the bound tree. It cannot miscompile regardless: a callee with a
+      ref parameter is refused at its own declaration, and a CLR callee with one is unreachable while
+      clr-assembly-type-projection (126) and clr-byref-parameter-projection (128) are both missing.
+      Guarding it needs a per-argument wrapper on every call-shaped expression, which is the work of
+      emitting it -- worth doing WITH the feature, not before it.
+
+      STILL NEEDS, when emission is built: an lvalue check for ref arguments, escape analysis for ref
+      returns, and alias liveness for ref locals whose referent is a field or an element. Mist omits
+      the second ref keyword C# requires at a ref-local initializer, so the emitter reinstates it.
     tasks:
       - >
-        Refuse a ref parameter, ref argument, ref return or ref local rather than dropping it, until
-        the alias can be emitted. A diagnostic naming the Mist declaration beats a program that runs
-        and lies, and it is what makes the gap visible to a sample sweep at all.
+        Refuse a ref ARGUMENT, the one form still erased. Not urgent and not reachable as a
+        miscompile (see evidence); it becomes necessary the moment a CLR byref callee is projected,
+        because that callee has no Mist declaration to report against.
+      - >
+        Refuse or emit a ref FIELD. `FieldDeclaration` carries an ownership specifier and `ref` on it
+        lands on MemberModifiers.IsRef exactly as a method's does, so `ref int F;` is droppable the
+        same way -- found while guarding the others, unguarded because no task named it and no sample
+        exercises it.
       - Preserve the alias for a readonly ref local. The classic pipeline currently emits a
         plain copy, silently turning an alias into a value.
     unlocks: [ClrRefInterop]

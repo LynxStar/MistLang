@@ -191,7 +191,7 @@ internal static class TypeEmitter
                 SeparateMember(writer, ref anyEmitted);
                 if(type is AbstractType)
                 {
-                    EmitInterfaceMethod(method, writer, diagnostics);
+                    EmitInterfaceMethod(method, type.DeclarationNode, writer, diagnostics);
                 }
                 else
                 {
@@ -348,8 +348,11 @@ internal static class TypeEmitter
     /// <c>default-member-forwarding-stubs</c> is for, and it is a separate capability.
     /// </para>
     /// </summary>
-    private static void EmitInterfaceMethod(Method method, CSharpWriter writer, DiagnosticBag diagnostics)
+    private static void EmitInterfaceMethod(
+        Method method, Storm.Runtime.SyntaxNode? locationNode, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        MethodEmitter.ReportUnsupportedRef(method, locationNode, diagnostics);
+
         var signature = MethodEmitter.EmitSignature(method);
 
         if(method.Body is null)

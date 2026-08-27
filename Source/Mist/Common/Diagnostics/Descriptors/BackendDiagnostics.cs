@@ -143,6 +143,39 @@ public static class BackendDiagnostics
         "Parameter '{0}' is declared ref, which is not yet supported by the experimental emitter.");
 
     /// <summary>
+    /// A method returns by reference, which the v2 emitter does not yet support. The <c>ref</c> is
+    /// dropped, so the caller receives a COPY and every write through the returned alias is lost.
+    /// <para>
+    /// Refused for <see cref="UnsupportedRefParameter"/>'s reason, and the refusal matters more here:
+    /// a dropped alias produces C# that compiles and runs, so nothing downstream objects and the only
+    /// symptom is a wrong answer. Emitting the alias needs escape analysis this backend does not have
+    /// -- C# admits a ref return only where the referent outlives the call.
+    /// </para>
+    /// </summary>
+    public static readonly DiagnosticDescriptor UnsupportedRefReturn = new(
+        new DiagnosticId("MIST_BE_UNSUPPORTED_REF_RETURN"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Backend,
+        "Method '{0}' returns ref, which is not yet supported by the experimental emitter. The reference would be emitted as a copy, so writes through it would be lost.");
+
+    /// <summary>
+    /// A local is declared <c>ref</c>, which the v2 emitter does not yet support. The <c>ref</c> is
+    /// dropped, so the local becomes an independent copy of its referent and assignments through it
+    /// no longer reach the field, element or variable it was meant to alias.
+    /// <para>
+    /// Refused rather than emitted as a copy for the reason <see cref="UnsupportedRefReturn"/> gives.
+    /// Emitting it needs alias liveness for a referent that is a field or an element, and Mist omits
+    /// the second <c>ref</c> keyword C# requires at the initializer, so the emitter would have to
+    /// reinstate it.
+    /// </para>
+    /// </summary>
+    public static readonly DiagnosticDescriptor UnsupportedRefLocal = new(
+        new DiagnosticId("MIST_BE_UNSUPPORTED_REF_LOCAL"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Backend,
+        "Local '{0}' is declared ref, which is not yet supported by the experimental emitter. The alias would be emitted as a copy, so writes through it would not reach what it aliases.");
+
+    /// <summary>
     /// A COMBINATOR or a value comparison was tested against a union-typed scrutinee. A type test is
     /// fine: it narrows through the carrier accessor for its constituent, which is one scrutinee and one
     /// pattern. These are not, because each operand would need a DIFFERENT accessor and a C# pattern has

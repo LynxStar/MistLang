@@ -7,13 +7,16 @@ namespace Mist.ProgramModel.Model;
 /// type of the binding.
 /// </summary>
 /// <remarks>
-/// Body-binding skeleton: only the name and resolved type are modelled for now.
-/// Ownership tier, ref-kind, and readonly-status will be added when the
-/// corresponding binding features land.
+/// Body-binding skeleton: ownership tier and readonly-status will be added when the corresponding
+/// binding features land. Ref-ness is recorded already, but only so the backend can REFUSE it --
+/// a binding whose alias is dropped computes a wrong answer silently, which is worth catching
+/// before the aliasing itself is built.
 /// </remarks>
 internal sealed class LocalVariable(string name, IMistType type)
 {
     public string Name { get; } = name;
 
     public IMistType Type { get; } = type;
+
+    public bool IsRef { get; init; }
 }

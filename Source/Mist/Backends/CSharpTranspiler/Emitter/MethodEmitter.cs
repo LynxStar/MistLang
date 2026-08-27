@@ -16,7 +16,7 @@ internal static class MethodEmitter
         CSharpWriter writer,
         DiagnosticBag diagnostics)
     {
-        ParameterEmitter.ReportUnsupportedRef(method.ParametersList, locationNode, diagnostics);
+        ReportUnsupportedRef(method, locationNode, diagnostics);
 
         // A readonly method is a struct-only concept in C#, so on a class the modifier is dropped
         // rather than passed through -- Mist admits it there and CS0106 refuses it.
@@ -31,6 +31,24 @@ internal static class MethodEmitter
             {
                 BodyEmitter.EmitBlock(method.Body, writer, diagnostics);
             }
+        }
+    }
+
+    /// <summary>
+    /// Refuses every <c>ref</c> in a method's signature, in both positions the emitter drops one.
+    /// Paired with <see cref="EmitSignature"/> rather than folded into it, because the signature is
+    /// also spelled for an interface member and for a restated default -- so the report belongs at
+    /// the sites that OWN a declaration, and a restatement of someone else's must not report again.
+    /// </summary>
+    internal static void ReportUnsupportedRef(
+        Method method, Storm.Runtime.SyntaxNode? locationNode, DiagnosticBag diagnostics)
+    {
+        ParameterEmitter.ReportUnsupportedRef(method.ParametersList, locationNode, diagnostics);
+
+        if(method.Modifiers.IsRef && locationNode is not null)
+        {
+            diagnostics.ReportAtNode(
+                BackendDiagnostics.UnsupportedRefReturn, locationNode, null, method.Name);
         }
     }
 

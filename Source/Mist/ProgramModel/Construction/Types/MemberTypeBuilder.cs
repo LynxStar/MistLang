@@ -125,4 +125,23 @@ internal abstract class MemberTypeBuilder
             _ => OwnershipKind.Unrestricted
         };
     }
+
+    /// <summary>
+    /// Whether a specifier asks for pass-by-reference. Not folded into
+    /// <see cref="ResolveOwnership"/> because <c>ref</c> is orthogonal to the ownership tier rather
+    /// than another value of it, which is why <c>readonly ref</c> composes as two flags on
+    /// <see cref="ParameterModifier"/> instead of naming a fifth tier.
+    /// <para>
+    /// ONLY A LOCAL DECLARATION REACHES HERE WITH A REF. Every other rule carrying an ownership
+    /// specifier -- a method's return, a field -- puts <c>Modifier*</c> ahead of it, and
+    /// <c>Modifier</c> admits <c>ref</c> and matches greedily, so the token is taken as a modifier
+    /// and surfaces on <see cref="MemberModifiers.IsRef"/> instead. Both ref spellings
+    /// answer true regardless, since a local's greedy <c>readonly</c> token splits
+    /// <c>readonly ref</c> into a modifier plus a bare specifier rather than the combined node.
+    /// </para>
+    /// </summary>
+    internal static bool IsRefSpecifier(OwnershipSpecifierNode? specifier)
+    {
+        return specifier is RefSpecifierOwnershipSpecifierNode or ReadonlyRefSpecifierOwnershipSpecifierNode;
+    }
 }

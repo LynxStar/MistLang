@@ -147,6 +147,11 @@ internal static class TypeNameEmitter
 
     private static string EmitConstructed(ConstructedType constructed)
     {
+        if(SlotLift.Erased(constructed) is { } erased)
+        {
+            return Emit(erased);
+        }
+
         // Standard.Array<ElementType, Length> → elementType[]
         if(constructed.Definition.FullyQualifiedName == WellKnownTypes.Array.FullyQualifiedName)
         {

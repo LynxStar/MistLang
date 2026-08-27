@@ -3192,18 +3192,83 @@ capabilities:
     order: 74
     layer: abstract-types
     requires: [nominal-conformance-and-slot-checking, generic-constraints-nominal]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      A slot declares an abstract type member that implementors fill with a nested type
-      satisfying declared constraints. Modelled as AssociatedTypeSlotType. The classic
-      pipeline LIFTS a non-parameterized slot to a synthesized type parameter with a where
-      clause on the emitted interface, and ERASES a parameterized (higher-kinded) slot to
-      its constraint interface, because C# has no higher-kinded types.
-    tasks:
-      - Resolve the slot per implementor and check the constraints, which may be a kind
-        (class or struct), one or more abstract types, or nothing at all.
-      - Resolve an enclosing type parameter appearing inside a slot constraint's arguments.
-      - Lift non-parameterized slots to type parameters; erase parameterized slots.
+      A slot declares an abstract type member that implementors fill with a nested type satisfying
+      declared constraints. Modelled as TypeSlot, a TypeParameter subclass closed by conformance
+      rather than by an argument at the use site. All 12 patterns of samples/AssociatedTypes bind,
+      emit, and run byte-identical to classic; the sample is banked.
+
+      THE STATUS WAS WRONG IN BOTH DIRECTIONS, and the correction is the useful part of this entry.
+      Binding was largely built already -- TypeSlotBuilder resolved a slot's own type parameters, its
+      `:` bound and its where clauses, and patterns 1-11 bound cleanly. Emission was `broken` rather
+      than `missing`: a code path existed, it produced 33 Roslyn errors against a generated file, and
+      there was no guard. Same shape as the order 98 union-switch discovery.
+
+      THE BINDER DEFECT WAS ONE LINE, and it is a naming-convention collision worth remembering. A
+      generic type DECLARATION is registered under an arity-bearing name (TypeBuilder.BuildGenericName
+      gives `Foo<>`, `Foo<,>`) and a generic REFERENCE is mangled to the same key before lookup
+      (ScopeResolver.BuildArityName). A type PARAMETER is registered under its bare name, and needs
+      no marker because a reference to it never carries arguments. A slot is the ONLY generic-capable
+      declaration in the model named by the parameter convention, so it is the only place the two can
+      disagree -- and they agree on exactly one input, arity zero. `type Converted<TOut>;` was
+      therefore stored as `Converted` and looked up as `Converted<>`, which is why a
+      non-parameterized slot resolved and a parameterized one did not. TypeSlotBuilder now shares the
+      reference side's formatter. The duplicate-slot check deliberately still compares STRIPPED names,
+      so two slots differing only in arity collide: whether a slot may be overloaded on arity the way
+      an ordinary generic is, is a language question nobody has asked.
+
+      THE LIFT IS IN Lowering/SlotLift.cs and follows classic in outcome, not in mechanism. A
+      non-parameterized slot becomes a type parameter appended to the emitted interface -- appended,
+      so lifting onto an already-generic abstract does not move a written argument -- and the
+      implementor's base list passes the nested type filling it, found by name and arity over
+      NestedTypes and up the base chain. The slot's `:` bound needs no new code at all: TypeSlot
+      inherits TypeParameter.ConstraintsList, so handing the lifted slots to the existing
+      ConstraintEmitter alongside the declared parameters emits the where clause for free.
+
+      THE PARAMETER IS NAMED FOR ITS SLOT, where classic prefixes it (`TOutput` for `Output`). This
+      is the one design departure and it is what kept the change small. `TypeNameEmitter`'s
+      `_ => type.Name` fallback already emits a slot's bare name -- correct for a plain TypeParameter,
+      wrong for a slot only because nothing declared the parameter. Naming the parameter after the
+      slot makes that arm right rather than requiring a rename at every position a type can occupy,
+      of which there are roughly twenty reaching TypeNameEmitter. It also reproduces the scoping the
+      source already has: inside the abstract, the slot ALREADY shadows an outer type of the same
+      name, because TypeMemberLookup answers from TypeSlotsList at depth 0 before walking out.
+
+      A PARAMETERIZED SLOT ERASES to its bound with its own parameters closed by the use site's
+      arguments, since C# has no higher-kinded types -- `Converted<string>` under
+      `type Converted<TOut> : ITransform<TIn, TOut>` emits `ITransform<TIn, string>`. Done by
+      building the substituted type in the model (TypeSubstitution.Apply with a null interner, as
+      struct flattening already does) and letting TypeNameEmitter spell it, so no naming or
+      qualification rule is duplicated. The implementor deliberately does NOT erase: the call site
+      names the concrete nested type and reaches its members through it. SlotBridgeEmitter reconciles
+      the two with an explicit implementation forwarding to the public method, which is sound in
+      return position and not in parameter position -- widening a result is safe where narrowing an
+      argument is not.
+
+      TWO GUARDS REPLACE THE SILENT MISCOMPILE, both reporting against Mist source: UnfilledTypeSlot
+      when an implementor supplies no nested type for a lifted slot, which is classic's silent
+      fallback to an arity-mismatched base list, and UnboundedParameterizedTypeSlot when a
+      parameterized slot has no bound to erase to. Note that the "slot" of
+      nominal-conformance-and-slot-checking is a MEMBER slot, not this; the analysis debt that entry
+      records is untouched by these.
+
+      NOT COVERED, and none of it is reachable from the sample. An abstract-typed USE site (a local
+      or parameter typed as a slot-bearing abstract) needs the same argument appended and does not
+      get it -- the lift reaches declarations, base lists, conformances and constraints only. An
+      abstract INHERITING a slot-bearing abstract would need its own lifted parameter forwarded as the
+      filler rather than a nested type, so Filler finds nothing and UnfilledTypeSlot fires. A
+      parameterized slot in a parameter position is refused outright. Classic covers none of these
+      three either, and its generic-method lift (a method type parameter constrained by a slot-bearing
+      abstract, `T.Enumerator`) has no v2 counterpart yet -- that is Iterators' remaining ground.
+    analysis_phase_tasks:
+      - >
+        Check that a filler SATISFIES the slot's constraints, which may be a kind (class or struct),
+        one or more abstract types, or nothing at all. The lift makes Roslyn check this downstream --
+        the filler is a type argument against a where clause, so a violation is caught, but as
+        MIST_CS_ERROR on generated C# rather than against the Mist declaration. Resolution of the
+        filler is done and lives in SlotLift.Filler; only the judgement is deferred.
     unlocks: [AssociatedTypes]
 
   # ===================================================================

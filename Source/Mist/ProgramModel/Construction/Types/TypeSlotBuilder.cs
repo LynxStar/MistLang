@@ -41,8 +41,11 @@ internal sealed class TypeSlotBuilder
             context.Diagnostics.ReportAtNode(CommonDiagnostics.ModifiersOnAssociatedTypeSlot, slotDecl, null);
         }
 
-        // Slot names must be unique within their declaring abstract type.
-        if(typeDef.TypeSlotsList.Any(existing => existing.Name == name))
+        // Slot names must be unique within their declaring abstract type. Compared without the
+        // arity marker, so two slots differing only in arity still collide -- whether a slot may
+        // be overloaded on arity the way an ordinary generic is, is a language question nobody
+        // has asked.
+        if(typeDef.TypeSlotsList.Any(existing => MistType.StripArity(existing.Name) == name))
         {
             context.Diagnostics.ReportAtNode(CommonDiagnostics.DuplicateAssociatedTypeSlot, slotDecl, null, typeDef.Name, name);
             return;
@@ -52,7 +55,14 @@ internal sealed class TypeSlotBuilder
         // type parameters are visible while resolving its bound and where clauses.
         var slotScope = new MemberScope(typeDef.Scope);
 
-        var slot = new TypeSlot(name, typeDef.TypeSlotsList.Count, slotScope, typeDef);
+        // Registered under the ARITY-BEARING name, because a reference carrying type arguments is
+        // mangled to `Converted<>` by ScopeResolver.BuildArityName before it is looked up, and
+        // TypeMemberLookup matches a slot by string equality against that key. A slot is the only
+        // generic-capable declaration in the model named like a type PARAMETER, so it is the only
+        // one where the two conventions can disagree; sharing the reference side's formatter is
+        // what keeps them from doing so.
+        var slot = new TypeSlot(
+            ArityName(name, slotDecl.TypeParams), typeDef.TypeSlotsList.Count, slotScope, typeDef);
 
         // The slot's own type parameters (e.g. T in `type Foo<T>;`).
         TypeParameterPopulator.Populate(slot, slotScope, slot, slotDecl.TypeParams);
@@ -70,5 +80,15 @@ internal sealed class TypeSlotBuilder
         // Adding it to the abstract is also what makes it nameable by simple name in the
         // abstract's members: TypeScope reads TypeSlotsList rather than keeping its own table.
         typeDef.TypeSlotsList.Add(slot);
+    }
+
+    private static string ArityName(string name, TypeParameterListNode? typeParams)
+    {
+        if(typeParams is null)
+        {
+            return name;
+        }
+
+        return ScopeResolver.BuildArityName(name, 1 + typeParams.TypeParameters.Length);
     }
 }

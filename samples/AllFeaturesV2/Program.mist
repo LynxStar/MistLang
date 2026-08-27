@@ -59,5 +59,6 @@ public class Program
         UnknownType.Program.RunDemo();
         SwitchExpressions.Program.RunDemo();
         AsOperator.Program.RunDemo();
+        AssociatedTypes.Program.RunDemo();
     }
 }

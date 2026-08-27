@@ -108,9 +108,12 @@ internal static class TypeEmitter
                 "[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]");
         }
 
+        SlotLift.ReportUnboundedParameterized(type, diagnostics);
+        SlotLift.ReportUnfilled(type, diagnostics);
+
         writer.WriteLine(
             $"{accessibility}{readonlyModifier}{typeKeyword} {typeName}{EmitBaseList(type, closedConstraints)}");
-        ConstraintEmitter.Emit(type.TypeParametersList, writer);
+        ConstraintEmitter.Emit(Parameters(type), writer);
         using(writer.Block())
         {
             var concrete = type as ConcreteType;
@@ -216,6 +219,7 @@ internal static class TypeEmitter
             if(concrete is not null)
             {
                 ConformanceEmitter.Emit(concrete, writer, diagnostics, ref anyEmitted);
+                SlotBridgeEmitter.Emit(concrete, writer, diagnostics, ref anyEmitted);
             }
 
             foreach(var signature in closedConstraints)
@@ -306,14 +310,9 @@ internal static class TypeEmitter
             bases.Add(TypeNameEmitter.Emit(baseType));
         }
 
-        foreach(var abstractBase in type.BaseAbstractTypes)
+        foreach(var abstractRef in SlotLift.Reached(type))
         {
-            bases.Add(TypeNameEmitter.Emit(abstractBase));
-        }
-
-        foreach(var conformance in (type as ConcreteType)?.ConformancesList ?? [])
-        {
-            bases.Add(TypeNameEmitter.Emit(conformance.AbstractType));
+            bases.Add(TypeNameEmitter.Emit(SlotLift.Base(abstractRef, type) ?? abstractRef));
         }
 
         foreach(var signature in closedConstraints)
@@ -372,14 +371,28 @@ internal static class TypeEmitter
     /// </summary>
     internal static string EmitTypeName(MemberType type)
     {
-        if(type.TypeParametersList.Count == 0)
+        var parameters = Parameters(type);
+
+        if(parameters.Count == 0)
         {
             return type.Name;
         }
 
         var baseName = CleanName(type);
-        var typeParams = string.Join(", ", type.TypeParametersList.Select(tp => tp.Name));
+        var typeParams = string.Join(", ", parameters.Select(tp => tp.Name));
         return $"{baseName}<{typeParams}>";
+    }
+
+    /// <summary>
+    /// The type parameters the C# declaration carries: those written in Mist, then the ones
+    /// <see cref="SlotLift"/> adds. Appending keeps a written argument at the position it was
+    /// written, so lifting a slot onto an already-generic abstract does not move <c>TIn</c>.
+    /// </summary>
+    internal static IReadOnlyList<TypeParameter> Parameters(MemberType type)
+    {
+        var lifted = SlotLift.Lifted(type);
+
+        return lifted.Count == 0 ? type.TypeParametersList : [.. type.TypeParametersList, .. lifted];
     }
 
     /// <summary>

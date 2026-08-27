@@ -44,7 +44,7 @@ internal static class TypeDisplay
                 return Mist(unknownValue.Domain);
 
             default:
-                return Keyword(type);
+                return MistType.StripArity(Keyword(type));
         }
     }
 

@@ -275,4 +275,58 @@ public static class BackendDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.Backend,
         "'{0}' is already declared to conform to '{1}', so this with block is redundant. A type reaches an abstract once: remove the with block, or remove '{1}' from the base list, or drop the duplicate with block.");
+
+    /// <summary>
+    /// An implementor supplies no nested type for an associated type slot. C# has no abstract nested
+    /// type, so the backend LIFTS a slot to a type parameter on the emitted interface, which makes
+    /// the filler a type ARGUMENT the implementor's base list has to carry. With nothing to pass, the
+    /// base list would name the interface at the wrong arity.
+    /// <para>
+    /// Whether the obligation exists at all belongs to nominal conformance checking, which judges a
+    /// finished model; this is the narrower question of whether the lift can be spelled, so it is
+    /// reported here. Refused rather than defaulted: no type is a safe stand-in for one the author
+    /// never named, and emitting the interface unlifted moves the failure onto a generated file with
+    /// no Mist-level cause -- the shape <see cref="UnsupportedExpression"/> exists to avoid.
+    /// </para>
+    /// </summary>
+    public static readonly DiagnosticDescriptor UnfilledTypeSlot = new(
+        new DiagnosticId("MIST_BE_UNFILLED_TYPE_SLOT"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Backend,
+        "'{0}' declares no nested type named '{1}' to fill the associated type slot '{2}.{1}'. Declare a nested type called '{1}' on '{0}' satisfying the slot's constraints.");
+
+    /// <summary>
+    /// A parameterized associated type slot declares no abstract bound. C# has no higher-kinded
+    /// type, so such a slot cannot be lifted the way a plain one is; the backend ERASES it to its
+    /// bound instead, and an unbounded slot leaves nothing to erase to.
+    /// <para>
+    /// Refused rather than erased to the top type: <c>object</c> would compile and then reject every
+    /// member the slot's users call, reporting against generated C#. Unlike the non-parameterized
+    /// case, an unconstrained slot here is not merely unchecked but unspellable, which is why
+    /// <c>type Element;</c> is fine while <c>type Element&lt;T&gt;;</c> is not.
+    /// </para>
+    /// </summary>
+    public static readonly DiagnosticDescriptor UnboundedParameterizedTypeSlot = new(
+        new DiagnosticId("MIST_BE_UNBOUNDED_PARAMETERIZED_SLOT"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Backend,
+        "The associated type slot '{0}.{1}' declares its own type parameters but no abstract type bound. C# has no higher-kinded types, so such a slot is emitted as its bound; give it one, or remove its type parameters.");
+
+    /// <summary>
+    /// A parameterized associated type slot types a PARAMETER. Erasure leaves the interface asking
+    /// for the slot's bound while the implementor takes the nested type itself, and the two are
+    /// bridged by an explicit implementation that forwards -- which a return type allows, being
+    /// covariant, and a parameter does not.
+    /// <para>
+    /// Refused rather than bridged through a cast: the bound admits types other than the one the
+    /// implementor nested, so the downcast such a forwarder needs is one the compiler cannot know
+    /// will hold, and a slot exists precisely to make that static. A backend able to express
+    /// higher-kinded types needs no erasure here and so has no such limit.
+    /// </para>
+    /// </summary>
+    public static readonly DiagnosticDescriptor ParameterizedTypeSlotInParameter = new(
+        new DiagnosticId("MIST_BE_PARAMETERIZED_SLOT_PARAMETER"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Backend,
+        "Parameter '{0}' of '{1}.{2}' is typed by the parameterized associated type slot '{3}'. The experimental emitter erases such a slot to its bound, which it can bridge for a return type but not for a parameter.");
 }

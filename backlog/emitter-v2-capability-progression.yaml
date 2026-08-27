@@ -5054,13 +5054,39 @@ capabilities:
     order: 115
     layer: iterators
     requires: [associated-type-slots]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      The stdlib enumerable abstract type declares an enumerator SLOT rather than relying on
-      a conventionally named method, so the element type comes from slot resolution rather
-      than duck-typed lookup. The compiler must synthesize the CLR interface members Mist
-      never declares -- the non-generic current member, reset, dispose and both enumerator
-      overloads.
+      The stdlib enumerable abstract type declares an enumerator SLOT rather than relying on a
+      conventionally named method, so the element type comes from slot resolution rather than
+      duck-typed lookup. Both a struct and a class enumerator work, over Iterators, banked.
+
+      STANDARD.IENUMERABLE AND IENUMERATOR *ARE* THE CLR INTERFACES, and that is the whole shape of
+      this capability. Mist declares them so its own types can conform; every use emits as
+      System.Collections.Generic's, because foreach, LINQ and every framework API expect that one and
+      a structurally identical duplicate would satisfy none of them. Lowering/ClrProjection.cs is the
+      single place that knows it, with two consumers.
+
+      THE SECOND CONSUMER IS THE SLOT LIFT, and it is the non-obvious one. IEnumerable declares
+      `type Enumerator`, so associated-type-slots (order 74) lifted it and spelled `IEnumerable<int,
+      CountSequence.Enumerator>` -- an arity the CLR interface does not have, because another assembly
+      fixes it. So a projected abstract must NOT lift, and the enumerator survives instead as
+      GetEnumerator's return type, which is also what keeps a struct enumerator unboxed. Classic
+      special-cases the same two abstracts by display name in four separate places; here the rule is
+      stated once and both the lift and the emitter read it.
+
+      THE CLR PAIR INHERIT MORE THAN MIST DECLARES: the non-generic interfaces and IDisposable,
+      obliging four members Mist never writes. IteratorBoilerplateEmitter synthesizes them, matching
+      classic's choices exactly -- `object System.Collections.IEnumerator.Current => Current`, both
+      GetEnumerator forwarders, an empty Dispose, and a Reset that throws NotSupportedException, which
+      is what the CLR documents for an enumerator that cannot restart. They cannot be declared in
+      Source/Standard because each body forwards to a member the CONFORMER declares, which the
+      abstract cannot name. Reset and Dispose are emitted PUBLIC rather than explicit, deliberately:
+      an explicit IDisposable on a struct enumerator would box it at the Dispose foreach performs.
+
+      RESIDUE: only a DIRECT conformance is recognised. An abstract that itself extends IEnumerable
+      gets no boilerplate and no projection, so a type reaching the protocol through it emits C# that
+      does not compile. Classic has the same limit, and no sample reaches it.
     unlocks: []
 
   - id: foreach-over-user-enumerable
@@ -5068,11 +5094,35 @@ capabilities:
     order: 116
     layer: iterators
     requires: [iterator-protocol-via-associated-type, control-flow-basic]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      Element type inferred from the conformance, validated against an explicit element
-      annotation when present, and the concrete struct enumerator preserved in the loop so
-      iteration does not box.
+      Element type inferred from the conformance and the concrete struct enumerator preserved in the
+      loop so iteration does not box. Iterators is banked and byte-identical to classic across all
+      seven of its sections.
+
+      THE TYPED FORM ALREADY WORKED and nothing was built for it -- control-flow-basic (order 10)
+      emits ForEachStatement, and an annotated element needs no inference. THE `var` FORM WAS THE GAP,
+      and it was silent in the way this file cares about: StatementBinder gave the loop variable
+      ErrorType, TypeNameEmitter spells that `/* error */`, and the emitted `foreach (/* error */ n in
+      numbers)` failed in generated C# with the loop variable then undefined at every use -- six
+      Roslyn errors from one unbound type, none of them naming the Mist line.
+
+      INFERENCE READS THE CONFORMANCE, not a conventionally named method, which is what makes
+      Construction/Binding/EnumerableElement.cs agree with order 115's story: a type that merely
+      happens to own a `GetEnumerator` is not a sequence. An array answers first and separately, being
+      a construction of Standard.Array rather than a declared conformance. The walk carries a
+      TypeSubstitution outward so a generic sequence closed at its use site yields the CLOSED element
+      -- `MyList<int>` declaring `: IEnumerable<T>` answers int, not T -- and a failure now reports
+      MIST_PM_FOREACH_ELEMENT_NOT_INFERABLE against the collection expression instead of parking an
+      error type for the backend to spell.
+    analysis_phase_tasks:
+      - >
+        VALIDATE an explicit element annotation against the inferred element type. The original
+        evidence claimed this as part of the capability and it is not: the typed form resolves its
+        annotation and emits, so nothing is unrepresentable or unemittable without the check -- a
+        mismatch is a program this compiler does not yet judge, which is what `analysis_phase_tasks`
+        is for. Roslyn catches the flagrant cases downstream, against generated C#.
     unlocks: [Iterators]
 
   # ===================================================================
@@ -6282,6 +6332,17 @@ capabilities:
         DONE. A private or readonly ancestor field, and an ancestor property, now copy correctly:
         the conversion calls a generated factory on the ancestor instead of assigning its fields from
         outside. MIST_BE_STRUCT_CONVERSION_FIELD is deleted. See order 42.
+      - >
+        DONE. A COMPUTED property no longer joins the factory, which it did on EVERY struct and not
+        only an inheriting one. StructAncestorFactory transported all of flattened.Properties and
+        assigned each, which is right for an auto-property -- its backing field is the state, and a
+        constructor is the only place C# permits writing a get-only one -- and wrong for a property
+        with a body, which has no storage of its own and derives from members the factory already
+        moves. A struct with `private int degrees; public int Degrees => degrees;` and no base, no
+        abstract and no conformance therefore failed with "Property or indexer cannot be assigned to"
+        against generated C#. Found while banking Iterators, whose struct enumerator has exactly that
+        shape in `public int Current => current;`, but reachable from a plain struct alone -- so the
+        gap was never about inheritance, only surfaced through it.
       - >
         REINTERPRETATION IS NOT AVAILABLE AS A SHORTCUT HERE, and FlattenedStruct's doc comment
         claimed otherwise until this was measured. The CLR honours LayoutKind.Sequential only for a

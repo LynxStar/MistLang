@@ -617,6 +617,18 @@ public static class ProgramModelDiagnostics
 
     // ── Array literal inference ──────────────────────────────────────────
 
+    /// <summary>
+    /// A <c>foreach</c> over <c>var</c> whose collection is not a sequence, so there is no element
+    /// type to give the loop variable. Reported here because the binder cannot finish the loop
+    /// without one: the variable is declared into the body's scope, and every read of it downstream
+    /// resolves against whatever type it was given.
+    /// </summary>
+    public static readonly DiagnosticDescriptor ForEachElementNotInferable = new(
+        new DiagnosticId("MIST_PM_FOREACH_ELEMENT_NOT_INFERABLE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "Cannot infer the element type of '{0}' because it is not an array and conforms to no IEnumerable. Iterate a sequence, or state the element type in place of 'var'.");
+
     /// <summary>An empty array literal appears where no target array type supplies the element type.</summary>
     public static readonly DiagnosticDescriptor EmptyArrayLiteralNeedsTargetType = new(
         new DiagnosticId("MIST_PM_EMPTY_ARRAY_LITERAL_NO_TARGET"),

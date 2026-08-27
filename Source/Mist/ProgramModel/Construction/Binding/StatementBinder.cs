@@ -345,7 +345,14 @@ internal static class StatementBinder
 
             case VarForeachForeachStatementNode varForeach:
                 collection = ExpressionBinder.BindExpression(varForeach.Collection, ctx, context);
-                variableType = Model.Types.ErrorType.Instance;
+                variableType = EnumerableElement.Of(collection.Type) ?? Model.Types.ErrorType.Instance;
+                if(variableType is Model.Types.ErrorType && collection.Type is not Model.Types.ErrorType)
+                {
+                    context.Diagnostics.ReportAtNode(
+                        ProgramModelDiagnostics.ForEachElementNotInferable, varForeach.Collection, null,
+                        Model.Types.TypeDisplay.Mist(collection.Type));
+                }
+
                 variableName = varForeach.Name.Lexeme;
                 bodyNode = varForeach.Body;
                 break;

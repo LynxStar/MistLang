@@ -29,7 +29,7 @@ internal static class SlotLift
     /// </summary>
     public static IReadOnlyList<TypeSlot> Lifted(IMistType type)
     {
-        if(Definition(type) is not AbstractType abstractType)
+        if(Definition(type) is not AbstractType abstractType || ClrProjection.Projects(abstractType))
         {
             return [];
         }

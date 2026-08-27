@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Mist.Backends.CSharpTranspiler.Emitter;
+using Mist.ProgramModel.Model.Members;
 
 namespace Mist.Backends.CSharpTranspiler.Lowering;
 
@@ -82,10 +83,24 @@ internal static class StructAncestorFactory
 
         foreach(var property in flattened.Properties)
         {
-            members.Add(new FactoryMember(property.Name, TypeNameEmitter.Emit(property.Type)));
+            if(HoldsState(property))
+            {
+                members.Add(new FactoryMember(property.Name, TypeNameEmitter.Emit(property.Type)));
+            }
         }
 
         return members.ToImmutable();
+    }
+
+    /// <summary>
+    /// Whether a property has storage of its own for the factory to write. Only an auto-property
+    /// does: a computed one derives its value from members already carried, so transporting it would
+    /// mean assigning a property with no setter -- which C# refuses even inside a constructor, and
+    /// which would also be duplicating state the factory already moves.
+    /// </summary>
+    private static bool HoldsState(Property property)
+    {
+        return AccessorEmitter.IsBodiless(property.Getter) && AccessorEmitter.IsBodiless(property.Setter);
     }
 
     public static string Parameters(ImmutableArray<FactoryMember> members)

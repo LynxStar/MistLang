@@ -60,5 +60,6 @@ public class Program
         SwitchExpressions.Program.RunDemo();
         AsOperator.Program.RunDemo();
         AssociatedTypes.Program.RunDemo();
+        Iterators.Program.RunDemo();
     }
 }

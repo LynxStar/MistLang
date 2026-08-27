@@ -152,6 +152,11 @@ internal static class TypeNameEmitter
             return Emit(erased);
         }
 
+        if(ClrProjection.Name(constructed.Definition) is { } projected)
+        {
+            return $"{projected}<{string.Join(", ", constructed.TypeArguments.Select(Emit))}>";
+        }
+
         // Standard.Array<ElementType, Length> → elementType[]
         if(constructed.Definition.FullyQualifiedName == WellKnownTypes.Array.FullyQualifiedName)
         {

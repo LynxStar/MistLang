@@ -42,3 +42,4 @@ UnknownType = { path = "../UnknownType" }
 SwitchExpressions = { path = "../SwitchExpressions" }
 AsOperator = { path = "../AsOperator" }
 AssociatedTypes = { path = "../AssociatedTypes" }
+Iterators = { path = "../Iterators" }

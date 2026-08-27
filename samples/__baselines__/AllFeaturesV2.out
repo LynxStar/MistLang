@@ -888,3 +888,35 @@ strResult.Value=converted-42
 strResult.Transform(0)=converted-42
 intResult.Value=70
 --- Associated Types Done ---
+--- Iterators ---
+--- Array Foreach ---
+n=10
+n=20
+n=30
+--- Struct Enumerator ---
+x=0
+x=1
+x=2
+x=3
+--- Class Enumerator ---
+w=hello
+w=world
+w=mist
+--- Explicit Type Annotation ---
+typed=10
+typed=20
+typed=30
+--- Var Foreach (Array) ---
+var_n=10
+var_n=20
+var_n=30
+--- Var Foreach (Struct Enumerator) ---
+var_x=0
+var_x=1
+var_x=2
+var_x=3
+--- Var Foreach (Class Enumerator) ---
+var_w=hello
+var_w=world
+var_w=mist
+--- Iterators Done ---

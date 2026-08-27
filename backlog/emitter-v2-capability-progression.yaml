@@ -5504,63 +5504,76 @@ capabilities:
     name: Mist-declared ref parameters, ref returns and ref locals
     order: 132
     layer: clr-interop
-    requires: [clr-byref-parameter-projection]
-    v2_status: missing
+    requires: []
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      NO LONGER BROKEN: every form is now REFUSED rather than dropped, so nothing runs and lies.
-      MIST_BE_UNSUPPORTED_REF already covered a parameter; MIST_BE_UNSUPPORTED_REF_RETURN and
-      MIST_BE_UNSUPPORTED_REF_LOCAL cover the rest. Emission is still entirely unbuilt, which is what
-      `missing` means -- the status moved because the silence did, not because the feature landed.
-      samples/RefParameters reports 12 diagnostics where it previously reported 4 and RAN.
+      Every form emits and RefParameters is banked, byte-identical to classic across all ten of its
+      patterns -- ref parameters on struct and class, ref returns over a field and an array element,
+      ref locals aliasing a variable, a field and an element, a readonly ref local, ref forwarding, and
+      mutation through a ref seen by the caller.
 
-      THE ENTRY WAS RIGHT THAT IT WAS BROKEN AND WRONG ABOUT THE REACH, and the reach is what made it
-      dangerous. By the time this was picked up the parameter guard existed, so RefParameters already
-      failed to build -- which hid the live defect rather than fixing it, because the sample could no
-      longer reach the ref-return and ref-local paths that still lied. A program with a ref return and
-      a ref local and NO ref parameter still printed 10 where classic printed 77, and 5 where classic
-      printed 42, with no diagnostic. A partial guard that stops the only sample exercising a defect
-      is worse than no guard, and this file's compile-based screen cannot see the difference.
+      THE `requires` EDGE ON clr-byref-parameter-projection WAS WRONG AND IS REMOVED. This capability
+      is Mist-DECLARED refs, as its name says; projection is how a CLR method's by-ref parameters
+      become visible to Mist, which nothing here needs. RefParameters going green with 128 still
+      missing is the proof. The edge also had a cost beyond being untrue: it put a banked sample over a
+      missing capability, the invariant break this file now states in checkable form. ClrRefInterop
+      carries 128 directly instead, which is the sample that actually needs it.
 
-      TWO GRAMMAR FACTS THAT COST AN ITERATION, both worth keeping. `Modifier` admits `ref`
-      (Mist.storm:212) and every rule with an ownership specifier except a local's puts `Modifier*`
-      AHEAD of it and matches greedily. So a method's `ref` never reaches
-      `MethodDeclarationNode.ReturnOwnership` -- it arrives as a modifier and lands on
-      `MemberModifiers.IsRef`, which `ModifierBuilder` was already populating and nothing was reading.
-      A ref return therefore needed no model change at all. A LOCAL is the one form whose specifier
-      really does carry it, because its rule has only `READONLY?` in front. `readonly ref` splits into
-      a modifier plus a bare ref specifier in both positions, so testing only the combined
-      `ReadonlyRefSpecifier` node matches nothing the parser produces.
+      WHAT THE GUARDS BOUGHT, since they are now deleted and the reasoning would otherwise go with
+      them. They were built one shipment earlier, and holding the line at "refuse rather than drop"
+      turned out to be what made this shipment cheap: the model already carried every flag emission
+      needed, because guarding had forced each one to be found and named. A ref return needed no model
+      change at all -- `Modifier` admits `ref` and every rule but a local's matches `Modifier*`
+      greedily ahead of the ownership specifier, so a method's ref lands on `MemberModifiers.IsRef`,
+      which ModifierBuilder already populated and nothing read.
 
-      A REF PARAMETER ON AN ABSTRACT'S METHOD SLOT WAS ALSO BEING DROPPED, unguarded, because
-      TypeEmitter.EmitInterfaceMethod spelled the signature through MethodEmitter.EmitSignature and
-      never called the report. It could not print a wrong answer -- any implementor is itself refused
-      -- but the guard's coverage rested on that coincidence rather than on anything checked, so the
-      report now sits on both paths.
+      A REF ARGUMENT NEEDED NO MODELLING EITHER, which was the part expected to be invasive. Binding
+      erases the call site's `ref` at ArgumentListNodeExtensions.GetAllExpressions, so the plan was a
+      per-argument wrapper on every call-shaped expression. Unnecessary: C# requires the call site and
+      the parameter to AGREE, so the resolved callee is a sufficient record, and both
+      InvocationExpression.Method and NewExpression.Constructor were already recorded -- each
+      documented as read by nothing, existing so a test could tell a real overload selection from a
+      lucky one. Emission reads them, so a ref argument is marked from the parameter it fills, and a
+      callee that resolved to nothing marks nothing, which is correct for invoking a function value.
 
-      A REF ARGUMENT IS DELIBERATELY NOT GUARDED, and this is the one place the refusal is transitive
-      rather than direct. ArgumentBinder erases ref-ness at
-      ArgumentListNodeExtensions.GetAllExpressions, so `f(x)` and `f(ref x)` bind identically and the
-      REF token is not reachable from the bound tree. It cannot miscompile regardless: a callee with a
-      ref parameter is refused at its own declaration, and a CLR callee with one is unreachable while
-      clr-assembly-type-projection (126) and clr-byref-parameter-projection (128) are both missing.
-      Guarding it needs a per-argument wrapper on every call-shaped expression, which is the work of
-      emitting it -- worth doing WITH the feature, not before it.
+      TWO PLACES V2 IS NOW BETTER THAN CLASSIC. A readonly ref local emits as a genuine
+      `ref readonly int ro = ref rt;`, where classic emits a plain copy -- it treats `readonly ref` on a
+      local as an ownership lend, so the alias silently becomes a value. And a ref parameter on an
+      abstract's method slot emits, where the interface path used to bypass the parameter guard
+      entirely. Output still matches classic because the sample only READS through the readonly alias.
 
-      STILL NEEDS, when emission is built: an lvalue check for ref arguments, escape analysis for ref
-      returns, and alias liveness for ref locals whose referent is a field or an element. Mist omits
-      the second ref keyword C# requires at a ref-local initializer, so the emitter reinstates it.
+      C# MARKS AN ALIAS TWICE, once on the local's type and once on what it aliases, and Mist writes
+      only the first. RefKeywords owns the spelling for all four positions because C# also fixes the
+      order as `ref readonly`, the reverse of how Mist writes it.
+
+      ONE SPELLING IS REFUSED, and it is a language question rather than an emitter gap.
+      MIST_BE_READONLY_REF_RETURN rejects a method declared both `readonly` and `ref`, because on a
+      struct `readonly` is ALREADY the modifier meaning the receiver is not mutated -- so the pair
+      reads either as that modifier on a method returning a writable ref, or as a method returning
+      `ref readonly`, and the two differ in whether the alias may be written through. Guessing the
+      first silently widens a read-only alias, which is the one direction a wrong guess is unsafe.
+      Every other position is unambiguous and emits, since `readonly` means nothing else on a
+      parameter or a local.
     tasks:
       - >
-        Refuse a ref ARGUMENT, the one form still erased. Not urgent and not reachable as a
-        miscompile (see evidence); it becomes necessary the moment a CLR byref callee is projected,
-        because that callee has no Mist declaration to report against.
+        Settle what `readonly ref` MEANS on a method, then emit it. Both readings are reasonable and
+        the grammar separates neither; MIST_BE_READONLY_REF_RETURN refuses the pair until one is
+        chosen. A separate spelling for a ref-readonly return would decide it.
       - >
         Refuse or emit a ref FIELD. `FieldDeclaration` carries an ownership specifier and `ref` on it
-        lands on MemberModifiers.IsRef exactly as a method's does, so `ref int F;` is droppable the
-        same way -- found while guarding the others, unguarded because no task named it and no sample
-        exercises it.
-      - Preserve the alias for a readonly ref local. The classic pipeline currently emits a
-        plain copy, silently turning an alias into a value.
+        lands on MemberModifiers.IsRef exactly as a method's does, so `ref int F;` is still dropped
+        silently -- the last member of this family that is. Out of this capability's name and untouched
+        by it, and now the only one left, which makes it more conspicuous than before rather than less.
+    analysis_phase_tasks:
+      - >
+        ESCAPE ANALYSIS for a ref return. `ref int Bad() { int x = 1; return ref x; }` now emits, and
+        Roslyn refuses it with CS8168 against the GENERATED file. That is a badly-sited diagnostic
+        rather than a silent miscompile, and strictly better than the wrong answer this capability used
+        to produce -- but it is the one place emitting made the message worse than refusing did.
+      - An LVALUE CHECK for a ref argument. Mist requires `ref` at the call site; nothing verifies the
+        argument is assignable, and emission takes the parameter's word for it.
+      - Alias liveness for a ref local whose referent is a field or an element.
     unlocks: [ClrRefInterop]
 
   # ===================================================================
@@ -7518,9 +7531,9 @@ samples:
 
   - name: ClrRefInterop
     intro_order: 59
-    threshold: ref-parameters-and-ref-locals
-    requires: [ref-parameters-and-ref-locals, clr-generic-construction-and-members,
-               string-interpolation]
+    threshold: clr-byref-parameter-projection
+    requires: [ref-parameters-and-ref-locals, clr-byref-parameter-projection,
+               clr-generic-construction-and-members, string-interpolation]
     untested:
       - The in-parameter case is declared as a plain ref, so that projection path is never
         exercised.

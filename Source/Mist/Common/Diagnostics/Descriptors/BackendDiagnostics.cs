@@ -132,48 +132,27 @@ public static class BackendDiagnostics
         "Project '{0}' produces an executable but declares no entry point. Add a 'static void Main()' method, or set output type to library.");
 
     /// <summary>
-    /// A parameter is declared <c>ref</c>, which the v2 emitter does not yet support.
-    /// Without this diagnostic the parameter would be emitted as pass-by-value, producing
-    /// a program that compiles and runs but silently computes wrong results.
-    /// </summary>
-    public static readonly DiagnosticDescriptor UnsupportedRefParameter = new(
-        new DiagnosticId("MIST_BE_UNSUPPORTED_REF"),
-        DiagnosticSeverity.Error,
-        PipelineStage.Backend,
-        "Parameter '{0}' is declared ref, which is not yet supported by the experimental emitter.");
-
-    /// <summary>
-    /// A method returns by reference, which the v2 emitter does not yet support. The <c>ref</c> is
-    /// dropped, so the caller receives a COPY and every write through the returned alias is lost.
+    /// A method is declared both <c>readonly</c> and <c>ref</c>, which has two readings that differ in
+    /// whether the returned alias may be written through. On a struct, <c>readonly</c> is already the
+    /// modifier meaning the method does not mutate the receiver, so the pair reads either as that
+    /// modifier on a method returning a writable <c>ref</c>, or as a method returning
+    /// <c>ref readonly</c>.
     /// <para>
-    /// Refused for <see cref="UnsupportedRefParameter"/>'s reason, and the refusal matters more here:
-    /// a dropped alias produces C# that compiles and runs, so nothing downstream objects and the only
-    /// symptom is a wrong answer. Emitting the alias needs escape analysis this backend does not have
-    /// -- C# admits a ref return only where the referent outlives the call.
+    /// Refused rather than resolved here, because picking the first silently widens a read-only alias
+    /// into a writable one -- the one direction a wrong guess is unsafe -- and picking the second
+    /// discards a modifier the author wrote. It is a language question: Mist writes
+    /// <c>readonly ref</c> for both, and nothing in the grammar separates them. Every other position
+    /// is unambiguous and does emit, since <c>readonly</c> means nothing else on a parameter or a
+    /// local.
     /// </para>
     /// </summary>
-    public static readonly DiagnosticDescriptor UnsupportedRefReturn = new(
-        new DiagnosticId("MIST_BE_UNSUPPORTED_REF_RETURN"),
+    public static readonly DiagnosticDescriptor ReadonlyRefReturn = new(
+        new DiagnosticId("MIST_BE_READONLY_REF_RETURN"),
         DiagnosticSeverity.Error,
         PipelineStage.Backend,
-        "Method '{0}' returns ref, which is not yet supported by the experimental emitter. The reference would be emitted as a copy, so writes through it would be lost.");
+        "Method '{0}' is declared both readonly and ref. On a struct 'readonly' already means the method does not mutate the receiver, so it is unclear whether the returned reference is itself readonly. Drop one of the two.");
 
-    /// <summary>
-    /// A local is declared <c>ref</c>, which the v2 emitter does not yet support. The <c>ref</c> is
-    /// dropped, so the local becomes an independent copy of its referent and assignments through it
-    /// no longer reach the field, element or variable it was meant to alias.
-    /// <para>
-    /// Refused rather than emitted as a copy for the reason <see cref="UnsupportedRefReturn"/> gives.
-    /// Emitting it needs alias liveness for a referent that is a field or an element, and Mist omits
-    /// the second <c>ref</c> keyword C# requires at the initializer, so the emitter would have to
-    /// reinstate it.
-    /// </para>
-    /// </summary>
-    public static readonly DiagnosticDescriptor UnsupportedRefLocal = new(
-        new DiagnosticId("MIST_BE_UNSUPPORTED_REF_LOCAL"),
-        DiagnosticSeverity.Error,
-        PipelineStage.Backend,
-        "Local '{0}' is declared ref, which is not yet supported by the experimental emitter. The alias would be emitted as a copy, so writes through it would not reach what it aliases.");
+
 
     /// <summary>
     /// A COMBINATOR or a value comparison was tested against a union-typed scrutinee. A type test is

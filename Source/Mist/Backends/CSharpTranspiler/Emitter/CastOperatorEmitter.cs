@@ -12,10 +12,8 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// </summary>
 internal static class CastOperatorEmitter
 {
-    public static void Emit(CastOperator castOperator, Storm.Runtime.SyntaxNode? locationNode, CSharpWriter writer, DiagnosticBag diagnostics)
+    public static void Emit(CastOperator castOperator, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        ParameterEmitter.ReportUnsupportedRef(castOperator.ParametersList, locationNode, diagnostics);
-
         var modifiers = MemberModifierEmitter.Emit(castOperator.Modifiers, emitReadonly: false);
         var kind = castOperator.IsImplicit ? "implicit" : "explicit";
         var targetType = TypeNameEmitter.Emit(castOperator.TargetType);

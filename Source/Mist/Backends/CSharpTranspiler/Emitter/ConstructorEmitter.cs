@@ -29,8 +29,6 @@ internal static class ConstructorEmitter
         IReadOnlyDictionary<StructType, string>? structInitNames = null,
         string? nameOverride = null)
     {
-        ParameterEmitter.ReportUnsupportedRef(constructor.ParametersList, declaringType.DeclarationNode, diagnostics);
-
         var modifiers = ResolveModifiers(constructor, declaringType);
         var parameters = ParameterEmitter.Emit(constructor.ParametersList);
 

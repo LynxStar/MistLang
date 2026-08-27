@@ -102,7 +102,8 @@ internal static class NewtypeEmitter
             foreach(var method in source.MethodsList)
             {
                 TypeEmitter.SeparateMember(writer, ref anyEmitted);
-                MethodEmitter.Emit(method, source.DeclarationNode, inStruct, writer, diagnostics);
+                MethodEmitter.ReportReadonlyRefReturn(method, source.DeclarationNode, diagnostics);
+                MethodEmitter.Emit(method, inStruct, writer, diagnostics);
             }
         }
     }

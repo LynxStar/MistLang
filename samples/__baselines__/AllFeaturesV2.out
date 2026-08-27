@@ -920,3 +920,17 @@ var_w=hello
 var_w=world
 var_w=mist
 --- Iterators Done ---
+--- Ref Parameters ---
+[ref-param-struct] before: Point(1, 2)
+[ref-param-struct] after: Point(100, 200)
+[ref-param-class] before: Container(42)
+[ref-param-class] after: Container(999)
+[ref-return-field] 77
+[ref-return-array] 88
+[ref-local-var] 50
+[ref-local-field] 99
+[ref-local-array] 300
+[ref-readonly-local] 42
+[ref-forward] 14
+[ref-struct-mutation] Point(3, 0)
+--- Ref Parameters Done ---

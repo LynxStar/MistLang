@@ -189,20 +189,22 @@ internal static class TypeEmitter
             foreach(var method in methods)
             {
                 SeparateMember(writer, ref anyEmitted);
+                MethodEmitter.ReportReadonlyRefReturn(method, type.DeclarationNode, diagnostics);
+
                 if(type is AbstractType)
                 {
-                    EmitInterfaceMethod(method, type.DeclarationNode, writer, diagnostics);
+                    EmitInterfaceMethod(method, writer, diagnostics);
                 }
                 else
                 {
-                    MethodEmitter.Emit(method, type.DeclarationNode, inStruct, writer, diagnostics);
+                    MethodEmitter.Emit(method, inStruct, writer, diagnostics);
                 }
             }
 
             foreach(var castOperator in concrete?.CastOperatorsList ?? [])
             {
                 SeparateMember(writer, ref anyEmitted);
-                CastOperatorEmitter.Emit(castOperator, type.DeclarationNode, writer, diagnostics);
+                CastOperatorEmitter.Emit(castOperator, writer, diagnostics);
             }
 
             if(concrete is not null && DefaultSynthesis.IsDefaultable(type))
@@ -349,11 +351,8 @@ internal static class TypeEmitter
     /// <c>default-member-forwarding-stubs</c> is for, and it is a separate capability.
     /// </para>
     /// </summary>
-    private static void EmitInterfaceMethod(
-        Method method, Storm.Runtime.SyntaxNode? locationNode, CSharpWriter writer, DiagnosticBag diagnostics)
+    private static void EmitInterfaceMethod(Method method, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        MethodEmitter.ReportUnsupportedRef(method, locationNode, diagnostics);
-
         var signature = MethodEmitter.EmitSignature(method);
 
         if(method.Body is null)

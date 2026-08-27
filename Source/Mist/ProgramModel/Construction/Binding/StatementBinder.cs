@@ -47,6 +47,17 @@ internal static class StatementBinder
         return new ExpressionStatement(expression);
     }
 
+    /// <summary>
+    /// A binding's <c>readonly</c>, from either shape it parses into. The grammar's greedy
+    /// <c>READONLY?</c> sits ahead of the specifier, so <c>readonly ref</c> normally arrives as the
+    /// token plus a bare ref specifier -- but the combined <c>ReadonlyRefSpecifier</c> alternative
+    /// exists, and testing only one of the two would miss half the spellings.
+    /// </summary>
+    private static bool IsReadonlyBinding(bool hasReadonlyModifier, OwnershipSpecifierNode? specifier)
+    {
+        return hasReadonlyModifier || specifier is ReadonlyRefSpecifierOwnershipSpecifierNode;
+    }
+
     private static Statement BindVariableDeclaration(VariableDeclarationStatementStatementNode statement, BindingContext ctx, BuilderContext context)
     {
         switch(statement.VariableDeclaration)
@@ -67,6 +78,7 @@ internal static class StatementBinder
                     var local = new LocalVariable(typed.Name.Lexeme, declaredType)
                     {
                         IsRef = MemberTypeBuilder.IsRefSpecifier(typed.OwnershipSpecifier),
+                        IsReadonly = IsReadonlyBinding(typed.ReadonlyModifier is not null, typed.OwnershipSpecifier),
                     };
                     ctx.Scope.DeclareLocal(local, context.Diagnostics);
                     return new LocalDeclarationStatement(local, initializer);
@@ -79,6 +91,7 @@ internal static class StatementBinder
                     var local = new LocalVariable(inferred.Name.Lexeme, inferredType)
                     {
                         IsRef = MemberTypeBuilder.IsRefSpecifier(inferred.OwnershipSpecifier),
+                        IsReadonly = IsReadonlyBinding(inferred.ReadonlyModifier is not null, inferred.OwnershipSpecifier),
                     };
                     ctx.Scope.DeclareLocal(local, context.Diagnostics);
                     return new LocalDeclarationStatement(local, initializer);
@@ -202,7 +215,7 @@ internal static class StatementBinder
             value = ExpressionBinder.BindExpression(returnStatement.Value, ctx, context);
         }
 
-        return new ReturnStatement(value);
+        return new ReturnStatement(value, returnStatement.RefKeyword is not null);
     }
 
     private static IfStatement BindIf(IfStatementNode node, BindingContext ctx, BuilderContext context)

@@ -3,6 +3,7 @@ using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
@@ -64,7 +65,7 @@ internal static class BodyEmitter
                 }
                 else if(returnStmt.Value is not null)
                 {
-                    writer.Write("return ");
+                    writer.Write(returnStmt.IsRef ? "return ref " : "return ");
                     EmitExpression(returnStmt.Value, writer, diagnostics);
                     writer.Append(";");
                     writer.AppendLine();
@@ -133,17 +134,43 @@ internal static class BodyEmitter
         }
     }
 
+    /// <summary>
+    /// A call's arguments, each marked <c>ref</c> where the parameter it fills is.
+    /// <para>
+    /// Read from the RESOLVED CALLEE rather than from the argument, because binding drops the
+    /// <c>ref</c> a call site wrote -- so the parameter is the only surviving record, and it is the one
+    /// C# insists the two agree on anyway. A callee that resolved to nothing marks nothing, which is
+    /// right: invoking a function value has no parameter to consult and Mist's function types carry no
+    /// ref.
+    /// </para>
+    /// </summary>
+    private static void EmitArguments(
+        IReadOnlyList<Expression> arguments,
+        IReadOnlyList<Parameter>? parameters,
+        CSharpWriter writer,
+        DiagnosticBag diagnostics)
+    {
+        for(var i = 0; i < arguments.Count; i++)
+        {
+            if(i > 0)
+            {
+                writer.Append(", ");
+            }
+
+            if(parameters is not null && i < parameters.Count && parameters[i].Modifier.IsRef)
+            {
+                writer.Append("ref ");
+            }
+
+            EmitExpression(arguments[i], writer, diagnostics);
+        }
+    }
+
     private static void EmitLocalDeclaration(LocalDeclarationStatement localDecl, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        // The initializer's node, because a local carries none of its own and the grammar requires an
-        // initializer on every form that admits a ref specifier.
-        if(localDecl.Local.IsRef && localDecl.Initializer is { } aliased)
-        {
-            diagnostics.ReportAtNode(
-                BackendDiagnostics.UnsupportedRefLocal, aliased.Node, null, localDecl.Local.Name);
-        }
-
-        var typeName = TypeNameEmitter.Emit(localDecl.Local.Type);
+        var local = localDecl.Local;
+        var refKeyword = RefKeywords.For(local.IsRef, local.IsReadonly);
+        var typeName = $"{refKeyword}{TypeNameEmitter.Emit(local.Type)}";
 
         if(localDecl.Initializer is InvocationExpression call && OptionalUnion.IsVoid(call.Type))
         {
@@ -155,10 +182,13 @@ internal static class BodyEmitter
             return;
         }
 
-        writer.Write($"{typeName} {localDecl.Local.Name}");
+        writer.Write($"{typeName} {local.Name}");
         if(localDecl.Initializer is not null)
         {
-            writer.Append(" = ");
+            // C# marks the alias TWICE, once on the type and once on what is aliased, and Mist writes
+            // only the first. The second is reinstated here rather than being bound as part of the
+            // initializer, since Mist has no syntax for it to have come from.
+            writer.Append(local.IsRef ? " = ref " : " = ");
             EmitExpression(localDecl.Initializer, writer, diagnostics);
         }
 
@@ -301,7 +331,7 @@ internal static class BodyEmitter
             case InvocationExpression invocation:
                 EmitExpression(invocation.Receiver, writer, diagnostics);
                 writer.Append("(");
-                EmitList.Separated(invocation.Arguments, ", ", writer, argument => EmitExpression(argument, writer, diagnostics));
+                EmitArguments(invocation.Arguments, invocation.Method?.ParametersList, writer, diagnostics);
                 writer.Append(")");
                 break;
 
@@ -1170,7 +1200,8 @@ internal static class BodyEmitter
             ;
 
         writer.Append(target);
-        EmitList.Separated(newExpression.Arguments, ", ", writer, argument => EmitExpression(argument, writer, diagnostics));
+        EmitArguments(
+            newExpression.Arguments, newExpression.Constructor?.ParametersList, writer, diagnostics);
         writer.Append(")");
         EmitObjectInitializer(newExpression.Initializer, writer, diagnostics);
     }

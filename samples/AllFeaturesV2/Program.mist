@@ -61,5 +61,6 @@ public class Program
         AsOperator.Program.RunDemo();
         AssociatedTypes.Program.RunDemo();
         Iterators.Program.RunDemo();
+        RefParameters.Program.RunDemo();
     }
 }

@@ -718,27 +718,30 @@ internal static class BodyEmitter
     private static void EmitSwitch(
         SwitchExpression switchExpression, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        if(switchExpression.Scrutinee.Type is UnionType union && !OptionalUnion.IsOptional(union))
-        {
-            diagnostics.ReportAtNode(
-                BackendDiagnostics.UnsupportedUnionSwitch, switchExpression.Node, null, union.Name);
-            writer.Append($"/* unsupported: switch over union {union.Name} */");
-            return;
-        }
+        var narrowed = switchExpression.Scrutinee.Type is UnionType union && !OptionalUnion.IsOptional(union)
+            ? union
+            : null
+            ;
 
         EmitExpression(switchExpression.Scrutinee, writer, diagnostics);
         writer.Append(" switch { ");
 
-        EmitList.Separated(switchExpression.Arms, ", ", writer, arm => EmitArm(arm, writer, diagnostics));
+        EmitList.Separated(switchExpression.Arms, ", ", writer, arm =>
+            EmitArm(arm, narrowed, writer, diagnostics));
 
         writer.Append(" }");
     }
 
-    private static void EmitArm(SwitchArm arm, CSharpWriter writer, DiagnosticBag diagnostics)
+    private static void EmitArm(
+        SwitchArm arm, UnionType? narrowed, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var hoisted = new List<HoistedTest>();
 
-        if(EnumVariantTested(arm.Pattern) is { } variant)
+        if(narrowed is { } union)
+        {
+            EmitUnionArmPattern(arm.Pattern, union, writer, diagnostics);
+        }
+        else if(EnumVariantTested(arm.Pattern) is { } variant)
         {
             var bound = TemporaryName(arm.Pattern);
             writer.Append($"var {bound}");
@@ -765,6 +768,45 @@ internal static class BodyEmitter
 
         writer.Append(" => ");
         EmitExpression(arm.Result, writer, diagnostics);
+    }
+
+    /// <summary>
+    /// The arm of a switch over a union, which stays an ARM: the tag check becomes a property pattern on
+    /// the carrier, so one C# scrutinee serves every arm while each still reads its own constituent
+    /// accessor -- <c>int n</c> emits as <c>{ AsInt32OrNull: int n }</c>. The accessor is
+    /// <see cref="EmitUnionNarrowing"/>'s, and discriminates for the reason given there.
+    /// <para>
+    /// A CHAIN OF CONDITIONALS is the other shape and both of its defects were measured rather than
+    /// reasoned. C# scopes a pattern variable to the whole enclosing statement instead of to the
+    /// conditional that introduced it, so two arms binding one name -- legal Mist, since every arm binds
+    /// in a scope of its own -- collide on CS0128. And a chain has nowhere to bind the scrutinee, so it
+    /// re-emits it per arm and runs a side-effecting one once per test.
+    /// </para>
+    /// <para>
+    /// Staying an arm also leaves first-match ordering, the <c>when</c> guard and the no-match throw to
+    /// C#, each of which a chain would have to rebuild.
+    /// </para>
+    /// </summary>
+    private static void EmitUnionArmPattern(
+        Pattern pattern, UnionType union, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        if(pattern is CatchAllPattern)
+        {
+            EmitPattern(pattern, 0, hoisted: null, writer, diagnostics);
+            return;
+        }
+
+        if(pattern is not TypeTestPattern { Constituent: { } constituent })
+        {
+            diagnostics.ReportAtNode(
+                BackendDiagnostics.UnsupportedUnionPattern, pattern.Node, null, union.Name);
+            writer.Append($"var _ /* unsupported: pattern against union {union.Name} */");
+            return;
+        }
+
+        writer.Append($"{{ {UnionCarrierNames.NarrowingAccessor(constituent)}: ");
+        EmitPattern(pattern, 0, hoisted: null, writer, diagnostics);
+        writer.Append(" }");
     }
 
     private static string TemporaryName(Pattern pattern)

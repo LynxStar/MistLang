@@ -4378,7 +4378,7 @@ capabilities:
     order: 98
     layer: patterns
     requires: [pattern-matching-core, union-types-and-carriers]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
       A tag test, and it STILL BINDS INLINE -- which is the whole point and the thing classic cannot do.
@@ -4428,25 +4428,29 @@ capabilities:
       errors against a generated file the user never wrote. That is the `broken` shape rather than the
       missing one, which is why this is recorded here rather than left to be rediscovered.
 
-      THE OBSTACLE IS THE SAME ONE, seen from a position that cannot use the same way out. Narrowing
-      folds the tag check into the SCRUTINEE, and a C# switch has exactly one scrutinee for all of its
-      arms while each arm here needs a different constituent accessor. So it is not a variation on the
-      `is` lowering, it is the `||` chain the note above already deferred -- every arm individually
-      narrowable and the construct still without a shape.
+      THE ARM POSITION IS NOW BUILT, and NOT as the chain of tests this entry and the deleted
+      MIST_BE_UNSUPPORTED_UNION_SWITCH both predicted. A C# switch has one scrutinee for all of its arms,
+      but a PROPERTY PATTERN reaches an accessor from inside the arm, so the tag check can be per-arm
+      while the scrutinee stays shared and evaluated once: `int n` emits as `{ AsInt32OrNull: int n }` and
+      the construct stays a switch. Same accessor as the `is` lowering, so both positions narrow through
+      one mechanism rather than two.
 
-      GUARDED, NOT FIXED. EmitSwitch now reports MIST_BE_UNSUPPORTED_UNION_SWITCH, moving the error off
-      the generated file and onto Mist source. Safe to add: no banked sample switches over a union --
-      only SwitchExpressions and the unbanked RegexLiterals contain `switch {` at all, and TypeUnions
-      does not.
+      THE CHAIN WAS THE WRONG SHAPE AND BOTH OF ITS DEFECTS WERE MEASURED rather than reasoned, by
+      compiling the candidates. C# scopes a pattern variable to the whole enclosing statement instead of
+      to the conditional that introduced it, so `mixed switch { int n => ..., string n => ... }` -- legal
+      Mist, since every arm binds in a scope of its own, and a shape the switch generator already
+      produces -- fails CS0128 with a use-before-assignment error behind it. And a conditional has
+      nowhere to bind the scrutinee, so a chain re-emits it per arm: a side-effecting scrutinee was
+      measured running twice for a two-arm switch, the same double-evaluation order 182 records against
+      classic. Staying a switch also keeps first-match ordering, the `when` guard and the no-match throw
+      from C# rather than rebuilding all three.
 
-      THIS IS WHY SwitchExpressions IS NOT BANKED despite order 125 being its threshold, and the
-      progression could not have predicted it: the sample's closure lists this capability as `done`,
-      so a mechanical readiness computation says it is ready. Same shape as the Overloading failure
-      this file was written to prevent, and worse in kind -- there v2 emitted and Roslyn covered for
-      it, here v2 emitted and Roslyn refused.
-    tasks:
-      - Lower a switch expression over a union as a chain of tests rather than a switch, each arm
-        testing its own constituent accessor. Unblocks SwitchExpressions, which needs nothing else.
+      A NON-TYPE-TEST ARM is refused per ARM now rather than per construct, reporting the
+      MIST_BE_UNSUPPORTED_UNION_PATTERN the `is` position already reports, so a combinator or a constant
+      is refused for the reason it actually fails. The refused arm emits well-formed C# so the Mist
+      diagnostic is the only error the user sees.
+
+      SwitchExpressions is banked in AllFeaturesV2, output identical to classic.
     analysis_phase_tasks:
       - >
         Report a narrowing that is unreachable for a reason other than the type belonging to no
@@ -6982,15 +6986,13 @@ samples:
     requires: [exhaustiveness-checking, when-guards, union-narrowing-through-patterns,
                property-patterns, list-and-slice-patterns, tuple-types-and-literals,
                string-interpolation]
-    blocked_by: >
-      union-narrowing-through-patterns (98), whose switch-arm half is unbuilt -- see that order. Its
-      own list-pattern arm binds and emits since order 125, so the ranges layer is not what holds it.
-      The one sample in this file whose threshold is satisfied on paper and blocked in fact.
     untested:
       - No switch ever falls through all arms, so the no-match failure path is unexercised,
         and no arm is subsumed by an earlier one, so ordering is unproven.
       - No enum-scrutinee switch appears, which is exactly the case the exhaustiveness
         checker has no rule for.
+      - Its two union arms bind different names, so the collision that decided the union lowering's
+        shape is not what this sample proves. Order 98 records the measurement instead.
 
   - name: Tuples
     intro_order: 24

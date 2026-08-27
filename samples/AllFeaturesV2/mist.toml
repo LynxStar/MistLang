@@ -39,3 +39,4 @@ RangesAndIndices = { path = "../RangesAndIndices" }
 Enums = { path = "../Enums" }
 EnumReadonlyRestriction = { path = "../EnumReadonlyRestriction" }
 UnknownType = { path = "../UnknownType" }
+SwitchExpressions = { path = "../SwitchExpressions" }

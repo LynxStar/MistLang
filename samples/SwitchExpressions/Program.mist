@@ -1,4 +1,4 @@
-// SwitchExpressions — Demonstrates exhaustive switch expressions in Mist.
+// SwitchExpressions -- Demonstrates exhaustive switch expressions in Mist.
 
 using Standard;
 

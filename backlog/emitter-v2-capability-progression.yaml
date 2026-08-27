@@ -55,6 +55,26 @@
 #   record says which residue -- see struct-declaration (order 20), green through HelloMist
 #   and Classes while its parameterless-struct-constructor workaround stands untouched.
 #
+#   THE CHECKABLE FORM OF THAT RULE, because it was stated loosely enough to go unchecked for a
+#   while and three banked samples were sitting over `missing` capabilities when it was finally
+#   run: no banked sample may require a `missing` capability, directly or transitively, where
+#   TRANSITIVELY FOLLOWS `requires` ONLY THROUGH `done`.
+#
+#   That last clause is the whole subtlety and it is not a convenience. A `done` capability
+#   genuinely needed every prerequisite it declares, so its edges are the sample's business. A
+#   `partial` one may declare prerequisites that only its UNDELIVERED half needs -- see
+#   adhoc-refinement-where-clauses (order 147), whose accepted-and-erased syntax needs neither the
+#   implication engine nor witness encoding, while the discharge it has not built needs both.
+#   Following its edges would charge Properties for a residue it never touches, and reporting that
+#   as a violation is how a correct record gets edited into a wrong one.
+#
+#   The rule catches two different faults and the difference matters. Either the capability is
+#   understated and something in it works (75, 126, 127 and 147 were all `missing` while carrying a
+#   green sample), or the sample's `requires` names something it does not use. Establish which
+#   before touching the status: the first is a status edit, the second is an edge edit, and
+#   guessing produces a file that passes its own check while describing a program that does not
+#   exist.
+#
 #   WHAT THIS EXERCISE DELIVERS, AND WHAT IT DOES NOT
 #
 #   Building a program model, and emitting from it. NOT verifying that the program is valid.
@@ -3280,11 +3300,30 @@ capabilities:
     order: 75
     layer: nested-declarations
     requires: [namespace-block-form, nested-type-declarations]
-    v2_status: missing
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
-      NestedScoping declares nested block namespaces and repeated block namespaces with the
-      same name. The classic pipeline DOUBLES the prefix on the nested form, which the
-      sample documents and routes around.
+      TWO FORMS UNDER ONE NAME, and only one of them is outstanding. REPEATED block namespaces of the
+      same name work and are banked: BlockNamespaces.mist declares
+      `namespace NestedScoping.Utilities` twice and resolves StringHelper and MathHelper across the
+      two, in NestedScoping, byte-identical to classic. NESTED block namespaces do not.
+
+      RECLASSIFIED FROM `missing`, which broke this file's own invariant rather than being merely
+      imprecise: NestedScoping is banked and lists this capability, and a sample may sit over a
+      `partial` whose residue it avoids but never over a `missing`. The status said nothing here
+      worked while half of it was carrying a green sample.
+
+      THE RESIDUE IS THE TRULY NESTED FORM, `namespace Outer { namespace Inner { } }`, and the sample
+      documents avoiding it in BlockNamespaces.mist -- it spells `namespace NestedScoping.Networking.Protocol`
+      qualified instead, which is namespace-block-form and already done. Measured on both pipelines:
+      classic emits C# that does not compile, doubling the prefix so `Inner` is looked for inside
+      `Outer.Inner`; v2 fails earlier, never binding the nested path at all.
+    tasks:
+      - >
+        Bind and emit a block namespace nested inside a block namespace. v2 currently refuses it, which
+        is the safe half, but the DIAGNOSTIC IS MISLEADING: a call whose receiver walks the nested path
+        reports MIST_PM_UNRESOLVABLE_OVERLOAD against the enclosing call rather than naming the
+        namespace segment that did not resolve, so the message sends the reader to the wrong construct.
     unlocks: []
 
   # ===================================================================
@@ -5364,11 +5403,24 @@ capabilities:
     order: 126
     layer: clr-interop
     requires: [type-parameters-and-constructed-types]
-    v2_status: missing
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
-      Metadata-only load of the reference set, CLR namespaces mapped into Mist scopes driven
-      by imports, and stdlib alias bridging so the Mist string and array types resolve back
-      to their CLR counterparts.
+      Metadata-only load of the reference set, CLR namespaces mapped into Mist scopes driven by
+      imports, and stdlib alias bridging so the Mist string and array types resolve back to their CLR
+      counterparts. The load, the import-driven mapping and the bridging all work: ArityOverloads is
+      banked and byte-identical to classic while importing System.Collections.Generic and flowing Mist
+      `int` and `string` into projected generics as type arguments.
+
+      RECLASSIFIED FROM `missing` ON THE EVIDENCE OF A BANKED SAMPLE, which is the same
+      status-is-wrong-in-both-directions shape orders 74 and 132 turned out to have. ArityOverloads
+      requires this transitively through order 127 and has been green throughout, so `missing` was
+      never true; nothing was built for this entry, and nothing needed to be.
+
+      RESIDUE: the reference set is whatever the project already pulls in, so nothing exercises a
+      DECLARED reference beyond the default framework set, and no sample imports a CLR namespace that
+      the Standard library does not already reach. Attributes remains blocked on order 129, not on
+      this.
     unlocks: [Attributes]
 
   - id: clr-generic-construction-and-members
@@ -5376,11 +5428,26 @@ capabilities:
     order: 127
     layer: clr-interop
     requires: [clr-assembly-type-projection, type-argument-substitution]
-    v2_status: missing
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
-      Instance, static, property and indexer resolution on projected types, cross-assembly
-      base-type projection with inherited lookup, and overload applicability filtered by
-      argument type rather than declaration order.
+      Construction and member resolution on projected generics work at more than one arity, which is
+      the part this capability's sample bottoms out on. ArityOverloads builds `List<int>` and
+      `Dictionary<string, int>`, calls `Add` on both -- one argument against two, so the arity-keyed
+      lookup is genuinely exercised rather than incidentally satisfied -- and reads `Count` on each.
+      Banked and byte-identical to classic.
+
+      RECLASSIFIED FROM `missing` FOR ORDER 126's REASON: it is this capability that ArityOverloads
+      names as its threshold, so recording it unbuilt while the sample it unlocks was green is the
+      contradiction the derived-status rule exists to make visible. Nothing was built for this entry.
+
+      RESIDUE, all of it named in the original evidence and none of it reached by any sample: INDEXER
+      resolution on a projected type (`list[0]` -- only `Add` and `Count` are exercised, so the
+      instance-method and property halves are proven and the indexer half is not), CROSS-ASSEMBLY
+      base-type projection with inherited lookup, and overload applicability filtered by ARGUMENT TYPE
+      rather than declaration order. That last one is the one to distrust: order 12's
+      overload-resolution-by-argument-type is itself `partial`, and this file's opening note is about
+      exactly the failure of assuming Roslyn's agreement downstream means the resolution happened here.
     unlocks: [ArityOverloads]
 
   - id: clr-byref-parameter-projection
@@ -5733,13 +5800,37 @@ capabilities:
     order: 147
     layer: refinement-and-dependent
     requires: [refinement-implication-engine, dependent-const-witness-encoding]
-    v2_status: missing
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
-      One syntax with two obligations -- discharge at a use site, versus IMPLICATION between
-      two predicates when forwarding to a base or weakening in an override. The second
-      cannot be decided by evaluation. Predicate contravariance participates in override
-      compatibility, which C# has no equivalent for. Applies to type parameters, method
-      parameters, constructor parameters and indexer parameters.
+      The SYNTAX binds and emits, with the predicate ERASED, which is all a where clause needs to be
+      representable and emittable: Properties declares `public int this[int index] where index >= 0 and
+      < 3` and is banked, its indexer emitting as a plain C# indexer over the same body. Nothing was
+      built for this entry.
+
+      RECLASSIFIED FROM `missing`, AND THE MISREADING IS THE SAME ONE ORDER 69 RECORDS AT LENGTH. Every
+      obligation the original evidence described -- discharge at a use site, implication between two
+      predicates, predicate contravariance in override compatibility -- is a JUDGEMENT ON A FINISHED
+      MODEL, not something that stops one being built or emitted. That is what `v2_status` does not
+      measure and what `analysis_phase_tasks` is for. Recording it `missing` also put a banked sample
+      over a missing capability, which is the invariant break that surfaced it.
+
+      THE REQUIRES EDGES STAY AS THEY ARE. Erasing a predicate needs neither the implication engine nor
+      witness encoding, but the capability is not finished until the obligations are discharged, and
+      those are what it depends on. So the dependencies describe the whole capability while the status
+      describes the part that is delivered -- which is what `partial` means.
+    analysis_phase_tasks:
+      - >
+        DISCHARGE a predicate at a use site: `arr[i] where i >= 0 and < 3` must refuse an `i` not known
+        to satisfy it. Decidable by evaluation where the value is known.
+      - >
+        Decide IMPLICATION between two predicates, for forwarding to a base or weakening in an
+        override. Not decidable by evaluation, and predicate contravariance participates in override
+        compatibility, which C# has no equivalent for -- so nothing downstream will catch a violation
+        and this cannot be deferred to Roslyn the way an arity mismatch can.
+      - >
+        Cover every position the clause is admitted in: type parameters, method parameters, constructor
+        parameters and indexer parameters. Only the indexer-parameter position has a sample.
     unlocks: [AdhocRefinementConstraints, Properties, RefParameters]
 
   - id: array-bounds-flow-analysis

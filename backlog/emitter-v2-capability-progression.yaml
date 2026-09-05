@@ -236,6 +236,16 @@
 #                         generated AST node classes against the node kinds present across
 #                         all 75 samples. Re-taking it means re-doing that diff by hand.
 #
+#   measured_defects      v2 code paths that EXIST and emit output that does not compile.
+#                         The ordering model has no home for these -- it orders capabilities,
+#                         which are unstarted or delivered -- and the LIVE DEFECT convention
+#                         used in `evidence` describes CLASSIC's bugs, never v2's. Added
+#                         after the first sweep that BUILT the unbanked samples instead of
+#                         reasoning about them from source, which found seven producing
+#                         nothing but Roslyn errors while this file recorded zero `broken`.
+#                         It carries the re-measurement recipe; run that before disputing
+#                         any status it names.
+#
 #
 # SCOPE
 #
@@ -483,11 +493,29 @@ capabilities:
     order: 14
     layer: object-model
     requires: [instance-fields]
-    v2_status: done
+    v2_status: partial
     verified_by: v2-semantics
     evidence: >
       ConstructorEmitter.Emit, and ProgramModelBuilder phase 3 now walks ConstructorsList.
       Before 6957888b constructor bodies were never bound at all.
+
+      DEMOTED FROM done 2026-09-05 ON A MEASURED DIVERGENCE. A constructor declared with NO
+      accessibility modifier emits `private` on v2 and `public` on classic. The two pipelines
+      disagree about the default, which makes this a LANGUAGE RULE nobody has written down rather
+      than an emitter slip -- neither register mentions the default accessibility of a declared
+      constructor, and the grammar permits the modifier to be absent.
+
+      Every banked sample happens to spell its constructors `public`, which is why 43 green samples
+      have not caught it. samples/Attributes does not, and it is the sole reason that sample fails
+      on v2: the emitted `private Settings(int timeout)` makes the sample's own `new Settings(100)`
+      CS0122.
+
+      DO NOT FIX THIS ALONE. Attributes' 2 errors are entirely this defect, so repairing it makes
+      that sample build, run and match classic byte-for-byte while TWELVE attributes are silently
+      dropped -- classic emits 12 attribute lines for it, v2 emits 1 -- and the sample proves only
+      "it compiles and runs", with no reflection and no output line reflecting any attribute. That
+      is a banked sample over a `missing` capability, the exact fault cf43a41d was written to
+      eliminate, arrived at by accident. See order 117.
     unlocks: []
 
   - id: this-expression
@@ -862,6 +890,17 @@ capabilities:
       answer is always yes. NO SAMPLE CATCHES THIS: every banked one routes output through string
       interpolation, so `WriteLine` is only ever called on a string.
 
+      IT DOES, HOWEVER, BLOCK UNBANKED ONES, measured 2026-09-05 across all 32: ExtensionMethods
+      hits it once and Variadics twice. That makes this a PREREQUISITE OF LAYER T rather than an
+      independent nicety -- ExtensionMethods' 11 errors are 10 unresolved extension members plus
+      this, so orders 111-114 delivered alone leave that sample red and the layer unbankable.
+      Anyone scoping extensions from this file's `requires` edges will not see that, because the
+      dependency runs through a `partial` this sample happens to touch rather than through an edge.
+
+      The fix is this entry's own first task and the direction is monotone -- admitting a conversion
+      turns refusals into resolutions and never the reverse -- so it is about as cheap and as safe
+      as work in this file gets, sitting under all 43 green samples.
+
       STILL MISSING, none of it contradicting the above: generic method type-argument inference, so
       an open parameter cannot be matched and falls to the arity path; explicit type arguments, which
       MethodCallSuffix still drops; extension and ambient methods, which never enter the group at
@@ -957,6 +996,30 @@ capabilities:
       project namespace -- only Standard. Namespaces imports both Namespaces.Models and
       Namespaces.Models.Game, so imports must be non-hierarchical. A parent import must not
       cover the child, and requiring the child import must not be necessary either way.
+
+      LIVE DEFECT IN V2, MEASURED 2026-09-05, AND THE LARGEST SINGLE BLOCKER ON THE UNBANKED SET.
+      v2 hard-refuses any compilation unit that writes `using Standard;` and `using System;`
+      together. Both namespaces declare `Console`, and ImportingScope.LookupImports collects across
+      imports and treats two imports reaching DIFFERENT types as unrecoverable -- it records a
+      conflict, reports MIST_PM_AMBIGUOUS_TYPE and returns ErrorType. There is no precedence arm.
+      Classic resolves the same source and runs it.
+
+      Blast radius, measured by building all 32 unbanked samples: ClrRefInterop 7 of 7 errors,
+      RefStructs 42 of 43, DisposableDropInterop 13 of 15. It MASKS what those three are really
+      blocked on -- swapping the bare `System` import out of ClrRefInterop drops it from 7 errors
+      to 2, and those 2 are order 128's actual residue. Samples importing only System SUB-namespaces
+      are unaffected, and Attributes escapes only because it never imports Standard.
+
+      NEEDS A LANGUAGE DECISION BEFORE CODE, which is why this is recorded and not scheduled. C#
+      itself reports CS0104 for this shape, so "v2 is stricter and the samples are wrong" is a
+      defensible answer, and so are "the explicit import wins", "Standard wins", and "ambiguity is
+      an error only at a USE that cannot be disambiguated". They differ in whether three samples get
+      edited or the resolver does. Decide it in its own docs commit first; guessing here writes the
+      rule into the resolver by accident.
+
+      CAPABILITY-SHAPED, not analysis-phase: it changes what a name RESOLVES to. Today the name
+      binds ErrorType and nothing downstream is emittable, so this is squarely "what can be held in
+      memory and emitted" rather than a judgement on a finished model.
     unlocks: []
 
   - id: namespace-block-form
@@ -2000,7 +2063,7 @@ capabilities:
         frontend half is done, so this is the emitter catching up rather than a shared gap.
       - Descend unions and tuples in TypeSubstitution.Apply when a signature can be stated in
         terms of one.
-    unlocks: [StructInheritance]
+    unlocks: []
 
   - id: generic-methods
     name: Generic method declaration
@@ -5178,6 +5241,20 @@ capabilities:
       TypeEmitter drops AttributesList with no diagnostic. Targets include class, struct,
       method, field, property, indexer and parameter, with multiple lists on one declaration
       and multiple attributes per list preserved distinctly.
+
+      A TRUE SILENT DROP, quantified 2026-09-05: classic emits 12 attribute lines for
+      samples/Attributes, v2 emits 1. Latent only because no BANKED sample declares an attribute.
+
+      ITS SAMPLE IS ONE SMALL FIX AWAY FROM GOING GREEN WITHOUT IT. Attributes' only two v2 errors
+      are the constructor-accessibility divergence on order 14, nothing to do with attributes.
+      Repair that and the sample builds, runs and matches classic's stdout with all 12 attributes
+      dropped, because it proves attributes only by compiling -- no reflection, no output line
+      reflecting any attribute, which its own `untested` list already warns about.
+
+      SO THE ACCEPTANCE TEST FOR THIS CAPABILITY CANNOT BE ITS SAMPLE. It has to be a unit test on
+      emitted C#, decided before the work starts rather than after the sample is green. This is the
+      same shape as sealed-modifier in orphan_capabilities: a construct Tier 6's stdout comparison
+      is structurally unable to see.
     unlocks: []
 
   - id: attribute-arguments-and-type-literals
@@ -5455,12 +5532,25 @@ capabilities:
     order: 128
     layer: clr-interop
     requires: [clr-assembly-type-projection]
-    v2_status: missing
+    v2_status: broken
     evidence: >
       Mist has neither an out nor an in modifier, so all three CLR by-ref kinds collapse to
       one Mist ref kind and the calling convention must be retained per parameter and
       reconstructed at emission. Direction matters -- an out parameter means the callee
       assigns, so the caller's prior value is not live, even though the syntax matches ref.
+
+      MEASURED BROKEN 2026-09-05. Order 132 built the Mist-side ref path, and a call into a CLR
+      by-ref parameter now goes THROUGH it and emits the wrong keyword rather than nothing:
+      `dict.TryGetValue("hello", ref found)` where C# requires `out found`. The direction is not
+      retained, which is exactly what this entry says it must be. Two errors, both "Argument 2 must
+      be passed with the 'out' keyword", against the generated file.
+
+      ITS SAMPLE CANNOT SEE THIS TODAY, and that is the more important finding. ClrRefInterop was
+      read as the one unbanked sample a single capability from green, and it is not: all 7 of its
+      v2 errors are the import ambiguity recorded on order 29, and this entry's real residue is
+      exactly the two call sites above, reachable only once that is decided. Building this alone
+      leaves the sample exactly as red as it is now. `blocked_by` on the sample records the
+      pointer; the reasoning is here.
     unlocks: []
 
   - id: framework-and-package-reference-resolution
@@ -5743,8 +5833,26 @@ capabilities:
     order: 141
     layer: refinement-and-dependent
     requires: [type-alias-declarations]
-    v2_status: missing
-    evidence: A base type plus a predicate bound under an alias, usable in every type position.
+    v2_status: broken
+    evidence: >
+      A base type plus a predicate bound under an alias, usable in every type position.
+
+      MEASURED BROKEN 2026-09-05, not missing. This was recorded `missing` -- "NOT a bug and NOT a
+      regression ... an absent emitter path" -- and the path is not absent, it is wrong. A refined
+      type REACHES the emitter and is written into the generated file as its own display name:
+      `public Int32{refined} Age;`. RefinedType.BuildName returns `$"{baseType.Name}{{refined}}"`
+      and TypeNameEmitter has no RefinedType arm, so the type falls to its `_ => type.Name`
+      catch-all. The braces terminate the member declaration and Roslyn cascades from there.
+
+      This is the status the header reserves for a bug, and it is the category the file has been
+      asserting is empty. RefinementTypes emits 253 Roslyn errors and RefinementComparison 196, and
+      NEITHER produces a single Mist diagnostic -- the compiler reports success and hands the user
+      syntax errors in a file they never wrote. Measured by building all 32 unbanked samples on
+      `--pipeline experimental` at 23bcea57; the sweep is recorded in `measured_defects` below.
+
+      REFUSE BEFORE BUILDING. The established response is 7123022c's: a named MIST_BE_* refusal
+      lands first and the feature cashes it in later ("The guards paid for this", feddfdf7).
+      Nothing here is a judgement on a finished model, so none of it is analysis-phase work.
     unlocks: []
 
   - id: refinement-static-discharge
@@ -5788,12 +5896,26 @@ capabilities:
     order: 145
     layer: refinement-and-dependent
     requires: [type-parameters-and-constructed-types]
-    v2_status: missing
+    v2_status: broken
     evidence: >
       A dependent parameter occupies an ordinal distinct from type parameters, its argument
       participates in constructed-type IDENTITY, and it stays readable at runtime inside
       member bodies. Domains include the integral types, bool and char, and may also be a
       named refinement.
+
+      MEASURED BROKEN 2026-09-05, for the same reason as order 141 and by the same sweep: the
+      emitter path exists and is wrong rather than absent. A dependent VALUE parameter is lowered
+      to a C# TYPE parameter -- `public class FixedArray<Size>` with `return Size;` in a body and
+      `public static FixedArray<Size> __CreateDefault()` -- so every body use is CS0119, "'Size' is
+      a type, which is not valid in the given context". 19 occurrences across DependentTypes,
+      DependentTypeRefinementConstraints and ArrayBoundsFlowAnalysis, again with zero Mist
+      diagnostics.
+
+      THIS DEFECT IS WHAT BLOCKS ITS DEPENDANTS, not their own unbuilt halves. Orders 146 and 148
+      stay `missing`, correctly: they have no code path of their own to be wrong. Their samples
+      fail on THIS, so measuring them is impossible until the lowering is refused or fixed, and
+      any scoping that reads their sample's error count as evidence about them is reading this
+      entry's defect instead.
     unlocks: []
 
   - id: dependent-const-witness-encoding
@@ -6465,7 +6587,8 @@ capabilities:
         `ref Derived` to a `ref Ancestor` requires aliasing, which only reinterpretation gives. That
         makes the unmanaged predicate above a USER-VISIBLE LANGUAGE RULE rather than an optimization
         switch: a struct with one `string` in its ancestry can be widened by value and not by `ref`.
-        Blocked behind ref-parameters-and-ref-locals (order 132), which is `broken`.
+        Was blocked behind ref-parameters-and-ref-locals (order 132) while that was `broken`; 132
+        is `done` as of feddfdf7, so this is now unblocked and merely unbuilt.
       - Name a generic ancestor more than one level up by its own arguments rather than the
         parent's. Correct only where the arguments pass straight through unchanged.
     unlocks: [AsOperator, StructInheritance]
@@ -7531,9 +7654,10 @@ samples:
 
   - name: ClrRefInterop
     intro_order: 59
-    threshold: clr-byref-parameter-projection
+    threshold: ref-parameters-and-ref-locals
     requires: [ref-parameters-and-ref-locals, clr-byref-parameter-projection,
                clr-generic-construction-and-members, string-interpolation]
+    blocked_by: using-import-resolution
     untested:
       - The in-parameter case is declared as a plain ref, so that projection path is never
         exercised.
@@ -7867,8 +7991,17 @@ non_sample_targets:
 # =====================================================================
 # ORPHAN CAPABILITIES
 #
-# Required by no target. Each is a soundness check whose only observable is a
-# REJECTION, and no sample can contain one because samples must build clean.
+# Required by no target. TWO REASONS PUT A CAPABILITY HERE and they are not the same.
+#
+#   The first three are soundness checks whose only observable is a REJECTION, and no
+#   sample can contain one because samples must build clean.
+#
+#   sealed-modifier is the second kind and the preamble used to deny it existed. The
+#   construct IS written in a sample -- FullAccessibilityModel declares a sealed class and
+#   a sealed struct, and builds clean. It is unobservable because NEITHER pipeline emits
+#   the modifier and Tier 6 compares stdout, where it is invisible. So a capability can be
+#   orphaned by what the acceptance test can SEE rather than by what a sample can CONTAIN,
+#   and an orphan of this kind is a live emission gap rather than a deferred check.
 # =====================================================================
 
 orphan_capabilities:
@@ -7885,6 +8018,24 @@ orphan_capabilities:
       Observable only when a field name collides with a visible type name. No sample contains
       such a collision. Needs a unit test asserting the field wins.
 
+  - id: sealed-modifier
+    reason: >
+      ORPHANED BY INVISIBILITY, NOT BY ABSENCE -- the second kind described in the preamble, and
+      the only capability here that is a live emission gap rather than a deferred check.
+      FullAccessibilityModel declares `public sealed class Ledger` and a sealed struct, and banks
+      green. Neither pipeline emits the modifier -- MemberModifiers.IsSealed is populated by
+      ModifierBuilder and read by neither MemberModifierEmitter nor TypeEmitter, and classic's own
+      emitted Ledger.cs is `public class Ledger` -- so Tier 6's stdout comparison cannot see the
+      difference and the sample passes on both pipelines with the modifier dropped on both.
+
+      It was listed among FullAccessibilityModel's requirements until that sample was banked
+      WITHOUT it, which is what removed the edge and left this unreachable. Recording it here
+      rather than deleting it keeps the fact that the emission is missing; deleting it would
+      have made a silent drop disappear from the file along with the entry.
+
+      Needs a unit test on emitted C#, per class and per struct. A sample cannot serve, and that
+      is a property of the acceptance test rather than of the construct.
+
   - id: non-public-type-accessibility
     reason: >
       No tier-0 through tier-8 sample declares a non-public type, so the current collapse of
@@ -7895,10 +8046,17 @@ orphan_capabilities:
 #
 # The grammar generates 403 AST node classes. After removing 65 abstract rule nodes,
 # 14 operator-symbol nodes recorded as operators instead, and 4 precedence-plumbing
-# nodes, these 24 appear in NO sample. Recorded so this file cannot be mistaken for
+# nodes, these 25 appear in NO sample. Recorded so this file cannot be mistaken for
 # evidence that the sample suite is complete.
 #
-# disposition: needs-sample | unit-test-only | dead-grammar | stdlib-only
+# disposition: needs-sample | unit-test-only | dead-grammar | stdlib-only | covered
+#
+#   covered -- a sample was WRITTEN for it after this census was taken, so the entry no
+#   longer describes an uncovered construct. Kept rather than deleted because the census
+#   is hand-taken and re-running it means re-doing the diff; an entry that records its own
+#   resolution is cheaper than an entry that silently disappears. The note says which
+#   sample and on which pipeline it runs, because a sample that covers a construct on
+#   classic while v2 cannot bind it is not coverage for v2's purposes.
 # =====================================================================
 
 uncovered_constructs:
@@ -8177,3 +8335,95 @@ uncovered_constructs:
 #   - Give Properties a baseline. It currently produces wrong output on the classic
 #     pipeline (two backing fields for a mixed accessor pair, so writes never reach reads)
 #     and nothing catches it because the sample has no expected-output file.
+
+# =====================================================================
+# MEASURED DEFECTS
+#
+# v2 code paths that EXIST and produce output that does not compile, plus one that
+# refuses a program classic accepts. Recorded here because the ordering model has no
+# other home for them: it orders CAPABILITIES, and a capability is either unstarted
+# (`missing`) or delivered. "Order 141 is not unstarted, it is emitting garbage" was
+# not expressible until the entries below were flipped to `broken`, and the LIVE DEFECT
+# convention used elsewhere in this file describes CLASSIC's bugs, never v2's.
+#
+# WHY THIS SECTION EXISTS AT ALL. Every status in this file was derived from reading
+# source and from what the sample suite proves. Nobody had built an UNBANKED sample and
+# read the errors, so `missing` -- whose definition here is "NOT a bug and NOT a
+# regression ... an absent emitter path" -- was being applied to paths that are present
+# and wrong. Seven unbanked samples emit ZERO Mist diagnostics and fail only in Roslyn
+# against generated files, which is this file's own worst category, and it recorded
+# zero `broken` entries while that was true.
+#
+# HOW TO RE-TAKE IT: build every unbanked sample on `--pipeline experimental`, redirect
+# output away from samples/, and split the diagnostics per sample into MIST_CS_ERROR
+# (Roslyn, against generated C#) versus MIST_PM_* / MIST_BE_* (a refusal at Mist
+# source). A sample in the first column with an empty second column is a defect of this
+# kind. That split is the whole measurement and it is cheap; it should be re-run
+# whenever a status here is questioned.
+# =====================================================================
+
+measured_defects:
+
+  measured_at: 23bcea57
+  measured_on: 2026-09-05
+  method: >
+    All 32 unbanked samples built on the experimental pipeline, diagnostics classified by
+    prefix. Tree was green throughout -- build clean with 0 warnings, 5659 tests passing --
+    so none of this is a regression against a red baseline. No sample directory was written
+    to; every build was redirected elsewhere.
+
+  silent_emission_failures:
+    count: 7
+    samples: [RefinementTypes, RefinementComparison, DependentTypes,
+              DependentTypeRefinementConstraints, AdhocRefinementConstraints,
+              ArrayBoundsFlowAnalysis, Attributes]
+    total_roslyn_errors: 491
+    note: >
+      Zero Mist diagnostics between them. The compiler reports success and the user receives
+      syntax errors in a file they never wrote. Contrast the well-behaved gaps -- Ownership and
+      AsyncDropChaining report MIST_BE_UNSUPPORTED_EXPRESSION, ReadonlyContexts and DropSemantics
+      report MIST_BE_UNSUPPORTED_STATEMENT -- which is the shape these seven are missing.
+    root_causes:
+      - Refined type names leak into emitted C# -- see order 141, now `broken`.
+      - A dependent VALUE parameter is lowered to a C# TYPE parameter -- see order 145, now `broken`.
+      - Constructor default accessibility diverges from classic -- see order 14, now `partial`.
+        This one is Attributes' entire failure and has nothing to do with refinement.
+
+  blocking_refusals:
+    - defect: Standard and System cannot be imported together
+      recorded_on: using-import-resolution (order 29)
+      gates: [ClrRefInterop, RefStructs, DisposableDropInterop]
+      note: >
+        The largest single blocker on the unbanked set, and it masks what those three samples are
+        actually waiting for. Needs a language decision before code.
+
+    - defect: no non-string argument is applicable to an `unknown` parameter
+      recorded_on: overload-resolution-by-argument-type (order 26)
+      gates: [ExtensionMethods, Variadics]
+      note: >
+        Refuses `Console.WriteLine(7)`, which classic prints. Already carried its own one-task fix;
+        what was new is that it is a prerequisite of Layer T, reachable from no `requires` edge.
+
+  true_silent_drops:
+    note: >
+      Represented in the model and dropped at emission with no diagnostic. Both are LATENT -- no
+      BANKED sample contains either construct, verified -- so neither is producing a wrong answer
+      today. Each becomes a false green the moment its sample is made to build for another reason.
+    entries:
+      - Attribute lists, order 117. Classic emits 12 attribute lines for samples/Attributes, v2 emits 1.
+      - Extension blocks, order 111. Built into MistNamespace.Extensions and never read by
+        CSharpEmitterV2, which walks unit.Types only.
+      - The sealed modifier -- see orphan_capabilities. Dropped by BOTH pipelines, so stdout
+        cannot see it and it is the one entry here classic does not get right either.
+
+  recommended_response: >
+    A REFUSAL COMMIT BEFORE ANY FEATURE WORK, which is this project's own established pattern:
+    7123022c installed named refusals for ref returns and ref locals rather than letting them emit
+    a wrong answer, and feddfdf7 then cashed them in -- "The guards paid for this. Holding the line
+    at refuse-rather-than-drop forced every flag emission needed to be found and named."
+
+    Refusing refined types, dependent value parameters and the CLR out-direction would restore the
+    zero-`broken` property honestly rather than by omission, replace 491 Roslyn errors with Mist
+    source locations, and de-risk the refinement, attribute and CLR-interop work at once. It banks
+    no sample, so it needs a ProgramModelProbe test plus a mutation check -- the pattern 699e289b
+    argued for and the last several commits have not used.

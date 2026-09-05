@@ -1010,12 +1010,30 @@ capabilities:
       to 2, and those 2 are order 128's actual residue. Samples importing only System SUB-namespaces
       are unaffected, and Attributes escapes only because it never imports Standard.
 
-      NEEDS A LANGUAGE DECISION BEFORE CODE, which is why this is recorded and not scheduled. C#
-      itself reports CS0104 for this shape, so "v2 is stricter and the samples are wrong" is a
-      defensible answer, and so are "the explicit import wins", "Standard wins", and "ambiguity is
-      an error only at a USE that cannot be disambiguated". They differ in whether three samples get
-      edited or the resolver does. Decide it in its own docs commit first; guessing here writes the
-      rule into the resolver by accident.
+      CLASSIC ALREADY ANSWERS THIS AND THE ANSWER IS A SEARCH ORDER, NOT A PRECEDENCE RULE ANYONE
+      HAD TO INVENT. SemanticModelBuilder resolves an imported name in two ORDERED phases: 3a
+      searches user-defined namespace scopes and RETURNS on the first hit; 3b consults the ambient
+      resolver, where CLR-projected types live, and runs only if 3a found nothing. `Standard` is
+      user-defined -- Source/Standard/*.mist is Mist source transpiled on every compile -- so
+      `Console` binds to Standard.Console and `System` is never reached. Classic's ambiguity check
+      exists, but it can only fire between two USER-DECLARED namespaces, which is why importing
+      System alongside Standard costs it nothing.
+
+      v2 FLATTENED THE TWO PHASES INTO ONE LOOP. ImportingScope.LookupImports walks a single
+      `imports` list holding both kinds and compares candidates with ReferenceEquals, so a
+      source-declared type and a CLR projection of the same name are a conflict. Its own doc comment
+      states the intended contract -- "compared by identity, so two usings that reach the same type
+      agree rather than conflict" -- and identity is the wrong instrument here: Standard.Console is
+      an `intrinsic` declaration (Bootstrap/Console.mist, bodiless, five members) and System.Console
+      is a projection, genuinely two objects. They do not need to be made equal; the ambient one
+      needs to not be consulted once the source one is found.
+
+      SO THE WORK IS TO REPRODUCE THE PHASE SPLIT, not to pick a winner. Nothing about the language
+      is open, no sample is wrong, and C# reporting CS0104 for its own version of this shape is not
+      evidence about Mist, because in Mist the two names are not peers -- one is the stdlib and the
+      other is what the stdlib projects onto. An earlier revision of this entry recorded it as an
+      undecided language question needing its own docs commit; that was wrong, and it was wrong in
+      the direction that invents work.
 
       CAPABILITY-SHAPED, not analysis-phase: it changes what a name RESOLVES to. Today the name
       binds ErrorType and nothing downstream is emittable, so this is squarely "what can be held in
@@ -8395,7 +8413,9 @@ measured_defects:
       gates: [ClrRefInterop, RefStructs, DisposableDropInterop]
       note: >
         The largest single blocker on the unbanked set, and it masks what those three samples are
-        actually waiting for. Needs a language decision before code.
+        actually waiting for. Not a language question: classic resolves user-declared namespaces
+        before ambient ones and returns on the first hit, so `Console` binds to Standard.Console and
+        System is never consulted. v2 flattened those two phases into one loop. Reproduce the split.
 
     - defect: no non-string argument is applicable to an `unknown` parameter
       recorded_on: overload-resolution-by-argument-type (order 26)

@@ -1,7 +1,3 @@
----
-inclusion: fileMatch
-fileMatchPattern: "Source/**"
----
 
 # C# Coding Style
 

@@ -1,7 +1,3 @@
----
-inclusion: fileMatch
-fileMatchPattern: "**/book/**"
----
 
 # Book Snippet Policy
 

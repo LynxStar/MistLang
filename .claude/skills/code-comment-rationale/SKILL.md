@@ -1,6 +1,8 @@
 ---
-inclusion: manual
+name: code-comment-rationale
+description: The reasoning behind MistLang's one-comment-per-file budget, with worked examples of each failure mode and guidance on the comment-auditor agent. Read this when a comment rule seems wrong or too strict - not before writing.
 ---
+
 
 # Code Comment Policy: Rationale
 

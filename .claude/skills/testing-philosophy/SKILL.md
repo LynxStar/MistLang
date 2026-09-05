@@ -1,6 +1,8 @@
 ---
-inclusion: manual
+name: testing-philosophy
+description: The 6-tier test pyramid for MistLang - what tier a test belongs at, what infrastructure each tier may use, and what is forbidden at each. Use when writing, moving, or reviewing any test, or when deciding whether a test should exist at all. Strict adherence is required for the experimental (v2) pipeline.
 ---
+
 
 # Testing Philosophy
 

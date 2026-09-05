@@ -1,7 +1,3 @@
----
-description: Ensures sample apps remain working integration tests that genuinely exercise features end-to-end without breaking other samples.
-inclusion: auto
----
 
 # Sample App Integrity Policy
 

@@ -65,6 +65,31 @@ public sealed class ScopeResolverAmbiguityTests
         return type;
     }
 
+    private static MistType RegisterSourceType(
+        ProgramModelClass programModel, string namespaceName, string typeName)
+    {
+        return RegisterWithAssembly(programModel, namespaceName, typeName, programModel.SelfAssembly!);
+    }
+
+    private static MistType RegisterProjectedType(
+        ProgramModelClass programModel, string namespaceName, string typeName)
+    {
+        return RegisterWithAssembly(programModel, namespaceName, typeName, MistAssembly.Ambient);
+    }
+
+    private static MistType RegisterWithAssembly(
+        ProgramModelClass programModel, string namespaceName, string typeName, MistAssembly assembly)
+    {
+        var type = RegisterType(programModel, namespaceName, typeName);
+
+        if(type is DeclaredType declared)
+        {
+            declared.Assembly = assembly;
+        }
+
+        return type;
+    }
+
     /// <summary>
     /// Creates a dummy AST node that ResolveNamedType needs for diagnostic reporting.
     /// Uses a generated node type since SyntaxNode is abstract.
@@ -197,6 +222,73 @@ public sealed class ScopeResolverAmbiguityTests
 
         Assert.Same(foo, result);
         Assert.Empty(diagnostics.ToImmutableArray());
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Source-declared imports outrank CLR-projected ones, WITHIN one level
+    //
+    // The stdlib is declared ONTO the framework it wraps: Standard.Console is an intrinsic
+    // declaration and System.Console is metadata for the same thing, so a file importing both
+    // reaches two distinct types under one name. Without a tier the only available answer is
+    // "ambiguous", which made `using Standard;` beside `using System;` unwritable. The two are
+    // not peers -- one is the stdlib and the other is what the stdlib projects onto -- so this
+    // is a contest with a winner rather than an ambiguity.
+    // ═══════════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public void SourceDeclaredImport_OutranksProjectedImport_NoAmbiguity()
+    {
+        var (context, diagnostics) = CreateContext();
+
+        var declared = RegisterSourceType(context.ProgramModel, "Standard", "Console");
+        _ = RegisterProjectedType(context.ProgramModel, "System", "Console");
+
+        var scope = NewFileScope(context, diagnostics);
+        scope.DeclareImport("Standard");
+        scope.DeclareImport("System");
+
+        var resolver = new ScopeResolver(context);
+        var result = resolver.ResolveNamedType("Console", scope, MakeDummyNode());
+
+        Assert.Same(declared, result);
+        Assert.Empty(diagnostics.ToImmutableArray());
+    }
+
+    [Fact]
+    public void ProjectedImport_AnswersWhenNoSourceDeclaredOneDoes()
+    {
+        var (context, diagnostics) = CreateContext();
+
+        _ = RegisterSourceType(context.ProgramModel, "Standard", "Console");
+        var projected = RegisterProjectedType(context.ProgramModel, "System", "StringBuilder");
+
+        var scope = NewFileScope(context, diagnostics);
+        scope.DeclareImport("Standard");
+        scope.DeclareImport("System");
+
+        var resolver = new ScopeResolver(context);
+        var result = resolver.ResolveNamedType("StringBuilder", scope, MakeDummyNode());
+
+        Assert.Same(projected, result);
+        Assert.Empty(diagnostics.ToImmutableArray());
+    }
+
+    [Fact]
+    public void TwoProjectedImports_SameTypeName_StillReportsAmbiguity()
+    {
+        var (context, diagnostics) = CreateContext();
+
+        _ = RegisterProjectedType(context.ProgramModel, "System", "Timer");
+        _ = RegisterProjectedType(context.ProgramModel, "System.Threading", "Timer");
+
+        var scope = NewFileScope(context, diagnostics);
+        scope.DeclareImport("System");
+        scope.DeclareImport("System.Threading");
+
+        var resolver = new ScopeResolver(context);
+        var result = resolver.ResolveNamedType("Timer", scope, MakeDummyNode());
+
+        AssertAmbiguous(result, diagnostics, "Two projected usings have no tier to separate them.");
     }
 
     // ═══════════════════════════════════════════════════════════════════════

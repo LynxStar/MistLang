@@ -997,18 +997,17 @@ capabilities:
       Namespaces.Models.Game, so imports must be non-hierarchical. A parent import must not
       cover the child, and requiring the child import must not be necessary either way.
 
-      LIVE DEFECT IN V2, MEASURED 2026-09-05, AND THE LARGEST SINGLE BLOCKER ON THE UNBANKED SET.
-      v2 hard-refuses any compilation unit that writes `using Standard;` and `using System;`
-      together. Both namespaces declare `Console`, and ImportingScope.LookupImports collects across
-      imports and treats two imports reaching DIFFERENT types as unrecoverable -- it records a
-      conflict, reports MIST_PM_AMBIGUOUS_TYPE and returns ErrorType. There is no precedence arm.
-      Classic resolves the same source and runs it.
+      FIXED. Until this was measured, v2 hard-refused any compilation unit writing `using Standard;`
+      and `using System;` together. Both namespaces declare `Console`, and LookupImports collected
+      across every import at once, treating two reaching DIFFERENT types as unrecoverable: it
+      reported MIST_PM_AMBIGUOUS_TYPE and returned ErrorType, with no precedence arm. Classic
+      resolved the same source and ran it.
 
-      Blast radius, measured by building all 32 unbanked samples: ClrRefInterop 7 of 7 errors,
-      RefStructs 42 of 43, DisposableDropInterop 13 of 15. It MASKS what those three are really
-      blocked on -- swapping the bare `System` import out of ClrRefInterop drops it from 7 errors
-      to 2, and those 2 are order 128's actual residue. Samples importing only System SUB-namespaces
-      are unaffected, and Attributes escapes only because it never imports Standard.
+      It was the largest single blocker on the unbanked set and it MASKED what its samples were
+      really waiting for. Measured before the fix: ClrRefInterop 7 of 7 errors, RefStructs 42 of 43,
+      DisposableDropInterop 13 of 15. Measured after: ClrRefInterop 2, and those 2 are order 128's
+      actual residue -- so the sample that looked one capability from green was never that, and the
+      arithmetic saying so had never been checked against a build.
 
       CLASSIC ALREADY ANSWERS THIS AND THE ANSWER IS A SEARCH ORDER, NOT A PRECEDENCE RULE ANYONE
       HAD TO INVENT. SemanticModelBuilder resolves an imported name in two ORDERED phases: 3a
@@ -1028,16 +1027,26 @@ capabilities:
       is a projection, genuinely two objects. They do not need to be made equal; the ambient one
       needs to not be consulted once the source one is found.
 
-      SO THE WORK IS TO REPRODUCE THE PHASE SPLIT, not to pick a winner. Nothing about the language
-      is open, no sample is wrong, and C# reporting CS0104 for its own version of this shape is not
-      evidence about Mist, because in Mist the two names are not peers -- one is the stdlib and the
-      other is what the stdlib projects onto. An earlier revision of this entry recorded it as an
-      undecided language question needing its own docs commit; that was wrong, and it was wrong in
-      the direction that invents work.
+      THE FIX REPRODUCES THE PHASE SPLIT rather than picking a winner. LookupImports now resolves in
+      two tiers, source-declared first and CLR-projected only when those find nothing, keyed on
+      IAssembly.HasMistSource -- a predicate the model already carried, documented as "whether this
+      assembly's types are declared in Mist source". Identity comparison is kept WITHIN a tier, so
+      two usings reaching the same type still agree, and two projected namespaces offering one name
+      are still ambiguous because nothing separates them.
 
-      CAPABILITY-SHAPED, not analysis-phase: it changes what a name RESOLVES to. Today the name
-      binds ErrorType and nothing downstream is emittable, so this is squarely "what can be held in
-      memory and emitted" rather than a judgement on a finished model.
+      Nothing about the language was open and no sample was wrong. An earlier revision of this entry
+      recorded it as an undecided language question needing its own docs commit, listing four
+      candidate precedence rules; that was wrong, and wrong in the direction that invents work. C#
+      reporting CS0104 for its own version of this shape is not evidence about Mist, because in Mist
+      the two names are not peers -- one is the stdlib and the other is what the stdlib projects onto.
+      The question that settled it was "how does classic already run this source", answered by one
+      file read.
+
+      STILL `partial`, for the reason it always was: no banked v2 sample imports a PROJECT namespace,
+      only Standard, so the non-hierarchical import rules above remain unexercised. That is separate
+      from the ambiguity, which is now covered by three ScopeResolverAmbiguityTests -- source beats
+      projected, projected still answers when nothing else does, and two projected namespaces are
+      still ambiguous. Reverting the tier split fails exactly the first.
     unlocks: []
 
   - id: namespace-block-form
@@ -8411,11 +8420,15 @@ measured_defects:
     - defect: Standard and System cannot be imported together
       recorded_on: using-import-resolution (order 29)
       gates: [ClrRefInterop, RefStructs, DisposableDropInterop]
+      status: FIXED
       note: >
-        The largest single blocker on the unbanked set, and it masks what those three samples are
-        actually waiting for. Not a language question: classic resolves user-declared namespaces
-        before ambient ones and returns on the first hit, so `Console` binds to Standard.Console and
-        System is never consulted. v2 flattened those two phases into one loop. Reproduce the split.
+        Was the largest single blocker on the unbanked set, and it masked what those three samples
+        were actually waiting for. Not a language question: classic resolves user-declared
+        namespaces before ambient ones and returns on the first hit, so `Console` binds to
+        Standard.Console and System is never consulted. v2 had flattened those two phases into one
+        loop. LookupImports now tiers on IAssembly.HasMistSource. Measured after: ClrRefInterop 7
+        errors -> 2, RefStructs 43 -> 4, DisposableDropInterop 15 -> 2. None of the three banks yet;
+        what changed is that their real residue is now visible instead of masked.
 
     - defect: no non-string argument is applicable to an `unknown` parameter
       recorded_on: overload-resolution-by-argument-type (order 26)

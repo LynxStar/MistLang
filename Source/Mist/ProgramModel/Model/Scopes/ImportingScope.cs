@@ -34,10 +34,32 @@ internal abstract class ImportingScope(Scope? parent, ProgramModel programModel,
     public IReadOnlyList<string> Imports => imports;
 
     /// <summary>
-    /// The types this level's usings bring in. Compared by identity, so two usings that reach the
-    /// same type agree rather than conflict.
+    /// The types this level's usings bring in, resolved in two tiers: namespaces declared in Mist
+    /// source first, and CLR-projected ones only when those find nothing.
+    /// <para>
+    /// The tiers exist because the standard library is declared ONTO the framework it wraps.
+    /// <c>Standard.Console</c> is an <c>intrinsic</c> declaration and <c>System.Console</c> is
+    /// metadata for the same thing, so a file importing both reaches two distinct types under one
+    /// name, which a single flat pass can only call ambiguous. Preferring the declared one is what
+    /// lets <c>using Standard;</c> stand beside <c>using System;</c>, and the two names are not
+    /// peers: one is the stdlib and the other is what the stdlib projects onto.
+    /// </para>
+    /// <para>
+    /// Within a tier, candidates are compared by identity, so two usings that reach the same type
+    /// agree rather than conflict.
+    /// </para>
     /// </summary>
     protected LookupResult LookupImports(LookupRequest request)
+    {
+        var declared = LookupTier(request, fromMistSource: true);
+
+        return declared is NotFoundResult
+            ? LookupTier(request, fromMistSource: false)
+            : declared
+            ;
+    }
+
+    private LookupResult LookupTier(LookupRequest request, bool fromMistSource)
     {
         IMistType? match = null;
         string? matchedNamespace = null;
@@ -46,7 +68,7 @@ internal abstract class ImportingScope(Scope? parent, ProgramModel programModel,
         foreach(var imported in imports)
         {
             var found = programModel.FindType(imported, request.Name);
-            if(found is null)
+            if(found is null || found.Assembly.HasMistSource != fromMistSource)
             {
                 continue;
             }

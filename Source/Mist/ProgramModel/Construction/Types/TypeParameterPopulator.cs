@@ -59,6 +59,12 @@ internal static class TypeParameterPopulator
             typeParam.HasParams = true;
         }
 
+        if(node is DependentTypeParameterTypeParameterNode
+            or NamedConstraintDependentTypeParameterTypeParameterNode)
+        {
+            typeParam.IsDependent = true;
+        }
+
         declaration.TypeParametersList.Add(typeParam);
 
         // Only scopes that keep their own table need telling. The ones backed by the declaration

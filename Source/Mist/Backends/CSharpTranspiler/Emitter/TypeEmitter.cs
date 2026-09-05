@@ -60,6 +60,7 @@ internal static class TypeEmitter
 
             case MemberType memberType:
                 SeparateMember(writer, ref anyEmitted);
+                UnspellableTypeGuard.Report(memberType, diagnostics);
                 EmitTypeBody(memberType, closures, writer, diagnostics);
                 break;
 

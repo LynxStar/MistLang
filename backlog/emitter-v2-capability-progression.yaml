@@ -5860,26 +5860,25 @@ capabilities:
     order: 141
     layer: refinement-and-dependent
     requires: [type-alias-declarations]
-    v2_status: broken
+    v2_status: missing
     evidence: >
       A base type plus a predicate bound under an alias, usable in every type position.
 
-      MEASURED BROKEN 2026-09-05, not missing. This was recorded `missing` -- "NOT a bug and NOT a
-      regression ... an absent emitter path" -- and the path is not absent, it is wrong. A refined
-      type REACHES the emitter and is written into the generated file as its own display name:
-      `public Int32{refined} Age;`. RefinedType.BuildName returns `$"{baseType.Name}{{refined}}"`
-      and TypeNameEmitter has no RefinedType arm, so the type falls to its `_ => type.Name`
-      catch-all. The braces terminate the member declaration and Roslyn cascades from there.
+      WAS BROKEN, NOW REFUSED. Briefly recorded `broken` when measured, because the emitter path was
+      not absent as `missing` implies -- a refined type reached emission and was written into the
+      generated file as its own display name, `public Int32{refined} Age;`, whose braces terminate
+      the member declaration. RefinedType.BuildName builds that name and TypeNameEmitter had no
+      RefinedType arm, so it fell to the `_ => type.Name` catch-all. RefinementTypes emitted 253
+      Roslyn errors and RefinementComparison 196, NEITHER producing a single Mist diagnostic.
 
-      This is the status the header reserves for a bug, and it is the category the file has been
-      asserting is empty. RefinementTypes emits 253 Roslyn errors and RefinementComparison 196, and
-      NEITHER produces a single Mist diagnostic -- the compiler reports success and hands the user
-      syntax errors in a file they never wrote. Measured by building all 32 unbanked samples on
-      `--pipeline experimental` at 23bcea57; the sweep is recorded in `measured_defects` below.
+      UnspellableTypeGuard now refuses it with MIST_BE_REFINED_TYPE, so the counts are 4 and 0
+      Mist-source diagnostics respectively and the status is honestly `missing` again. One hole
+      remains and is recorded on the descriptor: an UNINITIALISED refined local is located by its
+      initializer, so a declaration without one is still unguarded.
 
-      REFUSE BEFORE BUILDING. The established response is 7123022c's: a named MIST_BE_* refusal
-      lands first and the feature cashes it in later ("The guards paid for this", feddfdf7).
-      Nothing here is a judgement on a finished model, so none of it is analysis-phase work.
+      The refusal is deliberately not erasure to the base type, which is the obvious repair and the
+      wrong one for a guard -- erasure is the eventual FEATURE, and doing half of it silently would
+      let a program whose predicate is never discharged compile as though it had been.
     unlocks: []
 
   - id: refinement-static-discharge
@@ -5923,20 +5922,27 @@ capabilities:
     order: 145
     layer: refinement-and-dependent
     requires: [type-parameters-and-constructed-types]
-    v2_status: broken
+    v2_status: missing
     evidence: >
       A dependent parameter occupies an ordinal distinct from type parameters, its argument
       participates in constructed-type IDENTITY, and it stays readable at runtime inside
       member bodies. Domains include the integral types, bool and char, and may also be a
       named refinement.
 
-      MEASURED BROKEN 2026-09-05, for the same reason as order 141 and by the same sweep: the
-      emitter path exists and is wrong rather than absent. A dependent VALUE parameter is lowered
-      to a C# TYPE parameter -- `public class FixedArray<Size>` with `return Size;` in a body and
-      `public static FixedArray<Size> __CreateDefault()` -- so every body use is CS0119, "'Size' is
-      a type, which is not valid in the given context". 19 occurrences across DependentTypes,
-      DependentTypeRefinementConstraints and ArrayBoundsFlowAnalysis, again with zero Mist
-      diagnostics.
+      WAS BROKEN, NOW REFUSED, for the same reason as order 141 and by the same sweep: the emitter
+      path existed and was wrong rather than absent. A dependent VALUE parameter was lowered to a C#
+      TYPE parameter -- `public class FixedArray<Size>` with `return Size;` -- so every body use was
+      CS0119, "'Size' is a type, which is not valid in the given context". 19 occurrences across
+      three samples, with zero Mist diagnostics. UnspellableTypeGuard now refuses it with
+      MIST_BE_DEPENDENT_TYPE_PARAMETER.
+
+      THE MODEL COULD NOT ANSWER THE QUESTION, which is why the guard needed a model change to
+      write. TypeParameter.Domain was designed to carry exactly this -- Standard.Type for a plain
+      parameter, the value type for a dependent one -- and NOTHING POPULATES IT; ScopeResolver says
+      so in a comment. So the first version of the guard was silently dead. TypeParameter.IsDependent
+      now records the syntactic fact from the AST node kind, which is all a refusal needs. Domain
+      remains the right home for the resolved domain, and remains empty, so a consumer wanting to
+      know WHICH domain still cannot ask.
 
       THIS DEFECT IS WHAT BLOCKS ITS DEPENDANTS, not their own unbuilt halves. Orders 146 and 148
       stay `missing`, correctly: they have no code path of their own to be wrong. Their samples
@@ -8401,10 +8407,17 @@ measured_defects:
 
   silent_emission_failures:
     count: 7
+    remaining: 1
     samples: [RefinementTypes, RefinementComparison, DependentTypes,
               DependentTypeRefinementConstraints, AdhocRefinementConstraints,
               ArrayBoundsFlowAnalysis, Attributes]
     total_roslyn_errors: 491
+    resolved: >
+      Six of the seven now report at Mist source instead, via UnspellableTypeGuard: orders 141 and
+      145 are refused rather than mis-emitted, which took 491 Roslyn errors against generated files
+      to a handful of MIST_BE_* diagnostics naming a .mist line. Only Attributes still fails
+      silently, and it always was a different defect -- the constructor-accessibility divergence on
+      order 14, not a refinement.
     note: >
       Zero Mist diagnostics between them. The compiler reports success and the user receives
       syntax errors in a file they never wrote. Contrast the well-behaved gaps -- Ownership and

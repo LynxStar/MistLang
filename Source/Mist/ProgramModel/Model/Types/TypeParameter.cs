@@ -51,6 +51,15 @@ internal class TypeParameter : MistType, ITypeParameter
     public bool HasParams { get; internal set; }
 
     /// <summary>
+    /// True when this parameter was written with a value domain (<c>Size:int</c>) rather than as a
+    /// plain type parameter. The SYNTACTIC fact only: <see cref="Domain"/> is what will carry the
+    /// resolved domain type, and nothing populates it yet, so a consumer that needs to know WHICH
+    /// domain still cannot ask. Recorded because a backend has to refuse what it cannot spell, and
+    /// telling the two kinds apart is the whole of that question.
+    /// </summary>
+    public bool IsDependent { get; internal set; }
+
+    /// <summary>
     /// The constraints declared on this type parameter via where clauses.
     /// Populated during Phase 2 when constraints are resolved.
     /// </summary>

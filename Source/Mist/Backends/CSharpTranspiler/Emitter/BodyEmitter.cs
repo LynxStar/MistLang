@@ -169,6 +169,7 @@ internal static class BodyEmitter
     private static void EmitLocalDeclaration(LocalDeclarationStatement localDecl, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var local = localDecl.Local;
+        UnspellableTypeGuard.ReportLocal(localDecl, diagnostics);
         var refKeyword = RefKeywords.For(local.IsRef, local.IsReadonly);
         var typeName = $"{refKeyword}{TypeNameEmitter.Emit(local.Type)}";
 

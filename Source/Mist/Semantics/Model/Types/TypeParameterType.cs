@@ -49,10 +49,55 @@ public sealed class TypeParameterType : IType
     /// </summary>
     public int? PackFixedArity { get; init; }
 
+    public IType? ClrInboundVoid { get; init; }
+
     public TypeParameterType(string name, int ordinal)
     {
         Name = name;
         DisplayName = name;
         Ordinal = ordinal;
+    }
+
+    public TypeParameterType AsClrInbound(IType voidType)
+    {
+        return new TypeParameterType(Name, Ordinal)
+        {
+            Constraints = Constraints,
+            IsPack = IsPack,
+            IsUnbracketedPack = IsUnbracketedPack,
+            PackFixedArity = PackFixedArity,
+            ClrInboundVoid = voidType,
+        };
+    }
+
+    /// <summary>
+    /// Closes this parameter over a substituted type, adding <c>| void</c> when the CLR could have
+    /// handed back a null there. Whether it could is settled by <see cref="ClrInboundVoid"/>, which
+    /// only TypeProjector's inbound-result path sets -- so "came from the CLR" holds by construction
+    /// rather than by a discriminator that can be laundered, and a Mist-declared generic can never
+    /// be wrapped however its argument substitutes.
+    /// <para>
+    /// BOTH EARLY EXITS GUARD A PROPERTY THAT IS INVISIBLE AT THE CALL SITE. ErrorType has to leave
+    /// before <see cref="IType.Kind"/> is read at all, because reading it throws. A still-open
+    /// parameter has to leave because the Kind this very class reports is Class -- see the type
+    /// summary -- so the reference-type test would say yes to something not yet substituted.
+    /// </para>
+    /// </summary>
+    public IType Close(IType substituted)
+    {
+        if(ClrInboundVoid is null || substituted is ErrorType or TypeParameterType)
+        {
+            return substituted;
+        }
+
+        if(substituted.Kind is not (TypeKind.Class or TypeKind.Abstract))
+        {
+            return substituted;
+        }
+
+        return new UnionType(new List<IType> { substituted, ClrInboundVoid })
+        {
+            NullableProjection = new NullableProjectionInfo(NullableOrigin.ReferenceType, substituted),
+        };
     }
 }

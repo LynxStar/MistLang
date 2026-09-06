@@ -19329,7 +19329,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     && tpt.Name == tp.Name
                     && tpt.Ordinal == tp.Ordinal)
                 {
-                    return i < typeArguments.Count ? typeArguments[i] : type;
+                    return i < typeArguments.Count ? tpt.Close(typeArguments[i]) : type;
                 }
             }
             // Type parameter not in the substitution list — return as-is.
@@ -26458,7 +26458,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 var (paramName, paramOrdinal) = GetTypeParameterNameAndOrdinal(typeParams[i]);
                 if(tpt.Name == paramName && tpt.Ordinal == paramOrdinal)
                 {
-                    return i < typeArgs.Count ? typeArgs[i] : type;
+                    return i < typeArgs.Count ? tpt.Close(typeArgs[i]) : type;
                 }
             }
 

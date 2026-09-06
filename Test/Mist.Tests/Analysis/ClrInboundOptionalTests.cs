@@ -61,13 +61,15 @@ public sealed class ClrInboundOptionalTests
         }
     }
 
-    private static ImmutableArray<Diagnostic> Errors(string body)
+    private static ImmutableArray<Diagnostic> Errors(string body, string extraTypes = "")
     {
         var source = $$"""
             using Standard;
             using System.Collections.Generic;
 
             namespace TestProgram;
+
+            {{extraTypes}}
 
             class Program {
                 public static void Main() {
@@ -117,6 +119,62 @@ public sealed class ClrInboundOptionalTests
     /// The outbound half. Add takes a reference-typed argument in the general case; here the value
     /// is a plain Mist String, and no narrowing is asked of it.
     /// </summary>
+    [Fact]
+    public void AClrGenericElement_ClosingOverAReferenceType_IsWrapped()
+    {
+        var errors = Errors("""
+                    var list = new List<string>();
+                    list.Add("x");
+                    var first = list[0];
+                    Console.WriteLine(first.Length);
+            """);
+
+        Assert.Contains(errors, error => error.Message.Contains("String | Void", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AClrGenericElement_IsReachableThroughOptionalChaining()
+    {
+        Assert.Empty(Errors("""
+                    var list = new List<string>();
+                    list.Add("x");
+                    var first = list[0];
+                    Console.WriteLine(first?.Length);
+            """));
+    }
+
+    [Fact]
+    public void AClrGenericElement_ClosingOverAValueType_IsNotWrapped()
+    {
+        Assert.Empty(Errors("""
+                    var list = new List<int>();
+                    list.Add(1);
+                    var first = list[0];
+                    Console.WriteLine(first + 1);
+            """));
+    }
+
+    /// <summary>
+    /// The control the whole design turns on. Wrapping is decided by the SUBSTITUTED type, so nothing
+    /// about `T` closing over String distinguishes this from List's element -- only that the CLR
+    /// never touched it. A Mist-declared container holds what Mist put in it, and Mist has no null.
+    /// </summary>
+    [Fact]
+    public void AMistDeclaredGenericField_IsNotWrapped_HoweverItsArgumentSubstitutes()
+    {
+        Assert.Empty(Errors(
+            """
+                    var w = new Wrapper<string>("hi");
+                    Console.WriteLine(w.Value.Length);
+            """,
+            """
+            public class Wrapper<T> {
+                public T Value;
+                public Wrapper(T value) { this.Value = value; }
+            }
+            """));
+    }
+
     [Fact]
     public void AReferenceArgumentSentToTheClr_NeedsNoNarrowing()
     {

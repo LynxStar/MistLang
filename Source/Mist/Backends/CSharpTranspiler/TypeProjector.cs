@@ -1976,6 +1976,11 @@ internal sealed class TypeProjector
 
         var projected = ProjectMemberType(clrType, stdlib);
 
+        if(projected is TypeParameterType openResult)
+        {
+            return openResult.AsClrInbound(stdlib.LookupStandardType("Void"));
+        }
+
         return IsReferenceType(clrType)
             ? CreateNullableUnion(projected, NullableOrigin.ReferenceType, stdlib)
             : projected;

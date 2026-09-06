@@ -19844,7 +19844,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 if(typeParams[i] is TypeParameterType tp && tpt.Name == tp.Name && tpt.Ordinal == tp.Ordinal)
                 {
-                    return i < typeArgs.Count ? typeArgs[i] : type;
+                    return i < typeArgs.Count ? tpt.Close(typeArgs[i]) : type;
                 }
             }
 

@@ -11776,6 +11776,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             var result = OverloadResolver.Resolve(candidates, argTypes, model,
+                typeSubstitution: targetType is ConstructedType receiverConstruction
+                    && GetTypeParameters(receiverConstruction.GenericDefinition) is { } receiverTypeParams
+                        ? (receiverTypeParams, receiverConstruction.TypeArguments)
+                        : null,
                 argumentRefKinds: argRefKinds, inferenceResults: inferenceResults);
 
             switch(result.Status)
@@ -11860,6 +11864,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         CheckArgumentTypesWithSubstitution(methodCall.Arguments, result.BestCandidate!, model, diagnostics,
                             winnerEnclosingTypeParams, winnerEnclosingTypeArgs,
                             winnerMethodTypeParams, winnerMethodTypeArgs);
+                    }
+                    else if(targetType is ConstructedType winnerOnConstructed)
+                    {
+                        CheckArgumentTypesWithSubstitution(methodCall.Arguments, result.BestCandidate!, model, diagnostics,
+                            GetTypeParameters(winnerOnConstructed.GenericDefinition),
+                            winnerOnConstructed.TypeArguments,
+                            null, null);
                     }
                     else
                     {
@@ -11961,6 +11972,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     // Type arguments contain dependent type literals — fall through to basic checking.
                     CheckArgumentTypes(methodCall.Arguments, singleCandidate, model, diagnostics);
                 }
+            }
+            else if(targetType is ConstructedType nonGenericOnConstructed
+                && GetTypeParameters(nonGenericOnConstructed.GenericDefinition) is { } enclosingParams
+                && !enclosingParams.Any(p => p is TypeParameterType { IsPack: true }))
+            {
+                CheckArgumentTypesWithSubstitution(methodCall.Arguments, singleCandidate, model, diagnostics,
+                    enclosingParams, nonGenericOnConstructed.TypeArguments, null, null);
             }
             else
             {
@@ -19911,6 +19929,30 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Substitute inside union type constituents (e.g., T | void → string | void when T = string).
+        if(type is DelegateType delegateType && delegateType.TypeArguments.Count > 0)
+        {
+            var substitutedArgs = new List<IType>(delegateType.TypeArguments.Count);
+            var delegateChanged = false;
+
+            foreach(var argument in delegateType.TypeArguments)
+            {
+                var substituted = SubstituteType(argument, typeParams, typeArgs);
+                delegateChanged |= !ReferenceEquals(substituted, argument);
+                substitutedArgs.Add(substituted);
+            }
+
+            if(!delegateChanged)
+            {
+                return type;
+            }
+
+            return SubstituteType(delegateType.FuncSignature, typeParams, typeArgs) is ConstructedType signature
+                ? new DelegateType(
+                    delegateType.ClrFullName, delegateType.ClrNamespace, delegateType.ClrSimpleName,
+                    signature, delegateType.TypeParameters, substitutedArgs, delegateType.MemberScope)
+                : type;
+        }
+
         if(type is UnionType unionType)
         {
             var substitutedConstituents = new IType[unionType.Constituents.Count];
@@ -20503,6 +20545,51 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// signature keys and are all preserved.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// The member scope to look a call up in, unwrapping a construction to the definition that
+    /// declares the members.
+    /// <para>
+    /// WITHOUT THE CONSTRUCTED ARM NOTHING ON A GENERIC RECEIVER WAS CHECKED AT ALL. Overload
+    /// collection returned empty for a <c>Dictionary&lt;string, string&gt;</c>, the caller found no
+    /// candidates, and the fallback path excludes CLR-projected symbols -- so argument checking was
+    /// skipped in silence and Roslyn was left to catch what it could. What it cannot catch is
+    /// nullability: C# is content with <c>out string</c>, which is how a CLR out parameter handed
+    /// Mist a null.
+    /// </para>
+    /// </summary>
+    private static IScope? MemberScopeOf(IType? type)
+    {
+        return type switch
+        {
+            ClassType ct => ct.MemberScope,
+            StructType st => st.MemberScope,
+            AbstractType it => it.MemberScope,
+            ConstructedType constructed => ClrProjectedScopeOf(constructed.GenericDefinition),
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// A construction's member scope, but ONLY when the definition's members were projected from CLR
+    /// metadata. A Mist-declared generic is left on the path it already took: it is not where a null
+    /// can come from, and admitting it here turns checks on for call shapes they have never been run
+    /// against -- measured as 111 new diagnostics across 11 samples, most of them wrong.
+    /// </summary>
+    private static IScope? ClrProjectedScopeOf(IType? definition)
+    {
+        var scope = definition switch
+        {
+            ClassType ct => ct.MemberScope,
+            StructType st => st.MemberScope,
+            AbstractType it => it.MemberScope,
+            _ => null,
+        };
+
+        return scope is not null && scope.Members.Any(m => m.Origin == SymbolOrigin.Backend)
+            ? scope
+            : null;
+    }
+
     private static List<ISymbol> CollectMethodOverloads(IType? targetType, string methodName)
     {
         var results = new List<ISymbol>();
@@ -20533,13 +20620,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Collect from the target type's own member scope (the most-derived level).
-        var memberScope = targetType switch
-        {
-            ClassType ct => ct.MemberScope,
-            StructType st => st.MemberScope,
-            AbstractType it => it.MemberScope,
-            _ => null,
-        };
+        var memberScope = MemberScopeOf(targetType);
 
         if(memberScope is not null)
         {

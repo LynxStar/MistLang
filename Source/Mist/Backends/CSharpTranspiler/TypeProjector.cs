@@ -2529,8 +2529,12 @@ internal sealed class TypeProjector
 
             targetScope.AddMember(scopeParamSymbol);
 
-            // Use ProjectNullableType for the emitter metadata (includes NullableProjectionInfo).
-            var emitterParamType = ProjectNullableType(typeToProject, stdlib);
+            // A by-ref parameter is INBOUND -- the callee assigns through it -- and
+            // ProjectInboundMemberType additionally MARKS a generic one, which ProjectNullableType
+            // cannot wrap because T's nullability is unknown until substitution.
+            var emitterParamType = isByRef
+                ? ProjectInboundMemberType(typeToProject, stdlib)
+                : ProjectNullableType(typeToProject, stdlib);
 
             var emitterParamSymbol = new Symbol(
                 param.Name ?? $"arg{param.Position}",

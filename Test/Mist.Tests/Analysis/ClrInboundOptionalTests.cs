@@ -208,6 +208,36 @@ public sealed class ClrInboundOptionalTests
     /// arrives unclosed, matches a plain local, and the CLR writes a null into it. Still open.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// The one that actually leaked a null: TryGetValue's out parameter is TValue, and nothing
+    /// closed it, so it matched a plain local and the CLR wrote null into a String. Closing it
+    /// needed the receiver's type arguments threaded into three places that had never run for a
+    /// CLR generic receiver, because overload collection returned nothing for one.
+    /// </summary>
+    [Fact]
+    public void AClrGenericOutParameter_RefusesAPlainLocal()
+    {
+        var errors = Errors("""
+                    var dict = new Dictionary<string, string>();
+                    string got = "";
+                    bool ok = dict.TryGetValue("missing", ref got);
+                    Console.WriteLine($"{ok}{got}");
+            """);
+
+        Assert.Contains(errors, error => error.Id.Value == "MIST_REF_0007");
+    }
+
+    [Fact]
+    public void AClrGenericOutParameter_AcceptsAnOptionalLocal()
+    {
+        Assert.Empty(Errors("""
+                    var dict = new Dictionary<string, string>();
+                    string? got = void;
+                    bool ok = dict.TryGetValue("missing", ref got);
+                    Console.WriteLine($"{ok}{got?.Length}");
+            """));
+    }
+
     [Fact]
     public void AClrReferenceOutParameter_IsCallableWithAnOptionalLocal()
     {

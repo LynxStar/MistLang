@@ -30,7 +30,7 @@ internal static class ModifierBuilder
 
         if(modifiers.IsDefault)
         {
-            return new MemberModifiers { Accessibility = GetScopeDefault(declaringType) };
+            return new MemberModifiers { Accessibility = DefaultAccessibility(node, declaringType) };
         }
 
         var result = new MemberModifiers();
@@ -96,12 +96,30 @@ internal static class ModifierBuilder
         }
         else if(accessModifierCount == 0)
         {
-            result = result with { Accessibility = GetScopeDefault(declaringType) };
+            result = result with { Accessibility = DefaultAccessibility(node, declaringType) };
         }
 
         ValidateUniversalConflicts(accessModifierCount, diagnostics, node, modifiers);
 
         return result;
+    }
+
+    /// <summary>
+    /// The accessibility a declaration takes when it names none.
+    /// <para>
+    /// A CONSTRUCTOR IS PUBLIC, WHERE EVERY OTHER MEMBER OF A CLASS OR STRUCT IS PRIVATE. Mist parts
+    /// from C# here, and the two are not reconcilable by scope: the enclosing type is the same, so
+    /// only the declaration kind separates them. Branching on the node rather than on the resolved
+    /// modifiers is what makes it decidable at all -- <see cref="MemberModifiers"/> records the
+    /// answer, not whether the author supplied one, so by the time Build returns, a defaulted
+    /// private and a written private are the same value.
+    /// </para>
+    /// </summary>
+    private static Accessibility DefaultAccessibility(SyntaxNode node, MistType? declaringType)
+    {
+        return node is ConstructorDeclarationNode
+            ? Accessibility.Public
+            : GetScopeDefault(declaringType);
     }
 
     /// <summary>

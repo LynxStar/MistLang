@@ -30,7 +30,7 @@ internal static class PropertyProjector
                 continue;
             }
 
-            var resolvedType = resolver.Resolve(prop.PropertyType, memberType.Scope);
+            var resolvedType = resolver.ResolveInbound(prop.PropertyType, memberType.Scope);
             var getter = CreateGetter(prop);
             var setter = CreateSetter(prop);
 

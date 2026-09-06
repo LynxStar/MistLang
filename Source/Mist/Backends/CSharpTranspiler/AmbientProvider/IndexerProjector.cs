@@ -33,7 +33,7 @@ internal static class IndexerProjector
                 continue;
             }
 
-            var resolvedType = resolver.Resolve(prop.PropertyType, memberType.Scope);
+            var resolvedType = resolver.ResolveInbound(prop.PropertyType, memberType.Scope);
             if(resolvedType is ErrorType or NotProjectedType)
             {
                 continue;

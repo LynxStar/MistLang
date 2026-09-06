@@ -224,4 +224,60 @@ internal sealed class AmbientTypeResolver
         return typeInterner.GetOrCreateConstructedType(
             arrayDef, new IMistType[] { elementType, length });
     }
+
+    /// <summary>
+    /// Resolves a CLR type in an INBOUND position -- a method return, property, field or indexer
+    /// result -- as <c>T | void</c> for reference types and <c>Nullable&lt;T&gt;</c>.
+    /// <para>
+    /// PARAMETERS DELIBERATELY DO NOT COME THROUGH HERE. Mist has no null to send, so an outbound
+    /// reference is non-null by construction; a union there buys nothing and gives overload
+    /// resolution extra candidates to be ambiguous between. Inbound is the only direction a null
+    /// can arrive from, and NRT annotations are advisory -- a lying one is still a naked null --
+    /// so they are ignored and every reference result is wrapped.
+    /// </para>
+    /// <para>
+    /// A generic parameter is left alone. Wrapping T before substitution would make the element of
+    /// a <c>List&lt;int&gt;</c> optional, which is unsound in the other direction; the reference
+    /// case belongs at substitution time instead.
+    /// </para>
+    /// </summary>
+    public IMistType ResolveInbound(Type clrType, Scope scope)
+    {
+        var effective = clrType.IsByRef ? clrType.GetElementType()! : clrType;
+        var underlying = Nullable.GetUnderlyingType(effective);
+
+        if(underlying is not null)
+        {
+            return WrapWithVoid(Resolve(underlying, scope));
+        }
+
+        var resolved = Resolve(clrType, scope);
+
+        return IsReferenceType(effective) ? WrapWithVoid(resolved) : resolved;
+    }
+
+    private IMistType WrapWithVoid(MistType inner)
+    {
+        if(inner is ErrorType or NotProjectedType)
+        {
+            return inner;
+        }
+
+        return typeInterner.GetOrCreateUnionType([inner, ResolveByFQN("System.Void")]);
+    }
+
+    private static bool IsReferenceType(Type clrType)
+    {
+        if(clrType.IsGenericParameter)
+        {
+            return false;
+        }
+
+        if(clrType.IsArray)
+        {
+            return true;
+        }
+
+        return clrType.IsClass || clrType.IsInterface;
+    }
 }

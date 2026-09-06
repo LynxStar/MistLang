@@ -137,7 +137,7 @@ internal static class ExtensionProjector
         }
 
         // Everything else may name both levels, so it resolves against the method.
-        var returnType = resolver.Resolve(method.ReturnType, methodScope);
+        var returnType = resolver.ResolveInbound(method.ReturnType, methodScope);
         if(returnType is ErrorType or NotProjectedType)
         {
             return;

@@ -58,7 +58,7 @@ internal static class MethodProjector
         }
 
         // Resolve return type.
-        var returnType = resolver.Resolve(method.ReturnType, methodScope);
+        var returnType = resolver.ResolveInbound(method.ReturnType, methodScope);
         if(returnType is ErrorType or NotProjectedType)
         {
             return null;

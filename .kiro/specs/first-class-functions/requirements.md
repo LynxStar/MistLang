@@ -516,7 +516,7 @@ extension(int[] self)
                 result.Add(item);
             }
         }
-        return result.ToArray();
+        return result.ToArray() ?? new int[0];
     }
 }
 ```

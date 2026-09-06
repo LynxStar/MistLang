@@ -252,7 +252,7 @@ public class Program
         // PROOF: ReadOnlySpan<T> constructor from char array works
         Console.WriteLine("--- ReadOnlySpan from String ---");
         string greeting = "Hello, Mist!";
-        char[] greetingChars = greeting.ToCharArray();
+        char[] greetingChars = greeting.ToCharArray() ?? [];
         ReadOnlySpan<char> chars = new ReadOnlySpan<char>(greetingChars);
         Console.WriteLine($"chars.Length={chars.Length}");
         Console.WriteLine($"chars[0]={chars[0]}");

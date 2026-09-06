@@ -217,12 +217,12 @@ public class Program
         // This proves implicit conversion from lambda to a named delegate type.
         var numbers = new List<int> { -2, -1, 0, 1, 2, 3 };
         var positives = numbers.FindAll(x => x > 0);
-        Console.WriteLine($"positives.Count={positives.Count}");
+        Console.WriteLine($"positives.Count={positives?.Count}");
 
         // PROOF: Method group → Named_Delegate (Predicate<int>)
         // Passing a method group where Predicate<int> is expected.
         var alsoPositives = numbers.FindAll(IsPositive);
-        Console.WriteLine($"alsoPositives.Count={alsoPositives.Count}");
+        Console.WriteLine($"alsoPositives.Count={alsoPositives?.Count}");
 
         // PROOF: Lambda → Named_Delegate (Comparison<int>)
         // List<T>.Sort(Comparison<T>) expects a named delegate, not func<int, int, int>.
@@ -235,7 +235,7 @@ public class Program
         func<int, bool> isEven = x => x % 2 == 0;
         System.Predicate<int> predicate = isEven;
         var evens = numbers.FindAll(predicate);
-        Console.WriteLine($"evens.Count={evens.Count}");
+        Console.WriteLine($"evens.Count={evens?.Count}");
 
         // PROOF: Delegate_Type value → func<...> variable assignment
         // A Predicate<int>-typed value can be assigned back to a func<int, bool> variable.
@@ -256,8 +256,8 @@ public class Program
         // WebApplication.CreateBuilder().Build().MapGet("/", Delegate) accepts System.Delegate.
         // This proves that a lambda returning string is convertible to System.Delegate.
         var builder = WebApplication.CreateBuilder();
-        var app = builder.Build();
-        app.MapGet("/hello", () => "Hello from Mist!");
+        var app = builder?.Build();
+        app?.MapGet("/hello", () => "Hello from Mist!");
         Console.WriteLine($"mapGetRegistered=true");
 
         Console.WriteLine("=== DelegateFuncConversion Done ===");

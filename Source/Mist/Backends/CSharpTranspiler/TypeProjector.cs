@@ -1946,6 +1946,41 @@ internal sealed class TypeProjector
         return union;
     }
 
+    /// <summary>
+    /// Projects a CLR type in an INBOUND position — a method return, property, field or indexer
+    /// result — as <c>T | void</c> for reference types and <c>Nullable&lt;T&gt;</c>.
+    /// <para>
+    /// SEPARATE FROM <see cref="ProjectNullableType"/> rather than reusing it, because the two
+    /// differ in the inner projection and only this one feeds the type checker. That one calls
+    /// <see cref="ProjectTypeReference"/> and is consumed solely as emitter metadata, so it can
+    /// skip intrinsic substitution and disconnected-shell resolution; a type checker cannot.
+    /// Dropping the shell resolve here would take the members off every var-inferred CLR result.
+    /// </para>
+    /// <para>
+    /// Parameters deliberately do NOT come through here. Null enters only inbound: Mist has no
+    /// null to send, so an outbound reference is non-null by construction, and a union there buys
+    /// nothing while giving overload resolution extra candidates to be ambiguous between.
+    /// </para>
+    /// </summary>
+    internal IType ProjectInboundMemberType(ClrType clrType, IStdlibTypeProvider stdlib)
+    {
+        var underlyingNullable = NullableReflection.GetUnderlyingType(clrType);
+
+        if(underlyingNullable is not null)
+        {
+            return CreateNullableUnion(
+                ProjectMemberType(underlyingNullable, stdlib),
+                NullableOrigin.NullableValueType,
+                stdlib);
+        }
+
+        var projected = ProjectMemberType(clrType, stdlib);
+
+        return IsReferenceType(clrType)
+            ? CreateNullableUnion(projected, NullableOrigin.ReferenceType, stdlib)
+            : projected;
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // Member Projection (Task 4.4)
     // Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9
@@ -2104,11 +2139,11 @@ internal sealed class TypeProjector
             if(isRefReturn)
             {
                 var elementType = method.ReturnType.GetElementType()!;
-                returnType = ProjectMemberType(elementType, stdlib);
+                returnType = ProjectInboundMemberType(elementType, stdlib);
             }
             else
             {
-                returnType = ProjectMemberType(method.ReturnType, stdlib);
+                returnType = ProjectInboundMemberType(method.ReturnType, stdlib);
             }
 
             var methodScope = new Scope(memberScope);
@@ -2199,11 +2234,11 @@ internal sealed class TypeProjector
             if(isRefReturn)
             {
                 var elementType = method.ReturnType.GetElementType()!;
-                returnType = ProjectMemberType(elementType, stdlib);
+                returnType = ProjectInboundMemberType(elementType, stdlib);
             }
             else
             {
-                returnType = ProjectMemberType(method.ReturnType, stdlib);
+                returnType = ProjectInboundMemberType(method.ReturnType, stdlib);
             }
 
             var methodScope = new Scope(memberScope);
@@ -2272,7 +2307,7 @@ internal sealed class TypeProjector
                 continue;
             }
 
-            var propertyType = ProjectMemberType(property.PropertyType, stdlib);
+            var propertyType = ProjectInboundMemberType(property.PropertyType, stdlib);
 
             var propertySymbol = new Symbol(
                 property.Name,
@@ -2331,7 +2366,7 @@ internal sealed class TypeProjector
                 continue;
             }
 
-            var fieldType = ProjectMemberType(field.FieldType, stdlib);
+            var fieldType = ProjectInboundMemberType(field.FieldType, stdlib);
 
             var fieldSymbol = new Symbol(
                 field.Name,
@@ -2384,11 +2419,11 @@ internal sealed class TypeProjector
             if(isRefReturn)
             {
                 var unwrappedType = property.PropertyType.GetElementType()!;
-                elementType = ProjectMemberType(unwrappedType, stdlib);
+                elementType = ProjectInboundMemberType(unwrappedType, stdlib);
             }
             else
             {
-                elementType = ProjectMemberType(property.PropertyType, stdlib);
+                elementType = ProjectInboundMemberType(property.PropertyType, stdlib);
             }
 
             var indexerScope = new Scope(memberScope);

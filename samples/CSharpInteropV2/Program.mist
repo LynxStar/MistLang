@@ -40,11 +40,11 @@ public class Program
         //        GetBytes also exposes Span<T>/ReadOnlySpan<T> overloads, which under
         //        Option A are also projected (ref structs are projected, not hidden); the
         //        string overload still resolves correctly alongside them.
-        var encoded = Encoding.UTF8.GetBytes("Hi");
+        var encoded = Encoding.UTF8?.GetBytes("Hi") ?? new byte[0];
         Console.WriteLine($"encodedLength={encoded.Length}");
 
         // PROOF: The supported decode overload GetString(byte[]) is also preserved.
-        var decoded = Encoding.UTF8.GetString(encoded);
+        var decoded = Encoding.UTF8?.GetString(encoded);
         Console.WriteLine($"decoded={decoded}");
 
         // PROOF: Overload resolution selects the correct overload when multiple candidates

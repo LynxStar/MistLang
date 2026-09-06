@@ -232,7 +232,7 @@ public sealed class DelegateEmissionTests : IDisposable
 
             class Program {
                 public static List<int> Filter(List<int> items, System.Predicate<int> pred) {
-                    return items.FindAll(pred);
+                    return items.FindAll(pred) ?? new List<int>();
                 }
 
                 public static void Main() {

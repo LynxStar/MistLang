@@ -941,3 +941,6 @@ var_w=mist
 [out-param] success=True, found=42
 [out-param-miss] success=False, missing=0
 --- CLR Ref Interop Done ---
+Extension Methods Demo
+System.String
+Int32

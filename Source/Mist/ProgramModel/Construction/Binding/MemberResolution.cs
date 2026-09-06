@@ -23,12 +23,19 @@ internal static class MemberResolution
     /// is what the lookup runs against, and the construction is handed back because it supplies the
     /// arguments any answer has to be substituted against.
     /// </param>
+    /// <param name="callSite">
+    /// The scope the access was WRITTEN in, supplied only by callers for whom an extension member is
+    /// a legitimate answer. Its absence is the whole of the rule that an initializer target and a
+    /// property pattern do not widen to extensions: they call through
+    /// <see cref="ResolveStorage"/>, which passes nothing, so the miss path below never runs for them.
+    /// </param>
     public static (LookupResult Found, ConstructedType? Constructed) Resolve(
         IMistType type,
         string memberName,
         MemberVisibility visibility,
         SyntaxNode node,
-        BuilderContext context)
+        BuilderContext context,
+        Scope? callSite = null)
     {
         var constructed = type as ConstructedType;
 
@@ -38,6 +45,14 @@ internal static class MemberResolution
         }
 
         var found = TypeMemberLookup.Find(declaring, LookupRequest.Member(memberName, visibility, node));
+
+        // Only on a miss, which is what makes "own members win" a consequence of where this sits
+        // rather than a rule anything has to state. The receiver as WRITTEN is asked about, not the
+        // definition: an extension is declared for `Box<int>` or for `unknown`, never for `Box<,>`.
+        if(found is NotFoundResult && callSite is not null)
+        {
+            found = ExtensionLookup.Find(type, memberName, visibility, callSite, context.ProgramModel);
+        }
 
         Report(found, declaring, memberName, node, context);
 

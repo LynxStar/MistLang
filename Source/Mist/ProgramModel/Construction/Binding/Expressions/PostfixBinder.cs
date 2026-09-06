@@ -115,11 +115,11 @@ internal static class PostfixBinder
                 return BindInvocation(suffix, receiver, invocation.Arguments, null, ctx, context);
 
             case MemberAccessSuffixPostfixSuffixNode memberAccess:
-                return BindMemberAccess(suffix, receiver, memberAccess.Name.Lexeme, context);
+                return BindMemberAccess(suffix, receiver, memberAccess.Name.Lexeme, ctx, context);
 
             case MethodCallSuffixPostfixSuffixNode methodCall:
                 {
-                    var memberExpr = BindMemberAccess(suffix, receiver, methodCall.Name.Lexeme, context);
+                    var memberExpr = BindMemberAccess(suffix, receiver, methodCall.Name.Lexeme, ctx, context);
                     var typeArguments = methodCall.TypeArgs is { } stated
                         ? context.Resolver.ResolveTypeArguments(stated, ctx.Scope)
                         : null
@@ -129,12 +129,12 @@ internal static class PostfixBinder
                 }
 
             case OptionalMemberAccessSuffixPostfixSuffixNode optionalMemberAccess:
-                return BindConditionalAccess(suffix, receiver, optionalMemberAccess.Name.Lexeme, context);
+                return BindConditionalAccess(suffix, receiver, optionalMemberAccess.Name.Lexeme, ctx, context);
 
             case OptionalMethodCallSuffixPostfixSuffixNode optionalMethodCall:
                 {
                     var memberExpr = BindConditionalAccess(
-                        suffix, receiver, optionalMethodCall.Name.Lexeme, context);
+                        suffix, receiver, optionalMethodCall.Name.Lexeme, ctx, context);
                     var typeArguments = optionalMethodCall.TypeArgs is { } stated
                         ? context.Resolver.ResolveTypeArguments(stated, ctx.Scope)
                         : null
@@ -356,13 +356,13 @@ internal static class PostfixBinder
     /// analyzer's, as nothing stops the model building.
     /// </summary>
     private static Expression BindConditionalAccess(
-        Storm.Runtime.SyntaxNode node, Expression receiver, string memberName, BuilderContext context)
+        Storm.Runtime.SyntaxNode node, Expression receiver, string memberName, BindingContext ctx, BuilderContext context)
     {
         var interner = context.ProgramModel.TypeInterner;
         var projected = OptionalLifting.NonVoidPortion(receiver.Type, interner);
 
         var (found, constructed) = MemberResolution.Resolve(
-            projected, memberName, MemberVisibility.InstanceOnly, node, context);
+            projected, memberName, MemberVisibility.InstanceOnly, node, context, ctx.Scope);
 
         if(found is MethodGroupResult { Methods.Count: > 0 } group)
         {
@@ -380,7 +380,7 @@ internal static class PostfixBinder
         return new MemberAccessExpression(node, receiver, memberName, lifted, isConditional: true);
     }
 
-    private static Expression BindMemberAccess(Storm.Runtime.SyntaxNode node, Expression receiver, string memberName, BuilderContext context)
+    private static Expression BindMemberAccess(Storm.Runtime.SyntaxNode node, Expression receiver, string memberName, BindingContext ctx, BuilderContext context)
     {
         // A namespace is not a value, so `Simpliest.Program` is one qualified name
         // rather than a member access on a receiver. Resolve the qualification instead
@@ -391,7 +391,7 @@ internal static class PostfixBinder
             return BindQualifiedName(node, namespaceRef, memberName, context);
         }
 
-        var (found, constructed) = ResolveMember(receiver, memberName, node, context);
+        var (found, constructed) = ResolveMember(receiver, memberName, node, ctx, context);
 
         if(found is MethodGroupResult { Methods.Count: > 0 } group)
         {
@@ -440,7 +440,7 @@ internal static class PostfixBinder
     /// </para>
     /// </summary>
     private static (LookupResult Found, ConstructedType? Constructed) ResolveMember(
-        Expression receiver, string memberName, Storm.Runtime.SyntaxNode node, BuilderContext context)
+        Expression receiver, string memberName, Storm.Runtime.SyntaxNode node, BindingContext ctx, BuilderContext context)
     {
         var isTypeReference = receiver is TypeReferenceExpression;
 
@@ -453,7 +453,7 @@ internal static class PostfixBinder
             : MemberVisibility.InstanceOnly
             ;
 
-        return MemberResolution.Resolve(receiverType, memberName, visibility, node, context);
+        return MemberResolution.Resolve(receiverType, memberName, visibility, node, context, ctx.Scope);
     }
 
     /// <summary>

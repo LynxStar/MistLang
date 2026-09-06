@@ -63,5 +63,6 @@ public class Program
         Iterators.Program.RunDemo();
         RefParameters.Program.RunDemo();
         ClrRefInterop.Program.RunDemo();
+        ExtensionMethods.Program.RunDemo();
     }
 }

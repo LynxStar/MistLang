@@ -5206,12 +5206,26 @@ capabilities:
     order: 112
     layer: extensions
     requires: [extension-block-declaration]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       A registry keyed on the resolved receiver type, consulted only after a miss on the
       receiver's own members, with candidates merged across blocks and ordered by
       specificity. Visibility is a property of the CALL SITE -- gated on its import set --
       not of the program.
+
+      ExtensionLookup sits on the MISS PATH of MemberResolution, which is what makes "own members
+      win" a consequence of where it sits rather than a rule anything states. The call-site scope is
+      threaded in as an optional argument, and its ABSENCE is the other half: ResolveStorage passes
+      none, so an initializer target and a property pattern do not widen to extensions.
+
+      TWO STEPS AND THEIR ORDER IS THE WHOLE ALGORITHM: filter blocks by MEMBER NAME first, then
+      rank the survivors by specificity. Ranking first is the obvious reading of the design and it is
+      wrong -- a prototype built that way left samples/ExtensionMethods with four errors, every one a
+      universal-receiver call, because the concrete blocks for that receiver win the tier and declare
+      none of those names. Ranking is pairwise rather than a concrete-versus-universal split, since a
+      base and a derived receiver both survive an untiered merge and the binder then records one
+      overload while C# resolves the other.
     unlocks: []
 
   - id: universal-unknown-receiver-extensions
@@ -5219,11 +5233,20 @@ capabilities:
     order: 113
     layer: extensions
     requires: [extension-lookup-and-specificity, unknown-top-type]
-    v2_status: missing
+    v2_status: done
+    verified_by: sample
     evidence: >
       An unknown receiver type defines the bottom of the specificity lattice and projects to
       object. No C# analogue.
-    unlocks: []
+
+      NOT A SEPARATE FEATURE FROM 112 BUT THE CASE THAT PROVES IT. The universal tier goes through
+      the same name-filter-then-rank path, and the ordering bug above is invisible until both a
+      concrete tier and a universal one exist, so shipping 112 without it would have shipped the bug.
+
+      IT UNLOCKS MORE THAN ITS SAMPLE. Standard/Unknown.mist declares `extension(unknown self)` with
+      ToString, GetHashCode and GetType; v2 built and registered it on every compile and read it
+      never, so `42.ToString()` did not resolve. It does now, on a receiver of any type.
+    unlocks: [ExtensionMethods]
 
   - id: extension-properties
     name: Extension properties
@@ -5235,7 +5258,18 @@ capabilities:
       Get-only, lowering to static getter methods, which means the CALL SITE must be
       reclassified from a property access to an invocation. Extension properties do not
       exist in the emitted C# dialect.
-    unlocks: [ExtensionMethods]
+
+      HALF OF THIS IS ALREADY DELIVERED and the half that is not is the half this order names. Order
+      111 emits the getter: an extension property becomes `get_{Name}(this Receiver self)` on the
+      carrier, whether or not anything calls it. What does not exist is the RECLASSIFICATION, so
+      ExtensionLookup finds a matching property and then deliberately declines to answer with it --
+      an access reports unresolved rather than typing the expression from a member no emitted call
+      reaches. A half-answer here would be a silent wrong type, which is worse than the refusal.
+
+      NO LONGER THE THRESHOLD OF ANY SAMPLE. ExtensionMethods declares two extension properties and
+      accesses neither, so its requires edge on this order was removed rather than this order's
+      status being changed; see that sample's edge_note.
+    unlocks: []
 
   # ===================================================================
   # Layer U -- iterators.
@@ -7644,9 +7678,16 @@ samples:
 
   - name: ExtensionMethods
     intro_order: 26
-    threshold: extension-properties
-    requires: [extension-properties, universal-unknown-receiver-extensions,
+    threshold: universal-unknown-receiver-extensions
+    requires: [universal-unknown-receiver-extensions,
                extension-lookup-and-specificity, control-flow-basic, var-type-inference]
+    edge_note: >
+      DROPPED extension-properties, which this sample never used. It DECLARES two of them and
+      accesses neither, and declaring one is order 111's work -- they emit as `get_` methods on the
+      carrier whether or not anything calls them. Order 114 is the ACCESS, which has to be
+      reclassified into an invocation because C# has no extension property, and no line here does
+      that. This is the second of the two faults the header names: not an understated capability but
+      a requires edge naming something the sample does not reach.
     untested:
       - Every extension body is a PLACEHOLDER that returns its input unchanged, so a wrong
         receiver binding still yields plausible values.

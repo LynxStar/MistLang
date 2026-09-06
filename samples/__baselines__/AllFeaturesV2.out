@@ -953,3 +953,11 @@ Formatter result: Hello: 42
 Settings timeout: 100
 LookupTable[0]: 99
 --- Attributes Demo End ---
+=== AssemblyTypeProvider Sample ===
+Count=3
+Item0=10
+Found=42
+Length=12
+Upper=HELLO, WORLD
+Abs=5
+ArrLen=3

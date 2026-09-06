@@ -5714,7 +5714,8 @@ capabilities:
       (`int x = Environment.GetEnvironmentVariable("PATH")`, which typed as String, not
       String | Void) to show the projection was missing rather than merely unexercised.
 
-      With 130 delivered the sample is BANKABLE.
+      With 130 delivered the sample is BANKED -- 47th on AllFeaturesV2, matching the baseline on
+      both pipelines.
     unlocks: [Attributes]
 
   - id: clr-generic-construction-and-members
@@ -8951,7 +8952,7 @@ measured_defects:
 
       Testing needs no such question -- it needs the ambient blocker fixed, see
       blocking_refusals. AssemblyTypeProvider left this list entirely: order 130 is delivered, so
-      it is now BANKABLE rather than green-for-the-wrong-reason, and runs byte-identical to classic
+      it is now BANKED rather than green-for-the-wrong-reason, and runs byte-identical to classic
       on both pipelines.
 
   recommended_response: >
@@ -8968,8 +8969,8 @@ measured_defects:
        worth reading until it clears.
     2. Lambda parameter type inference, MIST_PM_LAMBDA_PARAMETER_NO_TYPE. Five samples, and it banks
        OptionalDefaultability outright, that being its only error.
-    3. AssemblyTypeProvider is bankable now -- order 130 delivered, byte-identical to classic on
-       both pipelines. Cheapest green on the board.
+    3. DONE -- AssemblyTypeProvider is banked, 47th on AllFeaturesV2. It was the cheapest green on
+       the board and cost only the two orchestrator edits plus eight appended baseline lines.
 
     The measurement discipline matters more than the order: count diagnostics from the whole build
     output, not per source file, or `<ambient>`-scoped refusals vanish -- which is how Testing came

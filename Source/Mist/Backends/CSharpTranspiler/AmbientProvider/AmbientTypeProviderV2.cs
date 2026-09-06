@@ -17,6 +17,9 @@ namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 /// </summary>
 internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
 {
+    private readonly Dictionary<string, Type> bridgedClrTypes = [];
+    private readonly Dictionary<string, IMistType> bridgedTargets = [];
+    private AmbientTypeResolver? resolver;
     private readonly MetadataLoadContext? metadataContext;
     private readonly DiagnosticBag diagnostics;
 
@@ -50,7 +53,7 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
         var (shells, clrTypes) = CreateShells(wellKnownTypes);
 
         // Phase 2: Project type details onto shells (type params, base types, members).
-        var resolver = new AmbientTypeResolver(shells, wellKnownTypes, programModel.TypeInterner, diagnostics);
+        resolver = new AmbientTypeResolver(shells, wellKnownTypes, programModel.TypeInterner, diagnostics);
         ProjectTypes(shells, clrTypes, resolver);
 
         // Merge into ProgramModel FQN dictionary. This loop is the single funnel for
@@ -68,6 +71,23 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
         // Phase 3: Project extension methods onto namespaces.
         // Runs after all types are registered so receiver types are resolvable.
         ExtensionProjector.ProjectExtensions(clrTypes, resolver, programModel);
+    }
+
+    /// <inheritdoc />
+    public void BridgeWellKnownMembers(ProgramModelType programModel)
+    {
+        if(resolver is null)
+        {
+            return;
+        }
+
+        foreach(var (fqn, clrType) in bridgedClrTypes)
+        {
+            if(bridgedTargets[fqn] is MemberType target)
+            {
+                WellKnownMemberBridge.Bridge(target, clrType, resolver);
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -142,9 +162,17 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
                 var clrName = clrType.Name;
                 var fqn = string.IsNullOrEmpty(ns) ? clrName : $"{ns}.{clrName}";
 
-                // Skip well-known types — they're Standard Library instances.
-                if(wellKnownTypes.ContainsKey(fqn))
+                // Skip well-known types — they're Standard Library instances. The CLR type is
+                // kept for the ones whose members are bridged, since this is the only place it is
+                // in hand and BridgeWellKnownMembers runs long after this loop.
+                if(wellKnownTypes.TryGetValue(fqn, out var wellKnown))
                 {
+                    if(WellKnownTypeMap.BridgedMembers.Contains(fqn))
+                    {
+                        bridgedClrTypes[fqn] = clrType;
+                        bridgedTargets[fqn] = wellKnown;
+                    }
+
                     continue;
                 }
 

@@ -341,3 +341,37 @@ flakes:
       NEXT SIGHTING: attach `--logger "trx;LogFileName=x.trx"` and read the failing message and the
       FsCheck seed. A seed would settle the draw question outright, which is the cheapest of the
       candidates to rule in or out.
+
+  - id: mist-tests-mass-failure-under-stale-copy
+    test: Mist.Tests (433 of 5000, no single test implicated)
+    file: Test/Mist.Tests
+    discovered: 2026-09-06
+    status: explained
+    symptom: >
+      A full `dotnet test Mist.slnx --no-build` reported 433 failures out of 5000. An immediate
+      rerun with NO intervening code change reported 5000 passed, 0 failed. The failure messages
+      were incoherent rather than assertion-shaped -- among them
+      "MIST_UNDEFINED_TYPE: The type 'fixing' could not be found", naming a type no fixture
+      declares -- which is the tell that the binaries under test did not match the sources.
+    cause: >
+      Stale Mist.Tests.dll, not a test defect. A previous `dotnet test` was still running when the
+      next `dotnet build` fired, and MSBuild reported
+      "Could not copy obj\Debug\net10.0\Mist.Tests.dll to bin\Debug\net10.0\Mist.Tests.dll ...
+      The file is locked by: testhost". It retried, printed no error, and the build was treated as
+      successful. The subsequent `--no-build` run therefore executed a Mist.Tests.dll from before
+      the change against a freshly built Mist.Core.dll.
+    evidence: >
+      The MSB3026 lock warnings are in the build output immediately preceding the bad run, naming
+      testhost as the holder. Nothing was edited between the 433-failure run and the green rerun;
+      the only difference is that the lock had cleared. Both runs were `--no-build` over the same
+      sources. The working tree held the well-known member bridge (Standard.String gaining its CLR
+      members), which touches only the ambient provider and the program model builder and cannot
+      explain a failure naming a type called 'fixing'.
+    note: >
+      NOT A FLAKE TO CHASE, and recorded because the SHAPE is worth recognising: a mass failure with
+      messages that do not correspond to any assertion means suspect the binaries first, not the
+      change. Test/CLAUDE.md's triage policy says rebuild before blaming the working tree; this is
+      the same failure mode reached from the other side, where the rebuild silently did not happen.
+      MSB3026 is a WARNING, so a build filtered for errors reports success.
+      AVOIDING IT: do not start a build while a test run is live. If a run must be cut short, stop
+      it and confirm no testhost process survives before rebuilding.

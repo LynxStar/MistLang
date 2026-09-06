@@ -355,5 +355,10 @@ public sealed class TargetTypedNewTests : IDisposable
                 }
             }
         }
+        public void BridgeWellKnownMembers(ProgramModelClass programModel)
+        {
+            // No-op: the stub registers shells only and loads no CLR assembly.
+        }
+
     }
 }

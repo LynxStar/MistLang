@@ -5684,6 +5684,33 @@ capabilities:
       DECLARED reference beyond the default framework set, and no sample imports a CLR namespace that
       the Standard library does not already reach. Attributes remains blocked on order 129, not on
       this.
+
+      THE BRIDGING HALF WAS NARROWER THAN "the Mist string and array types resolve back to their CLR
+      counterparts" SUGGESTS, and one part of it is now fixed. The TYPE bridged; its MEMBERS did not.
+      WellKnownTypeMap's rule is that a well-known type is never projected -- the Standard instance
+      is returned instead -- so Standard.String held only what Bootstrap/String.mist declares, and
+      every other member of System.String was unreachable. Measured: ToUpper and Trim failed with
+      MIST_PM_UNRESOLVED_MEMBER while Length and Contains worked, and Substring(Int32, Int32) failed
+      with "Declared arities: 1". WellKnownMemberBridge now merges the CLR members in after Phase 2a.
+
+      STRING ONLY, WHICH IS WHAT CLASSIC DOES rather than a shortcut. Probed on classic: Int32.Parse,
+      Int32.MaxValue, Double.Parse and CompareTo on Int32, Double, Char and Boolean are all refused
+      there. Widening the list is also unsafe for most of the map -- Standard.Array declares no
+      Length ON PURPOSE, its dependent type parameter being the length, and a projected property
+      beside it makes every read ambiguous; Task and ValueTask are type ALIASES, not member types;
+      Func and Action are one Mist declaration behind seventeen CLR arities each.
+
+      AFTER PHASE 2A, NOT AT 1B, and that ordering is the whole correctness argument. At 1b the
+      Standard declarations hold no members yet, so there is nothing to merge against and the
+      projected copy of every colliding member would win by arriving first -- silently, since
+      overload lookup dedupes by a signature key that excludes the return type. Standard's
+      `owned String Clone()` and the CLR's `object Clone()` collide exactly that way.
+
+      samples/AssemblyTypeProvider now runs on v2 and matches classic, but is NOT banked: its
+      threshold is order 130, clr-nullable-projection, still `missing`. Whether that status is
+      understated is the two-fault question this leaves open -- the sample's own untested list says
+      "Every optional-projected result is consumed without narrowing", which is the shape of an edge
+      naming something the sample does not force.
     unlocks: [Attributes]
 
   - id: clr-generic-construction-and-members
@@ -8741,6 +8768,33 @@ measured_defects:
         MistNamespace.Extensions and never read by CSharpEmitterV2, which walked unit.Types only.
       - The sealed modifier -- see orphan_capabilities. OPEN, and dropped by BOTH pipelines, so
         stdout cannot see it and it is the one entry here classic does not get right either.
+
+  green_but_unbankable:
+    note: >
+      Samples that compile, run and match classic byte-for-byte on v2 TODAY and must NOT be banked,
+      because each is green for a reason other than the capability it is meant to prove. Recorded so
+      the next sweep does not rediscover them and mistake a zero-error result for progress. Swept
+      2026-09-06 over all 29 unbanked samples; these are the only two at zero.
+    entries:
+      - sample: Testing
+        threshold: mist-test-command (order 122, missing)
+        why_it_passes: >
+          Its own untested list says it: "Bodies compute over literals, so a build-only check passes
+          vacuously without the runner ever executing." The sample proves the TEST COMMAND, and the
+          command is what has not been built. Banking it would record a runner that never ran.
+      - sample: UnknownReadonlySemantics
+        threshold: readonly-mutation-checking (order 136, missing)
+        why_it_passes: >
+          Also requires unknown-readonly-member-filtering (order 83, missing). Both are rules that
+          REFUSE a program, and v2 runs no analyzers, so both are correctly missing rather than
+          late. The sample's own untested list explains the rest: "The rejected mutations are
+          comments only", so the file contains none of the cases either capability would judge.
+          Banking it would claim two analysis-phase rules on a sample that never reaches them.
+    note_on_next_step: >
+      Neither is a status error to correct. Each needs the two-fault question asked when its
+      capability is next touched: is the requires edge naming something the sample does not use, or
+      is the sample missing the code that would use it? For both, the untested lists point at the
+      second.
 
   recommended_response: >
     A REFUSAL COMMIT BEFORE ANY FEATURE WORK, which is this project's own established pattern:

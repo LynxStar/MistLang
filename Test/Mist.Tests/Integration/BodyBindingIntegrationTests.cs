@@ -452,5 +452,10 @@ public sealed class BodyBindingIntegrationTests : IDisposable
                 }
             }
         }
+        public void BridgeWellKnownMembers(ProgramModelClass programModel)
+        {
+            // No-op: the stub registers shells only and loads no CLR assembly.
+        }
+
     }
 }

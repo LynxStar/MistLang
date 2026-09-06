@@ -375,3 +375,12 @@ flakes:
       MSB3026 is a WARNING, so a build filtered for errors reports success.
       AVOIDING IT: do not start a build while a test run is live. If a run must be cut short, stop
       it and confirm no testhost process survives before rebuilding.
+    recurrences:
+      - date: 2026-09-06
+        detail: >
+          443 of 5016 under the await-diagnostic change, green on rerun with nothing edited. Reached
+          a THIRD way, which is worth adding to the shape: the build was run as
+          `dotnet build ... >/dev/null 2>&1` inside a chained command, so MSB3026 was not merely
+          filtered out for being a warning -- the whole build output was discarded before anything
+          could read it. Redirecting a build to /dev/null and then trusting `--no-build` is the same
+          mistake as grepping the output for errors only.

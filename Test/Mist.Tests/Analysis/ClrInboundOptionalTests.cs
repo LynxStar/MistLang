@@ -175,6 +175,26 @@ public sealed class ClrInboundOptionalTests
             """));
     }
 
+    /// <summary>
+    /// A Task from the CLR is a reference result like any other, so it arrives optional and cannot be
+    /// awaited until narrowed. The diagnostic is separate from the wrong-operand-type one because the
+    /// operand here is the RIGHT type -- what it needs is narrowing, and the message has to say so.
+    /// </summary>
+    [Fact]
+    public void AwaitingAnOptionalClrTask_AsksForNarrowingRatherThanADifferentType()
+    {
+        var errors = Errors("""
+                    var t = System.IO.File.ReadAllTextAsync("x.txt");
+                    var s = await t;
+                    Console.WriteLine(s);
+            """);
+
+        var await_ = Assert.Single(errors, error => error.Id.Value == "MIST_TC_0188");
+
+        Assert.Contains("narrow the union type first", await_.Message, StringComparison.Ordinal);
+        Assert.Contains("is Task<String> x", await_.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void AReferenceArgumentSentToTheClr_NeedsNoNarrowing()
     {

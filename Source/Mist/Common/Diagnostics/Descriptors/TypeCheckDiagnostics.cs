@@ -476,6 +476,19 @@ public static class TypeCheckDiagnostics
         "The 'await' functor requires an operand of type 'Task<T>', but got '{0}'");
 
     /// <summary>
+    /// An await whose operand is an OPTIONAL task. Separate from
+    /// <see cref="AwaitNonTaskOperand"/> because the two ask for different things: that one means
+    /// the operand is the wrong type, while this one means it is the right type and might be
+    /// absent -- which the caller fixes by narrowing, not by changing what they awaited. A CLR
+    /// method returning Task is projected optional, so this is the shape most users meet first.
+    /// </summary>
+    public static readonly DiagnosticDescriptor AwaitOptionalOperand = new(
+        new DiagnosticId("MIST_TC_0188"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot await '{0}' because it may be void: use a pattern match ('is {1} x') to narrow the union type first.");
+
+    /// <summary>
     /// An <c>async</c> method explicitly declares <c>Task&lt;T&gt;</c> as its return type.
     /// The compiler wraps the return type automatically.
     /// </summary>

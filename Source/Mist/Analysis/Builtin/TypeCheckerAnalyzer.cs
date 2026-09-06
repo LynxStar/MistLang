@@ -9927,13 +9927,32 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Also accept ValueTask<T> as a valid await operand.
-        if(operandType is ConstructedType vt
-            && vt.GenericDefinition is ClassType { DisplayName: "ValueTask", ContainingNamespace: "Standard", IsBackendBacked: true })
+        if(IsValueTaskType(operandType))
         {
             return;
         }
 
+        if(operandType is UnionType union
+            && union.Constituents.FirstOrDefault(c => !c.IsVoid()) is { } awaited
+            && union.Constituents.Any(c => c.IsVoid())
+            && (SemanticModelBuilder.IsStandardTaskType(awaited) || IsValueTaskType(awaited)))
+        {
+            diagnostics.ReportAtNode(
+                TypeCheckDiagnostics.AwaitOptionalOperand, awaitExpr, "TypeChecker",
+                operandType.DisplayName, awaited.DisplayName);
+
+            return;
+        }
+
         diagnostics.ReportAtNode(TypeCheckDiagnostics.AwaitNonTaskOperand, awaitExpr, "TypeChecker", operandType.DisplayName);
+    }
+
+    private static bool IsValueTaskType(IType type)
+    {
+        return type is ConstructedType
+        {
+            GenericDefinition: ClassType { DisplayName: "ValueTask", ContainingNamespace: "Standard", IsBackendBacked: true },
+        };
     }
 
     // ═══════════════════════════════════════════════════════════════════════

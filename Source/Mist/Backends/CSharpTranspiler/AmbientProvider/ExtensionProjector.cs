@@ -156,6 +156,7 @@ internal static class ExtensionProjector
         {
             Accessibility = Accessibility.Public,
             IsStatic = true,
+            IsClrProjected = true,
         };
 
         var projected = new Method(method.Name, returnType, parameters, modifiers)

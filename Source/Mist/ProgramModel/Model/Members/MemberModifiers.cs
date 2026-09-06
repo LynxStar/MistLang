@@ -37,4 +37,12 @@ public record struct MemberModifiers
 
     /// <summary>The substructural discipline (affine, linear, relevant, or none).</summary>
     public SubstructuralDiscipline Discipline { get; init; }
+
+    /// <summary>
+    /// Set only where a member is projected from CLR metadata, so a result of one can be closed over
+    /// <c>| void</c> once its type parameters are known. Members are constructed once here -- by a
+    /// builder from Mist source or by a projector from metadata, never cloned between the two -- so
+    /// this holds by construction rather than by a discriminator that could be laundered.
+    /// </summary>
+    public bool IsClrProjected { get; init; }
 }

@@ -53,6 +53,7 @@ internal static class IndexerProjector
             {
                 Accessibility = accessibility,
                 IsStatic = (prop.GetMethod?.IsStatic ?? prop.SetMethod?.IsStatic) == true,
+                IsClrProjected = true,
             };
 
             var projected = new Indexer(resolvedType, parameters, modifiers)

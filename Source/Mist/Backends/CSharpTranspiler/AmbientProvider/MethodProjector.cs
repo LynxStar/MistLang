@@ -75,6 +75,7 @@ internal static class MethodProjector
         {
             Accessibility = ClrAccessibilityMap.FromMethod(method),
             IsStatic = method.IsStatic,
+            IsClrProjected = true,
         };
 
         var projected = new Method(method.Name, returnType, parameters, modifiers)

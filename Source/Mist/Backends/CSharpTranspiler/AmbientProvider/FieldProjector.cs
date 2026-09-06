@@ -38,6 +38,7 @@ internal static class FieldProjector
                 Accessibility = ClrAccessibilityMap.FromField(field),
                 IsStatic = field.IsStatic,
                 IsReadonly = field.IsInitOnly || field.IsLiteral,
+                IsClrProjected = true,
             };
 
             var projected = new Field(field.Name, resolvedType, OwnershipKind.Unrestricted, modifiers);

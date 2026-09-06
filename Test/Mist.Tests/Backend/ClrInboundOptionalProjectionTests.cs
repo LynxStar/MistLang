@@ -80,6 +80,20 @@ public sealed class ClrInboundOptionalProjectionTests : IDisposable
     }
 
     /// <summary>
+    /// The invariant the generic half of this rests on. A result whose type is a type PARAMETER
+    /// cannot be wrapped here -- List's element would take the wrap that List of Int32 must not
+    /// have -- so the decision moves to substitution, and this flag is the only thing carrying
+    /// "the CLR could have put a null here" to it.
+    /// </summary>
+    [Fact]
+    public void AProjectedMember_IsMarkedAsClrProjected()
+    {
+        var toUpper = stringType.MethodsList.First(candidate => candidate.Name == "ToUpper");
+
+        Assert.True(toUpper.Modifiers.IsClrProjected);
+    }
+
+    /// <summary>
     /// The outbound half. Concat takes reference-typed arguments; Mist has no null to hand them, so
     /// a union there would only give overload resolution more candidates to be ambiguous between.
     /// </summary>

@@ -68,8 +68,16 @@ internal static class Indexability
             return ErrorType.Instance;
         }
 
-        return TypeSubstitution
+        var indexer = memberType.IndexersList[0];
+
+        var substituted = TypeSubstitution
             .ForReceiver(constructed)
-            .Apply(memberType.IndexersList[0].Type, context.ProgramModel.TypeInterner);
+            .Apply(indexer.Type, context.ProgramModel.TypeInterner);
+
+        return ClrInboundLifting.Close(
+            indexer.Modifiers,
+            substituted,
+            context.Resolver.LookupWellKnown(WellKnownTypes.Void),
+            context.ProgramModel.TypeInterner);
     }
 }

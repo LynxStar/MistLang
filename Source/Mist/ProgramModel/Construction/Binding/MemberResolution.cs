@@ -88,9 +88,13 @@ internal static class MemberResolution
         return new StorageLookup(
             memberType is null
                 ? null
-                : TypeSubstitution
-                    .ForMember(constructed, found, context.ProgramModel.TypeInterner)
-                    .Apply(memberType, context.ProgramModel.TypeInterner),
+                : ClrInboundLifting.Close(
+                    found,
+                    TypeSubstitution
+                        .ForMember(constructed, found, context.ProgramModel.TypeInterner)
+                        .Apply(memberType, context.ProgramModel.TypeInterner),
+                    context.Resolver.LookupWellKnown(WellKnownTypes.Void),
+                    context.ProgramModel.TypeInterner),
             found);
     }
 

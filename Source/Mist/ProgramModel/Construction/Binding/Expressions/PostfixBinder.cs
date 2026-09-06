@@ -292,7 +292,11 @@ internal static class PostfixBinder
             return new ErrorExpression(node);
         }
 
-        var returnType = choice.Substitution.Apply(selected.ReturnType, interner);
+        var returnType = ClrInboundLifting.Close(
+            selected.Modifiers,
+            choice.Substitution.Apply(selected.ReturnType, interner),
+            context.Resolver.LookupWellKnown(WellKnownTypes.Void),
+            interner);
 
         if(group.IsConditional)
         {
@@ -419,9 +423,13 @@ internal static class PostfixBinder
             return new TypeReferenceExpression(node, nested);
         }
 
-        var resolved = TypeSubstitution
-            .ForMember(constructed, found, context.ProgramModel.TypeInterner)
-            .Apply(MemberTypeOf(found), context.ProgramModel.TypeInterner);
+        var resolved = ClrInboundLifting.Close(
+            found,
+            TypeSubstitution
+                .ForMember(constructed, found, context.ProgramModel.TypeInterner)
+                .Apply(MemberTypeOf(found), context.ProgramModel.TypeInterner),
+            context.Resolver.LookupWellKnown(WellKnownTypes.Void),
+            context.ProgramModel.TypeInterner);
 
         return new MemberAccessExpression(node, receiver, memberName, resolved);
     }

@@ -39,6 +39,7 @@ internal static class PropertyProjector
             {
                 Accessibility = accessibility,
                 IsStatic = (prop.GetMethod?.IsStatic ?? prop.SetMethod?.IsStatic) == true,
+                IsClrProjected = true,
             };
 
             var projected = new Property(prop.Name, resolvedType, modifiers)

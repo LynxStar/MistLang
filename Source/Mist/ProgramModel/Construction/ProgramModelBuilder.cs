@@ -150,6 +150,9 @@ public sealed class ProgramModelBuilder
 
         // Phase 3.
         MemberBinder.BindAll(sourceTypes, context);
+        MemberBinder.BindExtensions(
+            programModel.Namespaces.Values.SelectMany(ns => ns.Extensions.Values).SelectMany(blocks => blocks),
+            context);
 
         return programModel;
     }

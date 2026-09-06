@@ -51,7 +51,10 @@ internal sealed class CompilationUnitBuilder
             return null;
         }
 
-        // Register type declarations.
+        // Register type declarations. Extension blocks are stashed rather than built here, so the
+        // count is read first and everything appended below belongs to this unit -- the type walk
+        // has no unit of its own to record.
+        var firstExtension = context.PendingExtensions.Count;
         var result = typeBuilder.Build(fileScope, fileNamespace, ast, assembly);
 
         // Read off the scope AFTER namespaceBuilder ran, which is what populated the imports.
@@ -65,6 +68,12 @@ internal sealed class CompilationUnitBuilder
             TopLevelMethod = result.TopLevelMethod,
         };
         modelUnit.Types.AddRange(result.Types);
+
+        for(var i = firstExtension; i < context.PendingExtensions.Count; i++)
+        {
+            context.PendingExtensions[i].Unit = modelUnit;
+        }
+
         assembly.CompilationUnits.Add(modelUnit);
 
         return fileScope;

@@ -43,6 +43,17 @@ public sealed class CompilationUnit
     internal List<DeclaredType> Types { get; } = [];
 
     /// <summary>
+    /// Extension blocks written at this file's top level, in declaration order. Kept apart from
+    /// <see cref="Types"/> because a block is not a declared type -- it declares no type, is not
+    /// registered by name, and is reached only through the namespace registry or through here.
+    /// <para>
+    /// A file may hold nothing else: an extensions-only file still emits, so anything counting what
+    /// a unit produces has to count both lists.
+    /// </para>
+    /// </summary>
+    internal List<ExtensionBlock> Extensions { get; } = [];
+
+    /// <summary>
     /// Whether this unit contains top-level statements.
     /// </summary>
     public bool HasTopLevelStatements { get; init; }

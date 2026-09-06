@@ -72,6 +72,16 @@ internal sealed class ExtensionBuilder
         var receiverType = scopeResolver.Resolve(ast.ReceiverType, extensionScope);
         extensionBlock.ResolvedReceiverType = receiverType;
 
+        // The receiver becomes nameable HERE, before members resolve, because a member signature may
+        // already mention it. A local rather than a parameter: the emitted `this` parameter does not
+        // exist until the carrier is written, and the scope chain answers locals.
+        extensionBlock.Receiver = new LocalVariable(receiverName, receiverType);
+
+        extensionBlock.CarrierName = CarrierNames.For(
+            receiverType, pending.Unit?.SourcePath, pending.Unit?.Extensions.Count ?? 0);
+
+        pending.Unit?.Extensions.Add(extensionBlock);
+
         // Resolve constraints on extension-level type parameters.
         // Extension blocks don't have where clauses in the current grammar,
         // but this is forward-compatible if they're added.

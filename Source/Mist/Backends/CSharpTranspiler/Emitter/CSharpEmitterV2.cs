@@ -5,6 +5,7 @@ using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 using CompilationUnit = Mist.ProgramModel.Model.CompilationUnit;
 
@@ -142,10 +143,11 @@ internal sealed class CSharpEmitterV2
         List<string> emittedFiles)
     {
         var emittableTypes = unit.Types.Where(TypeEmitter.ProducesDeclaration).ToList();
+        var emittableBlocks = EmittableBlocks(unit, assembly);
 
         // A file that declares nothing emittable would produce a .cs holding only usings,
         // which Roslyn accepts but which adds a file to the compilation for no reason.
-        if(emittableTypes.Count == 0 && !unit.HasTopLevelStatements)
+        if(emittableTypes.Count == 0 && emittableBlocks.Count == 0 && !unit.HasTopLevelStatements)
         {
             return;
         }
@@ -159,14 +161,15 @@ internal sealed class CSharpEmitterV2
             EmitTopLevelStatements(unit, writer);
         }
 
-        if(emittableTypes.Count > 0)
+        if(emittableTypes.Count > 0 || emittableBlocks.Count > 0)
         {
             if(unit.HasTopLevelStatements && isTopLevelEntry)
             {
                 writer.WriteBlankLine();
             }
 
-            EmitFileTypes(emittableTypes, unit.HasTopLevelStatements && isTopLevelEntry, closures, writer);
+            EmitFileTypes(
+                emittableTypes, emittableBlocks, unit.HasTopLevelStatements && isTopLevelEntry, closures, writer);
         }
 
         // Determine output path: {outputDir}/{Assembly.Name}/{RelativePath}/{FileName}.cs
@@ -511,21 +514,40 @@ internal sealed class CSharpEmitterV2
     /// file-scoped form may not follow.
     /// </para>
     /// </summary>
-    private void EmitFileTypes(
-        List<DeclaredType> types, bool hasTopLevelStatements, ConstraintClosureMap closures, CSharpWriter writer)
+    /// <summary>
+    /// The extension blocks this unit emits. The STANDARD LIBRARY'S ARE SKIPPED DELIBERATELY, not by
+    /// accident: Standard/Unknown.mist declares <c>extension(unknown self)</c> whose GetType body is
+    /// <c>return Type.Of(self);</c>, and Type.Of does not lower on v2 yet, so emitting that carrier
+    /// puts a broken file into every single compilation. Named here rather than left to the fact that
+    /// the stdlib assembly is otherwise skipped, because that fact is not what makes this safe.
+    /// </summary>
+    private static List<ExtensionBlock> EmittableBlocks(CompilationUnit unit, IAssembly assembly)
     {
-        var groups = types.GroupBy(type => type.NamespaceName, StringComparer.Ordinal).ToList();
+        return assembly.Kind == MistAssemblyKind.Standard ? [] : unit.Extensions;
+    }
 
-        if(groups.Count == 1 && !hasTopLevelStatements)
+    private void EmitFileTypes(
+        List<DeclaredType> types,
+        List<ExtensionBlock> blocks,
+        bool hasTopLevelStatements,
+        ConstraintClosureMap closures,
+        CSharpWriter writer)
+    {
+        var namespaces = types.Select(type => type.NamespaceName)
+            .Concat(blocks.Select(block => block.NamespaceName))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        if(namespaces.Count == 1 && !hasTopLevelStatements)
         {
-            writer.WriteLine($"namespace {groups[0].Key};");
+            writer.WriteLine($"namespace {namespaces[0]};");
             writer.WriteBlankLine();
-            EmitTypes(groups[0], closures, writer);
+            EmitDeclarations(types, blocks, closures, writer);
             return;
         }
 
         var first = true;
-        foreach(var group in groups)
+        foreach(var namespaceName in namespaces)
         {
             if(!first)
             {
@@ -533,21 +555,33 @@ internal sealed class CSharpEmitterV2
             }
 
             first = false;
-            writer.WriteLine($"namespace {group.Key}");
+            writer.WriteLine($"namespace {namespaceName}");
             using(writer.Block())
             {
-                EmitTypes(group, closures, writer);
+                EmitDeclarations(
+                    types.Where(type => type.NamespaceName == namespaceName).ToList(),
+                    blocks.Where(block => block.NamespaceName == namespaceName).ToList(),
+                    closures,
+                    writer);
             }
         }
     }
 
-    private void EmitTypes(
-        IEnumerable<DeclaredType> types, ConstraintClosureMap closures, CSharpWriter writer)
+    private void EmitDeclarations(
+        IEnumerable<DeclaredType> types,
+        IEnumerable<ExtensionBlock> blocks,
+        ConstraintClosureMap closures,
+        CSharpWriter writer)
     {
         var anyEmitted = false;
         foreach(var type in types)
         {
             TypeEmitter.Emit(type, closures, writer, diagnostics, ref anyEmitted);
+        }
+
+        foreach(var block in blocks)
+        {
+            ExtensionBlockEmitter.Emit(block, writer, diagnostics, ref anyEmitted);
         }
     }
 

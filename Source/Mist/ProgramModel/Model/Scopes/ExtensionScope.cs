@@ -33,6 +33,14 @@ internal sealed class ExtensionScope(Scope? parent) : Scope(parent)
 
         var candidates = new CandidateSet();
 
+        // The receiver is INSTANCE state, which is the whole of the rule that a static extension
+        // member cannot see it: MethodScope narrows an outward request to StaticOnly for a static
+        // member, and Permits then answers false here. No pass judges a finished body for it.
+        if(Block.Receiver is { } receiver && receiver.Name == request.Name && request.Permits(isStatic: false))
+        {
+            candidates.Add(new VariableResult(receiver));
+        }
+
         // A type parameter is neither instance nor static state, so visibility does not apply.
         foreach(var typeParameter in Block.TypeParametersList)
         {

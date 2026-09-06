@@ -5155,12 +5155,50 @@ capabilities:
     order: 111
     layer: extensions
     requires: [methods-static-and-instance]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       One receiver declaration covers many members, with a synthetic receiver parameter in
       scope for every body. Lowers to a synthesized static carrier class with a
       this-annotated first parameter. Also supports static extension members, which must be
       rejected if they reference the receiver.
+
+      MORE OF THIS EXISTED THAN THE STATUS SAID, and less of it worked. ExtensionBuilder already
+      resolved the receiver type, populated block type parameters and built every member SIGNATURE.
+      Everything after the signature was absent: the receiver existed only as a STRING on the block
+      and no scope answered it, so `self` did not resolve; no body was ever bound, because the binder
+      walks TYPES and a block is not one; and emission had no route to a block at all. Together those
+      meant an extension member could name an identifier that exists nowhere and the file compiled
+      clean -- a silent acceptance, not a silent drop.
+
+      THE RECEIVER IS A LOCAL ANSWERED BY ExtensionScope, and that choice is what keeps the static
+      rule out of the analysis phase. MethodScope already narrows an outward request to static-only
+      for a static member, so guarding the receiver clause on Permits(isStatic: false) makes "a static
+      extension member cannot see the receiver" FALL OUT of the scope chain. Seeding it as a local in
+      BodyBinder instead would have needed a pass that walks a finished body, which is analysis-phase
+      work smuggled in here.
+
+      THE CARRIER NAME IS ASSIGNED WHEN THE BLOCK IS BUILT, not at emission, because a static
+      extension member is called by carrier name from any file and a name derived from the EMITTING
+      unit is unreachable from the call site that needs it. It is also REDUCED to identifier
+      characters: StripArity carries the angle-bracket cases, and the filter behind it carries
+      everything else a type name can hold that C# cannot. Unsanitized, an array receiver emits
+      `Array<Int32, unknown>Extensions_...`, which C# re-parses as a generic class declaration and
+      which collides with types the user did write. samples/FirstClassFunctions already declares
+      `extension(int[] self)`.
+
+      Measured: an instance member, a static member, a get-only property and a generic block all emit
+      carriers Roslyn accepts -- `public static class BoxExtensions_Program_0` with
+      `public static T Peek<T>(this Box<T> self)`, the block's type parameter hoisted onto the member
+      because C# requires an extension method's class to be non-generic.
+
+      BANKS NO SAMPLE, and cannot: no call site can reach any of this until order 112. The claim it
+      makes is checkable without one, which is why it is its own commit.
+    untested:
+      - Nothing calls an extension member yet, so the emitted carriers are proven to COMPILE and not
+        to be reachable. That is order 112's to show.
+      - The stdlib's own `extension(unknown self)` is deliberately not emitted -- its GetType body
+        calls Type.Of, which does not lower on v2 -- so the universal receiver's emission is unproven.
     unlocks: []
 
   - id: extension-lookup-and-specificity

@@ -37,6 +37,41 @@ internal static class MemberBinder
         }
     }
 
+    /// <summary>
+    /// Extension block bodies, which the walks above structurally cannot reach: they range over
+    /// TYPES, and a block is not one. Without this a body binds to nothing at all -- a member could
+    /// name an identifier that does not exist and the file still compiled clean.
+    /// <para>
+    /// Source blocks only. An ambient block is projected from assembly metadata and has no body to
+    /// bind, which is exactly what a null declaration node means.
+    /// </para>
+    /// </summary>
+    public static void BindExtensions(IEnumerable<ExtensionBlock> blocks, BuilderContext context)
+    {
+        foreach(var block in blocks)
+        {
+            if(block.DeclarationNode is null)
+            {
+                continue;
+            }
+
+            foreach(var method in block.MethodsList)
+            {
+                if(method.Body is not null)
+                {
+                    BodyBinder.BindDelegate(method, context);
+                }
+            }
+
+            foreach(var property in block.PropertiesList)
+            {
+                BodyBinder.BindAccessors(
+                    property.Getter, property.Setter, property.Type, [],
+                    property.Modifiers.IsStatic, property, block.Scope, context);
+            }
+        }
+    }
+
     private static void BindDelegates(MemberType memberType, BuilderContext context)
     {
         foreach(var boundDelegate in memberType.EnumerateDelegates())

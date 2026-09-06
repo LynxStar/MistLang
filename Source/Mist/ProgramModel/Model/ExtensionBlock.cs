@@ -44,6 +44,26 @@ internal sealed class ExtensionBlock : IExtensionBlock, IHasTypeParameters, IMet
     /// <summary>The receiver parameter name (e.g., "self").</summary>
     public string ReceiverParameterName { get; }
 
+    /// <summary>
+    /// The receiver as something a body can actually NAME, rather than as the string above. Null
+    /// until Phase 2b, and null for an ambient block, which has no body to name it from.
+    /// <para>
+    /// A local rather than a parameter because that is what the scope chain already answers with,
+    /// and because the emitted signature does not exist yet -- the receiver becomes a
+    /// <c>this</c>-annotated first parameter only at emission, where the carrier is written.
+    /// </para>
+    /// </summary>
+    public LocalVariable? Receiver { get; internal set; }
+
+    /// <summary>
+    /// The name of the static class this block emits as, assigned ONCE when the block is built.
+    /// <para>
+    /// Not derived at emission: a static extension member is called by carrier name from any file,
+    /// so a name computed from the EMITTING unit is unreachable from the call site that needs it.
+    /// </para>
+    /// </summary>
+    public string CarrierName { get; internal set; } = "";
+
     /// <summary>The namespace this extension block belongs to.</summary>
     public string NamespaceName { get; }
 

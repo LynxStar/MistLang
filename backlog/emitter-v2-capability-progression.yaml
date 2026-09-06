@@ -5706,11 +5706,15 @@ capabilities:
       overload lookup dedupes by a signature key that excludes the return type. Standard's
       `owned String Clone()` and the CLR's `object Clone()` collide exactly that way.
 
-      samples/AssemblyTypeProvider now runs on v2 and matches classic, but is NOT banked: its
-      threshold is order 130, clr-nullable-projection, still `missing`. Whether that status is
-      understated is the two-fault question this leaves open -- the sample's own untested list says
-      "Every optional-projected result is consumed without narrowing", which is the shape of an edge
-      naming something the sample does not force.
+      samples/AssemblyTypeProvider runs on v2 byte-identical to classic. It was held back because
+      its threshold, order 130 clr-nullable-projection, was `missing`. THAT IS NOW RESOLVED AND THE
+      TWO-FAULT QUESTION HAD A THIRD ANSWER: the edge was right, the status was right, and the
+      capability was genuinely absent from BOTH pipelines -- so no sample could have exposed it and
+      no amount of reading the sample would have settled it. It took a probe outside the suite
+      (`int x = Environment.GetEnvironmentVariable("PATH")`, which typed as String, not
+      String | Void) to show the projection was missing rather than merely unexercised.
+
+      With 130 delivered the sample is BANKABLE.
     unlocks: [Attributes]
 
   - id: clr-generic-construction-and-members
@@ -5731,13 +5735,16 @@ capabilities:
       names as its threshold, so recording it unbuilt while the sample it unlocks was green is the
       contradiction the derived-status rule exists to make visible. Nothing was built for this entry.
 
-      RESIDUE, all of it named in the original evidence and none of it reached by any sample: INDEXER
-      resolution on a projected type (`list[0]` -- only `Add` and `Count` are exercised, so the
-      instance-method and property halves are proven and the indexer half is not), CROSS-ASSEMBLY
-      base-type projection with inherited lookup, and overload applicability filtered by ARGUMENT TYPE
-      rather than declaration order. That last one is the one to distrust: order 12's
+      RESIDUE, named in the original evidence: CROSS-ASSEMBLY base-type projection with inherited
+      lookup, and overload applicability filtered by ARGUMENT TYPE rather than declaration order.
+      That last one is the one to distrust: order 12's
       overload-resolution-by-argument-type is itself `partial`, and this file's opening note is about
       exactly the failure of assuming Roslyn's agreement downstream means the resolution happened here.
+
+      THE INDEXER HALF WAS RESIDUE AND NO LONGER IS. This entry said `list[0]` was "reached by no
+      sample" because ArityOverloads exercises only Add and Count. samples/AssemblyTypeProvider
+      does `list[0]`, runs clean on v2 and byte-identical to classic -- so the indexer half is
+      proven, and the claim was about the wrong sample rather than about the capability.
     unlocks: [ArityOverloads]
 
   - id: clr-byref-parameter-projection
@@ -5818,10 +5825,44 @@ capabilities:
     order: 130
     layer: clr-interop
     requires: [clr-assembly-type-projection, optional-union-representation]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       A CLR reference-type return projects to an optional, which then has to flow into
       interpolation and member access, forcing a decision about whether narrowing is required.
+
+      DELIVERED IN BOTH PIPELINES, and it was a soundness hole rather than a nicety. Mist has no
+      null; a reference the CLR hands back can be one anyway, and until 715e38c1/463a4445 it was
+      typed plain T -- a naked null inside a language whose optional discipline assumes there is
+      no such thing. Returns, properties, fields and indexer results are now `T | void`.
+
+      THE RULE IS DIRECTIONAL, and the direction is the whole design. Inbound is wrapped; outbound
+      parameters are NOT, because Mist has no null to send, so an outbound reference is non-null by
+      construction and a union there only gives overload resolution more candidates to be ambiguous
+      between. NRT annotations are ignored: an annotation is advisory, and a lying one is still a
+      naked null.
+
+      CLASSIC HAD IT EXACTLY INVERTED, which is why this was recorded `missing` against a pipeline
+      that appeared to have it. ProjectNullableType already implemented the intended rule, was
+      documented for "parameter type, return type, property type, field type", and cited
+      Requirements 14.1/14.2/14.5/14.6 -- with ONE call site, for parameters, feeding emitter
+      metadata only. The union existed in the one direction carrying no safety content and was
+      absent from every direction a null can arrive from.
+
+      THE GENERIC HALF NEEDED A SECOND MECHANISM (5b45d790, a1c66602). A parameter cannot be
+      wrapped at projection -- that would make List<int>'s element optional too -- so the decision
+      moves to substitution, while "the CLR could have put a null here" is knowable only at
+      projection. Classic carries that fact on a marked TypeParameterType; v2 carries it on
+      MemberModifiers.IsClrProjected, because v2 keys substitutions by REFERENCE and mutates
+      TypeParameter.Domain later, so a marked copy would miss its binding.
+
+      A Mist-declared generic is never wrapped, by construction rather than by heuristic.
+      samples/ArityOverloads declares `Wrapper<T> { public T Value; }` and is banked.
+    untested:
+      - A generic parameter substituting to another OPEN parameter stays open, so the hole survives
+        inside a Mist generic body over a CLR generic. Named and chosen, not measured against a
+        sample.
+      - CLR extension method returns go through ProjectMemberType and are not marked.
     unlocks: [AssemblyTypeProvider]
 
   - id: clr-extension-method-discovery
@@ -7903,9 +7944,14 @@ samples:
                clr-generic-construction-and-members, arrays-sized-index-length,
                string-interpolation]
     untested:
-      - Every optional-projected result is consumed without narrowing, so union discipline is
-        never forced.
+      - Every optional-projected result is consumed without narrowing, so union discipline is never
+        forced. This note PREDATES the projection existing -- it described intent, and until
+        715e38c1 no result here was optional at all. It is now literally true and still weak
+        exercise -- `greeting.ToUpper()` is String | void and reaches only an interpolation, which
+        accepts an optional -- so nothing here would fail if narrowing were dropped again.
       - The failing branch of the by-ref lookup is never taken.
+      - The TryGetValue call uses an Int32 out parameter, so the reference-typed out direction that
+        leaked a null until 26778e8d is not exercised by this sample either.
 
   - name: CSharpInteropV2
     intro_order: 72
@@ -8637,6 +8683,18 @@ measured_defects:
     so none of this is a regression against a red baseline. No sample directory was written
     to; every build was redirected elsewhere.
 
+    RE-TAKEN 2026-09-06 over all 29 currently-unbanked samples, tree green at 5751 tests.
+    silent_emission_failures confirmed at ZERO Roslyn errors. Two corrections came out of it and
+    both were measurement faults rather than status faults, so the method is amended:
+
+    1. COUNT FROM THE WHOLE BUILD OUTPUT, not per source file. Diagnostics scoped `<ambient>` carry
+       no .mist location, so a per-file classification silently counts zero for a sample that
+       emitted 228 of them -- which is how samples/Testing came to be recorded green.
+    2. USE THE RID-SPECIFIC CLI. Source/Mist.CLI/bin/Debug/net10.0/mist.dll is a STALE leftover
+       predating the --pipeline flag; the live build is under net10.0/win-x64/. The stale one exits
+       with "Unknown flag: --pipeline", which a script counting error LINES reads as a uniform
+       small failure across every sample rather than as a broken harness.
+
   silent_emission_failures:
     count: 7
     remaining: 0
@@ -8674,6 +8732,27 @@ measured_defects:
         loop. LookupImports now tiers on IAssembly.HasMistSource. Measured after: ClrRefInterop 7
         errors -> 2, RefStructs 43 -> 4, DisposableDropInterop 15 -> 2. None of the three banks yet;
         what changed is that their real residue is now visible instead of masked.
+
+    - defect: a type present in two reference assemblies is refused outright
+      recorded_on: clr-assembly-type-projection
+      gates: [Testing, CSharpInteropV2, DelegateFuncConversion]
+      status: OPEN
+      note: >
+        v2-ONLY, and now the largest single blocker on the unbanked set. AmbientTypeProviderV2
+        reports MIST_AMBIENT_DUPLICATE when a type FQN is already shelled, on the theory stated in
+        its own message -- "Remove the conflicting package" -- that this means conflicting NuGet
+        packages. It routinely does not: a framework reference pack and a NuGet package legitimately
+        carry the same type, which is what type forwarding is for. The descriptor's own summary says
+        "without type forwarding"; the code never checks for forwarding, only `shells.ContainsKey`.
+
+        Measured 2026-09-06: Testing 223, CSharpInteropV2 5, DelegateFuncConversion 4, all with
+        MIST_AMBIENT_UNRESOLVED alongside. CLASSIC BUILDS ALL THREE CLEAN, so this is a divergence
+        where v2 refuses what the contract accepts, not a gap. Classic's provider takes the first
+        and moves on.
+
+        SAME SHAPE AS THE STANDARD/SYSTEM BLOCKER ABOVE: it masks what those samples are actually
+        waiting for. CSharpInteropV2's 137 MIST_AMBIENT_UNRESOLVED are the bigger half of its
+        residue and cannot be read until this clears.
 
     - defect: no non-string argument is applicable to an `unknown` parameter
       recorded_on: overload-resolution-by-argument-type (order 26)
@@ -8754,6 +8833,71 @@ measured_defects:
           Any rule that picks a keyword from the resolved callee -- including ArgumentKeywords --
           inherits this: it will faithfully spell whatever the wrong callee wanted.
 
+      - defect: a CLR out parameter hands Mist a naked null and the program crashes
+        recorded_on: clr-nullable-projection (order 130)
+        status: FIXED
+        note: >
+          WORSE THAN THE OTHER TWO IN THIS SECTION, and in both pipelines rather than v2 only. This
+          did not print a wrong answer; it threw.
+
+            var dict = new Dictionary<string, string>();
+            string got = "";
+            dict.TryGetValue("missing", ref got);
+            Console.WriteLine(got.Length);   // NullReferenceException
+
+          Compiled clean on classic AND v2. Mist has no null, so `got` is a String that cannot be
+          absent -- and the CLR wrote one into it.
+
+          THE CAUSE WAS LOOKUP, NOT NULLABILITY, which is why staring at the projection never found
+          it. CollectMethodOverloads switched on ClassType/StructType/AbstractType with no arm for
+          ConstructedType, so a Dictionary<string,string> receiver produced NO candidates at all and
+          argument checking for a call on a constructed CLR receiver had simply never run. Roslyn
+          covered what it could, which is everything except nullability: C# is content with
+          `out string`. That is exactly why an `out int` type mismatch WAS caught and the null was
+          not.
+
+          Adding the arm turned three checks on for a shape they had never been run against, and
+          each needed the receiver's type arguments threaded in or it fired wrongly -- 111 new
+          diagnostics across 11 samples before the substitutions, none after. Scoped to CLR
+          receivers: admitting Mist-declared generics misjudged variadic packs, reporting a
+          lambda-body error for a Func variable in Bundle<...>.Map.
+
+  classic_defects_where_v2_is_correct:
+    note: >
+      A category this file had no home for. The clean-room rule makes classic's BEHAVIOR the
+      contract, so the default assumption is that a divergence means v2 is wrong. These are the
+      cases where measurement said otherwise, and v2 must NOT be made to match them. They are worth
+      recording because a future parity sweep will find each one and be tempted to "fix" v2.
+    entries:
+      - defect: overload specificity does not look inside a union
+        pipelines: classic wrong, v2 correct
+        status: OPEN
+        note: >
+          `sb.Append("x")` is refused as MIST_TC_0032, ambiguous between Append(Void | unknown) and
+          Append(String | Void) -- C# resolves it trivially. Reproduced with Mist-declared
+          overloads and no CLR involved: Take(unknown) vs Take(string) picks string, while
+          Take(Optional<unknown>) vs Take(Optional<string>) is ambiguous. The specificity rule works
+          on bare types and stops at the union boundary. v2 picks string in both.
+
+          Independent of the by-ref work: ref arguments use exact matching, so specificity never
+          runs for them.
+
+          WHY IT MATTERS DESPITE CLASSIC BEING REPLACED: samples must compile on classic to produce
+          baselines, so classic's defects constrain what any sample can contain. A sample wanting
+          `sb.Append("x")` cannot be written today.
+
+      - defect: diagnostics print their format placeholders
+        pipelines: classic
+        status: OPEN
+        note: >
+          Five descriptors reach a user as literal `{0}` / `{1}`, having been reported with no
+          arguments: MIST_UNDEFINED_MEMBER (TypeCheckDiagnostics, both `?.` sites),
+          MIST_ARRAY_REQUIRES_INITIALIZER, MIST_REF_0007, MIST_TC_0002 and MIST_TC_0032's
+          neighbours. Each is cheap to fix and each currently costs the reader the one fact the
+          message exists to carry. Found incidentally five separate times this session, which is the
+          argument for sweeping ReportAtNode call sites for missing arguments rather than fixing
+          them one at a time.
+
   true_silent_drops:
     note: >
       Represented in the model and dropped at emission with no diagnostic. Each was LATENT while no
@@ -8778,10 +8922,20 @@ measured_defects:
     entries:
       - sample: Testing
         threshold: mist-test-command (order 122, missing)
+        status: RETRACTED -- this entry was WRONG and the measurement that produced it was blind
         why_it_passes: >
-          Its own untested list says it: "Bodies compute over literals, so a build-only check passes
-          vacuously without the runner ever executing." The sample proves the TEST COMMAND, and the
-          command is what has not been built. Banking it would record a runner that never ran.
+          IT DOES NOT PASS. Measured 2026-09-06: samples/Testing emits 223 MIST_AMBIENT_DUPLICATE
+          plus 5 MIST_AMBIENT_UNRESOLVED on v2 and does not build at all. Classic builds it clean.
+
+          THE SWEEP THAT RECORDED IT GREEN COULD NOT SEE THOSE, which is the part worth keeping.
+          Every one is scoped `<ambient>` and carries no .mist file or line, so a per-sample
+          classification keyed on source location counted zero for it. This section exists to stop
+          a zero-error result being mistaken for progress, and it was itself founded on one.
+          RE-TAKING IT: count diagnostics from the whole build output, not per source file.
+
+          The original reasoning still stands for the day the ambient blocker clears -- the sample's
+          own untested list says "Bodies compute over literals, so a build-only check passes
+          vacuously without the runner ever executing" -- but it was never reached.
       - sample: UnknownReadonlySemantics
         threshold: readonly-mutation-checking (order 136, missing)
         why_it_passes: >
@@ -8791,19 +8945,32 @@ measured_defects:
           comments only", so the file contains none of the cases either capability would judge.
           Banking it would claim two analysis-phase rules on a sample that never reaches them.
     note_on_next_step: >
-      Neither is a status error to correct. Each needs the two-fault question asked when its
-      capability is next touched: is the requires edge naming something the sample does not use, or
-      is the sample missing the code that would use it? For both, the untested lists point at the
-      second.
+      UnknownReadonlySemantics still needs the two-fault question asked when its capability is next
+      touched: is the requires edge naming something the sample does not use, or is the sample
+      missing the code that would use it? Its untested list points at the second.
+
+      Testing needs no such question -- it needs the ambient blocker fixed, see
+      blocking_refusals. AssemblyTypeProvider left this list entirely: order 130 is delivered, so
+      it is now BANKABLE rather than green-for-the-wrong-reason, and runs byte-identical to classic
+      on both pipelines.
 
   recommended_response: >
-    A REFUSAL COMMIT BEFORE ANY FEATURE WORK, which is this project's own established pattern:
-    7123022c installed named refusals for ref returns and ref locals rather than letting them emit
-    a wrong answer, and feddfdf7 then cashed them in -- "The guards paid for this. Holding the line
-    at refuse-rather-than-drop forced every flag emission needed to be found and named."
+    DELIVERED, and kept because the pattern it argued for is the one to reuse. All three items
+    landed: refined types and dependent value parameters are refused at Mist source (orders 141 and
+    145, see silent_emission_failures.resolved) and the CLR out-direction shipped in order 128.
+    silent_emission_failures.remaining is 0 and stays 0 -- re-measured 2026-09-06, ZERO Roslyn
+    errors across all 29 unbanked samples, down from 491.
 
-    Refusing refined types, dependent value parameters and the CLR out-direction would restore the
-    zero-`broken` property honestly rather than by omission, replace 491 Roslyn errors with Mist
-    source locations, and de-risk the refinement, attribute and CLR-interop work at once. It banks
-    no sample, so it needs a ProgramModelProbe test plus a mutation check -- the pattern 699e289b
-    argued for and the last several commits have not used.
+    NEXT, in the order the evidence supports:
+
+    1. MIST_AMBIENT_DUPLICATE, see blocking_refusals. v2-only, gates three samples, and masks their
+       real residue exactly as the Standard/System blocker did. Nothing else on the unbanked set is
+       worth reading until it clears.
+    2. Lambda parameter type inference, MIST_PM_LAMBDA_PARAMETER_NO_TYPE. Five samples, and it banks
+       OptionalDefaultability outright, that being its only error.
+    3. AssemblyTypeProvider is bankable now -- order 130 delivered, byte-identical to classic on
+       both pipelines. Cheapest green on the board.
+
+    The measurement discipline matters more than the order: count diagnostics from the whole build
+    output, not per source file, or `<ambient>`-scoped refusals vanish -- which is how Testing came
+    to be recorded green while emitting 228 of them.

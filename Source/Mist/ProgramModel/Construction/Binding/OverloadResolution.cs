@@ -42,7 +42,8 @@ internal static class OverloadResolution
         IReadOnlyList<Expression> arguments,
         ConstructedType? receiver,
         IReadOnlyList<IMistType>? typeArguments,
-        TypeInterner interner)
+        TypeInterner interner,
+        IReadOnlyList<bool>? argumentIsRef = null)
         where T : Method
     {
         var receiverSubstitution = TypeSubstitution.ForReceiver(receiver);
@@ -106,7 +107,7 @@ internal static class OverloadResolution
         var applicable = new List<Applicant<T>>();
         foreach(var candidate in closed)
         {
-            if(IsApplicable(candidate, arguments, interner))
+            if(IsApplicable(candidate, arguments, argumentIsRef, interner))
             {
                 applicable.Add(candidate);
             }
@@ -234,11 +235,38 @@ internal static class OverloadResolution
         return true;
     }
 
-    private static bool IsApplicable<T>(Applicant<T> candidate, IReadOnlyList<Expression> arguments, TypeInterner interner)
+    /// <summary>
+    /// PASSING MODE IS PART OF APPLICABILITY, not decoration on top of it. A <c>ref</c> argument and a
+    /// by-value one are different arguments even when their types agree, so a by-ref and a by-value
+    /// overload of one name are only distinguishable here. Without this both bound to the by-value
+    /// candidate, and a program calling either printed the by-value answer with no diagnostic.
+    /// <para>
+    /// The modes must MATCH rather than merely be compatible: C# refuses a by-value argument to a
+    /// <c>ref</c> parameter (CS1620) as firmly as the reverse, and Mist's own grammar makes the call
+    /// site say which it means.
+    /// </para>
+    /// <para>
+    /// Flags are optional because a caller without an argument list has nothing to read them from. A
+    /// caller that omits them gets the type-only behaviour, which is what a lone candidate would have
+    /// received anyway -- applicability is consulted only from two candidates up.
+    /// </para>
+    /// </summary>
+    private static bool IsApplicable<T>(
+        Applicant<T> candidate,
+        IReadOnlyList<Expression> arguments,
+        IReadOnlyList<bool>? argumentIsRef,
+        TypeInterner interner)
         where T : Method
     {
         for(var i = 0; i < arguments.Count; i++)
         {
+            if(argumentIsRef is not null
+                && i < argumentIsRef.Count
+                && argumentIsRef[i] != candidate.Method.ParametersList[i].Modifier.IsRef)
+            {
+                return false;
+            }
+
             if(!ConversionRelation.IsImplicit(arguments[i].Type, ParameterType(candidate, i, interner)))
             {
                 return false;

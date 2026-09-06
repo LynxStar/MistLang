@@ -280,7 +280,8 @@ internal static class PostfixBinder
         var interner = context.ProgramModel.TypeInterner;
 
         var choice = OverloadResolution.Select(
-            group.Candidates, bound, group.ReceiverConstructed, typeArguments, interner);
+            group.Candidates, bound, group.ReceiverConstructed, typeArguments, interner,
+            ArgumentBinder.RefFlags(arguments));
 
         if(choice.Selected is not { } selected)
         {

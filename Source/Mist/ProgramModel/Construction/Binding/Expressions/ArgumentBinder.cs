@@ -16,6 +16,37 @@ namespace Mist.ProgramModel.Construction.Binding.Expressions;
 internal static class ArgumentBinder
 {
     /// <summary>
+    /// Which arguments were WRITTEN <c>ref</c>, positionally. Kept apart from the bound expressions
+    /// because it is not a property of an expression -- the same expression is a different argument
+    /// depending on the keyword in front of it -- and because only overload SELECTION needs it.
+    /// Emission reads the keyword back off the parameter that was chosen, so nothing downstream of
+    /// the choice has to carry this.
+    /// <para>
+    /// Empty when there is no argument list, which reads as "no argument is ref" for the zero
+    /// arguments there are.
+    /// </para>
+    /// </summary>
+    internal static IReadOnlyList<bool> RefFlags(ArgumentListNode? argumentList)
+    {
+        if(argumentList is null)
+        {
+            return [];
+        }
+
+        var flags = new List<bool>(1 + argumentList.Arguments.Length)
+        {
+            argumentList.Argument is RefArgumentArgumentNode,
+        };
+
+        foreach(var argument in argumentList.Arguments)
+        {
+            flags.Add(argument is RefArgumentArgumentNode);
+        }
+
+        return flags;
+    }
+
+    /// <summary>
     /// Binds each argument in <paramref name="argumentList"/> in order, or returns an
     /// empty list when the construct has no argument list at all (as in <c>f()</c>). Nothing targets
     /// the slots, for a caller with no candidates to read parameters off.

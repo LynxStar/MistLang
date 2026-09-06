@@ -214,8 +214,16 @@ internal sealed class CandidateSet
     }
 
     /// <summary>
-    /// Identifies an overload for shadowing purposes: generic arity plus parameter types. The name is
-    /// not part of it because every candidate here already matched the same name.
+    /// Identifies an overload for shadowing purposes: generic arity, then each parameter's passing
+    /// mode and type. The name is not part of it because every candidate here already matched the
+    /// same name.
+    /// <para>
+    /// PASSING MODE BELONGS IN THE KEY. Both Mist and C# let a by-ref and a by-value parameter of the
+    /// same type overload one another, so keying on types alone collapsed <c>M(int)</c> and
+    /// <c>M(ref int)</c> into one entry and silently discarded whichever was ordered second. Overload
+    /// resolution then had a single candidate, returned it without consulting applicability, and every
+    /// call to either printed the survivor's answer with no diagnostic.
+    /// </para>
     /// </summary>
     private static string SignatureKey(Method method)
     {
@@ -229,7 +237,8 @@ internal sealed class CandidateSet
                 _ = key.Append(',');
             }
 
-            _ = key.Append(method.ParametersList[i].Type.FullyQualifiedName);
+            var parameter = method.ParametersList[i];
+            _ = key.Append(parameter.Modifier.IsRef ? "ref " : "").Append(parameter.Type.FullyQualifiedName);
         }
 
         return key.Append(')').ToString();

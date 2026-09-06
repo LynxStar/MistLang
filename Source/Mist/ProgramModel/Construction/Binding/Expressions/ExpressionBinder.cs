@@ -285,7 +285,7 @@ internal static class ExpressionBinder
             node,
             type,
             arguments,
-            SelectConstructor(type, arguments, node, context),
+            SelectConstructor(type, arguments, ArgumentBinder.RefFlags(argumentList), node, context),
             ObjectInitializerBinder.Bind(initializer, type, ctx, context));
     }
 
@@ -330,7 +330,12 @@ internal static class ExpressionBinder
     /// passed on as the source of the arguments to substitute in.
     /// </para>
     /// </summary>
-    private static Constructor? SelectConstructor(IMistType type, IReadOnlyList<Expression> arguments, Storm.Runtime.SyntaxNode node, BuilderContext context)
+    private static Constructor? SelectConstructor(
+        IMistType type,
+        IReadOnlyList<Expression> arguments,
+        IReadOnlyList<bool> argumentIsRef,
+        Storm.Runtime.SyntaxNode node,
+        BuilderContext context)
     {
         var constructed = type as ConstructedType;
         var definition = ConstructionTarget(type);
@@ -341,7 +346,8 @@ internal static class ExpressionBinder
         }
 
         var choice = OverloadResolution.Select(
-            concrete.ConstructorsList, arguments, constructed, null, context.ProgramModel.TypeInterner);
+            concrete.ConstructorsList, arguments, constructed, null, context.ProgramModel.TypeInterner,
+            argumentIsRef);
 
         if(choice.Selected is null)
         {

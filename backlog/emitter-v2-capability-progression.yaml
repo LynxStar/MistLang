@@ -907,6 +907,25 @@ capabilities:
       through a partial that sample happens to touch. ExtensionMethods was 10 unresolved extension
       members plus this; it is now 10 plus the GetType cascade, so orders 111-114 are what remain.
 
+      PASSING MODE IS NOW PART OF SELECTION, which closes the wrong-answer defect this entry carried.
+      Two faults produced it and each had to be fixed for the other to matter. CandidateSet keyed a
+      signature on generic arity and parameter TYPES, so `M(int)` and `M(ref int)` collapsed into one
+      entry and the second was silently dropped as an override; overload resolution then had a lone
+      candidate, which it returns WITHOUT consulting applicability at all. And IsApplicable compared
+      types only, so even with both candidates present it could not have told them apart. Reverting
+      either fix alone fails exactly one test.
+
+      The call site's mode reaches selection through ArgumentBinder.RefFlags rather than through the
+      bound tree, because it is not a property of an expression -- the same expression is a different
+      argument depending on the keyword before it -- and because only SELECTION needs it. Emission
+      reads the keyword back off the parameter that was chosen (ArgumentKeywords, order 128), so
+      nothing downstream of the choice carries it.
+
+      THAT THE LONE CANDIDATE SKIPS APPLICABILITY IS WHY THIS COULD NOT REGRESS the banked suite:
+      every by-ref call site across all 44 has exactly one candidate. The modes must MATCH rather
+      than merely be compatible, since C# refuses a by-value argument to a `ref` parameter as firmly
+      as the reverse.
+
       STILL MISSING, none of it contradicting the above: generic method type-argument inference, so
       an open parameter cannot be matched and falls to the arity path; explicit type arguments, which
       MethodCallSuffix still drops; extension and ambient methods, which never enter the group at
@@ -8487,9 +8506,18 @@ measured_defects:
     note: >
       The worst category this file can record: v2 compiles clean and the program prints something
       other than what it means. Found while adversarially verifying order 128, not by any sample.
+      The one entry here is FIXED; it is kept because the shape is worth recognising again.
     entries:
       - defect: a by-ref call site binds to a BY-VALUE overload
         recorded_on: overload-resolution-by-argument-type (order 26)
+        status: FIXED
+        root_cause_was_deeper_than_diagnosed: >
+          The diagnosis was that the call site's `ref` is erased before selection. True, and not
+          sufficient: CandidateSet.SignatureKey keyed on parameter TYPES, so the two overloads
+          collapsed into ONE candidate before selection ran, and a lone candidate is returned without
+          consulting applicability at all. Fixing the erasure alone changed nothing -- measured, the
+          reproducer still printed the by-value answer -- because there was never a second candidate
+          to choose between. Both halves were needed.
         note: >
           With `M(int v)` and `M(ref int v)` both declared, ArgumentBinder erases the call site's
           `ref` before selection, so BOTH `M(a)` and `M(ref b)` bind to the by-value candidate. v2

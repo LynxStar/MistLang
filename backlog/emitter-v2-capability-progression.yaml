@@ -8737,7 +8737,29 @@ measured_defects:
     - defect: a type present in two reference assemblies is refused outright
       recorded_on: clr-assembly-type-projection
       gates: [Testing, CSharpInteropV2, DelegateFuncConversion]
-      status: OPEN
+      status: FIXED
+      resolved: >
+        First definition wins, silently. THE DIAGNOSTIC WAS ANSWERING A QUESTION CLASSIC NEVER ASKS:
+        classic resolves a type on demand and returns the first assembly whose namespace index has
+        the name, so a second definition is simply never reached. v2 shells every exported type
+        eagerly, which is what surfaces the collision -- so the collision belongs to v2's strategy
+        and is v2's to absorb. Type FORWARDING was already excluded by the loop above it; what
+        reached the check was the same name genuinely defined twice, which real package sets do.
+
+        Measured: Testing 223 duplicates -> 0, CSharpInteropV2 5 -> 0, DelegateFuncConversion 4 -> 0.
+        All 47 banked samples unaffected, both baselines matching on both pipelines.
+
+        NO UNIT TEST, and the reason is worth stating rather than hiding: reproducing it needs two
+        assemblies that define the same FQN without forwarding, which the runtime reference set does
+        not readily provide and which would take a crafted fixture pair. What replaces the test is
+        structural -- the DESCRIPTOR IS DELETED, so the diagnostic cannot return without someone
+        deliberately re-adding it.
+
+        WHAT IT WAS MASKING is now the top blocker, and it is a different defect: MIST_AMBIENT_UNRESOLVED,
+        Testing 5, CSharpInteropV2 137, DelegateFuncConversion 56. Types like
+        Microsoft.VisualStudio.TestPlatform.ObjectModel.ILazyPropertyValue and Xunit.Sdk.ITheoryData
+        are referenced from projected member signatures but were never shelled. Unchanged in count by
+        this fix, which is the evidence they are independent rather than downstream.
       note: >
         v2-ONLY, and now the largest single blocker on the unbanked set. AmbientTypeProviderV2
         reports MIST_AMBIENT_DUPLICATE when a type FQN is already shelled, on the theory stated in
@@ -8964,9 +8986,10 @@ measured_defects:
 
     NEXT, in the order the evidence supports:
 
-    1. MIST_AMBIENT_DUPLICATE, see blocking_refusals. v2-only, gates three samples, and masks their
-       real residue exactly as the Standard/System blocker did. Nothing else on the unbanked set is
-       worth reading until it clears.
+    1. MIST_AMBIENT_UNRESOLVED. MIST_AMBIENT_DUPLICATE above it is FIXED, and clearing it revealed
+       this underneath: 137 on CSharpInteropV2, 56 on DelegateFuncConversion, 5 on Testing. Types
+       referenced from projected signatures that were never shelled. Same position the duplicate
+       held -- nothing else on those three is worth reading until it clears.
     2. Lambda parameter type inference, MIST_PM_LAMBDA_PARAMETER_NO_TYPE. Five samples, and it banks
        OptionalDefaultability outright, that being its only error.
     3. DONE -- AssemblyTypeProvider is banked, 47th on AllFeaturesV2. It was the cheapest green on

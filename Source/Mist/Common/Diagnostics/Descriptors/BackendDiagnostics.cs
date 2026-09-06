@@ -69,16 +69,6 @@ public static class BackendDiagnostics
         "Failed to load assembly '{0}': {1}");
 
     /// <summary>
-    /// The same type (namespace + name) was found in multiple assemblies without
-    /// type forwarding. This typically indicates conflicting NuGet packages.
-    /// </summary>
-    public static readonly DiagnosticDescriptor DuplicateAmbientType = new(
-        new DiagnosticId("MIST_AMBIENT_DUPLICATE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.Driver,
-        "Type '{0}.{1}' is defined in multiple assemblies ('{2}' and others). Remove the conflicting package.");
-
-    /// <summary>
     /// A type referenced in a CLR assembly signature could not be resolved to
     /// any known ambient or Standard Library type during projection.
     /// </summary>

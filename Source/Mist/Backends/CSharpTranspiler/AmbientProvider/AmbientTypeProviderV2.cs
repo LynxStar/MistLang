@@ -176,17 +176,16 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
                     continue;
                 }
 
-                // Duplicate type in multiple assemblies without forwarding.
-                // Emit an error diagnostic — user likely has conflicting NuGet packages.
+                // FIRST DEFINITION WINS, SILENTLY, which is what classic resolves to. Classic never
+                // meets this question: it looks a type up on demand and returns the first assembly
+                // whose namespace index has the name. Shelling every exported type eagerly is what
+                // surfaces the collision, so the collision is v2's to absorb rather than to report.
+                // Type FORWARDING is already excluded above; what reaches here is the same name
+                // genuinely defined twice, which real package sets do -- 223 of them in
+                // samples/Testing alone, where the message's advice to remove a conflicting package
+                // named the test platform's own assemblies.
                 if(shells.ContainsKey(fqn))
                 {
-                    diagnostics.Report(
-                        BackendDiagnostics.DuplicateAmbientType,
-                        default,
-                        "<ambient>",
-                        (object?)ns,
-                        clrName,
-                        assembly.FilePath);
                     continue;
                 }
 
@@ -209,7 +208,7 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
     /// Protected nested types are projected for inheritance scenarios — a Mist subclass
     /// needs access to protected nested types to call protected methods that reference them.
     /// </summary>
-    private void CreateNestedShells(
+    private static void CreateNestedShells(
         Type declaringClrType,
         MistType declaringShell,
         string declaringClrFqn,
@@ -242,13 +241,6 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
 
             if(shells.ContainsKey(nestedClrFqn))
             {
-                diagnostics.Report(
-                    BackendDiagnostics.DuplicateAmbientType,
-                    default,
-                    "<ambient>",
-                    (object?)namespaceName,
-                    nestedClrType.Name,
-                    declaringClrType.FullName ?? "<unknown>");
                 continue;
             }
 

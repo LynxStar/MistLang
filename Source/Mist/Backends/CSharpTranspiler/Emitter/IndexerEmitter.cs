@@ -13,8 +13,9 @@ internal static class IndexerEmitter
         var modifiers = MemberModifierEmitter.Emit(
             indexer.Modifiers, emitReadonly: inStruct && indexer.Modifiers.IsReadonly);
         var type = TypeNameEmitter.Emit(indexer.Type);
-        var parameters = ParameterEmitter.Emit(indexer.ParametersList);
+        var parameters = ParameterEmitter.Emit(indexer.ParametersList, diagnostics);
 
+        AttributeEmitter.EmitLines(indexer.DeclaredAttributesList, writer, diagnostics);
         writer.WriteLine($"{modifiers}{type} this[{parameters}]");
         using(writer.Block())
         {

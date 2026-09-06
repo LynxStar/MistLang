@@ -30,11 +30,12 @@ internal static class ConstructorEmitter
         string? nameOverride = null)
     {
         var modifiers = ResolveModifiers(constructor, declaringType);
-        var parameters = ParameterEmitter.Emit(constructor.ParametersList);
+        var parameters = ParameterEmitter.Emit(constructor.ParametersList, diagnostics);
 
         // The name comes from the declaring type rather than the constructor, so it matches
         // whatever the type was emitted as -- bare, because a C# constructor carries no type
         // parameters even when its type declares them. See TypeEmitter.CleanName.
+        AttributeEmitter.EmitLines(constructor.DeclaredAttributesList, writer, diagnostics);
         writer.Write($"{modifiers}{nameOverride ?? TypeEmitter.CleanName(declaringType)}({parameters})");
 
         var loweredToCall = declaringType is StructType && structInitNames is not null;

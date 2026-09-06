@@ -43,6 +43,8 @@ internal sealed class EnumType(
     /// </summary>
     public List<AttributeData> AttributesList { get; } = [];
 
+    public List<DeclaredAttribute> DeclaredAttributesList { get; } = [];
+
     IMistType? IEnumType.UnderlyingType => UnderlyingType;
 
     IReadOnlyList<IEnumMember> IEnumType.Members => MembersList;

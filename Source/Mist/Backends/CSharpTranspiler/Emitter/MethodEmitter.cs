@@ -20,7 +20,8 @@ internal static class MethodEmitter
         var modifiers = MemberModifierEmitter.Emit(
             method.Modifiers, emitReadonly: inStruct && method.Modifiers.IsReadonly);
 
-        writer.WriteLine($"{modifiers}{EmitSignature(method)}");
+        AttributeEmitter.EmitLines(method.DeclaredAttributesList, writer, diagnostics);
+        writer.WriteLine($"{modifiers}{EmitSignature(method, diagnostics)}");
         ConstraintEmitter.Emit(method.TypeParametersList, writer);
         using(writer.Block())
         {
@@ -52,7 +53,7 @@ internal static class MethodEmitter
     /// interface member path in <see cref="TypeEmitter"/> so the two cannot disagree about
     /// what a method's signature contains.
     /// </summary>
-    internal static string EmitSignature(Method method)
+    internal static string EmitSignature(Method method, DiagnosticBag diagnostics)
     {
         // The one deliberate exception to Void emitting as Standard.Void: a return type takes
         // the native C# form, and the call-site lowering in BodyEmitter reconstructs the unit
@@ -66,7 +67,7 @@ internal static class MethodEmitter
         var typeParams = method.TypeParametersList.Count > 0
             ? $"<{string.Join(", ", method.TypeParametersList.Select(tp => tp.Name))}>"
             : "";
-        var parameters = ParameterEmitter.Emit(method.ParametersList);
+        var parameters = ParameterEmitter.Emit(method.ParametersList, diagnostics);
 
         return $"{returnType} {method.Name}{typeParams}({parameters})";
     }

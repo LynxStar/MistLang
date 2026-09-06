@@ -109,6 +109,8 @@ internal static class TypeEmitter
                 "[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]");
         }
 
+        AttributeEmitter.EmitLines(type.DeclaredAttributesList, writer, diagnostics);
+
         SlotLift.ReportUnboundedParameterized(type, diagnostics);
         SlotLift.ReportUnfilled(type, diagnostics);
 
@@ -287,7 +289,7 @@ internal static class TypeEmitter
 
     private static void EmitRestatedDefault(Method method, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        writer.WriteLine($"public {MethodEmitter.EmitSignature(method)}");
+        writer.WriteLine($"public {MethodEmitter.EmitSignature(method, diagnostics)}");
         using(writer.Block())
         {
             BodyEmitter.EmitBlock(method.Body!, writer, diagnostics);
@@ -354,7 +356,7 @@ internal static class TypeEmitter
     /// </summary>
     private static void EmitInterfaceMethod(Method method, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        var signature = MethodEmitter.EmitSignature(method);
+        var signature = MethodEmitter.EmitSignature(method, diagnostics);
 
         if(method.Body is null)
         {

@@ -45,6 +45,7 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
 
         var body = (BodyTypeTypeDeclarationNode)typeDef.DeclarationNode!;
         var modifiers = ModifierBuilder.Build(body.TypeBody, Context.Diagnostics, typeDef.DeclaringType);
+        Context.Attributes.Build(body.TypeBody.Attributes, typeDef.DeclaredAttributesList, typeDef.Scope);
 
         typeDef.Modifiers = modifiers;
 
@@ -150,6 +151,7 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
         }
 
         var field = new Field(name, type, ownership, modifiers) { Initializer = initializer };
+        Context.Attributes.Build(fieldDecl.Attributes, field.DeclaredAttributesList, typeDef.Scope);
         typeDef.FieldsList.Add(field);
     }
 

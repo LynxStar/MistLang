@@ -14,6 +14,8 @@ internal static class PropertyEmitter
             property.Modifiers, emitReadonly: inStruct && property.Modifiers.IsReadonly);
         var declaration = $"{modifiers}{TypeNameEmitter.Emit(property.Type)} {property.Name}";
 
+        AttributeEmitter.EmitLines(property.DeclaredAttributesList, writer, diagnostics);
+
         if(AccessorEmitter.IsBodiless(property.Getter) && AccessorEmitter.IsBodiless(property.Setter))
         {
             writer.Write($"{declaration} {{ {InlineAccessors(property)} }}");

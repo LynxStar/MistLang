@@ -74,6 +74,7 @@ internal sealed class MethodBuilder
         resolvedMethod.ContextBindingsList.AddRange(common.ContextBindings);
         resolvedMethod.DeclaredThisTier = common.DeclaredThisTier;
 
+        context.Attributes.Build(methodDecl.Attributes, resolvedMethod.DeclaredAttributesList, host.Scope);
         host.MethodsList.Add(resolvedMethod);
     }
 }

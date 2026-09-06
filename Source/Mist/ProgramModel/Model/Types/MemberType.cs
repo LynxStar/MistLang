@@ -52,6 +52,8 @@ internal abstract class MemberType : DeclaredType, IMemberType, IHasTypeParamete
     /// </summary>
     public List<AttributeData> AttributesList { get; } = [];
 
+    public List<DeclaredAttribute> DeclaredAttributesList { get; } = [];
+
     /// <summary>
     /// Abstracts that this type implements or refines.
     /// </summary>

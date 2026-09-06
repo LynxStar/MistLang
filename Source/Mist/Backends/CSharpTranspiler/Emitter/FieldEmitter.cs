@@ -37,6 +37,8 @@ internal static class FieldEmitter
         // declaration, and for two unrelated reasons. C# REFUSES a writable instance field on a
         // readonly struct (CS8340). And it has no `readonly class` at all, so on a class the field is
         // the only place the type's readonly-ness survives emission.
+        AttributeEmitter.EmitLines(field.DeclaredAttributesList, writer, diagnostics);
+
         var emittedModifiers = MemberModifierEmitter.Emit(
             modifiers, emitReadonly: modifiers.IsReadonly || inReadonlyType);
         var typeName = TypeNameEmitter.Emit(type);

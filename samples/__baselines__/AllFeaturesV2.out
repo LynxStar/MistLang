@@ -944,3 +944,12 @@ var_w=mist
 Extension Methods Demo
 System.String
 Int32
+--- Attributes Demo ---
+Config created: Attributes.Config
+Point created: (1, 2)
+TestAddition: 2
+TestSum(1,2): 3 == 3
+Formatter result: Hello: 42
+Settings timeout: 100
+LookupTable[0]: 99
+--- Attributes Demo End ---

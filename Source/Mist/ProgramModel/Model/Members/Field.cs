@@ -30,6 +30,8 @@ internal sealed class Field(
     /// </summary>
     public List<AttributeData> AttributesList { get; } = [];
 
+    public List<DeclaredAttribute> DeclaredAttributesList { get; } = [];
+
     /// <summary>
     /// The field initializer expression, or null if none. Also the sole holder of
     /// the field's AST node (via <see cref="Expression.Node"/>) when present.

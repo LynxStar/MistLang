@@ -37,7 +37,7 @@ internal static class ConformanceEmitter
                 switch(mapping)
                 {
                     case MethodMapping method:
-                        EmitMethod(method, interfaceName, writer);
+                        EmitMethod(method, interfaceName, writer, diagnostics);
                         break;
 
                     case PropertyMapping property:
@@ -48,14 +48,15 @@ internal static class ConformanceEmitter
         }
     }
 
-    private static void EmitMethod(MethodMapping mapping, string interfaceName, CSharpWriter writer)
+    private static void EmitMethod(
+        MethodMapping mapping, string interfaceName, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var slot = mapping.Target;
         var returnType = TypeNameEmitter.Emit(slot.ReturnType);
         var typeParams = slot.TypeParametersList.Count > 0
             ? $"<{string.Join(", ", slot.TypeParametersList.Select(tp => tp.Name))}>"
             : "";
-        var parameters = ParameterEmitter.Emit(slot.ParametersList);
+        var parameters = ParameterEmitter.Emit(slot.ParametersList, diagnostics);
         var arguments = string.Join(", ", slot.ParametersList.Select(parameter => parameter.Name));
 
         writer.WriteLine(

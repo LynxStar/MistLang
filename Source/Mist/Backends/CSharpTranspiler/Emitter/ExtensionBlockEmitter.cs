@@ -67,7 +67,7 @@ internal static class ExtensionBlockEmitter
 
         writer.WriteLine(
             $"public static {returnType} {method.Name}{TypeParameters(method, block)}"
-            + $"({Parameters(method.ParametersList, method.Modifiers.IsStatic, block, receiver)})");
+            + $"({Parameters(method.ParametersList, method.Modifiers.IsStatic, block, receiver, diagnostics)})");
 
         using(writer.Block())
         {
@@ -101,7 +101,7 @@ internal static class ExtensionBlockEmitter
         writer.WriteLine(
             $"public static {TypeNameEmitter.Emit(property.Type)} get_{property.Name}"
             + $"{TypeParameters(method: null, block)}"
-            + $"({Parameters([], property.Modifiers.IsStatic, block, receiver)})");
+            + $"({Parameters([], property.Modifiers.IsStatic, block, receiver, diagnostics)})");
 
         using(writer.Block())
         {
@@ -125,9 +125,13 @@ internal static class ExtensionBlockEmitter
     /// takes no receiver at all.
     /// </summary>
     private static string Parameters(
-        IReadOnlyList<Parameter> declared, bool isStatic, ExtensionBlock block, IMistType receiver)
+        IReadOnlyList<Parameter> declared,
+        bool isStatic,
+        ExtensionBlock block,
+        IMistType receiver,
+        DiagnosticBag diagnostics)
     {
-        var rest = ParameterEmitter.Emit(declared);
+        var rest = ParameterEmitter.Emit(declared, diagnostics);
 
         if(isStatic)
         {

@@ -55,6 +55,7 @@ internal sealed class ConstructorBuilder
 
         constructor.ContextBindingsList.AddRange(common.ContextBindings);
 
+        context.Attributes.Build(ctorDecl.Attributes, constructor.DeclaredAttributesList, concreteType.Scope);
         concreteType.ConstructorsList.Add(constructor);
     }
 

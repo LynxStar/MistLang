@@ -14,10 +14,12 @@ namespace Mist.ProgramModel.Construction.Members;
 internal sealed class ParameterBuilder
 {
     private readonly ScopeResolver scopeResolver;
+    private readonly AttributeBuilder attributeBuilder;
 
-    public ParameterBuilder(ScopeResolver scopeResolver)
+    public ParameterBuilder(ScopeResolver scopeResolver, AttributeBuilder attributeBuilder)
     {
         this.scopeResolver = scopeResolver;
+        this.attributeBuilder = attributeBuilder;
     }
 
     public List<Parameter> Resolve(ParameterListNode? paramList, Scope scope)
@@ -55,6 +57,9 @@ internal sealed class ParameterBuilder
                 ? ByRefDirection.None
                 : isReadonly ? ByRefDirection.In : ByRefDirection.Ref);
 
-        return new Parameter(name, type, modifier);
+        var parameter = new Parameter(name, type, modifier);
+        attributeBuilder.Build(param.Attributes, parameter.DeclaredAttributesList, scope);
+
+        return parameter;
     }
 }

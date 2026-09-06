@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Construction.Members;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Construction.Scaffolding;
 using Mist.ProgramModel.Contracts;
@@ -25,6 +26,7 @@ internal sealed class BuilderContext
         AmbientProvider = ambientProvider;
         programScope = new ProgramScope(programModel);
         Resolver = new ScopeResolver(this);
+        Attributes = new AttributeBuilder(this);
     }
 
     /// <summary>
@@ -58,6 +60,8 @@ internal sealed class BuilderContext
     /// syntax into types, variables, or other symbols via scope-based lookup.
     /// </summary>
     public ScopeResolver Resolver { get; }
+
+    public AttributeBuilder Attributes { get; }
 
     /// <summary>
     /// Extension block AST nodes collected during Phase 1.

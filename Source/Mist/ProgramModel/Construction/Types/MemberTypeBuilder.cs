@@ -42,7 +42,7 @@ internal abstract class MemberTypeBuilder
         BaseTypeResolver = new BaseTypeResolver(context, scopeResolver);
         ConstraintResolver = new ConstraintResolver(context, scopeResolver);
         var accessorBuilder = new AccessorBuilder(context);
-        ParameterBuilder = new ParameterBuilder(scopeResolver);
+        ParameterBuilder = new ParameterBuilder(scopeResolver, context.Attributes);
         DelegateResolver = new DelegateResolver(context, ParameterBuilder, scopeResolver);
         PropertyBuilder = new PropertyBuilder(context, scopeResolver, accessorBuilder);
         IndexerBuilder = new IndexerBuilder(context, scopeResolver, accessorBuilder, ParameterBuilder);

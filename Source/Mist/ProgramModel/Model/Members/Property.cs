@@ -23,6 +23,8 @@ internal sealed class Property(
     /// </summary>
     public List<AttributeData> AttributesList { get; } = [];
 
+    public List<DeclaredAttribute> DeclaredAttributesList { get; } = [];
+
     /// <summary>
     /// The getter accessor, or null if the property has no getter.
     /// </summary>

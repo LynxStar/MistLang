@@ -46,3 +46,4 @@ Iterators = { path = "../Iterators" }
 RefParameters = { path = "../RefParameters" }
 ClrRefInterop = { path = "../ClrRefInterop" }
 ExtensionMethods = { path = "../ExtensionMethods" }
+Attributes = { path = "../Attributes" }

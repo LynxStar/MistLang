@@ -23,6 +23,8 @@ internal sealed class Parameter(
     /// </summary>
     public List<AttributeData> AttributesList { get; } = [];
 
+    public List<DeclaredAttribute> DeclaredAttributesList { get; } = [];
+
     /// <summary>
     /// The adhoc refinement predicate AST node for this parameter, if any
     /// (from a <c>where paramName >= 0</c> clause). Null until resolved.

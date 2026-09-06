@@ -94,6 +94,7 @@ internal sealed class IndexerBuilder
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.EmptyAccessorList, indexerDecl, null, "indexer");
         }
 
+        context.Attributes.Build(indexerDecl.Attributes, indexer.DeclaredAttributesList, memberType.Scope);
         memberType.IndexersList.Add(indexer);
     }
 

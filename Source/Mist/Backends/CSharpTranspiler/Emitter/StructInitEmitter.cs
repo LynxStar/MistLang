@@ -91,7 +91,7 @@ internal static class StructInitEmitter
 
             TypeEmitter.SeparateMember(writer, ref anyEmitted);
 
-            var parameters = ParameterEmitter.Emit(constructor.ParametersList);
+            var parameters = ParameterEmitter.Emit(constructor.ParametersList, diagnostics);
             writer.WriteLine($"private void {names[ancestor.Definition]}({parameters})");
 
             using(writer.Block())

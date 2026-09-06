@@ -38,6 +38,7 @@ internal sealed class AbstractTypeBuilder : MemberTypeBuilder
 
         var body = (BodyTypeTypeDeclarationNode)typeDef.DeclarationNode!;
         var modifiers = ModifierBuilder.Build(body.TypeBody, Context.Diagnostics, typeDef.DeclaringType);
+        Context.Attributes.Build(body.TypeBody.Attributes, typeDef.DeclaredAttributesList, typeDef.Scope);
 
         typeDef.Modifiers = modifiers;
 

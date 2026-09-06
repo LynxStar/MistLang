@@ -1,3 +1,4 @@
+using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model.Members;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
@@ -7,7 +8,7 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// </summary>
 internal static class ParameterEmitter
 {
-    public static string Emit(IReadOnlyList<Parameter> parameters)
+    public static string Emit(IReadOnlyList<Parameter> parameters, DiagnosticBag diagnostics)
     {
         if(parameters.Count == 0)
         {
@@ -18,7 +19,8 @@ internal static class ParameterEmitter
         foreach(var parameter in parameters)
         {
             parts.Add(
-                $"{RefKeywords.For(parameter.Modifier.IsRef, parameter.Modifier.IsReadonly)}"
+                AttributeEmitter.Inline(parameter.DeclaredAttributesList, diagnostics)
+                + $"{RefKeywords.For(parameter.Modifier.IsRef, parameter.Modifier.IsReadonly)}"
                 + $"{TypeNameEmitter.Emit(parameter.Type)} {parameter.Name}");
         }
 

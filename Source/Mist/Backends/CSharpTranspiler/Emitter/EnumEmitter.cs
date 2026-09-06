@@ -31,6 +31,7 @@ internal static class EnumEmitter
 
         // Sealed because the variants ARE the type's population: a C#-side subclass could mint
         // values no Mist variant names, which every emitted comparison chain assumes cannot exist.
+        AttributeEmitter.EmitLines(type.DeclaredAttributesList, writer, diagnostics);
         writer.WriteLine($"{accessibility}sealed record class {type.Name}({underlying} Value)");
         using(writer.Block())
         {

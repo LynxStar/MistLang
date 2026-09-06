@@ -29,6 +29,8 @@ internal class Method(
     /// </summary>
     public List<AttributeData> AttributesList { get; } = [];
 
+    public List<DeclaredAttribute> DeclaredAttributesList { get; } = [];
+
     /// <summary>
     /// The type parameters declared on this method. Empty for non-generic methods.
     /// </summary>

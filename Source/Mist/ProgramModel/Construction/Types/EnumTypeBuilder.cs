@@ -31,6 +31,7 @@ internal sealed class EnumTypeBuilder
         var enumDecl = typeDef.DeclarationNode!;
 
         var modifiers = ModifierBuilder.Build(enumDecl, context.Diagnostics, typeDef.DeclaringType);
+        context.Attributes.Build(enumDecl.Attributes, typeDef.DeclaredAttributesList, typeDef.Scope);
 
         typeDef.Modifiers = modifiers;
 

@@ -493,29 +493,33 @@ capabilities:
     order: 14
     layer: object-model
     requires: [instance-fields]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
       ConstructorEmitter.Emit, and ProgramModelBuilder phase 3 now walks ConstructorsList.
       Before 6957888b constructor bodies were never bound at all.
 
-      DEMOTED FROM done 2026-09-05 ON A MEASURED DIVERGENCE. A constructor declared with NO
-      accessibility modifier emits `private` on v2 and `public` on classic. The two pipelines
-      disagree about the default, which makes this a LANGUAGE RULE nobody has written down rather
-      than an emitter slip -- neither register mentions the default accessibility of a declared
-      constructor, and the grammar permits the modifier to be absent.
+      THE DIVERGENCE THAT DEMOTED THIS ON 2026-09-05 IS FIXED. A constructor declared with NO
+      accessibility modifier emitted `private` on v2 and `public` on classic. It was a LANGUAGE RULE
+      nobody had written down rather than an emitter slip -- neither register mentioned the default
+      accessibility of a declared constructor, and the grammar permits the modifier to be absent.
+      Mist parts from C# here: a constructor defaults to public where every other member of a class
+      or struct defaults to private.
 
-      Every banked sample happens to spell its constructors `public`, which is why 43 green samples
-      have not caught it. samples/Attributes does not, and it is the sole reason that sample fails
-      on v2: the emitted `private Settings(int timeout)` makes the sample's own `new Settings(100)`
-      CS0122.
+      ModifierBuilder.DefaultAccessibility branches on the NODE, not on what Build produced, because
+      MemberModifiers records the resolved accessibility and not whether the author supplied one --
+      after Build returns, a defaulted private and a written private are the same value.
+      GetScopeDefault is untouched: CrossPipelineDefaultAgreementPropertyTests calls it directly and
+      asserts agreement per SCOPE KIND across nine generators, six of them on the ConcreteType arm,
+      so widening that arm would have broken them where a constructor-only branch flips none.
 
-      DO NOT FIX THIS ALONE. Attributes' 2 errors are entirely this defect, so repairing it makes
-      that sample build, run and match classic byte-for-byte while TWELVE attributes are silently
-      dropped -- classic emits 12 attribute lines for it, v2 emits 1 -- and the sample proves only
-      "it compiles and runs", with no reflection and no output line reflecting any attribute. That
-      is a banked sample over a `missing` capability, the exact fault cf43a41d was written to
-      eliminate, arrived at by accident. See order 117.
+      NO SAMPLE WITNESSES IT AND NONE CAN, which is why it also carries a unit test. All 45 samples
+      banked before this spelled every constructor public; samples/Attributes, the one source in the
+      tree that left one bare, is banked in the same shipment as the attribute work rather than on
+      this fix alone -- see order 117 for why that ordering was forced.
+      DeclarationDefaultAccessibilityTests pins both halves: reverting the branch fails 2 of its 5
+      cases, and the other 3 are the negative controls (an explicit private constructor, a
+      modifier-less method, a modifier-less field) which stay private either way.
     unlocks: []
 
   - id: this-expression
@@ -1140,9 +1144,19 @@ capabilities:
       resolving it four lines below -- and parents each FileScope onto that assembly's scope.
       All three recorded tasks are covered. A file inside a globally-used namespace resolving a type
       from the other one is GlobalUsings/Services/Formatter.mist reaching Product, and it works. The
-      redundant explicit using produces no error and no warning. The emission task is obsolete: v2
-      emits fully qualified type names, so it needs no using directives for its own types and has
-      nothing to deduplicate.
+      redundant explicit using produces no error and no warning.
+
+      THE EMISSION TASK WAS RECORDED AS OBSOLETE AND WAS NOT. "v2 emits fully qualified type names,
+      so it needs no using directives" holds for MIST-DECLARED types and for no others:
+      TypeNameEmitter.ShouldQualify returns false for every ambient type, on the assumption the
+      emitted usings cover its CLR namespace. So a file reaching a CLR type through a manifest
+      global using named it nowhere -- not in the file, not in the emitted usings, which copied only
+      unit.Usings -- and the name arrived in C# with nothing to bind it to. Measured with a probe
+      that declares `List<int>` under a manifest global using and no file-level one: bound clean,
+      then three MIST_CS_ERRORs. No sample could see it, because the only global usings in the tree
+      named Mist namespaces, which are exactly the case the claim was true for. EmitUsings now emits
+      the assembly's global usings alongside the file's; samples/Attributes is the standing witness,
+      and its failure mode is a build error, which Tier 6 does catch.
       Isolation is measured rather than assumed. AllFeaturesV2 declares no global usings of its own
       and now references GlobalUsings, which declares two. The orchestrator's first 2727 bytes are
       byte-identical to the baseline taken before it was added, so those two usings reached
@@ -5376,25 +5390,32 @@ capabilities:
     order: 117
     layer: attributes-and-project
     requires: [class-declaration]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      TypeEmitter drops AttributesList with no diagnostic. Targets include class, struct,
-      method, field, property, indexer and parameter, with multiple lists on one declaration
-      and multiple attributes per list preserved distinctly.
+      AttributeBuilder resolves every declaration's lists into DeclaredAttribute; AttributeEmitter
+      writes them. Targets covered: class, struct, enum, method, constructor, field, property,
+      indexer and parameter -- the parameter inline through ParameterEmitter, every other on lines
+      of its own.
 
-      A TRUE SILENT DROP, quantified 2026-09-05: classic emits 12 attribute lines for
-      samples/Attributes, v2 emits 1. Latent only because no BANKED sample declares an attribute.
+      THE ACCEPTANCE TEST IS NOT THE SAMPLE, decided before the work started. AttributeEmissionTests
+      asserts the emitted text for each of those nine targets plus argument forms, against a fixture
+      that declares its own Attribute base and so loads no CLR assembly. This was forced: the sample
+      proves attributes only by compiling -- no reflection, no output line reflects any of them --
+      so its stdout reads the same whether all fourteen are emitted or all fourteen are dropped,
+      which is what they were. Same shape as sealed-modifier in orphan_capabilities.
 
-      ITS SAMPLE IS ONE SMALL FIX AWAY FROM GOING GREEN WITHOUT IT. Attributes' only two v2 errors
-      are the constructor-accessibility divergence on order 14, nothing to do with attributes.
-      Repair that and the sample builds, runs and matches classic's stdout with all 12 attributes
-      dropped, because it proves attributes only by compiling -- no reflection, no output line
-      reflecting any attribute, which its own `untested` list already warns about.
+      BRACKET GROUPING IS NOT MODELLED, deliberately. `[A, B]` and `[A][B]` apply the same two
+      attributes, so v2 emits one line each where classic reproduces the author's grouping. The
+      emitted C# differs from classic's by that and by the resolved name -- v2 writes
+      ObsoleteAttribute where source wrote Obsolete -- and the compiled program does not.
 
-      SO THE ACCEPTANCE TEST FOR THIS CAPABILITY CANNOT BE ITS SAMPLE. It has to be a unit test on
-      emitted C#, decided before the work starts rather than after the sample is green. This is the
-      same shape as sealed-modifier in orphan_capabilities: a construct Tier 6's stdout comparison
-      is structurally unable to see.
+      A DEFECT FOUND AND FIXED WHILE BUILDING IT, in the category the file calls wrong answers.
+      C#'s suffix rule is a FILTER, not a first-hit fallback: `[Range(0, 100)]` must reach
+      RangeAttribute even though Range also resolves, to the slicing struct. A try-written-then-
+      suffixed rule binds that struct, and the mistake survives emission unseen, because the name
+      goes out as written and C# -- which does apply the filter -- then binds what the author meant.
+      Only the model would have been wrong, and nothing downstream would ever have said so.
     unlocks: []
 
   - id: attribute-arguments-and-type-literals
@@ -5402,11 +5423,29 @@ capabilities:
     order: 118
     layer: attributes-and-project
     requires: [attribute-declarations-and-targets]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       A dedicated argument sub-grammar exists specifically so a generic type name in
       argument position does not parse as a relational comparison. Mist has no typeof
       keyword, so a bare type name is recognized by classification and re-shaped at emission.
+
+      ARGUMENTS ARE BOUND EXPRESSIONS, NOT FOLDED CONSTANTS, which is why this cost almost nothing
+      beyond order 117. BodyEmitter already prints an expression, so unary minus, enum member access
+      and type literals all arrive free; evaluating them into values here would have meant writing a
+      constant folder that duplicates the emitter. That is also what forced DeclaredAttribute to be
+      a separate model type from AttributeData -- Expression is internal and AttributeData is a
+      public contract, so no one type can carry both a metadata value and an unevaluated expression.
+
+      THE ONE PLACE A BOUND ARGUMENT NEEDS RESHAPING is a bare type name. In an ordinary expression
+      it is nearly always the RECEIVER of a static member access, so binding settles on that reading
+      and emits the name unadorned; in argument position it is a value and must become typeof.
+      Nothing reports the difference -- every step of the binding succeeds -- so AttributeBuilder
+      reclassifies it rather than leaving C# that does not compile.
+
+      Covered by AttributeEmissionTests: positional order, a named argument, a keyword primitive as
+      a type literal, a constructed generic as a type literal, and a declaration with no arguments
+      emitting no parentheses.
     unlocks: []
 
   - id: generic-attributes
@@ -5414,8 +5453,15 @@ capabilities:
     order: 119
     layer: attributes-and-project
     requires: [attribute-declarations-and-targets, type-parameters-and-constructed-types]
-    v2_status: missing
-    evidence: Attributes applies a generic attribute and relies on the name-suffix convention.
+    v2_status: done
+    verified_by: v2-semantics
+    evidence: >
+      Attributes applies a generic attribute and relies on the name-suffix convention.
+
+      THE SUFFIX GOES ON BEFORE THE ARITY MANGLING. A generic attribute is registered as
+      JsonConverterAttribute<>, not JsonConverter<>Attribute: the suffix belongs to the identifier
+      and the angle brackets to the arity, so the order the two are applied in is the whole of what
+      makes the lookup hit. Pinned by AttributeEmissionTests.GenericAttribute_KeepsItsTypeArgument.
     unlocks: []
 
   - id: project-output-type-library
@@ -8561,17 +8607,17 @@ measured_defects:
 
   silent_emission_failures:
     count: 7
-    remaining: 1
+    remaining: 0
     samples: [RefinementTypes, RefinementComparison, DependentTypes,
               DependentTypeRefinementConstraints, AdhocRefinementConstraints,
               ArrayBoundsFlowAnalysis, Attributes]
     total_roslyn_errors: 491
     resolved: >
-      Six of the seven now report at Mist source instead, via UnspellableTypeGuard: orders 141 and
+      Six of the seven report at Mist source instead, via UnspellableTypeGuard: orders 141 and
       145 are refused rather than mis-emitted, which took 491 Roslyn errors against generated files
-      to a handful of MIST_BE_* diagnostics naming a .mist line. Only Attributes still fails
-      silently, and it always was a different defect -- the constructor-accessibility divergence on
-      order 14, not a refinement.
+      to a handful of MIST_BE_* diagnostics naming a .mist line. Attributes was always a different
+      defect -- the constructor-accessibility divergence on order 14, not a refinement -- and is now
+      banked, so this list is empty.
     note: >
       Zero Mist diagnostics between them. The compiler reports success and the user receives
       syntax errors in a file they never wrote. Contrast the well-behaved gaps -- Ownership and
@@ -8580,8 +8626,8 @@ measured_defects:
     root_causes:
       - Refined type names leak into emitted C# -- see order 141, now `broken`.
       - A dependent VALUE parameter is lowered to a C# TYPE parameter -- see order 145, now `broken`.
-      - Constructor default accessibility diverges from classic -- see order 14, now `partial`.
-        This one is Attributes' entire failure and has nothing to do with refinement.
+      - Constructor default accessibility diverges from classic -- see order 14, now `done`.
+        This one was Attributes' entire failure and had nothing to do with refinement.
 
   blocking_refusals:
     - defect: Standard and System cannot be imported together
@@ -8607,9 +8653,35 @@ measured_defects:
   wrong_answers:
     note: >
       The worst category this file can record: v2 compiles clean and the program prints something
-      other than what it means. Found while adversarially verifying order 128, not by any sample.
-      The one entry here is FIXED; it is kept because the shape is worth recognising again.
+      other than what it means. Neither entry was found by a sample -- the first while adversarially
+      verifying order 128, the second while regenerating a baseline for an unrelated shipment. The
+      by-ref one is FIXED and kept because the shape is worth recognising again. The enum one is
+      OPEN, and is the more alarming of the two: it is BANKED, and the baseline records the wrong
+      answer as expected output.
     entries:
+      - defect: every variant of an enum with a declared base type prints the FIRST variant's name
+        recorded_on: enum-with-readonly-base (order 134)
+        status: OPEN
+        note: >
+          samples/EnumReadonlyRestriction declares `enum Corner : Coordinate` and prints all four
+          variants. Classic prints TopLeft / TopRight / BottomLeft / BottomRight. v2 prints TopLeft
+          four times. Zero diagnostics either side, and the sample exits 0.
+
+          THE BASELINE RECORDS v2's ANSWER, so Tier 6 is green on it. git log -S dates that to
+          60ae348d, the commit that banked the sample: those three lines were captured from the
+          EXPERIMENTAL pipeline, not from classic. That contradicts what the register and
+          SamplesCompileAndMatchBaselineTest both state -- "the stored baseline was captured from
+          the classic pipeline, so it is pipeline-independent" -- and it is the mechanism by which a
+          wrong answer became recorded progress. Re-derived at HEAD with the working tree stashed
+          and rebuilt, so it is neither a local artifact nor attributable to any later shipment.
+
+          NOT A DEFECT IN THE BASELINE ALONE. Correcting the three lines to classic's output turns
+          Tier 6 red until the emitter is fixed, which is the right state for it to be in. The two
+          have to move together, and neither belongs in the shipment that found it.
+
+          WHAT THIS COSTS BEYOND THE THREE LINES: every future baseline regeneration is suspect. The
+          procedure that produced them regenerates from whichever pipeline is convenient, and
+          nothing in the test or the register enforces the classic capture it claims.
       - defect: a by-ref call site binds to a BY-VALUE overload
         recorded_on: overload-resolution-by-argument-type (order 26)
         status: FIXED
@@ -8640,15 +8712,18 @@ measured_defects:
 
   true_silent_drops:
     note: >
-      Represented in the model and dropped at emission with no diagnostic. Both are LATENT -- no
-      BANKED sample contains either construct, verified -- so neither is producing a wrong answer
-      today. Each becomes a false green the moment its sample is made to build for another reason.
+      Represented in the model and dropped at emission with no diagnostic. Each was LATENT while no
+      BANKED sample contained the construct, and each would have become a false green the moment its
+      sample was made to build for another reason. Two of the three are now closed; the entries stay
+      because the shape is what this section is for.
     entries:
-      - Attribute lists, order 117. Classic emits 12 attribute lines for samples/Attributes, v2 emits 1.
-      - Extension blocks, order 111. Built into MistNamespace.Extensions and never read by
-        CSharpEmitterV2, which walks unit.Types only.
-      - The sealed modifier -- see orphan_capabilities. Dropped by BOTH pipelines, so stdout
-        cannot see it and it is the one entry here classic does not get right either.
+      - Attribute lists, order 117. CLOSED -- v2 binds and emits every one, and samples/Attributes
+        is banked. It was the clearest instance of the shape, one small unrelated fix away from
+        going green with all fourteen attributes dropped.
+      - Extension blocks, order 111. CLOSED by 5938447c and b162c956. They were built into
+        MistNamespace.Extensions and never read by CSharpEmitterV2, which walked unit.Types only.
+      - The sealed modifier -- see orphan_capabilities. OPEN, and dropped by BOTH pipelines, so
+        stdout cannot see it and it is the one entry here classic does not get right either.
 
   recommended_response: >
     A REFUSAL COMMIT BEFORE ANY FEATURE WORK, which is this project's own established pattern:

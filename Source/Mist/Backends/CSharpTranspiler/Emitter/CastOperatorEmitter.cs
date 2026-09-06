@@ -17,7 +17,7 @@ internal static class CastOperatorEmitter
         var modifiers = MemberModifierEmitter.Emit(castOperator.Modifiers, emitReadonly: false);
         var kind = castOperator.IsImplicit ? "implicit" : "explicit";
         var targetType = TypeNameEmitter.Emit(castOperator.TargetType);
-        var parameters = ParameterEmitter.Emit(castOperator.ParametersList);
+        var parameters = ParameterEmitter.Emit(castOperator.ParametersList, diagnostics);
 
         writer.WriteLine($"{modifiers}{kind} operator {targetType}({parameters})");
         using(writer.Block())

@@ -47,5 +47,13 @@ public interface IAssembly
     /// </summary>
     IMistType? EntryPoint { get; }
 
+    /// <summary>
+    /// The implicit usings every file in this assembly resolves through, declared in the project's
+    /// <c>mist.toml</c>. On the contract because a backend needs them: a file reaching a CLR type
+    /// through one of these names it nowhere, so the emitted C# has no other record that the import
+    /// happened.
+    /// </summary>
+    IReadOnlyList<string> GlobalUsings { get; }
+
     IReadOnlyList<CompilationUnit> CompilationUnits { get; }
 }

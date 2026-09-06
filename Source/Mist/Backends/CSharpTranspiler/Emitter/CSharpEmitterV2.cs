@@ -154,7 +154,7 @@ internal sealed class CSharpEmitterV2
 
         var writer = new CSharpWriter();
 
-        EmitUsings(unit, writer);
+        EmitUsings(unit, assembly, writer);
 
         if(unit.HasTopLevelStatements && isTopLevelEntry)
         {
@@ -457,13 +457,20 @@ internal sealed class CSharpEmitterV2
         }
     }
 
-    private static void EmitUsings(CompilationUnit unit, CSharpWriter writer)
+    /// <summary>
+    /// A MANIFEST GLOBAL USING HAS TO BE EMITTED, not just resolved through. The file never spells
+    /// it, and an ambient type reached through one emits unqualified -- TypeNameEmitter leaves every
+    /// CLR name bare on the assumption the usings cover its namespace -- so without this the name
+    /// arrives in C# with nothing to bind it to. Mist-declared types are unaffected either way,
+    /// being emitted fully qualified, which is why the gap stayed invisible while only they used it.
+    /// </summary>
+    private static void EmitUsings(CompilationUnit unit, IAssembly assembly, CSharpWriter writer)
     {
         // Unconditional because TypeNameEmitter projects the Standard namespace onto C#
         // keywords and System types, so a file can reach System without naming it.
         var usings = new HashSet<string>(StringComparer.Ordinal) { "System" };
 
-        foreach(var ns in unit.Usings)
+        foreach(var ns in unit.Usings.Concat(assembly.GlobalUsings))
         {
             // Standard is Mist's stdlib namespace and has no C# counterpart to import --
             // its types arrive through the System projection above.

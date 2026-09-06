@@ -62,6 +62,8 @@ public sealed class MistAssembly(
         : globalUsings
         ;
 
+    IReadOnlyList<string> IAssembly.GlobalUsings => GlobalUsings;
+
     /// <summary>
     /// The well-known name of the standard library assembly. It coincides with the
     /// namespace every stdlib declaration lives in, but only coincidentally -- code that

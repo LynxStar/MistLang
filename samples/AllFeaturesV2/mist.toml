@@ -44,3 +44,4 @@ AsOperator = { path = "../AsOperator" }
 AssociatedTypes = { path = "../AssociatedTypes" }
 Iterators = { path = "../Iterators" }
 RefParameters = { path = "../RefParameters" }
+ClrRefInterop = { path = "../ClrRefInterop" }

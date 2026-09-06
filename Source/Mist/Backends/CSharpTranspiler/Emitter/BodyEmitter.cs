@@ -157,9 +157,9 @@ internal static class BodyEmitter
                 writer.Append(", ");
             }
 
-            if(parameters is not null && i < parameters.Count && parameters[i].Modifier.IsRef)
+            if(parameters is not null && i < parameters.Count)
             {
-                writer.Append("ref ");
+                writer.Append(ArgumentKeywords.For(parameters[i]));
             }
 
             EmitExpression(arguments[i], writer, diagnostics);

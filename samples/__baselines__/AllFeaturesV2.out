@@ -934,3 +934,10 @@ var_w=mist
 [ref-forward] 14
 [ref-struct-mutation] Point(3, 0)
 --- Ref Parameters Done ---
+--- CLR Ref Interop ---
+[ref-param] old=42, new=100
+[ref-param-add] result=15, counter=15
+[in-param] doubled=14, x=7
+[out-param] success=True, found=42
+[out-param-miss] success=False, missing=0
+--- CLR Ref Interop Done ---

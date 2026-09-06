@@ -5559,25 +5559,53 @@ capabilities:
     order: 128
     layer: clr-interop
     requires: [clr-assembly-type-projection]
-    v2_status: broken
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
       Mist has neither an out nor an in modifier, so all three CLR by-ref kinds collapse to
       one Mist ref kind and the calling convention must be retained per parameter and
       reconstructed at emission. Direction matters -- an out parameter means the callee
       assigns, so the caller's prior value is not live, even though the syntax matches ref.
 
-      MEASURED BROKEN 2026-09-05. Order 132 built the Mist-side ref path, and a call into a CLR
-      by-ref parameter now goes THROUGH it and emits the wrong keyword rather than nothing:
-      `dict.TryGetValue("hello", ref found)` where C# requires `out found`. The direction is not
-      retained, which is exactly what this entry says it must be. Two errors, both "Argument 2 must
-      be passed with the 'out' keyword", against the generated file.
+      THE OUT DIRECTION IS DELIVERED and ClrRefInterop is banked, byte-identical to classic.
+      ArgumentKeywords.For reads the keyword off the parameter an argument fills, which
+      EmitArguments already held -- order 132 threaded the callee through and nothing read it for
+      anything but a bare `ref`. NO MODEL CHANGE WAS NEEDED: AttributeProjector already synthesizes
+      an [Out] AttributeData from the CLR Out flag, described in its own comment as "the one form
+      the modifier cannot distinguish from a plain ref", and nothing had ever read it. Proven at the
+      emit site rather than inferred -- an instrumented clone printed
+      `attrs=[MaybeNullWhenAttribute|OutAttribute]` for TryGetValue's second argument and `attrs=[]`
+      for Interlocked's and for the Mist-declared helper's, and ablating the synthesis made the
+      marker vanish and the emitter fall back to `ref`.
 
-      ITS SAMPLE CANNOT SEE THIS TODAY, and that is the more important finding. ClrRefInterop was
-      read as the one unbanked sample a single capability from green, and it is not: all 7 of its
-      v2 errors are the import ambiguity recorded on order 29, and this entry's real residue is
-      exactly the two call sites above, reachable only once that is decided. Building this alone
-      leaves the sample exactly as red as it is now. `blocked_by` on the sample records the
-      pointer; the reasoning is here.
+      BOTH GUARDS ON THE OUT ARM ARE LOAD-BEARING, and neither is defensive programming; each was
+      measured against the .NET 10 reference pack. NOT-READONLY excludes `[In, Out] ref`, which is
+      mutable ref in C# and sets the Out flag anyway -- 43 such parameters in the WindowsDesktop
+      pack, where `out` is CS1620 and v2's existing `ref` is already right. BY-REF excludes a
+      by-VALUE parameter carrying [Out], a marshalling annotation that says nothing about calling
+      convention -- 9 in that pack, where `out` is CS1615. A two-branch cascade on the marker alone
+      would have regressed both.
+
+      `partial` FOR THE READONLY BY-REF DIRECTION, which is a projection gap rather than an
+      emission one. A genuine CLR `in` and an `[In] ref` reach the emitter as the SAME shape --
+      (IsRef, IsReadonly), no marker -- because AttributeProjector.ShouldSkip drops InAttribute and
+      IsReadOnlyAttribute, and the two need opposite keywords. Both spell `ref` today, which is
+      right for `[In] ref` and wrong for `in`: passing `ref` to a readonly location is CS8329, a
+      hard error, and a scratch program proves classic runs it while v2 refuses it. Closing it means
+      changing what projection retains -- stop folding IsIn into IsReadonly, or stop filtering
+      IsReadOnlyAttribute -- and only then can the keyword be chosen. `ref readonly` is separately
+      recoverable today via RequiresLocationAttribute, which does survive the filter.
+
+      NOTHING CAN CATCH THE READONLY BRANCH GOING WRONG: no banked sample has a readonly by-ref
+      argument, and CSharpCompilationDriver forwards only Roslyn Error-severity diagnostics, so
+      CS9191 and CS9192 are dropped entirely. That is why the branch is pinned by a unit test
+      instead of left to a sample.
+    tasks:
+      - Retain the CLR in-direction through projection, then emit `in` for it and keep `ref` for
+        `[In] ref`. Needs a projection change; the emission side is one arm of ArgumentKeywords.For.
+      - Decide whether a readonly by-ref ARGUMENT needs an is-this-a-location test. `in <rvalue>` is
+        CS8156, and v2 already mis-emits `ref <rvalue>` for a Mist-declared `readonly ref`
+        parameter, which is order 132's defect rather than this one's.
     unlocks: []
 
   - id: framework-and-package-reference-resolution
@@ -7690,7 +7718,6 @@ samples:
     threshold: ref-parameters-and-ref-locals
     requires: [ref-parameters-and-ref-locals, clr-byref-parameter-projection,
                clr-generic-construction-and-members, string-interpolation]
-    blocked_by: using-import-resolution
     untested:
       - The in-parameter case is declared as a plain ref, so that projection path is never
         exercised.
@@ -8449,6 +8476,31 @@ measured_defects:
       note: >
         Refuses `Console.WriteLine(7)`, which classic prints. Already carried its own one-task fix;
         what was new is that it is a prerequisite of Layer T, reachable from no `requires` edge.
+
+  wrong_answers:
+    note: >
+      The worst category this file can record: v2 compiles clean and the program prints something
+      other than what it means. Found while adversarially verifying order 128, not by any sample.
+    entries:
+      - defect: a by-ref call site binds to a BY-VALUE overload
+        recorded_on: overload-resolution-by-argument-type (order 26)
+        note: >
+          With `M(int v)` and `M(ref int v)` both declared, ArgumentBinder erases the call site's
+          `ref` before selection, so BOTH `M(a)` and `M(ref b)` bind to the by-value candidate. v2
+          emits `M(a)` and `M(b)`, builds with ZERO errors, and prints the by-value result twice --
+          classic prints one of each. No diagnostic anywhere.
+
+          Order 26's evidence already says the call site's ref is erased before binding, and treats
+          that as harmless because "C# requires the call site and the parameter to agree" (feddfdf7).
+          That holds when only one candidate exists. It fails exactly when a by-ref and a by-value
+          overload share a name, which is the case nobody had written.
+
+          Scope measured: ONE such overload group exists in the whole net10.0 BCL
+          (EventSource.Write<T>) and none in ASP.NET, so the CLR side is nearly unreachable. The
+          Mist-declared side is wide open and is what the reproducer uses.
+
+          Any rule that picks a keyword from the resolved callee -- including ArgumentKeywords --
+          inherits this: it will faithfully spell whatever the wrong callee wanted.
 
   true_silent_drops:
     note: >

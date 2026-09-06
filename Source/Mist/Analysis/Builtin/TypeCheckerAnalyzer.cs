@@ -10179,8 +10179,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         var memberSymbol = FindMemberSymbol(projectedType, optionalMemberAccess.Name.Lexeme, model);
                         if(memberSymbol is null)
                         {
-                            diagnostics.ReportAtNode(TypeCheckDiagnostics.UndefinedMember, optionalMemberAccess, "TypeChecker");
-                            currentType = ErrorType.Instance;
+                            // FindMemberSymbol reads declared member scopes only, so it cannot see an
+                            // extension member. The builder already resolved this suffix through the
+                            // extension registry, and a member that genuinely does not exist fails
+                            // there first -- Stage 4 errors abort the compile before Stage 5 runs.
+                            var builderMemberType = model.GetTypeOf(suffix);
+
+                            if(projectedType is UnknownType || builderMemberType is null or ErrorType)
+                            {
+                                diagnostics.ReportAtNode(TypeCheckDiagnostics.UndefinedMember, optionalMemberAccess, "TypeChecker");
+                                currentType = ErrorType.Instance;
+                                targetIsTypeName = false;
+                                break;
+                            }
+
+                            currentType = builderMemberType;
                             targetIsTypeName = false;
                             break;
                         }
@@ -10212,8 +10225,22 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         var methodSymbol = FindMemberSymbol(projectedType, optionalMethodCall.Name.Lexeme, model);
                         if(methodSymbol is null)
                         {
-                            diagnostics.ReportAtNode(TypeCheckDiagnostics.UndefinedMember, optionalMethodCall, "TypeChecker");
-                            currentType = ErrorType.Instance;
+                            var builderReturnType = model.GetTypeOf(suffix);
+
+                            if(projectedType is UnknownType || builderReturnType is null or ErrorType)
+                            {
+                                diagnostics.ReportAtNode(TypeCheckDiagnostics.UndefinedMember, optionalMethodCall, "TypeChecker");
+                                currentType = ErrorType.Instance;
+                                targetIsTypeName = false;
+                                break;
+                            }
+
+                            if(optionalMethodCall.Arguments is not null)
+                            {
+                                CheckArgumentListExpressions(optionalMethodCall.Arguments, model, diagnostics);
+                            }
+
+                            currentType = builderReturnType;
                             targetIsTypeName = false;
                             break;
                         }

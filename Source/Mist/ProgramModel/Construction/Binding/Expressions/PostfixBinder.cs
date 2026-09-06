@@ -398,6 +398,20 @@ internal static class PostfixBinder
             return new MethodGroupExpression(node, receiver, memberName, group.Methods, constructed);
         }
 
+        // C# has no extension property, so this access is not one in the output: it becomes a call
+        // to the carrier's generated getter. Reclassified here rather than at emission because the
+        // expression's TYPE comes from the property either way, and a node that still said "access"
+        // would have to be re-read as a call by everything downstream.
+        if(found is ExtensionPropertyResult extensionProperty)
+        {
+            return new ExtensionPropertyAccessExpression(
+                node,
+                receiver,
+                extensionProperty.Property,
+                extensionProperty.Block.CarrierName,
+                extensionProperty.Property.Type);
+        }
+
         // DeclaredType and not every resolved type: `Length` on an array is a type PARAMETER, and it
         // reaches C# only as a member access emitting `arr.Length` -- a type reference drops the receiver.
         if(found is TypeResult { Type: DeclaredType nested })
@@ -453,7 +467,8 @@ internal static class PostfixBinder
             : MemberVisibility.InstanceOnly
             ;
 
-        return MemberResolution.Resolve(receiverType, memberName, visibility, node, context, ctx.Scope);
+        return MemberResolution.Resolve(
+            receiverType, memberName, visibility, node, context, ctx.Scope, allowExtensionProperties: true);
     }
 
     /// <summary>

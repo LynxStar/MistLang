@@ -5253,22 +5253,38 @@ capabilities:
     order: 114
     layer: extensions
     requires: [extension-block-declaration, property-declarations-and-accessors]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       Get-only, lowering to static getter methods, which means the CALL SITE must be
       reclassified from a property access to an invocation. Extension properties do not
       exist in the emitted C# dialect.
 
-      HALF OF THIS IS ALREADY DELIVERED and the half that is not is the half this order names. Order
-      111 emits the getter: an extension property becomes `get_{Name}(this Receiver self)` on the
-      carrier, whether or not anything calls it. What does not exist is the RECLASSIFICATION, so
-      ExtensionLookup finds a matching property and then deliberately declines to answer with it --
-      an access reports unresolved rather than typing the expression from a member no emitted call
-      reaches. A half-answer here would be a silent wrong type, which is worse than the refusal.
+      DELIVERED IN TWO HALVES, one per commit. Order 111 emits the getter -- an extension property
+      becomes `get_{Name}(this Receiver self)` on the carrier, whether or not anything calls it --
+      and this order is the RECLASSIFICATION at the use.
 
-      NO LONGER THE THRESHOLD OF ANY SAMPLE. ExtensionMethods declares two extension properties and
-      accesses neither, so its requires edge on this order was removed rather than this order's
-      status being changed; see that sample's edge_note.
+      THE ACCESS IS NOT AN ACCESS IN THE OUTPUT. ExtensionPropertyAccessExpression is its own bound
+      node rather than a MemberAccessExpression, because the two do not emit alike: this one becomes
+      `Carrier.get_Name(receiver)`. The carrier is NAMED rather than left to C#'s own extension
+      lookup, which is what the method case relies on -- `get_IsEmpty` is a name the user never
+      wrote, so dot-notation on it would find nothing.
+
+      A CONDITIONAL ACCESS DELIBERATELY DOES NOT REACH IT. `receiver?.Prop` has no lowering here --
+      the short-circuit would have to wrap a static call -- so the lookup is asked not to answer with
+      a property on that path and the site reports unresolved instead. That is a flag rather than a
+      silent fallthrough because the fallthrough types the expression as ErrorType with no
+      diagnostic, which is the failure mode this whole layer has been closing.
+
+      NOT THE THRESHOLD OF ANY SAMPLE, and it was not made one by being delivered. ExtensionMethods
+      declares two extension properties and accesses neither, so its requires edge on this order was
+      removed rather than this order's status being changed; see that sample's edge_note. Nothing
+      here is exercised by a sample -- the tests are what carry it.
+    untested:
+      - No sample accesses an extension property, so the reclassification is proven by unit test and
+        by a scratch program, not by the banked suite.
+      - A conditional access on an extension property reports unresolved rather than being lowered.
+        That is deliberate and recorded, but it means the shape has no emission path at all.
     unlocks: []
 
   # ===================================================================

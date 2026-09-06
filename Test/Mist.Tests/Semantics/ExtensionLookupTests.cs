@@ -45,6 +45,8 @@ public sealed class ExtensionLookupTests : ProgramModelProbe
             {
                 return 0;
             }
+
+            public bool Tall => self.Legs > 2;
         }
 
         extension(Dog self)
@@ -114,6 +116,21 @@ public sealed class ExtensionLookupTests : ProgramModelProbe
     {
         // Both blocks declare Named; only the return type says which one was taken.
         Assert.Equal("Int32", ReturnTypeOf("dog.Named()"));
+    }
+
+    /// <summary>
+    /// An extension PROPERTY is not an access in the output. C# has no such member, so the site is
+    /// reclassified into a call to the carrier's generated getter -- named explicitly, because
+    /// `get_Tall` is a name the user never wrote and C#'s own extension lookup has nothing to find.
+    /// </summary>
+    [Fact]
+    public void AnExtensionPropertyBecomesACarrierCall()
+    {
+        var access = InitializerOf<ExtensionPropertyAccessExpression>("var chosen = dog.Tall;");
+
+        Assert.Equal("Tall", access.Property.Name);
+        Assert.Equal("Boolean", access.Type.Name);
+        Assert.EndsWith("Extensions_Program_0", access.CarrierName, StringComparison.Ordinal);
     }
 
     [Fact]

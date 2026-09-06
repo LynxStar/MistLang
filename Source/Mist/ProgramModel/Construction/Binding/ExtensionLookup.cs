@@ -19,7 +19,12 @@ namespace Mist.ProgramModel.Construction.Binding;
 internal static class ExtensionLookup
 {
     public static LookupResult Find(
-        IMistType receiver, string memberName, MemberVisibility visibility, Scope callSite, ProgramModelClass programModel)
+        IMistType receiver,
+        string memberName,
+        MemberVisibility visibility,
+        Scope callSite,
+        bool allowProperties,
+        ProgramModelClass programModel)
     {
         if(receiver is ErrorType or NotProjectedType)
         {
@@ -80,10 +85,24 @@ internal static class ExtensionLookup
             return new MethodGroupResult(methods);
         }
 
-        // A PROPERTY IS FOUND AND THEN DELIBERATELY NOT ANSWERED, so the access reports unresolved
-        // rather than half-resolving. C# has no extension property: the site has to be reclassified
-        // into an invocation of the carrier's generated getter, and nothing does that yet. Returning
-        // the property here instead would type the expression from a member no emitted call reaches.
+        // Answered only where the caller can RECLASSIFY the access into a call to the carrier's
+        // getter. A caller that cannot -- a conditional access, whose short-circuit has no lowering
+        // here -- gets a miss instead, so the site reports unresolved rather than being typed from a
+        // member no emitted call reaches.
+        if(allowProperties)
+        {
+            foreach(var block in winners)
+            {
+                foreach(var property in block.PropertiesList)
+                {
+                    if(property.Name == memberName)
+                    {
+                        return new ExtensionPropertyResult(property, block);
+                    }
+                }
+            }
+        }
+
         return new NotFoundResult();
     }
 

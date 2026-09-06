@@ -35,7 +35,8 @@ internal static class MemberResolution
         MemberVisibility visibility,
         SyntaxNode node,
         BuilderContext context,
-        Scope? callSite = null)
+        Scope? callSite = null,
+        bool allowExtensionProperties = false)
     {
         var constructed = type as ConstructedType;
 
@@ -51,7 +52,8 @@ internal static class MemberResolution
         // definition: an extension is declared for `Box<int>` or for `unknown`, never for `Box<,>`.
         if(found is NotFoundResult && callSite is not null)
         {
-            found = ExtensionLookup.Find(type, memberName, visibility, callSite, context.ProgramModel);
+            found = ExtensionLookup.Find(
+                type, memberName, visibility, callSite, allowExtensionProperties, context.ProgramModel);
         }
 
         Report(found, declaring, memberName, node, context);

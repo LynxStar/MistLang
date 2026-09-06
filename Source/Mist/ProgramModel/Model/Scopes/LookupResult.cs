@@ -66,3 +66,10 @@ internal sealed record StaticReceiverResult : LookupResult;
 internal sealed record AmbiguousResult(IReadOnlyList<LookupResult> Candidates) : LookupResult;
 
 internal sealed record NotFoundResult : LookupResult;
+/// <summary>
+/// A property found on an extension block rather than on the receiver's own type. Distinct from
+/// <see cref="PropertyResult"/> because C# has no extension property: the ACCESS becomes an
+/// invocation of the carrier's generated getter, so the site is reclassified rather than emitted as
+/// written, and the block comes along because only it knows the carrier's name.
+/// </summary>
+internal sealed record ExtensionPropertyResult(Property Property, ExtensionBlock Block) : LookupResult;

@@ -342,6 +342,15 @@ internal static class BodyEmitter
                 writer.Append($"{memberAccess.MemberName}{EmitTypeArguments(memberAccess.TypeArguments)}");
                 break;
 
+            // Named on the carrier rather than written as dot-notation, which is what the extension
+            // METHOD case relies on. That is not available here: `get_IsEmpty` is a name the user
+            // never wrote, so C#'s own extension lookup has nothing to find.
+            case ExtensionPropertyAccessExpression extensionProperty:
+                writer.Append($"{extensionProperty.CarrierName}.get_{extensionProperty.Property.Name}(");
+                EmitExpression(extensionProperty.Receiver, writer, diagnostics);
+                writer.Append(")");
+                break;
+
             case CoalesceExpression coalesce:
                 EmitExpression(coalesce.Left, writer, diagnostics);
                 writer.Append(" ?? ");

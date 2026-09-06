@@ -41,6 +41,11 @@ internal static class ConversionRelation
         from = Structural(from);
         to = Structural(to);
 
+        if(WidensToUnknown(from, to))
+        {
+            return true;
+        }
+
         if(IsIndeterminate(from) || IsIndeterminate(to))
         {
             return false;
@@ -189,6 +194,32 @@ internal static class ConversionRelation
             or LiftedType
             or RefinedType
             or MethodGroupType
+            ;
+    }
+
+    /// <summary>
+    /// Every value is a value of <c>unknown</c>, so containment INTO it holds for anything that is a
+    /// value at all. Answered ahead of <see cref="IsIndeterminate"/> rather than as an arm of the
+    /// switch below, because unknown is itself indeterminate and the bail would otherwise reject this
+    /// before it was asked.
+    /// <para>
+    /// APPLICABILITY IS NOT IDENTITY, which is why <see cref="IsIdentity"/> must keep excluding it.
+    /// Unknown admits everything, so it discriminates nothing and cannot rank two candidates; but the
+    /// question a parameter asks is whether the argument FITS, and for unknown the answer is always
+    /// yes. Excluding it there refused <c>Console.WriteLine(7)</c>, the most common call in the
+    /// language, which classic prints.
+    /// </para>
+    /// <para>
+    /// The exclusions are the things that are not values: void has one inhabitant and no
+    /// representation to widen, an error type would launder a failure into a resolution, and a method
+    /// group is a set of signatures awaiting selection rather than something to convert.
+    /// </para>
+    /// </summary>
+    private static bool WidensToUnknown(IMistType from, IMistType to)
+    {
+        return to is UnknownType
+            && from is not (ErrorType or MethodGroupType or NotProjectedType)
+            && !OptionalUnion.IsVoid(from)
             ;
     }
 

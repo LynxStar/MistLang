@@ -890,16 +890,22 @@ capabilities:
       answer is always yes. NO SAMPLE CATCHES THIS: every banked one routes output through string
       interpolation, so `WriteLine` is only ever called on a string.
 
-      IT DOES, HOWEVER, BLOCK UNBANKED ONES, measured 2026-09-05 across all 32: ExtensionMethods
-      hits it once and Variadics twice. That makes this a PREREQUISITE OF LAYER T rather than an
-      independent nicety -- ExtensionMethods' 11 errors are 10 unresolved extension members plus
-      this, so orders 111-114 delivered alone leave that sample red and the layer unbankable.
-      Anyone scoping extensions from this file's `requires` edges will not see that, because the
-      dependency runs through a `partial` this sample happens to touch rather than through an edge.
+      DELIVERED. ConversionRelation.WidensToUnknown answers containment INTO unknown ahead of the
+      indeterminate bail, which is why the arm has to sit before the guard rather than inside the
+      switch: unknown is itself indeterminate, so the bail rejected the question before it was
+      asked. IsIdentity still excludes it, as this entry required -- applicability asks whether an
+      argument fits, identity ranks candidates, and a type admitting everything ranks nothing.
+      `Console.WriteLine(7)`, `(3.5)` and `(true)` now print on v2.
 
-      The fix is this entry's own first task and the direction is monotone -- admitting a conversion
-      turns refusals into resolutions and never the reverse -- so it is about as cheap and as safe
-      as work in this file gets, sitting under all 43 green samples.
+      The exclusions are the things that are not values: void has one inhabitant and no
+      representation to widen, a method group is a set of signatures awaiting selection, and an
+      ERROR type would launder a failure into a resolution. That last is load-bearing rather than
+      tidy -- samples/ExtensionMethods calls `Console.WriteLine(value.GetType())` where GetType does
+      not resolve, and its WriteLine diagnostic correctly survives as a cascade of that.
+
+      IT WAS A PREREQUISITE OF LAYER T, which no `requires` edge showed, because the dependency ran
+      through a partial that sample happens to touch. ExtensionMethods was 10 unresolved extension
+      members plus this; it is now 10 plus the GetType cascade, so orders 111-114 are what remain.
 
       STILL MISSING, none of it contradicting the above: generic method type-argument inference, so
       an open parameter cannot be matched and falls to the arity path; explicit type arguments, which

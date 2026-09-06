@@ -195,6 +195,29 @@ public sealed class ClrInboundOptionalTests
         Assert.Contains("is Task<String> x", await_.Message, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// A CLR out parameter of reference type is projected optional, so the ONLY local that can be
+    /// passed to it is an optional one -- and that was the one ref-argument checking refused, having
+    /// compared the argument against the parameter's non-void portion. Both forms failed, which made
+    /// every such method uncallable.
+    /// <para>
+    /// THIS IS A REACHABILITY FIX AND NOT THE NULL FIX IT LOOKS LIKE. Nothing could receive a null
+    /// through a non-generic out parameter before, because nothing could call one. The null hole is
+    /// the GENERIC case -- Dictionary's TryGetValue, the one everybody writes -- where the parameter
+    /// symbols this check reads are never substituted for the receiver's type arguments, so TValue
+    /// arrives unclosed, matches a plain local, and the CLR writes a null into it. Still open.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void AClrReferenceOutParameter_IsCallableWithAnOptionalLocal()
+    {
+        Assert.Empty(Errors("""
+                    System.Uri? u = void;
+                    bool ok = System.Uri.TryCreate("http://x/", System.UriKind.Absolute, ref u);
+                    Console.WriteLine($"{ok} {u?.Host}");
+            """));
+    }
+
     [Fact]
     public void AReferenceArgumentSentToTheClr_NeedsNoNarrowing()
     {

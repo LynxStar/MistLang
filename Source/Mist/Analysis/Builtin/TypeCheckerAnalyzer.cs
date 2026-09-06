@@ -18541,13 +18541,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool RefTypesCompatible(IType argType, IType paramType)
     {
-        // Strip nullable union: if paramType is T | void, compare against T.
-        if(paramType is UnionType paramUnion && paramUnion.Constituents.Count == 2
-            && paramUnion.Constituents.Any(c => c.IsVoid()))
-        {
-            paramType = paramUnion.Constituents.First(c => !c.IsVoid());
-        }
-
         // For arrays, use assignability (handles sized → unsized).
         if(argType is ArrayType && paramType is ArrayType)
         {

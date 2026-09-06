@@ -1,5 +1,5 @@
 using Mist.Backends.CSharpTranspiler.Emitter;
-using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
@@ -8,84 +8,36 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.Tests.Backend;
 
 /// <summary>
-/// The by-ref keyword an argument takes, one case per row of the CLR truth table. Mist has one
-/// by-ref spelling and C# has three, so this mapping is the whole of what the call site cannot say
-/// for itself.
+/// The keyword an argument takes, one arm per by-ref direction. Mist has one by-ref spelling and C#
+/// has three, so this mapping is the whole of what a call site cannot say for itself.
 /// <para>
-/// A unit test rather than a sample, because five of these six rows cannot be written in Mist at
-/// all -- they are shapes a CLR signature carries and Mist source has no syntax for. The one that
-/// can be, ClrRefInterop, is banked and covers rows 2, 3 and 6 end to end.
+/// Thin on purpose. Deciding what a parameter IS belongs upstream, where the evidence is -- see the
+/// truth table in AmbientTypeProviderV2AttributeProjectionTests, which drives the real projector
+/// over real metadata. An earlier version of this file inferred the direction here from the
+/// modifier flags, which cannot be done correctly: a genuine <c>in</c> and an <c>[In] ref</c> arrive
+/// as the same flags and need opposite keywords.
 /// </para>
 /// </summary>
 public sealed class ArgumentKeywordsTests
 {
-    private static Parameter Param(bool isRef, bool isReadonly, bool markedOut)
+    private static Parameter Param(ByRefDirection direction)
     {
-        var parameter = new Parameter(
+        var isRef = direction != ByRefDirection.None;
+
+        return new Parameter(
             "p",
             new ClassType("Int32", "Standard", new Scope(null), null, null),
-            new ParameterModifier(isReadonly, isRef, OwnershipKind.Unrestricted));
-
-        if(markedOut)
-        {
-            parameter.AttributesList.Add(new AttributeData(
-                new ClassType("OutAttribute", "System.Runtime.InteropServices", new Scope(null), null, null),
-                [],
-                []));
-        }
-
-        return parameter;
+            new ParameterModifier(
+                direction == ByRefDirection.In, isRef, OwnershipKind.Unrestricted, direction));
     }
 
-    [Fact]
-    public void ByValue_TakesNoKeyword()
+    [Theory]
+    [InlineData(ByRefDirection.None, "")]
+    [InlineData(ByRefDirection.Ref, "ref ")]
+    [InlineData(ByRefDirection.In, "in ")]
+    [InlineData(ByRefDirection.Out, "out ")]
+    public void EachDirectionTakesItsKeyword(ByRefDirection direction, string expected)
     {
-        Assert.Equal("", ArgumentKeywords.For(Param(isRef: false, isReadonly: false, markedOut: false)));
-    }
-
-    [Fact]
-    public void PlainByRef_TakesRef()
-    {
-        Assert.Equal("ref ", ArgumentKeywords.For(Param(isRef: true, isReadonly: false, markedOut: false)));
-    }
-
-    [Fact]
-    public void OutParameter_TakesOut()
-    {
-        Assert.Equal("out ", ArgumentKeywords.For(Param(isRef: true, isReadonly: false, markedOut: true)));
-    }
-
-    /// <summary>
-    /// <c>[In, Out] ref</c> is mutable <c>ref</c> in C# and sets the CLR Out flag anyway. COM interop
-    /// declares 43 such parameters in the WindowsDesktop reference pack, and <c>out</c> is CS1620
-    /// against every one of them. The not-readonly guard is what keeps this row at <c>ref</c>.
-    /// </summary>
-    [Fact]
-    public void ReadonlyByRefMarkedOut_StaysRef()
-    {
-        Assert.Equal("ref ", ArgumentKeywords.For(Param(isRef: true, isReadonly: true, markedOut: true)));
-    }
-
-    /// <summary>
-    /// <c>[Out]</c> on a BY-VALUE parameter is a marshalling annotation and says nothing about the
-    /// calling convention; nine such parameters exist in that same pack, where <c>out</c> is CS1615.
-    /// The by-ref guard is what keeps this row empty.
-    /// </summary>
-    [Fact]
-    public void ByValueMarkedOut_TakesNoKeyword()
-    {
-        Assert.Equal("", ArgumentKeywords.For(Param(isRef: false, isReadonly: false, markedOut: true)));
-    }
-
-    /// <summary>
-    /// The readonly by-ref directions deliberately stay at <c>ref</c>. A genuine CLR <c>in</c> and an
-    /// <c>[In] ref</c> reach this function as the same shape, because projection filters both
-    /// InAttribute and IsReadOnlyAttribute, and they need opposite keywords. Pinned so that changing
-    /// it is a decision rather than an accident.
-    /// </summary>
-    [Fact]
-    public void ReadonlyByRef_StaysRef()
-    {
-        Assert.Equal("ref ", ArgumentKeywords.For(Param(isRef: true, isReadonly: true, markedOut: false)));
+        Assert.Equal(expected, ArgumentKeywords.For(Param(direction)));
     }
 }

@@ -1,4 +1,5 @@
 using System.Reflection;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
@@ -48,32 +49,82 @@ internal static class ParameterProjector
     }
 
     /// <summary>
-    /// Builds the parameter modifier from CLR metadata. CLR carries no ownership tier, so the
-    /// tier is always <see cref="OwnershipKind.Unrestricted"/>. <c>ref</c> sets <c>IsRef</c>;
-    /// <c>in</c> (and <c>ref readonly</c>) additionally set <c>IsReadonly</c>. The CLR calling
-    /// convention itself (in/out) is preserved separately by the projected attributes.
+    /// Builds the parameter modifier from CLR metadata. CLR carries no ownership tier, so the tier
+    /// is always <see cref="OwnershipKind.Unrestricted"/>.
+    /// <para>
+    /// IsReadonly FOLLOWS THE DIRECTION rather than being decided beside it, so the two cannot
+    /// disagree. It used to be read straight off the <c>In</c> metadata flag, which is set by a
+    /// mutable <c>[In] ref</c> as readily as by a genuine <c>in</c>, and that made every COM-style
+    /// interop parameter look readonly.
+    /// </para>
     /// </summary>
     private static ParameterModifier BuildModifier(ParameterInfo parameter)
     {
         var isRef = parameter.ParameterType.IsByRef;
-        var isReadonly = isRef && IsReadonlyByRef(parameter);
-        return new ParameterModifier(isReadonly, isRef, OwnershipKind.Unrestricted);
+        var direction = DirectionOf(parameter, isRef);
+
+        return new ParameterModifier(
+            direction == ByRefDirection.In, isRef, OwnershipKind.Unrestricted, direction);
     }
 
     /// <summary>
-    /// Determines whether a by-ref parameter is readonly (a CLR <c>in</c> or <c>ref readonly</c>
-    /// parameter), detected via the <c>In</c> metadata flag or the <c>IsReadOnly</c> required
-    /// custom modifier.
+    /// The calling convention a by-ref parameter demands, which the metadata flags alone do not give.
+    /// <para>
+    /// THE In FLAG IS NOT READONLY-NESS. It is set by a genuine <c>in</c>, by <c>ref readonly</c>,
+    /// and equally by <c>[In] ref</c> and <c>[In, Out] ref</c> -- interop annotations on a parameter
+    /// that stays an ordinary mutable <c>ref</c>. Reading the flag as readonly marks 43 such COM
+    /// parameters in the WindowsDesktop reference pack readonly, and each then takes the wrong
+    /// keyword. Only a readonly MARKER settles it: the compiler emits IsReadOnly for <c>in</c> and
+    /// RequiresLocation for <c>ref readonly</c>, and neither appears on a mutable ref.
+    /// </para>
+    /// <para>
+    /// Out is tested first and excludes In, because <c>[In, Out] ref</c> sets both flags and is a
+    /// <c>ref</c>: an out parameter is the one whose caller value is not live, which that is not.
+    /// </para>
     /// </summary>
-    private static bool IsReadonlyByRef(ParameterInfo parameter)
+    private static ByRefDirection DirectionOf(ParameterInfo parameter, bool isRef)
     {
-        if(parameter.IsIn)
+        if(!isRef)
         {
-            return true;
+            return ByRefDirection.None;
         }
 
-        return parameter.GetRequiredCustomModifiers()
-            .Any(modifier => modifier.FullName == "System.Runtime.CompilerServices.IsReadOnlyAttribute");
+        if(parameter.IsOut && !parameter.IsIn)
+        {
+            return ByRefDirection.Out;
+        }
+
+        return HasReadonlyMarker(parameter) ? ByRefDirection.In : ByRefDirection.Ref;
+    }
+
+    /// <summary>
+    /// The two markers that mean a by-ref parameter genuinely cannot be written through:
+    /// <c>IsReadOnly</c> for C# <c>in</c>, and <c>RequiresLocation</c> for <c>ref readonly</c>.
+    /// Both arrive as required custom modifiers or as attributes depending on the compiler that
+    /// produced the assembly, so both surfaces are checked.
+    /// </summary>
+    private static bool HasReadonlyMarker(ParameterInfo parameter)
+    {
+        const string isReadOnly = "System.Runtime.CompilerServices.IsReadOnlyAttribute";
+        const string requiresLocation = "System.Runtime.CompilerServices.RequiresLocationAttribute";
+
+        foreach(var modifier in parameter.GetRequiredCustomModifiers())
+        {
+            if(modifier.FullName is isReadOnly or requiresLocation)
+            {
+                return true;
+            }
+        }
+
+        foreach(var attribute in parameter.GetCustomAttributesData())
+        {
+            if(attribute.AttributeType.FullName is isReadOnly or requiresLocation)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

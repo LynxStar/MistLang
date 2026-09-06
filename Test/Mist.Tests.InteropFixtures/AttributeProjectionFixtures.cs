@@ -105,6 +105,32 @@ public class AttributeProjectionTarget
         value = Number;
     }
 
+    /// <summary>
+    /// A mutable <c>ref</c> carrying the interop <c>[In]</c> annotation. Its metadata In flag is set
+    /// exactly as a real <c>in</c> parameter's is, and it still requires <c>ref</c> at a call site --
+    /// which is why the flag alone cannot be read as readonly-ness. COM declares 43 of these in the
+    /// WindowsDesktop reference pack.
+    /// </summary>
+    public void MutateMarkedIn([System.Runtime.InteropServices.In] ref int value)
+    {
+        value = Number;
+    }
+
+    /// <summary>
+    /// Both interop flags on one mutable <c>ref</c>. Sets the Out flag as well, so an out-test that
+    /// does not exclude In would take it for an <c>out</c> parameter and emit the wrong keyword.
+    /// </summary>
+    public void MutateMarkedInOut(
+        [System.Runtime.InteropServices.In][System.Runtime.InteropServices.Out] ref int value)
+    {
+        value = Number;
+    }
+
+    public int ReadRefReadonly(ref readonly int value)
+    {
+        return value;
+    }
+
     public int CountParams(params string[] values)
     {
         return values.Length;

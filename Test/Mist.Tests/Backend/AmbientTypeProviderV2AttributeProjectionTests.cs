@@ -100,21 +100,41 @@ public sealed class AmbientTypeProviderV2AttributeProjectionTests(
 
         // 'in' => readonly + ref. The convention lives entirely in the modifier; no attribute is stored.
         Assert.Equal(
-            new ParameterModifier(IsReadonly: true, IsRef: true, OwnershipKind.Unrestricted),
+            new ParameterModifier(IsReadonly: true, IsRef: true, OwnershipKind.Unrestricted, ByRefDirection.In),
             inParameter.Modifier);
         Assert.DoesNotContain(inParameter.AttributesList, attribute =>
             attribute.AttributeType.FullyQualifiedName is InAttributeName or OutAttributeName or IsReadOnlyAttributeName);
 
         // 'out' => mutable ref. Only 'out' is stored as an attribute, since the modifier cannot distinguish it from plain 'ref'.
         Assert.Equal(
-            new ParameterModifier(IsReadonly: false, IsRef: true, OwnershipKind.Unrestricted),
+            new ParameterModifier(IsReadonly: false, IsRef: true, OwnershipKind.Unrestricted, ByRefDirection.Out),
             outParameter.Modifier);
         Assert.Contains(outParameter.AttributesList, attribute =>
             attribute.AttributeType.FullyQualifiedName == OutAttributeName);
 
+        // THE TWO ROWS THAT DEFEAT A FLAG-ONLY READING. Both set the metadata In flag exactly as a
+        // real 'in' does, and both are mutable refs requiring 'ref' at a call site. Only a readonly
+        // MARKER separates them from the genuine article, which is why the direction is decided by
+        // the marker rather than by the flag.
+        var markedIn = MethodParameter(target, nameof(AttributeProjectionTarget.MutateMarkedIn));
+        Assert.Equal(
+            new ParameterModifier(IsReadonly: false, IsRef: true, OwnershipKind.Unrestricted, ByRefDirection.Ref),
+            markedIn.Modifier);
+
+        var markedInOut = MethodParameter(target, nameof(AttributeProjectionTarget.MutateMarkedInOut));
+        Assert.Equal(
+            new ParameterModifier(IsReadonly: false, IsRef: true, OwnershipKind.Unrestricted, ByRefDirection.Ref),
+            markedInOut.Modifier);
+
+        // 'ref readonly' carries RequiresLocation rather than IsReadOnly, and is readonly all the same.
+        var refReadonly = MethodParameter(target, nameof(AttributeProjectionTarget.ReadRefReadonly));
+        Assert.Equal(
+            new ParameterModifier(IsReadonly: true, IsRef: true, OwnershipKind.Unrestricted, ByRefDirection.In),
+            refReadonly.Modifier);
+
         // Plain 'ref' => mutable ref, no calling-convention attribute.
         Assert.Equal(
-            new ParameterModifier(IsReadonly: false, IsRef: true, OwnershipKind.Unrestricted),
+            new ParameterModifier(IsReadonly: false, IsRef: true, OwnershipKind.Unrestricted, ByRefDirection.Ref),
             refParameter.Modifier);
         Assert.DoesNotContain(refParameter.AttributesList, attribute =>
             attribute.AttributeType.FullyQualifiedName is InAttributeName or OutAttributeName or IsReadOnlyAttributeName);

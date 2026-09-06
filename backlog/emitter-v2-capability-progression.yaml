@@ -5672,7 +5672,7 @@ capabilities:
     order: 128
     layer: clr-interop
     requires: [clr-assembly-type-projection]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
       Mist has neither an out nor an in modifier, so all three CLR by-ref kinds collapse to
@@ -5699,26 +5699,33 @@ capabilities:
       convention -- 9 in that pack, where `out` is CS1615. A two-branch cascade on the marker alone
       would have regressed both.
 
-      `partial` FOR THE READONLY BY-REF DIRECTION, which is a projection gap rather than an
-      emission one. A genuine CLR `in` and an `[In] ref` reach the emitter as the SAME shape --
-      (IsRef, IsReadonly), no marker -- because AttributeProjector.ShouldSkip drops InAttribute and
-      IsReadOnlyAttribute, and the two need opposite keywords. Both spell `ref` today, which is
-      right for `[In] ref` and wrong for `in`: passing `ref` to a readonly location is CS8329, a
-      hard error, and a scratch program proves classic runs it while v2 refuses it. Closing it means
-      changing what projection retains -- stop folding IsIn into IsReadonly, or stop filtering
-      IsReadOnlyAttribute -- and only then can the keyword be chosen. `ref readonly` is separately
-      recoverable today via RequiresLocationAttribute, which does survive the filter.
+      THE READONLY DIRECTION IS DELIVERED TOO, and it needed the model change the emission half did
+      not. ParameterModifier now carries a ByRefDirection, decided where the evidence is -- by the
+      projector reading CLR metadata, or the builder reading Mist source -- and ArgumentKeywords is
+      one arm per direction with no inference left in it.
 
-      NOTHING CAN CATCH THE READONLY BRANCH GOING WRONG: no banked sample has a readonly by-ref
-      argument, and CSharpCompilationDriver forwards only Roslyn Error-severity diagnostics, so
-      CS9191 and CS9192 are dropped entirely. That is why the branch is pinned by a unit test
-      instead of left to a sample.
-    tasks:
-      - Retain the CLR in-direction through projection, then emit `in` for it and keep `ref` for
-        `[In] ref`. Needs a projection change; the emission side is one arm of ArgumentKeywords.For.
-      - Decide whether a readonly by-ref ARGUMENT needs an is-this-a-location test. `in <rvalue>` is
-        CS8156, and v2 already mis-emits `ref <rvalue>` for a Mist-declared `readonly ref`
-        parameter, which is order 132's defect rather than this one's.
+      THE In METADATA FLAG IS NOT READONLY-NESS, which is the whole reason a fourth field was needed
+      rather than a cleverer rule over the existing three. That flag is set by a genuine `in`, by
+      `ref readonly`, and equally by `[In] ref` and `[In, Out] ref` -- interop annotations on a
+      parameter that stays an ordinary mutable ref, of which the WindowsDesktop pack declares 43.
+      Reading it as readonly marked every one of them readonly. Only a readonly MARKER settles it:
+      IsReadOnly for `in`, RequiresLocation for `ref readonly`, and neither on a mutable ref.
+
+      THE OLD OUT ARM WAS ACCIDENTALLY RIGHT. It excluded `[In, Out] ref` by testing NOT-IsReadonly,
+      which worked only because the misclassification above set IsReadonly on it. Fixing the
+      classification would have broken the out arm had the direction not replaced both.
+
+      This closes a defect rather than adding a nicety: passing `ref` to a readonly location is
+      CS8329, a hard error, and a fifteen-line program had classic running what v2 refused. It now
+      emits `Sink(in v)` and matches.
+    untested:
+      - No banked sample has a readonly by-ref argument, and CSharpCompilationDriver forwards only
+        Roslyn Error-severity diagnostics, so CS9191 and CS9192 would be invisible. The truth table
+        is pinned by a projection test over real metadata instead.
+    analysis_phase_tasks:
+      - Whether a readonly by-ref ARGUMENT needs an is-this-a-location test. `in <rvalue>` is CS8156
+        and v2 already mis-emits `ref <rvalue>` for a Mist-declared `readonly ref` parameter, so the
+        rvalue case is wrong either way -- and it is order 132's defect rather than this one's.
     unlocks: []
 
   - id: framework-and-package-reference-resolution

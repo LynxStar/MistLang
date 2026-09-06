@@ -7541,6 +7541,11 @@ samples:
         only ReadonlyTypeEmissionTests distinguishes them.
 
   - name: EnumReadonlyRestriction
+    former_divergence: >
+      THE THREE CORNER LINES ARE GONE AND THE BASELINE IS A CLASSIC CAPTURE AGAIN. v2 printed TopLeft
+      for all four variants where classic prints each name; 60ae348d banked that deliberately, argued
+      in EnumEmitter's class doc, and recorded it as sanctioned rather than as a defect. It was a
+      defect. See wrong_answers.
     intro_order: 39
     threshold: readonly-member-and-type-contexts
     requires: [enum-conversion-operators, enum-member-patterns,
@@ -8653,35 +8658,47 @@ measured_defects:
   wrong_answers:
     note: >
       The worst category this file can record: v2 compiles clean and the program prints something
-      other than what it means. Neither entry was found by a sample -- the first while adversarially
-      verifying order 128, the second while regenerating a baseline for an unrelated shipment. The
-      by-ref one is FIXED and kept because the shape is worth recognising again. The enum one is
-      OPEN, and is the more alarming of the two: it is BANKED, and the baseline records the wrong
-      answer as expected output.
+      other than what it means. Both entries are FIXED and kept because the shapes are worth
+      recognising again. Neither was found by a sample -- the first while adversarially verifying
+      order 128, the second while regenerating a baseline for an unrelated shipment -- and the second
+      was BANKED, with the baseline recording the wrong answer as expected output.
     entries:
-      - defect: every variant of an enum with a declared base type prints the FIRST variant's name
+      - defect: every variant of an enum prints the FIRST variant's name when values collide
         recorded_on: enum-with-readonly-base (order 134)
-        status: OPEN
+        status: FIXED
         note: >
-          samples/EnumReadonlyRestriction declares `enum Corner : Coordinate` and prints all four
-          variants. Classic prints TopLeft / TopRight / BottomLeft / BottomRight. v2 prints TopLeft
-          four times. Zero diagnostics either side, and the sample exits 0.
+          samples/EnumReadonlyRestriction prints all four variants of `enum Corner : Coordinate`.
+          Classic printed each name; v2 printed TopLeft four times, zero diagnostics, exit 0.
 
-          THE BASELINE RECORDS v2's ANSWER, so Tier 6 is green on it. git log -S dates that to
-          60ae348d, the commit that banked the sample: those three lines were captured from the
-          EXPERIMENTAL pipeline, not from classic. That contradicts what the register and
-          SamplesCompileAndMatchBaselineTest both state -- "the stored baseline was captured from
-          the classic pipeline, so it is pipeline-independent" -- and it is the mechanism by which a
-          wrong answer became recorded progress. Re-derived at HEAD with the working tree stashed
-          and rebuilt, so it is neither a local artifact nor attributable to any later shipment.
+          THE LOWERING SHAPE WAS NEVER THE PROBLEM. A Mist enum wraps an arbitrary readonly type
+          where a CLR enum admits only integral ones, so both pipelines lower to the same record with
+          one static singleton per variant. The emissions were identical but for ToString, which read
+          `Equals(Value, X.Value)` where classic reads `ReferenceEquals(this, X)`. Coordinate keeps
+          nothing it is constructed with, so every Coordinate is byte-identical, so the first arm
+          answered for all four. The variant identity was in hand -- four distinct singletons -- and
+          discarded to re-derive the name from the payload.
 
-          NOT A DEFECT IN THE BASELINE ALONE. Correcting the three lines to classic's output turns
-          Tier 6 red until the emitter is fixed, which is the right state for it to be in. The two
-          have to move together, and neither belongs in the shipment that found it.
+          IT WAS RECORDED AS SANCTIONED, WHICH IS THE PART WORTH REMEMBERING. EnumEmitter's class doc
+          argued ONE equality notion, structural, "so printing and comparing cannot disagree", and
+          called the aliasing "what C# enums do with a repeated value". 60ae348d then banked the
+          three lines on that argument. Both halves fail against Mist, and one probe each settles it:
+          `enum Rank : int { Private = 1, Corporal = 1 }` is refused by classic with MIST_SB_0085, so
+          Mist has no repeated values; `Corner.TopLeft == Corner.BottomRight` is refused with
+          MIST_TC_0005, so Mist has no equality between variants. The consistency the design bought
+          was with two operations the language does not offer, and it was paid for with a wrong
+          answer on a program classic runs.
 
-          WHAT THIS COSTS BEYOND THE THREE LINES: every future baseline regeneration is suspect. The
-          procedure that produced them regenerates from whichever pipeline is convenient, and
-          nothing in the test or the register enforces the classic capture it claims.
+          The only route to value-equal variants is a base type that discards its constructor
+          arguments, which MIST_SB_0085 cannot catch because the written values differ. That is why a
+          degenerate struct was needed to expose it, and why fixing the SAMPLE -- the first instinct,
+          and wrong -- would have hidden the defect instead of closing it.
+
+          RESIDUE, LATENT AND NOT REACHED: the emitted `sealed record class` takes structural
+          equality from the record, so on the C# side two variants with equal payloads compare equal
+          while naming themselves differently. Mist exposes no such comparison (MIST_TC_0005 again),
+          so nothing reaches it today -- but it is the inconsistency the value-based ToString was
+          written to avoid, and it is still there.
+
       - defect: a by-ref call site binds to a BY-VALUE overload
         recorded_on: overload-resolution-by-argument-type (order 26)
         status: FIXED

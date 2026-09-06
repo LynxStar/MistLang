@@ -737,9 +737,9 @@ Done!
   Rank.Sergeant = Sergeant
 --- Enum with readonly struct base type ---
   Corner.TopLeft = TopLeft
-  Corner.TopRight = TopLeft
-  Corner.BottomLeft = TopLeft
-  Corner.BottomRight = TopLeft
+  Corner.TopRight = TopRight
+  Corner.BottomLeft = BottomLeft
+  Corner.BottomRight = BottomRight
 --- Enum with readonly class base type ---
   Palette.Red = Red
   Palette.Green = Green

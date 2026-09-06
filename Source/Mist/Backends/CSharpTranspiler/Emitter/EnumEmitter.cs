@@ -14,12 +14,11 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// goes through this shape rather than splitting the lowering in two.
 /// </para>
 /// <para>
-/// ONE EQUALITY NOTION, structural, on the value. <c>==</c> comes from the record and
-/// <see cref="EmitToString"/> is written to agree with it, so printing and comparing cannot disagree.
-/// This DIVERGES from the classic pipeline, which matches names by reference identity while comparing
-/// values structurally -- under which two variants sharing a value compare equal and print
-/// differently. Here they are aliases and the first one declared names them both, which is what C#
-/// enums do with a repeated value.
+/// A VARIANT IS NAMED BY WHICH SINGLETON IT IS, not by what its value happens to equal, and the two
+/// come apart whenever a base type discards what it is constructed with. Matching on the value there
+/// makes every variant answer with the first one's name, silently, on a program both pipelines
+/// otherwise agree on. <see cref="EmitFromUnderlying"/> is the one that matches on VALUE, correctly:
+/// it is handed a value and has nothing else to go on.
 /// </para>
 /// </summary>
 internal static class EnumEmitter
@@ -89,7 +88,7 @@ internal static class EnumEmitter
             foreach(var member in Declared(type))
             {
                 writer.WriteLine(
-                    $"if(Equals(Value, {Q(type, member)}.Value)) return \"{member.Name}\";");
+                    $"if(ReferenceEquals(this, {Q(type, member)})) return \"{member.Name}\";");
             }
 
             writer.WriteLine("return Value.ToString();");

@@ -1,4 +1,6 @@
+using Mist.Common.Diagnostics;
 using Mist.Generated;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
@@ -16,11 +18,14 @@ internal sealed class ParameterBuilder
 {
     private readonly ScopeResolver scopeResolver;
     private readonly AttributeBuilder attributeBuilder;
+    private readonly DiagnosticBag diagnostics;
 
-    public ParameterBuilder(ScopeResolver scopeResolver, AttributeBuilder attributeBuilder)
+    public ParameterBuilder(
+        ScopeResolver scopeResolver, AttributeBuilder attributeBuilder, DiagnosticBag diagnostics)
     {
         this.scopeResolver = scopeResolver;
         this.attributeBuilder = attributeBuilder;
+        this.diagnostics = diagnostics;
     }
 
     public List<Parameter> Resolve(ParameterListNode? paramList, Scope scope)
@@ -30,11 +35,21 @@ internal sealed class ParameterBuilder
             return [];
         }
 
-        var parameters = new List<Parameter> { ResolveParameter(paramList.Parameter, scope) };
+        var nodes = new List<ParameterNode> { paramList.Parameter };
+        nodes.AddRange(paramList.Parameters);
 
-        foreach(var param in paramList.Parameters)
+        var parameters = nodes.ConvertAll(node => ResolveParameter(node, scope));
+
+        // Only the HOMOGENEOUS form is pinned to the end. Its arguments are whatever runs off the
+        // end of the fixed ones, which no earlier slot can collect; a value pack binds inward from
+        // both ends instead and so may sit anywhere the Binding_Rule can reach it.
+        for(var i = 0; i < parameters.Count - 1; i++)
         {
-            parameters.Add(ResolveParameter(param, scope));
+            if(parameters[i].IsFlattened && ValuePack.PackParameterOf(parameters[i]) is null)
+            {
+                diagnostics.ReportAtNode(
+                    ProgramModelDiagnostics.ParamsArrayNotLast, nodes[i], null, parameters[i].Name);
+            }
         }
 
         return parameters;

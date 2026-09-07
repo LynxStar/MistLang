@@ -946,6 +946,19 @@ public static class ProgramModelDiagnostics
         "'{0}' collides with the spread member '{1}', which owns that name and every '{1}' followed by an index.");
 
     /// <summary>
+    /// A homogeneous `params T[]` that is not the last parameter. The call site supplies its
+    /// arguments by running off the end of the fixed ones, which only the last slot can do -- where
+    /// a value PACK binds inward from both ends and so may sit anywhere. Reported here rather than
+    /// left to the C# it becomes, which would blame a generated file for a rule the declaration
+    /// broke.
+    /// </summary>
+    public static readonly DiagnosticDescriptor ParamsArrayNotLast = new(
+        new DiagnosticId("MIST_VAR_0012"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}' is declared 'params' but is not the last parameter. A 'params' array collects the arguments after the fixed ones, so nothing may follow it.");
+
+    /// <summary>
     /// A spread whose expansion is not known. The suffix promises a definite number of arguments,
     /// so an operand whose arity is not fixed cannot stand where arguments go -- and the promise is
     /// what the call was checked against, which is why this is refused rather than deferred.

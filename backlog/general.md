@@ -259,3 +259,24 @@ Two separate defects in one output:
 1. Find the report sites for `MIST_TC_0015` and `MIST_TC_0016` and pass the member name.
 2. Work out why both fire for one access, and which is correct for a static member reached through a nested type name.
 3. Consider whether `ReportAtNode` should fail loudly when a template contains `{0}` and no arguments are supplied, so the next instance of this cannot reach a user silently.
+
+## MIST_VAR_0012 extends a range the variadics spec enumerates
+
+`.kiro/specs/variadics/requirements.md` lists MIST_VAR_0001 through MIST_VAR_0011 under
+"Diagnostics", and the code now also defines **MIST_VAR_0012**: a homogeneous `params T[]`
+that is not the last parameter.
+
+**Why it exists:** value-level `params` is C#'s form and behaves identically to it, position
+rule included -- the arguments it collects are whatever runs off the end of the fixed ones,
+which no earlier slot can gather. Before it, both pipelines accepted the declaration and let
+Roslyn refuse the C#: classic surfaced CS0231 against a generated file, and v2 surfaced only
+the call-site arity error, which points nowhere near the cause.
+
+**Why it is here rather than in the spec:** Requirement 13 governs Value_Level_Params and
+says the call site supplies "trailing arguments (those supplied after the fixed leading
+parameters)", which implies the position but states no diagnostic for breaking it. The code
+now says something the spec does not.
+
+**Action:** decide whether the requirement should name MIST_VAR_0012 and add it to the
+spec's diagnostic table, or whether the rule belongs outside the MIST_VAR range entirely --
+it is the one `params` rule that has nothing to do with packs.

@@ -85,6 +85,32 @@ public sealed class ValuePackTests : ProgramModelProbe
     }
 
     /// <summary>
+    /// The homogeneous form is C#'s, position rule included: its arguments are whatever runs off
+    /// the end of the fixed ones, which no earlier slot can collect.
+    /// </summary>
+    [Fact]
+    public void AParamsArrayThatIsNotLast_IsRefused()
+    {
+        _ = Assert.Single(Errors(
+            BuildRun("", "public class Bad { public static int M(params int[] xs, string tail) { return 0; } }"),
+            "MIST_VAR_0012"));
+    }
+
+    /// <summary>
+    /// The boundary the rule must not cross. A value PACK binds inward from both ends, so the
+    /// middle is exactly where the Binding_Rule expects it -- and MiddleCount, which the banked
+    /// sample runs, is declared that way.
+    /// </summary>
+    [Theory]
+    [InlineData("public static int M(params int[] xs) { return 0; }")]
+    [InlineData("public static int M(string head, params int[] xs) { return 0; }")]
+    [InlineData("public static int M<TFirst, params TMid, TLast>(TFirst f, params TMid m, TLast l) { return 0; }")]
+    public void ADeclarationCSharpWouldAccept_AndAMiddlePack_AreNot(string declaration)
+    {
+        Assert.Empty(Errors(BuildRun("", $"public class Fine {{ {declaration} }}"), "MIST_VAR_0012"));
+    }
+
+    /// <summary>
     /// The projections a spread member stands for, found per CONSTRUCTION: the same Bundle has
     /// three where its pack holds three, so they cannot be declared with the type.
     /// </summary>

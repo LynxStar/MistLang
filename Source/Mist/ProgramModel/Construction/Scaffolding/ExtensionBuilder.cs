@@ -26,7 +26,7 @@ internal sealed class ExtensionBuilder
         this.context = context;
         this.scopeResolver = scopeResolver;
         constraintResolver = new ConstraintResolver(context, scopeResolver);
-        var parameterBuilder = new ParameterBuilder(scopeResolver, context.Attributes);
+        var parameterBuilder = new ParameterBuilder(scopeResolver, context.Attributes, context.Diagnostics);
         var delegateResolver = new DelegateResolver(context, parameterBuilder, scopeResolver);
         var accessorBuilder = new AccessorBuilder(context);
         methodBuilder = new MethodBuilder(context, scopeResolver, delegateResolver, constraintResolver);

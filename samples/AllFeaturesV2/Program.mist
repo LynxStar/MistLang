@@ -67,5 +67,9 @@ public class Program
         Attributes.Program.RunDemo();
         AssemblyTypeProvider.Program.RunDemo();
         Variadics.Program.RunDemo();
+        ArrayBoundsFlowAnalysis.Program.RunDemo();
+        DependentTypes.Program.RunDemo();
+        DependentTypeRefinementConstraints.Program.RunDemo();
+        UnknownReadonlySemantics.Program.RunDemo();
     }
 }

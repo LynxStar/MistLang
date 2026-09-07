@@ -983,3 +983,110 @@ abstractCount=3
 sum=10
 sumEmpty=0
 === Variadics Done ===
+=== ArrayBoundsFlowAnalysis Sample ===
+--- 1. Literal indices on concrete arrays ---
+  arr[0] = 10
+  arr[2] = 30
+  arr[4] = 50
+--- 2. For-loop with literal bounds ---
+  nums = 10 20 30 40 50 
+--- 3. For-loop with .Length on concrete arrays ---
+  sum of [100, 200, 300, 400] = 1000
+--- 4. For-loop with .Length on parameter arrays (symbolic) ---
+  SumAll([5, 10, 15, 20, 25]) = 75
+  PrintArray: 5 10 15 20 25 
+--- 5. Nested array indexing ---
+  sum of row 0 = 6
+  sum of row 1 = 15
+  sum of row 2 = 24
+--- 6. Indexer with ArrayBounds constraint ---
+  buf[0] = 11
+  buf[4] = 55
+  buf.Describe() = BoundedBuffer(length=5)
+--- 7. Dependent-typed array class ---
+  FixedArray<5>.GetSize() = 5
+  FixedArray<5>.Describe() = FixedArray<5>
+  FixedArray<10>.GetSize() = 10
+  FixedArray<10>.Describe() = FixedArray<10>
+=== ArrayBoundsFlowAnalysis Done ===
+=== Dependent Types Sample ===
+--- 1. Single dependent parameter ---
+  buf5.Describe() = FixedBuffer<5>
+  buf5.GetSize() = 5
+--- 2. Multiple dependent parameters ---
+  mat.Describe() = Matrix<3,4>
+--- 3. Mixed parameter list ---
+  tbuf.Describe() = TypedBuffer<16>(value=hello)
+--- 4. Struct with dependent parameter ---
+  span3.Describe() = FixedSpan<3>
+  span3.GetLength() = 3
+--- 5. Construction with literal values ---
+  buf10.Describe() = FixedBuffer<10>
+  buf99.Describe() = FixedBuffer<99>
+--- 6. Dependent property access ---
+  buf5.GetSize() = 5
+  buf10.GetSize() = 10
+  IntParam<42>.GetValue() = 42
+--- 7. Type identity / type safety ---
+  Accepted FixedBuffer<5>
+--- 8. Dependent types on abstract types ---
+  tiny.GetInfo() = TinyCollection(size=8)
+  tiny.GetSize() = 8
+--- 9. Dependent types on abstract types ---
+  SizedBox<12>.GetCapacity() = 12
+--- 10. Dependent types on methods ---
+  Repeat<3>: hello
+  Repeat<1>: world
+--- 11. Inheritance ---
+  SmallBuffer : FixedBuffer<10> constructed
+  ResizableBuffer<25> constructed
+  flex.GetInfo() = FlexCollection<16>(size=16)
+--- 12. Generic function accepting any dependent value ---
+  Processed buffer of size 7
+--- 13. Pattern matching ---
+  target is FixedBuffer<5> = true
+  target10 is FixedBuffer<10> = true
+--- 14. Type aliases with dependent parameter ---
+  SmallInt<V:int> = int (alias declared)
+--- 15. All allowed value types ---
+  IntParam<42>.GetValue() = 42
+  IntParam<-1>.GetValue() = -1
+  UintParam<100>.Describe() = UintParam<100>
+  LongParam<999>.Describe() = LongParam<999>
+  UlongParam<500>.Describe() = UlongParam<500>
+  ShortParam<7>.Describe() = ShortParam<7>
+  UshortParam<200>.Describe() = UshortParam<200>
+  ByteParam<255>.Describe() = ByteParam<255>
+  SbyteParam<-50>.Describe() = SbyteParam<-50>
+  BoolParam<true>.Describe() = BoolParam<True>
+  CharParam<'X'>.Describe() = CharParam<X>
+=== Dependent Types Done ===
+=== Dependent Type Refinement Constraints ===
+  coll.Describe() = SizedCollection<5>
+  coll.GetCount() = 5
+  slot.GetCapacity() = 3
+  coll10.Describe() = SizedCollection<10>
+=== Done ===
+=== UnknownReadonlySemantics Sample ===
+--- Readonly member access on MyList<unknown> ---
+Count: 3
+Get(0): 10
+--- Variable reassignment of MyList<unknown> ---
+After reassignment, Count: 2
+After reassignment, Get(0): hello
+--- Pattern narrowing to MyList<int> ---
+After Add(42), Count: 2
+Get(0): 5
+Get(1): 42
+--- Covariant widening from MyList<int> ---
+Widened Count: 2
+Widened Get(0): 100
+Widened Get(1): 200
+--- Passing to readonly parameter ---
+GetCount result: 2
+GetFirst result: 100
+--- Open generic body full access ---
+Initial stored: 42
+After replace: 99
+BuildListAndCount(1, 2): 2
+=== UnknownReadonlySemantics Done ===

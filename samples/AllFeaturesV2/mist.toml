@@ -49,3 +49,7 @@ ExtensionMethods = { path = "../ExtensionMethods" }
 Attributes = { path = "../Attributes" }
 AssemblyTypeProvider = { path = "../AssemblyTypeProvider" }
 Variadics = { path = "../Variadics" }
+ArrayBoundsFlowAnalysis = { path = "../ArrayBoundsFlowAnalysis" }
+DependentTypes = { path = "../DependentTypes" }
+DependentTypeRefinementConstraints = { path = "../DependentTypeRefinementConstraints" }
+UnknownReadonlySemantics = { path = "../UnknownReadonlySemantics" }

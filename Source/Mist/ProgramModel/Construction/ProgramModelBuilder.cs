@@ -128,7 +128,7 @@ public sealed class ProgramModelBuilder
         // below, because resolving one can ask what a length's domain is.
         foreach(var typeDef in sourceTypes.OfType<IHasTypeParameters>())
         {
-            context.Domains.Resolve(typeDef.TypeParametersList);
+            context.Domains.Resolve(typeDef.TypeParametersList, DeclarationOf(typeDef));
         }
 
         foreach(var typeDef in sourceTypes)
@@ -196,4 +196,18 @@ public sealed class ProgramModelBuilder
         }
     }
 
+    /// <summary>
+    /// The syntax a type was declared by, for a diagnostic that has a type in hand and needs a
+    /// place to point. Null for a type with no Mist declaration, which is every ambient one.
+    /// </summary>
+    private static Storm.Runtime.SyntaxNode? DeclarationOf(IHasTypeParameters type)
+    {
+        return type switch
+        {
+            MemberType member => member.DeclarationNode,
+            TypeAlias alias => alias.DeclarationNode,
+            Newtype newtype => newtype.DeclarationNode,
+            _ => null,
+        };
+    }
 }

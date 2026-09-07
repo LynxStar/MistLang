@@ -77,7 +77,7 @@ internal static class TypeParameterPopulator
 
         // Null for the Phase 1 caller alone, which runs before Standard is registered and whose
         // parameters ProgramModelBuilder resolves in one pass once it is.
-        domains?.Resolve(declaration.TypeParametersList);
+        domains?.Resolve(declaration.TypeParametersList, typeParams);
     }
 
     private static bool IsPack(TypeParameterNode node)
@@ -152,6 +152,15 @@ internal static class TypeParameterPopulator
             SbyteTypePrimitiveTypeNode => WellKnownTypes.SByte,
             BoolTypePrimitiveTypeNode => WellKnownTypes.Boolean,
             CharTypePrimitiveTypeNode => WellKnownTypes.Char,
+
+            // Resolved despite being disallowed domains, so the refusal can name what was written.
+            // Returning null here instead would leave the annotation looking absent and the
+            // parameter indistinguishable from a plain one.
+            FloatTypePrimitiveTypeNode => WellKnownTypes.Single,
+            DoubleTypePrimitiveTypeNode => WellKnownTypes.Double,
+            DecimalTypePrimitiveTypeNode => WellKnownTypes.Decimal,
+            StringTypePrimitiveTypeNode => WellKnownTypes.String,
+            RegexTypePrimitiveTypeNode => WellKnownTypes.Regex,
             _ => null,
         };
     }

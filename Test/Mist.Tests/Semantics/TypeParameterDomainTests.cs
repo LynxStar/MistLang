@@ -72,6 +72,30 @@ public sealed class TypeParameterDomainTests : ProgramModelProbe
     }
 
     [Fact]
+    public void RefinementAlias_IsAdmittedByWhatItRefines()
+    {
+        // The spelling the standard library actually uses: Array's length is declared against the
+        // alias, so rejecting it would refuse Standard itself.
+        Assert.Equal(
+            "Probe.Small",
+            Domain("public type Small = int >= 0; public class B<N:Small> { }", "B<>", ordinal: 0));
+    }
+
+    [Theory]
+    [InlineData("string")]
+    [InlineData("float")]
+    [InlineData("double")]
+    [InlineData("decimal")]
+    public void DomainThatCannotCarryIdentity_IsRefused(string keyword)
+    {
+        _ = BuildModel(
+            statement: "", extraTypes: $"public class Bad<V:{keyword}> {{ }}", extraPreamble: "",
+            out var diagnostics);
+
+        _ = Assert.Single(Errors(diagnostics, "MIST_DT_0001"));
+    }
+
+    [Fact]
     public void FixedSizePack_PinsTheArityInItsDomain()
     {
         Assert.Equal(

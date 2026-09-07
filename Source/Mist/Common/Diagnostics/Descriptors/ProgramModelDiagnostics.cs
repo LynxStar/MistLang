@@ -909,4 +909,16 @@ public static class ProgramModelDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
         "'{0}' is a second bracket-free pack after '{1}'. Only one pack can absorb a flat argument list; declare this one as 'Type[]:{0}' and supply it in brackets.");
+
+    /// <summary>
+    /// A dependent parameter's domain is outside the set whose values can carry type identity. The
+    /// line is drawn at equality: a construction is identified BY its argument, so a domain whose
+    /// equality is partial or approximate would make type identity the same, which is why the
+    /// floating-point types are out however convenient they look.
+    /// </summary>
+    public static readonly DiagnosticDescriptor DisallowedDependentDomain = new(
+        new DiagnosticId("MIST_DT_0001"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "Type '{0}' cannot be used as a dependent type parameter. Only primitive integral types, bool, and char are allowed.");
 }

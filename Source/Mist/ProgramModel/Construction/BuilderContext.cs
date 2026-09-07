@@ -26,7 +26,7 @@ internal sealed class BuilderContext
         AmbientProvider = ambientProvider;
         programScope = new ProgramScope(programModel);
         Resolver = new ScopeResolver(this);
-        Domains = new TypeParameterDomainResolver(Resolver);
+        Domains = new TypeParameterDomainResolver(this, Resolver);
         Attributes = new AttributeBuilder(this);
     }
 

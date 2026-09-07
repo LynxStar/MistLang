@@ -6559,11 +6559,16 @@ capabilities:
       projection name, in either declaration order, and one spread prefixing another. It stops at
       what the family can actually claim -- `ItemName` beside `Item` is fine.
 
-      NOT STARTED: MIST_VAR_0008 (an empty stem, which the grammar may not admit at all), whole-pack
-      ASSIGNMENT (`Item... = values...`), and the whole-pack constraint distributing to elements.
-      That last one needs a symbolic element type -- `Shape1` inside its own declaration, where the
-      pack is open but its `Type[2]` domain fixes N at two while the element types stay symbolic --
-      and is what samples/Variadics' last two UNRESOLVED_IDENTIFIER are.
+      THE SYMBOLIC ELEMENT AND THE CONSTRAINT DISTRIBUTION ARE DELIVERED. A fixed-size domain fixes
+      the ARITY without fixing the element types, which is exactly what lets a projection be named
+      inside its own declaration, where the pack is open and no receiver exists to ask.
+      PackElementType is a type PARAMETER seeded with the pack's constraints, and both halves of
+      that carry weight: the constraints are what make Shape1.Area() resolve, and not being the pack
+      is what stops Shape1 answering for Length, which a Type[] would.
+
+      NOT STARTED: MIST_VAR_0008 (an empty stem, which the grammar may not admit at all) and
+      whole-pack ASSIGNMENT (`Item... = values...`), which is refused at emission as an unsupported
+      expression rather than mis-modelled.
     unlocks: []
 
   - id: variadic-monomorphization

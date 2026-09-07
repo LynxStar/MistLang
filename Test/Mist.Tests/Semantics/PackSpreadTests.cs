@@ -124,6 +124,45 @@ public sealed class PackSpreadTests : ProgramModelProbe
         Assert.Empty(Errors(Stems("public TArgs... Item; public int ItemName; public int Other;"), "MIST_VAR_0007"));
     }
 
+    /// <summary>
+    /// A fixed-size domain fixes the ARITY without fixing the element types, which is what lets a
+    /// projection be named inside its own declaration -- where the pack is still open and no
+    /// receiver exists to ask.
+    /// </summary>
+    [Fact]
+    public void FixedArityPack_HasProjectionsWhileStillOpen()
+    {
+        // Every error, not just the unresolved-name one: calling Area() on the projection is what
+        // proves the whole-pack constraint reached the element, and that failure is a missing
+        // MEMBER rather than a missing name.
+        Assert.Empty(
+            Stems2("public abstract IShape { public int Area(); }"
+                    + " public struct Pair<Type[2]:TShapes> where TShapes : IShape"
+                    + " { public TShapes... Shape;"
+                    + "   public int Total() { return Shape1.Area() + Shape2.Area(); } }")
+                .Where(d => d.Severity == DiagnosticSeverity.Error));
+    }
+
+    /// <summary>
+    /// Bounded by the declared arity: a Type[2] pack has no third element to name.
+    /// </summary>
+    [Fact]
+    public void ProjectionPastAFixedArity_IsRefused()
+    {
+        _ = Assert.Single(
+            Errors(
+                Stems2("public struct Pair<Type[2]:TShapes>"
+                    + " { public TShapes... Shape;"
+                    + "   public void Use() { var x = Shape3; } }"),
+                "MIST_PM_UNRESOLVED_IDENTIFIER"));
+    }
+
+    private ImmutableArray<Diagnostic> Stems2(string types)
+    {
+        _ = BuildModel(statement: "", extraTypes: types, extraPreamble: "", out var diagnostics);
+        return diagnostics;
+    }
+
     [Fact]
     public void SpreadPreservesOrder()
     {

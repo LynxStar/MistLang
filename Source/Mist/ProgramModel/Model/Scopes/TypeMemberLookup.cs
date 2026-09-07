@@ -200,6 +200,8 @@ internal static class TypeMemberLookup
             }
         }
 
+        AddFixedArityProjections(type, request, candidates, depth, path);
+
         // An enum variant is named through the enum type, never through an instance, so it answers
         // to the same request a static member does.
         if(type is EnumType enumType && request.Permits(isStatic: true))
@@ -212,6 +214,59 @@ internal static class TypeMemberLookup
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// The projections a spread member has while its pack is still OPEN, which is possible exactly
+    /// when the pack's domain fixes an arity: <c>Type[2]:TShapes</c> has two elements whatever they
+    /// turn out to be, so <c>Shape1</c> is nameable inside the declaration though its type is not
+    /// yet known. A pack of unknown length has no projections here -- there is no count to bound
+    /// them by -- and gets them per construction instead.
+    /// </summary>
+    private static void AddFixedArityProjections(
+        MistType type, LookupRequest request, CandidateSet candidates, int depth, IReadOnlyList<ConstructedType> path)
+    {
+        foreach(var field in FieldsOf(type))
+        {
+            if(ProjectedElement(field.Type, field.Name, request.Name) is { } element)
+            {
+                candidates.Add(
+                    new FieldResult(
+                        new Field(request.Name, element, field.Ownership, field.Modifiers), type, path),
+                    depth);
+            }
+        }
+
+        if(type is not MemberType memberType)
+        {
+            return;
+        }
+
+        foreach(var property in memberType.PropertiesList)
+        {
+            if(ProjectedElement(property.Type, property.Name, request.Name) is { } element)
+            {
+                candidates.Add(
+                    new PropertyResult(new Property(request.Name, element, property.Modifiers), type, path),
+                    depth);
+            }
+        }
+    }
+
+    private static PackElementType? ProjectedElement(IMistType declared, string stem, string requested)
+    {
+        if(declared is not TupleType { ElementTypes: [SpreadType spread] }
+            || spread.Operand is not TypeParameter { PackLength: { } length } pack
+            || requested.Length <= stem.Length
+            || !requested.StartsWith(stem, StringComparison.Ordinal)
+            || !int.TryParse(requested.AsSpan(stem.Length), out var index)
+            || index < 1
+            || index > length)
+        {
+            return null;
+        }
+
+        return new PackElementType(pack, index - 1);
     }
 
     /// <summary>

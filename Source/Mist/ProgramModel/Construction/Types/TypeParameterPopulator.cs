@@ -93,13 +93,19 @@ internal static class TypeParameterPopulator
 
         switch(node)
         {
+            // A pack is dependent for the same reason `Size:int` is, and this is the whole of the
+            // design rather than a convenience: its domain is a comptime `Type[]`, so what fills
+            // the slot is a value and the construction's identity is that value. `params TArgs`
+            // is sugar for `Type[]:TArgs`.
             case ParamsPackTypeParameterTypeParameterNode:
                 typeParam.PackKind = TypePackKind.Unbracketed;
+                typeParam.IsDependent = true;
                 break;
 
             case ExplicitPackTypeParameterTypeParameterNode explicitPack:
                 typeParam.PackKind = lonePack ? TypePackKind.Unbracketed : TypePackKind.Bracketed;
                 typeParam.PackLength = FixedLength(explicitPack.ArrayRank);
+                typeParam.IsDependent = true;
                 break;
 
             case DependentTypeParameterTypeParameterNode:

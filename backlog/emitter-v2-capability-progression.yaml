@@ -6349,12 +6349,32 @@ capabilities:
     name: Type pack declarations
     order: 149
     layer: variadics
-    requires: [type-parameters-and-constructed-types]
-    v2_status: missing
+    requires: [type-parameters-and-constructed-types, dependent-type-parameters]
+    v2_status: partial
     evidence: >
       Packs on classes, structs, abstract types and methods, in a keyword form and in
       bracketed open and fixed-size forms, with the pack arity readable as a compile-time
       value in expression position.
+
+      THE DEPENDENCY ON ORDER 145 WAS REAL AND UNRECORDED, which is the same defect order 109
+      carries against 126. A pack is not a new kind of entity: design.md's keystone is that
+      `params TArgs` is sugar for the dependent type parameter `Type[]:TArgs`, its domain being
+      a comptime `Type[]` "in exactly the same sense that `N:int` is", and a constructed variadic
+      type is identified by (family, the `Type[]` value) -- FixedBuffer<5> against FixedBuffer<6>,
+      lifted from int values to Type[] values. The array literal of type literals that fills the
+      slot is already delivered, at orders 12 and 118.
+
+      SO THE WHOLE THING HANGS ON TypeParameter.Domain, which order 145's own evidence records as
+      never populated. Building packs ahead of 145 would mean writing comptime-value type identity
+      once for Type[] and again for the integral domains, then removing the first -- the
+      architecture reimport this rewrite exists to avoid. Recorded before it was built rather than
+      after, which is the only reason it cost nothing.
+
+      DELIVERED SO FAR: the declaration half. Both spellings reach the model, a lone explicit pack
+      is unbracketed by inverse sugar, a fixed-size domain keeps its arity, and two bracket-free
+      packs are refused as MIST_VAR_0001. That part is genuinely pack-specific -- it is the one
+      thing not inherited from dependent parameters -- so it stands whichever order the rest lands
+      in. Binding, spread and expression-position arity all wait on 145.
     unlocks: []
 
   - id: pack-binding-and-inference

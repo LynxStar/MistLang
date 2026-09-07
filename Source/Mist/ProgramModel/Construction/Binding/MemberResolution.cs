@@ -47,6 +47,15 @@ internal static class MemberResolution
 
         var found = TypeMemberLookup.Find(declaring, LookupRequest.Member(memberName, visibility, node));
 
+        // Ahead of extensions and behind declared members, which is where a projection belongs: it
+        // is the declaring type's own, so it beats an extension, but a member actually written
+        // under the name beats it -- and writing one is MIST_VAR_0007 rather than a shadowing.
+        if(found is NotFoundResult
+            && SpreadProjection.Find(constructed, declaring, memberName, context) is { } projected)
+        {
+            found = projected;
+        }
+
         // Only on a miss, which is what makes "own members win" a consequence of where this sits
         // rather than a rule anything has to state. The receiver as WRITTEN is asked about, not the
         // definition: an extension is declared for `Box<int>` or for `unknown`, never for `Box<,>`.

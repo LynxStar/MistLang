@@ -128,7 +128,8 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
     private void ResolveField(FieldDeclarationNode fieldDecl, ConcreteType typeDef)
     {
         var name = fieldDecl.Name.Lexeme;
-        var type = ScopeResolver.Resolve(fieldDecl.Type, typeDef.Scope);
+        var type = SpreadMember.AggregateType(
+            ScopeResolver.Resolve(fieldDecl.Type, typeDef.Scope), ScopeResolver.Interner);
         var ownership = ResolveOwnership(fieldDecl.OwnershipSpecifier);
         var modifiers = ModifierBuilder.Build(fieldDecl, Context.Diagnostics, typeDef);
 

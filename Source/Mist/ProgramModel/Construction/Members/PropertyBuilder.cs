@@ -67,7 +67,7 @@ internal sealed class PropertyBuilder
         }
 
         var getter = new PropertyAccessor { ExpressionBody = new UnresolvedExpression(exprProp.Body) };
-        var property = new Property(name, type, modifiers) { Getter = getter };
+        var property = new Property(name, SpreadMember.AggregateType(type, scopeResolver.Interner), modifiers) { Getter = getter };
         context.Attributes.Build(exprProp.Attributes, property.DeclaredAttributesList, host.Scope);
         host.PropertiesList.Add(property);
     }
@@ -138,7 +138,7 @@ internal sealed class PropertyBuilder
             };
         }
 
-        var property = new Property(name, type, modifiers)
+        var property = new Property(name, SpreadMember.AggregateType(type, scopeResolver.Interner), modifiers)
         {
             Getter = getter,
             Setter = setter,

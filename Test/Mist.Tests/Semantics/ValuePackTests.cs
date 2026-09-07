@@ -30,6 +30,11 @@ public sealed class ValuePackTests : ProgramModelProbe
             public static int Middle<TFirst, params TMid, TLast>(TFirst f, params TMid m, TLast l) { return TMid.Length; }
             public static int Add2(int a, int b) { return a + b; }
         }
+
+        public class Packs
+        {
+            public class Bundle<params TArgs> { public TArgs... Item; }
+        }
         """;
 
     protected override string Preamble { get; } = "";
@@ -77,6 +82,34 @@ public sealed class ValuePackTests : ProgramModelProbe
 
         // Two arguments from one written expression, which is the whole of what a spread does.
         Assert.Equal(2, call.Arguments.Count);
+    }
+
+    /// <summary>
+    /// The projections a spread member stands for, found per CONSTRUCTION: the same Bundle has
+    /// three where its pack holds three, so they cannot be declared with the type.
+    /// </summary>
+    [Theory]
+    [InlineData("b.Item1")]
+    [InlineData("b.Item2")]
+    [InlineData("b.Item3")]
+    public void SpreadProjections_ExistPerConstruction(string access)
+    {
+        Assert.Empty(
+            Run($"var b = new Packs.Bundle<int, string, bool>(); var x = {access};")
+                .Where(d => d.Severity == DiagnosticSeverity.Error));
+    }
+
+    /// <summary>
+    /// One past the end names nothing, which keeps the family bounded by the pack rather than open
+    /// to any index a caller writes.
+    /// </summary>
+    [Fact]
+    public void ProjectionPastTheEndOfThePack_IsRefused()
+    {
+        _ = Assert.Single(
+            Errors(
+                Run("var b = new Packs.Bundle<int, string, bool>(); var x = b.Item4;"),
+                "MIST_PM_UNRESOLVED_MEMBER"));
     }
 
     [Fact]

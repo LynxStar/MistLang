@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 
@@ -57,6 +58,34 @@ public sealed class PackSpreadTests : ProgramModelProbe
         // Written bare: the grammar has no empty argument list, so absorbing nothing is spelled
         // by writing no arguments at all.
         Assert.Equal(Slots("F<void>"), Slots("A"));
+    }
+
+    /// <summary>
+    /// A spread in MEMBER position is one value, not several, so the member holds the tuple its
+    /// pack expands to. Substitution then fills it in: the elements arrive where the spread stood.
+    /// </summary>
+    [Fact]
+    public void SpreadMember_HoldsTheTupleItsPackExpandsTo()
+    {
+        var model = BuildModel(
+            statement: "",
+            extraTypes: "public class Bundle<params TArgs> { public TArgs... Item; }"
+                + " public class Holder { public Bundle<int, string, bool> b; }",
+            extraPreamble: "",
+            out var diagnostics);
+
+        Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
+
+        var holder = Assert.IsType<ClassType>(model.TypesByFQN["Probe.Holder"]);
+        var bundle = Assert.IsType<ConstructedType>(holder.FieldsList[0].Type);
+        var definition = Assert.IsType<ClassType>(bundle.Definition);
+
+        var closed = TypeSubstitution.ForReceiver(bundle)
+            .Apply(definition.FieldsList[0].Type, model.TypeInterner);
+
+        Assert.Equal(
+            ["Int32", "String", "Boolean"],
+            Assert.IsType<TupleType>(closed).ElementTypes.Select(e => e.Name));
     }
 
     [Fact]

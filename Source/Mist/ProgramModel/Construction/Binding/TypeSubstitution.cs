@@ -222,6 +222,36 @@ internal sealed class TypeSubstitution
             ;
     }
 
+    private IMistType SpliceTuple(TupleType tuple, TypeInterner? interner)
+    {
+        var elements = new List<IMistType>(tuple.ElementTypes.Count);
+        var changed = false;
+
+        foreach(var element in tuple.ElementTypes)
+        {
+            if(element is SpreadType spread
+                && spread.Operand is TypeParameter parameter
+                && bindings.TryGetValue(parameter, out var bound)
+                && bound is LiftedType { Value: TypePackValue spliced })
+            {
+                elements.AddRange(spliced.Elements);
+                changed = true;
+                continue;
+            }
+
+            var substituted = Apply(element, interner);
+            changed |= !ReferenceEquals(substituted, element);
+            elements.Add(substituted);
+        }
+
+        if(!changed)
+        {
+            return tuple;
+        }
+
+        return interner is null ? new TupleType(elements) : interner.GetOrCreateTupleType(elements);
+    }
+
     /// <summary>
     /// A pack's elements substituted, with a spread among them replaced by the elements of the pack
     /// it names rather than by that pack. That splice is the whole of what a spread means, and it is
@@ -289,8 +319,18 @@ internal sealed class TypeSubstitution
             ;
     }
 
+    /// <summary>
+    /// A tuple whose elements substituted, with a spread among them replaced by the elements of the
+    /// pack it names -- the same splice a pack slot gets, and for the same reason: `(TArgs...)` is
+    /// one element standing for however many the pack holds.
+    /// </summary>
     private IMistType ApplyToTuple(TupleType tuple, TypeInterner? interner)
     {
+        if(tuple.ElementTypes.Any(e => e is SpreadType))
+        {
+            return SpliceTuple(tuple, interner);
+        }
+
         var elements = new IMistType[tuple.ElementTypes.Count];
         var changed = false;
 

@@ -6535,12 +6535,29 @@ capabilities:
     order: 152
     layer: variadics
     requires: [pack-spread-positions, property-declarations-and-accessors]
-    v2_status: missing
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
       A spread member declaration surfaces both an aggregate and one projection per element,
       in field and get-only-property kinds, with whole-pack assignment in a constructor. A
       whole-pack constraint distributes to every element so the constrained members are
       callable on each projection.
+
+      THE AGGREGATE AND THE PROJECTIONS ARE DELIVERED, in both kinds. A spread in member position is
+      one value rather than several, so the member holds the TUPLE its pack expands to and
+      substitution fills it in.
+
+      THE PROJECTIONS CANNOT BE DECLARED WITH THE TYPE, which is the shape of this capability. N is
+      not a property of the declaration -- the same Bundle has three projections where its pack
+      holds three and none where it holds none -- so the family exists per CONSTRUCTION and is found
+      on demand from the receiver, which is the only thing that knows. Bounded by the pack: one past
+      the end names nothing and the ordinary no-such-member answer stands.
+
+      NOT STARTED: MIST_VAR_0007 and MIST_VAR_0008 on stem collisions and empty stems, whole-pack
+      ASSIGNMENT (`Item... = values...`), and the whole-pack constraint distributing to elements.
+      That last one needs a symbolic element type -- `Shape1` inside its own declaration, where the
+      pack is open but its `Type[2]` domain fixes N at two while the element types stay symbolic --
+      and is what samples/Variadics' last two UNRESOLVED_IDENTIFIER are.
     unlocks: []
 
   - id: variadic-monomorphization

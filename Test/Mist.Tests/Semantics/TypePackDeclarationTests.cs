@@ -77,6 +77,38 @@ public sealed class TypePackDeclarationTests : ProgramModelProbe
             Pack("public class K<Type[3]:TArgs> { }", "K<>", ordinal: 0));
     }
 
+    /// <summary>
+    /// A pack named in expression position is the comptime Type[] it ranges over, so the size-
+    /// agnostic operations are the ARRAY's and need no rule of their own. Asserted through .Length
+    /// because that is the one the sample reaches for.
+    /// </summary>
+    [Fact]
+    public void PackArity_IsReadableInExpressionPosition()
+    {
+        _ = BuildModel(
+            statement: "",
+            extraTypes: "public class F<params TArgs> { public int Count() { return TArgs.Length; } }",
+            extraPreamble: "",
+            out var diagnostics);
+
+        Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
+    }
+
+    /// <summary>
+    /// The negative that keeps the above from being a blanket admission of any member on a pack.
+    /// </summary>
+    [Fact]
+    public void MemberThePackDomainDoesNotHave_IsStillRefused()
+    {
+        _ = BuildModel(
+            statement: "",
+            extraTypes: "public class G<params TArgs> { public int Count() { return TArgs.Nonsense; } }",
+            extraPreamble: "",
+            out var diagnostics);
+
+        _ = Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_MEMBER"));
+    }
+
     [Fact]
     public void TwoBracketFreePacks_AreRefused()
     {

@@ -74,8 +74,16 @@ internal static class AmbientProviderTestHelper
         register(new AbstractType(WellKnownTypes.IEnumerable.Name, WellKnownTypes.IEnumerable.Namespace, scope, null, null));
         register(new AbstractType(WellKnownTypes.IEnumerator.Name, WellKnownTypes.IEnumerator.Namespace, scope, null, null));
 
-        // Array definition for CLR T[] → Standard.Array<T, Length>.
-        register(new ClassType(WellKnownTypes.Array.Name, WellKnownTypes.Array.Namespace, scope, null, null!));
+        // Array definition for CLR T[] → Standard.Array<T, Length>. Its parameters are declared,
+        // not just its name: Array.mist deliberately has no Length PROPERTY, the dependent
+        // parameter being the length itself, so a shell without them answers nothing for
+        // `arr.Length` and diverges from a real compilation exactly where a test would look.
+        var arrayType = new ClassType(
+            WellKnownTypes.Array.Name, WellKnownTypes.Array.Namespace, scope, null, null!);
+        arrayType.TypeParametersList.Add(new TypeParameter("TValue", 0, arrayType.Scope, arrayType));
+        arrayType.TypeParametersList.Add(
+            new TypeParameter("Length", 1, arrayType.Scope, arrayType) { IsDependent = true });
+        register(arrayType);
 
         // Func family (arity 1-17).
         for(var arity = 1; arity <= 17; arity++)

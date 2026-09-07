@@ -6391,11 +6391,17 @@ capabilities:
     order: 149
     layer: variadics
     requires: [type-parameters-and-constructed-types, dependent-type-parameters]
-    v2_status: partial
+    v2_status: done
     evidence: >
       Packs on classes, structs, abstract types and methods, in a keyword form and in
       bracketed open and fixed-size forms, with the pack arity readable as a compile-time
       value in expression position.
+
+      THE ARITY HALF NEEDED NO RULE OF ITS OWN, which is the keystone paying out again. A pack in
+      expression position IS the comptime Type[] it ranges over, so member access on it resolves
+      against its DOMAIN as a value rather than against the parameter as a type -- and `TArgs.Length`
+      is then the ordinary array length, with iteration and indexing arriving on the same footing
+      rather than each needing a case. Six errors in Variadics, closed by moving one receiver.
 
       THE DEPENDENCY ON ORDER 145 WAS REAL AND UNRECORDED, which is the same defect order 109
       carries against 126. A pack is not a new kind of entity: design.md's keystone is that

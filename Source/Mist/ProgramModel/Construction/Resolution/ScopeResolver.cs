@@ -29,9 +29,31 @@ internal sealed class ScopeResolver
     /// <see cref="ProgramModelBuilder"/> to the Phase 2a alias builder; cycle detection lives
     /// with the builder, which is why this completes rather than merely tolerates a null target.
     /// </summary>
+    private int? widestVariadicFamily;
+
     internal Action<TypeAlias>? AliasCompleter { get; set; }
 
     public TypeInterner Interner => context.ProgramModel.TypeInterner;
+
+    /// <summary>
+    /// The most slots any variadic family in the program declares, which is how far a name has to be
+    /// probed before "no such declaration" is the honest answer. Derived rather than chosen: a fixed
+    /// ceiling would either be too small for some program or too large for every other.
+    /// </summary>
+    private int WidestVariadicFamily
+    {
+        get
+        {
+            widestVariadicFamily ??= context.ProgramModel.TypesByFQN.Values
+                .OfType<IHasTypeParameters>()
+                .Where(generic => PackBinding.AbsorbingSlot(generic.TypeParametersList) is not null)
+                .Select(generic => generic.TypeParametersList.Count)
+                .DefaultIfEmpty(0)
+                .Max();
+
+            return widestVariadicFamily.Value;
+        }
+    }
 
     public ScopeResolver(BuilderContext context)
     {
@@ -288,7 +310,7 @@ internal sealed class ScopeResolver
 
         if(namedRef.TypeArgs is not null || Absorbs(baseType))
         {
-            var typeArgs = BindPack(baseType, written);
+            var typeArgs = BindPack(baseType, written, namedRef);
             context.ProgramModel.ConstructorConstraintClosures.RecordType(baseType, typeArgs, namedRef);
             return context.ProgramModel.TypeInterner.GetOrCreateConstructedType(baseType, typeArgs);
         }
@@ -316,14 +338,14 @@ internal sealed class ScopeResolver
     /// count from S-1 upward -- and accepts only a declaration that actually has a pack, so an
     /// ordinary arity mismatch still fails as one.
     /// </summary>
-    private static IMistType? FindByArity(string lookupName, string stem, int arity, Scope scope)
+    private IMistType? FindByArity(string lookupName, string stem, int arity, Scope scope)
     {
         if(TryLookupType(lookupName, scope) is not null)
         {
             return null;
         }
 
-        for(var slots = 1; slots <= arity + 1; slots++)
+        for(var slots = 1; slots <= Math.Max(arity + 1, WidestVariadicFamily); slots++)
         {
             if(TryLookupType(BuildArityName(stem, slots), scope) is { } candidate
                 && Absorbs(candidate))
@@ -352,7 +374,8 @@ internal sealed class ScopeResolver
     /// The flat argument list assigned to slots, when one of them absorbs. Left alone otherwise, so
     /// nothing but a variadic declaration changes shape.
     /// </summary>
-    public IReadOnlyList<IMistType> BindPack(IMistType baseType, IReadOnlyList<IMistType> typeArgs)
+    public IReadOnlyList<IMistType> BindPack(
+        IMistType baseType, IReadOnlyList<IMistType> typeArgs, Storm.Runtime.SyntaxNode locationNode)
     {
         if(baseType is not IHasTypeParameters generic
             || PackBinding.AbsorbingSlot(generic.TypeParametersList) is not { } absorbing)
@@ -364,13 +387,17 @@ internal sealed class ScopeResolver
         var domain = parameters[absorbing].Domain
             ?? ConstructArray(LookupWellKnown(WellKnownTypes.Type), length: null);
 
-        // A short list is not reported HERE, and cannot reach here at all: FindByArity only accepts
-        // a declaration whose slots the arguments can fill, so a genuinely short list fails to name
-        // any declaration and is refused as an unresolved type instead. The guard stays because it
-        // is what makes Bind total, not because this arm is reachable. Reporting MIST_VAR_0005 as
-        // the spec words it needs lookup to find a family by stem rather than by arity.
-        return PackBinding.Bind(
-            parameters, typeArgs, absorbing, context.ProgramModel.TypeInterner, domain) ?? typeArgs;
+        if(PackBinding.Bind(
+            parameters, typeArgs, absorbing, context.ProgramModel.TypeInterner, domain) is { } bound)
+        {
+            return bound;
+        }
+
+        context.Diagnostics.ReportAtNode(
+            ProgramModelDiagnostics.TooFewTypeArgumentsForPack, locationNode, null,
+            MistType.StripArity(baseType.Name), parameters.Count - 1, typeArgs.Count);
+
+        return typeArgs;
     }
 
     private IMistType ExpandAlias(TypeAlias alias, NamedSingleTypeRefSingleTypeRefNode namedRef, Scope scope)
@@ -379,8 +406,8 @@ internal sealed class ScopeResolver
         // has the same gap between its slot count and a flat use site, and substituting by ordinal
         // across that gap silently drops the surplus.
         var typeArgs = namedRef.TypeArgs is { } typeArgList
-            ? BindPack(alias, ResolveTypeArguments(typeArgList, scope))
-            : Absorbs(alias) ? BindPack(alias, []) : null;
+            ? BindPack(alias, ResolveTypeArguments(typeArgList, scope), namedRef)
+            : Absorbs(alias) ? BindPack(alias, [], namedRef) : null;
 
         return ExpandAlias(alias, typeArgs);
     }

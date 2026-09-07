@@ -6429,7 +6429,7 @@ capabilities:
     order: 150
     layer: variadics
     requires: [type-pack-declarations]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
       Leading and trailing fixed parameters bind inward from the ends and the pack absorbs
@@ -6447,13 +6447,14 @@ capabilities:
       quietly bind a bare type into a slot that holds a list -- resolving, emitting, and being
       wrong. That case passed before this work for that reason.
 
-      LOOKUP IS ARITY-BOUNDED AND THAT COSTS A DIAGNOSTIC. A use site finds a variadic family by
-      trying the slot counts its arguments could fill, which makes MIST_VAR_0005 unreachable by
-      construction: the probe accepts a declaration only when slots <= args + 1, and the diagnostic
-      fires only when args < slots - 1. The two are disjoint, so a list too short to fill any
-      declaration names none and is refused as an unresolved type. The descriptor was written, found
-      to be dead, and removed rather than shipped. Reporting it as the spec words it needs lookup to
-      find a family by STEM, which nothing indexes.
+      MIST_VAR_0005 WAS DEAD, THEN REACHABLE, and the fix was a bound rather than an index. A use
+      site finds a variadic family by trying the slot counts its arguments could fill, which made
+      the diagnostic unreachable by construction: the probe accepted a declaration only when
+      slots <= args + 1, while the diagnostic fires only when args < slots - 1. Disjoint. The
+      descriptor was written, found to be dead, and removed rather than shipped -- then restored
+      once the probe was widened to the WIDEST VARIADIC FAMILY THE PROGRAM DECLARES. Derived, not
+      chosen: a fixed ceiling is too small for some program and too large for every other, and the
+      stem index this entry called for turned out to be unnecessary.
 
       THE VALUE SIDE IS DELIVERED TOO. `params TArgs args` gives args the tuple the pack expands to,
       overload resolution filters by a FLOOR rather than an exact count, and inference binds the
@@ -6477,7 +6478,7 @@ capabilities:
       resolving and emitting perfectly well -- when being the same type is the whole point of the
       form. Requirement 4.4 asserted directly.
 
-      STILL OPEN: MIST_VAR_0005, which does need lookup by stem. See above.
+      ORDER 150 IS COMPLETE.
     unlocks: []
 
   - id: pack-spread-positions
@@ -6485,7 +6486,7 @@ capabilities:
     order: 151
     layer: variadics
     requires: [pack-binding-and-inference, func-structural-function-types]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
       Spread into a type argument list, into a base-type list, inside a type alias including

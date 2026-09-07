@@ -923,6 +923,17 @@ public static class ProgramModelDiagnostics
         "Type '{0}' cannot be used as a dependent type parameter. Only primitive integral types, bool, and char are allowed.");
 
     /// <summary>
+    /// A flat type-argument list cannot reach the fixed slots even with the pack absorbing nothing.
+    /// A pack makes the count flexible UPWARD only: the slots around it still each need an
+    /// argument, so there is a floor and this is it.
+    /// </summary>
+    public static readonly DiagnosticDescriptor TooFewTypeArgumentsForPack = new(
+        new DiagnosticId("MIST_VAR_0005"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}' needs at least {1} type arguments to fill the slots around its pack, but {2} were given.");
+
+    /// <summary>
     /// A spread whose expansion is not known. The suffix promises a definite number of arguments,
     /// so an operand whose arity is not fixed cannot stand where arguments go -- and the promise is
     /// what the call was checked against, which is why this is refused rather than deferred.

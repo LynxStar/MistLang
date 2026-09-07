@@ -112,13 +112,13 @@ public sealed class PackBindingTests : ProgramModelProbe
     }
 
     /// <summary>
-    /// Refused, though not yet as MIST_VAR_0005. Lookup finds a variadic family by trying the slot
-    /// counts its arguments could fill, so a list too short to fill any of them names no
-    /// declaration at all and is refused as an unresolved type. Saying "too few arguments" instead
-    /// needs lookup to find the family by STEM, which nothing indexes yet.
+    /// A pack makes the count flexible upward only, so the slots around it are a floor. Reported as
+    /// the shortfall it is rather than as an unresolved name, which needs lookup to probe past the
+    /// arities the arguments could fill -- bounded by the widest variadic family the program
+    /// actually declares, since any fixed ceiling is wrong for some program.
     /// </summary>
     [Fact]
-    public void TooFewForTheFixedSlots_IsRefused()
+    public void TooFewForTheFixedSlots_IsRefusedAsAShortfall()
     {
         _ = BuildModel(
             statement: "",
@@ -126,6 +126,13 @@ public sealed class PackBindingTests : ProgramModelProbe
             extraPreamble: "",
             out var diagnostics);
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_TYPE"));
+        var error = Assert.Single(Errors(diagnostics, "MIST_VAR_0005"));
+        Assert.Contains("needs at least 2 type arguments", error.Message);
+    }
+
+    [Fact]
+    public void JustEnoughForTheFixedSlots_BindsAnEmptyPack()
+    {
+        Assert.Equal(["Int32", "[]", "Boolean"], Slots("Between<int, bool>"));
     }
 }

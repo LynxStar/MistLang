@@ -948,9 +948,13 @@ public static class ProgramModelDiagnostics
     /// <summary>
     /// A homogeneous `params T[]` that is not the last parameter. The call site supplies its
     /// arguments by running off the end of the fixed ones, which only the last slot can do -- where
-    /// a value PACK binds inward from both ends and so may sit anywhere. Reported here rather than
-    /// left to the C# it becomes, which would blame a generated file for a rule the declaration
-    /// broke.
+    /// a value PACK binds inward from both ends and so may sit anywhere.
+    /// <para>
+    /// A RULE OF THE LANGUAGE, so it is decided here and not by whatever the program is emitted
+    /// into. The declaration is not well-formed Mist, which stays true when the backend is not C#;
+    /// leaving it to the target would mean each new backend rediscovering the same rule, and only
+    /// for as long as the target happened to share it.
+    /// </para>
     /// </summary>
     public static readonly DiagnosticDescriptor ParamsArrayNotLast = new(
         new DiagnosticId("MIST_VAR_0012"),

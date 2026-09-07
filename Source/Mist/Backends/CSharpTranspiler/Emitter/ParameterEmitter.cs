@@ -17,14 +17,12 @@ internal static class ParameterEmitter
         }
 
         var parts = new List<string>(parameters.Count);
-        for(var i = 0; i < parameters.Count; i++)
+        foreach(var parameter in parameters)
         {
-            var parameter = parameters[i];
-
             parts.Add(
                 AttributeEmitter.Inline(parameter.DeclaredAttributesList, diagnostics)
                 + $"{RefKeywords.For(parameter.Modifier.IsRef, parameter.Modifier.IsReadonly)}"
-                + Collects(parameter, isLast: i == parameters.Count - 1)
+                + Collects(parameter)
                 + $"{TypeNameEmitter.Emit(parameter.Type)} {parameter.Name}");
         }
 
@@ -35,10 +33,15 @@ internal static class ParameterEmitter
     /// The C# <c>params</c> modifier, for the homogeneous form alone. A value PACK is flattened too
     /// but collects into a tuple, which C# cannot declare that way -- the call site packs its
     /// arguments instead, so declaring it would make the same list flatten twice.
+    /// <para>
+    /// Position is not checked here. That a params array comes last is a rule of the LANGUAGE --
+    /// see <see cref="ProgramModelDiagnostics.ParamsArrayNotLast"/> -- so a
+    /// declaration reaching emission has already satisfied it.
+    /// </para>
     /// </summary>
-    private static string Collects(Parameter parameter, bool isLast)
+    private static string Collects(Parameter parameter)
     {
-        return isLast && parameter.IsFlattened && parameter.Type is not (TupleType or NamedTupleType)
+        return parameter.IsFlattened && parameter.Type is not (TupleType or NamedTupleType)
             ? "params "
             : "";
     }

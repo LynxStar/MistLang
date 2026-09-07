@@ -266,11 +266,12 @@ Two separate defects in one output:
 "Diagnostics", and the code now also defines **MIST_VAR_0012**: a homogeneous `params T[]`
 that is not the last parameter.
 
-**Why it exists:** value-level `params` is C#'s form and behaves identically to it, position
-rule included -- the arguments it collects are whatever runs off the end of the fixed ones,
-which no earlier slot can gather. Before it, both pipelines accepted the declaration and let
-Roslyn refuse the C#: classic surfaced CS0231 against a generated file, and v2 surfaced only
-the call-site arity error, which points nowhere near the cause.
+**Why it exists:** the arguments a params array collects are whatever runs off the end of the
+fixed ones, which no earlier slot can gather. The declaration is not well-formed Mist, and
+stays ill-formed under a backend that is not C# -- so it is the compiler's to reject, not the
+target's. Before it, both pipelines let the target refuse instead: classic surfaced CS0231
+against a generated file, and v2 surfaced only the call-site arity error, which points nowhere
+near the cause. An LLVM or WASM backend would have had to rediscover the rule for itself.
 
 **Why it is here rather than in the spec:** Requirement 13 governs Value_Level_Params and
 says the call site supplies "trailing arguments (those supplied after the fixed leading

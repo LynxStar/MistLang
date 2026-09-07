@@ -10,7 +10,16 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// string are Mist's own. Spelling each of those at every use site means the emitter carrying a
 /// member table AND knowing the expected type at every argument, assignment and return -- which is
 /// conversion insertion, a capability of its own. A wrapper declares them once and lets C#'s own
-/// rules apply them, exactly as Standard.Void is a real emitted struct for the same kind of reason.
+/// rules apply them.
+/// </para>
+/// <para>
+/// DELETE THIS IN FAVOUR OF TRANSPILING Bootstrap/Regex.mist, exactly as
+/// <c>CSharpEmitterV2.EmitVoidStruct</c> is to be deleted in favour of Void.mist. Only two of the
+/// six members are primitive -- construction and IsMatch. IsFullMatch and both conversions are
+/// DERIVABLE from those, and would be ordinary Mist bodies rather than a promise every backend has
+/// to keep separately; they are intrinsic today only because the stdlib is resolved against and
+/// never emitted, so a Standard member without a body has no implementation at all. Pattern is the
+/// one irreducible mapping, the CLR having no member of that name.
 /// </para>
 /// </summary>
 internal static class RegexLowering

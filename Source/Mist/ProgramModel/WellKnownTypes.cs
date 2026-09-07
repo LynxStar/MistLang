@@ -45,6 +45,13 @@ internal static class WellKnownTypes
     public static readonly WellKnownType Type = new("Type", "Standard", Keyword: null);
     public static readonly WellKnownType Task = new("Task", "Standard", Keyword: null);
     public static readonly WellKnownType TaskGeneric = new("Task<>", "Standard", Keyword: null);
+
+    /// <summary>
+    /// The variadic function family. Named here so a construction of it can be recognised and
+    /// collapsed into the structural function type, which is what makes <c>Func&lt;int, int&gt;</c>
+    /// and <c>func&lt;int, int&gt;</c> one type rather than two spellings that never meet.
+    /// </summary>
+    public static readonly WellKnownType Func = new("Func<,>", "Standard", Keyword: null);
     public static readonly WellKnownType ValueTask = new("ValueTask", "Standard", Keyword: null);
     public static readonly WellKnownType ValueTaskGeneric = new("ValueTask<>", "Standard", Keyword: null);
     public static readonly WellKnownType Array = new("Array<,>", "Standard", Keyword: null);

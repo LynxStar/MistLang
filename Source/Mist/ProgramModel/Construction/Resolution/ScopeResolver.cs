@@ -311,6 +311,12 @@ internal sealed class ScopeResolver
         if(namedRef.TypeArgs is not null || Absorbs(baseType))
         {
             var typeArgs = BindPack(baseType, written, namedRef);
+
+            if(AsFunctionType(baseType, typeArgs) is { } functionType)
+            {
+                return functionType;
+            }
+
             context.ProgramModel.ConstructorConstraintClosures.RecordType(baseType, typeArgs, namedRef);
             return context.ProgramModel.TypeInterner.GetOrCreateConstructedType(baseType, typeArgs);
         }
@@ -374,6 +380,28 @@ internal sealed class ScopeResolver
     /// The flat argument list assigned to slots, when one of them absorbs. Left alone otherwise, so
     /// nothing but a variadic declaration changes shape.
     /// </summary>
+    /// <summary>
+    /// A construction of <c>Standard.Func</c> collapsed into the structural function type it means.
+    /// Null for anything else.
+    /// <para>
+    /// THE TWO SPELLINGS HAVE TO MEET SOMEWHERE, and this is the only place they can: Func is
+    /// nominal and <c>func&lt;...&gt;</c> is structural, so without this a lambda assigned to a
+    /// Func has no parameter types to read, and a Func-typed value cannot be invoked as a function.
+    /// Collapsing needs the pack already bound, which is why it could not be done before packs
+    /// existed -- see <see cref="FunctionType"/>, which has said so all along.
+    /// </para>
+    /// </summary>
+    public IMistType? AsFunctionType(IMistType definition, IReadOnlyList<IMistType> typeArgs)
+    {
+        if(definition.FullyQualifiedName != WellKnownTypes.Func.FullyQualifiedName
+            || typeArgs is not [LiftedType { Value: TypePackValue pack }, { } returnType])
+        {
+            return null;
+        }
+
+        return context.ProgramModel.TypeInterner.GetOrCreateFunctionType([.. pack.Elements], returnType);
+    }
+
     public IReadOnlyList<IMistType> BindPack(
         IMistType baseType, IReadOnlyList<IMistType> typeArgs, Storm.Runtime.SyntaxNode locationNode)
     {

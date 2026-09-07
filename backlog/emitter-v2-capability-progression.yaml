@@ -5123,7 +5123,8 @@ capabilities:
     order: 109
     layer: functions
     requires: [method-group-conversion]
-    v2_status: missing
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
       NOT ATTEMPTED, and the `requires` above understates what it needs. Mist has no delegate
       DECLARATION syntax -- the `Delegate` in Mist.storm is a Storm trait for members carrying a body,
@@ -5135,6 +5136,24 @@ capabilities:
       So this order cannot be reached from within the functions layer whatever effort is spent on it,
       and its requires should name order 126 rather than implying the layer is self-contained. Recorded
       here rather than acted on, because renumbering to put it after 126 would move a whole layer.
+      THE STANDARD.FUNC HALF IS DELIVERED, and it needed packs rather than order 126. Func is
+      declared `Func<params TArgs, TResult>`, so collapsing a construction of it into the structural
+      function type was impossible until a pack could be bound -- exactly as FunctionType's own
+      comment has said since it was written. `Func<int, int> f = x => x * 2;` now binds, runs, and
+      is the SAME interned type as `func<int, int>`.
+
+      THIS IS WHAT MIST_PM_LAMBDA_PARAMETER_NO_TYPE WAS, on four samples. Lambda inference worked
+      throughout; what failed was that a nominal Func had no parameter types for a lambda to read
+      its slots from, and could not be invoked as a function at all. Diagnosed at order 129 and
+      fixed here, which is the whole distance between the symptom and the cause.
+
+      THE SPLICE HAD TO REACH A FUNCTION'S PARAMETER LIST, found by the first probe emitting `...`
+      into C#. Collapsing happens before the pack is bound, so `type Action<params TArgs> =
+      Func<TArgs..., void>` leaves a spread sitting in a parameter list rather than in the argument
+      list it was written in, and substitution had no arm for it.
+
+      STILL MISSING: conversion between a function type and a NAMED CLR delegate, which is what this
+      entry is actually about and still needs order 126.
     tasks:
       - >
         Correct this entry's requires to include clr-assembly-type-projection, or move the order after

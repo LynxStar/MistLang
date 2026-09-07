@@ -296,13 +296,28 @@ internal sealed class TypeSubstitution
     /// </summary>
     private IMistType ApplyToFunction(FunctionType function, TypeInterner? interner)
     {
-        var parameters = new IMistType[function.ParameterTypes.Count];
+        // A spread among the parameters splices, as it does in a pack slot and in a tuple. It gets
+        // here because a Func construction collapses to this type BEFORE its pack is bound, so
+        // `type Action<params TArgs> = Func<TArgs..., void>` leaves the spread sitting in a
+        // parameter list rather than in the argument list it was written in.
+        var parameters = new List<IMistType>(function.ParameterTypes.Count);
         var changed = false;
 
-        for(var i = 0; i < parameters.Length; i++)
+        foreach(var parameter in function.ParameterTypes)
         {
-            parameters[i] = Apply(function.ParameterTypes[i], interner);
-            changed |= !ReferenceEquals(parameters[i], function.ParameterTypes[i]);
+            if(parameter is SpreadType spread
+                && spread.Operand is TypeParameter packParameter
+                && bindings.TryGetValue(packParameter, out var bound)
+                && bound is LiftedType { Value: TypePackValue spliced })
+            {
+                parameters.AddRange(spliced.Elements);
+                changed = true;
+                continue;
+            }
+
+            var substituted = Apply(parameter, interner);
+            changed |= !ReferenceEquals(substituted, parameter);
+            parameters.Add(substituted);
         }
 
         var returnType = Apply(function.ReturnType, interner);

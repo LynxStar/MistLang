@@ -5492,11 +5492,24 @@ capabilities:
     order: 121
     layer: attributes-and-project
     requires: [class-declaration]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       Restore must complete BEFORE type resolution, since the referenced namespaces do not
       exist until it does, and the packages must be emitted as references in the generated
       project file.
+
+      RECLASSIFIED FROM `missing` AT ORDER 129, both halves measured rather than argued.
+      Restore is Stage 1.5 in CompilerDriver, ahead of Stage 4 in either pipeline, and v2's
+      ambient provider is built from its output -- a probe declaring [packages]
+      Newtonsoft.Json and calling JsonConvert.SerializeObject binds, compiles and prints on
+      v2. The project-file half shipped as order 129.
+
+      MARKING 129 DONE OVER A `missing` REQUIRES IS WHAT SURFACED IT, the same
+      status-wrong-in-both-directions shape orders 74, 127 and 132 turned out to have. No
+      stated invariant catches it: 1 through 7 are structural and none of them reads
+      v2_status, so a delivered capability can sit at `missing` underneath a delivered
+      dependent indefinitely. Worth a pass when the checker next comes back.
     unlocks: []
 
   - id: mist-test-command
@@ -9085,8 +9098,31 @@ measured_defects:
        the half that changed nothing -- v2 never builds that file. What was actually missing was the
        reference set reaching Roslyn. Reading a symptom in generated C# as evidence about which
        artifact is at fault is the same trap silent_emission_failures warns about for measurement.
-    2. Lambda parameter type inference, MIST_PM_LAMBDA_PARAMETER_NO_TYPE. Five samples, and it banks
-       OptionalDefaultability outright, that being its only error.
+    2. NOT LAMBDA PARAMETER INFERENCE. This entry read MIST_PM_LAMBDA_PARAMETER_NO_TYPE across five
+       samples as one capability worth taking next. It is not a capability at all -- it is a symptom
+       of two, and lambda inference itself already works. Investigated at order 129; do not re-derive.
+
+       WHAT THE DIAGNOSTIC ACTUALLY MEANS is that LambdaBinder found no IFunctionType on the target
+       (LambdaBinder.cs:35), and only the structural `func<...>` spelling produces one. Probed: with
+       a `func<int, int>` target both a local annotation and a method parameter infer correctly. The
+       failing sites divide cleanly, and neither half is reachable from here:
+
+         Standard.Func / Action as the target -- DefiniteAssignment, OptionalDefaultability,
+         Variadics, and half of FirstClassFunctions. Array's constructor takes Func<int, TValue>, so
+         `new Array<Point, 2>(i => new Point())` is this case too rather than a construction case.
+         FunctionType's own doc records the split as deliberate: Func is declared
+         `Func<params TArgs, TResult>`, resolving it needs type packs, and those are orders 149-151.
+         The arity evidence confirms packs are absent rather than partial -- only Func<,> and
+         Action<> resolve at all, which is exactly what treating the pack as one ordinary type
+         parameter would give; Func<>, Func<,,>, Action, Predicate<> and Comparison<> all report
+         MIST_PM_UNRESOLVED_TYPE.
+
+         A CLR DELEGATE as the target -- DelegateFuncConversion's `numbers.FindAll(x => x > 0)` and
+         FirstClassFunctions' `items.ForEach(...)`. That is order 109, already recorded `missing`
+         with a task on it, and already recorded as unreachable until clr-assembly-type-projection.
+
+       OptionalDefaultability is therefore NOT a cheap bank. Its single error is the Array
+       constructor, which is the type-pack case, so it sits behind a five-capability layer.
     3. DONE -- AssemblyTypeProvider is banked, 47th on AllFeaturesV2. It was the cheapest green on
        the board and cost only the two orchestrator edits plus eight appended baseline lines.
 

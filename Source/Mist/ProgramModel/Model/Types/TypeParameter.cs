@@ -61,6 +61,23 @@ internal class TypeParameter : MistType, ITypeParameter
     public int? PackLength { get; internal set; }
 
     /// <summary>
+    /// What the declaration annotated the domain with, carried from construction to resolution
+    /// because <see cref="Domain"/> cannot be resolved where the parameter is created -- Standard
+    /// is not registered yet.
+    /// <para>
+    /// A descriptor and a name rather than the annotation's syntax, which is what keeps the AST out
+    /// of the model here. The annotation admits four shapes and three of them carry no syntax worth
+    /// deferring: a primitive keyword maps to a well-known type by a pure switch, a pack's domain
+    /// is built from <see cref="PackKind"/> and <see cref="PackLength"/>, and a plain parameter's
+    /// is constant. Only a named refinement needs anything, and what it needs is one identifier.
+    /// </para>
+    /// </summary>
+    public WellKnownType? DomainPrimitive { get; internal set; }
+
+    /// <inheritdoc cref="DomainPrimitive"/>
+    public string? DomainTypeName { get; internal set; }
+
+    /// <summary>
     /// True when this parameter was written with a value domain (<c>Size:int</c>) rather than as a
     /// plain type parameter. The SYNTACTIC fact only: <see cref="Domain"/> is what will carry the
     /// resolved domain type, and nothing populates it yet, so a consumer that needs to know WHICH

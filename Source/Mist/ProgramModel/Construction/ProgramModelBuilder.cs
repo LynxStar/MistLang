@@ -6,6 +6,7 @@ using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Construction.Scaffolding;
 using Mist.ProgramModel.Construction.Types;
 using Mist.ProgramModel.Contracts;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction;
@@ -119,6 +120,15 @@ public sealed class ProgramModelBuilder
             {
                 typeAliasBuilder.Build(typeAliasDef);
             }
+        }
+
+        // Type-level parameters were created in Phase 1, before Standard existed to resolve a
+        // domain against, so theirs is filled in here instead. After the aliases above, because a
+        // dependent parameter may name a refinement alias as its domain; before the signatures
+        // below, because resolving one can ask what a length's domain is.
+        foreach(var typeDef in sourceTypes.OfType<IHasTypeParameters>())
+        {
+            context.Domains.Resolve(typeDef.TypeParametersList);
         }
 
         foreach(var typeDef in sourceTypes)

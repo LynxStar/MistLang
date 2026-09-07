@@ -65,7 +65,8 @@ internal sealed class TypeSlotBuilder
             ArityName(name, slotDecl.TypeParams), typeDef.TypeSlotsList.Count, slotScope, typeDef);
 
         // The slot's own type parameters (e.g. T in `type Foo<T>;`).
-        TypeParameterPopulator.Populate(slot, slotScope, slot, slotDecl.TypeParams, context.Diagnostics);
+        TypeParameterPopulator.Populate(
+            slot, slotScope, slot, slotDecl.TypeParams, context.Diagnostics, context.Domains);
 
         // The `:` bound constrains the slot itself; store it on the slot's own
         // constraint list (inherited from TypeParameter).

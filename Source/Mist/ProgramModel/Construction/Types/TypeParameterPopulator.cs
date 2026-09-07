@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Scopes;
@@ -31,7 +32,8 @@ internal static class TypeParameterPopulator
         Scope declaringScope,
         MistType? declaringType,
         TypeParameterListNode? typeParams,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        TypeParameterDomainResolver? domains = null)
     {
         if(typeParams is null)
         {
@@ -72,6 +74,10 @@ internal static class TypeParameterPopulator
 
             unbracketed = typeParam;
         }
+
+        // Null for the Phase 1 caller alone, which runs before Standard is registered and whose
+        // parameters ProgramModelBuilder resolves in one pass once it is.
+        domains?.Resolve(declaration.TypeParametersList);
     }
 
     private static bool IsPack(TypeParameterNode node)
@@ -108,9 +114,14 @@ internal static class TypeParameterPopulator
                 typeParam.IsDependent = true;
                 break;
 
-            case DependentTypeParameterTypeParameterNode:
-            case NamedConstraintDependentTypeParameterTypeParameterNode:
+            case DependentTypeParameterTypeParameterNode dependent:
                 typeParam.IsDependent = true;
+                typeParam.DomainPrimitive = PrimitiveDomain(dependent.ValueType);
+                break;
+
+            case NamedConstraintDependentTypeParameterTypeParameterNode named:
+                typeParam.IsDependent = true;
+                typeParam.DomainTypeName = named.ConstraintName.Lexeme;
                 break;
         }
 
@@ -125,6 +136,24 @@ internal static class TypeParameterPopulator
         }
 
         return typeParam;
+    }
+
+    private static WellKnownType? PrimitiveDomain(PrimitiveTypeNode valueType)
+    {
+        return valueType switch
+        {
+            IntTypePrimitiveTypeNode => WellKnownTypes.Int32,
+            UintTypePrimitiveTypeNode => WellKnownTypes.UInt32,
+            LongTypePrimitiveTypeNode => WellKnownTypes.Int64,
+            UlongTypePrimitiveTypeNode => WellKnownTypes.UInt64,
+            ShortTypePrimitiveTypeNode => WellKnownTypes.Int16,
+            UshortTypePrimitiveTypeNode => WellKnownTypes.UInt16,
+            ByteTypePrimitiveTypeNode => WellKnownTypes.Byte,
+            SbyteTypePrimitiveTypeNode => WellKnownTypes.SByte,
+            BoolTypePrimitiveTypeNode => WellKnownTypes.Boolean,
+            CharTypePrimitiveTypeNode => WellKnownTypes.Char,
+            _ => null,
+        };
     }
 
     private static int? FixedLength(ArrayRankSuffixNode arrayRank)

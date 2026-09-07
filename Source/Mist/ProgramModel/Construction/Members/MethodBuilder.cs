@@ -49,7 +49,8 @@ internal sealed class MethodBuilder
         if(methodDecl.TypeParams is not null)
         {
             TypeParameterPopulator.Populate(
-                method, methodScope, host as MistType, methodDecl.TypeParams, context.Diagnostics);
+                method, methodScope, host as MistType, methodDecl.TypeParams, context.Diagnostics,
+                context.Domains);
         }
 
         var common = delegateResolver.ResolveFullDelegate(methodDecl, methodScope, host, name);

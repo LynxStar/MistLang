@@ -66,7 +66,7 @@ internal sealed class ExtensionBuilder
         if(ast.TypeParams is not null)
         {
             TypeParameterPopulator.Populate(
-                extensionBlock, extensionScope, null, ast.TypeParams, context.Diagnostics);
+                extensionBlock, extensionScope, null, ast.TypeParams, context.Diagnostics, context.Domains);
         }
 
         // Resolve the receiver type reference.

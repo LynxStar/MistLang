@@ -26,6 +26,7 @@ internal sealed class BuilderContext
         AmbientProvider = ambientProvider;
         programScope = new ProgramScope(programModel);
         Resolver = new ScopeResolver(this);
+        Domains = new TypeParameterDomainResolver(Resolver);
         Attributes = new AttributeBuilder(this);
     }
 
@@ -48,6 +49,8 @@ internal sealed class BuilderContext
 
         return scope;
     }
+
+    public TypeParameterDomainResolver Domains { get; }
 
     public Model.ProgramModel ProgramModel { get; }
 

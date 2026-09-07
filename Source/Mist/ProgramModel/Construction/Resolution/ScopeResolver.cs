@@ -374,9 +374,12 @@ internal sealed class ScopeResolver
 
     private IMistType ExpandAlias(TypeAlias alias, NamedSingleTypeRefSingleTypeRefNode namedRef, Scope scope)
     {
+        // Bound before substituting, exactly as a class's arguments are: an alias declaring a pack
+        // has the same gap between its slot count and a flat use site, and substituting by ordinal
+        // across that gap silently drops the surplus.
         var typeArgs = namedRef.TypeArgs is { } typeArgList
-            ? ResolveTypeArguments(typeArgList, scope)
-            : null;
+            ? BindPack(alias, ResolveTypeArguments(typeArgList, scope))
+            : Absorbs(alias) ? BindPack(alias, []) : null;
 
         return ExpandAlias(alias, typeArgs);
     }
@@ -699,7 +702,7 @@ internal sealed class ScopeResolver
 
         if(resolved is TypeParameter { IsPack: true })
         {
-            return resolved;
+            return new SpreadType(resolved);
         }
 
         context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownTypeRefNode, spread, null, name);

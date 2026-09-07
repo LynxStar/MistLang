@@ -6458,12 +6458,32 @@ capabilities:
     order: 151
     layer: variadics
     requires: [pack-binding-and-inference, func-structural-function-types]
-    v2_status: missing
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
       Spread into a type argument list, into a base-type list, inside a type alias including
       with void as the result, and as a value at a call site. Requires PROVABLE-spread
       checking -- spreading into a fixed-arity target must be rejected unless the pack's
       shape is proven for every instantiation, not just the observed one.
+
+      THE TYPE-ARGUMENT-LIST CASE IS DELIVERED, including inside an alias and with void as the
+      result -- which is Standard's own shape, `type Action<params TArgs> = Func<TArgs..., void>`.
+
+      A SPREAD HAD TO BECOME A MARKER RATHER THAN ITS OPERAND, and that is the whole design. An
+      alias is resolved ONCE at its declaration, while its pack is still open, and substituted at
+      each use; so a spread that resolved to the pack itself would be indistinguishable from an
+      ordinary reference by substitution time, and substitution would put one list where the
+      elements belong. Measured before the fix: A<int, string> resolved to F<[TArgs], void>, which
+      made it the same type as A<string, int> -- resolving, emitting, and silently wrong.
+      SpreadType carries the distinction forward; substitution splices.
+
+      ALIASES NEEDED THE BINDING RULE TOO, which the class path already had. ExpandAlias resolved
+      its arguments and substituted them by ordinal, so a flat use site against a pack-declaring
+      alias dropped every argument past the first.
+
+      NOT STARTED: spread into a base-type list, spread as a VALUE at a call site, and the
+      provable-spread check that must reject a spread into a fixed-arity target whose shape is not
+      proven for every instantiation. Nothing yet refuses an unprovable one.
     unlocks: []
 
   - id: spread-generated-members

@@ -160,6 +160,19 @@ internal sealed class TypeSubstitution
             return bindings.TryGetValue(parameter, out var argument) ? argument : type;
         }
 
+        if(type is SpreadType spread)
+        {
+            // A spread standing alone rather than inside a pack slot has nowhere to expand INTO, so
+            // it substitutes its operand and stays a spread; the slot it lands in does the rest.
+            var operand = Apply(spread.Operand, interner);
+            return ReferenceEquals(operand, spread.Operand) ? spread : new SpreadType(operand);
+        }
+
+        if(type is LiftedType { Value: TypePackValue pack } lifted)
+        {
+            return ApplyToPack(lifted, pack, interner);
+        }
+
         if(type is UnionType union)
         {
             return ApplyToUnion(union, interner);
@@ -207,6 +220,43 @@ internal sealed class TypeSubstitution
             ? new ConstructedType(constructed.Definition, substituted)
             : interner.GetOrCreateConstructedType(constructed.Definition, substituted)
             ;
+    }
+
+    /// <summary>
+    /// A pack's elements substituted, with a spread among them replaced by the elements of the pack
+    /// it names rather than by that pack. That splice is the whole of what a spread means, and it is
+    /// why a pack cannot be substituted element-for-element: one element becomes many, or none.
+    /// </summary>
+    private IMistType ApplyToPack(LiftedType lifted, TypePackValue pack, TypeInterner? interner)
+    {
+        var elements = new List<IMistType>(pack.Elements.Length);
+        var changed = false;
+
+        foreach(var element in pack.Elements)
+        {
+            if(element is SpreadType spread
+                && spread.Operand is TypeParameter parameter
+                && bindings.TryGetValue(parameter, out var bound)
+                && bound is LiftedType { Value: TypePackValue spliced })
+            {
+                elements.AddRange(spliced.Elements);
+                changed = true;
+                continue;
+            }
+
+            var substituted = Apply(element, interner);
+            changed |= !ReferenceEquals(substituted, element);
+            elements.Add(substituted);
+        }
+
+        if(!changed)
+        {
+            return lifted;
+        }
+
+        var value = new TypePackValue(elements);
+
+        return interner is null ? new LiftedType(lifted.Type, value) : interner.LiftPack(lifted.Type, value);
     }
 
     /// <summary>

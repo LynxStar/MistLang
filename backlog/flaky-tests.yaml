@@ -52,6 +52,28 @@ flakes:
       work (git status shows only DependentCarrierNameTests and UnspellableTypeGuardTests).
       Every unbanked sample was also swept at zero Roslyn errors before and after.
 
+      MUCH STRONGER EVIDENCE THE NEXT DAY, during order 151, and it changes what this entry is
+      about. Four consecutive full-suite runs on IDENTICAL binaries with no edit between them gave:
+      1 failure, 1 failure, 9 failures, 0 failures. The failing sets were disjoint each time --
+      AttributeEmissionRoundTrip, then a parse PERFORMANCE test, then eight of the nine
+      CrossFileTypeResolutionTests plus a tuple-pattern test, then nothing. Every one of them
+      passed under --filter immediately afterwards, and CrossFileTypeResolutionTests passed 9/9 in
+      isolation moments after failing 8/9 in the suite.
+
+      SO THIS IS NOT THREE TESTS, it is the suite. Whole classes fail together and recover
+      together, which no per-test defect explains and which fits the MIST_UNDEFINED_NAMESPACE
+      symptom above: something shared -- a temp directory, a stdlib cache, a file still being
+      written -- is occasionally unavailable, and whichever tests touch it in that window fail
+      whatever they were asserting.
+
+      NOTE FOR attribute-emission-round-trip-unreproduced BELOW: it was reproduced here, in a full
+      suite run, after that entry recorded 19 failed attempts to trigger it deliberately. The
+      attempts were presumably in isolation, which by this theory is exactly where it cannot
+      happen. Reproducing it may be a matter of load rather than of input.
+
+      Machine was under sustained load from back-to-back full-suite runs throughout, which is the
+      obvious confound and also the likeliest trigger.
+
   - id: attribute-emission-round-trip-unreproduced
     test: Mist.Tests.Backend.AttributeEmissionRoundTripPropertyTests.AttributeEmission_PreservesStructure_RoundTrip
     file: Test/Mist.Tests/Backend/AttributeEmissionRoundTripPropertyTests.cs

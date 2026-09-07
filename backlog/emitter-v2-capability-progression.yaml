@@ -6553,7 +6553,13 @@ capabilities:
       on demand from the receiver, which is the only thing that knows. Bounded by the pack: one past
       the end names nothing and the ordinary no-such-member answer stands.
 
-      NOT STARTED: MIST_VAR_0007 and MIST_VAR_0008 on stem collisions and empty stems, whole-pack
+      MIST_VAR_0007 IS DELIVERED. A spread reserves a name FAMILY rather than a name, and it has to:
+      how many projections it has is unknown where it is declared, so the prefixed namespace is held
+      rather than the names one instantiation happens to produce. Covers an ordinary member taking a
+      projection name, in either declaration order, and one spread prefixing another. It stops at
+      what the family can actually claim -- `ItemName` beside `Item` is fine.
+
+      NOT STARTED: MIST_VAR_0008 (an empty stem, which the grammar may not admit at all), whole-pack
       ASSIGNMENT (`Item... = values...`), and the whole-pack constraint distributing to elements.
       That last one needs a symbolic element type -- `Shape1` inside its own declaration, where the
       pack is open but its `Type[2]` domain fixes N at two while the element types stay symbolic --

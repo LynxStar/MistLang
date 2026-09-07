@@ -934,6 +934,18 @@ public static class ProgramModelDiagnostics
         "'{0}' needs at least {1} type arguments to fill the slots around its pack, but {2} were given.");
 
     /// <summary>
+    /// A member name that a spread already owns. A spread declares a FAMILY -- the aggregate and
+    /// every indexed projection -- and how many of the latter there are is not known where the
+    /// declaration is written, so the whole prefixed namespace has to be reserved rather than the
+    /// names that happen to exist for one instantiation.
+    /// </summary>
+    public static readonly DiagnosticDescriptor SpreadStemCollision = new(
+        new DiagnosticId("MIST_VAR_0007"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}' collides with the spread member '{1}', which owns that name and every '{1}' followed by an index.");
+
+    /// <summary>
     /// A spread whose expansion is not known. The suffix promises a definite number of arguments,
     /// so an operand whose arity is not fixed cannot stand where arguments go -- and the promise is
     /// what the call was checked against, which is why this is refused rather than deferred.

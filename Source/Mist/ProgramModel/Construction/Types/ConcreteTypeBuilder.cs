@@ -34,6 +34,10 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
     {
         BuildDeclaration(typeDef);
         BuildMembers(typeDef);
+
+        // After the members, because what a spread reserves can only be compared against names that
+        // exist -- and a spread declared last reserves just as much as one declared first.
+        SpreadMember.ValidateStems(typeDef, typeDef.DeclarationNode!, Context.Diagnostics);
     }
 
     /// <summary>

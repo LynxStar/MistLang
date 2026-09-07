@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Model.Types;
@@ -86,6 +87,41 @@ public sealed class PackSpreadTests : ProgramModelProbe
         Assert.Equal(
             ["Int32", "String", "Boolean"],
             Assert.IsType<TupleType>(closed).ElementTypes.Select(e => e.Name));
+    }
+
+    private ImmutableArray<Diagnostic> Stems(string body)
+    {
+        _ = BuildModel(
+            statement: "",
+            extraTypes: $"public class S<params TArgs> {{ {body} }}",
+            extraPreamble: "",
+            out var diagnostics);
+
+        return diagnostics;
+    }
+
+    /// <summary>
+    /// A spread reserves a name FAMILY, not a name. How many projections it has is unknown where it
+    /// is declared, so the whole prefixed namespace has to be held rather than the names that
+    /// happen to exist for one instantiation.
+    /// </summary>
+    [Theory]
+    [InlineData("public TArgs... Item; public int Item1;")]
+    [InlineData("public int Item1; public TArgs... Item;")]
+    [InlineData("public TArgs... Item; public TArgs... ItemExtra;")]
+    public void NameASpreadCouldClaim_IsRefused(string body)
+    {
+        _ = Assert.Single(Errors(Stems(body), "MIST_VAR_0007"));
+    }
+
+    /// <summary>
+    /// The reservation stops at what the family can actually name: a member merely starting with
+    /// the stem is not one of its projections.
+    /// </summary>
+    [Fact]
+    public void NameTheFamilyCannotClaim_IsAllowed()
+    {
+        Assert.Empty(Errors(Stems("public TArgs... Item; public int ItemName; public int Other;"), "MIST_VAR_0007"));
     }
 
     [Fact]

@@ -33,7 +33,9 @@ internal static class UnspellableTypeGuard
 
         foreach(var parameter in type.TypeParametersList)
         {
-            if(parameter.IsDependent)
+            // A pack has no witness encoding yet, so it keeps the refusal a dependent parameter no
+            // longer needs: its domain is Type[], and a carrier per TYPE LIST is orders 149-151.
+            if(parameter.IsPack)
             {
                 diagnostics.ReportAtNode(
                     BackendDiagnostics.DependentTypeParameter, node, null,

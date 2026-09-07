@@ -6244,8 +6244,23 @@ capabilities:
     order: 145
     layer: refinement-and-dependent
     requires: [type-parameters-and-constructed-types]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
+      DELIVERED WITH ORDER 146, which had to ship in the same change: 145's model half alone
+      changes nothing observable, because the refusal is at emission and only the witness encoding
+      lifts it. Domain is now populated -- the field this entry recorded as never filled -- and
+      MIST_DT_0001 refuses a domain outside the integral types, bool and char, admitted through any
+      number of refinements and aliases. Identity already worked: LiftedType is interned on
+      (domain, value), so FixedBuffer<5> and FixedBuffer<6> were never the same type.
+
+      DependentTypes 20 errors -> 0, DependentTypeRefinementConstraints 2 -> 0,
+      ArrayBoundsFlowAnalysis 1 -> 0, all three running byte-identical to classic.
+      AdhocRefinementConstraints 6 -> 1, its remainder being order 141 rather than this.
+
+      THE ORIGINAL EVIDENCE BELOW IS KEPT because its last paragraph was right about its
+      dependants and wrong about nothing.
+    prior_evidence: >
       A dependent parameter occupies an ordinal distinct from type parameters, its argument
       participates in constructed-type IDENTITY, and it stays readable at runtime inside
       member bodies. Domains include the integral types, bool and char, and may also be a
@@ -6278,8 +6293,34 @@ capabilities:
     order: 146
     layer: refinement-and-dependent
     requires: [dependent-type-parameters]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
+      DELIVERED. A dependent parameter becomes a C# type parameter constrained to a per-domain
+      witness interface, each distinct value becomes a readonly struct implementing it, and a read
+      of the parameter as a VALUE becomes a static member access on that parameter. One generated
+      file, __DependentValues.g.cs, top-level so a construction in any namespace can name it.
+
+      THE DOMAIN COMES FROM THE SLOT, NEVER FROM THE VALUE, and this was the defect that took the
+      longest to see. Every integral literal lifts as int, so a 999 filling a `long` parameter is a
+      LiftedType over Int32 -- name its carrier from that and you emit Const_Int_999 : IConstInt
+      into a slot whose constraint says IConstLong, which Roslyn rejects. Both the collection site
+      and the emission site read the parameter's declared Domain instead, which is the whole reason
+      order 145 had to land first.
+
+      THE CARRIER SET IS DELIBERATELY LARGER THAN THE REACHABLE ONE: every declared domain crossed
+      with every value the program mentions, filtered by kind and by range. Collecting only what is
+      used means walking every expression, because a constructed type holds its arguments but a
+      method call site holds its own -- and the two costs are wildly asymmetric. A spare carrier is
+      an unreferenced struct in a file nobody reads; a missing one is MIST_CS_ERROR against
+      generated code, which is the failure shape this register calls its worst.
+
+      HEX ALWAYS FOR CHARS, diverging from the spec deliberately: its readable form names 'x' and
+      'X' both Const_Char_X, and two values sharing a carrier are two types silently becoming one.
+
+      NOT COVERED: the spec's [DependentType] reflection attribute, and the implicit static
+      property that makes FixedBuffer<5>.Size readable from outside the type. No sample exercises
+      either, and both are additive.
       C# has no analogue, so the encoding is invented -- a dependent parameter becomes a type
       parameter constrained to a per-domain witness interface, each distinct value becomes a
       const struct deduplicated program-wide, and body uses become a static member read.

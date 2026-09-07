@@ -45,6 +45,11 @@ public sealed class UnspellableTypeGuardTests : ProgramModelProbe
             public int length;
         }
 
+        public class Packed<params TArgs>
+        {
+            public int length;
+        }
+
         public class Generic<T>
         {
             public int length;
@@ -94,10 +99,25 @@ public sealed class UnspellableTypeGuardTests : ProgramModelProbe
         Assert.All(diagnostics, d => Assert.Equal("MIST_BE_REFINED_TYPE", d.Id.Value));
     }
 
+    /// <summary>
+    /// A dependent parameter is no longer refused: order 146 gives it a C# spelling, a type
+    /// parameter constrained to a witness interface carrying the value.
+    /// </summary>
     [Fact]
-    public void DependentTypeParameter_IsRefused()
+    public void DependentTypeParameter_IsNoLongerRefused()
     {
-        AssertSingle(GuardOn("Sized"), "MIST_BE_DEPENDENT_TYPE_PARAMETER");
+        Assert.Empty(GuardOn("Sized"));
+    }
+
+    /// <summary>
+    /// A PACK keeps the refusal, and this is what stops the narrowing above from having quietly
+    /// un-refused both. Its domain is Type[], so carrying one means a witness per type LIST, which
+    /// orders 149 to 151 have yet to build.
+    /// </summary>
+    [Fact]
+    public void TypePack_IsStillRefused()
+    {
+        AssertSingle(GuardOn("Packed"), "MIST_BE_DEPENDENT_TYPE_PARAMETER");
     }
 
     /// <summary>

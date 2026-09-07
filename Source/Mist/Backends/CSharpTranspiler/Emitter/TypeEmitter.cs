@@ -385,7 +385,7 @@ internal static class TypeEmitter
         }
 
         var baseName = CleanName(type);
-        var typeParams = string.Join(", ", parameters.Select(tp => tp.Name));
+        var typeParams = string.Join(", ", parameters.Select(DependentCarrierNames.Parameter));
         return $"{baseName}<{typeParams}>";
     }
 

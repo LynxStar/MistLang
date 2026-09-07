@@ -1,3 +1,4 @@
+using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Model.Members;
@@ -65,7 +66,7 @@ internal static class MethodEmitter
             ? "void"
             : $"{RefKeywords.For(method.Modifiers.IsRef, isReadonly: false)}{TypeNameEmitter.Emit(method.ReturnType)}";
         var typeParams = method.TypeParametersList.Count > 0
-            ? $"<{string.Join(", ", method.TypeParametersList.Select(tp => tp.Name))}>"
+            ? $"<{string.Join(", ", method.TypeParametersList.Select(DependentCarrierNames.Parameter))}>"
             : "";
         var parameters = ParameterEmitter.Emit(method.ParametersList, diagnostics);
 

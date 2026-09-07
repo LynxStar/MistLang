@@ -23,6 +23,35 @@
 #   fix         The proposed change. Omit when the cause is unknown.
 
 flakes:
+  - id: property-tests-fail-together-under-full-suite
+    test: >
+      Mist.Tests.Backend.TypeArgumentInferenceEmissionPropertyTests.InferredCalls_EmitExplicitTypeArguments_InCSharp,
+      Mist.Tests.Analysis.RefinementSubsetPropertyTests.CompoundSubset_AcceptedIffSourceRangeContained,
+      Mist.Tests.Backend.InitializerArrayConstructionPropertyTests.InitializerConstruction_ProducesCorrectElementValues
+    file: Test/Mist.Tests/Backend, Test/Mist.Tests/Analysis
+    discovered: 2026-09-07
+    status: open
+    symptom: >
+      Three property tests failed together in one full-solution run, having passed in the run
+      immediately before it with the same binaries. All three passed under --filter in isolation and
+      all three passed on the next full run, with no edit between. The three failures do not share a
+      message: one reports a falsified property with a printed seed, one a falsified property after
+      46 cases, and one an exit code -1 whose stderr is MIST_UNDEFINED_NAMESPACE for `Standard`.
+    cause: >
+      Unknown. The third symptom is the interesting one and the reason these are recorded together
+      rather than as three entries: a program that cannot find the `Standard` namespace has not
+      failed a property, it has failed to load the standard library at all, which points at
+      something shared -- a temp directory, a stdlib cache, a file still being written -- rather
+      than at anything the three tests have in common semantically. Whether the other two share
+      that cause or merely shared the run is not established.
+    evidence: >
+      Found while delivering order 146, which changes type-argument emission -- so the first of the
+      three had to be treated as a real regression rather than assumed flaky, since it asserts
+      exactly what that change touches. It was not: the three pass under --filter together, the
+      full suite passes on rerun at 5057, and neither of the two test files was modified by that
+      work (git status shows only DependentCarrierNameTests and UnspellableTypeGuardTests).
+      Every unbanked sample was also swept at zero Roslyn errors before and after.
+
   - id: attribute-emission-round-trip-unreproduced
     test: Mist.Tests.Backend.AttributeEmissionRoundTripPropertyTests.AttributeEmission_PreservesStructure_RoundTrip
     file: Test/Mist.Tests/Backend/AttributeEmissionRoundTripPropertyTests.cs

@@ -138,6 +138,15 @@ internal sealed class TypeInterner
     public IReadOnlyCollection<UnionType> UnionTypes => unionTypes.Values;
 
     /// <summary>
+    /// Every distinct dependent VALUE the program mentions, which is what the backend needs to
+    /// carry one: interning is already keyed on the domain and the value together, so this set is
+    /// exactly the (domain, value) pairs a carrier has to exist for.
+    /// </summary>
+    public IReadOnlyCollection<LiftedType> LiftedTypes => liftedTypes.Values;
+
+    public IReadOnlyCollection<ConstructedType> ConstructedTypes => constructedTypes.Values;
+
+    /// <summary>
     /// Returns the canonical <see cref="TupleType"/> for the given element types.
     /// </summary>
     public TupleType GetOrCreateTupleType(IReadOnlyList<IMistType> elementTypes)

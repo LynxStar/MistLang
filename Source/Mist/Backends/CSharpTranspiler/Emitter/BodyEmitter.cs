@@ -330,16 +330,26 @@ internal static class BodyEmitter
         switch(expression)
         {
             case InvocationExpression invocation:
-                EmitExpression(invocation.Receiver, writer, diagnostics);
+                // The member access is emitted from HERE when it carries type arguments, because
+                // only the invocation knows which overload they fill -- and a dependent slot is
+                // spelled by its carrier rather than by its domain.
+                if(invocation.Receiver is MemberAccessExpression callee
+                    && callee.TypeArguments is { Count: > 0 })
+                {
+                    EmitMemberAccess(callee, invocation.Method?.TypeParametersList, writer, diagnostics);
+                }
+                else
+                {
+                    EmitExpression(invocation.Receiver, writer, diagnostics);
+                }
+
                 writer.Append("(");
                 EmitArguments(invocation.Arguments, invocation.Method?.ParametersList, writer, diagnostics);
                 writer.Append(")");
                 break;
 
             case MemberAccessExpression memberAccess:
-                EmitExpression(memberAccess.Receiver, writer, diagnostics);
-                writer.Append(memberAccess.IsConditional ? "?." : ".");
-                writer.Append($"{memberAccess.MemberName}{EmitTypeArguments(memberAccess.TypeArguments)}");
+                EmitMemberAccess(memberAccess, parameters: null, writer, diagnostics);
                 break;
 
             // Named on the carrier rather than written as dot-notation, which is what the extension
@@ -480,11 +490,15 @@ internal static class BodyEmitter
                 break;
 
             case TypeReferenceExpression typeRef:
-                writer.Append(TypeNameEmitter.Emit(typeRef.ReferencedType));
+                writer.Append(
+                    DependentCarrierNames.ValueRead(typeRef.ReferencedType)
+                        ?? TypeNameEmitter.Emit(typeRef.ReferencedType));
                 break;
 
             case MethodReferenceExpression methodRef:
-                writer.Append($"{methodRef.Method.Name}{EmitTypeArguments(methodRef.TypeArguments)}");
+                writer.Append(
+                    $"{methodRef.Method.Name}"
+                    + EmitTypeArguments(methodRef.TypeArguments, methodRef.Method.TypeParametersList));
                 break;
 
             case FunctionReferenceExpression functionRef:
@@ -1235,14 +1249,41 @@ internal static class BodyEmitter
         writer.Append(" }");
     }
 
-    private static string EmitTypeArguments(IReadOnlyList<IMistType> typeArguments)
+    private static void EmitMemberAccess(
+        MemberAccessExpression memberAccess,
+        IReadOnlyList<TypeParameter>? parameters,
+        CSharpWriter writer,
+        DiagnosticBag diagnostics)
+    {
+        EmitExpression(memberAccess.Receiver, writer, diagnostics);
+        writer.Append(memberAccess.IsConditional ? "?." : ".");
+        writer.Append(memberAccess.MemberName);
+        writer.Append(EmitTypeArguments(memberAccess.TypeArguments, parameters));
+    }
+
+    /// <param name="parameters">
+    /// The slots being filled, when the caller knows them. A dependent slot takes the value's
+    /// CARRIER rather than its domain, and only the slot says which of the two an argument is --
+    /// the argument itself is a lifted value either way.
+    /// </param>
+    private static string EmitTypeArguments(
+        IReadOnlyList<IMistType> typeArguments, IReadOnlyList<TypeParameter>? parameters = null)
     {
         if(typeArguments.Count == 0)
         {
             return "";
         }
 
-        return $"<{string.Join(", ", typeArguments.Select(TypeNameEmitter.Emit))}>";
+        var spelled = typeArguments.Select((argument, ordinal) =>
+            parameters is not null
+                && ordinal < parameters.Count
+                && argument is LiftedType lifted
+                && parameters[ordinal].Domain is { } domain
+                && DependentCarrierNames.Carrier(domain, lifted) is { } carrier
+                    ? carrier
+                    : TypeNameEmitter.Emit(argument));
+
+        return $"<{string.Join(", ", spelled)}>";
     }
 
     internal static string EmitLiteral(LiteralExpression literal)

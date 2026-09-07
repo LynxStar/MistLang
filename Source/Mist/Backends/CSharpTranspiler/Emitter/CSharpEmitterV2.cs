@@ -82,6 +82,7 @@ internal sealed class CSharpEmitterV2
         EmitConstructorConstraintInterfaces(outputDir, emittedFiles);
         EmitStructInitMarker(outputDir, emittedFiles);
         EmitUnionCarriers(outputDir, emittedFiles);
+        EmitDependentCarriers(outputDir, emittedFiles);
         EmitVoidStruct(outputDir, emittedFiles);
 
         // The standard library is provided by the runtime, so its declarations are resolved
@@ -283,6 +284,117 @@ internal sealed class CSharpEmitterV2
         var path = Path.Combine(outputDir, "__Unions.g.cs");
         File.WriteAllText(path, writer.ToString());
         emittedFiles.Add(path);
+    }
+
+    /// <summary>
+    /// One witness interface per dependent DOMAIN and one struct per distinct VALUE, top-level in a
+    /// single generated file so a construction in any namespace can name them. C# has no dependent
+    /// type parameter, so a value that must participate in type identity has to become a TYPE, and
+    /// a struct implementing a static-abstract-member interface is the smallest thing that is one.
+    /// <para>
+    /// The interner is read rather than the emitted surface walked, for the reason the unions above
+    /// are: it is already keyed on the domain and value together, so it holds each pair exactly
+    /// once however many times the program writes it.
+    /// </para>
+    /// </summary>
+    private void EmitDependentCarriers(string outputDir, List<string> emittedFiles)
+    {
+        var interner = ((ProgramModel.Model.ProgramModel)programModel).TypeInterner;
+        var carriers = new SortedDictionary<string, (string Keyword, string Witness, object Value)>(
+            StringComparer.Ordinal);
+        var witnesses = new SortedDictionary<string, string>(StringComparer.Ordinal);
+        var witnessDomains = new Dictionary<string, IMistType>(StringComparer.Ordinal);
+
+        // Every DECLARED domain, so a constraint never names an interface the file does not carry.
+        // A family declared but never constructed still emits its `where`, so collecting only from
+        // constructions would leave that clause dangling.
+        foreach(var parameter in DependentParameters())
+        {
+            if(parameter.Domain is { } declared
+                && DependentCarrierNames.Domain(declared) is { } domain
+                && DependentCarrierNames.Witness(declared) is { } witness)
+            {
+                witnesses[witness] = domain.Keyword;
+                witnessDomains[witness] = declared;
+            }
+        }
+
+        // Every declared domain crossed with every value the program mentions. Deliberately more
+        // than is reachable, because the two are cheap in opposite directions: a spare carrier is
+        // an unreferenced struct in a generated file nobody reads, while a missing one is a build
+        // failure against code the user never wrote.
+        //
+        // The alternative is to collect the pairs actually used, and the uses are not in one place
+        // -- a constructed type holds its arguments, but a method call site holds its own, so
+        // covering both means walking every expression in the program to save a few structs.
+        //
+        // THE DOMAIN COMES FROM THE SLOT, never from the value: every integral literal lifts as
+        // int, so a 999 filling a `long` parameter would otherwise be carried by an IConstInt and
+        // refused by the very constraint it was emitted for.
+        foreach(var (witness, keyword) in witnesses.ToList())
+        {
+            foreach(var lifted in interner.LiftedTypes)
+            {
+                if(DependentCarrierNames.Fits(witnessDomains[witness], lifted.Value)
+                    && DependentCarrierNames.Carrier(witnessDomains[witness], lifted) is { } name)
+                {
+                    carriers[name] = (keyword, witness, lifted.Value);
+                }
+            }
+        }
+
+        if(witnesses.Count == 0)
+        {
+            return;
+        }
+
+        var writer = new CSharpWriter();
+
+        foreach(var (witness, keyword) in witnesses)
+        {
+            writer.WriteLine(
+                $"public interface {witness} {{ static abstract {keyword} Value {{ get; }} }}");
+        }
+
+        foreach(var (name, carrier) in carriers)
+        {
+            writer.WriteBlankLine();
+            writer.WriteLine(
+                $"public readonly struct {name} : {carrier.Witness} "
+                + $"{{ public static {carrier.Keyword} Value => {DependentCarrierNames.Literal(carrier.Value)}; }}");
+        }
+
+        var path = Path.Combine(outputDir, "__DependentValues.g.cs");
+        File.WriteAllText(path, writer.ToString());
+        emittedFiles.Add(path);
+    }
+
+    /// <summary>
+    /// Every dependent type parameter the program declares, on a type or on one of its methods.
+    /// </summary>
+    private IEnumerable<TypeParameter> DependentParameters()
+    {
+        foreach(var type in ((ProgramModel.Model.ProgramModel)programModel).TypesByFQN.Values)
+        {
+            if(type is IHasTypeParameters generic)
+            {
+                foreach(var parameter in generic.TypeParametersList)
+                {
+                    yield return parameter;
+                }
+            }
+
+            if(type is MemberType memberType)
+            {
+                foreach(var method in memberType.MethodsList)
+                {
+                    foreach(var parameter in method.TypeParametersList)
+                    {
+                        yield return parameter;
+                    }
+                }
+            }
+        }
     }
 
     /// <summary>

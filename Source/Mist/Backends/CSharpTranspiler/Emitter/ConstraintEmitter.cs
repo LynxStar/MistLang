@@ -30,9 +30,20 @@ internal static class ConstraintEmitter
         {
             var parts = Parts(parameter);
 
+            // The witness is what makes a dependent parameter carry a value at all, so it is added
+            // here rather than declared in Mist -- there is no Mist constraint that spells it.
+            if(parameter.Domain is { } domain
+                && parameter.IsDependent
+                && !parameter.IsPack
+                && DependentCarrierNames.Witness(domain) is { } witness)
+            {
+                parts.Add(witness);
+            }
+
             if(parts.Count > 0)
             {
-                writer.WriteLine($"where {parameter.Name} : {string.Join(", ", parts)}");
+                writer.WriteLine(
+                    $"where {DependentCarrierNames.Parameter(parameter)} : {string.Join(", ", parts)}");
             }
         }
 

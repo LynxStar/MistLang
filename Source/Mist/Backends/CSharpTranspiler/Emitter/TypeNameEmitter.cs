@@ -1,6 +1,7 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
@@ -38,6 +39,7 @@ internal static class TypeNameEmitter
             TupleType tuple => EmitTuple(tuple.ElementTypes, elementNames: null),
             FunctionType function => EmitFunction(function),
             MemberType memberType => MapMemberType(memberType),
+            TypeParameter typeParameter => DependentCarrierNames.Parameter(typeParameter),
             ErrorType => "/* error */",
             UnknownType => "object",
             _ => type.Name,
@@ -178,7 +180,8 @@ internal static class TypeNameEmitter
 
         // Generic types: Definition<Arg1, Arg2, ...>
         var baseName = MistType.StripArity(constructed.Definition.Name);
-        var args = string.Join(", ", constructed.TypeArguments.Select(Emit));
+        var args = string.Join(", ", constructed.TypeArguments.Select(
+            (argument, ordinal) => EmitArgument(constructed.Definition, ordinal, argument)));
 
         if(constructed.Definition is MemberType { DeclaringType: MemberType declaring })
         {
@@ -186,6 +189,27 @@ internal static class TypeNameEmitter
         }
 
         return $"{baseName}<{args}>";
+    }
+
+    /// <summary>
+    /// A type argument, which is the one position where a lifted value is spelled as its CARRIER
+    /// rather than as its domain. Everywhere else a lifted type is an expression's type -- an
+    /// <c>arr.Length</c> read -- and the domain is the only faithful projection; here the value is
+    /// what the construction is identified BY, so erasing it to the domain would make
+    /// FixedBuffer&lt;5&gt; and FixedBuffer&lt;6&gt; one C# type. Array is handled above and never
+    /// reaches this.
+    /// </summary>
+    private static string EmitArgument(IMistType definition, int ordinal, IMistType argument)
+    {
+        if(argument is not LiftedType lifted
+            || definition is not IHasTypeParameters generic
+            || ordinal >= generic.TypeParametersList.Count
+            || generic.TypeParametersList[ordinal].Domain is not { } domain)
+        {
+            return Emit(argument);
+        }
+
+        return DependentCarrierNames.Carrier(domain, lifted) ?? Emit(argument);
     }
 
     private static bool ContainsUnknown(IMistType type)

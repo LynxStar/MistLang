@@ -23,7 +23,7 @@ public sealed class DependentCarrierNameTests
 
     private static string? Carrier(string simpleName, object value)
     {
-        return DependentCarrierNames.Carrier(new LiftedType(StandardType(simpleName), value));
+        return DependentCarrierNames.Carrier(StandardType(simpleName), value);
     }
 
     [Theory]

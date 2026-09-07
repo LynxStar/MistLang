@@ -31,6 +31,8 @@ internal sealed class ScopeResolver
     /// </summary>
     internal Action<TypeAlias>? AliasCompleter { get; set; }
 
+    public TypeInterner Interner => context.ProgramModel.TypeInterner;
+
     public ScopeResolver(BuilderContext context)
     {
         this.context = context;
@@ -259,28 +261,13 @@ internal sealed class ScopeResolver
     /// </summary>
     private IMistType ResolveNamed(NamedSingleTypeRefSingleTypeRefNode namedRef, Scope scope)
     {
-        var name = namedRef.Name.IDENTIFIER.Lexeme;
-
-        // Compute arity from type arguments so we can look up the arity-bearing name.
-        var arity = GetTypeArgumentArity(namedRef.TypeArgs);
-        var lookupName = arity > 0 ? BuildArityName(name, arity) : name;
-
-        // Build the final lookup key: qualified if dotted, simple otherwise.
-        if(namedRef.Name.IDENTIFIERs.Length > 0)
-        {
-            var qualifiedName = QualifiedNameHelper.Build(namedRef.Name);
-            lookupName = arity > 0 ? BuildArityName(qualifiedName, arity) : qualifiedName;
-        }
-
+        // Qualified if dotted, simple otherwise; the arity marker is the resolver's to add.
         var stem = namedRef.Name.IDENTIFIERs.Length > 0
             ? QualifiedNameHelper.Build(namedRef.Name)
-            : name;
+            : namedRef.Name.IDENTIFIER.Lexeme;
 
-        // A variadic family is registered under its SLOT count, which a flat use site has no reason
-        // to match: `Func<params TArgs, TResult>` is Func<,> however many arguments are written. So
-        // an exact miss is retried across the arities a pack could have absorbed into.
-        var baseType = FindByArity(lookupName, stem, arity, scope)
-            ?? ResolveNamedType(lookupName, scope, namedRef);
+        var arity = GetTypeArgumentArity(namedRef.TypeArgs);
+        var baseType = ResolveGenericDefinition(stem, arity, scope, namedRef);
 
         if(baseType is ErrorType)
         {
@@ -310,6 +297,20 @@ internal sealed class ScopeResolver
     }
 
     /// <summary>
+    /// The definition a generic reference names, whether its arity matches a declaration's slot
+    /// count or is absorbed by a pack. Shared so that every place naming a generic type agrees --
+    /// a type reference, an alias expansion and a `new` all reach a variadic family the same way.
+    /// </summary>
+    public IMistType ResolveGenericDefinition(
+        string stem, int arity, Scope scope, Storm.Runtime.SyntaxNode locationNode)
+    {
+        var lookupName = arity > 0 ? BuildArityName(stem, arity) : stem;
+
+        return FindByArity(lookupName, stem, arity, scope)
+            ?? ResolveNamedType(lookupName, scope, locationNode);
+    }
+
+    /// <summary>
     /// The declaration a flat argument list is for, when the exact arity does not name one. Probes
     /// the slot counts a pack could absorb the difference into -- a family with S slots accepts any
     /// count from S-1 upward -- and accepts only a declaration that actually has a pack, so an
@@ -334,7 +335,7 @@ internal sealed class ScopeResolver
         return null;
     }
 
-    private static bool Absorbs(IMistType type)
+    public static bool Absorbs(IMistType type)
     {
         return type is IHasTypeParameters generic
             && PackBinding.AbsorbingSlot(generic.TypeParametersList) is not null;
@@ -351,7 +352,7 @@ internal sealed class ScopeResolver
     /// The flat argument list assigned to slots, when one of them absorbs. Left alone otherwise, so
     /// nothing but a variadic declaration changes shape.
     /// </summary>
-    private IReadOnlyList<IMistType> BindPack(IMistType baseType, IReadOnlyList<IMistType> typeArgs)
+    public IReadOnlyList<IMistType> BindPack(IMistType baseType, IReadOnlyList<IMistType> typeArgs)
     {
         if(baseType is not IHasTypeParameters generic
             || PackBinding.AbsorbingSlot(generic.TypeParametersList) is not { } absorbing)

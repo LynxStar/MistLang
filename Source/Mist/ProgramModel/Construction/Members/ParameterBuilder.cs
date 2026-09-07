@@ -4,6 +4,7 @@ using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
+using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Members;
 
@@ -57,7 +58,15 @@ internal sealed class ParameterBuilder
                 ? ByRefDirection.None
                 : isReadonly ? ByRefDirection.In : ByRefDirection.Ref);
 
-        var parameter = new Parameter(name, type, modifier);
+        // `params TArgs args` gives args the tuple the pack expands to, which is what makes it a
+        // real value: one parameter slot, a tuple type, and a flat call site. The homogeneous
+        // `params string[]` keeps the array it was written with and only takes the convention.
+        if(param.ParamsModifier is not null && type is TypeParameter { IsPack: true })
+        {
+            type = scopeResolver.Interner.GetOrCreateTupleType([new SpreadType(type)]);
+        }
+
+        var parameter = new Parameter(name, type, modifier) { IsFlattened = param.ParamsModifier is not null };
         attributeBuilder.Build(param.Attributes, parameter.DeclaredAttributesList, scope);
 
         return parameter;

@@ -922,4 +922,15 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "Type '{0}' cannot be used as a dependent type parameter. Only primitive integral types, bool, and char are allowed.");
 
+    /// <summary>
+    /// A spread whose expansion is not known. The suffix promises a definite number of arguments,
+    /// so an operand whose arity is not fixed cannot stand where arguments go -- and the promise is
+    /// what the call was checked against, which is why this is refused rather than deferred.
+    /// </summary>
+    public static readonly DiagnosticDescriptor UnprovableSpread = new(
+        new DiagnosticId("MIST_VAR_0011"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}' cannot be spread here: its length is not known at this point, so the number of arguments it stands for is not either.");
+
 }

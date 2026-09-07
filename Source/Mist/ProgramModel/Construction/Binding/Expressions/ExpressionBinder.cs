@@ -216,14 +216,15 @@ internal static class ExpressionBinder
         if(typeArgList is not null)
         {
             var arity = 1 + typeArgList.TypeArguments.Length;
-            var arityName = ScopeResolver.BuildArityName(typeName, arity);
-            var definition = context.Resolver.ResolveNamedType(arityName, ctx.Scope, node);
+            var definition = context.Resolver.ResolveGenericDefinition(typeName, arity, ctx.Scope, node);
             if(definition is ErrorType)
             {
                 return new ErrorExpression(node);
             }
 
-            var typeArgs = context.Resolver.ResolveTypeArguments(typeArgList, ctx.Scope);
+            var typeArgs = context.Resolver.BindPack(
+                definition, context.Resolver.ResolveTypeArguments(typeArgList, ctx.Scope));
+
             if(definition is TypeAlias alias)
             {
                 type = context.Resolver.ExpandAlias(alias, typeArgs);

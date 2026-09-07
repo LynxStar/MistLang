@@ -19,6 +19,14 @@ internal sealed class Parameter(
     public ParameterModifier Modifier { get; } = modifier;
 
     /// <summary>
+    /// Declared with <c>params</c>, so the call site supplies a flat comma-separated list where this
+    /// one slot stands. True for both spellings: a value pack (<c>params TArgs args</c>), whose type
+    /// is the tuple the pack expands to, and the homogeneous form (<c>params string[] parts</c>),
+    /// whose type is a real array.
+    /// </summary>
+    public bool IsFlattened { get; internal set; }
+
+    /// <summary>
     /// The attributes applied to this parameter.
     /// </summary>
     public List<AttributeData> AttributesList { get; } = [];

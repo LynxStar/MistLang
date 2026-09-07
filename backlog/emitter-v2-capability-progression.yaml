@@ -6455,8 +6455,19 @@ capabilities:
       to be dead, and removed rather than shipped. Reporting it as the spec words it needs lookup to
       find a family by STEM, which nothing indexes.
 
-      NOT STARTED: inference of a pack from a CALL's argument list, bracketed [..] construction, and
-      disambiguating several packs in one signature.
+      THE VALUE SIDE IS DELIVERED TOO. `params TArgs args` gives args the tuple the pack expands to,
+      overload resolution filters by a FLOOR rather than an exact count, and inference binds the
+      pack from whatever the fixed parameters at each end do not claim. Which is the one inference a
+      positional walk cannot do: past the pack, the slot and the argument stop sharing an index.
+
+      THE SAME GAP EXISTED IN THREE PLACES, found one at a time. A type reference, an alias
+      expansion and a `new` each built the arity name and looked it up themselves, so a variadic
+      family was reachable from whichever had been fixed last -- `new Bundle<int, string, bool>`
+      still failed after field declarations worked. They now share one entry point, which is what
+      the second and third occurrences argued for.
+
+      NOT STARTED: explicit bracketed [..] construction, and disambiguating several packs in one
+      signature. Both need lookup to find a family by STEM, the same thing MIST_VAR_0005 needs.
     unlocks: []
 
   - id: pack-spread-positions
@@ -6487,9 +6498,25 @@ capabilities:
       its arguments and substituted them by ordinal, so a flat use site against a pack-declaring
       alias dropped every argument past the first.
 
-      NOT STARTED: spread into a base-type list, spread as a VALUE at a call site, and the
-      provable-spread check that must reject a spread into a fixed-arity target whose shape is not
-      proven for every instantiation. Nothing yet refuses an unprovable one.
+      THE VALUE SPREAD AND THE PROVABLE CHECK ARE DELIVERED, and the base-type list needed nothing:
+      `class Tup<params TArgs> : ICountable<TArgs...>` already resolved once the type-argument case
+      did, the base list being an argument list like any other.
+
+      General tuple decomposition runs end to end -- `Add2(pair...)` prints 30 -- because a spread
+      expands into member accesses and needs no machinery downstream. Expansion happens at the
+      ARGUMENT, not at the suffix: everything after it counts arguments, so a spread reaching
+      overload resolution unexpanded would count as one however many it stood for.
+
+      MIST_VAR_0011 REFUSES A SPREAD WHOSE LENGTH IS UNKNOWN, with the exception the spec calls
+      provable: a pack spread into a slot declared as THAT pack survives unexpanded, since however
+      many it turns out to hold, the slot holds that many. It is the one spread whose correctness
+      does not depend on the arity being known.
+
+      NOT REACHED, and not by this capability's fault: the sample's own witness for provable spread
+      is `Apply(f, ...)` with `f: Func<TArgs..., TResult>`, and Standard.Func is a NOMINAL class, so
+      the call never reaches the function-invocation path where a target exists to prove against.
+      The rule is exercised through Mist's native `func<...>` spelling instead. Closing that needs
+      the Func-to-FunctionType bridge, which is no part of 149-151.
     unlocks: []
 
   - id: spread-generated-members

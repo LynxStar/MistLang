@@ -51,7 +51,7 @@ internal static class OverloadResolution
         var byArity = new List<T>();
         foreach(var candidate in candidates)
         {
-            if(candidate.ParametersList.Count == arguments.Count)
+            if(ValuePack.AcceptsCount(candidate.ParametersList, arguments.Count))
             {
                 byArity.Add(candidate);
             }

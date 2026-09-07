@@ -28,6 +28,12 @@ internal static class TypeArgumentInference
             return inferred;
         }
 
+        if(ValuePack.FlattenedSlot(method.ParametersList) is { } flattened)
+        {
+            InferAcrossPack(method, arguments, receiver, interner, inferred, flattened);
+            return inferred;
+        }
+
         // OverloadResolution.Select has already matched the counts exactly, so a mismatch here is
         // not this method's to reject.
         var slots = Math.Min(method.ParametersList.Count, arguments.Count);
@@ -38,6 +44,46 @@ internal static class TypeArgumentInference
         }
 
         return inferred;
+    }
+
+    /// <summary>
+    /// The fixed parameters are matched against the arguments at their own ends, and the pack is
+    /// bound to the types of everything between -- which is the one inference a positional walk
+    /// cannot do, because the slot and the argument stop sharing an index at the pack.
+    /// </summary>
+    private static void InferAcrossPack(
+        Method method,
+        IReadOnlyList<Expression> arguments,
+        TypeSubstitution receiver,
+        TypeInterner interner,
+        IMistType?[] inferred,
+        int flattened)
+    {
+        var parameters = method.ParametersList;
+        var trailing = parameters.Count - flattened - 1;
+
+        for(var i = 0; i < flattened && i < arguments.Count; i++)
+        {
+            Match(receiver.Apply(parameters[i].Type, interner), arguments[i].Type, method, inferred);
+        }
+
+        for(var i = 0; i < trailing; i++)
+        {
+            var parameter = parameters[parameters.Count - 1 - i];
+            var argument = arguments[arguments.Count - 1 - i];
+            Match(receiver.Apply(parameter.Type, interner), argument.Type, method, inferred);
+        }
+
+        if(ValuePack.PackParameterOf(parameters[flattened]) is not { } pack)
+        {
+            return;
+        }
+
+        var absorbed = ValuePack.Absorbed(
+            parameters, [.. arguments.Select(a => a.Type)], flattened);
+
+        var domain = pack.Domain ?? pack;
+        Record(pack, interner.LiftPack(domain, new TypePackValue(absorbed)), method, inferred);
     }
 
     /// <summary>

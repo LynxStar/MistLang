@@ -1,3 +1,4 @@
+using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
@@ -84,11 +85,98 @@ internal static class ArgumentBinder
             // reaching an argument it has nothing to say about.
             using(ctx.PushTargetType(target))
             {
-                bound.Add(ExpressionBinder.BindExpression(expressions[i], ctx, context));
+                Add(ExpressionBinder.BindExpression(expressions[i], ctx, context), target, bound, context);
             }
         }
 
         return bound;
+    }
+
+    /// <summary>
+    /// One argument, or the several a spread stands for. Expanded HERE rather than where the suffix
+    /// was bound, because how many slots it owes is the call's question: everything downstream --
+    /// arity, overload choice, inference -- counts arguments, and a spread that reached any of them
+    /// unexpanded would count as one.
+    /// </summary>
+    private static void Add(
+        Expression argument, IMistType? target, List<Expression> bound, BuilderContext context)
+    {
+        if(argument is not SpreadExpression spread)
+        {
+            bound.Add(argument);
+            return;
+        }
+
+        // A pack spread into a slot declared as THAT pack is proven for every instantiation, so it
+        // survives unexpanded: there is nothing to expand it into yet and nothing that needs it to
+        // be. Forwarding `args...` into a function whose parameter list is TArgs is the case, and
+        // it is the one spread whose correctness does not depend on the arity being known.
+        if(ProvenAgainst(spread.Operand.Type, target))
+        {
+            bound.Add(spread);
+            return;
+        }
+
+        if(Structural(spread.Operand.Type) is not { } elements)
+        {
+            context.Diagnostics.ReportAtNode(
+                ProgramModelDiagnostics.UnprovableSpread, spread.Node, null, spread.Operand.Type.Name);
+            bound.Add(argument);
+            return;
+        }
+
+        // Named positionally, which is how a tuple's elements are reachable and therefore what the
+        // expansion emits as.
+        for(var i = 0; i < elements.Count; i++)
+        {
+            bound.Add(new MemberAccessExpression(
+                spread.Node, spread.Operand, $"Item{i + 1}", elements[i]));
+        }
+    }
+
+    /// <summary>
+    /// Whether the spread's operand and the slot it fills are the same pack, which is what makes an
+    /// unknown length harmless: however many the pack turns out to hold, the slot holds that many.
+    /// </summary>
+    private static bool ProvenAgainst(IMistType operand, IMistType? target)
+    {
+        return Pack(operand) is { } spreadPack
+            && target is SpreadType targetSpread
+            && Pack(targetSpread) is { } targetPack
+            && ReferenceEquals(spreadPack, targetPack);
+    }
+
+    /// <summary>
+    /// The pack a type stands for, whether written as the tuple a value pack has or as a bare
+    /// spread, or null for anything else.
+    /// </summary>
+    private static TypeParameter? Pack(IMistType type)
+    {
+        var spread = type switch
+        {
+            TupleType { ElementTypes: [SpreadType only] } => only,
+            SpreadType bare => bare,
+            _ => null,
+        };
+
+        return spread?.Operand as TypeParameter;
+    }
+
+    /// <summary>
+    /// The element types a spread stands for, or null where the operand has no fixed shape -- an
+    /// unbound pack among them being the case that matters, since its length is exactly what is not
+    /// yet known.
+    /// </summary>
+    private static IReadOnlyList<IMistType>? Structural(IMistType type)
+    {
+        var elements = type switch
+        {
+            NamedTupleType named => named.Underlying.ElementTypes,
+            TupleType tuple => tuple.ElementTypes,
+            _ => null,
+        };
+
+        return elements is not null && !elements.Any(e => e is SpreadType) ? elements : null;
     }
 
     /// <summary>

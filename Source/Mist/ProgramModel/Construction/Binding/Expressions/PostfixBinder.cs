@@ -150,6 +150,9 @@ internal static class PostfixBinder
                     return new IndexExpression(suffix, receiver, index, resultType);
                 }
 
+            case SpreadSuffixPostfixSuffixNode:
+                return new SpreadExpression(suffix, receiver, receiver.Type);
+
             case SwitchExpressionSuffixPostfixSuffixNode switchSuffix:
                 return BindSwitch(switchSuffix, receiver, ctx, context);
 

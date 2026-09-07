@@ -6423,11 +6423,34 @@ capabilities:
     order: 150
     layer: variadics
     requires: [type-pack-declarations]
-    v2_status: missing
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
       Leading and trailing fixed parameters bind inward from the ends and the pack absorbs
       the middle. Packs are inferred from a call's argument list or supplied explicitly in
       brackets, and several independent packs in one signature must be disambiguated.
+
+      THE TYPE-ARGUMENT HALF IS DELIVERED. A bound pack is a comptime Type[] -- a TypePackValue
+      interned exactly as a lifted integer is -- so Func<[int, string], void> gets its identity from
+      the value in its slot, and order and length both count without either being stated anywhere.
+      Func at every arity now resolves, Action included, and so does the empty pack.
+
+      THE MATCHING ARITY IS NOT PRIVILEGED, which was the subtle part. A family is registered under
+      its SLOT count, so Func<,> is the only Func there is; binding therefore has to apply to
+      `Func<int, int>` exactly as it does to `Func<int, int, int>`, or the two-argument case would
+      quietly bind a bare type into a slot that holds a list -- resolving, emitting, and being
+      wrong. That case passed before this work for that reason.
+
+      LOOKUP IS ARITY-BOUNDED AND THAT COSTS A DIAGNOSTIC. A use site finds a variadic family by
+      trying the slot counts its arguments could fill, which makes MIST_VAR_0005 unreachable by
+      construction: the probe accepts a declaration only when slots <= args + 1, and the diagnostic
+      fires only when args < slots - 1. The two are disjoint, so a list too short to fill any
+      declaration names none and is refused as an unresolved type. The descriptor was written, found
+      to be dead, and removed rather than shipped. Reporting it as the spec words it needs lookup to
+      find a family by STEM, which nothing indexes.
+
+      NOT STARTED: inference of a pack from a CALL's argument list, bracketed [..] construction, and
+      disambiguating several packs in one signature.
     unlocks: []
 
   - id: pack-spread-positions

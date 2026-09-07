@@ -3,6 +3,7 @@ using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
@@ -271,8 +272,16 @@ internal sealed class ScopeResolver
             lookupName = arity > 0 ? BuildArityName(qualifiedName, arity) : qualifiedName;
         }
 
-        // Single entry point: resolve the name through the unified three-tier lookup.
-        var baseType = ResolveNamedType(lookupName, scope, namedRef);
+        var stem = namedRef.Name.IDENTIFIERs.Length > 0
+            ? QualifiedNameHelper.Build(namedRef.Name)
+            : name;
+
+        // A variadic family is registered under its SLOT count, which a flat use site has no reason
+        // to match: `Func<params TArgs, TResult>` is Func<,> however many arguments are written. So
+        // an exact miss is retried across the arities a pack could have absorbed into.
+        var baseType = FindByArity(lookupName, stem, arity, scope)
+            ?? ResolveNamedType(lookupName, scope, namedRef);
+
         if(baseType is ErrorType)
         {
             return ErrorType.Instance;
@@ -283,15 +292,84 @@ internal sealed class ScopeResolver
             return ExpandAlias(alias, namedRef, scope);
         }
 
-        // If type arguments are present, resolve them and wrap in a ConstructedType.
-        if(namedRef.TypeArgs is { } typeArgList)
+        // If type arguments are present, resolve them and wrap in a ConstructedType. A variadic
+        // family is constructed even when NONE are written, since absorbing nothing is a binding
+        // like any other -- a bare `Action` is Action<[]>, not an unconstructed definition.
+        var written = namedRef.TypeArgs is { } typeArgList
+            ? ResolveTypeArguments(typeArgList, scope)
+            : [];
+
+        if(namedRef.TypeArgs is not null || Absorbs(baseType))
         {
-            var typeArgs = ResolveTypeArguments(typeArgList, scope);
+            var typeArgs = BindPack(baseType, written);
             context.ProgramModel.ConstructorConstraintClosures.RecordType(baseType, typeArgs, namedRef);
             return context.ProgramModel.TypeInterner.GetOrCreateConstructedType(baseType, typeArgs);
         }
 
         return baseType;
+    }
+
+    /// <summary>
+    /// The declaration a flat argument list is for, when the exact arity does not name one. Probes
+    /// the slot counts a pack could absorb the difference into -- a family with S slots accepts any
+    /// count from S-1 upward -- and accepts only a declaration that actually has a pack, so an
+    /// ordinary arity mismatch still fails as one.
+    /// </summary>
+    private static IMistType? FindByArity(string lookupName, string stem, int arity, Scope scope)
+    {
+        if(TryLookupType(lookupName, scope) is not null)
+        {
+            return null;
+        }
+
+        for(var slots = 1; slots <= arity + 1; slots++)
+        {
+            if(TryLookupType(BuildArityName(stem, slots), scope) is { } candidate
+                && Absorbs(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool Absorbs(IMistType type)
+    {
+        return type is IHasTypeParameters generic
+            && PackBinding.AbsorbingSlot(generic.TypeParametersList) is not null;
+    }
+
+    private static IMistType? TryLookupType(string name, Scope scope)
+    {
+        return scope.Lookup(new LookupRequest(name, MemberVisibility.None, null)) is TypeResult found
+            ? found.Type
+            : null;
+    }
+
+    /// <summary>
+    /// The flat argument list assigned to slots, when one of them absorbs. Left alone otherwise, so
+    /// nothing but a variadic declaration changes shape.
+    /// </summary>
+    private IReadOnlyList<IMistType> BindPack(IMistType baseType, IReadOnlyList<IMistType> typeArgs)
+    {
+        if(baseType is not IHasTypeParameters generic
+            || PackBinding.AbsorbingSlot(generic.TypeParametersList) is not { } absorbing)
+        {
+            return typeArgs;
+        }
+
+        var parameters = generic.TypeParametersList;
+        var domain = parameters[absorbing].Domain
+            ?? ConstructArray(LookupWellKnown(WellKnownTypes.Type), length: null);
+
+        // A short list is not reported HERE, and cannot reach here at all: FindByArity only accepts
+        // a declaration whose slots the arguments can fill, so a genuinely short list fails to name
+        // any declaration and is refused as an unresolved type instead. The guard stays because it
+        // is what makes Bind total, not because this arm is reachable. Reporting MIST_VAR_0005 as
+        // the spec words it needs lookup to find a family by stem rather than by arity.
+        return PackBinding.Bind(
+            parameters, typeArgs, absorbing, context.ProgramModel.TypeInterner, domain) ?? typeArgs;
     }
 
     private IMistType ExpandAlias(TypeAlias alias, NamedSingleTypeRefSingleTypeRefNode namedRef, Scope scope)

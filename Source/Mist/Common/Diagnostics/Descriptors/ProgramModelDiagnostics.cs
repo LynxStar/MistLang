@@ -921,4 +921,5 @@ public static class ProgramModelDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
         "Type '{0}' cannot be used as a dependent type parameter. Only primitive integral types, bool, and char are allowed.");
+
 }

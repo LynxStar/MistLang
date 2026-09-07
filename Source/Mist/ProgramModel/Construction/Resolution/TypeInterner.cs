@@ -48,6 +48,16 @@ internal sealed class TypeInterner
         return GetOrCreateLifted(type, value);
     }
 
+    /// <summary>
+    /// The canonical lifted type for a bound PACK -- a comptime <c>Type[]</c> filling one slot.
+    /// Interned exactly as a lifted integer is, which is what makes two constructions of a variadic
+    /// family the same type when and only when their packs hold the same types in the same order.
+    /// </summary>
+    public LiftedType LiftPack(IMistType domain, TypePackValue value)
+    {
+        return GetOrCreateLifted(domain, value);
+    }
+
     private LiftedType GetOrCreateLifted(IMistType type, object value)
     {
         var key = new LiftedTypeKey(type, value);

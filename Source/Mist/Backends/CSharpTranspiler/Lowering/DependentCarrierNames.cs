@@ -81,12 +81,13 @@ internal static class DependentCarrierNames
             return (keyword == "bool" && value is bool) || (keyword == "char" && value is char);
         }
 
-        if(value is bool or char)
+        // Tested for what it IS rather than what it is not: the interner normalizes every integral
+        // to a long, and a value that is neither -- a bool, a char, a bound type PACK -- belongs to
+        // some other domain entirely rather than to a wider or narrower one of these.
+        if(value is not long number)
         {
             return false;
         }
-
-        var number = Convert.ToInt64(value, CultureInfo.InvariantCulture);
 
         return keyword switch
         {

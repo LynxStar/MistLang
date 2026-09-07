@@ -381,7 +381,7 @@ internal static class TypeEmitter
 
         if(parameters.Count == 0)
         {
-            return type.Name;
+            return CleanName(type);
         }
 
         var baseName = CleanName(type);
@@ -398,7 +398,13 @@ internal static class TypeEmitter
     {
         var lifted = SlotLift.Lifted(type);
 
-        return lifted.Count == 0 ? type.TypeParametersList : [.. type.TypeParametersList, .. lifted];
+        // A specialization declares the pack's expansion in the pack's place, which is what makes
+        // it a C# generic of a definite width.
+        var declared = Monomorph.InScope() is { } monomorph && ReferenceEquals(monomorph.Definition, type)
+            ? monomorph.Parameters()
+            : type.TypeParametersList;
+
+        return lifted.Count == 0 ? declared : [.. declared, .. lifted];
     }
 
     /// <summary>
@@ -411,6 +417,13 @@ internal static class TypeEmitter
     /// </summary>
     internal static string CleanName(MemberType type)
     {
+        // A specialization's name carries its arity, and every member that WRITES the type name
+        // rather than referring to it -- a constructor above all -- has to use the same one.
+        if(Monomorph.InScope() is { } monomorph && ReferenceEquals(monomorph.Definition, type))
+        {
+            return MonomorphSet.SpecializedName(type, monomorph.Expansion.Count);
+        }
+
         return MistType.StripArity(type.Name);
     }
 }

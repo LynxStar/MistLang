@@ -39,6 +39,8 @@ internal static class TypeNameEmitter
             TupleType tuple => EmitTuple(tuple.ElementTypes, elementNames: null),
             FunctionType function => EmitFunction(function),
             MemberType memberType => MapMemberType(memberType),
+            PackElementType element => Emit(
+                Monomorph.InScope()?.Element(element.Index) ?? element.Pack),
             TypeParameter typeParameter => DependentCarrierNames.Parameter(typeParameter),
             ErrorType => "/* error */",
             UnknownType => "object",
@@ -176,6 +178,14 @@ internal static class TypeNameEmitter
         if(ContainsUnknown(constructed))
         {
             return "dynamic";
+        }
+
+        // A variadic construction names the SPECIALIZATION its arity asks for, with the pack
+        // spliced into the argument list: C# has no pack, so `Box<[int, string]>` is
+        // `Box_2<int, string>` and the declaration it names was emitted for that width alone.
+        if(MonomorphReference.Emit(constructed, Emit) is { } specialized)
+        {
+            return specialized;
         }
 
         // Generic types: Definition<Arg1, Arg2, ...>

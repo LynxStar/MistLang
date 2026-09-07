@@ -83,6 +83,7 @@ internal sealed class CSharpEmitterV2
         EmitStructInitMarker(outputDir, emittedFiles);
         EmitUnionCarriers(outputDir, emittedFiles);
         EmitDependentCarriers(outputDir, emittedFiles);
+        EmitMonomorphs(outputDir, emittedFiles, closures);
         EmitVoidStruct(outputDir, emittedFiles);
 
         // The standard library is provided by the runtime, so its declarations are resolved
@@ -148,7 +149,12 @@ internal sealed class CSharpEmitterV2
         string outputDir,
         List<string> emittedFiles)
     {
-        var emittableTypes = unit.Types.Where(TypeEmitter.ProducesDeclaration).ToList();
+        // A variadic family is not emitted where it was written: C# cannot express it once, so
+        // EmitMonomorphs writes one declaration per arity instead and this skips the original.
+        var emittableTypes = unit.Types
+            .Where(TypeEmitter.ProducesDeclaration)
+            .Where(type => Monomorph.PackOf(type) is null)
+            .ToList();
         var emittableBlocks = EmittableBlocks(unit, assembly);
 
         // A file that declares nothing emittable would produce a .cs holding only usings,
@@ -395,6 +401,55 @@ internal sealed class CSharpEmitterV2
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// One C# declaration per (variadic family, arity) the program uses, in a single generated file.
+    /// <para>
+    /// MONOMORPHIZATION IS THE TARGET'S REQUIREMENT AND NOT THE LANGUAGE'S. Mist writes a variadic
+    /// family once and its arity is unbounded; C# has no pack, so a program that used the family at
+    /// two widths needs two declarations. Nothing about this reaches the model, which keeps the pack
+    /// symbolic -- what changes is only what is WRITTEN, and only here.
+    /// </para>
+    /// <para>
+    /// Emitted top-level rather than into the declaring namespace, as the union and dependent
+    /// carriers are, so a construction in any namespace can name one.
+    /// </para>
+    /// </summary>
+    private void EmitMonomorphs(string outputDir, List<string> emittedFiles, ConstraintClosureMap closures)
+    {
+        var interner = ((ProgramModel.Model.ProgramModel)programModel).TypeInterner;
+        var specializations = MonomorphSet.Discover(interner);
+
+        if(specializations.Count == 0)
+        {
+            return;
+        }
+
+        var writer = new CSharpWriter();
+        var anyEmitted = false;
+
+        foreach(var (definition, arity) in specializations)
+        {
+            if(definition is not MemberType member || Monomorph.For(definition, arity) is not { } monomorph)
+            {
+                continue;
+            }
+
+            using(monomorph.Enter())
+            {
+                TypeEmitter.Emit(member, closures, writer, diagnostics, ref anyEmitted);
+            }
+        }
+
+        if(!anyEmitted)
+        {
+            return;
+        }
+
+        var path = Path.Combine(outputDir, "__Variadics.g.cs");
+        File.WriteAllText(path, writer.ToString());
+        emittedFiles.Add(path);
     }
 
     /// <summary>

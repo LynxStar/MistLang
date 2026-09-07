@@ -1,3 +1,4 @@
+using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Statements;
@@ -33,9 +34,10 @@ internal static class UnspellableTypeGuard
 
         foreach(var parameter in type.TypeParametersList)
         {
-            // A pack has no witness encoding yet, so it keeps the refusal a dependent parameter no
-            // longer needs: its domain is Type[], and a carrier per TYPE LIST is orders 149-151.
-            if(parameter.IsPack)
+            // A pack is spelled by SPECIALIZING rather than by carrying a value, so it is exempt
+            // from the witness encoding a dependent parameter needs: emission writes one C#
+            // declaration per arity, and each of those has ordinary type parameters.
+            if(parameter.IsPack && Monomorph.InScope() is null)
             {
                 diagnostics.ReportAtNode(
                     BackendDiagnostics.DependentTypeParameter, node, null,

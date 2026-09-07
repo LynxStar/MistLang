@@ -1,0 +1,130 @@
+using System.Collections.Immutable;
+using System.Diagnostics;
+using Mist.Analysis.Builtin;
+using Mist.Analysis.Contracts;
+using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
+using Mist.Common.Diagnostics;
+using Mist.Driver;
+using Mist.Driver.Contracts;
+using Mist.Semantics.Model;
+
+namespace Mist.Tests.Integration;
+
+/// <summary>
+/// Tier 4, the boundary from a variadic declaration to compiled C#: that a family written ONCE
+/// becomes one C# type per arity used, and that each behaves.
+/// <para>
+/// RUN RATHER THAN INSPECTED, because the interesting failure is not a malformed file. A
+/// specialization that emits, compiles, and reports the wrong arity is exactly what a per-CONSTRUCTION
+/// scheme would produce, or one that read the arity off the argument count -- both of which yield
+/// well-formed C# that Roslyn accepts. Only the printed answer separates them.
+/// </para>
+/// </summary>
+public sealed class MonomorphEmissionTests : IDisposable
+{
+    private readonly string scratchDir;
+
+    public MonomorphEmissionTests()
+    {
+        scratchDir = Path.Combine(Path.GetTempPath(), "mist-monomorph-" + Guid.NewGuid().ToString("N"));
+        _ = Directory.CreateDirectory(scratchDir);
+    }
+
+    public void Dispose()
+    {
+        if(Directory.Exists(scratchDir))
+        {
+            try { Directory.Delete(scratchDir, recursive: true); } catch { /* best effort */ }
+        }
+
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Two arities of one family, and two constructions of the SAME arity -- the latter to pin that
+    /// they share a specialization rather than getting one each.
+    /// </summary>
+    private const string UsesOneFamilyAtSeveralArities = """
+        using Standard;
+
+        namespace Mono;
+
+        public class Box<params TArgs>
+        {
+            public int Count() { return TArgs.Length; }
+        }
+
+        public class Program
+        {
+            public static void Main()
+            {
+                var two = new Box<int, string>();
+                var alsoTwo = new Box<bool, char>();
+                var one = new Box<bool>();
+                var none = new Box();
+
+                Console.WriteLine($"{two.Count()}{alsoTwo.Count()}{one.Count()}{none.Count()}");
+            }
+        }
+        """;
+
+    [Fact]
+    public void AFamilyBecomesOneTypePerArityAndReportsItsOwn()
+    {
+        var sourcePath = Path.Combine(scratchDir, "Program.mist");
+        File.WriteAllText(sourcePath, UsesOneFamilyAtSeveralArities);
+
+        var binDir = Path.Combine(scratchDir, "bin");
+
+        var driver = new CompilerDriver(
+            new Mist.Lexing.MistLexer(),
+            new Mist.Parsing.MistParser(),
+            new SemanticModelBuilder(),
+            ImmutableArray.Create<IAnalyzer>(new TypeCheckerAnalyzer()),
+            ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
+
+        var result = driver.Compile(new CompilerOptions(
+            ProjectFolder: scratchDir,
+            SourcePaths: ImmutableArray.Create(sourcePath),
+            Backend: new BackendId("csharp"),
+            OutputDirectory: Path.Combine(scratchDir, "out"),
+            BinDirectory: binDir,
+            ProjectName: "Mono",
+            NamespaceRoot: "Mono",
+            EnabledAnalyzerIds: ImmutableArray<string>.Empty,
+            Pipeline: PipelineMode.Experimental));
+
+        var errors = result.Diagnostics
+            .Where(d => d.Severity == DiagnosticSeverity.Error)
+            .Select(d => $"  {d.Id.Value}: {d.Message}")
+            .ToList();
+
+        Assert.True(errors.Count == 0, $"Specialization failed:\n{string.Join("\n", errors)}");
+        Assert.NotNull(result.PrimaryOutputArtifactPath);
+
+        Assert.Equal("2210", Run(result.PrimaryOutputArtifactPath));
+    }
+
+    private static string Run(string artifact)
+    {
+        using var process = Process.Start(new ProcessStartInfo
+        {
+            FileName = "dotnet",
+            Arguments = artifact,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            StandardOutputEncoding = System.Text.Encoding.UTF8,
+            StandardErrorEncoding = System.Text.Encoding.UTF8,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        });
+
+        Assert.NotNull(process);
+
+        var stdout = process.StandardOutput.ReadToEnd();
+        _ = process.WaitForExit(60000);
+
+        return stdout.Trim();
+    }
+}

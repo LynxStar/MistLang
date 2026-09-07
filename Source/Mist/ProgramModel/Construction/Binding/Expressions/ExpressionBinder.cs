@@ -237,10 +237,24 @@ internal static class ExpressionBinder
         }
         else
         {
-            type = context.Resolver.ResolveNamedType(typeName, ctx.Scope, node);
-            if(type is TypeAlias alias)
+            // Through the shared entry point, so a bare name reaches a variadic family the way a
+            // written argument list does: `new Box()` is the arity-zero construction, not a
+            // reference to an unconstructed definition.
+            var definition = context.Resolver.ResolveGenericDefinition(typeName, arity: 0, ctx.Scope, node);
+
+            if(definition is TypeAlias alias)
             {
-                type = context.Resolver.ExpandAlias(alias, null);
+                type = context.Resolver.ExpandAlias(
+                    alias, ScopeResolver.Absorbs(alias) ? context.Resolver.BindPack(alias, [], node) : null);
+            }
+            else if(ScopeResolver.Absorbs(definition))
+            {
+                var typeArgs = context.Resolver.BindPack(definition, [], node);
+                type = context.ProgramModel.TypeInterner.GetOrCreateConstructedType(definition, typeArgs);
+            }
+            else
+            {
+                type = definition;
             }
         }
 

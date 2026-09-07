@@ -22,6 +22,23 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 internal static class MonomorphSet
 {
     /// <summary>
+    /// The C# name a family takes at one arity.
+    /// <para>
+    /// SUFFIXED TO KEEP IT OFF AN ORDINARY GENERIC'S NAME, not to tell the specializations apart --
+    /// C# overloads generic types on arity, so those are already distinct without help. What is not
+    /// distinct is a specialization against an unrelated same-named generic: Mist names a family by
+    /// its SLOT count, so `Box&lt;params T&gt;` and `Box&lt;A, B&gt;` are Box&lt;&gt; and Box&lt;,&gt;
+    /// and may both be declared -- while the first, specialized to arity two, wants exactly the C#
+    /// name the second has. Reachable through a bracketed construction, `Box&lt;[int, string]&gt;`,
+    /// which resolves to the variadic rather than to the exact-arity ordinary one.
+    /// </para>
+    /// </summary>
+    public static string SpecializedName(MistType definition, int arity)
+    {
+        return $"{MistType.StripArity(definition.Name)}_{arity}";
+    }
+
+    /// <summary>
     /// Every (variadic definition, arity) pair the program constructs, ordered so emission is
     /// deterministic.
     /// </summary>

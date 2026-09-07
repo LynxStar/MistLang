@@ -1255,10 +1255,32 @@ internal static class BodyEmitter
         CSharpWriter writer,
         DiagnosticBag diagnostics)
     {
+        // A size-agnostic read of the pack, answered by the specialization rather than emitted: at
+        // this width the arity is a constant, and there is no C# value standing for the pack to
+        // read it off.
+        if(PackArity(memberAccess) is { } arity)
+        {
+            writer.Append(arity.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            return;
+        }
+
         EmitExpression(memberAccess.Receiver, writer, diagnostics);
         writer.Append(memberAccess.IsConditional ? "?." : ".");
         writer.Append(memberAccess.MemberName);
         writer.Append(EmitTypeArguments(memberAccess.TypeArguments, parameters));
+    }
+
+    /// <summary>
+    /// The arity a <c>TArgs.Length</c> stands for in the specialization being emitted, or null when
+    /// this access is anything else.
+    /// </summary>
+    private static int? PackArity(MemberAccessExpression memberAccess)
+    {
+        return memberAccess.MemberName == "Length"
+            && memberAccess.Receiver is TypeReferenceExpression { ReferencedType: TypeParameter { IsPack: true } }
+            && Monomorph.InScope() is { } monomorph
+                ? monomorph.Expansion.Count
+                : null;
     }
 
     /// <param name="parameters">

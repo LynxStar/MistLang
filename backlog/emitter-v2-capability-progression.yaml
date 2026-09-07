@@ -8703,6 +8703,22 @@ measured_defects:
               DependentTypeRefinementConstraints, AdhocRefinementConstraints,
               ArrayBoundsFlowAnalysis, Attributes]
     total_roslyn_errors: 491
+    remaining_now: 1
+    reopened: >
+      samples/Testing RE-ENTERED THIS CATEGORY on 2026-09-06 and it is recorded rather than argued
+      away. Clearing the two ambient refusals let it reach emission, where it produces 16
+      MIST_CS_ERROR and ZERO Mist diagnostics -- the exact shape this section exists to name.
+
+      The CAUSE is known and already recorded as missing: order 129,
+      framework-and-package-reference-resolution. Its manifest declares [packages] xunit,
+      xunit.runner.visualstudio and Microsoft.NET.Test.Sdk; classic emits
+      `PackageReference Include="xunit"` into the generated csproj and v2 emits no ItemGroup at all,
+      so the C# references Xunit against a project that cannot see it.
+
+      KNOWING THE CAUSE DOES NOT MOVE IT OUT OF THIS SECTION. The section is about the SHAPE -- the
+      compiler reporting success and the user receiving syntax errors in a file they never wrote --
+      and a sample that fails this way is failing this way whether or not the capability behind it
+      has a number.
     resolved: >
       Six of the seven report at Mist source instead, via UnspellableTypeGuard: orders 141 and
       145 are refused rather than mis-emitted, which took 491 Roslyn errors against generated files
@@ -8776,6 +8792,27 @@ measured_defects:
         SAME SHAPE AS THE STANDARD/SYSTEM BLOCKER ABOVE: it masks what those samples are actually
         waiting for. CSharpInteropV2's 137 MIST_AMBIENT_UNRESOLVED are the bigger half of its
         residue and cannot be read until this clears.
+
+    - defect: a signature mentioning an unloaded type refuses the whole compilation
+      recorded_on: clr-assembly-type-projection
+      gates: [Testing, CSharpInteropV2, DelegateFuncConversion]
+      status: FIXED
+      resolved: >
+        AmbientTypeResolver returns ErrorType without a diagnostic. THE CALLER ALREADY KNEW WHAT TO
+        DO WITH IT: every member projector skips a member whose signature will not resolve, so the
+        member was being dropped AND the compilation refused, when dropping alone is right. A member
+        mentioning a type from an assembly nobody loaded is unusable whether or not we say so, and
+        calling it still fails -- at the call site, in the user's own file, as
+        MIST_PM_UNRESOLVED_MEMBER.
+
+        SAME ASYMMETRY AS THE DUPLICATE ABOVE. Classic resolves on demand, so a signature it never
+        asks about costs nothing. v2 projects every member of every type eagerly and walks thousands
+        of them, which is how samples/Testing came to be refused over Xunit.Sdk.ITheoryData -- a name
+        its author never wrote and cannot act on.
+
+        Measured: CSharpInteropV2 143 errors -> 1, DelegateFuncConversion 60 -> 17, Testing 228 -> 16.
+        CSharpInteropV2 is now a ONE-ERROR sample, its residue being UseNpgsql, a CLR extension
+        method from a NuGet package -- order 131, correctly `missing`.
 
     - defect: no non-string argument is applicable to an `unknown` parameter
       recorded_on: overload-resolution-by-argument-type (order 26)
@@ -8986,10 +9023,11 @@ measured_defects:
 
     NEXT, in the order the evidence supports:
 
-    1. MIST_AMBIENT_UNRESOLVED. MIST_AMBIENT_DUPLICATE above it is FIXED, and clearing it revealed
-       this underneath: 137 on CSharpInteropV2, 56 on DelegateFuncConversion, 5 on Testing. Types
-       referenced from projected signatures that were never shelled. Same position the duplicate
-       held -- nothing else on those three is worth reading until it clears.
+    1. Both ambient refusals are FIXED and the three samples they gated are readable at last:
+       CSharpInteropV2 143 errors -> 1 (UseNpgsql, order 131), DelegateFuncConversion 60 -> 17,
+       Testing 228 -> 16 Roslyn-only (order 129, and see silent_emission_failures.reopened).
+       Order 129 is the one to take next: it is the whole of what stands between Testing and a
+       build, and it is a manifest-to-csproj emission rather than a semantic gap.
     2. Lambda parameter type inference, MIST_PM_LAMBDA_PARAMETER_NO_TYPE. Five samples, and it banks
        OptionalDefaultability outright, that being its only error.
     3. DONE -- AssemblyTypeProvider is banked, 47th on AllFeaturesV2. It was the cheapest green on

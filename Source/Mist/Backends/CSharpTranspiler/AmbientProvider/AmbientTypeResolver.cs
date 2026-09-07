@@ -131,11 +131,13 @@ internal sealed class AmbientTypeResolver
             return shell;
         }
 
-        diagnostics.Report(
-            BackendDiagnostics.UnresolvedAmbientType,
-            default,
-            "<ambient>",
-            (object?)fqn);
+        // ERROR WITHOUT A DIAGNOSTIC, because the caller already knows what to do with it: every
+        // member projector skips a member whose signature will not resolve, and a member mentioning
+        // a type from an assembly nobody loaded is unusable whether or not we say so. Classic never
+        // reaches these -- it resolves on demand, so a signature it never asks about costs nothing.
+        // v2 projects every member of every type eagerly and so walks thousands of them, which is
+        // how samples/Testing came to be refused over Xunit.Sdk.ITheoryData, a name its author
+        // never wrote. Calling such a member still fails, at the call site, in the user's own file.
         return ErrorType.Instance;
     }
 

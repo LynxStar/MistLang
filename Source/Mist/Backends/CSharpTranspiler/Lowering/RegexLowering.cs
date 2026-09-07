@@ -1,32 +1,26 @@
+using Mist.ProgramModel;
+using Mist.ProgramModel.Contracts.Types;
+
 namespace Mist.Backends.CSharpTranspiler.Lowering;
 
 /// <summary>
-/// How Mist's <c>regex</c> reaches C#.
+/// Mist's <c>regex</c> IS System.Text.RegularExpressions.Regex, and the four places Mist spells it
+/// differently are rewritten at the use site.
 /// <para>
-/// A GENERATED WRAPPER RATHER THAN THE CLR TYPE DIRECTLY, which is the whole of why this file is
-/// short. Mist declares Regex <c>intrinsic</c>, so the backend owns the mapping, and three of its
-/// members do not line up with System.Text.RegularExpressions.Regex: <c>Pattern</c> is spelled
-/// ToString there, <c>IsFullMatch</c> does not exist at all, and the two conversions to and from
-/// string are Mist's own. Spelling each of those at every use site means the emitter carrying a
-/// member table AND knowing the expected type at every argument, assignment and return -- which is
-/// conversion insertion, a capability of its own. A wrapper declares them once and lets C#'s own
-/// rules apply them.
-/// </para>
-/// <para>
-/// DELETE THIS IN FAVOUR OF TRANSPILING Bootstrap/Regex.mist, exactly as
-/// <c>CSharpEmitterV2.EmitVoidStruct</c> is to be deleted in favour of Void.mist. Only two of the
-/// six members are primitive -- construction and IsMatch. IsFullMatch and both conversions are
-/// DERIVABLE from those, and would be ordinary Mist bodies rather than a promise every backend has
-/// to keep separately; they are intrinsic today only because the stdlib is resolved against and
-/// never emitted, so a Standard member without a body has no implementation at all. Pattern is the
-/// one irreducible mapping, the CLR having no member of that name.
+/// NEVER A WRAPPER. An intrinsic declaration says the target already has this and the emitter is to
+/// reach it -- a Mist-side duplicate would be a type no framework API accepts, and the same reasoning
+/// applied to String or Int32 would have the backend shipping its own copy of every primitive.
+/// <see cref="ClrProjection"/> states it for the Standard abstracts and it holds here.
 /// </para>
 /// </summary>
 internal static class RegexLowering
 {
-    public const string ClrType = "Standard.Regex";
+    public const string ClrType = "System.Text.RegularExpressions.Regex";
 
-    private const string Underlying = "System.Text.RegularExpressions.Regex";
+    public static bool Is(IMistType? type)
+    {
+        return type is not null && type.FullyQualifiedName == WellKnownTypes.Regex.FullyQualifiedName;
+    }
 
     /// <summary>
     /// A pattern as a C# string literal. The model already holds it as a literal's BODY, so this
@@ -37,9 +31,21 @@ internal static class RegexLowering
         return $"\"{patternBody}\"";
     }
 
+    /// <summary>
+    /// Compiled because a Mist regex is built from a pattern that is constant at nearly every site,
+    /// so the cost is paid once at construction rather than per match.
+    /// </summary>
     public static string Construct(string csharpPatternExpression)
     {
-        return $"new {ClrType}({csharpPatternExpression})";
+        return $"new {ClrType}({csharpPatternExpression}, {ClrType}Options.Compiled)";
+    }
+
+    /// <summary>
+    /// The pattern Mist's <c>Pattern</c> reads, which the CLR spells as ToString.
+    /// </summary>
+    public static string PatternOf(string receiverExpression)
+    {
+        return $"{receiverExpression}.ToString()";
     }
 
     /// <summary>
@@ -54,43 +60,6 @@ internal static class RegexLowering
 
     public static string IsFullMatch(string inputExpression, string patternExpression)
     {
-        return $"{Underlying}.IsMatch({inputExpression}, {FullMatchPattern(patternExpression)})";
-    }
-
-    /// <summary>
-    /// The wrapper's own source. Compiled because a Mist regex is built from a pattern that is
-    /// constant at nearly every site, so the cost is paid once at construction rather than per match.
-    /// </summary>
-    public static void Emit(Emitter.CSharpWriter writer)
-    {
-        writer.WriteLine("namespace Standard;");
-        writer.WriteBlankLine();
-        writer.WriteLine("[System.Runtime.CompilerServices.CompilerGenerated]");
-        writer.WriteLine("public sealed class Regex");
-
-        using(writer.Block())
-        {
-            writer.WriteLine($"private readonly {Underlying} inner;");
-            writer.WriteBlankLine();
-            writer.WriteLine("public Regex(string pattern)");
-            using(writer.Block())
-            {
-                writer.WriteLine($"inner = new {Underlying}(pattern, {Underlying}Options.Compiled);");
-            }
-
-            writer.WriteBlankLine();
-            writer.WriteLine("public string Pattern => inner.ToString();");
-            writer.WriteBlankLine();
-            writer.WriteLine("public bool IsMatch(string input) => inner.IsMatch(input);");
-            writer.WriteBlankLine();
-            writer.WriteLine(
-                $"public bool IsFullMatch(string input) => {IsFullMatch("input", "inner.ToString()")};");
-            writer.WriteBlankLine();
-            writer.WriteLine("public override string ToString() => inner.ToString();");
-            writer.WriteBlankLine();
-            writer.WriteLine("public static implicit operator string(Regex r) => r.inner.ToString();");
-            writer.WriteBlankLine();
-            writer.WriteLine("public static explicit operator Regex(string s) => new Regex(s);");
-        }
+        return $"{ClrType}.IsMatch({inputExpression}, {FullMatchPattern(patternExpression)})";
     }
 }

@@ -7147,15 +7147,18 @@ capabilities:
       members, implicit conversion to string, an explicit cast from a non-constant string, and a
       string-literal shorthand gated on compile-time validation.
 
-      A GENERATED WRAPPER RATHER THAN THE CLR TYPE, which is what collapsed this capability from a
-      member table plus conversion insertion into one emitted file. Mist declares Regex `intrinsic`,
-      so the backend owns the whole mapping, and three of its members do not line up with
-      System.Text.RegularExpressions.Regex: `Pattern` is spelled ToString there, `IsFullMatch` does
-      not exist at all, and both conversions to and from string are Mist's own. Spelling those at
-      every use site needs the emitter to know the expected type at every argument, assignment and
-      return -- which is order 46's job, not this one's. Standard.Regex is emitted as __Regex.g.cs
-      holding a CLR Regex, declares all five, and C#'s own rules apply them. Standard.Void is the
-      same move for the same kind of reason.
+      MAPPED ONTO THE CLR TYPE, NEVER DUPLICATED. `regex` emits as
+      System.Text.RegularExpressions.Regex, and the four members Mist spells differently are
+      rewritten at the use site: `Pattern` reads as ToString, `IsFullMatch` anchors and matches
+      partially, a cast to regex constructs, and a regex reaching a string slot converts where the
+      emitter already knows a target type -- an argument's parameter and a local's declared type.
+
+      A WRAPPER WAS BUILT FIRST AND WAS WRONG. A generated Standard.Regex holding a CLR Regex made
+      C#'s own rules apply the conversion, which avoided knowing target types. It also made `regex` a
+      type no framework API accepts, and the same reasoning applied to String or Int32 would have the
+      backend shipping a duplicate of every primitive. Intrinsic means stages 1-5 stay pure Mist and
+      stage 6 answers for itself; a wrapper answers in the wrong place, and would have to be invented
+      again by every other backend. ClrProjection already states this for the Standard abstracts.
 
       TWO SPELLINGS, ONE FORM. A backticked literal is RAW regex and a quoted shorthand is already
       written as a string body, so one escaping rule applied to both gets one of them wrong -- and

@@ -179,7 +179,11 @@ internal static class BodyEmitter
                 continue;
             }
 
-            EmitExpression(arguments[i], writer, diagnostics);
+            EmitCoerced(
+                arguments[i],
+                parameters is not null && i < parameters.Count ? parameters[i].Type : null,
+                writer,
+                diagnostics);
         }
     }
 
@@ -206,7 +210,7 @@ internal static class BodyEmitter
             // only the first. The second is reinstated here rather than being bound as part of the
             // initializer, since Mist has no syntax for it to have come from.
             writer.Append(local.IsRef ? " = ref " : " = ");
-            EmitExpression(localDecl.Initializer, writer, diagnostics);
+            EmitCoerced(localDecl.Initializer, local.Type, writer, diagnostics);
         }
 
         writer.Append(";");
@@ -345,6 +349,10 @@ internal static class BodyEmitter
     {
         switch(expression)
         {
+            case InvocationExpression invocation when FullMatchCall(invocation) is { } fullMatch:
+                writer.Append(fullMatch);
+                break;
+
             case InvocationExpression invocation:
                 // The member access is emitted from HERE when it carries type arguments, because
                 // only the invocation knows which overload they fill -- and a dependent slot is
@@ -400,6 +408,12 @@ internal static class BodyEmitter
 
             case SwitchExpression switchExpression:
                 EmitSwitch(switchExpression, writer, diagnostics);
+                break;
+
+            // A cast TO regex constructs rather than converts: the CLR type has no operator from
+            // string, the conversion being Mist's own.
+            case CastExpression toRegex when RegexLowering.Is(toRegex.Type):
+                writer.Append(RegexLowering.Construct(Render(toRegex.Operand, diagnostics)));
                 break;
 
             case CastExpression cast:
@@ -574,6 +588,7 @@ internal static class BodyEmitter
             case RegexLiteralExpression regexLiteral:
                 writer.Append(RegexLowering.Construct(RegexLowering.Quote(regexLiteral.Pattern)));
                 break;
+
 
             case TypeLiteralExpression typeLiteral:
                 writer.Append($"typeof({TypeNameEmitter.Emit(typeLiteral.ReferencedType)})");
@@ -979,6 +994,48 @@ internal static class BodyEmitter
         writer.Append($" is {target} {bound} ? {bound} : default({target}?))");
     }
 
+    /// <summary>
+    /// <c>r.IsFullMatch(x)</c>, which the CLR cannot be asked directly -- it matches partially, so a
+    /// full match is the same question put to an anchored copy of the pattern.
+    /// </summary>
+    private static string? FullMatchCall(InvocationExpression invocation)
+    {
+        return invocation is
+        {
+            Receiver: MemberAccessExpression { MemberName: "IsFullMatch" } callee,
+            Arguments: [{ } input],
+        }
+            && RegexLowering.Is(callee.Receiver.Type)
+                ? RegexLowering.IsFullMatch(
+                    Render(input, NoDiagnostics), RegexLowering.PatternOf(Render(callee.Receiver, NoDiagnostics)))
+                : null;
+    }
+
+    /// <summary>
+    /// A regex where a string is expected. Mist declares the conversion implicit and the CLR type
+    /// has none, so it is materialised at the sites the emitter already knows a target type for.
+    /// </summary>
+    private static bool ConvertsRegexToString(Expression expression, IMistType? target)
+    {
+        return RegexLowering.Is(expression.Type)
+            && target is not null
+            && target.FullyQualifiedName == WellKnownTypes.String.FullyQualifiedName;
+    }
+
+    private static void EmitCoerced(
+        Expression expression, IMistType? target, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        if(ConvertsRegexToString(expression, target))
+        {
+            writer.Append(RegexLowering.PatternOf(Render(expression, diagnostics)));
+            return;
+        }
+
+        EmitExpression(expression, writer, diagnostics);
+    }
+
+    private static readonly DiagnosticBag NoDiagnostics = new();
+
     private static string Render(Expression expression, DiagnosticBag diagnostics)
     {
         var scratch = new CSharpWriter();
@@ -1379,6 +1436,12 @@ internal static class BodyEmitter
         if(PackArity(memberAccess) is { } arity)
         {
             writer.Append(arity.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            return;
+        }
+
+        if(memberAccess.MemberName == "Pattern" && RegexLowering.Is(memberAccess.Receiver.Type))
+        {
+            writer.Append(RegexLowering.PatternOf(Render(memberAccess.Receiver, diagnostics)));
             return;
         }
 

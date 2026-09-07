@@ -87,7 +87,6 @@ internal sealed class CSharpEmitterV2
         EmitDependentCarriers(outputDir, emittedFiles);
         EmitMonomorphs(outputDir, emittedFiles, closures);
         EmitVoidStruct(outputDir, emittedFiles);
-        EmitRegexClass(outputDir, emittedFiles);
 
         // The standard library is provided by the runtime, so its declarations are resolved
         // against but never emitted.
@@ -464,16 +463,6 @@ internal sealed class CSharpEmitterV2
     /// deleted in its favour. Members follow Void.mist; ToString and the equality overrides
     /// are backend additions so interpolation prints "Void" and the operators compile clean.
     /// </summary>
-    private static void EmitRegexClass(string outputDir, List<string> emittedFiles)
-    {
-        var writer = new CSharpWriter();
-        RegexLowering.Emit(writer);
-
-        var path = Path.Combine(outputDir, "__Regex.g.cs");
-        File.WriteAllText(path, writer.ToString());
-        emittedFiles.Add(path);
-    }
-
     private static void EmitVoidStruct(string outputDir, List<string> emittedFiles)
     {
         var writer = new CSharpWriter();

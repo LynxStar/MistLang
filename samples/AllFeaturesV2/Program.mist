@@ -71,5 +71,8 @@ public class Program
         DependentTypes.Program.RunDemo();
         DependentTypeRefinementConstraints.Program.RunDemo();
         UnknownReadonlySemantics.Program.RunDemo();
+        RefinementTypes.Program.RunDemo();
+        RefinementComparison.Program.RunDemo();
+        AdhocRefinementConstraints.Program.RunDemo();
     }
 }

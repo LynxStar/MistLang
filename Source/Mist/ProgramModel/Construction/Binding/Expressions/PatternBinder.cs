@@ -133,7 +133,7 @@ internal static class PatternBinder
                     }
 
                     var binding = Declare(node, typePattern.Name, tested, bindingsPermitted, ctx, context);
-                    return BindTypeTest(node, tested, binding, scrutineeType, context);
+                    return BindTypeTest(node, tested, binding, scrutineeType, ctx, context);
                 }
 
             case BareTypePatternPrimaryPatternNode bareType:
@@ -214,7 +214,33 @@ internal static class PatternBinder
             context.Resolver.Resolve(bareType.Type, ctx.Scope),
             binding: null,
             scrutineeType,
+            ctx,
             context);
+    }
+
+    /// <summary>
+    /// A refined tested type's predicate, bound against the type it refines. Null for a type
+    /// carrying no refinement, and null when the predicate does not bind -- which the emitter must
+    /// treat as a refusal rather than as an absent one, since erasing an unbound predicate would
+    /// let the test succeed for every value.
+    /// </summary>
+    internal static Pattern? BindRefinement(IMistType tested, BindingContext ctx, BuilderContext context)
+    {
+        if(tested is not RefinedType refined)
+        {
+            return null;
+        }
+
+        var predicate = refined.PredicateNode switch
+        {
+            SimpleRefinementPredicateRefinementPredicateNode simple => simple.Predicate,
+            AndPatternNode adhoc => adhoc,
+            _ => null,
+        };
+
+        return predicate is null
+            ? null
+            : BindAnd(predicate, refined.BaseType, bindingsPermitted: false, ctx, context);
     }
 
     private static Expression? EnumVariant(
@@ -254,16 +280,19 @@ internal static class PatternBinder
         IMistType tested,
         LocalVariable? binding,
         IMistType scrutineeType,
+        BindingContext ctx,
         BuilderContext context)
     {
+        var refinement = BindRefinement(tested, ctx, context);
+
         if(scrutineeType is not UnionType union || OptionalUnion.IsOptional(union))
         {
-            return new TypeTestPattern(node, tested, binding);
+            return new TypeTestPattern(node, tested, binding, constituent: null, refinement);
         }
 
         if(MatchConstituent(union, tested) is { } constituent)
         {
-            return new TypeTestPattern(node, tested, binding, constituent);
+            return new TypeTestPattern(node, tested, binding, constituent, refinement);
         }
 
         context.Diagnostics.ReportAtNode(

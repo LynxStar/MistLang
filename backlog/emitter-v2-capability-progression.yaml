@@ -6214,63 +6214,136 @@ capabilities:
   - id: refinement-type-declarations
     name: Refinement type declarations
     order: 141
-    layer: refinement-and-dependent
+    layer: refinement-types
     requires: [type-alias-declarations]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       A base type plus a predicate bound under an alias, usable in every type position.
 
-      WAS BROKEN, NOW REFUSED. Briefly recorded `broken` when measured, because the emitter path was
-      not absent as `missing` implies -- a refined type reached emission and was written into the
-      generated file as its own display name, `public Int32{refined} Age;`, whose braces terminate
-      the member declaration. RefinedType.BuildName builds that name and TypeNameEmitter had no
-      RefinedType arm, so it fell to the `_ => type.Name` catch-all. RefinementTypes emitted 253
-      Roslyn errors and RefinementComparison 196, NEITHER producing a single Mist diagnostic.
+      SPELLED AS THE TYPE IT REFINES. The predicate constrains which VALUES may reach a slot, not
+      how one is represented, so a field, a parameter and a return type all emit as the base -- R12.1
+      of the spec, and the reason a refinement needs no carrier of its own.
 
-      UnspellableTypeGuard now refuses it with MIST_BE_REFINED_TYPE, so the counts are 4 and 0
-      Mist-source diagnostics respectively and the status is honestly `missing` again. One hole
-      remains and is recorded on the descriptor: an UNINITIALISED refined local is located by its
-      initializer, so a declaration without one is still unguarded.
+      MEMBERS COME FROM THE BASE, which erasure alone does not give: a refinement is a nominal
+      subtype (R8.3), so `ok.End` on a `ValidInterval` resolves through to Interval. Found by a test
+      rather than by a sample -- samples/RefinementTypes binds a property-pattern match and never
+      reads a member off the binding.
 
-      The refusal is deliberately not erasure to the base type, which is the obvious repair and the
-      wrong one for a guard -- erasure is the eventual FEATURE, and doing half of it silently would
-      let a program whose predicate is never discharged compile as though it had been.
+      THE ONE PLACE ERASURE IS UNSOUND is a TEST, and that is order 144's, not this one's. Erasing
+      there turns `x is AdultAge` into `x is int`, which is true of every int -- a runtime check
+      silently becoming a constant. Measured before building: with erasure alone RefinementComparison
+      and AdhocRefinementConstraints matched classic exactly and RefinementTypes printed two lines
+      wrong, which is what split this capability from 144.
+
+      WAS BROKEN, THEN REFUSED, NOW BUILT. It was briefly recorded `broken`: a refined type reached
+      emission and was written as its own display name, `public Int32{refined} Age;`, whose braces
+      terminate the member declaration -- 253 Roslyn errors from RefinementTypes and 196 from
+      RefinementComparison, with no Mist diagnostic at all. UnspellableTypeGuard then refused it
+      honestly. Both the refusal and its walk are now gone.
+    analysis_phase_tasks:
+      - >
+        Report a compile-time constant that violates the predicate (R5.2). Classic's MIST_TC_0097 is
+        the model: "Value '7' does not satisfy refinement '>= 18' on type 'AdultAge'". v2 accepts it
+        and emits the value.
+      - >
+        Report a non-constant assigned to a refinement without proof (R6.1), classic's MIST_TC_0098.
+        This is the rule that makes the `is` test the only way in; without it a base-typed value
+        reaches a refined slot unchecked.
     unlocks: []
 
   - id: refinement-static-discharge
     name: Static discharge of a refinement predicate
     order: 142
-    layer: refinement-and-dependent
+    layer: refinement-types
     requires: [refinement-type-declarations]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      Compile-time evaluation of a literal against a predicate including boundary values,
-      widening a refinement to its base, and degrading an arithmetic result to the base.
+      Compile-time evaluation of a literal against a predicate including boundary values, widening a
+      refinement to its base, and degrading an arithmetic result to the base.
+
+      THE TYPE RULES ARE WHAT THIS OWES, and they hold: widening a refinement to its base is
+      accepted (R8.3), and arithmetic on one produces the base rather than the refinement (R8.1) --
+      `AdultAge age = 30; int w = age; var sum = age + 1;` gives 30 and 31, and passing `age` to an
+      `int` parameter works.
+
+      THE DISCHARGE ITSELF IS A JUDGEMENT, not something that stops a model being built or emitted,
+      so it is recorded below rather than counted here. See the field documentation: a capability
+      with analysis_phase_tasks is not partial.
+    analysis_phase_tasks:
+      - >
+        Evaluate a literal against the predicate at compile time, including boundary values, and
+        report the ones that fail. Shared with order 141's first task -- the evaluation is the same
+        machinery, and the two entries differ only in where the failing value came from.
     unlocks: []
 
   - id: refinement-implication-engine
     name: Predicate entailment between refinements
     order: 143
-    layer: refinement-and-dependent
+    layer: refinement-types
     requires: [refinement-static-discharge]
-    v2_status: missing
+    v2_status: done
+    verified_by: unexercised
     evidence: >
       Assignability is ENTAILMENT, not predicate equality and not alias identity. The engine
       normalizes into relational, equality, negation and disjunction constraints and covers
       cross-operator strictness, disjunction membership and subset, and conjunctive interval
       containment, with the base type held fixed.
+
+      THE WHOLE OF IT IS A JUDGEMENT ON A FINISHED MODEL, which is why nothing was built here and
+      why samples/RefinementComparison banks without it. An entailment engine decides which
+      assignments to REJECT; every assignment the sample makes is one that should be accepted, and
+      v2 accepts them all -- for the wrong reason, since it accepts the rejectable ones too.
+
+      SAID PLAINLY BECAUSE THE BASELINE CANNOT SAY IT. A stdout diff sees only programs that run, so
+      a sample demonstrating accepted conversions passes identically under a correct engine and
+      under no engine at all. RefinementComparison being green is not evidence that entailment
+      works; it is evidence that nothing it does needs rejecting.
+    analysis_phase_tasks:
+      - >
+        Prove or refuse subset relationships between two refinements over the same base (R9.1-R9.5),
+        reporting the unprovable ones. Classic's MIST_TC_0099 is the model: "Cannot assign 'AdultAge'
+        to 'DrinkingAge' because the compiler cannot prove that '>= 18' implies '>= 21'". v2 accepts
+        that assignment today.
     unlocks: [RefinementComparison]
 
   - id: refinement-runtime-guard-insertion
     name: Residual runtime guards for refinements
     order: 144
-    layer: refinement-and-dependent
+    layer: refinement-types
     requires: [refinement-static-discharge]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       Two proof modes from one construct -- static discharge where the value is known, and a
-      residual runtime guard at a parameter. Choosing wrong is either a false reject or an
-      unsound accept.
+      residual runtime guard at a parameter. Choosing wrong is either a false reject or an unsound
+      accept.
+
+      THE TEST IS THE MODE THAT IS EMISSION'S, and it is built: `x is AdultAge age` emits
+      `x is int and >= 18 and var age`, and `r is ValidInterval v` emits
+      `r is Interval and { Start: >= 0 } and var v` (R12.2). The predicate is bound against the type
+      it refines at the test site and carried on the pattern, because a refinement's predicate is an
+      AST node until a binder touches it and only a binder can.
+
+      A CONJUNCTION RATHER THAN A DECLARATION PATTERN, because no single C# form covers both
+      predicate shapes: `int >= 18 age` is not C#, while `int and >= 18 and var age` is, and it
+      spells the relational and property cases identically. The base test is kept even where the
+      scrutinee already has that type -- it costs nothing, warns nothing, and is what makes the same
+      emission correct when the scrutinee is wider.
+
+      REFUSED WHERE THE PREDICATE DOES NOT BIND, as MIST_BE_REFINED_PREDICATE. This is the one place
+      erasure would not lose a check but silently pass one, so an unbound predicate must not fall
+      through to `x is int`.
+
+      THE PARAMETER GUARD IS THE OTHER MODE and is not built, because WHICH call sites need one is
+      decided by the static discharge that v2 does not run. Emitting a guard at every parameter
+      would be sound and wrong -- the spec asks for a residual guard, residual to a proof.
+    analysis_phase_tasks:
+      - >
+        Emit a runtime validation guard at method entry for a refined parameter whose argument was
+        not statically proven at the call site (R12.4). Needs order 142's discharge first, since
+        "not statically proven" is its output; without it every parameter looks unproven.
     unlocks: [RefinementTypes]
 
   - id: dependent-type-parameters

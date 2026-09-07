@@ -1090,3 +1090,126 @@ Initial stored: 42
 After replace: 99
 BuildListAndCount(1, 2): 2
 === UnknownReadonlySemantics Done ===
+=== Refinement Types Sample ===
+--- Simple refinement: AdultAge ---
+  AdultAge age = 20 -> 20
+--- Compound refinement: Percentage ---
+  Percentage pct = 75 -> 75
+  Percentage zero = 0 -> 0
+  Percentage full = 100 -> 100
+--- Union with refinements: AgeRange ---
+  AgeRange childAge = 5 -> Union_Byte_Int32
+  AgeRange byteVal = 50 -> Union_Byte_Int32
+--- Property pattern refinement: ValidInterval ---
+  Interval(10, 50) is ValidInterval -> true
+  Interval(-5, 10) is ValidInterval -> false
+--- Compile-time accepted literals ---
+  AdultAge exactly18 = 18 -> 18
+  AdultAge senior = 65 -> 65
+--- Runtime validation: pattern matching ---
+  userInput 25 is AdultAge -> true, validAge = 25
+  userInput 10 is AdultAge -> false
+--- Refinement as method parameter ---
+  DescribeAge(30) -> Adult age is 30
+--- Refinement as method return type ---
+  GetDefaultAdultAge() -> 25
+--- Refinement as field type ---
+  Person(Name=Alice, Age=18)
+  person.Age -> 18
+--- Flow-sensitive narrowing ---
+  x=21, after if (x >= 18): narrowed = 21
+--- Arithmetic produces base type ---
+  AdultAge a = 20, a + 5 -> 25 (type: int)
+  a - 2 -> 18 (type: int)
+--- Subset assignability ---
+  DrinkingAge 21 assigned to AdultAge -> 21
+  DrinkingAge 30 assigned to AdultAge -> 30
+--- Widening to base type ---
+  AdultAge 40 widened to int -> 40
+  Percentage 50 widened to int -> 50
+Done!
+=== Refinement Comparison Engine Sample ===
+--- [eq-implies-relational] ---
+  == 7 implies >= 0: nn = 7
+  == 7 implies <= 10: amt = 7
+  == 7 implies > 5: gtf = 7
+  == 7 implies < 10: ltt = 7
+--- [eq-identity] ---
+  == 7 implies == 7: ae7 = 7
+--- [not-identity] ---
+  not 7 implies not 7: ans = 42
+--- [eq-implies-not] ---
+  == 5 implies not 7: ns2 = 5
+--- [relational-implies-not] ---
+  > 5 implies not 5: nf1 = 10
+  < 5 implies not 5: nf2 = 2
+--- [cross-operator] ---
+  >= 10 implies > 5: gtf2 = 10
+  > 5 implies > 5: gtf4 = 8
+--- [or-membership] ---
+  == 7 implies (7 or 8): soe = 7
+--- [or-subset] ---
+  (7 or 8) implies (7 or 8 or 9): soen = 7
+--- [or-implies-relational] ---
+  (7 or 8) implies >= 7: gts = 8
+  (7 or 8) implies <= 8: lte = 8
+--- [or-implies-not] ---
+  (7 or 8) implies not 5: nf3 = 7
+--- [compound-mixed] ---
+  (> 0 and < 50) implies (>= 0 and <= 100): zth = 25
+--- [multi-numeric] ---
+  short == 3 implies short >= 0: nns2 = 3
+  byte == 10 implies byte <= 50: amfb = 10
+=== Refinement Comparison Engine Done ===
+=== Adhoc Refinement Constraints Sample ===
+--- 1. Single dependent argument refinement ---
+  FixedArray<int, 5>.GetSize() = 5
+  FixedArray<int, 5>.Describe() = FixedArray<Size=5>
+  FixedArray<string, 0>.GetSize() = 0
+--- 2. Multiple dependent argument refinements ---
+  Matrix<3, 4>.GetRows() = 3
+  Matrix<3, 4>.GetCols() = 4
+  Matrix<3, 4>.Describe() = Matrix<3x4>
+--- 3. Mixed generic + dependent argument refinement ---
+  Container<string, 8>.GetSize() = 8
+  Container<string, 8>.Describe() = Container<Size=8>(value=hello)
+--- 4. Method with single parameter refinement ---
+  Process(42) accepted
+--- 5. Method with multiple parameter refinements ---
+  Range(min=10, max=90) accepted
+--- 6. Constructor with parameter refinement ---
+  Bounded(size=25)
+  bounded.GetSize() = 25
+--- 7. Indexer with parameter refinement ---
+  SafeList[2] = 30
+  SafeList[0] after set = 99
+--- 8. Compound predicate with and ---
+  Validate(512) within [0, 1024]
+  Validate(0) within [0, 1024]
+--- 9. Constructing type with valid dependent value ---
+  FixedArray<int, 100>.GetSize() = 100
+  Matrix<1, 1>.Describe() = Matrix<1x1>
+--- 10. Calling method with valid literal argument ---
+  Process(0) accepted
+  Process(99) accepted
+--- 11. Method with generic constraint and parameter refinement ---
+  Show(Widget#7, count=3)
+--- 12. Flow narrowing within method body ---
+  UseNarrowed(42) -> narrowed=42
+  UseNarrowed(0) -> narrowed=0
+--- 13. Inheritance with fixed dependent value ---
+  SmallArray : FixedArray<int, 10> constructed successfully
+  (10 satisfies constraint Size >= 0)
+--- 14. Forwarding dependent parameter with implication ---
+  Wrapper<5> : FixedArray<string, 5> constructed successfully
+  (Wrapper's N >= 0 implies FixedArray's Size >= 0)
+--- 15. Abstract type refinement - same constraint (Liskov) ---
+  StrictValidator.Validate(42) accepted (same constraint >= 0)
+  StrictValidator.Validate(0) accepted (same constraint >= 0)
+--- 16. Abstract type refinement - no constraint (Liskov) ---
+  LenientValidator.Validate(99) accepted (no constraint)
+  LenientValidator.Validate(0) accepted (no constraint)
+--- 17. Abstract type refinement - weaker constraint (Liskov) ---
+  WeakerProcessor.Process(50) accepted (weaker constraint >= 0)
+  WeakerProcessor.Process(10) accepted (weaker constraint >= 0)
+=== Adhoc Refinement Constraints Done ===

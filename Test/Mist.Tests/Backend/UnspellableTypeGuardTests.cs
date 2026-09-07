@@ -80,23 +80,20 @@ public sealed class UnspellableTypeGuardTests : ProgramModelProbe
         Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
     }
 
-    [Fact]
-    public void RefinedFieldType_IsRefused()
-    {
-        AssertSingle(GuardOn("Person"), "MIST_BE_REFINED_TYPE");
-    }
-
     /// <summary>
-    /// A return type and a parameter are separate positions, so a method using the refinement in
-    /// both is refused twice. Emitting either would break the file on its own.
+    /// A refinement in a signature is no longer refused: order 141 gives it a C# spelling, the type
+    /// it refines. The predicate constrains which values may reach the slot, which is a question
+    /// settled before the value gets there rather than a different runtime representation -- so
+    /// erasing it in a FIELD, a parameter or a return type loses nothing. Where it may not be
+    /// erased is a test, and that refusal lives with the test; see
+    /// <see cref="RefinementEmissionTests"/>.
     /// </summary>
-    [Fact]
-    public void RefinedReturnAndParameter_AreBothRefused()
+    [Theory]
+    [InlineData("Person")]
+    [InlineData("Greeter")]
+    public void RefinedSignature_IsNoLongerRefused(string type)
     {
-        var diagnostics = GuardOn("Greeter");
-
-        Assert.Equal(2, diagnostics.Length);
-        Assert.All(diagnostics, d => Assert.Equal("MIST_BE_REFINED_TYPE", d.Id.Value));
+        Assert.Empty(GuardOn(type));
     }
 
     /// <summary>

@@ -1,7 +1,6 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
-using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
@@ -47,36 +46,12 @@ internal static class UnspellableTypeGuard
 
         foreach(var (member, signatureType, ownParameters) in SignatureTypes(type))
         {
-            if(FindRefinement(signatureType) is { } refined)
-            {
-                diagnostics.ReportAtNode(
-                    BackendDiagnostics.RefinedTypeInSignature, node, null,
-                    $"{TypeEmitter.CleanName(type)}.{member}", refined.BaseType.Name);
-            }
-
             if(FindUnspecializedPack(signatureType, ownParameters) is { } pack)
             {
                 diagnostics.ReportAtNode(
                     BackendDiagnostics.UnspecializedPack, node, null,
                     $"{TypeEmitter.CleanName(type)}.{member}", pack.Name);
             }
-        }
-    }
-
-    /// <summary>
-    /// The same refusal for a LOCAL, which the declaration walk structurally cannot reach: a
-    /// refinement ALIAS declares no type of its own to guard, so a program that only ever names one
-    /// on a local -- which is what a comparison sample does -- has nothing for the walk to find.
-    /// </summary>
-    public static void ReportLocal(
-        LocalDeclarationStatement declaration, DiagnosticBag diagnostics)
-    {
-        if(declaration.Initializer?.Node is { } node
-            && FindRefinement(declaration.Local.Type) is { } refined)
-        {
-            diagnostics.ReportAtNode(
-                BackendDiagnostics.RefinedTypeInSignature, node, null,
-                declaration.Local.Name, refined.BaseType.Name);
         }
     }
 
@@ -207,49 +182,6 @@ internal static class UnspellableTypeGuard
             if(FindUnspecializedPack(type, ownParameters, seen) is { } pack)
             {
                 return pack;
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// The first refinement reachable from a type, descending every composite
-    /// <see cref="TypeNameEmitter.Emit"/> descends. A refinement nested inside one is as unspellable
-    /// as a bare one -- <c>List&lt;Age&gt;</c> emits the same broken name in its argument position.
-    /// </summary>
-    private static RefinedType? FindRefinement(IMistType type)
-    {
-        return FindRefinement(type, new HashSet<IMistType>());
-    }
-
-    private static RefinedType? FindRefinement(IMistType type, HashSet<IMistType> seen)
-    {
-        if(!seen.Add(type))
-        {
-            return null;
-        }
-
-        return type switch
-        {
-            RefinedType refined => refined,
-            ConstructedType constructed => FindFirst(constructed.TypeArguments, seen),
-            UnionType union => FindFirst(union.Constituents, seen),
-            NamedTupleType named => FindFirst(named.ElementTypes, seen),
-            TupleType tuple => FindFirst(tuple.ElementTypes, seen),
-            FunctionType function => FindRefinement(function.ReturnType, seen)
-                ?? FindFirst(function.ParameterTypes, seen),
-            _ => null,
-        };
-    }
-
-    private static RefinedType? FindFirst(IReadOnlyList<IMistType> types, HashSet<IMistType> seen)
-    {
-        foreach(var type in types)
-        {
-            if(FindRefinement(type, seen) is { } refined)
-            {
-                return refined;
             }
         }
 

@@ -186,7 +186,6 @@ internal static class BodyEmitter
     private static void EmitLocalDeclaration(LocalDeclarationStatement localDecl, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var local = localDecl.Local;
-        UnspellableTypeGuard.ReportLocal(localDecl, diagnostics);
         var refKeyword = RefKeywords.For(local.IsRef, local.IsReadonly);
         var typeName = $"{refKeyword}{TypeNameEmitter.Emit(local.Type)}";
 
@@ -1026,12 +1025,7 @@ internal static class BodyEmitter
         switch(pattern)
         {
             case TypeTestPattern typeTest:
-                writer.Append(TypeNameEmitter.EmitAsPatternType(typeTest.NarrowedType));
-                if(typeTest.Binding is { } tested)
-                {
-                    writer.Append($" {tested.Name}");
-                }
-
+                EmitTypeTest(typeTest, writer, diagnostics);
                 break;
 
             case CatchAllPattern catchAll:
@@ -1073,6 +1067,48 @@ internal static class BodyEmitter
         if(parenthesize)
         {
             writer.Append(")");
+        }
+    }
+
+    /// <summary>
+    /// A test that the scrutinee holds a type, and -- where that type is a REFINEMENT -- that its
+    /// predicate holds of the value.
+    /// <para>
+    /// THE PREDICATE CANNOT BE ERASED HERE, though the type name everywhere else can. `x is AdultAge`
+    /// asks a question that the refinement is the whole of: spelled as its base it becomes `x is int`,
+    /// which is true of every int and silently turns a runtime check into a constant. Emitted as a
+    /// conjunction rather than woven into the type name because a relational predicate is not
+    /// something a declaration pattern can carry -- `int >= 18 age` is not C# -- while
+    /// `int and >= 18 and var age` is, at every shape of predicate.
+    /// </para>
+    /// </summary>
+    private static void EmitTypeTest(TypeTestPattern typeTest, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        if(typeTest.NarrowedType is RefinedType unbound && typeTest.Refinement is null)
+        {
+            diagnostics.ReportAtNode(
+                BackendDiagnostics.UnboundRefinementPredicate, typeTest.Node, null,
+                unbound.Name, unbound.BaseType.Name);
+        }
+
+        writer.Append(TypeNameEmitter.EmitAsPatternType(typeTest.NarrowedType));
+
+        if(typeTest.Refinement is { } predicate)
+        {
+            writer.Append(" and ");
+            EmitPattern(predicate, ConjunctionPrecedence, hoisted: null, writer, diagnostics);
+
+            if(typeTest.Binding is { } bound)
+            {
+                writer.Append($" and var {bound.Name}");
+            }
+
+            return;
+        }
+
+        if(typeTest.Binding is { } tested)
+        {
+            writer.Append($" {tested.Name}");
         }
     }
 
@@ -1220,6 +1256,7 @@ internal static class BodyEmitter
         {
             DisjunctionPattern => DisjunctionPrecedence,
             ConjunctionPattern => ConjunctionPrecedence,
+            TypeTestPattern { Refinement: not null } => ConjunctionPrecedence,
             NegatedPattern => NegationPrecedence,
             _ => int.MaxValue,
         };

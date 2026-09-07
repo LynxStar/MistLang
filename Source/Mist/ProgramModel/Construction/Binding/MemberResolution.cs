@@ -38,9 +38,12 @@ internal static class MemberResolution
         Scope? callSite = null,
         bool allowExtensionProperties = false)
     {
-        var constructed = type as ConstructedType;
+        // A refinement is a nominal SUBTYPE of what it refines, so its members are that type's. The
+        // predicate says which VALUES the type admits, never which members they answer to.
+        var receiver = type is RefinedType refined ? refined.BaseType : type;
+        var constructed = receiver as ConstructedType;
 
-        if((constructed?.Definition ?? type) is not MistType declaring)
+        if((constructed?.Definition ?? receiver) is not MistType declaring)
         {
             return (new NotFoundResult(), null);
         }

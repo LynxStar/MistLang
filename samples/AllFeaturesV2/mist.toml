@@ -53,3 +53,6 @@ ArrayBoundsFlowAnalysis = { path = "../ArrayBoundsFlowAnalysis" }
 DependentTypes = { path = "../DependentTypes" }
 DependentTypeRefinementConstraints = { path = "../DependentTypeRefinementConstraints" }
 UnknownReadonlySemantics = { path = "../UnknownReadonlySemantics" }
+RefinementTypes = { path = "../RefinementTypes" }
+RefinementComparison = { path = "../RefinementComparison" }
+AdhocRefinementConstraints = { path = "../AdhocRefinementConstraints" }

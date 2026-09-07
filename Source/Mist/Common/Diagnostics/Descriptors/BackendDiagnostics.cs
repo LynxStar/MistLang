@@ -333,32 +333,15 @@ public static class BackendDiagnostics
         "Parameter '{0}' of '{1}.{2}' is typed by the parameterized associated type slot '{3}'. The experimental emitter erases such a slot to its bound, which it can bridge for a return type but not for a parameter.");
 
     /// <summary>
-    /// A REFINEMENT reached a member signature. C# has no refinement, and the backend has no lowering
-    /// to the base type yet, so <see cref="TypeNameEmitter.Emit"/> falls to its name arm and writes the
-    /// refinement's own display name -- <c>Int32{refined}</c>, braces included. Those braces close the
-    /// member declaration, and the generated file stops parsing there.
-    /// <para>
-    /// Refused rather than erased to the base type, which is the obvious repair and the wrong one for a
-    /// guard: erasure is the eventual FEATURE, and silently doing half of it would let a program whose
-    /// predicate is never discharged compile and run as though it had been. The refusal is what keeps
-    /// the missing discharge visible until it is built.
-    /// </para>
-    /// <para>
-    /// Reported at the declaration rather than at the member, because a refinement is legal in every
-    /// type position and the message names the position it was found in.
-    /// </para>
-    /// <para>
-    /// A LOCAL is reported separately and located at its initializer, since neither the local nor its
-    /// statement carries a node. An UNINITIALISED refined local therefore still slips through to the
-    /// generated file -- the one hole left in this guard, and it needs a location on the statement
-    /// before it can close.
-    /// </para>
+    /// A test against a refinement whose predicate did not bind, so there is nothing to test WITH.
+    /// Refused rather than erased: a refinement spelled as its base type asks `x is int` of an int,
+    /// which is true of every value -- so erasing here does not lose a check, it silently passes one.
     /// </summary>
-    public static readonly DiagnosticDescriptor RefinedTypeInSignature = new(
-        new DiagnosticId("MIST_BE_REFINED_TYPE"),
+    public static readonly DiagnosticDescriptor UnboundRefinementPredicate = new(
+        new DiagnosticId("MIST_BE_REFINED_PREDICATE"),
         DiagnosticSeverity.Error,
         PipelineStage.Backend,
-        "'{0}' is typed by a refinement of '{1}'. The experimental emitter has no C# spelling for a refinement type yet.");
+        "The refinement '{0}' cannot be tested here: its predicate over '{1}' did not bind, and testing the base type alone would succeed for every value.");
 
     /// <summary>
     /// A DEPENDENT type parameter -- one whose domain is a value type rather than <c>Standard.Type</c>,

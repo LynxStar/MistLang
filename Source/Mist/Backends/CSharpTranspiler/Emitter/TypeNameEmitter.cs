@@ -26,6 +26,13 @@ internal static class TypeNameEmitter
     /// <see cref="UnknownType"/> is the separate case and keeps emitting <c>object</c>: it is the
     /// user-facing top type, with no domain to fall back on.
     /// </para>
+    /// <para>
+    /// A <see cref="RefinedType"/> is spelled as the type it refines, its predicate being a
+    /// compile-time constraint on which values may reach the slot rather than a different runtime
+    /// representation. Where the predicate has to be TESTED rather than assumed -- an `is` against a
+    /// refinement -- the test carries it, and erasing there would make the test succeed for every
+    /// value; see <c>BodyEmitter.EmitPattern</c>.
+    /// </para>
     /// </summary>
     public static string Emit(IMistType type)
     {
@@ -42,6 +49,7 @@ internal static class TypeNameEmitter
             PackElementType element => Emit(
                 Monomorph.InScope()?.Element(element.Pack, element.Index) ?? element.Pack),
             TypeParameter typeParameter => DependentCarrierNames.Parameter(typeParameter),
+            RefinedType refined => Emit(refined.BaseType),
             ErrorType => "/* error */",
             UnknownType => "object",
             _ => type.Name,

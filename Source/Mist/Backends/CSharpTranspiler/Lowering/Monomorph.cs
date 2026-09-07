@@ -7,8 +7,8 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.Backends.CSharpTranspiler.Lowering;
 
 /// <summary>
-/// One variadic family specialized to one arity: the C# declaration a program that used the family
-/// at that width needs, since C# has no pack to declare it with once.
+/// One variadic family specialized to one width per pack it declares: the C# declaration a program
+/// that used the family that way needs, since C# has no pack to declare it with once.
 /// <para>
 /// AMBIENT FOR THE DURATION OF EMITTING IT, which is a deliberate choice about where this belongs.
 /// The alternative is a substitution parameter threaded through every emitter that reads a type,
@@ -22,10 +22,12 @@ internal sealed class Monomorph
     [ThreadStatic]
     private static Monomorph? inScope;
 
-    private Monomorph(TypeParameter pack, IReadOnlyList<TypeParameter> expansion)
+    private readonly IReadOnlyList<IReadOnlyList<TypeParameter>> expansions;
+
+    private Monomorph(IReadOnlyList<TypeParameter> packs, IReadOnlyList<IReadOnlyList<TypeParameter>> expansions)
     {
-        Pack = pack;
-        Expansion = expansion;
+        Packs = packs;
+        this.expansions = expansions;
     }
 
     /// <summary>
@@ -37,58 +39,89 @@ internal sealed class Monomorph
         return inScope;
     }
 
-    public TypeParameter Pack { get; }
+    /// <summary>
+    /// The packs this specialization fixes, in the order the declaration lists them. A declaration
+    /// may carry more than one: only the ABSORBING spelling is limited to one, a flat argument list
+    /// having no way to say where the first pack ends.
+    /// </summary>
+    public IReadOnlyList<TypeParameter> Packs { get; }
+
+    public IReadOnlyList<int> Widths => [.. expansions.Select(expansion => expansion.Count)];
 
     /// <summary>
-    /// The C# type parameters the pack became, one per element: <c>T1</c> .. <c>TN</c>. Empty for
-    /// the arity-zero specialization, which is a real one -- a family used with no arguments needs a
-    /// declaration as much as any other.
+    /// The C# type parameters a pack became, one per element. Empty for an arity-zero
+    /// specialization, which is a real one -- a family used with no arguments needs a declaration
+    /// as much as any other -- and empty for a pack this specialization does not fix.
     /// </summary>
-    public IReadOnlyList<TypeParameter> Expansion { get; }
-
-    /// <summary>
-    /// The pack a family declares, or null when it declares none and needs no specialization.
-    /// </summary>
-    public static TypeParameter? PackOf(MistType definition)
+    public IReadOnlyList<TypeParameter> Expansion(TypeParameter pack)
     {
-        return definition is IHasTypeParameters generic
-            ? generic.TypeParametersList.Find(parameter => parameter.PackKind != TypePackKind.None)
-            : null;
+        var index = IndexOf(pack);
+        return index < 0 ? [] : expansions[index];
+    }
+
+    public bool Binds(TypeParameter pack)
+    {
+        return IndexOf(pack) >= 0;
     }
 
     /// <summary>
-    /// The pack a declaration -- a type or a method -- declares, or null when it declares none.
+    /// The packs a definition declares, empty when it declares none and needs no specialization.
     /// </summary>
-    public static TypeParameter? PackIn(IReadOnlyList<TypeParameter> parameters)
+    public static IReadOnlyList<TypeParameter> PacksOf(MistType definition)
     {
-        return parameters.FirstOrDefault(parameter => parameter.PackKind != TypePackKind.None);
+        return definition is IHasTypeParameters generic ? PacksIn(generic.TypeParametersList) : [];
+    }
+
+    /// <summary>
+    /// The packs a declaration -- a type or a method -- declares, in slot order.
+    /// </summary>
+    public static IReadOnlyList<TypeParameter> PacksIn(IReadOnlyList<TypeParameter> parameters)
+    {
+        return [.. parameters.Where(parameter => parameter.PackKind != TypePackKind.None)];
     }
 
     /// <summary>
     /// Whether this specialization is the one a declaration carrying these parameters is being
-    /// emitted under. Asked of the PACK rather than of an owner, so a type and a method specialize
+    /// emitted under. Asked of the PACKS rather than of an owner, so a type and a method specialize
     /// through the same mechanism.
     /// </summary>
     public bool Owns(IReadOnlyList<TypeParameter> parameters)
     {
-        return parameters.Any(parameter => ReferenceEquals(parameter, Pack));
+        return Packs.Any(pack => parameters.Any(parameter => ReferenceEquals(parameter, pack)));
     }
 
-    public static Monomorph? For(TypeParameter? pack, int arity)
+    public static Monomorph? For(IReadOnlyList<TypeParameter> parameters, IReadOnlyList<int> widths)
     {
-        if(pack is null)
+        var packs = PacksIn(parameters);
+
+        if(packs.Count == 0 || packs.Count != widths.Count)
         {
             return null;
         }
 
-        var expansion = new List<TypeParameter>(arity);
+        var expansions = new List<IReadOnlyList<TypeParameter>>(packs.Count);
+        var ordinal = 0;
 
-        for(var i = 0; i < arity; i++)
+        for(var i = 0; i < packs.Count; i++)
         {
-            expansion.Add(new TypeParameter($"T{i + 1}", i, new Scope(null), declaringType: null));
+            var expansion = new List<TypeParameter>(widths[i]);
+
+            for(var element = 0; element < widths[i]; element++)
+            {
+                var parameter = new TypeParameter(
+                    $"T{++ordinal}", ordinal - 1, new Scope(null), declaringType: null);
+
+                // A constraint on the pack is a constraint on every element -- what makes a
+                // constrained member callable on each of them -- and C# has only per-parameter
+                // constraints to say that with, so the one clause becomes N.
+                parameter.ConstraintsList.AddRange(packs[i].ConstraintsList);
+                expansion.Add(parameter);
+            }
+
+            expansions.Add(expansion);
         }
 
-        return new Monomorph(pack, expansion);
+        return new Monomorph(packs, expansions);
     }
 
     public IDisposable Enter()
@@ -99,9 +132,9 @@ internal sealed class Monomorph
     }
 
     /// <summary>
-    /// The type parameters the specialized declaration carries: the family's own, with the pack slot
-    /// replaced in place by the elements it expands to. In place, because a pack may sit anywhere in
-    /// the list and moving it would reorder the arguments every use site writes.
+    /// The type parameters the specialized declaration carries: the family's own, with each pack
+    /// slot replaced in place by the elements it expands to. In place, because a pack may sit
+    /// anywhere in the list and moving it would reorder the arguments every use site writes.
     /// </summary>
     public IReadOnlyList<TypeParameter> Parameters(IReadOnlyList<TypeParameter> declaredParameters)
     {
@@ -109,9 +142,11 @@ internal sealed class Monomorph
 
         foreach(var declared in declaredParameters)
         {
-            if(ReferenceEquals(declared, Pack))
+            var index = IndexOf(declared);
+
+            if(index >= 0)
             {
-                parameters.AddRange(Expansion);
+                parameters.AddRange(expansions[index]);
                 continue;
             }
 
@@ -122,12 +157,26 @@ internal sealed class Monomorph
     }
 
     /// <summary>
-    /// The element the pack's <paramref name="index"/> stands for in this specialization, or null
-    /// when the index is outside it.
+    /// The element a pack's <paramref name="index"/> stands for here, or null when the pack is not
+    /// one this specialization fixes or the index falls outside it.
     /// </summary>
-    public IMistType? Element(int index)
+    public IMistType? Element(TypeParameter pack, int index)
     {
-        return index >= 0 && index < Expansion.Count ? Expansion[index] : null;
+        var expansion = Expansion(pack);
+        return index >= 0 && index < expansion.Count ? expansion[index] : null;
+    }
+
+    private int IndexOf(TypeParameter pack)
+    {
+        for(var i = 0; i < Packs.Count; i++)
+        {
+            if(ReferenceEquals(Packs[i], pack))
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     private sealed class Scoped(Monomorph? restored) : IDisposable

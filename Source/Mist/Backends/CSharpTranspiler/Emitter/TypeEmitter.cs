@@ -187,6 +187,8 @@ internal static class TypeEmitter
                 PropertyEmitter.Emit(property, inStruct, writer, diagnostics);
             }
 
+            SpreadProjectionEmitter.Emit(type, writer, ref anyEmitted);
+
             foreach(var indexer in type.IndexersList)
             {
                 SeparateMember(writer, ref anyEmitted);
@@ -210,7 +212,7 @@ internal static class TypeEmitter
                     }
                 }
 
-                if(Monomorph.PackIn(method.TypeParametersList) is not null)
+                if(Monomorph.PacksIn(method.TypeParametersList).Count > 0)
                 {
                     continue;
                 }
@@ -451,7 +453,7 @@ internal static class TypeEmitter
         // rather than referring to it -- a constructor above all -- has to use the same one.
         if(Monomorph.InScope() is { } monomorph && monomorph.Owns(type.TypeParametersList))
         {
-            return MonomorphSet.SpecializedName(type.Name, monomorph.Expansion.Count);
+            return MonomorphSet.SpecializedName(type.Name, monomorph.Widths);
         }
 
         return MistType.StripArity(type.Name);

@@ -8,23 +8,24 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.Backends.CSharpTranspiler.Lowering;
 
 /// <summary>
-/// The arities each variadic family is actually used at, which is what a C# emission has to be
-/// specialized to: the language has no pack, so one declaration becomes one type per arity.
+/// The widths each variadic family is actually used at, which is what a C# emission has to be
+/// specialized to: the language has no pack, so one declaration becomes one type per combination of
+/// widths its packs were bound to.
 /// <para>
-/// PER ARITY AND NOT PER CONSTRUCTION, which is the whole economy of it. <c>Box&lt;int, string&gt;</c>
+/// PER WIDTH AND NOT PER CONSTRUCTION, which is the whole economy of it. <c>Box&lt;int, string&gt;</c>
 /// and <c>Box&lt;bool, char&gt;</c> want the same C# declaration -- a generic of two parameters --
 /// and differ only in what they pass it. Specializing per construction would emit a type per
 /// distinct argument list and lose genericity that C# is perfectly able to express.
 /// </para>
 /// <para>
 /// The set is FINITE because it is read off the program: a pack is only ever bound by a use site,
-/// and a program has finitely many. Nothing here searches for arities that could exist.
+/// and a program has finitely many. Nothing here searches for widths that could exist.
 /// </para>
 /// </summary>
 internal static class MonomorphSet
 {
     /// <summary>
-    /// The C# name a family takes at one arity.
+    /// The C# name a family takes at one combination of widths.
     /// <para>
     /// SUFFIXED TO KEEP IT OFF AN ORDINARY GENERIC'S NAME, not to tell the specializations apart --
     /// C# overloads generic types on arity, so those are already distinct without help. What is not
@@ -35,25 +36,20 @@ internal static class MonomorphSet
     /// which resolves to the variadic rather than to the exact-arity ordinary one.
     /// </para>
     /// </summary>
-    public static string SpecializedName(string declaredName, int arity)
+    public static string SpecializedName(string declaredName, IReadOnlyList<int> widths)
     {
-        return $"{MistType.StripArity(declaredName)}_{arity}";
+        return $"{MistType.StripArity(declaredName)}_{string.Join("_", widths)}";
     }
 
     /// <summary>
-    /// One specialization per width a variadic METHOD was called at, or none when it declares no
-    /// pack. A method never called is never specialized, which is correct: nothing names it.
+    /// One specialization per way a variadic METHOD was called, or none when it declares no pack. A
+    /// method never called is never specialized, which is correct: nothing names it.
     /// </summary>
     public static IEnumerable<Monomorph> MethodSpecializations(Method method, VariadicUseRegistry uses)
     {
-        if(Monomorph.PackIn(method.TypeParametersList) is not { } pack)
+        foreach(var widths in uses.WidthsOf(method))
         {
-            yield break;
-        }
-
-        foreach(var width in uses.WidthsOf(method))
-        {
-            if(Monomorph.For(pack, width) is { } monomorph)
+            if(Monomorph.For(method.TypeParametersList, widths) is { } monomorph)
             {
                 yield return monomorph;
             }
@@ -61,21 +57,25 @@ internal static class MonomorphSet
     }
 
     /// <summary>
-    /// Every (variadic definition, arity) pair the program constructs, ordered so emission is
+    /// Every (variadic definition, widths) pair the program constructs, ordered so emission is
     /// deterministic.
     /// </summary>
-    public static IReadOnlyList<(MistType Definition, int Arity)> Discover(TypeInterner interner)
+    public static IReadOnlyList<(MistType Definition, IReadOnlyList<int> Widths)> Discover(TypeInterner interner)
     {
-        var found = new SortedSet<(string Name, int Arity)>();
+        var found = new SortedSet<(string Name, string Widths)>();
         var definitions = new Dictionary<string, MistType>(StringComparer.Ordinal);
-        var pending = new Queue<(MistType Definition, int Arity)>();
+        var entries = new Dictionary<(string, string), IReadOnlyList<int>>();
+        var pending = new Queue<(MistType Definition, IReadOnlyList<int> Widths)>();
 
-        void enqueue(MistType definition, int arity)
+        void enqueue(MistType definition, IReadOnlyList<int> widths)
         {
-            if(found.Add((definition.FullyQualifiedName, arity)))
+            var key = (definition.FullyQualifiedName, string.Join("_", widths));
+
+            if(found.Add(key))
             {
                 definitions[definition.FullyQualifiedName] = definition;
-                pending.Enqueue((definition, arity));
+                entries[key] = widths;
+                pending.Enqueue((definition, widths));
             }
         }
 
@@ -83,23 +83,25 @@ internal static class MonomorphSet
         {
             if(constructed.Definition is MistType definition
                 && definition is IHasTypeParameters generic
-                && Arity(generic, constructed) is { } arity)
+                && Widths(generic, constructed) is { } widths)
             {
-                enqueue(definition, arity);
+                enqueue(definition, widths);
             }
         }
 
         // A SPECIALIZATION ASKS FOR MORE. `Outer<params TArgs> { Inner<TArgs...> nested; }` at width
         // two needs Inner at width two, and nothing constructs Inner directly -- the only
-        // construction of it is symbolic and names no arity until Outer's is fixed. So the set is
+        // construction of it is symbolic and names no width until Outer's is fixed. So the set is
         // closed rather than collected: each specialization is walked for the constructions its own
-        // width implies, until nothing new appears. Finite because widths come from a finite
-        // program and each pair is enqueued once.
+        // widths imply, until nothing new appears. Finite because widths come from a finite program
+        // and each pair is enqueued once.
         while(pending.Count > 0)
         {
-            var (definition, arity) = pending.Dequeue();
+            var (definition, widths) = pending.Dequeue();
 
-            if(definition is not MemberType member || Monomorph.For(PackIn(definition), arity) is not { } monomorph)
+            if(definition is not MemberType member
+                || definition is not IHasTypeParameters generic
+                || Monomorph.For(generic.TypeParametersList, widths) is not { } monomorph)
             {
                 continue;
             }
@@ -108,20 +110,15 @@ internal static class MonomorphSet
             {
                 foreach(var implied in ImpliedConstructions(member, monomorph))
                 {
-                    enqueue(implied.Definition, implied.Arity);
+                    enqueue(implied.Definition, implied.Widths);
                 }
             }
         }
 
-        return [.. found.Select(entry => (definitions[entry.Name], entry.Arity))];
+        return [.. found.Select(entry => (definitions[entry.Name], entries[entry]))];
     }
 
-    private static TypeParameter? PackIn(MistType definition)
-    {
-        return definition is IHasTypeParameters generic ? Monomorph.PackIn(generic.TypeParametersList) : null;
-    }
-
-    private static IEnumerable<(MistType Definition, int Arity)> ImpliedConstructions(
+    private static IEnumerable<(MistType Definition, IReadOnlyList<int> Widths)> ImpliedConstructions(
         MemberType member, Monomorph monomorph)
     {
         foreach(var signature in SignatureTypes(member))
@@ -130,52 +127,18 @@ internal static class MonomorphSet
             {
                 if(constructed.Definition is MistType definition
                     && definition is IHasTypeParameters generic
-                    && WidthUnder(generic, constructed, monomorph) is { } arity)
+                    && WidthsUnder(generic, constructed, monomorph) is { } widths)
                 {
-                    yield return (definition, arity);
+                    yield return (definition, widths);
                 }
             }
         }
     }
 
-    private static int? WidthUnder(IHasTypeParameters generic, ConstructedType constructed, Monomorph monomorph)
+    private static IReadOnlyList<int>? WidthsUnder(
+        IHasTypeParameters generic, ConstructedType constructed, Monomorph monomorph)
     {
-        var parameters = generic.TypeParametersList;
-
-        for(var i = 0; i < parameters.Count && i < constructed.TypeArguments.Count; i++)
-        {
-            if(parameters[i].PackKind == TypePackKind.None)
-            {
-                continue;
-            }
-
-            if(constructed.TypeArguments[i] is not LiftedType { Value: TypePackValue pack })
-            {
-                return null;
-            }
-
-            var width = 0;
-
-            foreach(var element in pack.Elements)
-            {
-                if(element is not SpreadType spread)
-                {
-                    width++;
-                    continue;
-                }
-
-                if(!ReferenceEquals(spread.Operand, monomorph.Pack))
-                {
-                    return null;
-                }
-
-                width += monomorph.Expansion.Count;
-            }
-
-            return width;
-        }
-
-        return null;
+        return Widths(generic, constructed, monomorph);
     }
 
     private static IEnumerable<ConstructedType> Constructions(IMistType type, HashSet<IMistType> seen)
@@ -258,13 +221,16 @@ internal static class MonomorphSet
     }
 
     /// <summary>
-    /// How many types the construction's pack holds, or null when the definition has no pack or the
-    /// construction did not bind one -- an open construction inside the family's own declaration
-    /// among them, which names no arity and asks for no specialization.
+    /// How many types each of the definition's packs holds in this construction, or null when it
+    /// has no pack or one the construction left open -- a construction inside the family's own
+    /// declaration among them, which names no width and asks for no specialization unless the
+    /// specialization in scope supplies one.
     /// </summary>
-    private static int? Arity(IHasTypeParameters generic, ConstructedType constructed)
+    private static IReadOnlyList<int>? Widths(
+        IHasTypeParameters generic, ConstructedType constructed, Monomorph? monomorph = null)
     {
         var parameters = generic.TypeParametersList;
+        var widths = new List<int>();
 
         for(var i = 0; i < parameters.Count && i < constructed.TypeArguments.Count; i++)
         {
@@ -273,12 +239,38 @@ internal static class MonomorphSet
                 continue;
             }
 
-            return constructed.TypeArguments[i] is LiftedType { Value: TypePackValue pack }
-                && !pack.Elements.Any(element => element is SpreadType)
-                    ? pack.Elements.Length
-                    : null;
+            if(constructed.TypeArguments[i] is not LiftedType { Value: TypePackValue pack }
+                || Width(pack, monomorph) is not { } width)
+            {
+                return null;
+            }
+
+            widths.Add(width);
         }
 
-        return null;
+        return widths.Count == 0 ? null : widths;
+    }
+
+    private static int? Width(TypePackValue pack, Monomorph? monomorph)
+    {
+        var width = 0;
+
+        foreach(var element in pack.Elements)
+        {
+            if(element is not SpreadType spread)
+            {
+                width++;
+                continue;
+            }
+
+            if(monomorph is null || spread.Operand is not TypeParameter operand || !monomorph.Binds(operand))
+            {
+                return null;
+            }
+
+            width += monomorph.Expansion(operand).Count;
+        }
+
+        return width;
     }
 }

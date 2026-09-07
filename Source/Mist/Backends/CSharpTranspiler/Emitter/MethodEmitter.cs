@@ -74,7 +74,7 @@ internal static class MethodEmitter
         if(Monomorph.InScope() is { } monomorph && monomorph.Owns(method.TypeParametersList))
         {
             declared = [.. monomorph.Parameters(method.TypeParametersList)];
-            name = MonomorphSet.SpecializedName(method.Name, monomorph.Expansion.Count);
+            name = MonomorphSet.SpecializedName(method.Name, monomorph.Widths);
         }
 
         var typeParams = declared.Count > 0

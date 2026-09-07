@@ -40,7 +40,7 @@ internal static class TypeNameEmitter
             FunctionType function => EmitFunction(function),
             MemberType memberType => MapMemberType(memberType),
             PackElementType element => Emit(
-                Monomorph.InScope()?.Element(element.Index) ?? element.Pack),
+                Monomorph.InScope()?.Element(element.Pack, element.Index) ?? element.Pack),
             TypeParameter typeParameter => DependentCarrierNames.Parameter(typeParameter),
             ErrorType => "/* error */",
             UnknownType => "object",
@@ -118,7 +118,7 @@ internal static class TypeNameEmitter
     /// </summary>
     private static string EmitFunction(FunctionType function)
     {
-        var parameters = function.ParameterTypes.Select(Emit).ToList();
+        var parameters = Expand(function.ParameterTypes).Select(Emit).ToList();
 
         if(OptionalUnion.IsVoid(function.ReturnType))
         {
@@ -180,9 +180,11 @@ internal static class TypeNameEmitter
 
         foreach(var element in elementTypes)
         {
-            if(element is SpreadType spread && ReferenceEquals(spread.Operand, monomorph.Pack))
+            if(element is SpreadType spread
+                && spread.Operand is TypeParameter operand
+                && monomorph.Binds(operand))
             {
-                expanded.AddRange(monomorph.Expansion);
+                expanded.AddRange(monomorph.Expansion(operand));
                 continue;
             }
 

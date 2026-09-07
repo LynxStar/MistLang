@@ -193,7 +193,7 @@ internal static class UnspellableTypeGuard
             return null;
         }
 
-        var bound = ReferenceEquals(pack, Monomorph.InScope()?.Pack)
+        var bound = Monomorph.InScope()?.Binds(pack) == true
             || ownParameters.Any(own => ReferenceEquals(own, pack));
 
         return bound ? null : pack;

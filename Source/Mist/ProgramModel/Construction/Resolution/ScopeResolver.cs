@@ -377,10 +377,6 @@ internal sealed class ScopeResolver
     }
 
     /// <summary>
-    /// The flat argument list assigned to slots, when one of them absorbs. Left alone otherwise, so
-    /// nothing but a variadic declaration changes shape.
-    /// </summary>
-    /// <summary>
     /// A construction of <c>Standard.Func</c> collapsed into the structural function type it means.
     /// Null for anything else.
     /// <para>
@@ -473,7 +469,7 @@ internal sealed class ScopeResolver
     /// <summary>
     /// Returns the number of type arguments in a type argument list, or 0 if absent.
     /// </summary>
-    private static int GetTypeArgumentArity(TypeArgumentListNode? typeArgList)
+    internal static int GetTypeArgumentArity(TypeArgumentListNode? typeArgList)
     {
         if(typeArgList is null)
         {

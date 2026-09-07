@@ -147,24 +147,25 @@ internal sealed class BaseTypeResolver
     private IMistType ResolveBaseTypeRef(BaseTypeRefNode baseTypeRef, MemberType typeDef)
     {
         var name = baseTypeRef.Name.Lexeme;
+        var arity = ScopeResolver.GetTypeArgumentArity(baseTypeRef.TypeArgs);
+        var definition = scopeResolver.ResolveGenericDefinition(name, arity, typeDef.Scope, baseTypeRef);
 
-        // If type arguments are present, look up the arity-bearing name.
-        if(baseTypeRef.TypeArgs is { } typeArgList)
+        if(definition is ErrorType)
         {
-            var arity = 1 + typeArgList.TypeArguments.Length;
-            var arityName = ScopeResolver.BuildArityName(name, arity);
-
-            var definition = scopeResolver.ResolveNamedType(arityName, typeDef.Scope, baseTypeRef);
-            if(definition is ErrorType)
-            {
-                return ErrorType.Instance;
-            }
-
-            var typeArgs = scopeResolver.ResolveTypeArguments(typeArgList, typeDef.Scope);
-            context.ProgramModel.ConstructorConstraintClosures.RecordType(definition, typeArgs, baseTypeRef);
-            return context.ProgramModel.TypeInterner.GetOrCreateConstructedType(definition, typeArgs);
+            return ErrorType.Instance;
         }
 
-        return scopeResolver.ResolveNamedType(name, typeDef.Scope, baseTypeRef);
+        if(baseTypeRef.TypeArgs is null && !ScopeResolver.Absorbs(definition))
+        {
+            return definition;
+        }
+
+        var written = baseTypeRef.TypeArgs is { } typeArgList
+            ? scopeResolver.ResolveTypeArguments(typeArgList, typeDef.Scope)
+            : [];
+
+        var typeArgs = scopeResolver.BindPack(definition, written, baseTypeRef);
+        context.ProgramModel.ConstructorConstraintClosures.RecordType(definition, typeArgs, baseTypeRef);
+        return context.ProgramModel.TypeInterner.GetOrCreateConstructedType(definition, typeArgs);
     }
 }

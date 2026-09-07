@@ -6,8 +6,8 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.Backends.CSharpTranspiler.Lowering;
 
 /// <summary>
-/// How a construction of a variadic family is written in C#: the specialization for its arity, with
-/// the pack's elements standing where the pack did.
+/// How a construction of a variadic family is written in C#: the specialization for its widths,
+/// with each pack's elements standing where the pack did.
 /// </summary>
 internal static class MonomorphReference
 {
@@ -23,29 +23,33 @@ internal static class MonomorphReference
                 continue;
             }
 
-            if(Monomorph.InScope() is not { } monomorph || !ReferenceEquals(spread.Operand, monomorph.Pack))
+            if(Monomorph.InScope() is not { } monomorph
+                || spread.Operand is not TypeParameter operand
+                || !monomorph.Binds(operand))
             {
                 return false;
             }
 
-            elements.AddRange(monomorph.Expansion);
+            elements.AddRange(monomorph.Expansion(operand));
         }
 
         return true;
     }
 
     /// <summary>
-    /// The width a call bound a method's pack to, or null when the callee has no pack or the pack
-    /// is still symbolic -- a call made from inside another variadic declaration, which the
-    /// enclosing specialization has yet to fix.
+    /// The widths a call bound a method's packs to, or null when the callee has no pack or one is
+    /// still symbolic -- a call made from inside another variadic declaration, which the enclosing
+    /// specialization has yet to fix.
     /// </summary>
-    public static int? MethodWidth(
+    public static IReadOnlyList<int>? MethodWidths(
         IReadOnlyList<IMistType> typeArguments, IReadOnlyList<TypeParameter>? parameters)
     {
         if(parameters is null)
         {
             return null;
         }
+
+        var widths = new List<int>();
 
         for(var i = 0; i < parameters.Count && i < typeArguments.Count; i++)
         {
@@ -54,18 +58,21 @@ internal static class MonomorphReference
                 continue;
             }
 
-            return typeArguments[i] is LiftedType { Value: TypePackValue pack }
-                && !pack.Elements.Any(element => element is SpreadType)
-                    ? pack.Elements.Length
-                    : null;
+            if(typeArguments[i] is not LiftedType { Value: TypePackValue pack }
+                || pack.Elements.Any(element => element is SpreadType))
+            {
+                return null;
+            }
+
+            widths.Add(pack.Elements.Length);
         }
 
-        return null;
+        return widths.Count == 0 ? null : widths;
     }
 
     /// <summary>
-    /// A call's type arguments with the pack replaced by its elements, which is what the
-    /// specialization declares in its place.
+    /// A call's type arguments with each pack replaced by its elements, which is what the
+    /// specialization declares in their place.
     /// </summary>
     public static string SpecializedArguments(
         IReadOnlyList<IMistType> typeArguments,
@@ -90,9 +97,9 @@ internal static class MonomorphReference
     }
 
     /// <summary>
-    /// The C# spelling, or null when this construction is not of a variadic family or its pack is
-    /// still symbolic -- the latter being a reference from inside the family's own declaration,
-    /// which the specialization already answers with its own parameters.
+    /// The C# spelling, or null when this construction is not of a variadic family or one of its
+    /// packs is still symbolic -- the latter being a reference from inside the family's own
+    /// declaration, which the specialization already answers with its own parameters.
     /// </summary>
     public static string? Emit(ConstructedType constructed, Func<IMistType, string> emitType)
     {
@@ -104,7 +111,7 @@ internal static class MonomorphReference
 
         var parameters = generic.TypeParametersList;
         var arguments = new List<string>();
-        var arity = -1;
+        var widths = new List<int>();
 
         for(var i = 0; i < parameters.Count && i < constructed.TypeArguments.Count; i++)
         {
@@ -128,16 +135,16 @@ internal static class MonomorphReference
                 return null;
             }
 
-            arity = elements.Count;
+            widths.Add(elements.Count);
             arguments.AddRange(elements.Select(emitType));
         }
 
-        if(arity < 0)
+        if(widths.Count == 0)
         {
             return null;
         }
 
-        var name = MonomorphSet.SpecializedName(definition.Name, arity);
+        var name = MonomorphSet.SpecializedName(definition.Name, widths);
         return arguments.Count == 0 ? name : $"{name}<{string.Join(", ", arguments)}>";
     }
 }

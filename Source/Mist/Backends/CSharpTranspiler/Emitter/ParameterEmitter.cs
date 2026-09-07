@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
@@ -16,15 +17,29 @@ internal static class ParameterEmitter
         }
 
         var parts = new List<string>(parameters.Count);
-        foreach(var parameter in parameters)
+        for(var i = 0; i < parameters.Count; i++)
         {
+            var parameter = parameters[i];
+
             parts.Add(
                 AttributeEmitter.Inline(parameter.DeclaredAttributesList, diagnostics)
                 + $"{RefKeywords.For(parameter.Modifier.IsRef, parameter.Modifier.IsReadonly)}"
+                + Collects(parameter, isLast: i == parameters.Count - 1)
                 + $"{TypeNameEmitter.Emit(parameter.Type)} {parameter.Name}");
         }
 
         return string.Join(", ", parts);
     }
 
+    /// <summary>
+    /// The C# <c>params</c> modifier, for the homogeneous form alone. A value PACK is flattened too
+    /// but collects into a tuple, which C# cannot declare that way -- the call site packs its
+    /// arguments instead, so declaring it would make the same list flatten twice.
+    /// </summary>
+    private static string Collects(Parameter parameter, bool isLast)
+    {
+        return isLast && parameter.IsFlattened && parameter.Type is not (TupleType or NamedTupleType)
+            ? "params "
+            : "";
+    }
 }

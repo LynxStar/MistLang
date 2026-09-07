@@ -22,6 +22,7 @@ public sealed class MonomorphSetTests : ProgramModelProbe
 
     protected override string Fixtures { get; } = """
         public class Box<params TArgs> { }
+        public class Pair<Type[]:A, Type[]:B> { }
         public class Fixed<T> { }
         """;
 
@@ -38,7 +39,7 @@ public sealed class MonomorphSetTests : ProgramModelProbe
         Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 
         return [.. MonomorphSet.Discover(model.TypeInterner)
-            .Select(entry => $"{entry.Definition.Name}/{entry.Arity}")];
+            .Select(entry => $"{entry.Definition.Name}/{string.Join("_", entry.Widths)}")];
     }
 
     [Fact]
@@ -53,6 +54,19 @@ public sealed class MonomorphSetTests : ProgramModelProbe
     public void TheEmptyPackIsAnArityLikeAnyOther()
     {
         Assert.Equal(["Box<>/0"], Discovered("public Box a;"));
+    }
+
+    /// <summary>
+    /// A declaration may carry more than one pack, and the widths are discovered TOGETHER: a use at
+    /// (2, 1) asks for that one declaration, not for the four a cross product of the widths seen
+    /// per slot would name.
+    /// </summary>
+    [Fact]
+    public void PacksOfOneDeclarationAreDiscoveredAsACombination()
+    {
+        Assert.Equal(
+            ["Pair<,>/1_2", "Pair<,>/2_1"],
+            Discovered("public Pair<[int, int], [string]> a; public Pair<[bool], [int, char]> b;"));
     }
 
     /// <summary>

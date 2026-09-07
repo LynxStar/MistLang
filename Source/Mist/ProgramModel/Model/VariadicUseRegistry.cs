@@ -19,32 +19,51 @@ namespace Mist.ProgramModel.Model;
 /// </summary>
 internal sealed class VariadicUseRegistry
 {
-    private readonly Dictionary<Method, SortedSet<int>> widths = [];
+    private readonly Dictionary<Method, SortedDictionary<string, IReadOnlyList<int>>> widths = [];
 
     public void Record(Method method, IReadOnlyList<IMistType> typeArguments)
     {
+        var observed = new List<int>();
+
         for(var i = 0; i < method.TypeParametersList.Count && i < typeArguments.Count; i++)
         {
-            if(method.TypeParametersList[i].IsPack
-                && typeArguments[i] is LiftedType { Value: TypePackValue pack }
-                && !pack.Elements.Any(element => element is SpreadType))
+            if(!method.TypeParametersList[i].IsPack)
             {
-                if(!widths.TryGetValue(method, out var observed))
-                {
-                    observed = [];
-                    widths[method] = observed;
-                }
-
-                _ = observed.Add(pack.Elements.Length);
+                continue;
             }
+
+            // One call fixes EVERY pack the method declares or none of them, which is why the
+            // widths are recorded together rather than one per pack: a method with two packs used
+            // at (2, 1) needs that declaration, not the four the cross product would name.
+            if(typeArguments[i] is not LiftedType { Value: TypePackValue pack }
+                || pack.Elements.Any(element => element is SpreadType))
+            {
+                return;
+            }
+
+            observed.Add(pack.Elements.Length);
         }
+
+        if(observed.Count == 0)
+        {
+            return;
+        }
+
+        if(!widths.TryGetValue(method, out var recorded))
+        {
+            recorded = [];
+            widths[method] = recorded;
+        }
+
+        recorded[string.Join("_", observed)] = observed;
     }
 
     /// <summary>
-    /// The widths this method was called at, empty when it has no pack or was never called.
+    /// The width combinations this method was called at, empty when it has no pack or was never
+    /// called.
     /// </summary>
-    public IReadOnlyCollection<int> WidthsOf(Method method)
+    public IReadOnlyCollection<IReadOnlyList<int>> WidthsOf(Method method)
     {
-        return widths.TryGetValue(method, out var observed) ? observed : [];
+        return widths.TryGetValue(method, out var recorded) ? recorded.Values : [];
     }
 }

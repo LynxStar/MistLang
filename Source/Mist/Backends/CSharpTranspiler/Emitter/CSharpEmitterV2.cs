@@ -155,7 +155,7 @@ internal sealed class CSharpEmitterV2
         // EmitMonomorphs writes one declaration per arity instead and this skips the original.
         var emittableTypes = unit.Types
             .Where(TypeEmitter.ProducesDeclaration)
-            .Where(type => Monomorph.PackOf(type) is null)
+            .Where(type => Monomorph.PacksOf(type).Count == 0)
             .ToList();
         var emittableBlocks = EmittableBlocks(unit, assembly);
 
@@ -431,9 +431,11 @@ internal sealed class CSharpEmitterV2
         var writer = new CSharpWriter();
         var anyEmitted = false;
 
-        foreach(var (definition, arity) in specializations)
+        foreach(var (definition, widths) in specializations)
         {
-            if(definition is not MemberType member || Monomorph.For(Monomorph.PackIn(((IHasTypeParameters)definition).TypeParametersList), arity) is not { } monomorph)
+            if(definition is not MemberType member
+                || definition is not IHasTypeParameters generic
+                || Monomorph.For(generic.TypeParametersList, widths) is not { } monomorph)
             {
                 continue;
             }

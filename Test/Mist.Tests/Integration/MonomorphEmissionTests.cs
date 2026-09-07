@@ -94,6 +94,44 @@ public sealed class MonomorphEmissionTests : IDisposable
         }
         """;
 
+    /// <summary>
+    /// A family implementing a variadic abstract, which is the case where the specialization has to
+    /// reach a DIFFERENT declaration than its own: the base clause names ICountable at the width Tup
+    /// was specialized to, and nothing constructs ICountable at that width directly.
+    /// </summary>
+    private const string ImplementsAVariadicAbstract = """
+        using Standard;
+
+        namespace Mono;
+
+        public abstract ICountable<params TArgs>
+        {
+            public int Count();
+        }
+
+        public class Tup<params TArgs> : ICountable<TArgs...>
+        {
+            public int Count() { return TArgs.Length; }
+        }
+
+        public class Program
+        {
+            public static void Main()
+            {
+                ICountable<int, string, bool> three = new Tup<int, string, bool>();
+                ICountable<char> one = new Tup<char>();
+
+                Console.WriteLine($"{three.Count()}{one.Count()}");
+            }
+        }
+        """;
+
+    [Fact]
+    public void AVariadicBaseIsSpecializedAlongsideTheTypeThatNamesIt()
+    {
+        Assert.Equal("31", CompileAndRun(ImplementsAVariadicAbstract));
+    }
+
     [Fact]
     public void AVariadicMethodBecomesOnePerWidthAndTakesAFlatCall()
     {

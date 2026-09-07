@@ -1397,9 +1397,14 @@ internal static class BodyEmitter
             return elements.Count;
         }
 
-        return Monomorph.InScope() is { } monomorph
-            ? elements.Count - 1 + monomorph.Expansion.Count
+        return Monomorph.InScope() is { } monomorph && SpreadPack(elements) is { } pack && monomorph.Binds(pack)
+            ? elements.Count - 1 + monomorph.Expansion(pack).Count
             : null;
+    }
+
+    private static TypeParameter? SpreadPack(IReadOnlyList<IMistType> elements)
+    {
+        return elements.OfType<SpreadType>().Select(spread => spread.Operand).OfType<TypeParameter>().FirstOrDefault();
     }
 
     private static void EmitTupleElements(
@@ -1424,9 +1429,10 @@ internal static class BodyEmitter
     private static int? PackArity(MemberAccessExpression memberAccess)
     {
         return memberAccess.MemberName == "Length"
-            && memberAccess.Receiver is TypeReferenceExpression { ReferencedType: TypeParameter { IsPack: true } }
+            && memberAccess.Receiver is TypeReferenceExpression { ReferencedType: TypeParameter { IsPack: true } pack }
             && Monomorph.InScope() is { } monomorph
-                ? monomorph.Expansion.Count
+            && monomorph.Binds(pack)
+                ? monomorph.Expansion(pack).Count
                 : null;
     }
 
@@ -1442,8 +1448,8 @@ internal static class BodyEmitter
     private static string CalleeName(
         string declaredName, IReadOnlyList<IMistType> typeArguments, IReadOnlyList<TypeParameter>? parameters)
     {
-        return MonomorphReference.MethodWidth(typeArguments, parameters) is { } width
-            ? MonomorphSet.SpecializedName(declaredName, width)
+        return MonomorphReference.MethodWidths(typeArguments, parameters) is { } widths
+            ? MonomorphSet.SpecializedName(declaredName, widths)
             : declaredName;
     }
 
@@ -1457,7 +1463,7 @@ internal static class BodyEmitter
 
         // A pack argument is not written: the specialization already fixed the width, and its
         // elements stand where the pack did.
-        if(MonomorphReference.MethodWidth(typeArguments, parameters) is not null)
+        if(MonomorphReference.MethodWidths(typeArguments, parameters) is not null)
         {
             return MonomorphReference.SpecializedArguments(typeArguments, parameters!, TypeNameEmitter.Emit);
         }

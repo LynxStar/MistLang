@@ -107,6 +107,33 @@ internal static class PostfixBinder
             substitution.Apply(candidate.ReturnType, interner), target.ReturnType);
     }
 
+    /// <summary>
+    /// A call that states its type arguments on an UNQUALIFIED name, which the grammar makes a
+    /// primary rather than a postfix suffix -- <c>Describe&lt;[int, string]&gt;(...)</c> is one node
+    /// where <c>x.Describe&lt;...&gt;(...)</c> is a receiver plus a suffix. The same group, the same
+    /// arguments and the same selection either way; only the shape reaching the binder differs.
+    /// </summary>
+    internal static Expression BindGenericInvocation(
+        GenericInvocationExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
+    {
+        var name = node.Name.Lexeme;
+        var found = ctx.Scope.Lookup(new LookupRequest(name, MemberVisibility.InstanceAndStatic, node));
+
+        if(found is not MethodGroupResult { Methods.Count: > 0 } group)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnresolvedIdentifier, node, null, name);
+            return new ErrorExpression(node);
+        }
+
+        return BindInvocation(
+            node,
+            new MethodGroupExpression(node, null, name, group.Methods, null),
+            node.Arguments,
+            context.Resolver.ResolveTypeArguments(node.TypeArgs, ctx.Scope),
+            ctx,
+            context);
+    }
+
     private static Expression BindPostfixSuffix(PostfixSuffixNode suffix, Expression receiver, BindingContext ctx, BuilderContext context)
     {
         switch(suffix)

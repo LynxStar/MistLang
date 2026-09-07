@@ -79,6 +79,8 @@ internal static class ExpressionBinder
             TupleLiteralExpressionPrimaryNode tupleLiteral => LiteralBinder.BindTupleLiteral(tupleLiteral, ctx, context),
 
             IdentifierExpressionPrimaryNode identifier => IdentifierBinder.BindIdentifier(identifier, ctx, context),
+            GenericInvocationExpressionPrimaryNode genericInvocation => PostfixBinder.BindGenericInvocation(
+                genericInvocation, ctx, context),
 
             ParenthesizedExpressionPrimaryNode paren => BindExpression(paren.Inner, ctx, context),
             ArrayCreationExpressionPrimaryNode arrayCreation => BindArrayCreation(arrayCreation, ctx, context),

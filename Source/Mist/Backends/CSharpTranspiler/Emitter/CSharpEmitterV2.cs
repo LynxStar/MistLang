@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.Driver.Contracts;
@@ -20,15 +21,18 @@ internal sealed class CSharpEmitterV2
 {
     private readonly IProgramModel programModel;
     private readonly CompilerOptions options;
+    private readonly ImmutableArray<string> referencePaths;
     private readonly DiagnosticBag diagnostics;
 
     public CSharpEmitterV2(
         IProgramModel programModel,
         CompilerOptions options,
+        ImmutableArray<string> referencePaths,
         DiagnosticBag diagnostics)
     {
         this.programModel = programModel;
         this.options = options;
+        this.referencePaths = referencePaths;
         this.diagnostics = diagnostics;
     }
 
@@ -121,6 +125,7 @@ internal sealed class CSharpEmitterV2
             diagnostics,
             emittedFileCount: emittedFiles.Count,
             mainTypeName: entryPoint?.FullyQualifiedName,
+            additionalReferencePaths: referencePaths,
             outputType: options.OutputType);
 
         if(!compileResult.Succeeded)

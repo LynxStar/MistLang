@@ -1163,6 +1163,18 @@ capabilities:
       GlobalUsings' own files and none of the other eight samples'.
     tasks:
       - >
+        THE SIBLING CASE IS STILL OPEN, found while verifying order 129. ShouldQualify returning
+        false for every ambient type also drops the qualifier from a name the SOURCE wrote out in
+        full: `Newtonsoft.Json.JsonConvert.SerializeObject(x)` emits as `JsonConvert.SerializeObject(x)`
+        and `new Microsoft.AspNetCore.Http.QueryString("?id=42")` as `new QueryString(...)`. Binding
+        is fine -- body-tasks records fully-qualified expression-position resolution as delivered --
+        and the emitted usings cannot cover it, because a user who qualifies inline writes no using
+        to copy. Both probes then failed with MIST_CS_ERROR and both passed once a using was added.
+
+        NO SAMPLE CAN SEE IT TODAY, same blind spot as the global-usings case: CSharpInteropV2 is
+        the only sample qualifying a CLR type inline, and it stops at Stage 4 on UseNpgsql (order
+        131) without reaching emission. Expect it to surface the moment order 131 lands.
+      - >
         Follow-up, not a gap in this capability: collapse the two ways global usings enter the
         compiler. CompilerOptions.GlobalUsings and CompilationUnit.GlobalUsings both still exist,
         the driver folds the first into the second, and classic reads the per-unit field at
@@ -5682,8 +5694,8 @@ capabilities:
 
       RESIDUE: the reference set is whatever the project already pulls in, so nothing exercises a
       DECLARED reference beyond the default framework set, and no sample imports a CLR namespace that
-      the Standard library does not already reach. Attributes remains blocked on order 129, not on
-      this.
+      the Standard library does not already reach. Attributes was blocked on order 129 rather than on
+      this; both have since landed and it is banked.
 
       THE BRIDGING HALF WAS NARROWER THAN "the Mist string and array types resolve back to their CLR
       counterparts" SUGGESTS, and one part of it is now fixed. The TYPE bridged; its MEMBERS did not.
@@ -5814,11 +5826,45 @@ capabilities:
     order: 129
     layer: clr-interop
     requires: [clr-assembly-type-projection, nuget-package-restore]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       Shared-framework resolution from the manifest into a reference-assembly set, with the
       target framework moniker driving restore asset selection, and both emitted into the
       generated project file.
+
+      DELIVERED, and it was TWO defects wearing one number. The register recorded only the
+      visible half -- v2 emitted no ItemGroup -- and that half turns out not to be what broke
+      samples/Testing at all. v2 never builds the generated csproj: it compiles in process
+      through Roslyn, and CSharpEmitterV2 called CSharpCompilationDriver.Compile WITHOUT
+      additionalReferencePaths. So the reference set the ambient provider had already loaded
+      was never handed to the C# compilation, and 16 MIST_CS_ERROR followed.
+
+      THE BINDER SUCCEEDING IS WHAT MADE IT LOOK LIKE A CSPROJ BUG. Both consumers read the
+      same input.ResolvedAssemblyPaths, and the provider half was already wired, so Xunit.
+      FactAttribute resolved to a real model member and no Mist diagnostic was raised --
+      leaving Roslyn to report the same missing assembly against a generated file. A fix
+      aimed only at the project file would have changed nothing.
+
+      THE EMPTY ITEMGROUP IS STILL REAL, just not load-bearing here. The csproj is what the
+      USER builds afterwards, and nothing in the compiler reads it back, so its contents are
+      unobservable to every sample and to the Tier 6 baseline. It now carries PackageReference,
+      FrameworkReference and the [csproj_properties] PropertyGroup, pinned by a Tier 1 test that
+      parses the result -- the only thing that can see it.
+
+      BOTH KINDS OF REFERENCE MEASURED ON v2, the framework half after the fact. The seam past
+      PipelineInput does not distinguish them -- CompilerDriver.ResolvePackages merges
+      PackageResolver and FrameworkReferenceResolver output into one ResolvedAssemblyPaths -- so
+      one integration test pins the boundary and a second case would re-test the same line. The
+      framework half was therefore checked by probe rather than by test: a manifest declaring only
+      [framework_references] Microsoft.AspNetCore.App, constructing Microsoft.AspNetCore.Http.
+      QueryString, compiles and prints on v2. The TFM-driven asset selection in that entry's
+      wording is shared driver code that was never the v2 gap.
+
+      NOT MATCHED, deliberately: classic also emits a hardcoded Microsoft.CSharp 4.7.0
+      PackageReference. That is a backend requirement rather than anything the manifest
+      declares, so it is outside this capability; net10.0 carries Microsoft.CSharp in the
+      shared framework and v2's `dynamic` emission compiles without it.
     unlocks: []
 
   - id: clr-nullable-projection
@@ -8703,22 +8749,22 @@ measured_defects:
               DependentTypeRefinementConstraints, AdhocRefinementConstraints,
               ArrayBoundsFlowAnalysis, Attributes]
     total_roslyn_errors: 491
-    remaining_now: 1
-    reopened: >
-      samples/Testing RE-ENTERED THIS CATEGORY on 2026-09-06 and it is recorded rather than argued
-      away. Clearing the two ambient refusals let it reach emission, where it produces 16
-      MIST_CS_ERROR and ZERO Mist diagnostics -- the exact shape this section exists to name.
+    remaining_now: 0
+    reopened_and_cleared: >
+      samples/Testing RE-ENTERED THIS CATEGORY on 2026-09-06 with 16 MIST_CS_ERROR and ZERO Mist
+      diagnostics, and LEFT IT the same day: order 129 shipped and it now builds on v2 at zero
+      errors. Measured on the whole build output, not per source file.
 
-      The CAUSE is known and already recorded as missing: order 129,
-      framework-and-package-reference-resolution. Its manifest declares [packages] xunit,
-      xunit.runner.visualstudio and Microsoft.NET.Test.Sdk; classic emits
-      `PackageReference Include="xunit"` into the generated csproj and v2 emits no ItemGroup at all,
-      so the C# references Xunit against a project that cannot see it.
+      THE ENTRY NAMED THE WRONG CAUSE, which is the part worth keeping. It read the empty ItemGroup
+      in the generated csproj as the reason, and that csproj is never built -- v2 compiles in
+      process through Roslyn, which was simply not given the resolved assemblies. Emitting the
+      ItemGroup alone would have left all 16 errors standing while looking like a fix.
 
-      KNOWING THE CAUSE DOES NOT MOVE IT OUT OF THIS SECTION. The section is about the SHAPE -- the
-      compiler reporting success and the user receiving syntax errors in a file they never wrote --
-      and a sample that fails this way is failing this way whether or not the capability behind it
-      has a number.
+      THAT MISREADING IS THIS CATEGORY'S OWN FAILURE MODE ONE LEVEL UP. A silent emission failure
+      hands you a symptom in generated code and no Mist-level cause; the temptation is to accept the
+      first plausible story about where it came from. The check that would have caught it early is
+      the same one this section already demands of measurement -- look at what actually consumes the
+      artifact you are blaming.
     resolved: >
       Six of the seven report at Mist source instead, via UnspellableTypeGuard: orders 141 and
       145 are refused rather than mis-emitted, which took 491 Roslyn errors against generated files
@@ -8982,20 +9028,25 @@ measured_defects:
     entries:
       - sample: Testing
         threshold: mist-test-command (order 122, missing)
-        status: RETRACTED -- this entry was WRONG and the measurement that produced it was blind
         why_it_passes: >
-          IT DOES NOT PASS. Measured 2026-09-06: samples/Testing emits 223 MIST_AMBIENT_DUPLICATE
-          plus 5 MIST_AMBIENT_UNRESOLVED on v2 and does not build at all. Classic builds it clean.
+          BUILDS AT ZERO ERRORS ON v2 as of order 129, having been unbuildable when this entry was
+          last taken. It still must not be banked, and now for a structural reason as well as the
+          threshold one. Banking means a [references] entry plus a RunDemo() call from
+          AllFeaturesV2/Program.mist; Testing declares three xunit methods and NO entry point and no
+          RunDemo, so there is nothing for the orchestrator to call. Order 122 is exactly the
+          missing piece -- it shells out to the external runner, which is the only thing that can
+          execute a body here.
 
-          THE SWEEP THAT RECORDED IT GREEN COULD NOT SEE THOSE, which is the part worth keeping.
-          Every one is scoped `<ambient>` and carries no .mist file or line, so a per-sample
-          classification keyed on source location counted zero for it. This section exists to stop
-          a zero-error result being mistaken for progress, and it was itself founded on one.
-          RE-TAKING IT: count diagnostics from the whole build output, not per source file.
+          A BUILD IS NOT A RUN, which its own untested list already said: "Bodies compute over
+          literals, so a build-only check passes vacuously without the runner ever executing."
+          Every assertion in the sample would still compile if xunit's assertions did nothing.
 
-          The original reasoning still stands for the day the ambient blocker clears -- the sample's
-          own untested list says "Bodies compute over literals, so a build-only check passes
-          vacuously without the runner ever executing" -- but it was never reached.
+          NEITHER PIPELINE'S EMITTED csproj BUILDS UNDER MSBuild, checked both ways at order 129:
+          the test SDK forces OutputType=Exe, GenerateProgramFile=false suppresses the Program it
+          would have synthesized, and no inlined Main replaces it, so CS5001. v2 reproduces classic
+          here exactly rather than diverging. The suppression is only correct for a library that
+          composes an executable; making it conditional on there being an inlined Main belongs to
+          order 122 with the rest of the test-project shape.
       - sample: UnknownReadonlySemantics
         threshold: readonly-mutation-checking (order 136, missing)
         why_it_passes: >
@@ -9009,10 +9060,11 @@ measured_defects:
       touched: is the requires edge naming something the sample does not use, or is the sample
       missing the code that would use it? Its untested list points at the second.
 
-      Testing needs no such question -- it needs the ambient blocker fixed, see
-      blocking_refusals. AssemblyTypeProvider left this list entirely: order 130 is delivered, so
-      it is now BANKED rather than green-for-the-wrong-reason, and runs byte-identical to classic
-      on both pipelines.
+      Testing needs no such question either. The ambient blocker and order 129 are both cleared and
+      it builds at zero errors; what remains is order 122, and until that lands the sample has no
+      callable surface for the orchestrator to reach. AssemblyTypeProvider left this list entirely:
+      order 130 is delivered, so it is now BANKED rather than green-for-the-wrong-reason, and runs
+      byte-identical to classic on both pipelines.
 
   recommended_response: >
     DELIVERED, and kept because the pattern it argued for is the one to reuse. All three items
@@ -9023,11 +9075,16 @@ measured_defects:
 
     NEXT, in the order the evidence supports:
 
-    1. Both ambient refusals are FIXED and the three samples they gated are readable at last:
-       CSharpInteropV2 143 errors -> 1 (UseNpgsql, order 131), DelegateFuncConversion 60 -> 17,
-       Testing 228 -> 16 Roslyn-only (order 129, and see silent_emission_failures.reopened).
-       Order 129 is the one to take next: it is the whole of what stands between Testing and a
-       build, and it is a manifest-to-csproj emission rather than a semantic gap.
+    1. DONE -- order 129 shipped and Testing went 16 -> 0. Its two neighbours are unmoved and their
+       remaining errors are the well-behaved kind, reported at a .mist line: CSharpInteropV2 1
+       (UseNpgsql, order 131), DelegateFuncConversion 17 (collection initializers). Testing is still
+       NOT bankable; see green_but_unbankable.
+
+       ONE PREDICTION IN THIS ENTRY WAS WRONG and it is worth keeping. Order 129 was called "a
+       manifest-to-csproj emission rather than a semantic gap", and the csproj half turned out to be
+       the half that changed nothing -- v2 never builds that file. What was actually missing was the
+       reference set reaching Roslyn. Reading a symptom in generated C# as evidence about which
+       artifact is at fault is the same trap silent_emission_failures warns about for measurement.
     2. Lambda parameter type inference, MIST_PM_LAMBDA_PARAMETER_NO_TYPE. Five samples, and it banks
        OptionalDefaultability outright, that being its only error.
     3. DONE -- AssemblyTypeProvider is banked, 47th on AllFeaturesV2. It was the cheapest green on

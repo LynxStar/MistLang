@@ -101,7 +101,8 @@ public sealed class ExperimentalPipeline : ICompilationPipeline
     /// </summary>
     private static CompilerResult Emit(IProgramModel programModel, PipelineInput input, DiagnosticBag diagnostics)
     {
-        var emitter = new CSharpEmitterV2(programModel, input.Options, diagnostics);
+        var emitter = new CSharpEmitterV2(
+            programModel, input.Options, input.ResolvedAssemblyPaths, diagnostics);
         return emitter.Emit();
     }
 }

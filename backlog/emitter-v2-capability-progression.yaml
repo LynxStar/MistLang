@@ -6685,6 +6685,28 @@ capabilities:
       an explicit generic invocation of an unqualified method, and v2 does not bind
       GenericInvocationExpression at all -- `Identity<int>(5)` fails identically with no pack in
       sight. See the existing task under generic-methods.
+
+      DO NOT FIX THAT BINDING BEFORE THE GAPS BELOW. It was written, and it works --
+      `Identity<int>(5)` and `Describe<[int, string, bool]>(...)` both bind and run -- and it was
+      REVERTED, because those two refusals are the only thing gating compilation of
+      samples/Variadics. Lifting them turned two honest refusals into 25 MIST_CS_ERROR: the
+      silent-emission shape, in a single edit. The binding belongs WITH the emission work below,
+      never before it.
+
+      THE 25 ARE A MEASURED INVENTORY OF WHAT REMAINS, which is what that experiment was worth
+      doing for. In descending count:
+        - 9 `Identifier expected`: spread syntax still reaching the emitted file somewhere.
+        - 3 unresolved `TArgs`: a pack leaking into C# outside any specialization's scope.
+        - 2 `Delegate 'Func<?, TResult>' does not take 3 arguments`: a symbolic Func inside a
+          variadic METHOD, where the specialization in scope is the method's own.
+        - Value-level `params T[]`, the homogeneous form, which nothing emits at all.
+        - A variadic ABSTRACT type in a base list: Tup_3 does not convert to ICountable_3, so the
+          base-type list needs specializing alongside the declaration that carries it.
+        - Spread projections as real members: Shape1 and Shape2 resolve in the model and are named
+          in a body, but no C# member is emitted for them.
+
+      EACH IS A DISTINCT SUB-FEATURE, and each wants a refusal of its own until it is built --
+      refusing being what those two gatekeepers were doing by luck rather than by design.
     unlocks: [Variadics]
 
   # ===================================================================

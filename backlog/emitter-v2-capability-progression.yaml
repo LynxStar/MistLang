@@ -6610,13 +6610,47 @@ capabilities:
     order: 153
     layer: variadics
     requires: [spread-generated-members, tuple-patterns]
-    v2_status: missing
+    v2_status: partial
     evidence: >
       Discover the finite set of arities actually used across declarations, member types and
       construction sites, then specialize to each. Pack narrowing by tuple pattern re-enables
       fixed-arity forwarding inside a branch, and those branches must be PRUNED per
       monomorph -- the classic pipeline copies them verbatim, leaving shape-impossible tests
       in every arity.
+
+      MONOMORPHIZATION IS NOT A MIST CONCERN AND MUST NOT TOUCH THE MODEL. It exists because the
+      TARGET requires it, and design.md says so outright: "Mist core semantics: arity is unbounded",
+      the ceiling is "explicitly a per-backend limitation", and "by emission time every pack has a
+      concrete Type[] value and every spread has a known length, so emission IS monomorphization".
+      Another backend may need none of this.
+
+      RECORDED BECAUSE THE OBVIOUS IMPLEMENTATION IS THE WRONG ONE. Specializing a variadic
+      declaration means rewriting its method BODIES, and the model has neither expression
+      substitution nor type cloning -- so the natural move is to make ProgramModelBuilder re-bind
+      the declaration once per arity with the pack pre-bound. That works, and it puts a C#
+      limitation inside the language's model. It was proposed here and rejected on exactly that
+      ground.
+
+      THE SHAPE THAT IS RIGHT reads the model and produces SOURCE, adding files rather than
+      changing types -- which is where classic already puts it, in Backends/CSharpTranspiler rather
+      than in Semantics. v2 has the same pattern in EmitUnionCarriers and EmitDependentCarriers.
+      Mappings the spec fixes: a value pack `(TArgs...)` to System.ValueTuple, nested past seven;
+      spread projections to Item1..ItemN, matching ValueTuple's own field names; a constructed Func
+      or Action to the matching CLR shape.
+
+      HALF OF IT IS ALREADY DONE, by order 109 rather than by anything here: Func and Action collapse
+      to the structural function type, which the emitter already maps to System.Func and
+      System.Action. So the mapping half needs nothing further and only USER-DECLARED variadic
+      types need per-arity declarations.
+
+      MEASURED AGAINST samples/Variadics, whose model is now clean, so every remaining error is
+      emission's: five variadic DECLARATIONS needing per-arity emission; six whole-pack ASSIGNMENTS
+      (`Item... = values...`), which belong to order 152; two symbolic spreads awaiting an arity;
+      and two bracketed pack arguments at a METHOD call site, which order 150 delivered for type
+      references only.
+
+      STAGE 1 IS DONE: MonomorphSet discovers the (family, arity) pairs, per arity rather than per
+      construction, and is inert until something consumes it.
     unlocks: [Variadics]
 
   # ===================================================================

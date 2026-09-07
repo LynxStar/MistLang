@@ -6649,8 +6649,32 @@ capabilities:
       and two bracketed pack arguments at a METHOD call site, which order 150 delivered for type
       references only.
 
-      STAGE 1 IS DONE: MonomorphSet discovers the (family, arity) pairs, per arity rather than per
-      construction, and is inert until something consumes it.
+      THE TYPE AXIS IS DELIVERED. A variadic family becomes one C# declaration per arity used, and
+      the original is no longer emitted where it was written. Variadics 15 emission errors -> 2, and
+      all 28 samples stay at zero Roslyn errors, which was the whole risk in un-refusing pack
+      emission.
+
+      THE SPECIALIZATION IS AMBIENT WHILE ONE IS EMITTED, thread-static and scoped to a single
+      declaration. The alternative is a substitution parameter threaded through twelve emitters, and
+      a concern spread that thinly is one that gets forgotten in the thirteenth.
+
+      LOWERINGS THE AMBIENT MADE POSSIBLE: `TArgs.Length` becomes the constant, since at a fixed
+      width there is no value standing for the pack to read it off; a spread inside a tuple expands,
+      with ValueTuple named outright for the one and zero widths C#'s tuple syntax cannot spell; a
+      whole-pack zip `Item... = values...` becomes a tuple assignment, both sides being the same
+      shape; and a PROVABLE spread expands at last, its width having been unknown when binding let
+      it through.
+
+      THE METHOD AXIS IS NOT DONE and its absence is load-bearing. A variadic generic METHOD still
+      emits as `Describe<TArgs>(System.ValueTuple<TArgs...> args)`, which is not C#. Variadics' last
+      two errors are explicit bracketed type arguments at such a call, and they are what GATE
+      compilation -- lift them and the broken method emission would be compiled instead of skipped,
+      turning two honest refusals into a pile of MIST_CS_ERROR. They stay until methods specialize.
+
+      METHOD SPECIALIZATION IS HARDER THAN THE TYPE AXIS for a reason worth recording: a specialized
+      method must be emitted INTO its declaring type rather than into a file of its own, and the
+      arities it is used at come from call sites, where an inferred call may record no type
+      arguments at all.
     unlocks: [Variadics]
 
   # ===================================================================

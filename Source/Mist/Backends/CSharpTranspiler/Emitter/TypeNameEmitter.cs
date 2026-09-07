@@ -132,21 +132,64 @@ internal static class TypeNameEmitter
         return $"System.Func<{string.Join(", ", parameters)}>";
     }
 
+    /// <summary>
+    /// A tuple, with any spread among its elements expanded to the width the specialization being
+    /// emitted fixed.
+    /// <para>
+    /// C#'s tuple SYNTAX cannot spell every width -- it needs at least two elements -- so the one
+    /// and zero cases name ValueTuple outright. They are reachable: a value pack over a
+    /// single-element or empty pack is a real type, and `()` and `(T)` are not.
+    /// </para>
+    /// </summary>
     private static string EmitTuple(IReadOnlyList<IMistType> elementTypes, IReadOnlyList<string?>? elementNames)
     {
-        var parts = new string[elementTypes.Count];
+        var expanded = Expand(elementTypes);
+        var named = ReferenceEquals(expanded, elementTypes) ? elementNames : null;
+        var parts = new string[expanded.Count];
 
-        for(var i = 0; i < elementTypes.Count; i++)
+        for(var i = 0; i < expanded.Count; i++)
         {
-            var spelled = Emit(elementTypes[i]);
+            var spelled = Emit(expanded[i]);
 
-            parts[i] = elementNames is not null && i < elementNames.Count && elementNames[i] is { } name
+            parts[i] = named is not null && i < named.Count && named[i] is { } name
                 ? $"{spelled} {name}"
                 : spelled
                 ;
         }
 
-        return $"({string.Join(", ", parts)})";
+        return parts.Length switch
+        {
+            0 => "System.ValueTuple",
+            1 => $"System.ValueTuple<{parts[0]}>",
+            _ => $"({string.Join(", ", parts)})",
+        };
+    }
+
+    /// <summary>
+    /// The element list with a spread replaced by what the specialization bound it to, or the list
+    /// unchanged when it holds none.
+    /// </summary>
+    private static IReadOnlyList<IMistType> Expand(IReadOnlyList<IMistType> elementTypes)
+    {
+        if(Monomorph.InScope() is not { } monomorph || !elementTypes.Any(e => e is SpreadType))
+        {
+            return elementTypes;
+        }
+
+        var expanded = new List<IMistType>(elementTypes.Count);
+
+        foreach(var element in elementTypes)
+        {
+            if(element is SpreadType spread && ReferenceEquals(spread.Operand, monomorph.Pack))
+            {
+                expanded.AddRange(monomorph.Expansion);
+                continue;
+            }
+
+            expanded.Add(element);
+        }
+
+        return expanded;
     }
 
     private static string EmitConstructed(ConstructedType constructed)

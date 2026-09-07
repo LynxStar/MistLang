@@ -162,6 +162,14 @@ internal static class BodyEmitter
                 writer.Append(ArgumentKeywords.For(parameters[i]));
             }
 
+            // A spread that survived binding was PROVABLE rather than expandable: its pack was
+            // still symbolic then, and only the specialization fixes the width it stands for.
+            if(arguments[i] is SpreadExpression spread && TupleWidth(spread.Operand.Type) is { } width)
+            {
+                EmitTupleElements(spread.Operand, width, writer, diagnostics);
+                continue;
+            }
+
             EmitExpression(arguments[i], writer, diagnostics);
         }
     }
@@ -487,6 +495,13 @@ internal static class BodyEmitter
                 }
 
                 writer.Append("\"");
+                break;
+
+            // Outside an argument list a spread stands for the whole value, which is what a
+            // whole-pack assignment means: `Item... = values...` moves one tuple to another of the
+            // same shape, and writing the elements out would say the same thing at length.
+            case SpreadExpression spread:
+                EmitExpression(spread.Operand, writer, diagnostics);
                 break;
 
             case TypeReferenceExpression typeRef:
@@ -1268,6 +1283,49 @@ internal static class BodyEmitter
         writer.Append(memberAccess.IsConditional ? "?." : ".");
         writer.Append(memberAccess.MemberName);
         writer.Append(EmitTypeArguments(memberAccess.TypeArguments, parameters));
+    }
+
+    /// <summary>
+    /// How many elements a tuple type has, or null when the type is not one whose width is fixed --
+    /// a value pack whose spread is still symbolic among them.
+    /// </summary>
+    private static int? TupleWidth(IMistType type)
+    {
+        var elements = type switch
+        {
+            NamedTupleType named => named.Underlying.ElementTypes,
+            TupleType tuple => tuple.ElementTypes,
+            _ => null,
+        };
+
+        if(elements is null)
+        {
+            return null;
+        }
+
+        if(!elements.Any(e => e is SpreadType))
+        {
+            return elements.Count;
+        }
+
+        return Monomorph.InScope() is { } monomorph
+            ? elements.Count - 1 + monomorph.Expansion.Count
+            : null;
+    }
+
+    private static void EmitTupleElements(
+        Expression operand, int width, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        for(var i = 0; i < width; i++)
+        {
+            if(i > 0)
+            {
+                writer.Append(", ");
+            }
+
+            EmitExpression(operand, writer, diagnostics);
+            writer.Append($".Item{i + 1}");
+        }
     }
 
     /// <summary>

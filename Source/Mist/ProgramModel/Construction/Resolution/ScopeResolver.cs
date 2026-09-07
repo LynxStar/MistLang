@@ -494,11 +494,43 @@ internal sealed class ScopeResolver
                 args.Add(LiftCharLiteral(charLit.Literal.Lexeme));
                 break;
 
+            // Brackets supply a pack DIRECTLY, which is what lets a list carry more than one: the
+            // argument count then matches the slot count, so nothing has to work out where one pack
+            // ends and the next begins.
+            case BracketedPackTypeArgumentTypeArgumentNode bracketed:
+                args.Add(ResolveBracketedPack(bracketed, scope));
+                break;
+
             default:
                 context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownTypeRefNode, arg, null, arg.GetType().Name);
                 args.Add(ErrorType.Instance);
                 break;
         }
+    }
+
+    /// <summary>
+    /// A bracketed pack argument, lifted to the same comptime <c>Type[]</c> value the binding rule
+    /// produces from a flat list -- so <c>Foo&lt;[int, string]&gt;</c> and <c>Foo&lt;int, string&gt;</c>
+    /// are one type rather than two spellings that happen to agree.
+    /// </summary>
+    private IMistType ResolveBracketedPack(
+        BracketedPackTypeArgumentTypeArgumentNode bracketed, Scope scope)
+    {
+        var elements = new List<IMistType>();
+
+        if(bracketed.PackElements is { } list)
+        {
+            elements.Add(Resolve(list.TypeReference, scope));
+
+            foreach(var element in list.TypeReferences)
+            {
+                elements.Add(Resolve(element, scope));
+            }
+        }
+
+        return context.ProgramModel.TypeInterner.LiftPack(
+            ConstructArray(LookupWellKnown(WellKnownTypes.Type), length: null),
+            new TypePackValue(elements));
     }
 
     /// <summary>

@@ -24,6 +24,7 @@ public sealed class PackBindingTests : ProgramModelProbe
     protected override string Fixtures { get; } = """
         public class F<params TArgs, TResult> { }
         public class Between<TFirst, params TMid, TLast> { }
+        public class TwoPacks<Type[]:A, Type[]:B> { }
         """;
 
     protected override string Preamble { get; } = "";
@@ -81,6 +82,33 @@ public sealed class PackBindingTests : ProgramModelProbe
     {
         Assert.NotEqual(Slots("F<int, string, bool>"), Slots("F<string, int, bool>"));
         Assert.NotEqual(Slots("F<int, bool>"), Slots("F<int, string, bool>"));
+    }
+
+    /// <summary>
+    /// The two spellings are ONE type, not two that agree. Which is the whole reason a bracketed
+    /// argument is adopted rather than wrapped: wrapping would nest a pack inside a pack and make
+    /// these differ, while resolving and emitting perfectly well.
+    /// </summary>
+    [Fact]
+    public void BracketedAndFlatConstruction_AreTheSameType()
+    {
+        Assert.Equal(Slots("F<int, string, bool>"), Slots("F<[int, string], bool>"));
+    }
+
+    [Fact]
+    public void BracketsSupplyAnEmptyPackExplicitly()
+    {
+        Assert.Equal(["[]", "Boolean"], Slots("F<[], bool>"));
+    }
+
+    /// <summary>
+    /// Brackets are what let a list carry more than one pack: with each supplied directly, the
+    /// argument count matches the slot count and nothing has to work out where one pack ends.
+    /// </summary>
+    [Fact]
+    public void SeveralBracketedPacks_AreEachSuppliedDirectly()
+    {
+        Assert.Equal(["[Int32, Int32]", "[String]"], Slots("TwoPacks<[int, int], [string]>"));
     }
 
     /// <summary>

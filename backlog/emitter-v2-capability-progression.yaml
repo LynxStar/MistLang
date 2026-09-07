@@ -6466,8 +6466,18 @@ capabilities:
       still failed after field declarations worked. They now share one entry point, which is what
       the second and third occurrences argued for.
 
-      NOT STARTED: explicit bracketed [..] construction, and disambiguating several packs in one
-      signature. Both need lookup to find a family by STEM, the same thing MIST_VAR_0005 needs.
+      BRACKETED CONSTRUCTION AND SEVERAL PACKS ARE DELIVERED, and neither needed the stem lookup
+      this entry predicted. Brackets supply a pack DIRECTLY, so the argument count already matches
+      the slot count -- `Describe<[int, string, bool]>` is one argument against one slot, and
+      `TwoPacks<[int, int], [string]>` is two against two. Nothing has to work out where one pack
+      ends and the next begins, which is exactly why the bracketed form exists.
+
+      A BRACKETED ARGUMENT IS ADOPTED, NOT WRAPPED. Binding it like a flat one would nest a pack
+      inside a pack, making Foo<[int, string]> a different type from Foo<int, string> -- while
+      resolving and emitting perfectly well -- when being the same type is the whole point of the
+      form. Requirement 4.4 asserted directly.
+
+      STILL OPEN: MIST_VAR_0005, which does need lookup by stem. See above.
     unlocks: []
 
   - id: pack-spread-positions

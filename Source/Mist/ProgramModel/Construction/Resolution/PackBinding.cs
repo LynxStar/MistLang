@@ -61,7 +61,15 @@ internal static class PackBinding
         }
 
         var absorbed = arguments.Skip(absorbing).Take(arguments.Count - absorbing - trailing).ToList();
-        bound.Add(interner.LiftPack(packDomain, new TypePackValue(absorbed)));
+
+        // Already a pack when the use site wrote brackets, in which case it is adopted rather than
+        // wrapped -- nesting it would make Foo<[int, string]> a different type from Foo<int, string>
+        // when the whole point of the bracketed form is that they are the same one.
+        var value = absorbed is [LiftedType { Value: TypePackValue supplied }]
+            ? supplied
+            : new TypePackValue(absorbed);
+
+        bound.Add(interner.LiftPack(packDomain, value));
 
         for(var i = arguments.Count - trailing; i < arguments.Count; i++)
         {

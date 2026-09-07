@@ -66,5 +66,6 @@ public class Program
         ExtensionMethods.Program.RunDemo();
         Attributes.Program.RunDemo();
         AssemblyTypeProvider.Program.RunDemo();
+        Variadics.Program.RunDemo();
     }
 }

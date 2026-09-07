@@ -961,3 +961,25 @@ Length=12
 Upper=HELLO, WORLD
 Abs=5
 ArrLen=3
+=== Variadics Sample ===
+n=5
+empty-pack
+act=7
+arity=3
+explicit=3
+middle=2
+twoPacks=3
+forward=9
+narrowInt=9
+narrowStr=4
+narrowElse=1
+tupleSpread=30
+bundleAgg=42:hi:True
+bundleItem1=42
+bundleMap=42-hi-True
+prop=7:z
+area=7
+abstractCount=3
+sum=10
+sumEmpty=0
+=== Variadics Done ===

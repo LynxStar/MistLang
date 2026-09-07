@@ -6600,9 +6600,12 @@ capabilities:
       that carry weight: the constraints are what make Shape1.Area() resolve, and not being the pack
       is what stops Shape1 answering for Length, which a Type[] would.
 
-      NOT STARTED: MIST_VAR_0008 (an empty stem, which the grammar may not admit at all) and
-      whole-pack ASSIGNMENT (`Item... = values...`), which is refused at emission as an unsupported
-      expression rather than mis-modelled.
+      THE PROJECTIONS EMIT AS OF ORDER 153, projected through the aggregate rather than stored
+      beside it: the constructor's zip fills only the aggregate, so independent backing would read
+      back empty. A field-kind spread's projections are writable and a property-kind spread's follow
+      its own accessors.
+
+      NOT STARTED: MIST_VAR_0008, an empty stem, which the grammar may not admit at all.
     unlocks: []
 
   - id: variadic-monomorphization
@@ -6610,7 +6613,7 @@ capabilities:
     order: 153
     layer: variadics
     requires: [spread-generated-members, tuple-patterns]
-    v2_status: partial
+    v2_status: done
     evidence: >
       Discover the finite set of arities actually used across declarations, member types and
       construction sites, then specialize to each. Pack narrowing by tuple pattern re-enables
@@ -6681,32 +6684,34 @@ capabilities:
       share one mechanism: each emitter asks whether the specialization in scope owns the parameters
       it is about to write.
 
-      VARIADICS' LAST TWO ERRORS ARE NOT THIS CAPABILITY'S. `Describe<[int, string, bool]>(...)` is
-      an explicit generic invocation of an unqualified method, and v2 does not bind
-      GenericInvocationExpression at all -- `Identity<int>(5)` fails identically with no pack in
-      sight. See the existing task under generic-methods.
+      THE GATE WAS LIFTED LAST, WHICH IS THE PART WORTH KEEPING. `Describe<[int, string, bool]>(...)`
+      is an explicit generic invocation of an unqualified method, which v2 did not bind at all. That
+      binding was written early, turned two honest refusals into 25 MIST_CS_ERROR -- the
+      silent-emission shape, in a single edit -- and was REVERTED. Those 25 were then the inventory,
+      and each entry became its own commit before the binding landed again.
 
-      DO NOT FIX THAT BINDING BEFORE THE GAPS BELOW. It was written, and it works --
-      `Identity<int>(5)` and `Describe<[int, string, bool]>(...)` both bind and run -- and it was
-      REVERTED, because those two refusals are the only thing gating compilation of
-      samples/Variadics. Lifting them turned two honest refusals into 25 MIST_CS_ERROR: the
-      silent-emission shape, in a single edit. The binding belongs WITH the emission work below,
-      never before it.
+      WHAT THE 25 WERE, and where each went:
+        - Spread syntax reaching the emitted file: two causes. A base clause emitted verbatim, base
+          references being the fourth site to resolve a generic without binding the pack; and a
+          symbolic Func, whose parameter list the tuple emitter had always spliced and the function
+          emitter never did.
+        - A pack leaking outside any specialization: refused as MIST_BE_UNSPECIALIZED_PACK, a
+          signature walk beside the refinement one.
+        - Value-level `params T[]`: the modifier was dropped, so a flat call had no overload to
+          reach. Emitted for the homogeneous form alone.
+        - A variadic abstract in a base list: needed both the base clause routed through
+          MonomorphReference and a specialization set CLOSED over what a specialization itself asks
+          for, since nothing constructs ICountable directly.
+        - Spread projections as real members: projected through the aggregate rather than stored
+          beside it, the constructor filling only the aggregate.
 
-      THE 25 ARE A MEASURED INVENTORY OF WHAT REMAINS, which is what that experiment was worth
-      doing for. In descending count:
-        - 9 `Identifier expected`: spread syntax still reaching the emitted file somewhere.
-        - 3 unresolved `TArgs`: a pack leaking into C# outside any specialization's scope.
-        - 2 `Delegate 'Func<?, TResult>' does not take 3 arguments`: a symbolic Func inside a
-          variadic METHOD, where the specialization in scope is the method's own.
-        - Value-level `params T[]`, the homogeneous form, which nothing emits at all.
-        - A variadic ABSTRACT type in a base list: Tup_3 does not convert to ICountable_3, so the
-          base-type list needs specializing alongside the declaration that carries it.
-        - Spread projections as real members: Shape1 and Shape2 resolve in the model and are named
-          in a body, but no C# member is emitted for them.
+      TWO DEFECTS THE 25 DID NOT NAME, both found by diffing against classic rather than by counting
+      errors. `TwoPacks<Type[]:A, Type[]:B>` answered 4 where classic answers 3, a specialization
+      having held ONE pack; and a whole-pack constraint reached no element, C# having only
+      per-parameter constraints to say it with.
 
-      EACH IS A DISTINCT SUB-FEATURE, and each wants a refusal of its own until it is built --
-      refusing being what those two gatekeepers were doing by luck rather than by design.
+      DELIVERED: samples/Variadics runs on v2 with output identical to classic, and is banked in
+      AllFeaturesV2.
     unlocks: [Variadics]
 
   # ===================================================================

@@ -48,3 +48,4 @@ ClrRefInterop = { path = "../ClrRefInterop" }
 ExtensionMethods = { path = "../ExtensionMethods" }
 Attributes = { path = "../Attributes" }
 AssemblyTypeProvider = { path = "../AssemblyTypeProvider" }
+Variadics = { path = "../Variadics" }

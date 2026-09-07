@@ -379,4 +379,16 @@ public static class BackendDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.Backend,
         "Type parameter '{0}' of '{1}' is dependent: it ranges over values, not types. C# has no dependent type parameter, and the experimental emitter does not yet encode one.");
+
+    /// <summary>
+    /// A pack survived into a signature that no specialization binds, so there is no width to write
+    /// it at. Reported rather than emitted because the alternative is C# naming a type parameter
+    /// that does not exist there -- valid-looking output that does not compile, in a file the user
+    /// never wrote.
+    /// </summary>
+    public static readonly DiagnosticDescriptor UnspecializedPack = new(
+        new DiagnosticId("MIST_BE_UNSPECIALIZED_PACK"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Backend,
+        "'{0}' mentions the pack '{1}' where no arity is fixed, so no C# signature can be written for it.");
 }

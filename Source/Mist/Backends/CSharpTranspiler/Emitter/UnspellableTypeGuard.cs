@@ -45,13 +45,20 @@ internal static class UnspellableTypeGuard
             }
         }
 
-        foreach(var (member, signatureType) in SignatureTypes(type))
+        foreach(var (member, signatureType, ownParameters) in SignatureTypes(type))
         {
             if(FindRefinement(signatureType) is { } refined)
             {
                 diagnostics.ReportAtNode(
                     BackendDiagnostics.RefinedTypeInSignature, node, null,
                     $"{TypeEmitter.CleanName(type)}.{member}", refined.BaseType.Name);
+            }
+
+            if(FindUnspecializedPack(signatureType, ownParameters) is { } pack)
+            {
+                diagnostics.ReportAtNode(
+                    BackendDiagnostics.UnspecializedPack, node, null,
+                    $"{TypeEmitter.CleanName(type)}.{member}", pack.Name);
             }
         }
     }
@@ -73,30 +80,34 @@ internal static class UnspellableTypeGuard
         }
     }
 
-    private static IEnumerable<(string Member, IMistType Type)> SignatureTypes(MemberType type)
+    private readonly record struct Signature(
+        string Member, IMistType Type, IReadOnlyList<TypeParameter> OwnParameters);
+
+    private static IEnumerable<Signature> SignatureTypes(MemberType type)
     {
         foreach(var method in type.MethodsList)
         {
-            yield return (method.Name, method.ReturnType);
+            yield return new Signature(method.Name, method.ReturnType, method.TypeParametersList);
 
             foreach(var parameter in method.ParametersList)
             {
-                yield return ($"{method.Name}({parameter.Name})", parameter.Type);
+                yield return new Signature(
+                    $"{method.Name}({parameter.Name})", parameter.Type, method.TypeParametersList);
             }
         }
 
         foreach(var property in type.PropertiesList)
         {
-            yield return (property.Name, property.Type);
+            yield return new Signature(property.Name, property.Type, []);
         }
 
         foreach(var indexer in type.IndexersList)
         {
-            yield return ("this[]", indexer.Type);
+            yield return new Signature("this[]", indexer.Type, []);
 
             foreach(var parameter in indexer.ParametersList)
             {
-                yield return ($"this[{parameter.Name}]", parameter.Type);
+                yield return new Signature($"this[{parameter.Name}]", parameter.Type, []);
             }
         }
 
@@ -107,16 +118,99 @@ internal static class UnspellableTypeGuard
 
         foreach(var field in concrete.FieldsList)
         {
-            yield return (field.Name, field.Type);
+            yield return new Signature(field.Name, field.Type, []);
         }
 
         foreach(var constructor in concrete.ConstructorsList)
         {
             foreach(var parameter in constructor.ParametersList)
             {
-                yield return ($"{TypeEmitter.CleanName(type)}({parameter.Name})", parameter.Type);
+                yield return new Signature(
+                    $"{TypeEmitter.CleanName(type)}({parameter.Name})", parameter.Type, []);
             }
         }
+    }
+
+    /// <summary>
+    /// The first pack reachable from a type that no specialization binds, or null when every pack
+    /// it mentions has a width. A member's OWN pack does not count, since that is bound while the
+    /// member's specializations are emitted and this walk runs outside all of them.
+    /// <para>
+    /// Written as one walk over the signature for the same reason the refinement check is: a pack
+    /// can sit anywhere a type can, and a check repeated at each member emitter is one that gets
+    /// missed at the next. What it guards against is the failure this project holds worst -- C#
+    /// naming a type parameter that is not in scope there, which reads as a bug in generated code
+    /// rather than as an unbuilt feature.
+    /// </para>
+    /// </summary>
+    private static TypeParameter? FindUnspecializedPack(
+        IMistType type, IReadOnlyList<TypeParameter> ownParameters)
+    {
+        return FindUnspecializedPack(type, ownParameters, new HashSet<IMistType>());
+    }
+
+    private static TypeParameter? FindUnspecializedPack(
+        IMistType type, IReadOnlyList<TypeParameter> ownParameters, HashSet<IMistType> seen)
+    {
+        if(!seen.Add(type))
+        {
+            return null;
+        }
+
+        if(Unbound(type, ownParameters) is { } unbound)
+        {
+            return unbound;
+        }
+
+        return type switch
+        {
+            SpreadType spread => FindUnspecializedPack(spread.Operand, ownParameters, seen),
+            ConstructedType constructed => FindFirstPack(constructed.TypeArguments, ownParameters, seen),
+            UnionType union => FindFirstPack(union.Constituents, ownParameters, seen),
+            NamedTupleType named => FindFirstPack(named.ElementTypes, ownParameters, seen),
+            TupleType tuple => FindFirstPack(tuple.ElementTypes, ownParameters, seen),
+            FunctionType function => FindUnspecializedPack(function.ReturnType, ownParameters, seen)
+                ?? FindFirstPack(function.ParameterTypes, ownParameters, seen),
+            _ => null,
+        };
+    }
+
+    private static TypeParameter? Unbound(IMistType type, IReadOnlyList<TypeParameter> ownParameters)
+    {
+        TypeParameter? pack = null;
+
+        if(type is SpreadType spread && spread.Operand is TypeParameter operand)
+        {
+            pack = operand;
+        }
+        else if(type is TypeParameter { IsPack: true } parameter)
+        {
+            pack = parameter;
+        }
+
+        if(pack is null)
+        {
+            return null;
+        }
+
+        var bound = ReferenceEquals(pack, Monomorph.InScope()?.Pack)
+            || ownParameters.Any(own => ReferenceEquals(own, pack));
+
+        return bound ? null : pack;
+    }
+
+    private static TypeParameter? FindFirstPack(
+        IReadOnlyList<IMistType> types, IReadOnlyList<TypeParameter> ownParameters, HashSet<IMistType> seen)
+    {
+        foreach(var type in types)
+        {
+            if(FindUnspecializedPack(type, ownParameters, seen) is { } pack)
+            {
+                return pack;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>

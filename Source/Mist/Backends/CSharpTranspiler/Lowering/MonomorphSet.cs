@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Construction.Resolution;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
@@ -67,21 +68,193 @@ internal static class MonomorphSet
     {
         var found = new SortedSet<(string Name, int Arity)>();
         var definitions = new Dictionary<string, MistType>(StringComparer.Ordinal);
+        var pending = new Queue<(MistType Definition, int Arity)>();
+
+        void enqueue(MistType definition, int arity)
+        {
+            if(found.Add((definition.FullyQualifiedName, arity)))
+            {
+                definitions[definition.FullyQualifiedName] = definition;
+                pending.Enqueue((definition, arity));
+            }
+        }
 
         foreach(var constructed in interner.ConstructedTypes)
         {
-            if(constructed.Definition is not MistType definition
-                || definition is not IHasTypeParameters generic
-                || Arity(generic, constructed) is not { } arity)
+            if(constructed.Definition is MistType definition
+                && definition is IHasTypeParameters generic
+                && Arity(generic, constructed) is { } arity)
+            {
+                enqueue(definition, arity);
+            }
+        }
+
+        // A SPECIALIZATION ASKS FOR MORE. `Outer<params TArgs> { Inner<TArgs...> nested; }` at width
+        // two needs Inner at width two, and nothing constructs Inner directly -- the only
+        // construction of it is symbolic and names no arity until Outer's is fixed. So the set is
+        // closed rather than collected: each specialization is walked for the constructions its own
+        // width implies, until nothing new appears. Finite because widths come from a finite
+        // program and each pair is enqueued once.
+        while(pending.Count > 0)
+        {
+            var (definition, arity) = pending.Dequeue();
+
+            if(definition is not MemberType member || Monomorph.For(PackIn(definition), arity) is not { } monomorph)
             {
                 continue;
             }
 
-            _ = found.Add((definition.FullyQualifiedName, arity));
-            definitions[definition.FullyQualifiedName] = definition;
+            using(monomorph.Enter())
+            {
+                foreach(var implied in ImpliedConstructions(member, monomorph))
+                {
+                    enqueue(implied.Definition, implied.Arity);
+                }
+            }
         }
 
         return [.. found.Select(entry => (definitions[entry.Name], entry.Arity))];
+    }
+
+    private static TypeParameter? PackIn(MistType definition)
+    {
+        return definition is IHasTypeParameters generic ? Monomorph.PackIn(generic.TypeParametersList) : null;
+    }
+
+    private static IEnumerable<(MistType Definition, int Arity)> ImpliedConstructions(
+        MemberType member, Monomorph monomorph)
+    {
+        foreach(var signature in SignatureTypes(member))
+        {
+            foreach(var constructed in Constructions(signature, new HashSet<IMistType>()))
+            {
+                if(constructed.Definition is MistType definition
+                    && definition is IHasTypeParameters generic
+                    && WidthUnder(generic, constructed, monomorph) is { } arity)
+                {
+                    yield return (definition, arity);
+                }
+            }
+        }
+    }
+
+    private static int? WidthUnder(IHasTypeParameters generic, ConstructedType constructed, Monomorph monomorph)
+    {
+        var parameters = generic.TypeParametersList;
+
+        for(var i = 0; i < parameters.Count && i < constructed.TypeArguments.Count; i++)
+        {
+            if(parameters[i].PackKind == TypePackKind.None)
+            {
+                continue;
+            }
+
+            if(constructed.TypeArguments[i] is not LiftedType { Value: TypePackValue pack })
+            {
+                return null;
+            }
+
+            var width = 0;
+
+            foreach(var element in pack.Elements)
+            {
+                if(element is not SpreadType spread)
+                {
+                    width++;
+                    continue;
+                }
+
+                if(!ReferenceEquals(spread.Operand, monomorph.Pack))
+                {
+                    return null;
+                }
+
+                width += monomorph.Expansion.Count;
+            }
+
+            return width;
+        }
+
+        return null;
+    }
+
+    private static IEnumerable<ConstructedType> Constructions(IMistType type, HashSet<IMistType> seen)
+    {
+        if(!seen.Add(type))
+        {
+            yield break;
+        }
+
+        if(type is ConstructedType constructed)
+        {
+            yield return constructed;
+
+            foreach(var argument in constructed.TypeArguments)
+            {
+                foreach(var nested in Constructions(argument, seen))
+                {
+                    yield return nested;
+                }
+            }
+        }
+
+        var children = type switch
+        {
+            LiftedType { Value: TypePackValue pack } => pack.Elements,
+            TupleType tuple => tuple.ElementTypes,
+            NamedTupleType named => named.ElementTypes,
+            UnionType union => union.Constituents,
+            _ => null,
+        };
+
+        foreach(var child in children ?? [])
+        {
+            foreach(var nested in Constructions(child, seen))
+            {
+                yield return nested;
+            }
+        }
+    }
+
+    private static IEnumerable<IMistType> SignatureTypes(MemberType member)
+    {
+        foreach(var method in member.MethodsList)
+        {
+            yield return method.ReturnType;
+
+            foreach(var parameter in method.ParametersList)
+            {
+                yield return parameter.Type;
+            }
+        }
+
+        foreach(var property in member.PropertiesList)
+        {
+            yield return property.Type;
+        }
+
+        foreach(var baseType in member.BaseAbstractTypes)
+        {
+            yield return baseType;
+        }
+
+        if(member is not ConcreteType concrete)
+        {
+            yield break;
+        }
+
+        foreach(var field in concrete.FieldsList)
+        {
+            yield return field.Type;
+        }
+
+        foreach(var constructor in concrete.ConstructorsList)
+        {
+            foreach(var parameter in constructor.ParametersList)
+            {
+                yield return parameter.Type;
+            }
+        }
     }
 
     /// <summary>

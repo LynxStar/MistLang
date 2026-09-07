@@ -11,6 +11,29 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// </summary>
 internal static class MonomorphReference
 {
+    private static bool Expand(TypePackValue pack, out List<IMistType> elements)
+    {
+        elements = [];
+
+        foreach(var element in pack.Elements)
+        {
+            if(element is not SpreadType spread)
+            {
+                elements.Add(element);
+                continue;
+            }
+
+            if(Monomorph.InScope() is not { } monomorph || !ReferenceEquals(spread.Operand, monomorph.Pack))
+            {
+                return false;
+            }
+
+            elements.AddRange(monomorph.Expansion);
+        }
+
+        return true;
+    }
+
     /// <summary>
     /// The width a call bound a method's pack to, or null when the callee has no pack or the pack
     /// is still symbolic -- a call made from inside another variadic declaration, which the
@@ -91,14 +114,22 @@ internal static class MonomorphReference
                 continue;
             }
 
-            if(constructed.TypeArguments[i] is not LiftedType { Value: TypePackValue pack }
-                || pack.Elements.Any(element => element is SpreadType))
+            if(constructed.TypeArguments[i] is not LiftedType { Value: TypePackValue pack })
             {
                 return null;
             }
 
-            arity = pack.Elements.Length;
-            arguments.AddRange(pack.Elements.Select(emitType));
+            // A spread among the elements is this declaration's OWN pack, written through to
+            // another family -- `Inner<TArgs...>` inside `Outer<params TArgs>`. The specialization
+            // in scope is what says how wide it is, so it expands here rather than defeating the
+            // whole reference and falling back to a spelling of the pack's domain.
+            if(Expand(pack, out var elements) is not true)
+            {
+                return null;
+            }
+
+            arity = elements.Count;
+            arguments.AddRange(elements.Select(emitType));
         }
 
         if(arity < 0)

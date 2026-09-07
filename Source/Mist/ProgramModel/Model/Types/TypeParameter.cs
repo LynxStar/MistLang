@@ -1,5 +1,6 @@
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Scopes;
 
 namespace Mist.ProgramModel.Model.Types;
@@ -45,10 +46,19 @@ internal class TypeParameter : MistType, ITypeParameter
     public MistType? Domain { get; internal set; }
 
     /// <summary>
-    /// True when this type parameter was declared with <c>params</c>, indicating it
-    /// holds a <c>Type[]</c> and can be spread with <c>...</c> at use sites.
+    /// How this parameter's type arguments are supplied. The two spellings differ in that and in
+    /// nothing else: <c>params TArgs</c> and <c>Type[]:TArgs</c> both declare a slot holding a
+    /// <c>Type[]</c>, spreadable with <c>...</c>.
     /// </summary>
-    public bool HasParams { get; internal set; }
+    public TypePackKind PackKind { get; internal set; }
+
+    public bool IsPack => PackKind != TypePackKind.None;
+
+    /// <summary>
+    /// The arity a fixed-size domain pins (<c>Type[3]:TArgs</c>), null where the domain is
+    /// <c>Type[]</c> and the use site decides.
+    /// </summary>
+    public int? PackLength { get; internal set; }
 
     /// <summary>
     /// True when this parameter was written with a value domain (<c>Size:int</c>) rather than as a

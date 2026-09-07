@@ -65,7 +65,8 @@ internal sealed class ExtensionBuilder
         // Populate extension-level type parameters (if generic extension).
         if(ast.TypeParams is not null)
         {
-            TypeParameterPopulator.Populate(extensionBlock, extensionScope, null, ast.TypeParams);
+            TypeParameterPopulator.Populate(
+                extensionBlock, extensionScope, null, ast.TypeParams, context.Diagnostics);
         }
 
         // Resolve the receiver type reference.

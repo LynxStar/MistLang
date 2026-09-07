@@ -610,7 +610,7 @@ internal sealed class ScopeResolver
 
     /// <summary>
     /// Resolves a spread type reference (<c>TArgs...</c>) by looking up the named type
-    /// parameter that has <see cref="TypeParameter.HasParams"/> set. The spread resolves
+    /// parameter and checking it is a pack. The spread resolves
     /// to the type parameter itself — the semantics of unpacking are handled at the
     /// use site (e.g., type alias expansion).
     /// </summary>
@@ -619,7 +619,7 @@ internal sealed class ScopeResolver
         var name = spread.Name.IDENTIFIER.Lexeme;
         var resolved = ResolveNamedType(name, scope, spread);
 
-        if(resolved is TypeParameter { HasParams: true })
+        if(resolved is TypeParameter { IsPack: true })
         {
             return resolved;
         }

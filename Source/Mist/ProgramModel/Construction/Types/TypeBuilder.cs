@@ -471,9 +471,10 @@ internal sealed class TypeBuilder
     /// to the declaring type's own list. One overload for every type kind now that the namespace
     /// comes off the declaring type rather than the scope it was declared in.
     /// </summary>
-    private static void PopulateTypeParameters<T>(T declaringType, TypeParameterListNode? typeParams)
+    private void PopulateTypeParameters<T>(T declaringType, TypeParameterListNode? typeParams)
         where T : MistType, IHasTypeParameters
     {
-        TypeParameterPopulator.Populate(declaringType, declaringType.Scope, declaringType, typeParams);
+        TypeParameterPopulator.Populate(
+            declaringType, declaringType.Scope, declaringType, typeParams, context.Diagnostics);
     }
 }

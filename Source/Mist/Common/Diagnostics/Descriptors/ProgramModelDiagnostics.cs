@@ -898,4 +898,15 @@ public static class ProgramModelDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
         "No conversion relates '{0}' to '{1}', so 'as' has no result type to produce. One must contain the other, or the source must be a union or unknown holding it.");
+
+    /// <summary>
+    /// A type parameter list declares more than one bracket-free pack. Two of them cannot divide a
+    /// flat argument list between themselves -- any split would do -- so the list is ambiguous by
+    /// construction rather than merely unsupported. Brackets are the way to declare a second pack.
+    /// </summary>
+    public static readonly DiagnosticDescriptor MultipleUnbracketedPacks = new(
+        new DiagnosticId("MIST_VAR_0001"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}' is a second bracket-free pack after '{1}'. Only one pack can absorb a flat argument list; declare this one as 'Type[]:{0}' and supply it in brackets.");
 }

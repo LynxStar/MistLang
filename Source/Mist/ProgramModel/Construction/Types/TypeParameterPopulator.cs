@@ -1,5 +1,7 @@
+using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
@@ -28,41 +30,82 @@ internal static class TypeParameterPopulator
         IHasTypeParameters declaration,
         Scope declaringScope,
         MistType? declaringType,
-        TypeParameterListNode? typeParams)
+        TypeParameterListNode? typeParams,
+        DiagnosticBag diagnostics)
     {
         if(typeParams is null)
         {
             return;
         }
 
-        AddTypeParameter(declaration, declaringScope, declaringType, typeParams.TypeParameter, ordinal: 0);
+        var nodes = new List<TypeParameterNode>(1 + typeParams.TypeParameters.Length) { typeParams.TypeParameter };
+        nodes.AddRange(typeParams.TypeParameters);
 
-        for(var i = 0; i < typeParams.TypeParameters.Length; i++)
+        // A lone explicit pack is bracket-free as well, so whether THIS parameter needs brackets is
+        // a fact about the whole list. Nothing here can be decided one parameter at a time.
+        var lonePack = nodes.Count(IsPack) == 1;
+
+        TypeParameter? unbracketed = null;
+
+        for(var ordinal = 0; ordinal < nodes.Count; ordinal++)
         {
-            AddTypeParameter(declaration, declaringScope, declaringType, typeParams.TypeParameters[i], ordinal: i + 1);
+            var typeParam = AddTypeParameter(
+                declaration, declaringScope, declaringType, nodes[ordinal], ordinal, lonePack);
+
+            if(typeParam.PackKind != TypePackKind.Unbracketed)
+            {
+                continue;
+            }
+
+            if(unbracketed is not null)
+            {
+                diagnostics.ReportAtNode(
+                    ProgramModelDiagnostics.MultipleUnbracketedPacks, nodes[ordinal], null,
+                    typeParam.Name, unbracketed.Name);
+
+                // Demoted so the rest of the pipeline still reads an unambiguous list. The
+                // diagnostic is the verdict; leaving two absorbing slots behind would make every
+                // later question about this declaration unanswerable as well.
+                typeParam.PackKind = TypePackKind.Bracketed;
+                continue;
+            }
+
+            unbracketed = typeParam;
         }
     }
 
-    private static void AddTypeParameter(
+    private static bool IsPack(TypeParameterNode node)
+    {
+        return node is ParamsPackTypeParameterTypeParameterNode or ExplicitPackTypeParameterTypeParameterNode;
+    }
+
+    private static TypeParameter AddTypeParameter(
         IHasTypeParameters declaration,
         Scope declaringScope,
         MistType? declaringType,
         TypeParameterNode node,
-        int ordinal)
+        int ordinal,
+        bool lonePack)
     {
         var name = node.GetName().Lexeme;
 
         var typeParam = new TypeParameter(name, ordinal, declaringScope, declaringType);
 
-        if(node is ParamsPackTypeParameterTypeParameterNode)
+        switch(node)
         {
-            typeParam.HasParams = true;
-        }
+            case ParamsPackTypeParameterTypeParameterNode:
+                typeParam.PackKind = TypePackKind.Unbracketed;
+                break;
 
-        if(node is DependentTypeParameterTypeParameterNode
-            or NamedConstraintDependentTypeParameterTypeParameterNode)
-        {
-            typeParam.IsDependent = true;
+            case ExplicitPackTypeParameterTypeParameterNode explicitPack:
+                typeParam.PackKind = lonePack ? TypePackKind.Unbracketed : TypePackKind.Bracketed;
+                typeParam.PackLength = FixedLength(explicitPack.ArrayRank);
+                break;
+
+            case DependentTypeParameterTypeParameterNode:
+            case NamedConstraintDependentTypeParameterTypeParameterNode:
+                typeParam.IsDependent = true;
+                break;
         }
 
         declaration.TypeParametersList.Add(typeParam);
@@ -74,5 +117,15 @@ internal static class TypeParameterPopulator
         {
             declaring.DeclareType(name, typeParam);
         }
+
+        return typeParam;
+    }
+
+    private static int? FixedLength(ArrayRankSuffixNode arrayRank)
+    {
+        return arrayRank is SizedArrayRankArrayRankSuffixNode sized
+            && int.TryParse(sized.Size.Lexeme, out var length)
+                ? length
+                : null;
     }
 }

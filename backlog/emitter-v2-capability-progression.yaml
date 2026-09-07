@@ -5152,6 +5152,21 @@ capabilities:
       Func<TArgs..., void>` leaves a spread sitting in a parameter list rather than in the argument
       list it was written in, and substitution had no arm for it.
 
+      INFERENCE THROUGH A FUNCTION ARGUMENT CAME WITH IT, and had to: `Apply(Func<TArgs..., TResult>
+      f, params TArgs args)` has no other way to learn TResult, since nothing else in the signature
+      mentions it. Match had no FunctionType arm at all.
+
+      A LATENT IDENTITY BUG WAS FIXED HERE AND CANNOT YET BE FALSIFIED. TypePackValue compared its
+      elements by fully qualified name, which is sound for the interned types a pack usually holds
+      and WRONG for a spread: SpreadType is built with no declaring type, so every `TArgs...` in the
+      program shares the qualified name `TArgs...` whatever parameter it wraps. Two declarations
+      spreading their own packs therefore interned to one value carrying whichever was seen first.
+      It now compares the operand, whose qualified name is per-declaration.
+
+      NO PROGRAM DISTINGUISHES THE TWO TODAY, which is recorded rather than glossed: the packs that
+      collide are the ones built at a DECLARATION, and a type holding one is refused at emission, so
+      the wrong binding never reaches anything observable. Order 153 is what would make it visible.
+
       STILL MISSING: conversion between a function type and a NAMED CLR delegate, which is what this
       entry is actually about and still needs order 126.
     tasks:

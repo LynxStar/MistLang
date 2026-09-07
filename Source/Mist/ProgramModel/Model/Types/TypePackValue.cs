@@ -26,7 +26,7 @@ internal sealed class TypePackValue : IEquatable<TypePackValue>
 
         foreach(var element in Elements)
         {
-            hash.Add(element.FullyQualifiedName, StringComparer.Ordinal);
+            hash.Add(Identity(element));
         }
 
         hashCode = hash.ToHashCode();
@@ -43,14 +43,29 @@ internal sealed class TypePackValue : IEquatable<TypePackValue>
 
         for(var i = 0; i < Elements.Length; i++)
         {
-            if(!ReferenceEquals(Elements[i], other.Elements[i])
-                && Elements[i].FullyQualifiedName != other.Elements[i].FullyQualifiedName)
+            if(!ReferenceEquals(Identity(Elements[i]), Identity(other.Elements[i])))
             {
                 return false;
             }
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// What an element is compared BY: itself, since every type a pack can hold is interned -- but a
+    /// spread by the pack it spreads, because a SpreadType is built fresh at each mention while the
+    /// parameter it names is not.
+    /// <para>
+    /// By reference and never by NAME. Two type parameters from different declarations are routinely
+    /// both called TArgs, so comparing names makes `Func&lt;TArgs..., TResult&gt;` in one method the
+    /// same pack as Standard.Action's -- which then hands back the wrong parameter and makes a
+    /// spread that should be provable unprovable, several scopes from anything that looks related.
+    /// </para>
+    /// </summary>
+    private static object Identity(IMistType element)
+    {
+        return element is SpreadType spread ? spread.Operand : element;
     }
 
     public override bool Equals(object? obj)

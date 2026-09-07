@@ -68,11 +68,35 @@ public sealed class FunctionTypeBridgeTests : IDisposable
         }
         """;
 
-    [Fact]
-    public void NominalFuncBindsAndCompilesAsAFunctionType()
+    /// <summary>
+    /// Forwarding a pack into a Func whose parameter list IS that pack, with the pack and the
+    /// result both inferred from the call. Asserted only as far as the MODEL, because emitting a
+    /// symbolic spread needs the arity, which is order 153's to supply.
+    /// </summary>
+    private const string ForwardsAPackIntoFunc = """
+        using Standard;
+
+        namespace Bridge;
+
+        public class Program
+        {
+            public static void Main()
+            {
+                Func<int, int, int> add = (a, b) => a + b;
+                Console.WriteLine($"{Apply(add, 1, 2)}");
+            }
+
+            public static TResult Apply<params TArgs, TResult>(Func<TArgs..., TResult> f, params TArgs args)
+            {
+                return f(args...);
+            }
+        }
+        """;
+
+    private ImmutableArray<Diagnostic> Compile(string source)
     {
         var sourcePath = Path.Combine(scratchDir, "Program.mist");
-        File.WriteAllText(sourcePath, UsesFuncAsAFunction);
+        File.WriteAllText(sourcePath, source);
 
         var driver = new CompilerDriver(
             new Mist.Lexing.MistLexer(),
@@ -92,7 +116,16 @@ public sealed class FunctionTypeBridgeTests : IDisposable
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,
             Pipeline: PipelineMode.Experimental));
 
-        var errors = result.Diagnostics
+        succeeded = result.Succeeded;
+        return result.Diagnostics;
+    }
+
+    private bool succeeded;
+
+    [Fact]
+    public void NominalFuncBindsAndCompilesAsAFunctionType()
+    {
+        var errors = Compile(UsesFuncAsAFunction)
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .Select(d => $"  {d.Id.Value}: {d.Message}")
             .ToList();
@@ -100,6 +133,26 @@ public sealed class FunctionTypeBridgeTests : IDisposable
         Assert.True(
             errors.Count == 0,
             $"Standard.Func did not behave as a function type:\n{string.Join("\n", errors)}");
-        Assert.True(result.Succeeded);
+        Assert.True(succeeded);
+    }
+
+    /// <summary>
+    /// The spread's own proof: `args...` into a slot declared as that same pack is provable for
+    /// every instantiation, so nothing in the MODEL may refuse it. That it cannot yet be EMITTED is
+    /// a separate and honest gap, which is why this asserts on the model stage alone.
+    /// </summary>
+    [Fact]
+    public void ForwardingAPackIntoAMatchingFunc_BindsWithoutModelErrors()
+    {
+        var modelErrors = Compile(ForwardsAPackIntoFunc)
+            .Where(d => d.Severity == DiagnosticSeverity.Error)
+            .Where(d => d.Id.Value.StartsWith("MIST_PM_", StringComparison.Ordinal)
+                || d.Id.Value.StartsWith("MIST_VAR_", StringComparison.Ordinal))
+            .Select(d => $"  {d.Id.Value}: {d.Message}")
+            .ToList();
+
+        Assert.True(
+            modelErrors.Count == 0,
+            $"Pack forwarding did not bind:\n{string.Join("\n", modelErrors)}");
     }
 }

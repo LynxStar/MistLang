@@ -98,6 +98,25 @@ internal static class TypeArgumentInference
             return;
         }
 
+        // A function argument carries bindings in both directions: its RESULT names a parameter that
+        // nothing else in the signature mentions -- `Apply(Func<TArgs..., TResult> f, params TArgs)`
+        // has no other way to learn TResult -- and its own parameters match position for position
+        // once a spread among them is skipped, that part being the pack binding's to make.
+        if(declared is FunctionType declaredFunction && actual is FunctionType actualFunction)
+        {
+            Match(declaredFunction.ReturnType, actualFunction.ReturnType, method, inferred);
+
+            if(declaredFunction.ParameterTypes.Count == actualFunction.ParameterTypes.Count)
+            {
+                for(var i = 0; i < declaredFunction.ParameterTypes.Count; i++)
+                {
+                    Match(declaredFunction.ParameterTypes[i], actualFunction.ParameterTypes[i], method, inferred);
+                }
+            }
+
+            return;
+        }
+
         if(declared is not ConstructedType declaredConstructed || actual is not ConstructedType actualConstructed)
         {
             return;

@@ -70,7 +70,7 @@ internal static class ExpressionBinder
             FloatLiteralExpressionPrimaryNode floatLit => LiteralBinder.BindFloatLiteral(
                 floatLit, floatLit.FloatLiteral.Lexeme, context),
             StringLiteralExpressionPrimaryNode stringLit => LiteralBinder.BindStringLiteral(
-                stringLit, stringLit.StringLiteral.Lexeme, context),
+                stringLit, stringLit.StringLiteral.Lexeme, context, ctx.TargetType),
             CharLiteralExpressionPrimaryNode charLit => LiteralBinder.BindCharLiteral(
                 charLit, charLit.CharLiteral.Lexeme, context),
             TrueLiteralExpressionPrimaryNode trueLit => LiteralBinder.BindBoolLiteral(trueLit, true, context),
@@ -95,6 +95,8 @@ internal static class ExpressionBinder
             DefaultLiteralExpressionPrimaryNode bare => BindBareDefault(bare, ctx, context),
 
             TypeLiteralExpressionPrimaryNode typeLiteral => BindTypeLiteral(typeLiteral, ctx, context),
+            RegexLiteralExpressionPrimaryNode regexLiteral => LiteralBinder.BindRegexLiteral(
+                regexLiteral, context),
 
             _ => new UnresolvedExpression(node),
         };

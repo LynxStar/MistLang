@@ -66,12 +66,42 @@ internal static class LiteralBinder
         return new LiteralExpression(node, value, type);
     }
 
-    internal static Expression BindStringLiteral(SyntaxNode node, string lexeme, BuilderContext context)
+    internal static Expression BindStringLiteral(
+        SyntaxNode node, string lexeme, BuilderContext context, IMistType? targetType = null)
     {
         // Strip surrounding quotes to get the string value.
         var value = lexeme.Length >= 2 ? lexeme[1..^1] : lexeme;
+
+        // The shorthand: a quoted pattern where a regex is expected IS a regex literal, and binding
+        // it as one is what keeps the two spellings a single thing rather than a conversion the
+        // target language has to be talked into.
+        if(targetType is not null
+            && targetType.FullyQualifiedName == WellKnownTypes.Regex.FullyQualifiedName)
+        {
+            return new RegexLiteralExpression(node, value, targetType);
+        }
+
         var type = context.Resolver.LookupWellKnown(WellKnownTypes.String);
         return new LiteralExpression(node, value, type);
+    }
+
+    internal static Expression BindRegexLiteral(
+        RegexLiteralExpressionPrimaryNode node, BuilderContext context)
+    {
+        var lexeme = node.RegexLiteral.Lexeme;
+        var raw = lexeme.Length >= 2 ? lexeme[1..^1] : lexeme;
+
+        return new RegexLiteralExpression(
+            node, Quoted(raw), context.Resolver.LookupWellKnown(WellKnownTypes.Regex));
+    }
+
+    /// <summary>
+    /// Raw text as a string literal's body: the two characters a reader of that body would
+    /// otherwise take for syntax.
+    /// </summary>
+    internal static string Quoted(string raw)
+    {
+        return raw.Replace("\\", "\\\\").Replace("\"", "\\\"");
     }
 
     /// <summary>

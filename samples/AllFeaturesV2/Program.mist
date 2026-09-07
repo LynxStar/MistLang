@@ -74,5 +74,6 @@ public class Program
         RefinementTypes.Program.RunDemo();
         RefinementComparison.Program.RunDemo();
         AdhocRefinementConstraints.Program.RunDemo();
+        RegexLiterals.Program.RunDemo();
     }
 }

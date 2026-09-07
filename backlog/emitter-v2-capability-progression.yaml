@@ -7136,27 +7136,52 @@ capabilities:
   # ===================================================================
 
   - id: regex-type-and-literals
-    name: A regex primitive type with literals
+    name: Regex type and literals
     order: 177
     layer: regex
     requires: [class-declaration]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      Backtick literals with their own escape handling, validated at compile time, plus
-      built-in members, implicit conversion to string, an explicit cast from a non-constant
-      string, and a string-literal shorthand gated on compile-time validation.
+      Backtick literals with their own escape handling, validated at compile time, plus built-in
+      members, implicit conversion to string, an explicit cast from a non-constant string, and a
+      string-literal shorthand gated on compile-time validation.
+
+      A GENERATED WRAPPER RATHER THAN THE CLR TYPE, which is what collapsed this capability from a
+      member table plus conversion insertion into one emitted file. Mist declares Regex `intrinsic`,
+      so the backend owns the whole mapping, and three of its members do not line up with
+      System.Text.RegularExpressions.Regex: `Pattern` is spelled ToString there, `IsFullMatch` does
+      not exist at all, and both conversions to and from string are Mist's own. Spelling those at
+      every use site needs the emitter to know the expected type at every argument, assignment and
+      return -- which is order 46's job, not this one's. Standard.Regex is emitted as __Regex.g.cs
+      holding a CLR Regex, declares all five, and C#'s own rules apply them. Standard.Void is the
+      same move for the same kind of reason.
+
+      TWO SPELLINGS, ONE FORM. A backticked literal is RAW regex and a quoted shorthand is already
+      written as a string body, so one escaping rule applied to both gets one of them wrong -- and
+      wrong by MATCHING NOTHING rather than by failing to build. They are normalised at bind time to
+      the body form LiteralExpression already holds a string in, so emission only puts the quotes
+      back. The shorthand binds AS a regex literal when the target is regex, which is what keeps the
+      two spellings one thing rather than a conversion the target language has to be talked into.
     unlocks: []
 
   - id: regex-full-match-lowering
-    name: Full-match semantics distinct from partial match
+    name: Full match derived from partial match
     order: 178
     layer: regex
     requires: [regex-type-and-literals]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      Full match is DERIVED, not primitive -- the compiler wraps the pattern rather than
-      calling a full-match API. The classic pipeline wraps by string concatenation, so an
-      already-anchored pattern gets DOUBLE-anchored.
+      Full match is DERIVED, not primitive -- the compiler wraps the pattern rather than calling a
+      full-match API. The classic pipeline wraps by string concatenation, so an already-anchored
+      pattern gets DOUBLE-anchored.
+
+      WRAPPED WITH A NON-CAPTURING GROUP, `^(?:` and `)$`, so a top-level alternation is anchored as
+      a whole rather than only its first branch. v2 wraps in the same place classic does and inherits
+      the same double-anchoring: `^\d+$` becomes `^(?:^\d+$)$`. Harmless for every pattern in the
+      sample and left alone deliberately, since removing it would change what v2 answers where
+      classic does not, and the baseline holds both pipelines to one stdout.
     unlocks: []
 
   - id: regex-refined-string-types
@@ -7164,15 +7189,28 @@ capabilities:
     order: 179
     layer: regex
     requires: [regex-type-and-literals, refinement-type-declarations]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      A declarable type whose predicate is a regex, narrowable by a type pattern that binds a
-      typed variable, plus regex patterns as switch arms with ordering preserved.
-    unlocks: [RegexLiterals]
+      A declarable type whose predicate is a regex, narrowable by a type pattern that binds a typed
+      variable, plus regex patterns as switch arms with ordering preserved.
 
-  # ===================================================================
-  # Layer AG -- anonymous types.
-  # ===================================================================
+      A PREDICATE WEARING A PATTERN'S CLOTHES. Every other pattern describes a shape C# can test
+      structurally; a regex can only be answered by CALLING something, so it cannot stay in pattern
+      position. It binds a temporary and hoists Regex.IsMatch into the guard -- the same mechanism an
+      enum variant in a tuple pattern already used, generalised from an equality against an
+      expression to a rendered test, because the two are not the same shape.
+
+      THE REFINEMENT PATH NEEDED THE HOIST THREADED. Order 144 emits a refined type test as a
+      conjunction and rendered its predicate with the hoist list dropped, which is correct for a
+      predicate that IS a pattern and silently wrong for one that is not: `s is Email` fell back to
+      `s is string`, true of every string. Caught by the sample, which asserts both answers.
+
+      TEMPORARIES ARE COUNTED, NOT DERIVED FROM THE NODE. A refinement's predicate is written once in
+      its alias and reached by every test of that refinement, so a name taken from its span repeats --
+      two `is Email` tests in one scope declared the same C# local. Found by probing for it rather
+      than by the sample, whose two tests happen to sit in different scopes.
+    unlocks: [RegexLiterals]
 
   - id: anonymous-type-expressions
     name: Anonymous type expressions with structural identity

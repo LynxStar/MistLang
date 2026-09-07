@@ -310,6 +310,7 @@ internal static class TypeNameEmitter
                 "Boolean" => "bool",
                 "Char" => "char",
                 "String" => "string",
+                "Regex" => RegexLowering.ClrType,
 
                 // Standard.Void is a real emitted struct (__Void.g.cs), because System.Void
                 // is unusable in every position a unit type needs. The one place the C#

@@ -56,3 +56,4 @@ UnknownReadonlySemantics = { path = "../UnknownReadonlySemantics" }
 RefinementTypes = { path = "../RefinementTypes" }
 RefinementComparison = { path = "../RefinementComparison" }
 AdhocRefinementConstraints = { path = "../AdhocRefinementConstraints" }
+RegexLiterals = { path = "../RegexLiterals" }

@@ -571,6 +571,10 @@ internal static class BodyEmitter
                     voidLiteral.Reading == VoidReading.Absence ? "null" : "Standard.Void.Instance");
                 break;
 
+            case RegexLiteralExpression regexLiteral:
+                writer.Append(RegexLowering.Construct(RegexLowering.Quote(regexLiteral.Pattern)));
+                break;
+
             case TypeLiteralExpression typeLiteral:
                 writer.Append($"typeof({TypeNameEmitter.Emit(typeLiteral.ReferencedType)})");
                 break;
@@ -742,10 +746,11 @@ internal static class BodyEmitter
     {
         foreach(var test in hoisted)
         {
-            writer.Append($"{lead}{test.Bound} == ");
-            EmitExpression(test.Variant, writer, diagnostics);
+            writer.Append($"{lead}{test.Text}");
             lead = " && ";
         }
+
+        _ = diagnostics;
     }
 
     private static void EmitVariantComparison(
@@ -764,7 +769,12 @@ internal static class BodyEmitter
     /// field. <see cref="Bound"/> names what the element position binds instead, so the comparison has
     /// something to read.
     /// </summary>
-    private readonly record struct HoistedTest(string Bound, Expression Variant);
+    /// <param name="Text">
+    /// The test as C#, rendered where it was hoisted rather than at the guard, because the two
+    /// kinds that need hoisting are not the same shape: an enum variant is an equality against an
+    /// expression, a regex is a call.
+    /// </param>
+    private readonly record struct HoistedTest(string Text);
 
     /// <summary>
     /// A union carrier stands in no relation to its own constituents, so a C# type test against one
@@ -832,9 +842,9 @@ internal static class BodyEmitter
         }
         else if(EnumVariantTested(arm.Pattern) is { } variant)
         {
-            var bound = TemporaryName(arm.Pattern);
+            var bound = TemporaryName();
             writer.Append($"var {bound}");
-            hoisted.Add(new HoistedTest(bound, variant));
+            hoisted.Add(new HoistedTest($"{bound} == {Render(variant, diagnostics)}"));
         }
         else
         {
@@ -969,9 +979,30 @@ internal static class BodyEmitter
         writer.Append($" is {target} {bound} ? {bound} : default({target}?))");
     }
 
-    private static string TemporaryName(Pattern pattern)
+    private static string Render(Expression expression, DiagnosticBag diagnostics)
     {
-        return $"__e{pattern.Node.Span.Start}";
+        var scratch = new CSharpWriter();
+        EmitExpression(expression, scratch, diagnostics);
+        return scratch.ToString();
+    }
+
+    [ThreadStatic]
+    private static int temporaries;
+
+    /// <summary>
+    /// A name for a value a pattern has to bind in order to be TESTED -- an enum variant compared in
+    /// a guard, a regex matched against.
+    /// <para>
+    /// COUNTED RATHER THAN DERIVED FROM THE NODE, because one node can be emitted at many sites. A
+    /// refinement's predicate is written once in its alias and reached by every test of that
+    /// refinement, so a name taken from its span repeats -- two `is Email` tests in one scope
+    /// declared the same local. Deterministic because emission walks in a fixed order, and
+    /// thread-static so parallel emissions cannot hand out the same number.
+    /// </para>
+    /// </summary>
+    private static string TemporaryName()
+    {
+        return $"__e{++temporaries}";
     }
 
     /// <summary>
@@ -1025,7 +1056,11 @@ internal static class BodyEmitter
         switch(pattern)
         {
             case TypeTestPattern typeTest:
-                EmitTypeTest(typeTest, writer, diagnostics);
+                EmitTypeTest(typeTest, hoisted, writer, diagnostics);
+                break;
+
+            case RegexPattern regex:
+                EmitRegexPattern(regex, hoisted, writer);
                 break;
 
             case CatchAllPattern catchAll:
@@ -1082,7 +1117,8 @@ internal static class BodyEmitter
     /// `int and >= 18 and var age` is, at every shape of predicate.
     /// </para>
     /// </summary>
-    private static void EmitTypeTest(TypeTestPattern typeTest, CSharpWriter writer, DiagnosticBag diagnostics)
+    private static void EmitTypeTest(
+        TypeTestPattern typeTest, List<HoistedTest>? hoisted, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         if(typeTest.NarrowedType is RefinedType unbound && typeTest.Refinement is null)
         {
@@ -1096,7 +1132,11 @@ internal static class BodyEmitter
         if(typeTest.Refinement is { } predicate)
         {
             writer.Append(" and ");
-            EmitPattern(predicate, ConjunctionPrecedence, hoisted: null, writer, diagnostics);
+
+            // The predicate's own hoists travel OUT of the pattern with everything else's. A
+            // refinement whose predicate is a regex has no pattern form at all, so dropping them
+            // here would leave the type test alone -- true of every value of the base type.
+            EmitPattern(predicate, ConjunctionPrecedence, hoisted, writer, diagnostics);
 
             if(typeTest.Binding is { } bound)
             {
@@ -1110,6 +1150,23 @@ internal static class BodyEmitter
         {
             writer.Append($" {tested.Name}");
         }
+    }
+
+    /// <summary>
+    /// A regex in pattern position, which C# has no pattern for: it binds a temporary and hoists
+    /// <c>Regex.IsMatch</c> into the guard the caller writes after the pattern.
+    /// <para>
+    /// FULL MATCH, because that is what Mist means by a regex pattern -- <c>s is `^[a-z]+$`</c> asks
+    /// whether s IS that shape, not whether it contains one.
+    /// </para>
+    /// </summary>
+    private static void EmitRegexPattern(RegexPattern regex, List<HoistedTest>? hoisted, CSharpWriter writer)
+    {
+        var bound = TemporaryName();
+        writer.Append($"var {bound}");
+
+        hoisted?.Add(new HoistedTest(
+            RegexLowering.IsFullMatch(bound, RegexLowering.Quote(regex.Pattern))));
     }
 
     private static void EmitTuplePattern(
@@ -1133,9 +1190,9 @@ internal static class BodyEmitter
 
             if(hoisted is not null && EnumVariantTested(element) is { } variant)
             {
-                var bound = TemporaryName(element);
+                var bound = TemporaryName();
                 writer.Append($"var {bound}");
-                hoisted.Add(new HoistedTest(bound, variant));
+                hoisted.Add(new HoistedTest($"{bound} == {Render(variant, diagnostics)}"));
                 continue;
             }
 
@@ -1190,9 +1247,9 @@ internal static class BodyEmitter
 
             if(hoisted is not null && EnumVariantTested(positional) is { } variant)
             {
-                var bound = TemporaryName(positional);
+                var bound = TemporaryName();
                 writer.Append($"var {bound}");
-                hoisted.Add(new HoistedTest(bound, variant));
+                hoisted.Add(new HoistedTest($"{bound} == {Render(variant, diagnostics)}"));
                 continue;
             }
 

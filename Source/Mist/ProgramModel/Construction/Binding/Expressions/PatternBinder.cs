@@ -622,6 +622,15 @@ internal static class PatternBinder
     private static Pattern? BindConstant(
         ConstantPatternPrimaryPatternNode node, IMistType scrutineeType, BuilderContext context)
     {
+        // Not a comparison like every other constant: a regex says how a value must LOOK, and
+        // nothing it could be compared against exists.
+        if(node.Literal is RegexConstantConstantLiteralNode regex)
+        {
+            var lexeme = regex.Value.Lexeme;
+            var raw = lexeme.Length >= 2 ? lexeme[1..^1] : lexeme;
+            return new RegexPattern(node, scrutineeType, LiteralBinder.Quoted(raw));
+        }
+
         var bound = node.Literal switch
         {
             IntegerConstantConstantLiteralNode integer =>

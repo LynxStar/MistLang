@@ -142,7 +142,7 @@ public sealed class ReadonlyTypeEmissionTests : ProgramModelProbe
         var writer = new CSharpWriter();
 
         TypeEmitter.EmitTypeBody(
-            type, ConstraintClosureMap.Build(model, emitDiagnostics), writer, emitDiagnostics);
+            type, ConstraintClosureMap.Build(model, emitDiagnostics), model.VariadicUses, writer, emitDiagnostics);
 
         Assert.Empty(emitDiagnostics.ToImmutableArray().Where(d => d.Severity == DiagnosticSeverity.Error));
 

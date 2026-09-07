@@ -65,11 +65,23 @@ internal static class MethodEmitter
         var returnType = OptionalUnion.IsVoid(method.ReturnType)
             ? "void"
             : $"{RefKeywords.For(method.Modifiers.IsRef, isReadonly: false)}{TypeNameEmitter.Emit(method.ReturnType)}";
-        var typeParams = method.TypeParametersList.Count > 0
-            ? $"<{string.Join(", ", method.TypeParametersList.Select(DependentCarrierNames.Parameter))}>"
+        // A specialization declares the pack's expansion in the pack's place and carries the width
+        // in its name, exactly as a specialized TYPE does -- and for the same reason: the widths
+        // differ in what they declare, so they cannot be one C# method.
+        var declared = method.TypeParametersList;
+        var name = method.Name;
+
+        if(Monomorph.InScope() is { } monomorph && monomorph.Owns(method.TypeParametersList))
+        {
+            declared = [.. monomorph.Parameters(method.TypeParametersList)];
+            name = MonomorphSet.SpecializedName(method.Name, monomorph.Expansion.Count);
+        }
+
+        var typeParams = declared.Count > 0
+            ? $"<{string.Join(", ", declared.Select(DependentCarrierNames.Parameter))}>"
             : "";
         var parameters = ParameterEmitter.Emit(method.ParametersList, diagnostics);
 
-        return $"{returnType} {method.Name}{typeParams}({parameters})";
+        return $"{returnType} {name}{typeParams}({parameters})";
     }
 }

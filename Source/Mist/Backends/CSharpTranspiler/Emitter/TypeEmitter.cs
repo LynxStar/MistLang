@@ -1,6 +1,7 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -38,6 +39,7 @@ internal static class TypeEmitter
     public static void Emit(
         DeclaredType type,
         ConstraintClosureMap closures,
+        VariadicUseRegistry uses,
         CSharpWriter writer,
         DiagnosticBag diagnostics,
         ref bool anyEmitted)
@@ -61,7 +63,7 @@ internal static class TypeEmitter
             case MemberType memberType:
                 SeparateMember(writer, ref anyEmitted);
                 UnspellableTypeGuard.Report(memberType, diagnostics);
-                EmitTypeBody(memberType, closures, writer, diagnostics);
+                EmitTypeBody(memberType, closures, uses, writer, diagnostics);
                 break;
 
             default:
@@ -76,7 +78,11 @@ internal static class TypeEmitter
     /// compilation unit and calls this for each type the unit declares.
     /// </summary>
     internal static void EmitTypeBody(
-        MemberType type, ConstraintClosureMap closures, CSharpWriter writer, DiagnosticBag diagnostics)
+        MemberType type,
+        ConstraintClosureMap closures,
+        VariadicUseRegistry uses,
+        CSharpWriter writer,
+        DiagnosticBag diagnostics)
     {
         var closedConstraints = closures.For(type);
 
@@ -191,17 +197,26 @@ internal static class TypeEmitter
 
             foreach(var method in methods)
             {
-                SeparateMember(writer, ref anyEmitted);
-                MethodEmitter.ReportReadonlyRefReturn(method, type.DeclarationNode, diagnostics);
+                // A method declaring its OWN pack is emitted once per width it was called at, for
+                // the same reason its declaring type is: C# has no pack to write it once with. The
+                // widths come from the call sites, since neither the declaration nor an inferred
+                // call names one.
+                foreach(var monomorph in MonomorphSet.MethodSpecializations(method, uses))
+                {
+                    using(monomorph.Enter())
+                    {
+                        SeparateMember(writer, ref anyEmitted);
+                        EmitMethod(method, type, inStruct, writer, diagnostics);
+                    }
+                }
 
-                if(type is AbstractType)
+                if(Monomorph.PackIn(method.TypeParametersList) is not null)
                 {
-                    EmitInterfaceMethod(method, writer, diagnostics);
+                    continue;
                 }
-                else
-                {
-                    MethodEmitter.Emit(method, inStruct, writer, diagnostics);
-                }
+
+                SeparateMember(writer, ref anyEmitted);
+                EmitMethod(method, type, inStruct, writer, diagnostics);
             }
 
             foreach(var castOperator in concrete?.CastOperatorsList ?? [])
@@ -236,7 +251,7 @@ internal static class TypeEmitter
 
             foreach(var nested in type.NestedTypes.OfType<DeclaredType>())
             {
-                Emit(nested, closures, writer, diagnostics, ref anyEmitted);
+                Emit(nested, closures, uses, writer, diagnostics, ref anyEmitted);
             }
         }
     }
@@ -354,6 +369,21 @@ internal static class TypeEmitter
     /// <c>default-member-forwarding-stubs</c> is for, and it is a separate capability.
     /// </para>
     /// </summary>
+    private static void EmitMethod(
+        Method method, MemberType type, bool inStruct, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        MethodEmitter.ReportReadonlyRefReturn(method, type.DeclarationNode, diagnostics);
+
+        if(type is AbstractType)
+        {
+            EmitInterfaceMethod(method, writer, diagnostics);
+        }
+        else
+        {
+            MethodEmitter.Emit(method, inStruct, writer, diagnostics);
+        }
+    }
+
     private static void EmitInterfaceMethod(Method method, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var signature = MethodEmitter.EmitSignature(method, diagnostics);
@@ -400,8 +430,8 @@ internal static class TypeEmitter
 
         // A specialization declares the pack's expansion in the pack's place, which is what makes
         // it a C# generic of a definite width.
-        var declared = Monomorph.InScope() is { } monomorph && ReferenceEquals(monomorph.Definition, type)
-            ? monomorph.Parameters()
+        var declared = Monomorph.InScope() is { } monomorph && monomorph.Owns(type.TypeParametersList)
+            ? monomorph.Parameters(type.TypeParametersList)
             : type.TypeParametersList;
 
         return lifted.Count == 0 ? declared : [.. declared, .. lifted];
@@ -419,9 +449,9 @@ internal static class TypeEmitter
     {
         // A specialization's name carries its arity, and every member that WRITES the type name
         // rather than referring to it -- a constructor above all -- has to use the same one.
-        if(Monomorph.InScope() is { } monomorph && ReferenceEquals(monomorph.Definition, type))
+        if(Monomorph.InScope() is { } monomorph && monomorph.Owns(type.TypeParametersList))
         {
-            return MonomorphSet.SpecializedName(type, monomorph.Expansion.Count);
+            return MonomorphSet.SpecializedName(type.Name, monomorph.Expansion.Count);
         }
 
         return MistType.StripArity(type.Name);

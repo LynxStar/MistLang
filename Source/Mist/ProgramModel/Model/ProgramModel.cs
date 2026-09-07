@@ -70,6 +70,8 @@ public sealed class ProgramModel : IProgramModel
     /// </summary>
     internal ConstraintClosureRegistry ConstructorConstraintClosures { get; } = new();
 
+    internal VariadicUseRegistry VariadicUses { get; } = new();
+
     /// <summary>
     /// Retroactive conformance declarations collected during Phase 2c.
     /// </summary>

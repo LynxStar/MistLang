@@ -12,6 +12,61 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 internal static class MonomorphReference
 {
     /// <summary>
+    /// The width a call bound a method's pack to, or null when the callee has no pack or the pack
+    /// is still symbolic -- a call made from inside another variadic declaration, which the
+    /// enclosing specialization has yet to fix.
+    /// </summary>
+    public static int? MethodWidth(
+        IReadOnlyList<IMistType> typeArguments, IReadOnlyList<TypeParameter>? parameters)
+    {
+        if(parameters is null)
+        {
+            return null;
+        }
+
+        for(var i = 0; i < parameters.Count && i < typeArguments.Count; i++)
+        {
+            if(parameters[i].PackKind == TypePackKind.None)
+            {
+                continue;
+            }
+
+            return typeArguments[i] is LiftedType { Value: TypePackValue pack }
+                && !pack.Elements.Any(element => element is SpreadType)
+                    ? pack.Elements.Length
+                    : null;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// A call's type arguments with the pack replaced by its elements, which is what the
+    /// specialization declares in its place.
+    /// </summary>
+    public static string SpecializedArguments(
+        IReadOnlyList<IMistType> typeArguments,
+        IReadOnlyList<TypeParameter> parameters,
+        Func<IMistType, string> emitType)
+    {
+        var written = new List<string>();
+
+        for(var i = 0; i < parameters.Count && i < typeArguments.Count; i++)
+        {
+            if(parameters[i].PackKind != TypePackKind.None
+                && typeArguments[i] is LiftedType { Value: TypePackValue pack })
+            {
+                written.AddRange(pack.Elements.Select(emitType));
+                continue;
+            }
+
+            written.Add(emitType(typeArguments[i]));
+        }
+
+        return written.Count == 0 ? "" : $"<{string.Join(", ", written)}>";
+    }
+
+    /// <summary>
     /// The C# spelling, or null when this construction is not of a variadic family or its pack is
     /// still symbolic -- the latter being a reference from inside the family's own declaration,
     /// which the specialization already answers with its own parameters.
@@ -51,7 +106,7 @@ internal static class MonomorphReference
             return null;
         }
 
-        var name = MonomorphSet.SpecializedName(definition, arity);
+        var name = MonomorphSet.SpecializedName(definition.Name, arity);
         return arguments.Count == 0 ? name : $"{name}<{string.Join(", ", arguments)}>";
     }
 }

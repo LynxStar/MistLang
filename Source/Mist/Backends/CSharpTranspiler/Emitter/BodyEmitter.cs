@@ -150,6 +150,15 @@ internal static class BodyEmitter
         CSharpWriter writer,
         DiagnosticBag diagnostics)
     {
+        // The call site is FLAT and the parameter is one tuple, which is the whole of what `params`
+        // means on the value side. C# has no such convention, so the arguments the pack absorbs are
+        // packed here -- the one place that knows both how many there are and where they end.
+        if(parameters is not null && FlattenedTupleSlot(parameters) is { } flattened)
+        {
+            EmitFlattened(arguments, parameters, flattened, writer, diagnostics);
+            return;
+        }
+
         for(var i = 0; i < arguments.Count; i++)
         {
             if(i > 0)
@@ -512,7 +521,7 @@ internal static class BodyEmitter
 
             case MethodReferenceExpression methodRef:
                 writer.Append(
-                    $"{methodRef.Method.Name}"
+                    CalleeName(methodRef.Method.Name, methodRef.TypeArguments, methodRef.Method.TypeParametersList)
                     + EmitTypeArguments(methodRef.TypeArguments, methodRef.Method.TypeParametersList));
                 break;
 
@@ -1281,8 +1290,88 @@ internal static class BodyEmitter
 
         EmitExpression(memberAccess.Receiver, writer, diagnostics);
         writer.Append(memberAccess.IsConditional ? "?." : ".");
-        writer.Append(memberAccess.MemberName);
+        writer.Append(CalleeName(memberAccess.MemberName, memberAccess.TypeArguments, parameters));
         writer.Append(EmitTypeArguments(memberAccess.TypeArguments, parameters));
+    }
+
+    /// <summary>
+    /// The parameter a flat argument list collapses into, when it is a value PACK -- the
+    /// homogeneous `params T[]` form collects into an array instead and is not this.
+    /// </summary>
+    private static int? FlattenedTupleSlot(IReadOnlyList<Parameter> parameters)
+    {
+        for(var i = 0; i < parameters.Count; i++)
+        {
+            if(parameters[i].IsFlattened && parameters[i].Type is TupleType or NamedTupleType)
+            {
+                return i;
+            }
+        }
+
+        return null;
+    }
+
+    private static void EmitFlattened(
+        IReadOnlyList<Expression> arguments,
+        IReadOnlyList<Parameter> parameters,
+        int flattened,
+        CSharpWriter writer,
+        DiagnosticBag diagnostics)
+    {
+        var trailing = parameters.Count - flattened - 1;
+        var absorbed = arguments.Count - flattened - trailing;
+
+        for(var i = 0; i < flattened; i++)
+        {
+            Separate(i, writer);
+            EmitExpression(arguments[i], writer, diagnostics);
+        }
+
+        Separate(flattened, writer);
+        EmitPacked(arguments, flattened, absorbed, writer, diagnostics);
+
+        for(var i = arguments.Count - trailing; i < arguments.Count; i++)
+        {
+            writer.Append(", ");
+            EmitExpression(arguments[i], writer, diagnostics);
+        }
+    }
+
+    /// <summary>
+    /// The absorbed arguments as ONE tuple value. The widths C#'s tuple syntax cannot spell are
+    /// named through ValueTuple, which is also why the single case uses Create rather than a
+    /// constructor -- it infers the element type the call site never wrote.
+    /// </summary>
+    private static void EmitPacked(
+        IReadOnlyList<Expression> arguments,
+        int start,
+        int count,
+        CSharpWriter writer,
+        DiagnosticBag diagnostics)
+    {
+        if(count <= 0)
+        {
+            writer.Append("default(System.ValueTuple)");
+            return;
+        }
+
+        writer.Append(count == 1 ? "System.ValueTuple.Create(" : "(");
+
+        for(var i = 0; i < count; i++)
+        {
+            Separate(i, writer);
+            EmitExpression(arguments[start + i], writer, diagnostics);
+        }
+
+        writer.Append(")");
+    }
+
+    private static void Separate(int index, CSharpWriter writer)
+    {
+        if(index > 0)
+        {
+            writer.Append(", ");
+        }
     }
 
     /// <summary>
@@ -1346,12 +1435,31 @@ internal static class BodyEmitter
     /// CARRIER rather than its domain, and only the slot says which of the two an argument is --
     /// the argument itself is a lifted value either way.
     /// </param>
+    /// <summary>
+    /// The name a call writes, which for a variadic method is the specialization its width asked
+    /// for.
+    /// </summary>
+    private static string CalleeName(
+        string declaredName, IReadOnlyList<IMistType> typeArguments, IReadOnlyList<TypeParameter>? parameters)
+    {
+        return MonomorphReference.MethodWidth(typeArguments, parameters) is { } width
+            ? MonomorphSet.SpecializedName(declaredName, width)
+            : declaredName;
+    }
+
     private static string EmitTypeArguments(
         IReadOnlyList<IMistType> typeArguments, IReadOnlyList<TypeParameter>? parameters = null)
     {
         if(typeArguments.Count == 0)
         {
             return "";
+        }
+
+        // A pack argument is not written: the specialization already fixed the width, and its
+        // elements stand where the pack did.
+        if(MonomorphReference.MethodWidth(typeArguments, parameters) is not null)
+        {
+            return MonomorphReference.SpecializedArguments(typeArguments, parameters!, TypeNameEmitter.Emit);
         }
 
         var spelled = typeArguments.Select((argument, ordinal) =>

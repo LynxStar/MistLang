@@ -22,9 +22,8 @@ internal sealed class Monomorph
     [ThreadStatic]
     private static Monomorph? inScope;
 
-    private Monomorph(MistType definition, TypeParameter pack, IReadOnlyList<TypeParameter> expansion)
+    private Monomorph(TypeParameter pack, IReadOnlyList<TypeParameter> expansion)
     {
-        Definition = definition;
         Pack = pack;
         Expansion = expansion;
     }
@@ -37,8 +36,6 @@ internal sealed class Monomorph
     {
         return inScope;
     }
-
-    public MistType Definition { get; }
 
     public TypeParameter Pack { get; }
 
@@ -59,9 +56,27 @@ internal sealed class Monomorph
             : null;
     }
 
-    public static Monomorph? For(MistType definition, int arity)
+    /// <summary>
+    /// The pack a declaration -- a type or a method -- declares, or null when it declares none.
+    /// </summary>
+    public static TypeParameter? PackIn(IReadOnlyList<TypeParameter> parameters)
     {
-        if(PackOf(definition) is not { } pack)
+        return parameters.FirstOrDefault(parameter => parameter.PackKind != TypePackKind.None);
+    }
+
+    /// <summary>
+    /// Whether this specialization is the one a declaration carrying these parameters is being
+    /// emitted under. Asked of the PACK rather than of an owner, so a type and a method specialize
+    /// through the same mechanism.
+    /// </summary>
+    public bool Owns(IReadOnlyList<TypeParameter> parameters)
+    {
+        return parameters.Any(parameter => ReferenceEquals(parameter, Pack));
+    }
+
+    public static Monomorph? For(TypeParameter? pack, int arity)
+    {
+        if(pack is null)
         {
             return null;
         }
@@ -73,7 +88,7 @@ internal sealed class Monomorph
             expansion.Add(new TypeParameter($"T{i + 1}", i, new Scope(null), declaringType: null));
         }
 
-        return new Monomorph(definition, pack, expansion);
+        return new Monomorph(pack, expansion);
     }
 
     public IDisposable Enter()
@@ -88,11 +103,11 @@ internal sealed class Monomorph
     /// replaced in place by the elements it expands to. In place, because a pack may sit anywhere in
     /// the list and moving it would reorder the arguments every use site writes.
     /// </summary>
-    public IReadOnlyList<TypeParameter> Parameters()
+    public IReadOnlyList<TypeParameter> Parameters(IReadOnlyList<TypeParameter> declaredParameters)
     {
         var parameters = new List<TypeParameter>();
 
-        foreach(var declared in ((IHasTypeParameters)Definition).TypeParametersList)
+        foreach(var declared in declaredParameters)
         {
             if(ReferenceEquals(declared, Pack))
             {

@@ -1,6 +1,7 @@
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Lowering;
@@ -33,9 +34,29 @@ internal static class MonomorphSet
     /// which resolves to the variadic rather than to the exact-arity ordinary one.
     /// </para>
     /// </summary>
-    public static string SpecializedName(MistType definition, int arity)
+    public static string SpecializedName(string declaredName, int arity)
     {
-        return $"{MistType.StripArity(definition.Name)}_{arity}";
+        return $"{MistType.StripArity(declaredName)}_{arity}";
+    }
+
+    /// <summary>
+    /// One specialization per width a variadic METHOD was called at, or none when it declares no
+    /// pack. A method never called is never specialized, which is correct: nothing names it.
+    /// </summary>
+    public static IEnumerable<Monomorph> MethodSpecializations(Method method, VariadicUseRegistry uses)
+    {
+        if(Monomorph.PackIn(method.TypeParametersList) is not { } pack)
+        {
+            yield break;
+        }
+
+        foreach(var width in uses.WidthsOf(method))
+        {
+            if(Monomorph.For(pack, width) is { } monomorph)
+            {
+                yield return monomorph;
+            }
+        }
     }
 
     /// <summary>

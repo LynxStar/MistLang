@@ -69,13 +69,47 @@ public sealed class MonomorphEmissionTests : IDisposable
         }
         """;
 
+    /// <summary>
+    /// The method axis, and the calling convention that goes with it: `params TArgs args` is ONE
+    /// tuple parameter reached by a FLAT argument list, which C# has no notion of -- so the
+    /// arguments the pack absorbs are packed at the call. The zero and one widths are included
+    /// because C#'s tuple syntax cannot spell either.
+    /// </summary>
+    private const string CallsAVariadicMethodAtSeveralWidths = """
+        using Standard;
+
+        namespace Mono;
+
+        public class Program
+        {
+            public static int Describe<params TArgs>(params TArgs args)
+            {
+                return TArgs.Length;
+            }
+
+            public static void Main()
+            {
+                Console.WriteLine($"{Describe(1, "x", true)}{Describe(5)}{Describe()}");
+            }
+        }
+        """;
+
+    [Fact]
+    public void AVariadicMethodBecomesOnePerWidthAndTakesAFlatCall()
+    {
+        Assert.Equal("310", CompileAndRun(CallsAVariadicMethodAtSeveralWidths));
+    }
+
     [Fact]
     public void AFamilyBecomesOneTypePerArityAndReportsItsOwn()
     {
-        var sourcePath = Path.Combine(scratchDir, "Program.mist");
-        File.WriteAllText(sourcePath, UsesOneFamilyAtSeveralArities);
+        Assert.Equal("2210", CompileAndRun(UsesOneFamilyAtSeveralArities));
+    }
 
-        var binDir = Path.Combine(scratchDir, "bin");
+    private string CompileAndRun(string source)
+    {
+        var sourcePath = Path.Combine(scratchDir, "Program.mist");
+        File.WriteAllText(sourcePath, source);
 
         var driver = new CompilerDriver(
             new Mist.Lexing.MistLexer(),
@@ -89,7 +123,7 @@ public sealed class MonomorphEmissionTests : IDisposable
             SourcePaths: ImmutableArray.Create(sourcePath),
             Backend: new BackendId("csharp"),
             OutputDirectory: Path.Combine(scratchDir, "out"),
-            BinDirectory: binDir,
+            BinDirectory: Path.Combine(scratchDir, "bin"),
             ProjectName: "Mono",
             NamespaceRoot: "Mono",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,
@@ -103,7 +137,7 @@ public sealed class MonomorphEmissionTests : IDisposable
         Assert.True(errors.Count == 0, $"Specialization failed:\n{string.Join("\n", errors)}");
         Assert.NotNull(result.PrimaryOutputArtifactPath);
 
-        Assert.Equal("2210", Run(result.PrimaryOutputArtifactPath));
+        return Run(result.PrimaryOutputArtifactPath);
     }
 
     private static string Run(string artifact)

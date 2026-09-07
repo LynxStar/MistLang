@@ -313,6 +313,7 @@ internal static class PostfixBinder
             .ConvertAll(parameter => choice.Substitution.Apply(parameter, interner));
 
         context.ProgramModel.ConstructorConstraintClosures.RecordMethod(selected, methodTypeArguments, node);
+        context.ProgramModel.VariadicUses.Record(selected, methodTypeArguments);
 
         var callee = group.Receiver is null
             ? new MethodReferenceExpression(node, selected, methodTypeArguments)

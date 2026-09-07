@@ -6665,16 +6665,26 @@ capabilities:
       shape; and a PROVABLE spread expands at last, its width having been unknown when binding let
       it through.
 
-      THE METHOD AXIS IS NOT DONE and its absence is load-bearing. A variadic generic METHOD still
-      emits as `Describe<TArgs>(System.ValueTuple<TArgs...> args)`, which is not C#. Variadics' last
-      two errors are explicit bracketed type arguments at such a call, and they are what GATE
-      compilation -- lift them and the broken method emission would be compiled instead of skipped,
-      turning two honest refusals into a pile of MIST_CS_ERROR. They stay until methods specialize.
+      THE METHOD AXIS IS DELIVERED TOO. A variadic method becomes one C# method per width it was
+      CALLED at -- the widths coming from call sites, since neither the declaration nor an inferred
+      call names one, and recorded as calls bind through VariadicUseRegistry beside the constraint
+      closures that exist for the same reason.
 
-      METHOD SPECIALIZATION IS HARDER THAN THE TYPE AXIS for a reason worth recording: a specialized
-      method must be emitted INTO its declaring type rather than into a file of its own, and the
-      arities it is used at come from call sites, where an inferred call may record no type
-      arguments at all.
+      THE FLATTENED CALL CONVENTION WAS HIDING BEHIND THE GATE. `params TArgs args` is ONE tuple
+      parameter reached by a FLAT argument list, which C# has no notion of, so the absorbed
+      arguments are packed at the call site. Until then the specialization emitted a one-parameter
+      method and every call passed N -- broken C# that nothing compiled, because the two remaining
+      refusals were still gating compilation. Found by probing a variadic call in isolation rather
+      than by the sample, which could not have shown it.
+
+      SPECIALIZATION IS KEYED ON THE PACK, not on an owner, which is what lets a type and a method
+      share one mechanism: each emitter asks whether the specialization in scope owns the parameters
+      it is about to write.
+
+      VARIADICS' LAST TWO ERRORS ARE NOT THIS CAPABILITY'S. `Describe<[int, string, bool]>(...)` is
+      an explicit generic invocation of an unqualified method, and v2 does not bind
+      GenericInvocationExpression at all -- `Identity<int>(5)` fails identically with no pack in
+      sight. See the existing task under generic-methods.
     unlocks: [Variadics]
 
   # ===================================================================

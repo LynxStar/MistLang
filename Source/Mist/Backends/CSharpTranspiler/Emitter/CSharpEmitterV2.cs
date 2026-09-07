@@ -20,6 +20,8 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 internal sealed class CSharpEmitterV2
 {
     private readonly IProgramModel programModel;
+
+    private VariadicUseRegistry VariadicUses => ((ProgramModel.Model.ProgramModel)programModel).VariadicUses;
     private readonly CompilerOptions options;
     private readonly ImmutableArray<string> referencePaths;
     private readonly DiagnosticBag diagnostics;
@@ -431,14 +433,14 @@ internal sealed class CSharpEmitterV2
 
         foreach(var (definition, arity) in specializations)
         {
-            if(definition is not MemberType member || Monomorph.For(definition, arity) is not { } monomorph)
+            if(definition is not MemberType member || Monomorph.For(Monomorph.PackIn(((IHasTypeParameters)definition).TypeParametersList), arity) is not { } monomorph)
             {
                 continue;
             }
 
             using(monomorph.Enter())
             {
-                TypeEmitter.Emit(member, closures, writer, diagnostics, ref anyEmitted);
+                TypeEmitter.Emit(member, closures, VariadicUses, writer, diagnostics, ref anyEmitted);
             }
         }
 
@@ -755,7 +757,7 @@ internal sealed class CSharpEmitterV2
         var anyEmitted = false;
         foreach(var type in types)
         {
-            TypeEmitter.Emit(type, closures, writer, diagnostics, ref anyEmitted);
+            TypeEmitter.Emit(type, closures, VariadicUses, writer, diagnostics, ref anyEmitted);
         }
 
         foreach(var block in blocks)

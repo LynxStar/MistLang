@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
@@ -32,7 +33,8 @@ internal static class LambdaBinder
         }
 
         var isStatic = modifiers.Any(modifier => modifier is StaticLambdaModifierLambdaModifierNode);
-        var target = ctx.TargetType as IFunctionType;
+        var target = AliasTransparency.Expand(
+            ctx.TargetType ?? ErrorType.Instance, context.ProgramModel.TypeInterner) as IFunctionType;
         var declared = ParameterNodes(parameterList);
 
         if(target is not null && target.ParameterTypes.Count != declared.Count)

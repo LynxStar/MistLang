@@ -88,8 +88,13 @@ internal sealed class CSharpEmitterV2
         EmitMonomorphs(outputDir, emittedFiles, closures);
         EmitVoidStruct(outputDir, emittedFiles);
 
-        // The standard library is provided by the runtime, so its declarations are resolved
-        // against but never emitted.
+        // SKIPPED WHOLESALE, AND ONLY FOR NOW. The rule this stands in for is per DECLARATION:
+        // `intrinsic` says the target already supplies it, and everything else is ordinary Mist that
+        // has to be emitted like any other. Standard/IClonable, Optional, Void, IEnumerable and
+        // IEnumerator declare no intrinsic at all -- classic emits them and v2 emits none of them,
+        // which is why the backend carries hand-written stand-ins (see EmitVoidStruct) that drift
+        // from the Mist they mirror. Telling the two apart needs orders 185 and 186; when they land,
+        // this test narrows to the declaration and those stand-ins are deleted.
         foreach(var assembly in programModel.Assemblies)
         {
             if(!assembly.HasMistSource || assembly.Kind == MistAssemblyKind.Standard)
@@ -458,10 +463,12 @@ internal sealed class CSharpEmitterV2
 
     /// <summary>
     /// The CLR shape of Standard.Void, generated because System.Void is refused in every
-    /// position a unit type needs, and the stdlib's own Void.mist cannot be transpiled until
-    /// properties and operator declarations emit -- at which point this method should be
-    /// deleted in its favour. Members follow Void.mist; ToString and the equality overrides
-    /// are backend additions so interpolation prints "Void" and the operators compile clean.
+    /// position a unit type needs, and because the stdlib is skipped wholesale rather than by
+    /// declaration -- see the Assemblies loop in <see cref="Emit"/>. Void.mist declares no
+    /// intrinsic, so it is Mist that ought simply to be emitted; what is still outstanding is
+    /// operator declarations, order 185. Delete this in its favour once that lands. Members follow
+    /// Void.mist; ToString and the equality overrides are backend additions so interpolation prints
+    /// "Void" and the operators compile clean.
     /// </summary>
     private static void EmitVoidStruct(string outputDir, List<string> emittedFiles)
     {

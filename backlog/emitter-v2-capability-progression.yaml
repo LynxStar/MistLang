@@ -8759,6 +8759,20 @@ non_sample_targets:
     kind: library
     path: Source/Standard
     threshold: intrinsic-member-declarations
+    evidence: >
+      NOTHING OF THE STDLIB IS EMITTED BY v2 TODAY, which the untested entries below assume away.
+      CSharpEmitterV2 skips the whole Standard ASSEMBLY, where the rule is per DECLARATION:
+      `intrinsic` says the target already supplies it -- stages 1-5 are pure Mist and only stage 6
+      answers where it comes from -- and everything else is ordinary Mist that has to be emitted.
+
+      FIVE STANDARD FILES DECLARE NO INTRINSIC AT ALL: IClonable, Optional, Void, IEnumerable and
+      IEnumerator, with Unknown nearly so. Classic emits them (IClonable.cs and Unknown.cs appear in
+      every classic out/); v2 emits none, and carries hand-written C# stand-ins instead --
+      CSharpEmitterV2.EmitVoidStruct is a transcription of Void.mist that can drift from it silently.
+
+      WHAT LIFTS THE SKIP is orders 185 and 186: the emitter has to be able to tell an intrinsic
+      declaration from an ordinary one before the test can narrow from the assembly to the
+      declaration. Every other capability this target requires is already done.
     requires: [intrinsic-member-declarations, operator-overload-declarations,
                cast-operator-declarations, property-declarations-and-accessors,
                indexer-declarations, associated-type-slots, type-pack-declarations,

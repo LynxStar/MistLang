@@ -30,10 +30,19 @@ internal static class StatementBinder
             BreakStatementStatementNode => new BreakStatement(),
             ExpressionStatementStatementNode exprStatement => BindExpressionStatement(exprStatement, ctx, context),
             BlockStatementStatementNode nestedBlock => BindNestedBlock(nestedBlock.BlockStatement, ctx, context),
+            WithBlockStatementStatementNode withBlock => BindWithBlock(
+                withBlock.WithBlockStatement, ctx, context),
             ReadonlyBlockStatementStatementNode readonlyBlock => BindNestedBlock(
                 readonlyBlock.ReadonlyBlock.Body, ctx, context, isReadonly: true),
             _ => new UnsupportedStatement(statement),
         };
+    }
+
+    private static Statement BindWithBlock(
+        WithBlockStatementNode node, BindingContext ctx, BuilderContext context)
+    {
+        var value = ExpressionBinder.BindExpression(node.Expression, ctx, context);
+        return new WithBlockStatement(value, BindNestedBlock(node.Body, ctx, context));
     }
 
     private static Block BindNestedBlock(

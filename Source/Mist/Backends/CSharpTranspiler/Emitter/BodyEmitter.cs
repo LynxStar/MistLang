@@ -113,6 +113,10 @@ internal static class BodyEmitter
                 writer.WriteLine("break;");
                 break;
 
+            case WithBlockStatement withBlock:
+                EmitWithBlock(withBlock, writer, diagnostics);
+                break;
+
             case Block nestedBlock:
                 using(writer.Block())
                 {
@@ -235,6 +239,54 @@ internal static class BodyEmitter
         {
             emit();
         }
+    }
+
+    /// <summary>
+    /// <c>with(x) { ... }</c>: the value is made ambient for the block and dropped on the way out,
+    /// whichever way the block leaves -- hence try/finally, which is the only C# that survives a
+    /// return or a throw from inside.
+    /// <para>
+    /// Evaluated into a temporary first, because the same instance is pushed, popped and dropped and
+    /// the expression must run once.
+    /// </para>
+    /// </summary>
+    private static void EmitWithBlock(
+        WithBlockStatement withBlock, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        ContextLowering.Require();
+
+        var bound = TemporaryName();
+        var type = TypeNameEmitter.Emit(withBlock.Value.Type);
+
+        writer.Write($"var {bound} = ");
+        EmitExpression(withBlock.Value, writer, diagnostics);
+        writer.Append(";");
+        writer.AppendLine();
+        writer.WriteLine($"MistContext.Push<{type}>({bound});");
+        writer.WriteLine("try");
+
+        using(writer.Block())
+        {
+            EmitBlock(withBlock.Body, writer, diagnostics);
+        }
+
+        writer.WriteLine("finally");
+
+        using(writer.Block())
+        {
+            writer.WriteLine($"MistContext.Pop<{type}>();");
+
+            if(Drops(withBlock.Value.Type))
+            {
+                writer.WriteLine($"{bound}.Drop();");
+            }
+        }
+    }
+
+    private static bool Drops(IMistType type)
+    {
+        return (type as MemberType)?.MethodsList.Exists(
+            method => method.Name == "Drop" && method.ParametersList.Count == 0) == true;
     }
 
     private static void EmitWhile(WhileStatement whileStmt, CSharpWriter writer, DiagnosticBag diagnostics)

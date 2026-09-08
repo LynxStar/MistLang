@@ -6982,11 +6982,25 @@ capabilities:
     order: 162
     layer: ownership-and-drop
     requires: [drop-recognition-and-insertion]
-    v2_status: missing
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
       A block form introducing an anonymous drop-scope binding and a declaration form
       draining at enclosing-scope exit. This is Mist's replacement for the C# using
       statement, and it is where an affine binding's drop fires.
+
+      THE BLOCK ITSELF IS BUILT. `with(x) { ... }` binds and emits as a temporary, a push, a try, and a
+      finally holding the pop and the drop -- try/finally rather than a trailing statement because the
+      drop has to survive a return or a throw from inside, which is the one case an ordinary case cannot
+      distinguish. MistContext is emitted as __Context.g.cs, and only when a block used one. It is the
+      BACKEND's own runtime, not a stand-in for a Standard declaration: Mist declares no context type, so
+      where an ambient value lives while the block runs is the target's answer.
+      
+      DropSemantics IS NOT BANKED, and the refusal count said it was one fix away, which was wrong twice
+      over. Its single refusal was the with-block; with that built the sample compiles clean and still
+      prints SEVEN fewer lines than classic, because automatic drop insertion at scope exit -- order 161,
+      which this sample also requires -- is absent. A zero-refusal sample is not a passing one, and only
+      diffing against classic says so.
     unlocks: [DropSemantics]
 
   - id: disposable-drop-interop

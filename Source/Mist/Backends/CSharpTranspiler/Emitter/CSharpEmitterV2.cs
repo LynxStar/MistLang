@@ -77,6 +77,7 @@ internal sealed class CSharpEmitterV2
         _ = Directory.CreateDirectory(outputDir);
 
         var emittedFiles = new List<string>();
+        ContextLowering.Reset();
         var closures = ConstraintClosureMap.Build((ProgramModel.Model.ProgramModel)programModel, diagnostics);
 
         ReportForeignConformances();
@@ -108,6 +109,8 @@ internal sealed class CSharpEmitterV2
                     unit, assembly, isTopLevelEntry, closures, outputDir, emittedFiles);
             }
         }
+
+        EmitContextRuntime(outputDir, emittedFiles);
 
         var csprojContent = ProjectFileEmitter.Emit(options);
         var csprojPath = Path.Combine(outputDir, $"{options.ProjectName}.csproj");
@@ -470,6 +473,21 @@ internal sealed class CSharpEmitterV2
     /// Void.mist; ToString and the equality overrides are backend additions so interpolation prints
     /// "Void" and the operators compile clean.
     /// </summary>
+    private static void EmitContextRuntime(string outputDir, List<string> emittedFiles)
+    {
+        if(!ContextLowering.Used())
+        {
+            return;
+        }
+
+        var writer = new CSharpWriter();
+        ContextLowering.Emit(writer);
+
+        var path = Path.Combine(outputDir, "__Context.g.cs");
+        File.WriteAllText(path, writer.ToString());
+        emittedFiles.Add(path);
+    }
+
     private static void EmitVoidStruct(string outputDir, List<string> emittedFiles)
     {
         var writer = new CSharpWriter();

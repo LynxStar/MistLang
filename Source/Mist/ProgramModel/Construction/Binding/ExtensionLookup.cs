@@ -1,3 +1,4 @@
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Members;
@@ -48,7 +49,7 @@ internal static class ExtensionLookup
                     // Per BLOCK rather than per receiver key, because a generic block's own
                     // parameters are what its receiver has to be read against and two blocks filed
                     // under one key need not agree on them.
-                    if(!Accepts(blockReceiver, receiver, block))
+                    if(!Accepts(blockReceiver, receiver, block, programModel.TypeInterner))
                     {
                         continue;
                     }
@@ -61,7 +62,7 @@ internal static class ExtensionLookup
                     {
                         applicable.Add(block);
 
-                        if(Closed(blockReceiver, receiver, block) is { } arguments)
+                        if(Closed(blockReceiver, receiver, block, programModel.TypeInterner) is { } arguments)
                         {
                             closures[block] = arguments;
                         }
@@ -150,12 +151,13 @@ internal static class ExtensionLookup
     /// <c>unknown</c> accepts everything, which is what makes a universal extension universal, and
     /// is also why it must lose every ranking it takes part in.
     /// </summary>
-    private static bool Accepts(IMistType blockReceiver, IMistType receiver, ExtensionBlock block)
+    private static bool Accepts(
+        IMistType blockReceiver, IMistType receiver, ExtensionBlock block, TypeInterner interner)
     {
         return blockReceiver is UnknownType
             || ConversionRelation.IsIdentity(receiver, blockReceiver)
             || ConversionRelation.IsWithin(receiver, blockReceiver)
-            || Closed(blockReceiver, receiver, block) is not null;
+            || Closed(blockReceiver, receiver, block, interner) is not null;
     }
 
     /// <summary>
@@ -165,11 +167,69 @@ internal static class ExtensionLookup
     /// arguments are bound after the member is found, so they cannot help.
     /// </summary>
     private static IReadOnlyList<IMistType>? Closed(
-        IMistType blockReceiver, IMistType receiver, ExtensionBlock block)
+        IMistType blockReceiver, IMistType receiver, ExtensionBlock block, TypeInterner interner)
     {
-        return block.TypeParametersList.Count == 0
-            ? null
-            : TypeArgumentInference.Unify(blockReceiver, receiver, block.TypeParametersList);
+        if(block.TypeParametersList.Count == 0)
+        {
+            return null;
+        }
+
+        // AGAINST THE SUPERTYPES TOO, not the receiver alone. `Count()` is declared for
+        // IEnumerable<TSource> and called on an int[], so what unifies is not the receiver but the
+        // interface it reaches -- which is also where TSource is found.
+        foreach(var candidate in Reachable(receiver, interner))
+        {
+            if(TypeArgumentInference.Unify(blockReceiver, candidate, block.TypeParametersList) is { } closed)
+            {
+                return closed;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The receiver and everything it IS, with its own type arguments carried down: an
+    /// <c>int[]</c> reaches <c>IEnumerable&lt;int&gt;</c>, not <c>IEnumerable&lt;TValue&gt;</c>.
+    /// </summary>
+    private static List<IMistType> Reachable(IMistType receiver, TypeInterner interner)
+    {
+        var found = new List<IMistType>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var pending = new Queue<IMistType>();
+        pending.Enqueue(receiver);
+
+        while(pending.Count > 0)
+        {
+            var current = pending.Dequeue();
+
+            if(!seen.Add(current.FullyQualifiedName))
+            {
+                continue;
+            }
+
+            found.Add(current);
+
+            var constructed = current as ConstructedType;
+            var substitution = TypeSubstitution.ForReceiver(constructed);
+
+            if((constructed?.Definition ?? current) is not MemberType member)
+            {
+                continue;
+            }
+
+            foreach(var baseType in member.BaseAbstractTypes)
+            {
+                pending.Enqueue(substitution.Apply(baseType, interner));
+            }
+
+            if(member is ConcreteType { BaseType: { } concreteBase })
+            {
+                pending.Enqueue(substitution.Apply(concreteBase, interner));
+            }
+        }
+
+        return found;
     }
 
     private static bool Permits(MemberVisibility visibility, bool isStatic)

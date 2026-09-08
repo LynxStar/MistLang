@@ -121,6 +121,13 @@ flakes:
       Optional and unrelated: the generator can still produce a duplicate named argument, which is
       invalid Mist that currently passes only because nothing rejects it. Constraining names to be
       distinct would remove a latent fragility, but it is not a fix for this entry.
+    recurrences:
+      - date: 2026-09-08
+        detail: >
+          Seen again in a full-solution `--no-build` run (1 of 5119), green on a filtered rerun of
+          the same binaries with nothing edited. The working tree held extension-lookup and
+          well-known-type-map changes, neither of which touches attribute emission, and the test
+          file was unmodified.
 
   - id: storm-memo-propagation-property
     test: Storm.SourceGenerator.Tests.StormMemoPropagationPropertyTests.P3_MemoPropagation_RuleIR_IsMemo_MatchesSource

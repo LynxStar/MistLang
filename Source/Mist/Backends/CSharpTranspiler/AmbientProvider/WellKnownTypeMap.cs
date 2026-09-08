@@ -56,6 +56,13 @@ internal static class WellKnownTypeMap
         [("System.Threading.Tasks", "Task`1")] = ("Standard", "Task<>"),
         [("System.Threading.Tasks", "ValueTask")] = ("Standard", "ValueTask"),
         [("System.Threading.Tasks", "ValueTask`1")] = ("Standard", "ValueTask<>"),
+        // The enumerable interfaces ARE the CLR ones, which ClrProjection has always asserted at
+        // emission -- a foreach, a LINQ extension and every framework API expect that interface and
+        // a structurally identical duplicate satisfies none of them. Mapping them here is the same
+        // claim made one stage earlier, so the model holds ONE type where it used to hold two that
+        // only emission reconciled.
+        [("System.Collections.Generic", "IEnumerable`1")] = ("Standard", "IEnumerable<>"),
+        [("System.Collections.Generic", "IEnumerator`1")] = ("Standard", "IEnumerator<>"),
         // Array (CLR T[] resolves to Standard.Array<T, unknown>)
         [("System", "Array")] = ("Standard", "Array<,>"),
         // Func<params TArgs, TResult> — always arity 2 (pack + return type).

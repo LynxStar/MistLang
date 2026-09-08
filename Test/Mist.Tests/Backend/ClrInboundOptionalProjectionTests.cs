@@ -9,8 +9,8 @@ using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 namespace Mist.Tests.Backend;
 
 /// <summary>
-/// The v2 half of the CLR null boundary: a reference-typed result the CLR hands back projects as
-/// <c>T | void</c>, and a value-typed one does not.
+/// The v2 half of the CLR null boundary: a reference-typed result the CLR says may be null projects
+/// as <c>T | void</c>, and one it declares non-null does not.
 /// <para>
 /// ASSERTED ON THE PROJECTED SIGNATURE rather than on a diagnostic, because v2 runs no analyzers.
 /// The refusal a user sees for a plain dot on one of these is an ordinary member-lookup miss, which
@@ -60,13 +60,32 @@ public sealed class ClrInboundOptionalProjectionTests : IDisposable
         return method.ReturnType;
     }
 
+    /// <summary>
+    /// <c>string.IsInterned</c> is annotated <c>string?</c>, which is the only reason this one wraps
+    /// -- every other reference-returning member of String declares itself non-null.
+    /// </summary>
     [Fact]
-    public void AClrReferenceReturn_ProjectsAsAUnionWithVoid()
+    public void ANullableClrReferenceReturn_ProjectsAsAUnionWithVoid()
     {
-        var union = Assert.IsAssignableFrom<IUnionType>(ReturnTypeOf("ToUpper", 0));
+        var union = Assert.IsAssignableFrom<IUnionType>(ReturnTypeOf("IsInterned", 1));
 
         Assert.Contains(union.Constituents, c => c.FullyQualifiedName == "Standard.Void");
         Assert.Contains(union.Constituents, c => c.FullyQualifiedName == "Standard.String");
+    }
+
+    /// <summary>
+    /// The other direction, and the one that makes the rule worth having. Wrapping a result the CLR
+    /// PROMISES is never null makes a caller narrow something that cannot be absent -- which is what
+    /// stopped a chained `xs.Skip(5).First()` resolving at all.
+    /// </summary>
+    [Fact]
+    public void ANonNullClrReferenceReturn_IsNotWrapped()
+    {
+        var returnType = ReturnTypeOf("ToUpper", 0);
+
+        Assert.False(
+            returnType is IUnionType,
+            $"expected a plain reference type, projected as '{returnType.FullyQualifiedName}'");
     }
 
     [Fact]

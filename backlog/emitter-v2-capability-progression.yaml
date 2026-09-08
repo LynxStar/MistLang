@@ -5961,6 +5961,21 @@ capabilities:
 
       A Mist-declared generic is never wrapped, by construction rather than by heuristic.
       samples/ArityOverloads declares `Wrapper<T> { public T Value; }` and is banked.
+
+      SHARPENED TO WHAT THE METADATA ACTUALLY SAYS. Every reference-typed result was wrapped, which is
+      sound and far too pessimistic: most of the BCL declares outright that it never returns null, and
+      wrapping those makes a caller narrow something that cannot be absent. `xs.Skip(5).First()` is the
+      shape it broke -- First does not resolve on an optional -- and it is why ExtensionMethodBinding
+      could not be banked after everything else about it worked.
+      
+      NullableAttribute on the result, then NullableContextAttribute on the member, its type and its
+      module, in the order the C# compiler writes them. ABSENT METADATA STAYS PESSIMISTIC: an assembly
+      compiled without annotations is OBLIVIOUS, not non-null, and reading silence as a promise is how the
+      naked null this rule exists to stop would get back in.
+      
+      Both projection and substitution had to learn it -- the two halves the evidence above describes --
+      since a non-generic result is wrapped at projection and a generic one only once its parameters are
+      known.
     untested:
       - A generic parameter substituting to another OPEN parameter stays open, so the hole survives
         inside a Mist generic body over a CLR generic. Named and chosen, not measured against a
@@ -5973,7 +5988,7 @@ capabilities:
     order: 131
     layer: clr-interop
     requires: [clr-assembly-type-projection, extension-lookup-and-specificity]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
       Eager metadata scanning per imported namespace, registered into the SAME registry as
@@ -5992,6 +6007,18 @@ capabilities:
       the receiver alone and chained calls needing a substituted intermediate return type; neither is
       exercised by CSharpInteropV2, and both samples this unlocks still refuse -- ExtensionMethodBinding at
       9 and DelegateFuncConversion at 17.
+
+      DELIVERED, AND IT TOOK FOUR THINGS. The staticness fix made projected extensions visible at all;
+      unification against the block's receiver closes its type parameters, since an extension's arguments
+      are bound after the member is found and cannot help; applicability walks the receiver's SUPERTYPES
+      with its arguments carried down, so an int[] reaches IEnumerable<int>; and the enumerable interfaces
+      are now ONE model type rather than two that only emission reconciled.
+      
+      THE CHAINED CALL IS THE CASE THE EVIDENCE ABOVE SINGLES OUT, and it worked once the fourth thing
+      landed -- `numbers.Skip(5).First()` needs Skip's substituted return to be a receiver the next lookup
+      can use. What actually blocked it was order 130 wrapping that return in `| void`; see there.
+      
+      samples/ExtensionMethodBinding matches classic.
     unlocks: [DelegateFuncConversion, ExtensionMethodBinding]
 
   - id: ref-parameters-and-ref-locals

@@ -33,7 +33,8 @@ internal static class IndexerProjector
                 continue;
             }
 
-            var resolvedType = resolver.ResolveInbound(prop.PropertyType, memberType.Scope);
+            var resolvedType = resolver.ResolveInbound(
+                prop.PropertyType, memberType.Scope, ClrNullability.ResultIsNonNull(prop, prop));
             if(resolvedType is ErrorType or NotProjectedType)
             {
                 continue;
@@ -54,6 +55,7 @@ internal static class IndexerProjector
                 Accessibility = accessibility,
                 IsStatic = (prop.GetMethod?.IsStatic ?? prop.SetMethod?.IsStatic) == true,
                 IsClrProjected = true,
+                ClrResultIsNonNull = ClrNullability.ResultIsNonNull(prop, prop),
             };
 
             var projected = new Indexer(resolvedType, parameters, modifiers)

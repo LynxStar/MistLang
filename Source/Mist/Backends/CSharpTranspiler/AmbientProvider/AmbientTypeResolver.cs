@@ -243,7 +243,13 @@ internal sealed class AmbientTypeResolver
     /// case belongs at substitution time instead.
     /// </para>
     /// </summary>
-    public IMistType ResolveInbound(Type clrType, Scope scope)
+    /// <param name="declaredNonNull">
+    /// What the assembly's nullable metadata says about this result. A reference the CLR PROMISES is
+    /// never null needs no wrapping, and wrapping it anyway makes a caller narrow something that
+    /// cannot be absent -- which is what stopped `xs.Skip(5).First()` resolving. Nullable-of-T is
+    /// unaffected: its absence is in the type, not in an annotation.
+    /// </param>
+    public IMistType ResolveInbound(Type clrType, Scope scope, bool declaredNonNull = false)
     {
         var effective = clrType.IsByRef ? clrType.GetElementType()! : clrType;
         var underlying = Nullable.GetUnderlyingType(effective);
@@ -255,7 +261,7 @@ internal sealed class AmbientTypeResolver
 
         var resolved = Resolve(clrType, scope);
 
-        return IsReferenceType(effective) ? WrapWithVoid(resolved) : resolved;
+        return IsReferenceType(effective) && !declaredNonNull ? WrapWithVoid(resolved) : resolved;
     }
 
     private IMistType WrapWithVoid(MistType inner)

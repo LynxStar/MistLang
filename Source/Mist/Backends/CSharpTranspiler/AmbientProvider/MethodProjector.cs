@@ -58,7 +58,8 @@ internal static class MethodProjector
         }
 
         // Resolve return type.
-        var returnType = resolver.ResolveInbound(method.ReturnType, methodScope);
+        var returnType = resolver.ResolveInbound(
+            method.ReturnType, methodScope, ClrNullability.ResultIsNonNull(method.ReturnParameter, method));
         if(returnType is ErrorType or NotProjectedType)
         {
             return null;
@@ -76,6 +77,7 @@ internal static class MethodProjector
             Accessibility = ClrAccessibilityMap.FromMethod(method),
             IsStatic = method.IsStatic,
             IsClrProjected = true,
+            ClrResultIsNonNull = ClrNullability.ResultIsNonNull(method.ReturnParameter, method),
         };
 
         var projected = new Method(method.Name, returnType, parameters, modifiers)

@@ -32,13 +32,15 @@ internal static class FieldProjector
                 continue;
             }
 
-            var resolvedType = resolver.ResolveInbound(field.FieldType, concreteType.Scope);
+            var resolvedType = resolver.ResolveInbound(
+                field.FieldType, concreteType.Scope, ClrNullability.ResultIsNonNull(field, field));
             var modifiers = new MemberModifiers
             {
                 Accessibility = ClrAccessibilityMap.FromField(field),
                 IsStatic = field.IsStatic,
                 IsReadonly = field.IsInitOnly || field.IsLiteral,
                 IsClrProjected = true,
+                ClrResultIsNonNull = ClrNullability.ResultIsNonNull(field, field),
             };
 
             var projected = new Field(field.Name, resolvedType, OwnershipKind.Unrestricted, modifiers);

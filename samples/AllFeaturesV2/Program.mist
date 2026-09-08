@@ -79,5 +79,6 @@ public class Program
         ReadonlyContexts.Program.RunDemo();
         DefiniteAssignment.Program.RunDemo();
         DisposableDropInterop.Program.RunDemo();
+        ExtensionMethodBinding.Program.RunDemo();
     }
 }

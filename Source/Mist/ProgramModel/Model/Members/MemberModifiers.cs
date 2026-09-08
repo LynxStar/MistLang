@@ -45,4 +45,12 @@ public record struct MemberModifiers
     /// this holds by construction rather than by a discriminator that could be laundered.
     /// </summary>
     public bool IsClrProjected { get; init; }
+
+    /// <summary>
+    /// Set where CLR metadata says the result is never null, so the closing over <c>| void</c> that
+    /// <see cref="IsClrProjected"/> otherwise implies is not needed. Default false, which keeps a
+    /// member whose nullability nothing computed on the pessimistic path it was already on --
+    /// silence is oblivious, never a promise.
+    /// </summary>
+    public bool ClrResultIsNonNull { get; init; }
 }

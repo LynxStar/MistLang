@@ -61,3 +61,4 @@ ReadonlyLocals = { path = "../ReadonlyLocals" }
 ReadonlyContexts = { path = "../ReadonlyContexts" }
 DefiniteAssignment = { path = "../DefiniteAssignment" }
 DisposableDropInterop = { path = "../DisposableDropInterop" }
+ExtensionMethodBinding = { path = "../ExtensionMethodBinding" }

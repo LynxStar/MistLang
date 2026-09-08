@@ -26,7 +26,10 @@ internal static class ClrInboundLifting
     public static IMistType Close(
         MemberModifiers modifiers, IMistType substituted, IMistType voidType, TypeInterner? interner)
     {
-        if(!modifiers.IsClrProjected || interner is null || !IsReferenceType(substituted))
+        if(!modifiers.IsClrProjected
+            || modifiers.ClrResultIsNonNull
+            || interner is null
+            || !IsReferenceType(substituted))
         {
             return substituted;
         }

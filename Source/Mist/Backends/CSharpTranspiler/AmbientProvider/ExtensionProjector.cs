@@ -137,7 +137,8 @@ internal static class ExtensionProjector
         }
 
         // Everything else may name both levels, so it resolves against the method.
-        var returnType = resolver.ResolveInbound(method.ReturnType, methodScope);
+        var returnType = resolver.ResolveInbound(
+            method.ReturnType, methodScope, ClrNullability.ResultIsNonNull(method.ReturnParameter, method));
         if(returnType is ErrorType or NotProjectedType)
         {
             return;
@@ -160,6 +161,7 @@ internal static class ExtensionProjector
         {
             Accessibility = Accessibility.Public,
             IsClrProjected = true,
+            ClrResultIsNonNull = ClrNullability.ResultIsNonNull(method.ReturnParameter, method),
         };
 
         var projected = new Method(method.Name, returnType, parameters, modifiers)

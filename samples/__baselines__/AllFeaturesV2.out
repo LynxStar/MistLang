@@ -1355,3 +1355,14 @@ sum=600
   ManualDisposable.Dispose() called
   manually disposed
 === Done ===
+--- Extension Method Binding ---
+Count: 10
+First: 1
+Last: 10
+Any: True
+Empty count: 0
+Empty any: False
+Skip then First: 6
+Word count: 3
+First word: hello
+--- Extension Method Binding Done ---

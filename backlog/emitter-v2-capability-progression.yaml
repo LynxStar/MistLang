@@ -5973,13 +5973,25 @@ capabilities:
     order: 131
     layer: clr-interop
     requires: [clr-assembly-type-projection, extension-lookup-and-specificity]
-    v2_status: missing
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
       Eager metadata scanning per imported namespace, registered into the SAME registry as
       Mist-native blocks. Receiver applicability must consider the interface set, not
       nominal equality, and inference has only the receiver to unify against. A chained call
       forces the compiler to compute the substituted intermediate return type itself,
       because emission is a static invocation.
+
+      DISCOVERY AND LOOKUP WORK. Projected CLR extensions were being registered correctly all along and
+      were invisible at every call site, because the projector copied the CLR method's STATICNESS onto the
+      Mist member. An extension block's members are reached through a receiver -- that is what `self` names
+      -- so a Mist-declared block marks none of them static, and the instance-shaped lookup rejected every
+      projected one. `builder.UseNpgsql(...)` resolves now and samples/CSharpInteropV2 is banked.
+      
+      LEFT `partial` BECAUSE THE HARD HALF IS UNPROVEN. The evidence above names generic inference against
+      the receiver alone and chained calls needing a substituted intermediate return type; neither is
+      exercised by CSharpInteropV2, and both samples this unlocks still refuse -- ExtensionMethodBinding at
+      9 and DelegateFuncConversion at 17.
     unlocks: [DelegateFuncConversion, ExtensionMethodBinding]
 
   - id: ref-parameters-and-ref-locals
@@ -6220,11 +6232,20 @@ capabilities:
     order: 139
     layer: stack-only
     requires: [ref-struct-declarations, clr-generic-construction-and-members]
-    v2_status: missing
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
       The Mist length-indexed span must unify with the CLR span, erasing the length exactly
       as the array type already does. The indexer write must bind to a ref-returning indexer
       or the store is silently discarded, and slicing must alias the same backing memory.
+
+      THE OVERLOAD HALF IS EXERCISED AND WORKS. samples/CSharpInteropV2 calls GetBytes and GetFileName on
+      types whose CLR overload sets include Span and ReadOnlySpan, and picks the string overload as classic
+      does; the sample is banked. Nothing there uses a span itself.
+      
+      LEFT `partial` because the rest of the evidence above is untouched: the ref-returning indexer write,
+      whose absence discards a store silently, and slicing aliasing the same backing memory. RefStructs,
+      which does exercise those, still refuses.
     unlocks: [CSharpInteropV2, RefStructs]
 
   - id: stackalloc
@@ -8499,6 +8520,18 @@ samples:
         conversion competition is exercised even though ref structs are visible candidates
         that must lose.
       - All string returns are optional-projected and never narrowed.
+    blocked_by: composition
+    note: >
+      GREEN ON v2 STANDALONE AND NOT BANKABLE, for a reason that is neither pipeline's
+      capability gap: referenced FROM AllFeaturesV2 it cannot see its own [packages] or
+      [framework_references], so Microsoft.EntityFrameworkCore, Newtonsoft and
+      Microsoft.AspNetCore.Http all fail to resolve. CLASSIC FAILS IDENTICALLY -- four
+      MIST_UNDEFINED_* against the same four names -- so a project reference does not carry
+      the referenced project's package and framework references in either pipeline.
+
+      Recorded here rather than left as an unexplained absence, because the sample is
+      otherwise finished: standalone on v2 it matches classic byte for byte. Whoever fixes
+      reference flow should expect this to become bankable with no compiler change.
 
   - name: ClrRefInterop
     intro_order: 59

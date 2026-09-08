@@ -152,10 +152,13 @@ internal static class ExtensionProjector
 
         extensionBlock.ResolvedReceiverType = receiverType;
 
+        // NOT static, though the CLR method is. An extension block's members are reached THROUGH a
+        // receiver, which is what `self` names and what makes them instance-shaped in Mist; a
+        // Mist-declared block marks none of them static either. Carrying the CLR's own staticness
+        // here made every projected extension invisible to a call on a receiver.
         var modifiers = new MemberModifiers
         {
             Accessibility = Accessibility.Public,
-            IsStatic = true,
             IsClrProjected = true,
         };
 

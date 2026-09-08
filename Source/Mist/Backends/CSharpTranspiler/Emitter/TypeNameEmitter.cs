@@ -366,10 +366,10 @@ internal static class TypeNameEmitter
             return false;
         }
 
-        // Ambient types carry CLR namespaces that the emitted usings already cover, and
-        // synthetic types have no declaration to qualify against. Only types declared in
-        // Mist source are ours to qualify.
-        if(!memberType.Assembly.HasMistSource)
+        // Synthetic types have no declaration to qualify against. An AMBIENT type is qualified
+        // like any other: the emitted usings cover only what the Mist source imported, and a
+        // reference written out in full -- `Newtonsoft.Json.JsonConvert` -- imports nothing.
+        if(!memberType.Assembly.HasMistSource && memberType.Assembly.Kind != MistAssemblyKind.Ambient)
         {
             return false;
         }

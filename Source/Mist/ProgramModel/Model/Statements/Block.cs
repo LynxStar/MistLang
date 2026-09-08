@@ -20,4 +20,15 @@ internal sealed class Block(BlockNode node) : Statement
     /// body binder populates them.
     /// </summary>
     public IReadOnlyList<Statement> Statements { get; internal set; } = [];
+
+    /// <summary>
+    /// Written <c>readonly { ... }</c>, which scopes a promise about what the block may MUTATE
+    /// rather than changing what it computes.
+    /// <para>
+    /// Recorded even though no C# carries it, because erasing it here would leave nothing to
+    /// enforce it FROM: the rule it stands for is a judgement on a finished model, and a model that
+    /// forgot the block was readonly could not make it without re-reading the source.
+    /// </para>
+    /// </summary>
+    public bool IsReadonly { get; internal set; }
 }

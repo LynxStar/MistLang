@@ -30,13 +30,16 @@ internal static class StatementBinder
             BreakStatementStatementNode => new BreakStatement(),
             ExpressionStatementStatementNode exprStatement => BindExpressionStatement(exprStatement, ctx, context),
             BlockStatementStatementNode nestedBlock => BindNestedBlock(nestedBlock.BlockStatement, ctx, context),
+            ReadonlyBlockStatementStatementNode readonlyBlock => BindNestedBlock(
+                readonlyBlock.ReadonlyBlock.Body, ctx, context, isReadonly: true),
             _ => new UnsupportedStatement(statement),
         };
     }
 
-    private static Block BindNestedBlock(BlockNode node, BindingContext ctx, BuilderContext context)
+    private static Block BindNestedBlock(
+        BlockNode node, BindingContext ctx, BuilderContext context, bool isReadonly = false)
     {
-        var block = new Block(node);
+        var block = new Block(node) { IsReadonly = isReadonly };
         BodyBinder.BindNestedBlock(block, new BodyScope(ctx.Scope), ctx, context);
         return block;
     }

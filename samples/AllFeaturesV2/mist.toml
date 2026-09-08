@@ -57,3 +57,5 @@ RefinementTypes = { path = "../RefinementTypes" }
 RefinementComparison = { path = "../RefinementComparison" }
 AdhocRefinementConstraints = { path = "../AdhocRefinementConstraints" }
 RegexLiterals = { path = "../RegexLiterals" }
+ReadonlyLocals = { path = "../ReadonlyLocals" }
+ReadonlyContexts = { path = "../ReadonlyContexts" }

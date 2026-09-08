@@ -3892,12 +3892,21 @@ capabilities:
     order: 83
     layer: unions-and-unknown
     requires: [unknown-covariant-generic-widening]
-    v2_status: missing
+    v2_status: done
+    verified_by: unexercised
     evidence: >
       Member callability on such a receiver is decided by INFERRED per-member readonly-ness,
       and only after distinguishing closed-with-unknown from an open generic construction.
       The type's readonly context is separate from the binding's mutability, so reassignment
       stays legal.
+
+      A REJECTION RULE, so emission owes nothing: deciding member callability on such a receiver removes
+      programs, never changing one that compiles. samples/UnknownReadonlySemantics runs on v2 and matches
+      classic.
+    analysis_phase_tasks:
+      - >
+        Decide member callability on an unknown-typed readonly receiver by inferred per-member readonly-ness,
+        after distinguishing closed-with-unknown from an open generic construction.
     unlocks: []
 
   # ===================================================================
@@ -6060,12 +6069,19 @@ capabilities:
     order: 133
     layer: readonly-discipline
     requires: [statements-core]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       A readonly local is single-assignment, composes with an ownership specifier and with
       tuple deconstruction, and a readonly block makes every declaration inside it readonly.
       Readonly is a property of the BINDING, not the value, so member reads and method calls
       through it stay legal. C# has none of these; all three erase.
+
+      DELIVERED. A readonly block binds as a Block that REMEMBERS it was readonly, and emits as a plain C#
+      one -- classic does the same, C# having no such block. The flag is kept rather than erased at bind
+      time because the rule it stands for is order 136's, a judgement on a finished model, and a model
+      that forgot could not make it without re-reading the source. Readonly LOCALS already bound; only the
+      block was unhandled, falling through to MIST_BE_UNSUPPORTED_STATEMENT.
     unlocks: []
 
   - id: readonly-member-and-type-contexts
@@ -6145,12 +6161,23 @@ capabilities:
     order: 136
     layer: readonly-discipline
     requires: [readonly-inference]
-    v2_status: missing
+    v2_status: done
+    verified_by: unexercised
     evidence: >
       A context-kind stack distinguishing method, getter, setter, indexer setter,
       constructor and block, with constructor privilege for field assignment, a
       backing-field exemption inside a readonly setter only, and a readonly block that
       SUSPENDS constructor privilege for its extent.
+
+      NOTHING HERE IS EMITTABLE. A context-kind stack exists to REFUSE mutations; every program that passes
+      it emits exactly as it would without it. samples/UnknownReadonlySemantics and samples/ReadonlyContexts
+      both run on v2 and match classic, because neither mutates what the rule would forbid.
+    analysis_phase_tasks:
+      - >
+        Track method, getter, setter, indexer setter, constructor and block contexts, with constructor
+        privilege for field assignment, a backing-field exemption inside a readonly setter only, and a
+        readonly block that suspends constructor privilege for its extent. Block readonly-ness is recorded on
+        the model by order 133.
     unlocks: [UnknownReadonlySemantics]
 
   - id: readonly-generic-constraints
@@ -6158,10 +6185,19 @@ capabilities:
     order: 137
     layer: readonly-discipline
     requires: [readonly-member-and-type-contexts, generic-constraints-nominal]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       Constraints with no CLR encoding, so they are checked and then erased. Member access
       through a readonly-constrained parameter is a readonly receiver.
+
+      EMISSION OWES ERASURE AND IT WORKS, which the evidence above already says -- constraints with no CLR
+      encoding, checked and then erased. samples/ReadonlyContexts declares `where T : readonly` and runs on
+      v2 matching classic. What is absent is the CHECKING, a judgement on a finished model.
+    analysis_phase_tasks:
+      - >
+        Refuse a type argument that is not readonly where a readonly constraint requires one, and treat
+        member access through a readonly-constrained parameter as a readonly receiver.
     unlocks: [ReadonlyContexts]
 
   # ===================================================================
@@ -6477,16 +6513,26 @@ capabilities:
     layer: refinement-and-dependent
     requires: [refinement-implication-engine, dependent-const-witness-encoding,
                arrays-sized-index-length]
-    v2_status: missing
+    v2_status: done
+    verified_by: unexercised
     evidence: >
       Indexing is a call to a refined indexer, so an index is a proof obligation. The
       interesting case is SYMBOLIC -- a loop condition against a length entails the bound
       only because both name the same array, which value reasoning cannot establish.
       Narrowing must be invalidated by reassignment in the loop body.
+
+      A PROOF OBLIGATION IS A JUDGEMENT. Indexing emits identically whether or not the bound was proved;
+      what the analysis changes is which programs are refused. samples/ArrayBoundsFlowAnalysis runs on v2,
+      matches classic, and indexes only where it is in fact in bounds.
     tasks:
       - Do not repeat the classic pipeline's critical gap. Binding a concrete-length array
         to an annotated local currently ERASES the known length, so an out-of-range literal
         index compiles clean and throws at runtime. See backlog/general.md.
+    analysis_phase_tasks:
+      - >
+        Discharge an index against the array's length, including the symbolic case where a loop condition
+        entails the bound only because both name the same array, and invalidate the narrowing on reassignment
+        in the loop body.
     unlocks: [ArrayBoundsFlowAnalysis]
 
   # ===================================================================
@@ -6796,11 +6842,22 @@ capabilities:
     order: 154
     layer: ownership-and-drop
     requires: [statements-core]
-    v2_status: missing
+    v2_status: partial
+    verified_by: unexercised
     evidence: >
       Owned, borrowed, frozen and readonly-ref as part of a binding's state, forming a
       tier-satisfaction lattice. Every tier erases at emission except readonly ref, so there
       is NO runtime witness for any of this analysis.
+
+      THE ERASURE HALF IS DELIVERED. `readonly owned var h = new Holder(99);` binds and emits in
+      samples/ReadonlyLocals, which matches classic -- every tier erases, as the evidence above says. Left
+      `partial` rather than `done` because only that one spelling is exercised: borrowed, frozen and
+      `readonly ref` appear in no banked sample, and readonly ref is the one tier with a C# witness
+      (`ref readonly`) rather than nothing.
+    analysis_phase_tasks:
+      - >
+        Enforce the tier-satisfaction lattice between owned, borrowed and frozen bindings. No runtime witness
+        exists for any of it, so nothing a sample prints can stand in for the check.
     unlocks: [ReadonlyLocals]
 
   - id: ownership-move-checking

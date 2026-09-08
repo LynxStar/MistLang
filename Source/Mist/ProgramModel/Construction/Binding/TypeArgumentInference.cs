@@ -40,10 +40,38 @@ internal static class TypeArgumentInference
 
         for(var i = 0; i < slots; i++)
         {
-            Match(receiver.Apply(method.ParametersList[i].Type, interner), arguments[i].Type, method, inferred);
+            Match(receiver.Apply(method.ParametersList[i].Type, interner), arguments[i].Type,
+                method.TypeParametersList, inferred);
         }
 
         return inferred;
+    }
+
+    /// <summary>
+    /// The type arguments a DECLARED shape takes to become an actual one, or null when some
+    /// parameter stayed open. Used where the only thing to unify against is a single type rather
+    /// than an argument list -- an extension block's receiver, which is all a generic extension has
+    /// to learn its parameters from.
+    /// </summary>
+    public static IReadOnlyList<IMistType>? Unify(
+        IMistType declared, IMistType actual, IReadOnlyList<TypeParameter> parameters)
+    {
+        var inferred = new IMistType?[parameters.Count];
+        Match(declared, actual, parameters, inferred);
+
+        var closed = new IMistType[inferred.Length];
+
+        for(var i = 0; i < inferred.Length; i++)
+        {
+            if(inferred[i] is not { } slot)
+            {
+                return null;
+            }
+
+            closed[i] = slot;
+        }
+
+        return closed;
     }
 
     /// <summary>
@@ -64,14 +92,16 @@ internal static class TypeArgumentInference
 
         for(var i = 0; i < flattened && i < arguments.Count; i++)
         {
-            Match(receiver.Apply(parameters[i].Type, interner), arguments[i].Type, method, inferred);
+            Match(receiver.Apply(parameters[i].Type, interner), arguments[i].Type,
+                method.TypeParametersList, inferred);
         }
 
         for(var i = 0; i < trailing; i++)
         {
             var parameter = parameters[parameters.Count - 1 - i];
             var argument = arguments[arguments.Count - 1 - i];
-            Match(receiver.Apply(parameter.Type, interner), argument.Type, method, inferred);
+            Match(receiver.Apply(parameter.Type, interner), argument.Type,
+                method.TypeParametersList, inferred);
         }
 
         if(ValuePack.PackParameterOf(parameters[flattened]) is not { } pack)
@@ -83,18 +113,20 @@ internal static class TypeArgumentInference
             parameters, [.. arguments.Select(a => a.Type)], flattened);
 
         var domain = pack.Domain ?? pack;
-        Record(pack, interner.LiftPack(domain, new TypePackValue(absorbed)), method, inferred);
+        Record(pack, interner.LiftPack(domain, new TypePackValue(absorbed)),
+            method.TypeParametersList, inferred);
     }
 
     /// <summary>
     /// The two constructions must share a definition, so an argument that reaches the declared type
     /// only through one of its own bases infers nothing.
     /// </summary>
-    private static void Match(IMistType declared, IMistType actual, Method method, IMistType?[] inferred)
+    private static void Match(
+        IMistType declared, IMistType actual, IReadOnlyList<TypeParameter> parameters, IMistType?[] inferred)
     {
         if(declared is TypeParameter parameter)
         {
-            Record(parameter, actual, method, inferred);
+            Record(parameter, actual, parameters, inferred);
             return;
         }
 
@@ -104,13 +136,13 @@ internal static class TypeArgumentInference
         // once a spread among them is skipped, that part being the pack binding's to make.
         if(declared is FunctionType declaredFunction && actual is FunctionType actualFunction)
         {
-            Match(declaredFunction.ReturnType, actualFunction.ReturnType, method, inferred);
+            Match(declaredFunction.ReturnType, actualFunction.ReturnType, parameters, inferred);
 
             if(declaredFunction.ParameterTypes.Count == actualFunction.ParameterTypes.Count)
             {
                 for(var i = 0; i < declaredFunction.ParameterTypes.Count; i++)
                 {
-                    Match(declaredFunction.ParameterTypes[i], actualFunction.ParameterTypes[i], method, inferred);
+                    Match(declaredFunction.ParameterTypes[i], actualFunction.ParameterTypes[i], parameters, inferred);
                 }
             }
 
@@ -134,7 +166,7 @@ internal static class TypeArgumentInference
 
         for(var i = 0; i < declaredConstructed.TypeArguments.Count; i++)
         {
-            Match(declaredConstructed.TypeArguments[i], actualConstructed.TypeArguments[i], method, inferred);
+            Match(declaredConstructed.TypeArguments[i], actualConstructed.TypeArguments[i], parameters, inferred);
         }
     }
 
@@ -143,9 +175,10 @@ internal static class TypeArgumentInference
     /// passed over rather than refused -- including where the receiver was not constructed and so left
     /// it open.
     /// </summary>
-    private static void Record(TypeParameter parameter, IMistType actual, Method method, IMistType?[] inferred)
+    private static void Record(
+        TypeParameter parameter, IMistType actual, IReadOnlyList<TypeParameter> parameters, IMistType?[] inferred)
     {
-        if(!method.TypeParametersList.Contains(parameter) || parameter.Ordinal >= inferred.Length)
+        if(!parameters.Contains(parameter) || parameter.Ordinal >= inferred.Length)
         {
             return;
         }

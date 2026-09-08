@@ -32,6 +32,7 @@ internal static class ExtensionLookup
         }
 
         var applicable = new List<ExtensionBlock>();
+        var closures = new Dictionary<ExtensionBlock, IReadOnlyList<IMistType>>();
 
         foreach(var namespaceName in VisibleNamespaces(callSite))
         {
@@ -42,13 +43,16 @@ internal static class ExtensionLookup
 
             foreach(var (blockReceiver, blocks) in ns.Extensions)
             {
-                if(!Accepts(blockReceiver, receiver))
-                {
-                    continue;
-                }
-
                 foreach(var block in blocks)
                 {
+                    // Per BLOCK rather than per receiver key, because a generic block's own
+                    // parameters are what its receiver has to be read against and two blocks filed
+                    // under one key need not agree on them.
+                    if(!Accepts(blockReceiver, receiver, block))
+                    {
+                        continue;
+                    }
+
                     // NAME FIRST, RANK SECOND. Ranking the blocks and then looking for the member
                     // inside the winners loses every universal member the moment a concrete block
                     // exists for the same receiver: the concrete one is more specific, wins the
@@ -56,6 +60,11 @@ internal static class ExtensionLookup
                     if(Declares(block, memberName, visibility))
                     {
                         applicable.Add(block);
+
+                        if(Closed(blockReceiver, receiver, block) is { } arguments)
+                        {
+                            closures[block] = arguments;
+                        }
                     }
                 }
             }
@@ -75,7 +84,9 @@ internal static class ExtensionLookup
             {
                 if(method.Name == memberName && Permits(visibility, method.Modifiers.IsStatic))
                 {
-                    methods.Add(method);
+                    methods.Add(closures.TryGetValue(block, out var arguments)
+                        ? ExtensionSpecialization.Close(method, block, arguments, programModel.TypeInterner)
+                        : method);
                 }
             }
         }
@@ -139,11 +150,26 @@ internal static class ExtensionLookup
     /// <c>unknown</c> accepts everything, which is what makes a universal extension universal, and
     /// is also why it must lose every ranking it takes part in.
     /// </summary>
-    private static bool Accepts(IMistType blockReceiver, IMistType receiver)
+    private static bool Accepts(IMistType blockReceiver, IMistType receiver, ExtensionBlock block)
     {
         return blockReceiver is UnknownType
             || ConversionRelation.IsIdentity(receiver, blockReceiver)
-            || ConversionRelation.IsWithin(receiver, blockReceiver);
+            || ConversionRelation.IsWithin(receiver, blockReceiver)
+            || Closed(blockReceiver, receiver, block) is not null;
+    }
+
+    /// <summary>
+    /// The type arguments that make a GENERIC block's receiver the actual one, or null where it has
+    /// none or they cannot be read off. <c>Count()</c> on an <c>int[]</c> reaches
+    /// <c>TSource[]</c>, and nothing but the receiver says what TSource is -- an extension's
+    /// arguments are bound after the member is found, so they cannot help.
+    /// </summary>
+    private static IReadOnlyList<IMistType>? Closed(
+        IMistType blockReceiver, IMistType receiver, ExtensionBlock block)
+    {
+        return block.TypeParametersList.Count == 0
+            ? null
+            : TypeArgumentInference.Unify(blockReceiver, receiver, block.TypeParametersList);
     }
 
     private static bool Permits(MemberVisibility visibility, bool isStatic)

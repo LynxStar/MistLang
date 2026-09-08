@@ -1445,6 +1445,14 @@ internal static class BodyEmitter
         // A parameterized construction on a type parameter calls the factory the constraint grants.
         // C# picks between its overloads by argument type, which is what lets one parameter carry
         // new(int) and new(bool) at once without this emitter choosing between them.
+        if(ArrayLowering.Generated(newExpression.Type, newExpression.Arguments.Count) is { } generated)
+        {
+            writer.Append(
+                $"MistArray.Generate<{generated.Element}>({generated.Length}, "
+                + $"{Render(newExpression.Arguments[0], diagnostics)})");
+            return;
+        }
+
         var target = newExpression.Type is TypeParameter && newExpression.Arguments.Count > 0
             ? $"{TypeNameEmitter.Emit(newExpression.Type)}.{ConstructorConstraintInterfaces.MemberName}("
             : $"new {TypeNameEmitter.Emit(newExpression.Type)}("

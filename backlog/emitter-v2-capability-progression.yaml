@@ -7037,7 +7037,8 @@ capabilities:
     order: 165
     layer: definite-assignment
     requires: [control-flow-basic]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       An assigned-or-unassigned lattice merged at join points, checked on every read
       including through interpolation, plus a constructor-level all-fields-assigned-on-all-
@@ -7069,12 +7070,24 @@ capabilities:
       VoidValueLiteral and OptionalTypes contain no uninitialized local, and what looks like one in
       VoidValueLiteral/Result<T> (`T value; bool success;`) are modifier-less FIELD declarations,
       which go through FieldDeclaration and bind today.
+
+      THE BINDING THIS ENTRY ASKED FOR IS DONE. `int later;` now binds, so the local is declared and every
+      later assignment and read resolves; the model and the emitter already handled a null initializer, so
+      the missing piece was the one StatementBinder arm the evidence above names.
+      
+      THE LATTICE IS A JUDGEMENT and is recorded below rather than counted here. It removes programs and
+      changes none that compile -- and the C# a declaration becomes carries the same declaration, so
+      Roslyn makes the same call on the emitted code.
     tasks:
       - Bind UninitializedVariableStatement in StatementBinder so the declaration reaches the model.
         A model-correctness gap, independent of the analysis below and not blocked by it.
     analysis_phase_tasks:
       - Report a read of an unassigned local against Mist source rather than leaving it to arrive as
         CS0165 on generated C#.
+    analysis_phase_tasks:
+      - >
+        Track an assigned-or-unassigned lattice merged at join points, checked on every read including
+        through interpolation, plus a constructor-level all-fields-assigned-on-all-paths verification.
     unlocks: []
 
   - id: stampability-classification
@@ -7082,12 +7095,28 @@ capabilities:
     order: 166
     layer: definite-assignment
     requires: [definite-assignment-analysis]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       Bare sized array creation is legal only for stampable element types, so an array of a
       reference type can never be observed holding null. This is reached through element-type
       classification rather than per-element flow analysis, and the sanctioned replacement is
       an initializer-function construction lowered to an allocate-and-fill loop.
+
+      THE SANCTIONED REPLACEMENT IS BUILT, which is what this capability owes emission: an
+      initializer-function construction fills every slot from the factory. `new Array<T, N>(i => ...)`
+      emits a call to a generated MistArray.Generate rather than an inline allocate-and-fill, which keeps
+      it ONE expression -- hoisting a temporary and a loop would make every enclosing expression, a
+      ternary arm or an argument among them, a place that has to know how to hoist. The helper is emitted
+      only when a construction used one.
+      
+      THE CLASSIFICATION IS A JUDGEMENT: deciding which element types may be zero-filled refuses bare
+      `new T[n]` for the rest and changes nothing that compiles.
+    analysis_phase_tasks:
+      - >
+        Classify element types by stampability and refuse a bare sized array creation for one that is not,
+        so an array of a reference type can never be observed holding null. Reached through element-type
+        classification rather than per-element flow analysis.
     unlocks: [DefiniteAssignment]
 
   - id: defaultability-inference

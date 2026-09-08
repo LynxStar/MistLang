@@ -77,5 +77,6 @@ public class Program
         RegexLiterals.Program.RunDemo();
         ReadonlyLocals.Program.RunDemo();
         ReadonlyContexts.Program.RunDemo();
+        DefiniteAssignment.Program.RunDemo();
     }
 }

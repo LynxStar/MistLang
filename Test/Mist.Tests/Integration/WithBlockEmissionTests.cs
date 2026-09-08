@@ -12,8 +12,9 @@ using Mist.Semantics.Model;
 namespace Mist.Tests.Integration;
 
 /// <summary>
-/// Tier 4, the boundary from a <c>with</c> block to compiled C#: that the value is dropped on the
-/// way out of the block, whichever way the block is left.
+/// Tier 4, two lowerings with no C# syntax of their own: a <c>with</c> block, whose value is
+/// dropped on the way out however the block is left, and a generated array, whose elements come
+/// from a factory rather than from zero-filling.
 /// <para>
 /// THE EARLY RETURN IS THE CASE THAT SEPARATES IMPLEMENTATIONS. Emitting the drop as a plain
 /// statement after the body is right for a block that falls off its end, and silently wrong for one
@@ -88,6 +89,33 @@ public sealed class WithBlockEmissionTests : IDisposable
             }
         }
         """;
+
+    /// <summary>
+    /// A generated array, whose elements come from the factory rather than from zero-filling. Every
+    /// index is read back, because filling only the first -- or none -- still compiles and still
+    /// prints an array of the right length.
+    /// </summary>
+    private const string FillsAnArrayFromAFactory = """
+        using Standard;
+
+        namespace Ctx;
+
+        public class Program
+        {
+            public static void Main()
+            {
+                var labels = new Array<string, 3>(i => $"item-{i}");
+
+                Console.WriteLine($"{labels[0]}|{labels[1]}|{labels[2]}|{labels.Length}");
+            }
+        }
+        """;
+
+    [Fact]
+    public void AGeneratedArrayTakesEveryElementFromItsFactory()
+    {
+        Assert.Equal("item-0|item-1|item-2|3", CompileAndRun(FillsAnArrayFromAFactory));
+    }
 
     [Fact]
     public void AWithBlockDropsItsValueOnEveryExit()

@@ -78,6 +78,7 @@ internal sealed class CSharpEmitterV2
 
         var emittedFiles = new List<string>();
         ContextLowering.Reset();
+        ArrayLowering.Reset();
         var closures = ConstraintClosureMap.Build((ProgramModel.Model.ProgramModel)programModel, diagnostics);
 
         ReportForeignConformances();
@@ -111,6 +112,7 @@ internal sealed class CSharpEmitterV2
         }
 
         EmitContextRuntime(outputDir, emittedFiles);
+        EmitArrayRuntime(outputDir, emittedFiles);
 
         var csprojContent = ProjectFileEmitter.Emit(options);
         var csprojPath = Path.Combine(outputDir, $"{options.ProjectName}.csproj");
@@ -484,6 +486,21 @@ internal sealed class CSharpEmitterV2
         ContextLowering.Emit(writer);
 
         var path = Path.Combine(outputDir, "__Context.g.cs");
+        File.WriteAllText(path, writer.ToString());
+        emittedFiles.Add(path);
+    }
+
+    private static void EmitArrayRuntime(string outputDir, List<string> emittedFiles)
+    {
+        if(!ArrayLowering.Used())
+        {
+            return;
+        }
+
+        var writer = new CSharpWriter();
+        ArrayLowering.Emit(writer);
+
+        var path = Path.Combine(outputDir, "__Array.g.cs");
         File.WriteAllText(path, writer.ToString());
         emittedFiles.Add(path);
     }

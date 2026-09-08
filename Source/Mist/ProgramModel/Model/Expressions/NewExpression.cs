@@ -35,11 +35,24 @@ internal sealed class NewExpression(
 /// position denotes, so there is no receiver to hold and nothing for a later pass to mistake for an
 /// assignment to a name in scope.
 /// </summary>
-internal sealed class ObjectInitializerAssignment(SyntaxNode node, string memberName, Expression value)
+internal sealed class ObjectInitializerAssignment(
+    SyntaxNode node, string? memberName, Expression value, Method? add = null)
 {
     public SyntaxNode Node { get; } = node;
 
-    public string MemberName { get; } = memberName;
+    /// <summary>
+    /// The member assigned, or null for a COLLECTION element -- <c>{ 1, 2 }</c> names nothing and
+    /// stands for a call instead, which <see cref="Add"/> holds.
+    /// </summary>
+    public string? MemberName { get; } = memberName;
+
+    /// <summary>
+    /// The <c>Add</c> overload a collection element resolved to. Recorded because emission writes
+    /// the element back as C#'s own initializer syntax and lets Roslyn resolve Add AGAIN -- so
+    /// without this nothing in the model would ever have chosen a member, and a program whose
+    /// element matches no Add would reach the generated file to fail there.
+    /// </summary>
+    public Method? Add { get; } = add;
 
     public Expression Value { get; } = value;
 }

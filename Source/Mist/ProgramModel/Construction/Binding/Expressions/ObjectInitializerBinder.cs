@@ -46,8 +46,7 @@ internal static class ObjectInitializerBinder
     {
         if(assignment is not NamedPropertyAssignmentPropertyAssignmentNode named)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.CollectionInitializerNotSupported, assignment, null);
-
+            AddElement(assignment, type, bound, ctx, context);
             return;
         }
 
@@ -62,6 +61,57 @@ internal static class ObjectInitializerBinder
         }
 
         bound.Add(new ObjectInitializerAssignment(named, memberName, value));
+    }
+
+    /// <summary>
+    /// A COLLECTION element: <c>{ 1, 2 }</c>, which names no member and stands for a call to
+    /// <c>Add</c>. The overload is resolved HERE even though emission writes the element back as C#
+    /// initializer syntax and lets Roslyn resolve Add again -- otherwise the model would have chosen
+    /// nothing, and an element matching no Add would reach the generated file to fail there.
+    /// </summary>
+    private static void AddElement(
+        PropertyAssignmentNode assignment,
+        IMistType type,
+        List<ObjectInitializerAssignment> bound,
+        BindingContext ctx,
+        BuilderContext context)
+    {
+        if(Expression(assignment) is not { } expressionNode)
+        {
+            context.Diagnostics.ReportAtNode(
+                ProgramModelDiagnostics.CollectionInitializerNotSupported, assignment, null);
+
+            return;
+        }
+
+        var value = ExpressionBinder.BindExpression(expressionNode, ctx, context);
+        var (found, constructed) = MemberResolution.Resolve(
+            type, "Add", MemberVisibility.InstanceOnly, assignment, context, ctx.Scope);
+
+        if(found is not MethodGroupResult { Methods.Count: > 0 } group)
+        {
+            return;
+        }
+
+        var choice = OverloadResolution.Select(
+            group.Methods, [value], constructed, null, context.ProgramModel.TypeInterner, [false]);
+
+        if(choice.Selected is null)
+        {
+            OverloadFailure.Report(
+                choice, group.Methods, 1, "method 'Add'", assignment, context.Diagnostics);
+
+            return;
+        }
+
+        bound.Add(new ObjectInitializerAssignment(assignment, memberName: null, value, choice.Selected));
+    }
+
+    private static ExpressionNode? Expression(PropertyAssignmentNode assignment)
+    {
+        return assignment is CollectionElementAssignmentPropertyAssignmentNode element
+            ? element.Value
+            : null;
     }
 
     private static IMistType? ResolveTargetType(IMistType type, string memberName, SyntaxNode node, BuilderContext context)

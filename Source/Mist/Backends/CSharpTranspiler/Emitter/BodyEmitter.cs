@@ -1489,7 +1489,13 @@ internal static class BodyEmitter
 
         EmitList.Separated(initializer, ", ", writer, assignment =>
         {
-            writer.Append($"{assignment.MemberName} = ");
+            // A collection element writes only its value: C# reads a bare element as a call to Add,
+            // which is what the model already resolved it to.
+            if(assignment.MemberName is { } member)
+            {
+                writer.Append($"{member} = ");
+            }
+
             EmitExpression(assignment.Value, writer, diagnostics);
         });
 

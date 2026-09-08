@@ -30,12 +30,32 @@ internal static class StatementBinder
             BreakStatementStatementNode => new BreakStatement(),
             ExpressionStatementStatementNode exprStatement => BindExpressionStatement(exprStatement, ctx, context),
             BlockStatementStatementNode nestedBlock => BindNestedBlock(nestedBlock.BlockStatement, ctx, context),
+            UninitializedVariableStatementStatementNode uninitialized => BindUninitialized(
+                uninitialized.UninitializedVariable, ctx, context),
             WithBlockStatementStatementNode withBlock => BindWithBlock(
                 withBlock.WithBlockStatement, ctx, context),
             ReadonlyBlockStatementStatementNode readonlyBlock => BindNestedBlock(
                 readonlyBlock.ReadonlyBlock.Body, ctx, context, isReadonly: true),
             _ => new UnsupportedStatement(statement),
         };
+    }
+
+    /// <summary>
+    /// <c>T x;</c>, a declaration with no initializer. The local is DECLARED anyway -- that is what
+    /// makes every later assignment and read resolve -- and whether it holds a value before it is
+    /// read is a judgement on the finished body, not a reason to leave the name unbound.
+    /// </summary>
+    private static Statement BindUninitialized(
+        UninitializedVariableDeclarationNode node, BindingContext ctx, BuilderContext context)
+    {
+        var local = new LocalVariable(node.Name.Lexeme, context.Resolver.Resolve(node.Type, ctx.Scope))
+        {
+            IsRef = MemberTypeBuilder.IsRefSpecifier(node.OwnershipSpecifier),
+            IsReadonly = IsReadonlyBinding(hasReadonlyModifier: false, node.OwnershipSpecifier),
+        };
+
+        ctx.Scope.DeclareLocal(local, context.Diagnostics);
+        return new LocalDeclarationStatement(local, initializer: null);
     }
 
     private static Statement BindWithBlock(

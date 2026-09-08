@@ -5178,6 +5178,22 @@ capabilities:
 
       STILL MISSING: conversion between a function type and a NAMED CLR delegate, which is what this
       entry is actually about and still needs order 126.
+
+      A CLR DELEGATE IS NOW A FUNCTION TYPE, whatever it is called. Comparison, Predicate and
+      RequestDelegate are ordinary delegates Mist has no name for, and a nominal projection of one gave a
+      lambda no parameter types to read and a method group nothing to convert to. The Invoke signature is
+      what a delegate means, so that is what it resolves to. Func and Action are deliberately excluded --
+      they map onto Standard's own declarations and collapse to a function type by their own route, and
+      taking them here would bypass the pack that makes one declaration cover seventeen CLR arities.
+      
+      samples/DelegateFuncConversion drops 17 refusals to 3, having also needed collection initializers.
+      
+      WHAT REMAINS IS ONE THING, and it is overload resolution's rather than conversion's: a METHOD GROUP
+      passed where several overloads could take it. `list.Sort(CompareDescending)` has two candidates of
+      arity one -- IComparer<T> and Comparison<T> -- so ArgumentBinder pushes no target type, and a group
+      with no target cannot be converted. Its own comment already says why: choosing between candidates
+      needs the argument types, which is what binding the argument is about to produce. C# resolves this
+      by trying each candidate; v2 would have to do the same.
     tasks:
       - >
         Correct this entry's requires to include clr-assembly-type-projection, or move the order after

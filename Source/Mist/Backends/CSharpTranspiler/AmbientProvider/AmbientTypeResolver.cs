@@ -71,6 +71,15 @@ internal sealed class AmbientTypeResolver
             return ResolveArrayType(clrType, scope);
         }
 
+        // A DELEGATE IS A FUNCTION TYPE, whatever it is called. Comparison, Predicate and
+        // RequestDelegate are ordinary CLR delegates that Mist has no name for, and a nominal
+        // projection of one gives a lambda no parameter types to read and a method group nothing to
+        // convert to. Its Invoke signature is what it means.
+        if(FunctionShape(clrType, scope) is { } function)
+        {
+            return function;
+        }
+
         // Closed generic (e.g., IComparable<int>, List<string>): resolve the
         // definition and each argument, then intern a ConstructedType.
         if(clrType.IsGenericType && !clrType.IsGenericTypeDefinition)
@@ -87,6 +96,61 @@ internal sealed class AmbientTypeResolver
         // Named type — top-level or nested. Both are a single FQN lookup; the only
         // difference is how the FQN is spelled, which BuildFQN handles.
         return ResolveByFQN(BuildFQN(clrType));
+    }
+
+    /// <summary>
+    /// The function type a CLR delegate stands for, or null where it is not one -- or where it is
+    /// one Mist already names. Func and Action map onto Standard's own declarations, which collapse
+    /// to a function type by their own route; taking them here instead would bypass the pack that
+    /// makes a single declaration cover seventeen CLR arities.
+    /// </summary>
+    private FunctionType? FunctionShape(Type clrType, Scope scope)
+    {
+        if(clrType.IsGenericParameter || !IsDelegate(clrType) || IsWellKnown(clrType))
+        {
+            return null;
+        }
+
+        var invoke = clrType.GetMethod("Invoke");
+
+        if(invoke is null)
+        {
+            return null;
+        }
+
+        var parameters = invoke.GetParameters()
+            .Select(parameter => (IMistType)Resolve(parameter.ParameterType, scope))
+            .ToList();
+
+        var returnType = invoke.ReturnType == typeof(void)
+            || invoke.ReturnType.FullName == "System.Void"
+                ? wellKnownTypes["System.Void"]
+                : ResolveInbound(
+                    invoke.ReturnType, scope, ClrNullability.ResultIsNonNull(invoke.ReturnParameter, invoke));
+
+        return typeInterner.GetOrCreateFunctionType(parameters, returnType);
+    }
+
+    private static bool IsDelegate(Type clrType)
+    {
+        for(var current = clrType.BaseType; current is not null; current = current.BaseType)
+        {
+            if(current.FullName == "System.MulticastDelegate")
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool IsWellKnown(Type clrType)
+    {
+        var definition = clrType.IsGenericType && !clrType.IsGenericTypeDefinition
+            ? clrType.GetGenericTypeDefinition()
+            : clrType;
+
+        return wellKnownTypes.ContainsKey(BuildFQN(definition));
     }
 
     /// <summary>

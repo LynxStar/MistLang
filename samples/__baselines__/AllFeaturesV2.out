@@ -1340,3 +1340,18 @@ sum=600
 [da] labels[2]=Label(item-2)
 [da] pair[0]=Label(first)
 [da] pair[1]=Label(second)
+=== DisposableDropInterop Demo ===
+--- 1. IDisposable with block ---
+  wrote byte, length=1
+  disposed (no exception = success)
+--- 2. IDisposable with declaration ---
+  wrote byte, length=1
+  disposed (no exception = success)
+--- 3. Explicit Drop takes precedence ---
+  resource value=hello
+  MistResource.Drop() called
+--- 4. Mist IDisposable without Drop ---
+  ManualDisposable.DoWork()
+  ManualDisposable.Dispose() called
+  manually disposed
+=== Done ===

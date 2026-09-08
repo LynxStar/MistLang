@@ -32,6 +32,13 @@ internal static class StatementBinder
             BlockStatementStatementNode nestedBlock => BindNestedBlock(nestedBlock.BlockStatement, ctx, context),
             UninitializedVariableStatementStatementNode uninitialized => BindUninitialized(
                 uninitialized.UninitializedVariable, ctx, context),
+            WithVarBlockStatementStatementNode withVarBlock => BindWithBinding(
+                withVarBlock.WithVarBlockStatement.Name.Lexeme,
+                withVarBlock.WithVarBlockStatement.Initializer,
+                withVarBlock.WithVarBlockStatement.Body,
+                withVarBlock.WithVarBlockStatement.Body.Statements,
+                ctx,
+                context),
             WithBlockStatementStatementNode withBlock => BindWithBlock(
                 withBlock.WithBlockStatement, ctx, context),
             ReadonlyBlockStatementStatementNode readonlyBlock => BindNestedBlock(
@@ -56,6 +63,60 @@ internal static class StatementBinder
 
         ctx.Scope.DeclareLocal(local, context.Diagnostics);
         return new LocalDeclarationStatement(local, initializer: null);
+    }
+
+    /// <summary>
+    /// The DECLARATION forms of <c>with</c>, whose body is whatever follows them in the enclosing
+    /// block. Null when this statement is not one, which is how the block binder tells them apart
+    /// without knowing their shapes.
+    /// </summary>
+    internal static Statement? BindWithDeclaration(
+        BlockNode enclosingNode,
+        StatementNode node,
+        IReadOnlyList<StatementNode> rest,
+        BindingContext ctx,
+        BuilderContext context)
+    {
+        return node switch
+        {
+            WithVarDeclarationStatementStatementNode declaration => BindWithBinding(
+                declaration.WithVarDeclaration.Name.Lexeme,
+                declaration.WithVarDeclaration.Initializer,
+                enclosingNode,
+                rest,
+                ctx,
+                context),
+            WithTypedDeclarationStatementStatementNode typed => BindWithBinding(
+                typed.WithTypedDeclaration.Name.Lexeme,
+                typed.WithTypedDeclaration.Initializer,
+                enclosingNode,
+                rest,
+                ctx,
+                context),
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// A <c>with</c> whose value is NAMED. The name is declared in the body's own scope, so it is
+    /// visible exactly where the value is alive and nowhere after.
+    /// </summary>
+    private static Statement BindWithBinding(
+        string name,
+        ExpressionNode initializer,
+        BlockNode bodyNode,
+        IReadOnlyList<StatementNode> body,
+        BindingContext ctx,
+        BuilderContext context)
+    {
+        var value = ExpressionBinder.BindExpression(initializer, ctx, context);
+        var scope = new BodyScope(ctx.Scope);
+        var local = new LocalVariable(name, value.Type);
+
+        scope.DeclareLocal(local, context.Diagnostics);
+
+        var block = BodyBinder.BindStatementList(bodyNode, body, scope, ctx, context);
+        return new WithBlockStatement(value, block, local);
     }
 
     private static Statement BindWithBlock(

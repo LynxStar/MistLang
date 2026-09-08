@@ -7001,6 +7001,15 @@ capabilities:
       prints SEVEN fewer lines than classic, because automatic drop insertion at scope exit -- order 161,
       which this sample also requires -- is absent. A zero-refusal sample is not a passing one, and only
       diffing against classic says so.
+
+      THE NAMED FORMS ARE BUILT TOO. `with (var x = e) { ... }` and `with var x = e;` both bind, the second
+      taking the REST of its enclosing block as its body -- consumed by the block binder, since no other
+      statement's meaning depends on what follows it and only the statement list knows what does. The name
+      is declared in the body's own scope, so it is visible exactly where the value is alive.
+      
+      STILL `partial` FOR DropSemantics, whose remaining twelve lines are order 161's automatic drop
+      insertion at scope exit, not a with form. `with T _ = e;` and the bare `with e;` push statement are
+      also unbuilt; no sample uses either.
     unlocks: [DropSemantics]
 
   - id: disposable-drop-interop
@@ -7008,11 +7017,22 @@ capabilities:
     order: 163
     layer: ownership-and-drop
     requires: [drop-recognition-and-insertion, clr-assembly-type-projection]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       Two droppability sources with a precedence order, plus an ORIGIN-DEPENDENT asymmetry --
       the CLR disposal interface means droppable for an imported type and nothing at all for
       a Mist-declared one. Drop placement must be exception-safe.
+
+      BOTH SOURCES AND THE PRECEDENCE ARE BUILT. A scope's exit action is Dispose for a type reaching
+      droppability through the CLR interface -- the projector already sets IsDisposableDrop -- and Drop for
+      a Mist-declared one, with the disposable reading taken first. A type with neither gets no call at
+      all, which is the origin-dependent asymmetry the evidence above names: IDisposable on a Mist type
+      means nothing, because a Mist type's obligation is spelled Drop.
+      
+      EXCEPTION-SAFE BY CONSTRUCTION. The call sits in a finally, so it survives a return or a throw from
+      inside the scope -- see order 162, where that choice is tested by returning from inside a block.
+      samples/DisposableDropInterop matches classic.
     unlocks: [DisposableDropInterop]
 
   - id: substructural-field-containment

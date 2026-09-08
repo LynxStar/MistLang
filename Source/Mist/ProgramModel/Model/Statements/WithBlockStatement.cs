@@ -12,9 +12,16 @@ namespace Mist.ProgramModel.Model.Statements;
 /// another backend might not.
 /// </para>
 /// </summary>
-internal sealed class WithBlockStatement(Expression value, Block body) : Statement
+internal sealed class WithBlockStatement(Expression value, Block body, LocalVariable? binding = null)
+    : Statement
 {
     public Expression Value { get; } = value;
 
     public Block Body { get; } = body;
+
+    /// <summary>
+    /// The name the value was bound to, where one was written -- <c>with (var ms = ...)</c> and
+    /// <c>with var ms = ...;</c> both name it, and <c>with(expr)</c> does not.
+    /// </summary>
+    public LocalVariable? Binding { get; } = binding;
 }

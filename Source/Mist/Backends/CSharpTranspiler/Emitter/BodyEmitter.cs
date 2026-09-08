@@ -255,7 +255,7 @@ internal static class BodyEmitter
     {
         ContextLowering.Require();
 
-        var bound = TemporaryName();
+        var bound = withBlock.Binding?.Name ?? TemporaryName();
         var type = TypeNameEmitter.Emit(withBlock.Value.Type);
 
         writer.Write($"var {bound} = ");
@@ -276,17 +276,29 @@ internal static class BodyEmitter
         {
             writer.WriteLine($"MistContext.Pop<{type}>();");
 
-            if(Drops(withBlock.Value.Type))
+            if(ExitAction(withBlock.Value.Type) is { } exit)
             {
-                writer.WriteLine($"{bound}.Drop();");
+                writer.WriteLine($"{bound}.{exit}();");
             }
         }
     }
 
-    private static bool Drops(IMistType type)
+    /// <summary>
+    /// What a scope calls on its value on the way out, or null for a value with nothing to release.
+    /// A CLR type reaches it through IDisposable, which the projector already recognises, and Mist's
+    /// own through a declared Drop -- the same obligation under the two names their worlds use.
+    /// </summary>
+    private static string? ExitAction(IMistType type)
     {
+        if(type is ConcreteType { IsDisposableDrop: true })
+        {
+            return "Dispose";
+        }
+
         return (type as MemberType)?.MethodsList.Exists(
-            method => method.Name == "Drop" && method.ParametersList.Count == 0) == true;
+            method => method.Name == "Drop" && method.ParametersList.Count == 0) == true
+                ? "Drop"
+                : null;
     }
 
     private static void EmitWhile(WhileStatement whileStmt, CSharpWriter writer, DiagnosticBag diagnostics)

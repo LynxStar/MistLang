@@ -78,5 +78,6 @@ public class Program
         ReadonlyLocals.Program.RunDemo();
         ReadonlyContexts.Program.RunDemo();
         DefiniteAssignment.Program.RunDemo();
+        DisposableDropInterop.Program.RunDemo();
     }
 }

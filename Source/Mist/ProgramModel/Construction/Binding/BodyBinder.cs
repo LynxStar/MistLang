@@ -209,12 +209,51 @@ internal static class BodyBinder
             context);
     }
 
+    /// <summary>
+    /// A synthetic block over statements that were written in an ENCLOSING one, for the tail a
+    /// <c>with</c> declaration scopes. It borrows the enclosing block's AST node, having no node of
+    /// its own -- the braces it stands for were never written.
+    /// </summary>
+    internal static Block BindStatementList(
+        BlockNode enclosingNode,
+        IReadOnlyList<StatementNode> nodes,
+        BodyScope scope,
+        BindingContext enclosing,
+        BuilderContext context)
+    {
+        var bindingCtx = new BindingContext(scope, enclosing.ReturnType)
+        {
+            EnclosingProperty = enclosing.EnclosingProperty,
+        };
+
+        var statements = new List<Statement>(nodes.Count);
+
+        foreach(var node in nodes)
+        {
+            statements.Add(StatementBinder.BindStatement(node, bindingCtx, context));
+        }
+
+        return new Block(enclosingNode) { Statements = statements };
+    }
+
     private static void BindStatements(Block block, BindingContext bindingCtx, BuilderContext context)
     {
         var statements = new List<Statement>(block.Node.Statements.Length);
-        foreach(var node in block.Node.Statements)
+
+        for(var i = 0; i < block.Node.Statements.Length; i++)
         {
-            statements.Add(StatementBinder.BindStatement(node, bindingCtx, context));
+            // `with var x = e;` scopes x over the REST of the block, so the tail becomes its body.
+            // Consumed here rather than in StatementBinder because no other statement's meaning
+            // depends on what follows it, and only the list knows what does.
+            if(StatementBinder.BindWithDeclaration(
+                block.Node, block.Node.Statements[i], block.Node.Statements[(i + 1)..],
+                bindingCtx, context) is { } scoped)
+            {
+                statements.Add(scoped);
+                break;
+            }
+
+            statements.Add(StatementBinder.BindStatement(block.Node.Statements[i], bindingCtx, context));
         }
 
         block.Statements = statements;

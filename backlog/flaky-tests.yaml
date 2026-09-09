@@ -46,15 +46,26 @@ flakes:
       is not a failed property, it is MIST_UNDEFINED_NAMESPACE for `Standard`, which is the third
       symptom this entry was opened for.
 
-      THE CROSS-PROJECT HALF IS UNCONSTRAINED, which is the specific defect. Mist.Tests references
-      Mist.csproj, Storm.SourceGenerator and Mist.Tests.InteropFixtures -- NOT Mist.CLI -- and yet
-      spawns the CLI binary and reads the Standard copy in its output. MSBuild therefore has no
-      ordering edge at all between building Mist.CLI and running Mist.Tests' tests, so a spawning
-      test can execute a CLI whose output directory is mid-write. That is a missing dependency, not
-      a timing accident.
+      A NESTED BUILD IS THE WRITER, and this corrects a first reading that blamed a missing
+      ProjectReference. Mist.Tests does not reference Mist.CLI, but that is not the defect: the
+      tests never consume the CLI's output as a reference. SamplesCompileAndMatchBaselineTest spawns
+      `dotnet run --project Source/Mist.CLI/Mist.CLI.csproj`, which is a SECOND MSBuild inside the
+      first. It rebuilds Mist.CLI and re-runs that project's own `Content` copy of
+      Source/Standard/**/*.mist into Source/Mist.CLI/bin/.../Standard/ -- the exact directory the
+      `mist` it then launches reads through StdlibLoader's AppContext.BaseDirectory/Standard. So
+      adding a ProjectReference would change nothing on its own; ordering the solution build does
+      not stop a test from starting its own.
 
-      Still open is whether the in-process tests fail by the same path or by their own copy landing
-      late; both would look identical from the message. That does not change the fix.
+      A SUSPICIOUS CORRELATION worth checking on the next sighting: the copy is PreserveNewest, so
+      it is a no-op until a source file's timestamp moves. The 462-failure run came minutes after
+      Source/Standard/Bootstrap/Span.mist was edited, which would have made every nested build
+      re-copy the whole Standard tree rather than skip it. If that holds, the flake is far likelier
+      in any session that has touched Source/Standard than in one that has not -- which would also
+      explain why it clusters rather than appearing uniformly.
+
+      Still open is whether the in-process tests fail by the same path. They read
+      Test/Mist.Tests/bin/.../Standard/, written by the OUTER build, which VSTest waits for -- so
+      that half is not explained by this mechanism and may be a second one.
 
       This supersedes "unknown" rather than guessing at it -- see the 462-failure reproduction under
       recurrences, which is where the window is measured.
@@ -142,9 +153,17 @@ flakes:
           rather than of input" was close -- it is a matter of the BUILD, which load lengthens.
         fix: >
           Never run the suite with a build in the same command. `dotnet build Mist.slnx` to
-          completion, then `dotnet test Mist.slnx --no-build`. A durable fix would make the Content
-          copy an ordered dependency of the test run rather than a sibling of it, so no test can
-          observe a half-written Standard directory.
+          completion, then `dotnet test Mist.slnx --no-build`. Note CLAUDE.md currently documents
+          the racy form.
+
+          THE DURABLE FIX IS TWO PARTS AND NEITHER WORKS ALONE. Stop the nested build first --
+          spawn the already-built binary, or at minimum pass --no-build to the `dotnet run` in
+          SamplesCompileAndMatchBaselineTest -- which removes the writer that races the reader.
+          Only THEN does a ProjectReference to Mist.CLI earn its place, carrying
+          ReferenceOutputAssembly="false" and Private="false" so it creates the build-order edge
+          that guarantees the binary exists without pulling an exe in as an assembly reference.
+          The reference alone changes nothing, and --no-build alone leaves nothing guaranteeing
+          there is anything to run.
 
   - id: attribute-emission-round-trip-unreproduced
     test: Mist.Tests.Backend.AttributeEmissionRoundTripPropertyTests.AttributeEmission_PreservesStructure_RoundTrip

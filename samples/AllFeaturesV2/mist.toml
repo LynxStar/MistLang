@@ -64,3 +64,4 @@ DisposableDropInterop = { path = "../DisposableDropInterop" }
 ExtensionMethodBinding = { path = "../ExtensionMethodBinding" }
 OptionalDefaultability = { path = "../OptionalDefaultability" }
 RefStructs = { path = "../RefStructs" }
+StackOnlyTypes = { path = "../StackOnlyTypes" }

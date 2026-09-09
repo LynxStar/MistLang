@@ -6428,9 +6428,8 @@ capabilities:
 
       BOUND AND EMITTED. The node has the same shape as an array creation and is deliberately a
       separate one: the two differ in where the memory lives, which is the whole of what the syntax
-      chooses between, and only the emitted keyword records it. StackOnlyTypes runs identically to
-      classic across all seven of its sections -- measured on a copy, see the sample entry for why
-      the sample itself does not bank yet.
+      chooses between, and only the emitted keyword records it. StackOnlyTypes is banked in
+      AllFeaturesV2, byte-identical to classic across all seven of its sections.
 
       THE TARGET CHOOSES THE SPAN KIND, and reading it wrong is invisible in output. `stackalloc T[n]`
       says nothing about mutability, so the binding does; a first cut compared the target's own
@@ -8751,20 +8750,33 @@ samples:
     requires: [stackalloc, struct-declaration, foreach-over-user-enumerable,
                arrays-sized-index-length, string-interpolation, var-type-inference,
                clr-extension-method-discovery]
-    blocked_by: extension-visibility
-    blocked_detail: >
-      EVERY CAPABILITY IS DELIVERED AND THE SAMPLE STILL DOES NOT BANK. A copy differing only by an
-      added `using System;` runs identically to classic across all seven sections; the sample itself
-      refuses with MIST_PM_UNRESOLVED_MEMBER on `arr.AsSpan()`.
+    resolved_language_rule: >
+      A CLR EXTENSION IS REACHED THROUGH ITS DECLARING CLASS'S NAMESPACE, decided here and settled
+      by adding the import the sample was relying on classic to overlook.
 
-      THE TWO PIPELINES DISAGREE ABOUT A LANGUAGE RULE, not about an emission. AsSpan is
-      System.MemoryExtensions', and order 131 states v2's design as eager metadata scanning PER
-      IMPORTED NAMESPACE -- ExtensionLookup only consults namespaces the call site is in or imports,
-      which is C#'s rule. The sample imports Standard alone, so v2 does not see AsSpan and classic
-      does. Whichever way it is settled the fix is one line, but they are opposite lines: either
-      ambient extensions stop being namespace-scoped in v2, or the sample states the import it
-      relies on. Editing the sample is forbidden by samples/CLAUDE.md, so this needs a decision
-      rather than a change.
+      The sample called `arr.AsSpan()` under `using Standard` alone and v2 refused with
+      MIST_PM_UNRESOLVED_MEMBER while classic accepted. AsSpan is a member of System.MemoryExtensions,
+      a static CLASS in the System namespace rather than a namespace of its own, so C# reaches it by
+      importing System -- and ExtensionProjector already keys a block on the declaring class's
+      namespace, which is exactly that rule. Order 131 states the same design as eager metadata
+      scanning PER IMPORTED NAMESPACE. Every other sample already assumes it: ExtensionMethodBinding
+      imports System.Linq for First and Skip on the SAME relocated Standard.Array receiver, and
+      CSharpInteropV2 imports three namespaces. Classic's looseness was the anomaly.
+
+      THE ERGONOMIC OBJECTION WAS REAL AND WAS ANSWERED ELSEWHERE. Needing both `using Standard` and
+      `using System` for an operation on an intrinsic array does surprise a C# developer, and Mist
+      does have a mechanism that would avoid it: WellKnownMemberBridge merges a bridged type's CLR
+      members onto the Standard declaration, which is why `s.ToUpper()` binds under `using Standard`
+      alone, and Span.mist already declares `intrinsic Slice` mapping onto the CLR's. Declaring
+      `AsSpan` on Standard.Array would work the same way.
+
+      IT WAS REJECTED AS A FIX FOR AN IMPORT, on the ground that it makes the surprise WORSE rather
+      than smaller: adopting one CLR extension onto Standard.Array starts a list with no principled
+      edge, and every operation not adopted still needs its namespace, so the rule stops being
+      "CLR extensions need their namespace" and becomes "some do, and nothing tells you which".
+      Promoting an operation into Standard stays available as a deliberate language decision with
+      its own justification. Bridging Array would not have served here anyway: AsSpan is an
+      extension on T[], not an instance member of System.Array.
     untested:
       - No negative stackalloc case -- no managed element type, no non-constant or oversized
         length -- so the element-type check may be absent.

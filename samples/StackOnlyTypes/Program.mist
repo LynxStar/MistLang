@@ -1,4 +1,7 @@
 using Standard;
+// AsSpan is a member of System.MemoryExtensions, a static class in System. A CLR extension is
+// reached through its declaring class's namespace, so using it means importing that namespace.
+using System;
 
 namespace StackOnlyTypes;
 

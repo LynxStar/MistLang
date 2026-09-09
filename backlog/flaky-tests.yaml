@@ -30,7 +30,7 @@ flakes:
       Mist.Tests.Backend.InitializerArrayConstructionPropertyTests.InitializerConstruction_ProducesCorrectElementValues
     file: Test/Mist.Tests/Backend, Test/Mist.Tests/Analysis
     discovered: 2026-09-07
-    status: open
+    status: fixed
     symptom: >
       Three property tests failed together in one full-solution run, having passed in the run
       immediately before it with the same binaries. All three passed under --filter in isolation and
@@ -63,9 +63,26 @@ flakes:
       in any session that has touched Source/Standard than in one that has not -- which would also
       explain why it clusters rather than appearing uniformly.
 
-      Still open is whether the in-process tests fail by the same path. They read
-      Test/Mist.Tests/bin/.../Standard/, written by the OUTER build, which VSTest waits for -- so
-      that half is not explained by this mechanism and may be a second one.
+      FIXED 2026-09-09 by removing the nested build: SamplesCompileAndMatchBaselineTest now runs the
+      CLI with --no-build, and Mist.Tests carries a ProjectReference on Mist.CLI with
+      ReferenceOutputAssembly="false" so something still guarantees the binary exists. Neither half
+      works alone. NestedBuildBanTest is the structural guard, asserted on source because what the
+      fix removes is a RACE -- a passing run proves nothing, so nothing observable could catch the
+      regression.
+
+      MEASURED, not assumed: `dotnet run --project ... --no-build` leaves the copy's mtime untouched,
+      where the same command without the flag moves it once a Source/Standard file is touched. That
+      also confirms the PreserveNewest correlation above -- the copy is a no-op until a timestamp
+      moves, which is why the flake clustered in sessions editing the standard library. Two runs of
+      the racy `dotnet test Mist.slnx` form, each preceded by touching every Source/Standard file,
+      came back 5150/5150 with zero Standard-missing failures; that is consistent with the fix rather
+      than proof of it, the proof being that the only nested build in the suite is now gone.
+
+      RESIDUE, AND WHAT A NEW SIGHTING WOULD MEAN. The in-process failures in the 462 run are NOT
+      explained by this mechanism: they read Test/Mist.Tests/bin/.../Standard/, written by the outer
+      build, which VSTest waits for. They may have been collateral of heavy concurrent MSBuild I/O.
+      A recurrence whose failures are in-process ONLY is therefore a second mechanism and should open
+      a NEW entry rather than reopen this one -- capture the full log first.
 
       This supersedes "unknown" rather than guessing at it -- see the 462-failure reproduction under
       recurrences, which is where the window is measured.
@@ -152,9 +169,7 @@ flakes:
           attribute-emission-round-trip-unreproduced that "reproducing it may be a matter of load
           rather than of input" was close -- it is a matter of the BUILD, which load lengthens.
         fix: >
-          Never run the suite with a build in the same command. `dotnet build Mist.slnx` to
-          completion, then `dotnet test Mist.slnx --no-build`. Note CLAUDE.md currently documents
-          the racy form.
+          APPLIED. `dotnet test Mist.slnx` is safe again, which is what CLAUDE.md documents.
 
           THE DURABLE FIX IS TWO PARTS AND NEITHER WORKS ALONE. Stop the nested build first --
           spawn the already-built binary, or at minimum pass --no-build to the `dotnet run` in

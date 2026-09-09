@@ -208,6 +208,20 @@ public sealed class SamplesCompileAndMatchBaselineTest
     /// <summary>
     /// Runs a sample through the Mist CLI. When <paramref name="pipeline"/> is null the
     /// CLI default (classic) is used; pass "experimental" to select the v2 pipeline.
+    /// <para>
+    /// --no-build IS LOAD-BEARING, not a speed-up. Without it this is a SECOND MSBuild inside the one
+    /// running the suite, and it re-runs Mist.CLI's Content copy of Source/Standard into the very
+    /// directory the `mist` it launches then reads through AppContext.BaseDirectory. A test that
+    /// rewrites the standard library out from under a concurrently starting compiler is the
+    /// suite-wide flake in backlog/flaky-tests.yaml -- whole classes failing together with
+    /// MIST_UNDEFINED_NAMESPACE for `Standard`, and recovering on the next run. The copy is
+    /// PreserveNewest, so it is a no-op until a Source/Standard file's timestamp moves, which is why
+    /// the flake clusters in sessions that touch the standard library.
+    /// </para>
+    /// <para>
+    /// What guarantees there is something to run is the ProjectReference on Mist.CLI in
+    /// Mist.Tests.csproj, carried for its build ORDER alone. Neither half works without the other.
+    /// </para>
     /// </summary>
     private static async Task<(int ExitCode, string Stdout, string Stderr)> RunMistCli(
         string cliProjectPath, string sampleDir, string? pipeline = null)
@@ -219,7 +233,8 @@ public sealed class SamplesCompileAndMatchBaselineTest
             StartInfo = new ProcessStartInfo
             {
                 FileName = "dotnet",
-                Arguments = $"run --project \"{cliProjectPath}\" -v q -- run \"{sampleDir}\" --quiet{pipelineFlag}",
+                Arguments =
+                    $"run --project \"{cliProjectPath}\" --no-build -v q -- run \"{sampleDir}\" --quiet{pipelineFlag}",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,

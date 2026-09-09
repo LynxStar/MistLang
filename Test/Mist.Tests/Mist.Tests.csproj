@@ -19,6 +19,17 @@
     <ProjectReference Include="..\..\Source\Mist\Mist.csproj" />
     <ProjectReference Include="..\..\Source\Storm.SourceGenerator\Storm.SourceGenerator.csproj" />
     <ProjectReference Include="..\Mist.Tests.InteropFixtures\Mist.Tests.InteropFixtures.csproj" />
+    <!--
+      Carried for BUILD ORDER alone, which is why neither the assembly nor its files come along.
+      SamplesCompileAndMatchBaselineTest runs the CLI with the no-build flag, so something must
+      guarantee the CLI is built before these tests run; without this edge the solution constrains
+      nothing between the two. Building it here rather than letting the test build it is the fix
+      for the suite-wide flake in backlog/flaky-tests.yaml, where a nested MSBuild rewrites
+      Mist.CLI's copy of Source/Standard while the compiler it launches is reading it.
+    -->
+    <ProjectReference Include="..\..\Source\Mist.CLI\Mist.CLI.csproj"
+                      ReferenceOutputAssembly="false"
+                      Private="false" />
   </ItemGroup>
 
   <!--

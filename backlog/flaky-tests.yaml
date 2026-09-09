@@ -73,6 +73,25 @@ flakes:
 
       Machine was under sustained load from back-to-back full-suite runs throughout, which is the
       obvious confound and also the likeliest trigger.
+    recurrences:
+      - date: 2026-09-08
+        detail: >
+          Mist.Tests.Integration.MemoizationCorrectnessAndPerformanceTests.AllFeatures_ParsesWithinPerformanceTarget,
+          1 of 5140 in a full-solution run, green on a filtered rerun of the same binaries with
+          nothing edited (both tests in that class passed in 876 ms together). This is the "parse
+          PERFORMANCE test" the evidence above names, now recorded by its full name so the next
+          sighting is a match rather than a re-derivation.
+
+          IT IS THE ONE ENTRY HERE WITH A STATED BUDGET, which makes it the cheapest probe of the
+          load theory: the test allows 2 seconds of wall clock for lex+parse over the AllFeatures
+          corpus while 5000 other tests run beside it. If the shared-resource theory above is right
+          this test should fail MORE often than the others under load and for a reason visible in
+          its own message -- the elapsed milliseconds -- which no other entry offers. The next
+          sighting should capture that number: an elapsed just over 2000 says load, and a wild one
+          says the same shared stall the other symptoms point at.
+
+          Machine was under sustained load from repeated full builds and suite runs, the same
+          confound as above.
 
   - id: attribute-emission-round-trip-unreproduced
     test: Mist.Tests.Backend.AttributeEmissionRoundTripPropertyTests.AttributeEmission_PreservesStructure_RoundTrip

@@ -454,12 +454,19 @@ capabilities:
       - Resolve a member through a dependent argument's domain, so `arr.Length.ToString()`
         binds on Int32. Needs the expression's type to come from the domain rather than the
         substituted argument, which is the binder half of this and was left out on purpose.
-      - Consider excluding type parameters from a qualified member access regardless. The
+      - >
+        Consider excluding type parameters from a qualified member access regardless. The
         ambiguity is gone because one declaration was removed, not because the lookup can tell
         a qualified `receiver.X` from a bare `X` -- LookupRequest.Member still differs from the
         unqualified request only by a doc comment, so the next same-named pair collides again.
-        Span and ReadOnlySpan are the standing example -- both declare a Length type parameter
-        AND a Length property, and are latent only because no v2 sample touches them.
+
+        THE STANDING EXAMPLE IS GONE, resolved the same way. Span and ReadOnlySpan declared a Length
+        type parameter AND a Length property, and both properties are now removed. They stopped being
+        latent the moment a sample read one -- RefStructs and StackOnlyTypes both refused at
+        MIST_PM_AMBIGUOUS_MEMBER. A span is DEPENDENTLY TYPED, so its length comes from the type
+        argument and a fixed property restates what the type already says. Pinned by
+        SpanLengthResolutionTests, which builds over the real Standard sources so re-adding either
+        property fails there rather than in a sample.
     unlocks: [Primitives]
 
   - id: array-literals
@@ -6348,6 +6355,17 @@ capabilities:
       LEFT `partial` because the rest of the evidence above is untouched: the ref-returning indexer write,
       whose absence discards a store silently, and slicing aliasing the same backing memory. RefStructs,
       which does exercise those, still refuses.
+
+      THE LENGTH AMBIGUITY IS CLOSED, which was the gate in front of all of it. Both samples refused at
+      MIST_PM_AMBIGUOUS_MEMBER on the first span read, so nothing behind it was measurable; see the task
+      on arrays-sized-index-length for why the property went rather than the lookup changing.
+
+      WHAT THAT REVEALED, measured after: RefStructs now emits `dynamic span = new dynamic(numbers)` and
+      fails Roslyn with four "Invalid object creation". SPAN IS NOT IN WellKnownTypeMap AT ALL, so
+      `Span<T, unknown>` reaches TypeNameEmitter's ContainsUnknown fallback and is spelled `dynamic`
+      rather than `System.Span<T>`. Array escapes that by being special-cased ahead of the fallback --
+      the length-erasing projection this capability is named for is exactly what Span still lacks.
+      StackOnlyTypes is one step further back: `Array<,>` has no member named `AsSpan`.
     unlocks: [CSharpInteropV2, RefStructs]
 
   - id: stackalloc

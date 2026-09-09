@@ -4,7 +4,7 @@ intrinsic public ref struct Span<T, Length:ZeroOrPositiveInt> : IEnumerable<T>
 {
     public type SpanBounds = ZeroOrPositiveInt and < Length;
 
-    intrinsic public Int32 Length { get; }
+    // No `Length` property is declared, for the reason Array.mist gives about its own.
 
     intrinsic public T this[SpanBounds index] { get; set; }
 
@@ -23,8 +23,6 @@ intrinsic public ref struct Span<T, Length:ZeroOrPositiveInt> : IEnumerable<T>
 intrinsic public ref struct ReadOnlySpan<T, Length:ZeroOrPositiveInt> : IEnumerable<T>
 {
     public type SpanBounds = ZeroOrPositiveInt and < Length;
-
-    intrinsic public Int32 Length { get; }
 
     intrinsic public T this[SpanBounds index] { get; }
 

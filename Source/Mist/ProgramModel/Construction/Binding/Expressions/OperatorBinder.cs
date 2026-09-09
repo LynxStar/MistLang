@@ -3,6 +3,7 @@ using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Binding.Expressions;
@@ -315,6 +316,16 @@ internal static class OperatorBinder
                         context.Resolver.LookupWellKnown(WellKnownTypes.Index));
                 }
 
+            case AsyncBlockExpressionUnaryNode asyncBlock:
+                return BindAsyncBlock(node, asyncBlock.Body, isValueTask: false, ctx, context);
+
+            // The hint names the task kind. Anything but `valuetask` reads as the plain task rather
+            // than being refused: which names are admitted is a rule about a finished model.
+            case AsyncHintBlockExpressionUnaryNode hinted:
+                return BindAsyncBlock(
+                    node, hinted.Body,
+                    string.Equals(hinted.Hint.Lexeme, "valuetask", StringComparison.Ordinal), ctx, context);
+
             case AsyncExpressionUnaryNode asyncExpression:
                 {
                     var operand = Suppressed(asyncExpression.Operand, ctx, context);
@@ -379,6 +390,33 @@ internal static class OperatorBinder
     /// it, and `async f()` yields that task rather than lifting the unwrapped value back into a new one.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// The block is an ASYNC context of its own: it produces the task, so a call inside it yields a
+    /// task rather than being awaited, exactly as inside an async method.
+    /// </summary>
+    private static Expression BindAsyncBlock(
+        UnaryNode node, BlockNode bodyNode, bool isValueTask, BindingContext ctx, BuilderContext context)
+    {
+        var body = new Block(bodyNode);
+        var enclosingIsAsync = ctx.IsAsyncContext;
+        ctx.IsAsyncContext = true;
+
+        try
+        {
+            BodyBinder.BindNestedBlock(body, ctx.Scope, ctx, context, returnType: null);
+        }
+        finally
+        {
+            ctx.IsAsyncContext = enclosingIsAsync;
+        }
+
+        var produced = LambdaBinder.InferredReturnType(body, node, context)
+            ?? context.Resolver.LookupWellKnown(WellKnownTypes.Void);
+
+        return new AsyncBlockExpression(
+            node, body, context.Resolver.ConstructTask(produced), isValueTask);
+    }
+
     private static Expression Suppressed(UnaryNode operandNode, BindingContext ctx, BuilderContext context)
     {
         Expression operand;

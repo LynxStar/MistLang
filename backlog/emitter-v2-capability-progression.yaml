@@ -7399,10 +7399,22 @@ capabilities:
     order: 169
     layer: async-and-context
     requires: [func-structural-function-types]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      Mist has no async-await keyword pairing. async on a method transforms the RETURN TYPE
-      into a task, and the non-generic task is the void case.
+      Mist has no async-await keyword pairing. `async` on a method transforms the RETURN TYPE into a
+      task, and the non-generic task is the void case.
+
+      DELIVERED. `async int` declares a method producing Task<int>; the body still returns the int, so
+      MethodBuilder's transform is undone again in BodyBinder for the body's own target. `async void`
+      needs no second rule -- Mist models a resultless task as Task<void>, which is what Standard's
+      bare Task aliases.
+
+      NOTHING ASYNC COULD WORK BEFORE THE TASK HAD A SPELLING. Standard's Task had an INBOUND map
+      entry and no outbound one, so `Task<int>` emitted as a bare `Task<int>` and `Task` as
+      `Task<Standard.Void>`, neither a type C# has. TaskProjection spells both as the CLR's, and the
+      void case collapses to the non-generic task, which is where Mist's one declaration and C#'s two
+      types are reconciled.
     unlocks: []
 
   - id: sync-async-context-classification
@@ -7410,11 +7422,24 @@ capabilities:
     order: 170
     layer: async-and-context
     requires: [async-return-type-transform]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       Context changes the TYPE of a call expression and the TIMING of task completion, so
       the same call site means different things in different enclosing bodies. Async-ness
       propagates up the call graph transitively, and can promote the entry point.
+
+      DELIVERED, AND THE TWO HALVES LIVE IN DIFFERENT LAYERS, which is the whole design. The TYPE
+      half is the frontend's: a body is an async context iff its method or lambda says `async`, and
+      BindingContext carries it so a task-returning call yields the task there and its result
+      everywhere else. The PROPAGATION half is the backend's: C# can only wait inside an async
+      method, so a body containing an await is emitted async, its callers await it, and they become
+      async in turn -- a closure over facts the binder records in AwaitUseRegistry, since half these
+      awaits are inserted and exist in no syntax tree.
+
+      A BACKEND WITH BLOCKING PRIMITIVES WOULD EMIT NONE OF THE SECOND HALF and read the same
+      registry, which is the test that put it there rather than in the model. Mist's method is sync
+      and its callers see a sync method; promotion is only how C# is made to honour that.
     unlocks: []
 
   - id: auto-await-and-explicit-await
@@ -7422,12 +7447,35 @@ capabilities:
     order: 171
     layer: async-and-context
     requires: [sync-async-context-classification]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       An async call in sync context yields the unwrapped value, including inside a sync
       lambda body, which changes the lambda's inferred return type. The classic pipeline
       lowers auto-await to a blocking getter, which cannot deadlock here only because
       nothing installs a synchronization context.
+
+      DELIVERED, AS ONE NODE. The inserted await and the written one are the same thing and differ
+      only in who asked, so modelling them apart would leave the emitter deciding when a call is
+      awaited. THREE THINGS SUPPRESS THE INSERTION, and each is the same rule seen from a different
+      side -- the position already wants the task: an async context, a task-typed target
+      (`Task<int> t = f();`), and being the operand of `await` or of the async functor. That last one
+      UNDOES an insertion rather than preventing it: `await f()` awaits what f produces, not the
+      value unwrapped from it a moment earlier, and without it the operand is already an int and
+      there is nothing left to await.
+
+      A DELEGATE CALL TAKES THE SAME RULE. The first cut auto-awaited only method-group calls, and
+      FirstClassFunctions printed four Tasks where classic printed values: a func value returning a
+      task is a task-returning call however it was reached.
+
+      THE BLOCKING GETTER SURVIVES IN EXACTLY ONE PLACE. A lambda's delegate type is fixed by the
+      position it fills, so it cannot be promoted the way a method can, and an await inside a SYNC
+      one blocks. It is the one place this backend cannot honour a sync context with a real await.
+
+      V2 IS CONSISTENT WHERE CLASSIC IS NOT. Inside a string interpolation hole classic does not
+      auto-await and prints the Task; v2 does, because the rule is about the call's type and its
+      context and not about the position it sits in. No baseline covers it -- StructuredConcurrency
+      only uses the position classic gets right.
     unlocks: []
 
   - id: async-expression-functor
@@ -7435,11 +7483,25 @@ capabilities:
     order: 172
     layer: async-and-context
     requires: [auto-await-and-explicit-await]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       Applied to a sync call it LIFTS into a task; applied to an async call it SUPPRESSES
       auto-await and yields the raw task. Composable inside a lambda body, including
       double-lifting. Also covers async block expressions.
+
+      DELIVERED AS ONE NODE WITH A FLAG, because the two behaviours are one idea seen from either
+      side: the functor asks for the task, and whether that means building one or keeping the
+      insertion away depends only on whether the operand already is one.
+
+      ASYNC LAMBDAS AND ASYNC BLOCKS COME WITH IT. A lambda's `async` is the method modifier again --
+      it transforms what the body produces and makes the body an async context. An `async { ... }`
+      block is a braced body wanted as a value, so it borrows the lambda's own return-type inference
+      rather than repeating it, and emits as the lambda C# needs to run one. The `valuetask` hint
+      constructs from that task, ValueTask having no Run of its own.
+
+      DOUBLE-LIFTING WORKS: FirstClassFunctions' `async id => async ComputeSync(id)` at
+      func<int, Task<Task<int>>> matches classic, as does the whole sample.
     unlocks: [SubstructuralFieldDiscipline]
 
   - id: discarded-task-obligation
@@ -9065,6 +9127,15 @@ samples:
     requires: [substructural-field-containment, async-expression-functor,
                drop-recognition-and-insertion, generic-constraints-nominal,
                instance-fields, string-interpolation]
+    blocked_by: with-block-local-scoping
+    blocked_detail: >
+      EVERY ASYNC FORM IT USES NOW BINDS AND EMITS, and what it refuses on is unrelated. A `with (var
+      holder = ...)` binding is scoped to the with-block in Mist, and ContextLowering hoists its local
+      to the ENCLOSING method scope; the sample also declares `holder` in three sibling braced blocks,
+      which C# then rejects as already used in an enclosing scope. Four such collisions.
+
+      Found only because the async work let compilation reach Roslyn at all -- the sample previously
+      stopped at nine backend refusals. It belongs to with-blocks-and-drop-scopes, not to async.
     untested:
       - Only PERMITTED combinations appear, so the rejecting half of the containment matrix
         never fires.

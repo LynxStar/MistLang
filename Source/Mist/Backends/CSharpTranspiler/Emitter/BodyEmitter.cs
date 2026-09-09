@@ -475,6 +475,23 @@ internal static class BodyEmitter
             // fixed by the position it fills, so making it async would change that type. The wait
             // therefore blocks. It is the one place this backend cannot honour a sync context with an
             // await, and it is safe here only because nothing installs a synchronization context.
+            // The block becomes a lambda C# can run, since it is a body wanted as a value and C# has no
+            // other way to spell one. A value task is CONSTRUCTED FROM that task rather than run
+            // separately: ValueTask has no Run of its own, and wrapping is what its constructor is for.
+            case AsyncBlockExpression asyncBlock:
+                writer.Append(asyncBlock.IsValueTask
+                    ? $"new {TypeNameEmitter.Emit(asyncBlock.Type)}(System.Threading.Tasks.Task.Run(() =>"
+                    : "System.Threading.Tasks.Task.Run(() =>");
+                writer.AppendLine();
+
+                using(writer.Block())
+                {
+                    EmitBlock(asyncBlock.Body, writer, diagnostics);
+                }
+
+                writer.Append(asyncBlock.IsValueTask ? "))" : ")");
+                break;
+
             case AwaitExpression await when blockingAwaits:
                 EmitSubExpression(await.Operand, PrefixPrecedence, writer, diagnostics);
                 writer.Append(".GetAwaiter().GetResult()");
@@ -865,6 +882,7 @@ internal static class BodyEmitter
         var parameters = lambda.Parameters.Select(
             parameter => $"{TypeNameEmitter.Emit(parameter.Type)} {parameter.Name}");
 
+        writer.Append(lambda.IsAsync ? "async " : "");
         writer.Append(lambda.IsStatic ? "static (" : "(");
         writer.Append($"{string.Join(", ", parameters)}) => ");
 

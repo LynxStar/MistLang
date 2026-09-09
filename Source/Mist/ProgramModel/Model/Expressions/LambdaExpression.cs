@@ -35,5 +35,12 @@ internal sealed class LambdaExpression(
     /// </summary>
     public bool IsStatic { get; } = isStatic;
 
+    /// <summary>
+    /// Whether <c>async</c> was written. Like the modifier on a method it transforms what the body
+    /// produces into a task, and it makes the body an async context, so the two spellings of a wait
+    /// mean inside it what they mean inside an async method.
+    /// </summary>
+    public bool IsAsync { get; init; }
+
     public override IMistType Type { get; } = type;
 }

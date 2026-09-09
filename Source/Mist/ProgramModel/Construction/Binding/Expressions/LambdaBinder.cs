@@ -24,14 +24,7 @@ internal static class LambdaBinder
     {
         var (modifiers, parameterList, expressionBody, blockBody) = Parts(node);
 
-        // Parked rather than reported: an async lambda is the async layer's, and its modifier changes
-        // what the body's type MEANS, so binding it as a synchronous lambda would answer confidently
-        // with the wrong result type.
-        if(modifiers.Any(modifier => modifier is AsyncLambdaModifierLambdaModifierNode))
-        {
-            return new UnresolvedExpression(node);
-        }
-
+        var isAsync = modifiers.Any(modifier => modifier is AsyncLambdaModifierLambdaModifierNode);
         var isStatic = modifiers.Any(modifier => modifier is StaticLambdaModifierLambdaModifierNode);
         var target = AliasTransparency.Expand(
             ctx.TargetType ?? ErrorType.Instance, context.ProgramModel.TypeInterner) as IFunctionType;
@@ -57,10 +50,30 @@ internal static class LambdaBinder
                 return new ErrorExpression(node);
             }
 
-            return expressionBody is not null
-                ? BindExpressionBodied(node, expressionBody, parameters, isStatic, target, ctx, context)
-                : BindBlockBodied(node, blockBody!, parameters, isStatic, target, ctx, context)
+            // An async lambda's body is an async context and produces the RESULT, exactly as an async
+            // method's does; the delegate it fills still says the task. Both are restored after,
+            // because the lambda sits inside a body whose own context is unaffected by it.
+            var enclosingIsAsync = ctx.IsAsyncContext;
+            ctx.IsAsyncContext = isAsync || enclosingIsAsync;
+
+            var bodyTarget = isAsync && target?.ReturnType is { } asyncReturn
+                ? TaskResult.Of(asyncReturn) ?? asyncReturn
+                : target?.ReturnType
                 ;
+
+            try
+            {
+                return expressionBody is not null
+                    ? BindExpressionBodied(
+                        node, expressionBody, parameters, isStatic, isAsync, target, bodyTarget, ctx, context)
+                    : BindBlockBodied(
+                        node, blockBody!, parameters, isStatic, isAsync, target, bodyTarget, ctx, context)
+                    ;
+            }
+            finally
+            {
+                ctx.IsAsyncContext = enclosingIsAsync;
+            }
         }
         finally
         {
@@ -73,19 +86,27 @@ internal static class LambdaBinder
         ExpressionNode body,
         List<LocalVariable> parameters,
         bool isStatic,
+        bool isAsync,
         IFunctionType? target,
+        IMistType? bodyTarget,
         BindingContext ctx,
         BuilderContext context)
     {
         Expression result;
-        using(ctx.PushTargetType(target?.ReturnType))
+        using(ctx.PushTargetType(bodyTarget))
         {
             result = ExpressionBinder.BindExpression(body, ctx, context);
         }
 
+        var declared = target?.ReturnType
+            ?? (isAsync ? context.Resolver.ConstructTask(result.Type) : result.Type);
+
         return new LambdaExpression(
             node, parameters, result, body: null, isStatic,
-            FunctionTypeOf(parameters, target?.ReturnType ?? result.Type, context));
+            FunctionTypeOf(parameters, declared, context))
+        {
+            IsAsync = isAsync,
+        };
     }
 
     /// <summary>
@@ -97,21 +118,30 @@ internal static class LambdaBinder
         BlockNode bodyNode,
         List<LocalVariable> parameters,
         bool isStatic,
+        bool isAsync,
         IFunctionType? target,
+        IMistType? bodyTarget,
         BindingContext ctx,
         BuilderContext context)
     {
         var body = new Block(bodyNode);
-        BodyBinder.BindNestedBlock(body, ctx.Scope, ctx, context, target?.ReturnType);
+        BodyBinder.BindNestedBlock(body, ctx.Scope, ctx, context, bodyTarget);
+
+        var produced = target?.ReturnType is { } declared && !isAsync
+            ? declared
+            : InferredReturnType(body, node, context)
+                ?? context.Resolver.LookupWellKnown(WellKnownTypes.Void)
+            ;
 
         var returnType = target?.ReturnType
-            ?? InferredReturnType(body, node, context)
-            ?? context.Resolver.LookupWellKnown(WellKnownTypes.Void)
-            ;
+            ?? (isAsync ? context.Resolver.ConstructTask(produced) : produced);
 
         return new LambdaExpression(
             node, parameters, result: null, body, isStatic,
-            FunctionTypeOf(parameters, returnType, context));
+            FunctionTypeOf(parameters, returnType, context))
+        {
+            IsAsync = isAsync,
+        };
     }
 
     private static IMistType FunctionTypeOf(
@@ -121,7 +151,12 @@ internal static class LambdaBinder
             parameters.ConvertAll(parameter => parameter.Type), returnType);
     }
 
-    private static IMistType? InferredReturnType(Block body, LambdaExpressionNode node, BuilderContext context)
+    /// <summary>
+    /// The type a braced body produces, read off its own <c>return</c> statements. Shared with the
+    /// async BLOCK expression, which is the same question about the same shape -- a braced body with no
+    /// declared result -- reached through different syntax.
+    /// </summary>
+    internal static IMistType? InferredReturnType(Block body, SyntaxNode node, BuilderContext context)
     {
         IMistType? candidate = null;
 

@@ -366,7 +366,12 @@ internal static class PostfixBinder
     private static Expression AutoAwait(
         InvocationExpression invocation, BindingContext ctx, BuilderContext context)
     {
-        if(ctx.IsAsyncContext || TaskResult.Of(invocation.Type) is not { } result)
+        // A POSITION WANTING THE TASK suppresses the insertion as surely as an async context does:
+        // `Task<int> t = f();` asks for what f returns, and unwrapping it there would answer with a
+        // type the position rejected.
+        if(ctx.IsAsyncContext
+            || (ctx.TargetType is { } target && TaskResult.IsTask(target))
+            || TaskResult.Of(invocation.Type) is not { } result)
         {
             return invocation;
         }
@@ -406,7 +411,11 @@ internal static class PostfixBinder
             return new ErrorExpression(node);
         }
 
-        return new InvocationExpression(node, receiver, bound, function.ReturnType, null);
+        // Invoking a func VALUE takes the same auto-await as invoking a method: the rule is about what
+        // the call produces and where it sits, and a delegate returning a task is a task-returning
+        // call however it was reached.
+        return AutoAwait(
+            new InvocationExpression(node, receiver, bound, function.ReturnType, null), ctx, context);
     }
 
     /// <summary>

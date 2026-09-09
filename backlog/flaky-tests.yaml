@@ -38,12 +38,26 @@ flakes:
       message: one reports a falsified property with a printed seed, one a falsified property after
       46 cases, and one an exit code -1 whose stderr is MIST_UNDEFINED_NAMESPACE for `Standard`.
     cause: >
-      Unknown. The third symptom is the interesting one and the reason these are recorded together
-      rather than as three entries: a program that cannot find the `Standard` namespace has not
-      failed a property, it has failed to load the standard library at all, which points at
-      something shared -- a temp directory, a stdlib cache, a file still being written -- rather
-      than at anything the three tests have in common semantically. Whether the other two share
-      that cause or merely shared the run is not established.
+      THE SHARED THING IS NAMED, as of 2026-09-08, and it is the build-copied standard library.
+      Mist.Tests.csproj copies Source/Standard/**/*.mist as Content into
+      AppContext.BaseDirectory/Standard/, and Mist.CLI's output carries its own copy that spawning
+      tests read. `dotnet test Mist.slnx` BUILDS AND RUNS three projects together, so tests can read
+      those directories while the build is still writing them -- and a stdlib that is not there yet
+      is not a failed property, it is MIST_UNDEFINED_NAMESPACE for `Standard`, which is the third
+      symptom this entry was opened for.
+
+      THE CROSS-PROJECT HALF IS UNCONSTRAINED, which is the specific defect. Mist.Tests references
+      Mist.csproj, Storm.SourceGenerator and Mist.Tests.InteropFixtures -- NOT Mist.CLI -- and yet
+      spawns the CLI binary and reads the Standard copy in its output. MSBuild therefore has no
+      ordering edge at all between building Mist.CLI and running Mist.Tests' tests, so a spawning
+      test can execute a CLI whose output directory is mid-write. That is a missing dependency, not
+      a timing accident.
+
+      Still open is whether the in-process tests fail by the same path or by their own copy landing
+      late; both would look identical from the message. That does not change the fix.
+
+      This supersedes "unknown" rather than guessing at it -- see the 462-failure reproduction under
+      recurrences, which is where the window is measured.
     evidence: >
       Found while delivering order 146, which changes type-argument emission -- so the first of the
       three had to be treated as a real regression rather than assumed flaky, since it asserts
@@ -107,6 +121,30 @@ flakes:
 
           Machine was under sustained load from repeated full builds and suite runs, the same
           confound as above.
+      - date: 2026-09-08
+        detail: >
+          THE REPRODUCTION THAT NAMES THE CAUSE. 462 failures of 5145 under `dotnet test Mist.slnx`,
+          0 of 5145 on an immediate rerun with no edit, and 0 again once the runner was changed to
+          build to completion first and then run with --no-build.
+
+          THREE MEASUREMENTS MAKE IT A MECHANISM RATHER THAN A GUESS. 143 of the failures carry
+          literally "MIST_UNDEFINED_NAMESPACE: The namespace 'Standard' could not be found", so the
+          standard library was genuinely absent and not merely mis-resolved. The failures occupy a
+          WINDOW -- first [FAIL] at 00:00:00.66, last at 00:00:32.20, nothing in the remaining 24
+          seconds of a 56-second run -- which is what a resource becoming available partway through
+          looks like and is not what load-induced timeouts look like. And the run was one that
+          BUILDS: `dotnet test Mist.slnx` compiles three projects and runs them concurrently, while
+          every green rerun either skipped the build or had it already finished.
+
+          WHY --filter NEVER REPRODUCED IT, which this entry and the one below both puzzled over: a
+          filtered run does no concurrent build, so the window does not exist. The advice in
+          attribute-emission-round-trip-unreproduced that "reproducing it may be a matter of load
+          rather than of input" was close -- it is a matter of the BUILD, which load lengthens.
+        fix: >
+          Never run the suite with a build in the same command. `dotnet build Mist.slnx` to
+          completion, then `dotnet test Mist.slnx --no-build`. A durable fix would make the Content
+          copy an ordered dependency of the test run rather than a sibling of it, so no test can
+          observe a half-written Standard directory.
 
   - id: attribute-emission-round-trip-unreproduced
     test: Mist.Tests.Backend.AttributeEmissionRoundTripPropertyTests.AttributeEmission_PreservesStructure_RoundTrip

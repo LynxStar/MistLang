@@ -6330,17 +6330,36 @@ capabilities:
     order: 138
     layer: stack-only
     requires: [struct-declaration]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      Ref-struct-ness must propagate into legality checks at every position used -- field,
-      parameter, return, foreach and local -- including a ref struct field inside another.
+      THE MODIFIER IS EMITTED. It was dropped, found on RefStructs once the length ambiguity stopped
+      gating it: `public ref struct IntPair` in Mist became `public struct IntPair` in v2 where
+      classic keeps the `ref`. NOTHING WOULD HAVE CAUGHT IT. A dropped `ref` produces a type that
+      compiles, runs and prints identically -- it just stops being stack-only, which is the whole of
+      what the sample claims to prove. It is the standing example of the baseline's blind spot, so
+      the guard is RefStructEmissionTests, asserting on emitted TEXT, and no sample can stand in.
 
-      THE MODIFIER IS DROPPED ON EMISSION, measured on RefStructs once the length ambiguity stopped
-      gating it: `public ref struct IntPair` in Mist becomes `public struct IntPair` in v2 where
-      classic keeps the `ref`. NOTHING WOULD CATCH THIS. A dropped `ref` produces a type that
-      compiles, runs, and prints identically -- it just stops being stack-only, which is the whole
-      of what the sample claims to prove. It is the standing example of the baseline's blind spot,
-      and it means RefStructs must not be banked on a clean stdout diff alone.
+      SPELLED AFTER `readonly` AND BEFORE THE KEYWORD, which C# fixes and Mist's own modifier list
+      leaves free. `readonly ref struct` is accepted and `ref readonly struct` is not.
+
+      GUARDED ON StructType RATHER THAN ON THE FLAG. Mist PARSES `ref class` -- classic reports
+      MIST2001 for it, v2 binds it silently -- so the flag genuinely reaches a class, and spelling it
+      from there would emit `ref class`, which C# does not have. The guard is load-bearing rather
+      than defensive, and the test that pins it declares a `ref class` to prove so.
+
+      The layout attribute every struct carries is legal on a ByRefLike one; Roslyn accepts the pair
+      on RefStructs, which is worth knowing because the attribute precedes the declaration and would
+      otherwise refuse the whole type.
+    analysis_phase_tasks:
+      - >
+        Report `ref` on a class, which classic reports as MIST2001, "The 'ref' modifier is only valid
+        on struct declarations". v2 declines to emit it and stays silent.
+      - >
+        Propagate ref-struct-ness into legality checks at every position used -- field, parameter,
+        return, foreach and local. A ref struct FIELD is the one with two answers: legal inside
+        another ref struct, which RefStructs.NestedRefStruct exercises and Roslyn accepts, and CS8345
+        inside a class, which nothing in Mist currently refuses ahead of the C# compiler.
     unlocks: []
 
   - id: span-projection-and-length-erasure

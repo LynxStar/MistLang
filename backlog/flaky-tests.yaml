@@ -92,6 +92,21 @@ flakes:
 
           Machine was under sustained load from repeated full builds and suite runs, the same
           confound as above.
+      - date: 2026-09-08
+        detail: >
+          NAME NOT CAPTURED, and recorded anyway so the procedural miss is visible rather than
+          repeated. 1 failure of 5145 in a full-solution run, 0 of 5145 on an immediate rerun with
+          the same binaries and no edit. The run was filtered to "Passed!|Failed!" as it happened,
+          which prints the COUNT and not the name, and the count is all that survives.
+
+          THIS IS THE FIFTH SUCH SIGHTING and the reason the fields above keep asking for a name.
+          The fix is procedural, not diagnostic: a full-suite run must capture the whole output to a
+          file and read the "[FAIL]" lines out of it afterwards, because narrowing the grep at the
+          moment of the run is what destroys the evidence. Anyone touching this entry should do that
+          before rerunning -- the rerun is what makes the sighting unrecoverable.
+
+          Machine was under sustained load from repeated full builds and suite runs, the same
+          confound as above.
 
   - id: attribute-emission-round-trip-unreproduced
     test: Mist.Tests.Backend.AttributeEmissionRoundTripPropertyTests.AttributeEmission_PreservesStructure_RoundTrip

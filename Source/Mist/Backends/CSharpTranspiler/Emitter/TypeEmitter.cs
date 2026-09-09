@@ -95,6 +95,10 @@ internal static class TypeEmitter
         };
         var accessibility = type.Modifiers.Accessibility == Accessibility.Public ? "public " : "";
         var readonlyModifier = type.IsReadonly && type is StructType ? "readonly " : "";
+
+        // C# fixes this pair's order, and a dropped `ref` is invisible downstream: the type still
+        // compiles, runs and prints the same, it just stops being stack-only.
+        var refModifier = type is StructType { IsRef: true } ? "ref " : "";
         var typeName = EmitTypeName(type);
 
         // Every struct, not only the ones with a base: flattening is also what remaps a struct's
@@ -121,7 +125,7 @@ internal static class TypeEmitter
         SlotLift.ReportUnfilled(type, diagnostics);
 
         writer.WriteLine(
-            $"{accessibility}{readonlyModifier}{typeKeyword} {typeName}{EmitBaseList(type, closedConstraints)}");
+            $"{accessibility}{readonlyModifier}{refModifier}{typeKeyword} {typeName}{EmitBaseList(type, closedConstraints)}");
         ConstraintEmitter.Emit(Parameters(type), writer);
         using(writer.Block())
         {

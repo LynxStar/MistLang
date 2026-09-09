@@ -116,15 +116,36 @@ internal static class MemberBinder
             return;
         }
 
-        foreach(var entry in concreteType.DefaultBlock.Entries.OfType<DefaultValueEntry>())
+        foreach(var entry in concreteType.DefaultBlock.Entries)
         {
-            var field = concreteType.FieldsList.Find(f => f.Name == entry.FieldName);
-
-            if(field is not null)
+            switch(entry)
             {
-                entry.Value = BodyBinder.BindInitializer(
-                    entry.Value, field.Type, concreteType.Scope, context)!;
+                case DefaultValueEntry value:
+                    BindEntryValue(value, concreteType, concreteType, context);
+                    break;
+
+                case DefaultBindingEntry { BoundType: ConcreteType bound } binding:
+                    foreach(var nested in binding.NestedEntries.OfType<DefaultValueEntry>())
+                    {
+                        BindEntryValue(nested, bound, concreteType, context);
+                    }
+
+                    break;
             }
+        }
+    }
+
+    /// <summary>
+    /// The field is looked up on the type that DECLARES it -- the bound type for a nested override --
+    /// while the scope stays the enclosing type's, which is where the expression was written.
+    /// </summary>
+    private static void BindEntryValue(
+        DefaultValueEntry entry, ConcreteType declaring, ConcreteType enclosing, BuilderContext context)
+    {
+        if(declaring.FieldsList.Find(f => f.Name == entry.FieldName) is { } field)
+        {
+            entry.Value = BodyBinder.BindInitializer(
+                entry.Value, field.Type, enclosing.Scope, context)!;
         }
     }
 

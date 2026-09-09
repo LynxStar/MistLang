@@ -11,11 +11,10 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// that <c>default(T)</c> becomes an ordinary call. Mist's default of a class is an INSTANCE with every
 /// field defaulted, not a null reference, so there is nothing C# can be asked for here.
 /// <para>
-/// A type is defaultable only if it declares no constructor or declares a parameterless one. Requiring
-/// arguments is the author saying the type has no sensible zero, and for a derived type it is a hard
-/// limit besides: a synthesized parameterless constructor would need a base call that does not exist.
-/// Emission is GATED on this rather than a diagnostic being raised for the rest, because refusing a
-/// program is a judgement on a finished model and nothing in this pipeline makes one yet.
+/// A type is defaultable only if it states a zero -- a default block, no constructor at all, or a
+/// parameterless one. Requiring arguments and saying nothing else is the author saying the type has no
+/// sensible zero. Emission is GATED on this rather than a diagnostic being raised for the rest, because
+/// refusing a program is a judgement on a finished model and nothing in this pipeline makes one yet.
 /// </para>
 /// </summary>
 internal static class DefaultSynthesis
@@ -23,8 +22,8 @@ internal static class DefaultSynthesis
     public const string FactoryName = "__CreateDefault";
 
     /// <summary>
-    /// The marker discriminating the sentinel constructor, needed only where the type already declares
-    /// a parameterless one so construction and defaulting have to diverge. Distinct from
+    /// The marker discriminating the sentinel constructor, needed where the type declares constructors
+    /// of its own so construction and defaulting have to diverge. Distinct from
     /// <see cref="StructAncestorFactory.MarkerType"/> rather than shared with it: on a struct with no
     /// fields and no properties that factory's constructor takes its marker ALONE, so one marker serving
     /// both would put two identical signatures on the same type.
@@ -35,35 +34,63 @@ internal static class DefaultSynthesis
 
     public static bool IsDefaultable(MemberType type)
     {
-        return type is ConcreteType { IsIntrinsic: false } concrete
-            && HasParameterlessSlot(concrete)
-            && BaseIsDefaultable(concrete)
-            && InstanceFields(concrete).All(field => CanDefault(concrete, field))
-            ;
+        return IsDefaultable(type, []);
     }
 
     /// <summary>
-    /// Whether defaulting has to route through the sentinel, which is exactly when the type spends its
-    /// parameterless slot on a constructor of its own.
+    /// The set holds the types already under test, and a type reached again through its own fields is
+    /// answered NOT defaultable: a cycle means the default is infinitely deep, so there is no instance
+    /// to build rather than one this pipeline declines to build.
+    /// </summary>
+    private static bool IsDefaultable(MemberType type, HashSet<MemberType> visiting)
+    {
+        if(!visiting.Add(type))
+        {
+            return false;
+        }
+
+        try
+        {
+            return type is ConcreteType { IsIntrinsic: false } concrete
+                && StatesAZero(concrete)
+                && BaseIsDefaultable(concrete, visiting)
+                && InstanceFields(concrete).All(field => CanDefault(concrete, field, visiting))
+                ;
+        }
+        finally
+        {
+            _ = visiting.Remove(type);
+        }
+    }
+
+    /// <summary>
+    /// Whether defaulting has to route through the sentinel, which is whenever the type declares a
+    /// constructor of its own. Not just when that constructor is the parameterless one: a type spelling
+    /// only <c>T(int)</c> has no parameterless constructor in Mist either, and emitting a public one to
+    /// default it would hand C# a construction Mist rejects.
     /// </summary>
     public static bool NeedsSentinel(ConcreteType type)
     {
-        return type.ConstructorsList.Exists(c => c.ParametersList.Count == 0 && !c.Modifiers.IsStatic);
+        return type.ConstructorsList.Exists(c => !c.Modifiers.IsStatic);
     }
 
     /// <summary>
-    /// Each field paired with the expression its default assigns, in declaration order, or null where
-    /// the answer is the field type's own literal default. A default block entry REPLACES the field's
-    /// own answer rather than adding to it, which is what makes a block on a type that also has
-    /// initializers mean the block's values and not both.
+    /// Each field paired with what its default assigns, in declaration order. A default block entry
+    /// REPLACES the field's own answer rather than adding to it, which is what makes a block on a type
+    /// that also has initializers mean the block's values and not both.
     /// </summary>
-    public static List<(Field Field, Expression? Value)> Assignments(ConcreteType type)
+    public static List<DefaultAssignment> Assignments(ConcreteType type)
     {
-        var assignments = new List<(Field, Expression?)>();
+        var assignments = new List<DefaultAssignment>();
 
         foreach(var field in InstanceFields(type))
         {
-            assignments.Add((field, BlockEntry(type, field)?.Value ?? field.Initializer));
+            var entry = BlockEntry(type, field);
+
+            assignments.Add(new DefaultAssignment(
+                field,
+                (entry as DefaultValueEntry)?.Value ?? (entry is null ? field.Initializer : null),
+                entry as DefaultBindingEntry));
         }
 
         return assignments;
@@ -72,13 +99,21 @@ internal static class DefaultSynthesis
     /// <summary>
     /// A field with no answer is what makes the whole type non-defaultable, since a constructor that
     /// skipped it would leave it at C#'s zero rather than Mist's -- null for a string where Mist means
-    /// the empty one.
+    /// the empty one. A field holding a defaultable type has one: that type's own default.
     /// </summary>
-    private static bool CanDefault(ConcreteType type, Field field)
+    private static bool CanDefault(ConcreteType type, Field field, HashSet<MemberType> visiting)
     {
-        return BlockEntry(type, field) is not null
+        var entry = BlockEntry(type, field);
+
+        if(entry is DefaultBindingEntry binding)
+        {
+            return binding.BoundType is MemberType bound && IsDefaultable(bound, visiting);
+        }
+
+        return entry is not null
             || field.Initializer is not null
             || BodyEmitter.EmitTypeDefault(field.Type) is not null
+            || (field.Type is MemberType nested && IsDefaultable(nested, visiting))
             ;
     }
 
@@ -92,7 +127,7 @@ internal static class DefaultSynthesis
         return type.FieldsList.Where(field => !field.Modifiers.IsStatic);
     }
 
-    private static DefaultValueEntry? BlockEntry(ConcreteType type, Field field)
+    private static DefaultEntry? BlockEntry(ConcreteType type, Field field)
     {
         if(type.DefaultBlock is null)
         {
@@ -101,22 +136,45 @@ internal static class DefaultSynthesis
 
         foreach(var entry in type.DefaultBlock.Entries)
         {
-            if(entry is DefaultValueEntry value && value.FieldName == field.Name)
+            if(entry.FieldName == field.Name)
             {
-                return value;
+                return entry;
             }
         }
 
         return null;
     }
 
-    private static bool HasParameterlessSlot(ConcreteType type)
+    private static bool StatesAZero(ConcreteType type)
     {
-        return type.ConstructorsList.Count == 0 || NeedsSentinel(type);
+        return type.DefaultBlock is not null || HasParameterlessConstructor(type);
     }
 
-    private static bool BaseIsDefaultable(ConcreteType type)
+    /// <summary>
+    /// The base must also leave a parameterless constructor STANDING, not merely be defaultable: a base
+    /// that states its zero through a default block alone emits only the private sentinel, and the
+    /// derived sentinel's implicit <c>base()</c> would then name a constructor that does not exist.
+    /// </summary>
+    private static bool BaseIsDefaultable(ConcreteType type, HashSet<MemberType> visiting)
     {
-        return type.BaseType is not MemberType baseType || IsDefaultable(baseType);
+        return type.BaseType is not MemberType baseType
+            || (IsDefaultable(baseType, visiting)
+                && baseType is ConcreteType concrete
+                && HasParameterlessConstructor(concrete))
+            ;
+    }
+
+    private static bool HasParameterlessConstructor(ConcreteType type)
+    {
+        return !NeedsSentinel(type)
+            || type.ConstructorsList.Exists(c => c.ParametersList.Count == 0 && !c.Modifiers.IsStatic)
+            ;
     }
 }
+
+/// <summary>
+/// What one field's default assigns: an expression, a type binding to construct and override, or
+/// neither, meaning the field type's own literal default.
+/// </summary>
+internal readonly record struct DefaultAssignment(
+    Field Field, Expression? Value, DefaultBindingEntry? Binding);

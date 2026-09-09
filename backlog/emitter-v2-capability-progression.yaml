@@ -1895,17 +1895,42 @@ capabilities:
     requires: [default-expression, readonly-struct, explicit-this-member-read,
                object-creation, string-interpolation, var-type-inference,
                standard-library-binding]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
-      PARTIAL, and the residue is reachable in two lines of Mist rather than exotic: a class holding
-      another class cannot be defaulted. `default(Outer)` where Outer has an Inner field reports the
-      backend sentinel on v2 and prints `Outer(Count=0, Child=Inner(Value=0, Tag=))` on classic. See the
-      first task -- a field with no LITERAL default currently makes the whole type non-defaultable, and
-      the recursion that would give it one is unbuilt. This was recorded `done` first, on the strength of
-      the sample being byte-identical, which is exactly the false-green this file exists to prevent.
+      THE THREE RESIDUES ARE CLOSED. A class holding another class now defaults, a default block's
+      TYPE BINDING form is read, and a default block STATES a zero the constructor shape would
+      otherwise deny. Measured on a probe holding all four shapes at once -- Config (block plus an
+      argument-taking constructor), OptionalHolder (an `int?` field), Scene (both binding forms) and
+      Nested (a class field) -- byte-identical to classic across every line.
 
-      What IS delivered: every defaultable type gets a parameterless initializer assigning each field its
+      A DEFAULT BLOCK OUTRANKS THE CONSTRUCTOR SHAPE, which is the rule the previous gate had
+      backwards. Requiring arguments is the author saying there is no sensible zero only when they
+      say nothing else; a block is them saying exactly what the zero is, so `default(Config)` on a
+      type whose only constructor takes a string is not a gap to refuse. DatabaseConnection, which
+      declares a constructor and no block, stays non-defaultable -- the sample asserts that shape
+      explicitly, and a test pins it against the widening.
+
+      THE SENTINEL NOW ROUTES EVERY DECLARED-CONSTRUCTOR TYPE, not only one that spent the
+      parameterless slot itself. A type spelling only `Config(string)` has no parameterless
+      constructor in MIST either, so emitting a public one to default it would hand C# a construction
+      Mist rejects -- and would silently satisfy a `new()` constraint downstream.
+
+      A CYCLE IS ANSWERED, NOT RECURSED. `class Node { Node Next; }` has no finite default, so the
+      predicate carries the set of types under test and answers a re-entry non-defaultable. Without
+      the guard the recursion into a field's own type does not terminate. Classic reports
+      MIST_DEFAULT_NOT_SUPPORTED here; v2 falls to the backend sentinel, which is the same
+      declines-to-emit posture the rest of this entry takes.
+
+      AN OPTIONAL DEFAULTS TO ABSENCE rather than to a defaulted inner value, absence being the
+      reading every inner type has and the one needing nothing constructed. Wider unions keep their
+      carrier and stay non-defaultable: which constituent a carrier defaults to is unanswered.
+
+      A NESTED OVERRIDE BINDS AGAINST THE BOUND TYPE'S FIELD, in the ENCLOSING type's scope. Two
+      different types own the two halves -- the field name is the bound type's, the expression was
+      written where the block was -- and reading either off the wrong one leaves the entry unbound.
+
+      What was already delivered: every defaultable type gets a parameterless initializer assigning each field its
       default plus a static __CreateDefault factory, so `default(T)` becomes an ordinary call. Banked in
       AllFeaturesV2, output byte-identical to classic, including the three cases that distinguish the
       layers: Settings replaying its field initializers, AppState's block REPLACING the field defaults
@@ -1918,11 +1943,11 @@ capabilities:
       a field initializer takes. An entry naming no declared field is left unbound rather than reported:
       whether a block may name a member the type does not declare is a judgement on a finished model.
 
-      DEFAULTABILITY IS A GATE, NOT A DIAGNOSTIC. A type is defaultable only if it declares no
-      constructor or declares a parameterless one, its base is defaultable, and every field has an
-      answer. Requiring arguments is the author saying there is no sensible zero, and for a derived type
-      it is a hard limit besides -- a synthesized parameterless constructor would need a base call that
-      does not exist. Classic REPORTS the bad cases (MIST_BASE_CTOR_UNSATISFIED and
+      DEFAULTABILITY IS A GATE, NOT A DIAGNOSTIC. A type is defaultable only if it states a zero, its
+      base is defaultable, and every field has an answer. A base must also leave a parameterless
+      constructor STANDING rather than merely be defaultable: one stating its zero through a block
+      alone emits only the private sentinel, and the derived sentinel's implicit `base()` would name a
+      constructor that does not exist. Classic REPORTS the bad cases (MIST_BASE_CTOR_UNSATISFIED and
       MIST_DEFAULT_BASE_NOT_DEFAULTABLE, measured); v2 declines to emit and stays silent, because
       refusing a program is analysis-phase work. The predicate was verified against both banked samples
       rather than derived: DefaultKeyword's six types all qualify, and CastOperators' five
@@ -1940,20 +1965,19 @@ capabilities:
       rejected.
     tasks:
       - >
-        Recurse into a field whose type is itself defaultable, which classic calls NestedTypeDefault and
-        emits as a nested __CreateDefault call. THE ONE THAT MAKES THIS PARTIAL: such a field currently
-        makes the whole type non-defaultable, so no synthesis is emitted and `default` on it reports the
-        sentinel. Safe rather than wrong -- nothing uncompilable is emitted -- but it refuses a program
-        classic runs, and it needs only a class holding a class. No sample reaches it, DefaultKeyword's
-        fields all being intrinsic, which is why the sample going green did not catch it.
-        OptionalDefaultability is the sample that will force it: its OptionalHolder holds an `int?`, a
-        field with no literal default, so under the current rule that type is non-defaultable too. That
-        sample needs unions and enums first, so a probe is the only check until then.
+        DELIVERED. Recurse into a field whose type is itself defaultable, which classic calls
+        NestedTypeDefault and emits as a nested __CreateDefault call. This was what made the entry
+        partial: such a field made the whole type non-defaultable, so no synthesis was emitted and
+        `default` on it reported the sentinel. No sample reached it, DefaultKeyword's fields all being
+        intrinsic, which is why that sample going green did not catch it; a probe holding a class in a
+        class was the check, and OptionalDefaultability.OptionalHolder is now the sample.
       - >
-        Support a default block's TYPE BINDING form, `field : Type { nested }`, which the model already
-        parses into DefaultBindingEntry and nothing reads. It is how classic gives a non-defaultable
-        field an answer, so it and the recursion above are one piece of work. NOW HAS A SAMPLE:
-        OptionalDefaultability.Scene, added because nothing exercised the construct at all.
+        DELIVERED. A default block's TYPE BINDING form, `field : Type { nested }`, which the model
+        parsed into DefaultBindingEntry and nothing read. It is how classic gives a non-defaultable
+        field an answer, so it and the recursion above were one piece of work. Emitted through a LOCAL
+        rather than assigned and then overridden through the field, because the field's declared type is
+        the abstract one the binding exists to widen from and its members are not reachable through it.
+        SAMPLE: OptionalDefaultability.Scene, added because nothing exercised the construct at all.
 
         LIVE DEFECT IN CLASSIC, which v2 must not reproduce. A BRACELESS binding collects every
         FOLLOWING entry in the block as its own nested override, on top of that entry applying

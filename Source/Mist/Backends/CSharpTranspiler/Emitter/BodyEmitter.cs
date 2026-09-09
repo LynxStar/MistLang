@@ -698,9 +698,19 @@ internal static class BodyEmitter
     /// literal one. A class or struct defaults to an instance built by a synthesized factory, which is
     /// not emitted yet; returning null leaves the expression to the sentinel below, so the gap is
     /// reported against Mist source instead of emitted as C# that would not compile.
+    /// <para>
+    /// An optional defaults to ABSENCE rather than to a defaulted inner value, since absence is the
+    /// reading that exists for every inner type and needs nothing constructed. Wider unions keep their
+    /// carrier and are left to the sentinel: which constituent a carrier defaults to is unanswered.
+    /// </para>
     /// </summary>
     internal static string? EmitTypeDefault(IMistType type)
     {
+        if(OptionalUnion.IsOptional(type))
+        {
+            return "null";
+        }
+
         if(type is not ConcreteType { IsIntrinsic: true })
         {
             return null;

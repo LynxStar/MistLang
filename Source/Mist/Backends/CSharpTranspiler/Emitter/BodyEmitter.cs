@@ -148,6 +148,47 @@ internal static class BodyEmitter
     /// ref.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// The factory arguments a call to a default-constrained generic supplies, ahead of the declared
+    /// ones. The type arguments come off the CALLEE rather than being re-derived, so an inferred one
+    /// reaches here already substituted -- the emitter runs no inference of its own.
+    /// </summary>
+    private static void EmitWitnesses(
+        InvocationExpression invocation, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        var typeArguments = invocation.Receiver switch
+        {
+            MemberAccessExpression access => access.TypeArguments,
+            MethodReferenceExpression reference => reference.TypeArguments,
+            _ => [],
+        };
+
+        if(invocation.Method is not { } method || typeArguments.Count == 0)
+        {
+            return;
+        }
+
+        var witnesses = DefaultConstraintWitness.Arguments(method.TypeParametersList, typeArguments);
+
+        if(witnesses.Count == 0)
+        {
+            return;
+        }
+
+        foreach(var missing in witnesses.Where(witness => witness is null))
+        {
+            diagnostics.ReportAtNode(BackendDiagnostics.UnsupportedExpression, invocation.Node, null);
+        }
+
+        writer.Append(string.Join(", ", witnesses.Select(
+            witness => witness ?? "/* unsupported: default constraint */")));
+
+        if(invocation.Arguments.Count > 0)
+        {
+            writer.Append(", ");
+        }
+    }
+
     private static void EmitArguments(
         IReadOnlyList<Expression> arguments,
         IReadOnlyList<Parameter>? parameters,
@@ -432,6 +473,7 @@ internal static class BodyEmitter
                 }
 
                 writer.Append("(");
+                EmitWitnesses(invocation, writer, diagnostics);
                 EmitArguments(invocation.Arguments, invocation.Method?.ParametersList, writer, diagnostics);
                 writer.Append(")");
                 break;
@@ -658,20 +700,8 @@ internal static class BodyEmitter
                 writer.Append($"typeof({TypeNameEmitter.Emit(typeLiteral.ReferencedType)})");
                 break;
 
-            case DefaultExpression @default when EmitTypeDefault(@default.Type) is { } value:
+            case DefaultExpression @default when DefaultSynthesis.Expression(@default.Type) is { } value:
                 writer.Append(value);
-                break;
-
-            case DefaultExpression @default when @default.Type is MemberType memberType
-                && DefaultSynthesis.IsDefaultable(memberType):
-                writer.Append($"{TypeNameEmitter.Emit(@default.Type)}.{DefaultSynthesis.FactoryName}()");
-                break;
-
-            // An enum is defaultable exactly when it designates a variant, there being no other way
-            // to choose between them -- unlike a class, whose fields each have a zero of their own.
-            case DefaultExpression @default when @default.Type is EnumType { MembersList: { } variants }
-                && variants.Exists(variant => variant.IsDefault):
-                writer.Append($"{TypeNameEmitter.Emit(@default.Type)}.{DefaultSynthesis.FactoryName}()");
                 break;
 
             default:

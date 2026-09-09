@@ -1,4 +1,5 @@
 using Mist.Backends.CSharpTranspiler.Emitter;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
@@ -31,6 +32,41 @@ internal static class DefaultSynthesis
     public const string MarkerType = $"{ConstructorConstraintInterfaces.Namespace}.__DefaultInit";
 
     public const string MarkerTypeName = "__DefaultInit";
+
+    /// <summary>
+    /// The default of a type as a C# expression, or null where this backend cannot name one. Every site
+    /// that needs a default -- the expression, a field the synthesis is answering for, and the witness a
+    /// call passes for a constrained type argument -- resolves it here, so the three cannot disagree.
+    /// </summary>
+    public static string? Expression(IMistType type)
+    {
+        if(BodyEmitter.EmitTypeDefault(type) is { } literal)
+        {
+            return literal;
+        }
+
+        if(type is TypeParameter parameter && DefaultConstraintWitness.Constrains(parameter))
+        {
+            return $"{DefaultConstraintWitness.Name(parameter)}()";
+        }
+
+        if(type is MemberType member && IsDefaultable(member))
+        {
+            return Factory(type);
+        }
+
+        // An enum is defaultable exactly when it designates a variant, there being no other way to
+        // choose between them -- unlike a class, whose fields each have a zero of their own.
+        return type is EnumType { MembersList: { } variants } && variants.Exists(variant => variant.IsDefault)
+            ? Factory(type)
+            : null
+            ;
+    }
+
+    private static string Factory(IMistType type)
+    {
+        return $"{TypeNameEmitter.Emit(type)}.{FactoryName}()";
+    }
 
     public static bool IsDefaultable(MemberType type)
     {

@@ -80,8 +80,14 @@ internal static class MethodEmitter
         var typeParams = declared.Count > 0
             ? $"<{string.Join(", ", declared.Select(DependentCarrierNames.Parameter))}>"
             : "";
+        var parts = DefaultConstraintWitness.Parameters(declared);
         var parameters = ParameterEmitter.Emit(method.ParametersList, diagnostics);
 
-        return $"{returnType} {name}{typeParams}({parameters})";
+        if(parameters.Length > 0)
+        {
+            parts.Add(parameters);
+        }
+
+        return $"{returnType} {name}{typeParams}({string.Join(", ", parts)})";
     }
 }

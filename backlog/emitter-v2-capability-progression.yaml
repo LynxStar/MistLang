@@ -7246,12 +7246,19 @@ capabilities:
     order: 167
     layer: definite-assignment
     requires: [default-value-synthesis]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      Defaultability is DERIVED and must agree across three independent sources -- a user
-      default block, implicit zero-initialization for a field-only type, and an enum
-      variant-level default annotation. An optional is defaultable because its union
-      contains void.
+      Defaultability is DERIVED, and all four sources now agree through one function --
+      DefaultSynthesis.Expression, which every site that needs a default resolves through so the
+      answers cannot diverge. A user default block, implicit zero-initialization for a field-only
+      type, an enum's variant-level default annotation, and an optional being defaultable because
+      its union contains void. A wider union keeps its carrier and is NOT defaultable: which
+      constituent a carrier defaults to is unanswered.
+
+      Exercised by OptionalDefaultability, banked in AllFeaturesV2, which puts all four in one
+      program -- Config's block, Point's field-only zero, Direction's `default North`, and
+      OptionalHolder's `int?`.
     unlocks: []
 
   - id: default-generic-constraint
@@ -7259,12 +7266,39 @@ capabilities:
     order: 168
     layer: definite-assignment
     requires: [defaultability-inference, generic-constraints-nominal]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      Checked at every instantiation site and used to resolve a default expression inside a
-      generic body. The classic pipeline lowers it to an injected factory parameter and a
-      comment, so it is NOT carried in metadata and a violating instantiation from outside
-      would not be caught.
+      A CONSTRAINED PARAMETER GAINS A FACTORY PARAMETER, `System.Func<T> __default_T`, which the
+      call site fills from the type argument it chose and which `default(T)` in the body calls.
+      C# has no such constraint, and Mist's default of a class is an instance rather than a null,
+      so the generic body has nothing to ask C# for. OptionalDefaultability is banked in
+      AllFeaturesV2, byte-identical to classic.
+
+      THE WITNESS COMES FIRST IN THE PARAMETER LIST, not last. A declared params array has to stay
+      last and C# rejects any parameter after it, so appending would refuse a shape Mist accepts.
+
+      TYPE ARGUMENTS COME OFF THE CALLEE rather than being re-derived here. PostfixBinder records
+      the substituted list on the MemberAccessExpression and the MethodReferenceExpression, so an
+      INFERRED argument reaches the emitter already resolved and the backend runs no inference of
+      its own.
+
+      A METADATA-CARRYING LOWERING WAS REJECTED. A synthesized interface with a static abstract
+      factory -- the shape ConstructorConstraintInterfaces uses for `new(int)` -- would carry the
+      constraint into metadata and catch a violating instantiation from outside the compilation.
+      It closes only over types DECLARED in Mist, because the interface is added to a declaration.
+      A default constraint is legitimately closed by `int`, by `string` and by an enum, none of
+      which has a declaration to add a base list to, so it would refuse valid Mist to catch invalid
+      Mist. The constraint therefore does not survive into metadata; the check belongs to the
+      analysis phase, where it is already listed.
+
+      FOUR LIVE DEFECTS IN CLASSIC, all measured on one probe and none reproduced by v2. Classic
+      emits `int.__CreateDefault()` and `string.__CreateDefault()` for an INTRINSIC type argument,
+      neither of which exists. It declares the witness LAST -- `Describe<T>(string, Func<T>)` --
+      and then does not pass it when the method has declared parameters. And a call from INSIDE
+      another constrained generic passes no witness at all, so constraint forwarding does not
+      compile. Of six shapes probed -- int, string, an enum, a class, a call with a declared
+      argument, and a forwarding call -- classic compiles one and v2 runs all six.
     unlocks: [OptionalDefaultability]
 
   # ===================================================================
@@ -8863,8 +8897,12 @@ samples:
     untested:
       - The non-defaultable types are never used with a default expression, so the rejection
         path is unexercised.
-      - The constraint is emitted as a comment plus an injected factory, so it is NOT carried
+      - The default constraint is lowered to an injected factory parameter, so it is NOT carried
         in metadata and a violating instantiation from outside would not be caught.
+      - Every default constraint here is closed by a Mist-declared class. Closure by an
+        intrinsic, by an enum, on a method that also declares parameters, and by forwarding from
+        another constrained generic are all measured only on a probe -- and are the four shapes
+        classic gets wrong.
 
   - name: RegexLiterals
     intro_order: 40

@@ -80,5 +80,6 @@ public class Program
         DefiniteAssignment.Program.RunDemo();
         DisposableDropInterop.Program.RunDemo();
         ExtensionMethodBinding.Program.RunDemo();
+        OptionalDefaultability.Program.RunDemo();
     }
 }

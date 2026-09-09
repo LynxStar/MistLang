@@ -1366,3 +1366,26 @@ Skip then First: 6
 Word count: 3
 First word: hello
 --- Extension Method Binding Done ---
+=== Optional Defaultability Sample ===
+--- Non-Defaultable Type ---
+  conn=Server=localhost timeout=30
+--- Constructor + Default Block ---
+  prod: env=production retries=3
+  dev: env=development retries=1
+--- Implicitly Defaultable ---
+  default: x=0 y=0
+  new: x=0 y=0
+--- Enum Default Variant ---
+  direction=North
+--- Generic Default Constraint ---
+  factory point: x=0 y=0
+--- Optional Defaultability ---
+  maybeValue=Void
+--- Array Stampability ---
+  ints[0]=0 ints[1]=0 ints[2]=0
+  points[0].X=0 points[0].Y=0
+--- Default Block Type Binding ---
+  layers=3
+  primary=Circle(Radius=7, Label=primary)
+  secondary=Square(Side=0)
+Done!

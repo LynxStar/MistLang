@@ -63,8 +63,7 @@ internal static class DefaultEmitter
             }
             else
             {
-                writer.Append(BodyEmitter.EmitTypeDefault(field.Type)
-                    ?? $"{TypeNameEmitter.Emit(field.Type)}.{DefaultSynthesis.FactoryName}()");
+                writer.Append(DefaultSynthesis.Expression(field.Type)!);
             }
 
             writer.Append(";");
@@ -84,7 +83,7 @@ internal static class DefaultEmitter
         var local = $"__default_{field.Name}";
 
         writer.WriteLine(
-            $"var {local} = {TypeNameEmitter.Emit(binding.BoundType!)}.{DefaultSynthesis.FactoryName}();");
+            $"var {local} = {DefaultSynthesis.Expression(binding.BoundType!)};");
 
         foreach(var nested in binding.NestedEntries.OfType<DefaultValueEntry>())
         {

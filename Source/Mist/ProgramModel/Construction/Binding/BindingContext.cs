@@ -30,6 +30,20 @@ internal sealed class BindingContext
     public IMistType? TargetType { get; set; }
 
     /// <summary>
+    /// The member whose body is being bound, or null outside one. Carried so an await can be recorded
+    /// against the body that contains it, which is the only place that knows.
+    /// </summary>
+    public Method? EnclosingMethod { get; set; }
+
+    /// <summary>
+    /// Whether the body being bound is an ASYNC context, which changes what a call to a task-returning
+    /// member MEANS: in a sync context it yields the result and the await is inserted, in an async one
+    /// it yields the task and the author writes the await. The same call site therefore has two types
+    /// depending only on where it sits, which is why this is carried rather than derived at emission.
+    /// </summary>
+    public bool IsAsyncContext { get; set; }
+
+    /// <summary>
     /// The property whose accessor is being bound, or null anywhere else. What <c>field</c> resolves
     /// against, and the reason it is carried here rather than looked up: <c>field</c> is its own
     /// token, so it never reaches a scope as a name to resolve.
@@ -40,6 +54,20 @@ internal sealed class BindingContext
     {
         Scope = scope;
         ReturnType = returnType;
+    }
+
+    /// <summary>
+    /// A nested block's context: a scope of its own, everything else inherited. Copying happens HERE
+    /// rather than at each call site so that a field added to this class is inherited by construction
+    /// -- the callers used to list the fields themselves, which made every addition a silent omission
+    /// waiting at whichever site was not updated.
+    /// </summary>
+    public BindingContext(BodyScope scope, IMistType? returnType, BindingContext enclosing)
+        : this(scope, returnType ?? enclosing.ReturnType)
+    {
+        EnclosingProperty = enclosing.EnclosingProperty;
+        EnclosingMethod = enclosing.EnclosingMethod;
+        IsAsyncContext = enclosing.IsAsyncContext;
     }
 
     /// <summary>

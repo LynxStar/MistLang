@@ -56,7 +56,14 @@ internal sealed class MethodBuilder
         var common = delegateResolver.ResolveFullDelegate(methodDecl, methodScope, host, name);
         methodScope.IsStatic = common.Modifiers.IsStatic;
 
-        var returnType = scopeResolver.Resolve(methodDecl.ReturnType, methodScope);
+        // `async` is a RETURN-TYPE TRANSFORM rather than a marker on the body: `async int` declares a
+        // method producing Task<int>, and every caller sees that type. The body still returns the
+        // int -- see BodyBinder.BindDelegate, which unwraps this again for the body's own target.
+        var declaredReturn = scopeResolver.Resolve(methodDecl.ReturnType, methodScope);
+        var returnType = common.Modifiers.IsAsync
+            ? scopeResolver.ConstructTask(declaredReturn)
+            : declaredReturn
+            ;
         var returnOwnership = MemberTypeBuilder.ResolveOwnership(methodDecl.ReturnOwnership);
 
         var resolvedMethod = new Method(name, returnType, common.Parameters, common.Modifiers)

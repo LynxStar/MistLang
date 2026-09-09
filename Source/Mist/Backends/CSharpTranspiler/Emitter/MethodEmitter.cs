@@ -19,7 +19,8 @@ internal static class MethodEmitter
         // A readonly method is a struct-only concept in C#, so on a class the modifier is dropped
         // rather than passed through -- Mist admits it there and CS0106 refuses it.
         var modifiers = MemberModifierEmitter.Emit(
-            method.Modifiers, emitReadonly: inStruct && method.Modifiers.IsReadonly);
+            method.Modifiers, emitReadonly: inStruct && method.Modifiers.IsReadonly)
+            + (AsyncPromotion.EmitsAsync(method) ? "async " : "");
 
         AttributeEmitter.EmitLines(method.DeclaredAttributesList, writer, diagnostics);
         writer.WriteLine($"{modifiers}{EmitSignature(method, diagnostics)}");
@@ -62,9 +63,16 @@ internal static class MethodEmitter
         // Only the bare ref, never `ref readonly`: on a method `readonly` is ALREADY the struct
         // modifier that MemberModifierEmitter writes, so the pair has two readings and
         // ReadonlyRefReturn refuses it rather than either being picked here.
-        var returnType = OptionalUnion.IsVoid(method.ReturnType)
+        // A promoted method's emitted return type is a task the MODEL never mentions: Mist declared it
+        // sync, and this is only how C# is made to wait. See AsyncPromotion.
+        var emitted = AsyncPromotion.IsPromoted(method)
+            ? AsyncPromotion.WrapReturn(method.ReturnType)
+            : method.ReturnType
+            ;
+
+        var returnType = OptionalUnion.IsVoid(emitted)
             ? "void"
-            : $"{RefKeywords.For(method.Modifiers.IsRef, isReadonly: false)}{TypeNameEmitter.Emit(method.ReturnType)}";
+            : $"{RefKeywords.For(method.Modifiers.IsRef, isReadonly: false)}{TypeNameEmitter.Emit(emitted)}";
         // A specialization declares the pack's expansion in the pack's place and carries the width
         // in its name, exactly as a specialized TYPE does -- and for the same reason: the widths
         // differ in what they declare, so they cannot be one C# method.

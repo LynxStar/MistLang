@@ -347,7 +347,33 @@ internal static class PostfixBinder
             : (Expression)new MemberAccessExpression(
                 node, group.Receiver, group.MemberName, returnType, methodTypeArguments, group.IsConditional);
 
-        return new InvocationExpression(node, callee, bound, returnType, selected);
+        context.ProgramModel.AwaitUses.RecordCall(ctx.EnclosingMethod, selected);
+
+        return AutoAwait(
+            new InvocationExpression(node, callee, bound, returnType, selected), ctx, context);
+    }
+
+    /// <summary>
+    /// A task-returning call in a SYNC context yields its result, with the await supplied here. The
+    /// same call in an async context yields the task and the author writes the await, which is the
+    /// whole of the difference between the two contexts.
+    /// <para>
+    /// Keyed on the call's TYPE rather than on the callee being declared async, so a method returning
+    /// a task it built itself reads the same as one the transform wrapped -- there is no way to tell
+    /// them apart at the call site, and no reason to.
+    /// </para>
+    /// </summary>
+    private static Expression AutoAwait(
+        InvocationExpression invocation, BindingContext ctx, BuilderContext context)
+    {
+        if(ctx.IsAsyncContext || TaskResult.Of(invocation.Type) is not { } result)
+        {
+            return invocation;
+        }
+
+        context.ProgramModel.AwaitUses.RecordAwait(ctx.EnclosingMethod);
+
+        return new AwaitExpression(invocation.Node, invocation, result) { IsImplicit = true };
     }
 
     /// <summary>

@@ -315,6 +315,37 @@ internal static class OperatorBinder
                         context.Resolver.LookupWellKnown(WellKnownTypes.Index));
                 }
 
+            case AsyncExpressionUnaryNode asyncExpression:
+                {
+                    var operand = Suppressed(asyncExpression.Operand, ctx, context);
+
+                    return TaskResult.IsTask(operand.Type)
+                        ? new AsyncExpression(node, operand, operand.Type, isLift: false)
+                        : new AsyncExpression(
+                            node, operand, context.Resolver.ConstructTask(operand.Type), isLift: true)
+                        ;
+                }
+
+            // The operand is bound with no target: `await` says what to do with a task, and a position
+            // expecting the RESULT would otherwise push that result down as the operand's target,
+            // which is the one type the operand is not.
+            case AwaitExpressionUnaryNode await:
+                {
+                    var operand = Suppressed(await.Operand, ctx, context);
+
+                    if(TaskResult.Of(operand.Type) is not { } result)
+                    {
+                        context.Diagnostics.ReportAtNode(
+                            ProgramModelDiagnostics.AwaitOfNonTask, node, null, operand.Type.Name);
+
+                        return new ErrorExpression(node);
+                    }
+
+                    context.ProgramModel.AwaitUses.RecordAwait(ctx.EnclosingMethod);
+
+                    return new AwaitExpression(node, operand, result);
+                }
+
             case CastExpressionUnaryNode cast:
                 {
                     // The target type is pushed away rather than through: an operand that reads its
@@ -336,6 +367,27 @@ internal static class OperatorBinder
             default:
                 return new UnresolvedExpression(node);
         }
+    }
+
+    /// <summary>
+    /// An operand of <c>await</c> or of the <c>async</c> functor: bound with no target, since both say
+    /// what to do with a TASK and a position expecting the result would push that result down as the
+    /// operand's own target, which is the one type it is not.
+    /// <para>
+    /// An auto-await the sync context inserted is then UNDONE rather than stacked. Both operators ask
+    /// for the task, so `await f()` awaits what f produces rather than the value already unwrapped from
+    /// it, and `async f()` yields that task rather than lifting the unwrapped value back into a new one.
+    /// </para>
+    /// </summary>
+    private static Expression Suppressed(UnaryNode operandNode, BindingContext ctx, BuilderContext context)
+    {
+        Expression operand;
+        using(ctx.PushTargetType(null))
+        {
+            operand = BindUnary(operandNode, ctx, context);
+        }
+
+        return operand is AwaitExpression { IsImplicit: true } inserted ? inserted.Operand : operand;
     }
 
     private static BinaryExpression MakeBinary(Storm.Runtime.SyntaxNode node, Expression left, BinaryOperatorKind op, Expression right)

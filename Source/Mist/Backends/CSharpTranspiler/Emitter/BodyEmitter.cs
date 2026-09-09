@@ -458,7 +458,41 @@ internal static class BodyEmitter
                 writer.Append(fullMatch);
                 break;
 
+            // A lift needs a task built around a value C# has no other way to wrap; a suppression needs
+            // nothing at all, the operand already being the task and this having only kept the sync
+            // context from awaiting it.
+            case AsyncExpression { IsLift: false } suppression:
+                EmitExpression(suppression.Operand, writer, diagnostics);
+                break;
+
+            case AsyncExpression lift:
+                writer.Append("System.Threading.Tasks.Task.Run(() => ");
+                EmitExpression(lift.Operand, writer, diagnostics);
+                writer.Append(")");
+                break;
+
+            // A SYNC LAMBDA CANNOT BE AWAITED IN, and cannot be promoted either: its delegate type is
+            // fixed by the position it fills, so making it async would change that type. The wait
+            // therefore blocks. It is the one place this backend cannot honour a sync context with an
+            // await, and it is safe here only because nothing installs a synchronization context.
+            case AwaitExpression await when blockingAwaits:
+                EmitSubExpression(await.Operand, PrefixPrecedence, writer, diagnostics);
+                writer.Append(".GetAwaiter().GetResult()");
+                break;
+
+            case AwaitExpression await:
+                writer.Append("await ");
+                EmitSubExpression(await.Operand, PrefixPrecedence, writer, diagnostics);
+                break;
+
             case InvocationExpression invocation:
+                // A PROMOTED callee's task exists only in the emitted C#, so the model carries no
+                // await for it and one is written here. See AsyncPromotion.
+                if(AsyncPromotion.IsPromoted(invocation.Method))
+                {
+                    writer.Append("await ");
+                }
+
                 // The member access is emitted from HERE when it carries type arguments, because
                 // only the invocation knows which overload they fill -- and a dependent slot is
                 // spelled by its carrier rather than by its domain.
@@ -789,7 +823,43 @@ internal static class BodyEmitter
     /// different answer -- and it costs nothing, C# accepting an explicit list wherever it accepts an
     /// implicit one.
     /// </summary>
+    /// <summary>
+    /// Whether an await inside the construct being emitted has to block. False in a method body, which
+    /// <see cref="AsyncPromotion"/> makes async so the await can be real; true inside a lambda whose
+    /// delegate type is synchronous.
+    /// </summary>
+    [ThreadStatic]
+    private static bool blockingAwaits;
+
     private static void EmitLambda(
+        LambdaExpression lambda, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        var enclosing = blockingAwaits;
+        blockingAwaits = TaskResult.Of(ResultTypeOf(lambda)) is null;
+
+        try
+        {
+            EmitLambdaBody(lambda, writer, diagnostics);
+        }
+        finally
+        {
+            blockingAwaits = enclosing;
+        }
+    }
+
+    /// <summary>
+    /// What the lambda's delegate says it returns, which is what decides whether an await inside it can
+    /// be a real one. Falls back to the body's own type where the position fixed no delegate.
+    /// </summary>
+    private static IMistType ResultTypeOf(LambdaExpression lambda)
+    {
+        return lambda.Type is IFunctionType function
+            ? function.ReturnType
+            : lambda.Result?.Type ?? lambda.Type
+            ;
+    }
+
+    private static void EmitLambdaBody(
         LambdaExpression lambda, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var parameters = lambda.Parameters.Select(

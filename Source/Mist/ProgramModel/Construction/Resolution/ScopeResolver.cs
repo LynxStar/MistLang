@@ -727,6 +727,20 @@ internal sealed class ScopeResolver
     /// happens only when <c>Standard.Array&lt;,&gt;</c> is not registered.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// Constructs <c>Standard.Task&lt;result&gt;</c>. A method with no result asks for
+    /// <c>Task&lt;void&gt;</c> rather than a second type, void being the unit value here.
+    /// </summary>
+    public IMistType ConstructTask(IMistType result)
+    {
+        var definition = LookupWellKnown(WellKnownTypes.TaskGeneric);
+
+        return definition is ErrorType
+            ? definition
+            : context.ProgramModel.TypeInterner.GetOrCreateConstructedType(definition, new[] { result })
+            ;
+    }
+
     public IMistType ConstructArray(IMistType elementType, int? length)
     {
         return ConstructLengthIndexed(WellKnownTypes.Array, elementType, length);

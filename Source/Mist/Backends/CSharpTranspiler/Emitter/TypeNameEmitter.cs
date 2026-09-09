@@ -219,6 +219,11 @@ internal static class TypeNameEmitter
             return lengthIndexed;
         }
 
+        if(TaskProjection.Emit(constructed, Emit) is { } task)
+        {
+            return task;
+        }
+
         // A construction reaching `unknown` anywhere in its arguments is spelled `dynamic`, NOT
         // `Definition<object, ...>`. Mist admits `MyList<int>` where `MyList<unknown>` is expected
         // because unknown is the top type, and C# class generics are invariant, so the `object`

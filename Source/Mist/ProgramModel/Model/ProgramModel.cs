@@ -72,6 +72,8 @@ public sealed class ProgramModel : IProgramModel
 
     internal VariadicUseRegistry VariadicUses { get; } = new();
 
+    internal AwaitUseRegistry AwaitUses { get; } = new();
+
     /// <summary>
     /// Retroactive conformance declarations collected during Phase 2c.
     /// </summary>

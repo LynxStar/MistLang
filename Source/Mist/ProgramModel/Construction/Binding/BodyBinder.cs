@@ -35,7 +35,18 @@ internal static class BodyBinder
             BindChainArguments(constructor, chain, bodyScope, context);
         }
 
-        BindBody(method.Body!, bodyScope, method.ReturnType, context);
+        // An async method's body returns the RESULT, not the task its signature advertises, so the
+        // transform MethodBuilder applied is undone for the body's own target type.
+        var isAsync = method.Modifiers.IsAsync;
+        var returnType = isAsync
+            ? TaskResult.Of(method.ReturnType) ?? method.ReturnType
+            : method.ReturnType
+            ;
+
+        BindStatements(
+            method.Body!,
+            new BindingContext(bodyScope, returnType) { IsAsyncContext = isAsync, EnclosingMethod = method },
+            context);
     }
 
     /// <summary>
@@ -205,7 +216,7 @@ internal static class BodyBinder
     {
         BindStatements(
             block,
-            new BindingContext(scope, returnType ?? enclosing.ReturnType) { EnclosingProperty = enclosing.EnclosingProperty },
+            new BindingContext(scope, returnType, enclosing),
             context);
     }
 
@@ -221,10 +232,7 @@ internal static class BodyBinder
         BindingContext enclosing,
         BuilderContext context)
     {
-        var bindingCtx = new BindingContext(scope, enclosing.ReturnType)
-        {
-            EnclosingProperty = enclosing.EnclosingProperty,
-        };
+        var bindingCtx = new BindingContext(scope, enclosing.ReturnType, enclosing);
 
         var statements = new List<Statement>(nodes.Count);
 

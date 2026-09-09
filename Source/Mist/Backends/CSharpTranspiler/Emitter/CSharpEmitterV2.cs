@@ -80,6 +80,7 @@ internal sealed class CSharpEmitterV2
         ContextLowering.Reset();
         ArrayLowering.Reset();
         var closures = ConstraintClosureMap.Build((ProgramModel.Model.ProgramModel)programModel, diagnostics);
+        using var promotion = AsyncPromotion.Enter((ProgramModel.Model.ProgramModel)programModel);
 
         ReportForeignConformances();
 

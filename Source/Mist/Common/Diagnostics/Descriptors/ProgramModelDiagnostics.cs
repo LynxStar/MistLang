@@ -76,6 +76,16 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "The name '{0}' could not be found in this scope.");
 
+    /// <summary>
+    /// <c>await</c> applied to something that is not a task. A language rule rather than a target one:
+    /// the operand has no result to unwrap, which is true of Mist before any backend sees it.
+    /// </summary>
+    public static readonly DiagnosticDescriptor AwaitOfNonTask = new(
+        new DiagnosticId("MIST_PM_AWAIT_OF_NON_TASK"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'await' requires a task, but '{0}' is not one.");
+
     /// <summary>A type reference could not be resolved in any reachable scope.</summary>
     public static readonly DiagnosticDescriptor UnresolvedType = new(
         new DiagnosticId("MIST_PM_UNRESOLVED_TYPE"),

@@ -65,6 +65,13 @@ internal static class WellKnownTypeMap
         [("System.Collections.Generic", "IEnumerator`1")] = ("Standard", "IEnumerator<>"),
         // Array (CLR T[] resolves to Standard.Array<T, unknown>)
         [("System", "Array")] = ("Standard", "Array<,>"),
+        // The spans, whose CLR arity is one SHORTER than the Mist declaration's: the length is a
+        // dependent index with no runtime witness, so an inbound System.Span<T> arrives as
+        // Standard.Span<T, unknown>. Mapped for the same reason the enumerable interfaces are --
+        // MemoryExtensions.AsSpan returns the CLR span, and a structurally identical duplicate
+        // would not unify with the one Mist declares.
+        [("System", "Span`1")] = ("Standard", "Span<,>"),
+        [("System", "ReadOnlySpan`1")] = ("Standard", "ReadOnlySpan<,>"),
         // Func<params TArgs, TResult> — always arity 2 (pack + return type).
         // All CLR System.Func arities map to the single variadic declaration.
         [("System", "Func`1")] = ("Standard", "Func<,>"),

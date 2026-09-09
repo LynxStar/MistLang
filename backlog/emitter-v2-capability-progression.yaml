@@ -6367,20 +6367,39 @@ capabilities:
     order: 139
     layer: stack-only
     requires: [ref-struct-declarations, clr-generic-construction-and-members]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
       The Mist length-indexed span must unify with the CLR span, erasing the length exactly
       as the array type already does. The indexer write must bind to a ref-returning indexer
       or the store is silently discarded, and slicing must alias the same backing memory.
 
-      THE OVERLOAD HALF IS EXERCISED AND WORKS. samples/CSharpInteropV2 calls GetBytes and GetFileName on
+      DELIVERED BOTH WAYS, and RefStructs is banked in AllFeaturesV2, byte-identical to classic.
+
+      OUTBOUND, THE ERASURE IS NOW ONE PLACE FOR ALL THREE. Array was special-cased inline ahead of
+      TypeNameEmitter's unknown fallback and the spans were not, so `Span<T, unknown>` fell through to
+      `dynamic` -- `dynamic span = new dynamic(numbers)`, four Roslyn "Invalid object creation". They are
+      the same rule and now share LengthErasure: a length is a compile-time index with no runtime
+      witness, so it cannot appear in the emitted type, and each of the three says what it spells
+      without one. Being consulted AHEAD of the fallback is the whole point -- every one of them
+      reaches emission with `unknown` in the length position whenever the length is not statically
+      known.
+
+      INBOUND, THE CLR SPANS ARE NOW WELL-KNOWN TYPES, mapped one arity SHORTER than the Mist
+      declaration: System.Span`1 -> Standard.Span<,>. Same claim the enumerable interfaces make and
+      for the same reason -- MemoryExtensions.AsSpan returns the CLR span, and a structurally
+      identical duplicate would unify with nothing. Measured on a probe: `arr.AsSpan()` binds and runs.
+
+      THE TWO CASES THE EVIDENCE ABOVE SINGLES OUT BOTH WORK, and RefStructs asserts them in output
+      rather than in shape. The indexer write aliases: `writeSpan[0] = 99` prints `numbers[0]=99`,
+      which it could not if the store went to a copy. Slicing aliases the same backing memory:
+      `writeSpan.Slice(1, 3)` reads the elements written through the original. Neither needed a
+      lowering -- they are C#'s own once the type is spelled `System.Span<int>` instead of `dynamic`,
+      which is the argument for the erasure being a spelling and not a wrapper.
+
+      THE OVERLOAD HALF WAS ALREADY EXERCISED. samples/CSharpInteropV2 calls GetBytes and GetFileName on
       types whose CLR overload sets include Span and ReadOnlySpan, and picks the string overload as classic
       does; the sample is banked. Nothing there uses a span itself.
-      
-      LEFT `partial` because the rest of the evidence above is untouched: the ref-returning indexer write,
-      whose absence discards a store silently, and slicing aliasing the same backing memory. RefStructs,
-      which does exercise those, still refuses.
 
       THE LENGTH AMBIGUITY IS CLOSED, which was the gate in front of all of it. Both samples refused at
       MIST_PM_AMBIGUOUS_MEMBER on the first span read, so nothing behind it was measurable; see the task

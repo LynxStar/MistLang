@@ -74,16 +74,29 @@ internal static class AmbientProviderTestHelper
         register(new AbstractType(WellKnownTypes.IEnumerable.Name, WellKnownTypes.IEnumerable.Namespace, scope, null, null));
         register(new AbstractType(WellKnownTypes.IEnumerator.Name, WellKnownTypes.IEnumerator.Namespace, scope, null, null));
 
-        // Array definition for CLR T[] → Standard.Array<T, Length>. Its parameters are declared,
-        // not just its name: Array.mist deliberately has no Length PROPERTY, the dependent
-        // parameter being the length itself, so a shell without them answers nothing for
-        // `arr.Length` and diverges from a real compilation exactly where a test would look.
-        var arrayType = new ClassType(
-            WellKnownTypes.Array.Name, WellKnownTypes.Array.Namespace, scope, null, null!);
-        arrayType.TypeParametersList.Add(new TypeParameter("TValue", 0, arrayType.Scope, arrayType));
-        arrayType.TypeParametersList.Add(
-            new TypeParameter("Length", 1, arrayType.Scope, arrayType) { IsDependent = true });
-        register(arrayType);
+        // The length-indexed definitions, for CLR T[] → Standard.Array<T, Length> and
+        // System.Span<T> → Standard.Span<T, Length>. Their parameters are declared, not just their
+        // names: each of these deliberately has no Length PROPERTY, the dependent parameter being
+        // the length itself, so a shell without them answers nothing for `x.Length` and diverges
+        // from a real compilation exactly where a test would look.
+        void registerLengthIndexed(MemberType type, string elementName)
+        {
+            type.TypeParametersList.Add(new TypeParameter(elementName, 0, type.Scope, type));
+            type.TypeParametersList.Add(
+                new TypeParameter("Length", 1, type.Scope, type) { IsDependent = true });
+            register(type);
+        }
+
+        registerLengthIndexed(
+            new ClassType(WellKnownTypes.Array.Name, WellKnownTypes.Array.Namespace, scope, null, null!),
+            "TValue");
+        registerLengthIndexed(
+            new StructType(WellKnownTypes.Span.Name, WellKnownTypes.Span.Namespace, scope, null, null!),
+            "T");
+        registerLengthIndexed(
+            new StructType(
+                WellKnownTypes.ReadOnlySpan.Name, WellKnownTypes.ReadOnlySpan.Namespace, scope, null, null!),
+            "T");
 
         // Func family (arity 1-17).
         for(var arity = 1; arity <= 17; arity++)

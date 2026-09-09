@@ -1389,3 +1389,38 @@ First word: hello
   primary=Circle(Radius=7, Label=primary)
   secondary=Square(Side=0)
 Done!
+=== RefStructs Sample ===
+--- Mist Declared Ref Struct ---
+pair.first=3
+pair.second=7
+pair.Sum()=10
+pair.Max=7
+--- Nested Ref Struct ---
+nested.pair.first=10
+nested.pair.second=20
+nested.extra=5
+nested.Total()=35
+--- Ref Struct Parameters ---
+AddPair=300
+doubled.first=200
+doubled.second=400
+--- Span from Array ---
+span.Length=5
+span[0]=10
+span[4]=50
+--- ReadOnlySpan from String ---
+chars.Length=12
+chars[0]=H
+chars[6]= 
+--- Span Indexer Write ---
+writeSpan[0]=99
+numbers[0]=99
+--- Span Slice ---
+sliced.Length=3
+sliced[0]=20
+sliced[2]=40
+--- Span Foreach ---
+val=100
+val=200
+val=300
+=== RefStructs Done ===

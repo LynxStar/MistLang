@@ -55,6 +55,14 @@ internal static class WellKnownTypes
     public static readonly WellKnownType ValueTask = new("ValueTask", "Standard", Keyword: null);
     public static readonly WellKnownType ValueTaskGeneric = new("ValueTask<>", "Standard", Keyword: null);
     public static readonly WellKnownType Array = new("Array<,>", "Standard", Keyword: null);
+
+    /// <summary>
+    /// The length-indexed spans. Like <see cref="Array"/> they carry a dependent length that has no
+    /// runtime witness, so the backend spells them without it -- see <c>LengthErasure</c>.
+    /// </summary>
+    public static readonly WellKnownType Span = new("Span<,>", "Standard", Keyword: null);
+
+    public static readonly WellKnownType ReadOnlySpan = new("ReadOnlySpan<,>", "Standard", Keyword: null);
     public static readonly WellKnownType Index = new("Index", "Standard", Keyword: null);
     public static readonly WellKnownType Range = new("Range", "Standard", Keyword: null);
     public static readonly WellKnownType IEnumerable = new("IEnumerable<>", "Standard", Keyword: null);

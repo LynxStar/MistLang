@@ -214,11 +214,9 @@ internal static class TypeNameEmitter
             return $"{projected}<{string.Join(", ", constructed.TypeArguments.Select(Emit))}>";
         }
 
-        // Standard.Array<ElementType, Length> → elementType[]
-        if(constructed.Definition.FullyQualifiedName == WellKnownTypes.Array.FullyQualifiedName)
+        if(LengthErasure.Emit(constructed, Emit) is { } lengthIndexed)
         {
-            var elementType = Emit(constructed.TypeArguments[0]);
-            return $"{elementType}[]";
+            return lengthIndexed;
         }
 
         // A construction reaching `unknown` anywhere in its arguments is spelled `dynamic`, NOT

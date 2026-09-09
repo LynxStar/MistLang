@@ -5992,6 +5992,41 @@ capabilities:
       Both projection and substitution had to learn it -- the two halves the evidence above describes --
       since a non-generic result is wrapped at projection and a generic one only once its parameters are
       known.
+
+      TRUSTING THE ANNOTATION IS A DECISION, TAKEN KNOWINGLY. C# erases nullability: a string and a
+      nullable string are one CLR type and nothing checks at runtime, so the metadata is a declaration of
+      intent, never a guarantee. A member that declares non-null and hands back null anyway now puts a
+      null into a Mist value whose type says it cannot hold one -- which was impossible while every CLR
+      reference was wrapped, because narrowing is a real runtime check.
+      
+      THE C# COMPILER'S OWN ANALYSIS IS UNSOUND IN NAMED PLACES, and each is a way a null reaches a
+      non-null slot with at most a warning: `null!`; `new string[10]`, whose elements are typed non-null
+      and are all null; `default(T)` for an unconstrained T; `default` of a struct, which zeroes its
+      reference fields; an unassigned field on some constructor paths; and reflection, JSON
+      deserialization and ORM materialization, which write straight past it. A library may also ship with
+      nullable warnings simply not raised to errors.
+      
+      THE TRUST IS GRADED IN PRACTICE AND FLAT IN THE CODE. The BCL and Microsoft's own packages are a
+      good bet -- annotated since .NET Core 3.0 and corrected over many releases -- and confidence falls
+      off the further from that a package sits. The implementation does NOT distinguish them: an
+      annotated third-party assembly is believed exactly as much as System.Private.CoreLib. That is the
+      axis to revisit along if this ever bites, by grading trust by assembly origin rather than by
+      abandoning the annotation.
+      
+      SILENCE IS NOT A PROMISE, which is where pessimism is kept. Absence of an attribute on a member
+      means "inherit the enclosing context", and that context may itself say nullable -- so absence is
+      read as a question for the scope, never as an answer of non-null. An oblivious assembly stays
+      wrapped.
+      
+      VERIFIED AGAINST THE APIS MOST LIKELY TO CATCH IT OUT, all of which carry no return annotation of
+      their own and are nullable through their method-level context: Enumerable.FirstOrDefault,
+      List.Find, Type.GetType and Console.ReadLine all read as nullable, while String.ToUpper and
+      Enumerable.Skip read as non-null. Reading absence as non-null would have got the first four wrong.
+      
+      NOT TAKEN: emitting a runtime null check at the boundary for every result declared non-null. It
+      would close the hole and costs a branch on every CLR call, and the point of believing the
+      annotation is to not pay for what it says cannot happen. Recorded so the next reader knows it was
+      weighed rather than missed.
     untested:
       - A generic parameter substituting to another OPEN parameter stays open, so the hole survives
         inside a Mist generic body over a CLR generic. Named and chosen, not measured against a

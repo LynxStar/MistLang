@@ -13,9 +13,17 @@ namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 /// resolve on an optional.
 /// </para>
 /// <para>
-/// ABSENT METADATA STAYS PESSIMISTIC. An assembly compiled without nullable annotations is
-/// OBLIVIOUS, not non-null, and the difference is the whole soundness argument -- reading silence
-/// as a promise is how the naked null this rule exists to stop would get back in.
+/// THE ANNOTATION IS TRUSTED, AND THAT IS A CHOICE RATHER THAN A PROOF. C# erases it -- a string
+/// and a nullable string are one CLR type and nothing checks at runtime -- so a member that
+/// declares non-null and hands back null anyway puts a null in a Mist value whose type says it
+/// cannot hold one. Taken deliberately: the alternative wraps every reference the CLR returns and
+/// makes narrowing a precondition for using any of them.
+/// </para>
+/// <para>
+/// SILENCE IS NOT A PROMISE, which is the one place pessimism is kept. An assembly compiled
+/// without annotations is OBLIVIOUS, and a member with no attribute of its own inherits the
+/// enclosing context, which may itself say nullable -- so absence is read as "ask the scope",
+/// never as "non-null".
 /// </para>
 /// </summary>
 internal static class ClrNullability

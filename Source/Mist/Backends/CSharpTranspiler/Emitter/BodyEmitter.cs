@@ -570,6 +570,12 @@ internal static class BodyEmitter
                 writer.Append("]");
                 break;
 
+            case StackallocExpression allocation:
+                writer.Append($"stackalloc {TypeNameEmitter.Emit(allocation.ElementType)}[");
+                EmitExpression(allocation.Size, writer, diagnostics);
+                writer.Append("]");
+                break;
+
             case ArrayLiteralExpression arrayLiteral:
                 // Emitted with an explicit element type rather than as a C# collection
                 // expression so the target type is never required at the use site.

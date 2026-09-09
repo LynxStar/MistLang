@@ -6418,12 +6418,39 @@ capabilities:
     order: 140
     layer: stack-only
     requires: [span-projection-and-length-erasure]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       One syntax produces a mutable or a readonly span purely from the binding's declared
       type. Element types must satisfy a stampability predicate distinct from C#'s unmanaged
       rule, memory is zero-initialized, and the escape rule must permit passing a
       stackalloc-backed span down while refusing to let it escape.
+
+      BOUND AND EMITTED. The node has the same shape as an array creation and is deliberately a
+      separate one: the two differ in where the memory lives, which is the whole of what the syntax
+      chooses between, and only the emitted keyword records it. StackOnlyTypes runs identically to
+      classic across all seven of its sections -- measured on a copy, see the sample entry for why
+      the sample itself does not bank yet.
+
+      THE TARGET CHOOSES THE SPAN KIND, and reading it wrong is invisible in output. `stackalloc T[n]`
+      says nothing about mutability, so the binding does; a first cut compared the target's own
+      FullyQualifiedName against the bare declaration's and never matched, since a constructed type's
+      name carries its arguments. Every ReadOnlySpan binding therefore bound as a mutable Span AND
+      PRINTED CORRECTLY, C# converting one to the other at the assignment. StackallocTests is what
+      caught it; no sample could. With no target at all the mutable span is chosen, being the reading
+      that closes off least.
+
+      ZERO-INITIALIZATION AND SLICE ALIASING ARE C#'s OWN once the type is spelled as the CLR span --
+      StackOnlyTypes reads `ro[0]=0` from an untouched buffer and sees a write through a slice in the
+      original. Neither needed a lowering, which is the same argument order 139 makes.
+    analysis_phase_tasks:
+      - >
+        Enforce the stampability predicate on the element type, which is distinct from C#'s unmanaged
+        rule. Nothing refuses an illegal element ahead of the C# compiler.
+      - >
+        The escape rule: a stackalloc-backed span may be passed down but must not escape. Classic has
+        FrameEscapeAnalyzer for this and v2 runs no analyzers. StackOnlyTypes exercises the permitted
+        direction only, so nothing measures the refusal either way.
     unlocks: [StackOnlyTypes]
 
   # ===================================================================
@@ -8722,7 +8749,22 @@ samples:
     intro_order: 73
     threshold: stackalloc
     requires: [stackalloc, struct-declaration, foreach-over-user-enumerable,
-               arrays-sized-index-length, string-interpolation, var-type-inference]
+               arrays-sized-index-length, string-interpolation, var-type-inference,
+               clr-extension-method-discovery]
+    blocked_by: extension-visibility
+    blocked_detail: >
+      EVERY CAPABILITY IS DELIVERED AND THE SAMPLE STILL DOES NOT BANK. A copy differing only by an
+      added `using System;` runs identically to classic across all seven sections; the sample itself
+      refuses with MIST_PM_UNRESOLVED_MEMBER on `arr.AsSpan()`.
+
+      THE TWO PIPELINES DISAGREE ABOUT A LANGUAGE RULE, not about an emission. AsSpan is
+      System.MemoryExtensions', and order 131 states v2's design as eager metadata scanning PER
+      IMPORTED NAMESPACE -- ExtensionLookup only consults namespaces the call site is in or imports,
+      which is C#'s rule. The sample imports Standard alone, so v2 does not see AsSpan and classic
+      does. Whichever way it is settled the fix is one line, but they are opposite lines: either
+      ambient extensions stop being namespace-scoped in v2, or the sample states the import it
+      relies on. Editing the sample is forbidden by samples/CLAUDE.md, so this needs a decision
+      rather than a change.
     untested:
       - No negative stackalloc case -- no managed element type, no non-constant or oversized
         length -- so the element-type check may be absent.

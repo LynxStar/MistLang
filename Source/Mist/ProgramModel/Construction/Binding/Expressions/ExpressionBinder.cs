@@ -84,6 +84,7 @@ internal static class ExpressionBinder
 
             ParenthesizedExpressionPrimaryNode paren => BindExpression(paren.Inner, ctx, context),
             ArrayCreationExpressionPrimaryNode arrayCreation => BindArrayCreation(arrayCreation, ctx, context),
+            StackallocExpressionPrimaryNode allocation => BindStackalloc(allocation, ctx, context),
             InterpolatedStringExpressionPrimaryNode interpStr => BindInterpolatedString(interpStr, ctx, context),
             ThisExpressionPrimaryNode thisExpr => BindThis(thisExpr, ctx, context),
             ObjectCreationExpressionPrimaryNode objectCreation => BindObjectCreation(objectCreation, ctx, context),
@@ -387,6 +388,31 @@ internal static class ExpressionBinder
         // The size is an arbitrary expression, so the length is not statically known.
         var arrayType = context.Resolver.ConstructArray(elementType, null);
         return new ArrayCreationExpression(node, elementType, size, arrayType);
+    }
+
+    /// <summary>
+    /// One syntax produces two types, and only the POSITION tells them apart: `stackalloc T[n]` says
+    /// nothing about mutability, so a readonly-span binding is what makes the result a readonly span.
+    /// Anything else -- including no target at all -- takes the mutable one, which converts to the
+    /// readonly span anyway and so is the answer that closes off least.
+    /// </summary>
+    private static Expression BindStackalloc(
+        StackallocExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
+    {
+        var elementType = ResolveElementType(node.Type, ctx, context);
+        var size = BindExpression(node.Size, ctx, context);
+
+        // Read off the DEFINITION rather than the target's own name, which carries its arguments and so
+        // never equals the bare declaration's.
+        var definition = ctx.TargetType is ConstructedType constructed
+            && constructed.Definition.FullyQualifiedName == WellKnownTypes.ReadOnlySpan.FullyQualifiedName
+                ? WellKnownTypes.ReadOnlySpan
+                : WellKnownTypes.Span
+                ;
+
+        // The size is an arbitrary expression, so the length is not statically known.
+        return new StackallocExpression(
+            node, elementType, size, context.Resolver.ConstructLengthIndexed(definition, elementType, null));
     }
 
     private static IMistType ResolveElementType(ElementTypeRefNode elementTypeRef, BindingContext ctx, BuilderContext context)

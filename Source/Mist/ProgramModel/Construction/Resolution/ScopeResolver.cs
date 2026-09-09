@@ -729,7 +729,16 @@ internal sealed class ScopeResolver
     /// </summary>
     public IMistType ConstructArray(IMistType elementType, int? length)
     {
-        var arrayDefinition = LookupWellKnown(WellKnownTypes.Array);
+        return ConstructLengthIndexed(WellKnownTypes.Array, elementType, length);
+    }
+
+    /// <summary>
+    /// The same construction for any of the length-indexed Standard types, the spans included: they
+    /// differ in where the memory lives and not in how the length is carried.
+    /// </summary>
+    public IMistType ConstructLengthIndexed(WellKnownType definition, IMistType elementType, int? length)
+    {
+        var arrayDefinition = LookupWellKnown(definition);
         if(arrayDefinition is ErrorType)
         {
             return arrayDefinition;

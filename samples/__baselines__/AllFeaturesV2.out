@@ -1447,3 +1447,94 @@ view[2]=9
 --- Span Argument ---
 SumSpan=179
 === StackOnlyTypes Done ===
+=== Drop Semantics Sample ===
+--- 1. Linear: auto-drop at scope exit ---
+  Created FileHandle(1)
+  FileHandle(1).Drop() called
+--- 2. Linear: drop elision on move ---
+  Created FileHandle(2)
+  Sink consumed FileHandle(2)
+  FileHandle(2).Drop() called
+--- 3. Linear: drop elision on return ---
+  PassThrough FileHandle(3)
+  Got back FileHandle(3)
+  FileHandle(3).Drop() called
+--- 4. Linear: Drop with return value ---
+  LinearBox.Drop() called, yielding value
+  Got value: 42
+  FileHandle(42).Drop() called
+--- 5. Linear: reverse drop ordering ---
+  Created: 10, 11, 12
+  FileHandle(12).Drop() called
+  FileHandle(11).Drop() called
+  FileHandle(10).Drop() called
+--- 6. Relevant: drop fires for every reference ---
+  res=conn-1, alias=conn-1
+  SharedResource(conn-1).Drop() called
+  SharedResource(conn-1).Drop() no-op
+--- 7. Affine: only drops in with block ---
+  Inside with-block
+  AuthToken(abc-123).Drop() called - consumed
+--- 8. Affine: no auto-drop outside with ---
+  AuthToken(xyz-789) falls out of scope
+--- 9. Synthetic drop on containing type ---
+  Session created with handles 50 and 51
+  FileHandle(50).Drop() called
+  FileHandle(51).Drop() called
+--- 10. Lending retains drop responsibility ---
+  ReadFd sees FileHandle(30)
+  Owner still has FileHandle(30)
+  FileHandle(30).Drop() called
+=== Drop Semantics Done ===
+=== Substructural Field Discipline Sample ===
+--- 1. Linear container holds linear field ---
+  LinearHoldsLinear.Drop()
+  LinearToken(1).Drop()
+--- 2. Linear container holds affine field ---
+  LinearHoldsAffine.Drop()
+  AffineToken(2).Drop()
+--- 3. Linear container holds relevant field ---
+  LinearHoldsRelevant.Drop()
+  RelevantToken(3).Drop()
+--- 4. Linear container holds unrestricted field ---
+  LinearHoldsPlain.Drop()
+--- 5. Affine container holds affine field ---
+  AffineHoldsAffine.Drop()
+  AffineToken(5).Drop()
+--- 6. Affine container holds unrestricted field ---
+  AffineHoldsPlain.Drop()
+--- 7. Relevant container holds relevant field ---
+  RelevantHoldsRelevant.Drop()
+  RelevantToken(7).Drop()
+--- 8. Relevant container holds unrestricted field ---
+  RelevantHoldsPlain.Drop()
+--- 9. Generic linear box with linear type argument ---
+  LinearBox<T>.Drop()
+  LinearToken(9).Drop()
+--- 10. Generic affine box with affine type argument ---
+  AffineBox<T>.Drop()
+  AffineToken(10).Drop()
+--- 11. Generic relevant box with relevant type argument ---
+  RelevantBox<T>.Drop()
+  RelevantToken(11).Drop()
+--- 12. Linear satisfies affine constraint ---
+  AffineBoxWithLinear.Drop()
+  AffineBox<T>.Drop()
+  LinearToken(12).Drop()
+--- 13. Linear satisfies relevant constraint ---
+  RelevantBoxWithLinear.Drop()
+  RelevantBox<T>.Drop()
+  LinearToken(13).Drop()
+--- 14. Task<T> stored in relevant container ---
+  RelevantTaskHolder<T>.Resolve()
+  result=42
+  RelevantTaskHolder<T>.Drop()
+--- 15. Task<T> stored in linear container ---
+  LinearTaskHolder<T>.Resolve()
+  result=99
+  LinearTaskHolder<T>.Drop()
+--- 16. ValueTask<T> stored in linear container ---
+  LinearValueTaskHolder<T>.Resolve()
+  result=7
+  LinearValueTaskHolder<T>.Drop()
+=== Done ===

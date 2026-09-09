@@ -733,7 +733,16 @@ internal sealed class ScopeResolver
     /// </summary>
     public IMistType ConstructTask(IMistType result)
     {
-        var definition = LookupWellKnown(WellKnownTypes.TaskGeneric);
+        return ConstructTask(WellKnownTypes.TaskGeneric, result);
+    }
+
+    /// <summary>
+    /// The same construction over either task kind. They differ in what they promise about
+    /// allocation and in nothing this layer cares about, so the caller names which.
+    /// </summary>
+    public IMistType ConstructTask(WellKnownType kind, IMistType result)
+    {
+        var definition = LookupWellKnown(kind);
 
         return definition is ErrorType
             ? definition

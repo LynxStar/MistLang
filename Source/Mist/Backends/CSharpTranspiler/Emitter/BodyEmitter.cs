@@ -33,10 +33,101 @@ internal static class BodyEmitter
 
     public static void EmitBlock(Block block, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        foreach(var statement in block.Statements)
+        EmitStatements(block.Statements, 0, writer, diagnostics);
+    }
+
+    /// <summary>
+    /// A method body, with the drops its OWNED parameters oblige. The caller handed those values over,
+    /// so the body owes the release; the nesting gives the same reverse order a block's own bindings
+    /// get, for the same reason.
+    /// </summary>
+    public static void EmitMethodBody(
+        Method method, Block body, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        EmitParameterDrops(DropInsertion.DroppedParameters(method, body), 0, body, writer, diagnostics);
+    }
+
+    private static void EmitParameterDrops(
+        IReadOnlyList<Parameter> dropped,
+        int index,
+        Block body,
+        CSharpWriter writer,
+        DiagnosticBag diagnostics)
+    {
+        if(index >= dropped.Count)
         {
-            EmitStatement(statement, writer, diagnostics);
+            EmitBlock(body, writer, diagnostics);
+            return;
         }
+
+        var parameter = dropped[index];
+
+        writer.WriteLine("try");
+
+        using(writer.Block())
+        {
+            EmitParameterDrops(dropped, index + 1, body, writer, diagnostics);
+        }
+
+        writer.WriteLine("finally");
+
+        using(writer.Block())
+        {
+            writer.WriteLine($"{DropInsertion.DropChain(parameter.Name, parameter.Type)};");
+        }
+    }
+
+    /// <summary>
+    /// The statements from <paramref name="index"/> on. A declaration that still owns a droppable value
+    /// at the end of the scope takes the REST OF THE BLOCK as the body of a try, with the drop in its
+    /// finally, so the emission recurses rather than looping.
+    /// <para>
+    /// The nesting is what gives reverse declaration order, each drop sitting inside the try of every
+    /// binding declared before it. try/finally rather than a trailing statement because the drop has to
+    /// survive a return or a throw from inside, which no trailing statement does.
+    /// </para>
+    /// </summary>
+    private static void EmitStatements(
+        IReadOnlyList<Statement> statements, int index, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        for(var i = index; i < statements.Count; i++)
+        {
+            if(statements[i] is LocalDeclarationStatement declaration
+                && DropInsertion.NeedsDrop(declaration, Remainder(statements, i + 1)))
+            {
+                EmitStatement(declaration, writer, diagnostics);
+                writer.WriteLine("try");
+
+                using(writer.Block())
+                {
+                    EmitStatements(statements, i + 1, writer, diagnostics);
+                }
+
+                writer.WriteLine("finally");
+
+                using(writer.Block())
+                {
+                    writer.WriteLine(
+                        $"{DropInsertion.DropChain(declaration.Local.Name, declaration.Local.Type)};");
+                }
+
+                return;
+            }
+
+            EmitStatement(statements[i], writer, diagnostics);
+        }
+    }
+
+    private static IReadOnlyList<Statement> Remainder(IReadOnlyList<Statement> statements, int from)
+    {
+        var remainder = new List<Statement>(statements.Count - from);
+
+        for(var i = from; i < statements.Count; i++)
+        {
+            remainder.Add(statements[i]);
+        }
+
+        return remainder;
     }
 
     private static void EmitStatement(Statement statement, CSharpWriter writer, DiagnosticBag diagnostics)
@@ -290,8 +381,22 @@ internal static class BodyEmitter
     /// Evaluated into a temporary first, because the same instance is pushed, popped and dropped and
     /// the expression must run once.
     /// </para>
+    /// <para>
+    /// BRACED, so that the binding is scoped to the block Mist scoped it to. Without this the local
+    /// lands in the enclosing method and two sibling `with`s binding the same name collide, as does a
+    /// `with` beside an ordinary block reusing it.
+    /// </para>
     /// </summary>
     private static void EmitWithBlock(
+        WithBlockStatement withBlock, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        using(writer.Block())
+        {
+            EmitWithScope(withBlock, writer, diagnostics);
+        }
+    }
+
+    private static void EmitWithScope(
         WithBlockStatement withBlock, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         ContextLowering.Require();
@@ -317,29 +422,11 @@ internal static class BodyEmitter
         {
             writer.WriteLine($"MistContext.Pop<{type}>();");
 
-            if(ExitAction(withBlock.Value.Type) is { } exit)
+            if(DropInsertion.ExitAction(withBlock.Value.Type) is not null)
             {
-                writer.WriteLine($"{bound}.{exit}();");
+                writer.WriteLine($"{DropInsertion.DropChain(bound, withBlock.Value.Type)};");
             }
         }
-    }
-
-    /// <summary>
-    /// What a scope calls on its value on the way out, or null for a value with nothing to release.
-    /// A CLR type reaches it through IDisposable, which the projector already recognises, and Mist's
-    /// own through a declared Drop -- the same obligation under the two names their worlds use.
-    /// </summary>
-    private static string? ExitAction(IMistType type)
-    {
-        if(type is ConcreteType { IsDisposableDrop: true })
-        {
-            return "Dispose";
-        }
-
-        return (type as MemberType)?.MethodsList.Exists(
-            method => method.Name == "Drop" && method.ParametersList.Count == 0) == true
-                ? "Drop"
-                : null;
     }
 
     private static void EmitWhile(WhileStatement whileStmt, CSharpWriter writer, DiagnosticBag diagnostics)

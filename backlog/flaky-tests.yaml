@@ -234,6 +234,29 @@ flakes:
           the same binaries with nothing edited. The working tree held extension-lookup and
           well-known-type-map changes, neither of which touches attribute emission, and the test
           file was unmodified.
+      - date: 2026-09-09
+        detail: >
+          THE MESSAGE THIS ENTRY HAS ASKED FOR THREE TIMES, captured before any rerun. 1 of 5170 in a
+          run that BUILT FIRST and tested with --no-build, so the stdlib-copy race that explains the
+          entry above is excluded here.
+
+              Property failed: 1/100 scenarios failed.
+              Scenario 61 verification failed: Separate attribute lists were merged onto one line:
+                '[Xunit.Fact<string>("reason", 279, Order = "reason")]'
+              Scenario: [Xunit.Fact<string>("reason", 279, Order = "reason")] [Xunit.Fact] on Class
+
+          IT FAILED VERIFICATION, NOT COMPILATION, which is the fork this entry named as the missing
+          evidence. And it points at a SHAPE rather than at load: the scenario carries TWO separate
+          attribute lists on one declaration, which is what the assertion is about. That reframes the
+          whole entry -- an input the generator draws rarely explains an intermittent failure that no
+          amount of isolated rerunning reproduces, where load does not.
+
+          NOT DIAGNOSED, deliberately. AttributeEmitter.EmitLines writes one line per attribute and
+          merges nothing, so where the merge happens is not yet known and guessing at it is what the
+          cause field forbids. The next step is to run the property with the scenario above as a fixed
+          input rather than a drawn one, which now costs nothing since the scenario is written down.
+
+          Found while landing the drop arc, which touches no attribute code.
 
   - id: storm-memo-propagation-property
     test: Storm.SourceGenerator.Tests.StormMemoPropagationPropertyTests.P3_MemoPropagation_RuleIR_IsMemo_MatchesSource

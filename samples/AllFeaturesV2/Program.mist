@@ -83,5 +83,7 @@ public class Program
         OptionalDefaultability.Program.RunDemo();
         RefStructs.Program.RunDemo();
         StackOnlyTypes.Program.RunDemo();
+        DropSemantics.Program.RunDemo();
+        SubstructuralFieldDiscipline.Program.RunDemo();
     }
 }

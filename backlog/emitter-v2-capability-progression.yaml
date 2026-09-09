@@ -7077,12 +7077,30 @@ capabilities:
     order: 155
     layer: ownership-and-drop
     requires: [ownership-specifiers]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       A six-state machine per binding covering live, three lending states, moved and dead.
       Move on assignment marks the source dead, use-after-move must be rejected across
       straight-line and branching flow, lending transitions must restore when the lease ends,
       and re-lending from a borrowed recipient must be allowed.
+
+      THE EMITTABLE HALF IS DELIVERED AND THE REST IS A JUDGEMENT. What emission needs from this is
+      whether a binding still OWNS its value at the end of its scope, because that decides whether a
+      drop is inserted, and DropInsertion answers it: a value passed on, returned, or explicitly
+      dropped has moved, and one merely read from or LENT has not. DropSemantics asserts both
+      directions -- elision on move and on return, and a drop that still fires after `ReadFd(f)` lent
+      it -- and is banked byte-identical.
+
+      THE STATE MACHINE ITSELF IS ANALYSIS. Rejecting a use after a move, counting a linear drop, and
+      restoring a lease are all judgements on a finished model, and nothing in this pipeline makes
+      one. Recorded below rather than left as `missing`, since leaving it there would put two banked
+      samples over a capability whose emittable content is complete.
+    analysis_phase_tasks:
+      - >
+        The six-state machine per binding, and the rejections that hang off it: use after move across
+        straight-line and branching flow, lending transitions restoring at end of lease, and
+        re-lending from a borrowed recipient.
     unlocks: []
 
   - id: method-tier-visibility-filtering
@@ -7144,11 +7162,25 @@ capabilities:
     order: 160
     layer: ownership-and-drop
     requires: [ownership-move-checking]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       Three disciplines with different drop-timing rules and implied ownership. Linear is
       exactly-once, relevant drops at scope exit and permits aliasing, affine suppresses the
       scope-exit drop entirely and fires only inside a scoped block.
+
+      THE DROP-TIMING RULES ARE WHAT THIS AMOUNTS TO IN EMISSION, and all three are delivered and
+      asserted. DropSemantics distinguishes them in output: a linear handle drops at scope exit, a
+      relevant one drops through every alias with the second a no-op, and an affine one falls out of
+      scope in silence and drops only inside a `with`. SubstructuralFieldDiscipline is banked over the
+      same rules applied to fields.
+
+      ENFORCEMENT IS ANALYSIS. Exactly-once for linear and at-least-once for relevant are counts over
+      a finished model, and nothing here checks them.
+    analysis_phase_tasks:
+      - >
+        Enforce the counts: exactly-once for linear, at-least-once for relevant, at-most-once for
+        affine. Emission places the drops the rules require and verifies no program's use of them.
     unlocks: []
 
   - id: drop-recognition-and-insertion
@@ -7156,16 +7188,45 @@ capabilities:
     order: 161
     layer: ownership-and-drop
     requires: [substructural-disciplines]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       A drop member may RETURN A VALUE, which C# disposal cannot. Drops fire in reverse
       declaration order, are ELIDED when the binding is moved into a call or a return, and
       chain recursively when the drop's return type is itself droppable. A container's drop
       is synthesized from its droppable fields in declaration order. Emission nests
       try-finally per binding to get the ordering.
-    tasks:
-      - Resolve a generic droppable field through its constraint. The classic pipeline emits
-        a dynamic dispatch, and places it AFTER the return so it is unreachable.
+
+      DELIVERED, ALL OF IT. DropSemantics and SubstructuralFieldDiscipline are banked, byte-identical
+      to classic. The nesting is what gives reverse order for free: a declaration that still owns its
+      value takes the REST of the block as the body of a try, so each drop sits inside the try of
+      every binding declared before it, and try/finally rather than a trailing statement because the
+      drop has to survive a return or a throw.
+
+      ONLY TWO DISCIPLINES DROP AT SCOPE EXIT, which the enum already said and nothing read: linear
+      must drop exactly once and relevant at least once, so a scope holding either owes one. Affine
+      may drop AT MOST once and explicitly allows forgetting, so inserting a drop there would invent a
+      call the author declined to make -- DropSemantics asserts exactly that, and the first cut failed
+      it by dropping every type with a Drop method.
+
+      A MOVE IS A POSITION, NOT A MENTION. Passing the value on, returning it, or calling its own Drop
+      hands the obligation over; reading a member off it does not, and neither does LENDING -- a
+      by-reference parameter is a loan and the caller still owes the drop. Counting references would
+      elide the drop for `f.GetFd()`.
+
+      A DECLARED DROP DOES NOT DISCHARGE THE CONTAINER'S OBLIGATION. What the author wrote happens IN
+      ADDITION to releasing what the type holds, so the field drops are appended to it -- and a field
+      the body hands back is moved, so a Drop returning its own value releases nothing. That makes the
+      synthesized case and the declared case one rule with two spellings rather than two rules.
+
+      AN INTRINSIC DROP IS NOT CALLABLE. Standard's Task declares one so a task can carry a
+      discipline, which is a claim about Mist's type system; no CLR task has such a member, and
+      emitting the call refused the whole program.
+    analysis_phase_tasks:
+      - >
+        Report a use after the binding was moved, and a linear binding dropped twice or not at all.
+        The emitter tracks moves to decide ELISION and judges nothing: a program that misuses a
+        linear value emits a drop count this pipeline does not check.
     unlocks: []
 
   - id: with-blocks-and-drop-scopes
@@ -7198,9 +7259,13 @@ capabilities:
       statement's meaning depends on what follows it and only the statement list knows what does. The name
       is declared in the body's own scope, so it is visible exactly where the value is alive.
       
-      STILL `partial` FOR DropSemantics, whose remaining twelve lines are order 161's automatic drop
-      insertion at scope exit, not a with form. `with T _ = e;` and the bare `with e;` push statement are
-      also unbuilt; no sample uses either.
+      DropSemantics IS NOW BANKED, order 161 having landed. The block was also emitting its binding
+      into the ENCLOSING scope, which C# rejects the moment two sibling scopes bind the same name --
+      SubstructuralFieldDiscipline does it four times. It is braced now, so the binding is scoped
+      where Mist scoped it, and the drop chains through what it returns like any other.
+
+      STILL `partial` for the forms nothing uses: `with T _ = e;` and the bare `with e;` push
+      statement are unbuilt.
     unlocks: [DropSemantics]
 
   - id: disposable-drop-interop
@@ -7231,12 +7296,28 @@ capabilities:
     order: 164
     layer: ownership-and-drop
     requires: [substructural-disciplines, generic-constraints-nominal]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       Containment is a SUBSUMPTION question -- does the container's drop guarantee cover the
       field's drop requirement. Checked at declaration time, through a constrained type
       parameter, and through nested generic instantiations. Also classifies CLR awaitables
       into the lattice.
+
+      NOTHING HERE IS EMITTABLE, which is why this is recorded done with its whole content moved
+      below rather than left `missing`. A subsumption question asked at declaration time is a
+      judgement on a finished model by definition: it admits or refuses a program and changes no
+      output. SubstructuralFieldDiscipline is banked and exercises every permitted combination in the
+      matrix -- what it cannot exercise is a REFUSAL, there being nothing to refuse it.
+
+      The emittable consequence of a field's discipline -- that a container releasing itself releases
+      what it holds, whatever discipline the field carries -- belongs to order 161 and is delivered
+      there.
+    analysis_phase_tasks:
+      - >
+        The containment matrix itself: does the container's drop guarantee subsume the field's
+        requirement, at declaration time, through a constrained type parameter, and through nested
+        generic instantiations. Also the classification of CLR awaitables into the lattice.
     unlocks: []
 
   # ===================================================================

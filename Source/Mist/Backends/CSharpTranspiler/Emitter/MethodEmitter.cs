@@ -2,6 +2,7 @@ using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
@@ -14,7 +15,8 @@ internal static class MethodEmitter
         Method method,
         bool inStruct,
         CSharpWriter writer,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        MemberType? owner = null)
     {
         // A readonly method is a struct-only concept in C#, so on a class the modifier is dropped
         // rather than passed through -- Mist admits it there and CS0106 refuses it.
@@ -29,8 +31,26 @@ internal static class MethodEmitter
         {
             if(method.Body is not null)
             {
-                BodyEmitter.EmitBlock(method.Body, writer, diagnostics);
+                BodyEmitter.EmitMethodBody(method, method.Body, writer, diagnostics);
+                EmitOwedFieldDrops(method, owner, writer);
             }
+        }
+    }
+
+    /// <summary>
+    /// What a declared <c>Drop</c> still owes its fields, appended after whatever the author wrote.
+    /// See <see cref="DropInsertion.FieldsOwedBy"/> for why writing a Drop does not discharge it.
+    /// </summary>
+    private static void EmitOwedFieldDrops(Method method, MemberType? owner, CSharpWriter writer)
+    {
+        if(owner is not ConcreteType concrete)
+        {
+            return;
+        }
+
+        foreach(var field in DropInsertion.FieldsOwedBy(method, concrete))
+        {
+            writer.WriteLine(DropInsertion.FieldDrop(field));
         }
     }
 

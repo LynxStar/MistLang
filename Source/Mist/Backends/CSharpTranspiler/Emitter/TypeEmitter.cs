@@ -236,6 +236,11 @@ internal static class TypeEmitter
                 DefaultEmitter.Emit(concrete, writer, diagnostics, ref anyEmitted);
             }
 
+            if(concrete is not null && DropInsertion.SynthesizesDrop(concrete))
+            {
+                DropEmitter.Emit(concrete, writer, ref anyEmitted);
+            }
+
             foreach(var inherited in concrete is null ? [] : DefaultMemberDuplication.For(concrete, methods))
             {
                 SeparateMember(writer, ref anyEmitted);
@@ -386,7 +391,7 @@ internal static class TypeEmitter
         }
         else
         {
-            MethodEmitter.Emit(method, inStruct, writer, diagnostics);
+            MethodEmitter.Emit(method, inStruct, writer, diagnostics, type);
         }
     }
 

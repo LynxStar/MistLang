@@ -413,8 +413,10 @@ internal static class OperatorBinder
         var produced = LambdaBinder.InferredReturnType(body, node, context)
             ?? context.Resolver.LookupWellKnown(WellKnownTypes.Void);
 
+        var kind = isValueTask ? WellKnownTypes.ValueTaskGeneric : WellKnownTypes.TaskGeneric;
+
         return new AsyncBlockExpression(
-            node, body, context.Resolver.ConstructTask(produced), isValueTask);
+            node, body, context.Resolver.ConstructTask(kind, produced), isValueTask);
     }
 
     private static Expression Suppressed(UnaryNode operandNode, BindingContext ctx, BuilderContext context)

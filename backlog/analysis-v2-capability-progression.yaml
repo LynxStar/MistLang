@@ -1,0 +1,366 @@
+# Stage 5 -- the v2 analysis phase.
+#
+# THE SIBLING OF emitter-v2-capability-progression.yaml AND ORDERED DIFFERENTLY ON PURPOSE. That
+# register orders capabilities by what emission needs first; the 91 `analysis_phase_tasks` hanging off
+# it are ordered by the emitter work that SPAWNED them, which is not the order a checker can be built
+# in. This file is that order. Every rule here cites the emitter-register entry it came from, so the
+# provenance stays and nothing is moved.
+#
+# Grep it, do not read it whole.
+
+invariants:
+
+  - id: samples-cannot-measure-this
+    statement: >
+      EVERY SAMPLE IS A VALID PROGRAM, so `samples/AllFeaturesV2` -- the whole ledger of the emitter
+      arc -- is structurally blind to a refusal. No sample contains a use-after-move, a doubly-dropped
+      linear value or a non-exhaustive match, so an analyzer that reports NOTHING passes every test the
+      repo has. A rejection-shaped ledger is therefore order 1 rather than an afterthought, and the
+      samples keep exactly one job here: proving an analyzer does not FALSE-POSITIVE on 72 working
+      programs, which is a real job and not this one.
+
+  - id: stages-4-and-5-are-peers
+    statement: >
+      Binding and analysis gather into ONE diagnostic bag that is gated once afterwards, so an analyzer
+      runs over a model that may already hold ErrorType and may already have been reported on. Every
+      rule owes the same suppression the binder's MemberResolution.Report already performs: say nothing
+      about a type that already failed. One mistake, one complaint.
+
+  - id: conversion-relation-cannot-refuse
+    statement: >
+      ConversionRelation is documented as partial and as unable to refuse -- "a caller may use this to
+      PREFER one candidate over another, and none may use it to refuse a program". That is correct for
+      overload ranking and is exactly what a typechecker needs it to stop being. A TOTAL classification
+      is a separate thing that has to exist before any assignability rule does, and the partial one must
+      survive alongside it: selection still needs a relation that narrows without refusing.
+
+  - id: one-flow-framework
+    statement: >
+      Definite assignment, move checking, array-bounds narrowing, ref-return escape, stackalloc escape
+      and ref-local liveness are ONE CFG-plus-lattice framework with six customers. Built once that is
+      roughly 21 tasks riding on it; built per feature it is five frameworks that disagree at the joins.
+
+  - id: classic-is-not-the-reference
+    statement: >
+      The clean-room rule holds here as it did for the emitter, and binds harder: Mist.Analysis is named
+      in it. Classic's DIAGNOSTIC IDS and messages are fair game as a statement of what the language
+      refuses -- they are observable behaviour -- and are cited throughout the emitter register's tasks
+      for that reason. Its code is not. The sanctioned inputs are the grammar and .kiro/specs.
+
+  - id: a-refusal-is-a-language-decision
+    statement: >
+      Where classic refuses and v2 need not, the refusal is a DECISION to make and record rather than a
+      defect to close. Several are already open questions in the tasks below -- a relational subpattern
+      on an unknown member, an enum scrutinee's exhaustiveness -- and v2 being the more permissive of the
+      two is an allowed answer, stated, not a gap.
+
+# ===================================================================
+# Order 1-3 -- infrastructure. Nothing else can start.
+# ===================================================================
+
+rules:
+
+  - id: rejection-ledger
+    name: A rejection-shaped ledger for the analysis phase
+    order: 1
+    subsystem: infrastructure
+    requires: []
+    status: missing
+    from: the deferral itself; no emitter-register task states it because no emitter task needed it
+    evidence: >
+      WHAT IS MISSING IS A PLACE TO PUT A PROGRAM THAT MUST NOT COMPILE. The emitter arc had one
+      executable ledger and it worked because emission is observable: a sample runs, its stdout is
+      diffed, and progress cannot be silently lost. Analysis inverts that. The deliverable is a refusal,
+      the witness is a program that fails, and stdout has nothing to say about it.
+      
+      Tier 3 already has the shape: ProgramModelProbe's BuildRun plus Errors(diagnostics, id) is exactly
+      a negative harness, and PropertyPatternResolutionTests uses it for nine refusals today. What it
+      cannot do is carry a PROGRAM -- it wraps statements in a probe method, so a rule about a
+      declaration, a constructor's paths or a whole type's conformance has nowhere to live.
+      
+      Decide between two shapes and record which: a corpus directory of small invalid programs each
+      paired with its expected diagnostic id and line, walked by one test; or a per-subsystem Tier 3
+      class in the probe style, extended to admit whole compilation units. The corpus wins on making
+      progress un-loseable the way the baseline did; the probe style wins on keeping the reason for each
+      refusal next to it. Neither is obviously right and the choice shapes every rule below it.
+    tasks:
+      - >
+        Settle the ledger shape, then state in this entry how a rule below proves itself -- a rule with
+        no stated witness is not done however much code it has.
+      - >
+        Keep the 72 banked samples as the FALSE-POSITIVE half. A new analyzer that refuses a working
+        program fails AllFeaturesV2 on both pipelines, which is already wired and already enforced.
+
+  - id: analyzer-contract
+    name: The v2 analyzer contract and runner
+    order: 2
+    subsystem: infrastructure
+    requires: [rejection-ledger]
+    status: missing
+    from: order 97 (exhaustiveness-checking), which states the instruction this order carries out
+    evidence: >
+      ORDER 97 ALREADY GAVE THE INSTRUCTION: "Design the v2 analyzer contract first, with this rule as
+      its first customer rather than its motivation." So the contract comes before any rule, and
+      exhaustiveness is what proves it -- chosen because it needs no conversion classification, so it
+      cannot be blocked by order 4.
+      
+      `IAnalyzer` in Mist.Analysis is CLASSIC's, over ISemanticModel, and the isolation rule bars v2
+      from it. v2 needs its own: an analyzer over IProgramModel, reporting into a DiagnosticBag,
+      modifying nothing. The interesting questions are not the interface.
+      
+      WHAT A RULE WALKS. The model is navigable without syntax, which is the whole point of it -- but a
+      diagnostic needs a source location, and order 69 already records that a conformance contract has
+      none to report at. So either every model entity a rule can refuse carries a SourceOrigin, or rules
+      walk the AST alongside the model and the model stops being sufficient. The first is the
+      ProgramModel's stated design; the second is what classic does.
+      
+      WHERE ANALYSIS RESULTS LIVE. ProgramModel/CLAUDE.md: "Analysis results from later passes live in
+      separate annotation stores." A flow analysis produces facts later rules read -- definite assignment
+      feeds the borrow checker -- so the store is a contract question, not an implementation detail, and
+      it belongs here rather than being invented by the first analyzer that needs one.
+      
+      WHERE THE CODE LIVES. Not under ProgramModel/, whose CLAUDE.md excludes analysis; not under
+      Mist.Analysis, which is classic's. A sibling namespace, and naming it is part of this order.
+    tasks:
+      - >
+        Define the contract, the runner, and the wiring into ExperimentalPipeline.RunAnalyzers, which is
+        a stub with a TODO today.
+      - >
+        Decide how a rule reaches a source location, and whether the answer is a SourceOrigin on every
+        refusable entity or an AST walk beside the model. Record the cost of the one not chosen.
+      - >
+        Decide where cross-rule facts live, with definite assignment feeding the borrow checker as the
+        case that proves it.
+      - >
+        Honour the peer-stage invariant in the runner rather than in each rule: a rule must not have to
+        remember that ErrorType may already be present.
+
+  - id: exhaustiveness-checking
+    name: Exhaustiveness over a finite scrutinee
+    order: 3
+    subsystem: typechecker
+    requires: [analyzer-contract]
+    status: missing
+    from: order 97 (exhaustiveness-checking), 4 tasks
+    evidence: >
+      THE CONTRACT'S FIRST CUSTOMER, and the reason it is third rather than among the pattern rules at
+      order 20: it needs no conversion classification. Unguarded catch-all, bool true-and-false, and
+      union-constituent coverage are decidable from the model alone.
+    tasks:
+      - >
+        Implement unguarded-catch-all, bool true-and-false, and union-constituent coverage.
+      - >
+        Decide deliberately what a TUPLE scrutinee gets. See order 103's sibling task.
+      - >
+        Decide deliberately what an ENUM scrutinee gets, and note that classic has NO enum rule -- an
+        enum falls to its unbounded-type rule and is told it needs a catch-all, so matching classic here
+        means reproducing something nobody designed.
+
+  - id: total-conversion-classification
+    name: A conversion classification that can refuse
+    order: 4
+    subsystem: typechecker
+    requires: [analyzer-contract]
+    status: missing
+    from: the conversion-relation-cannot-refuse invariant; order 46 is its first named customer
+    evidence: >
+      THE ONE BLOCKER UNDER ROUGHLY 61 OF THE 91 TASKS. Every assignability rule -- assignment,
+      argument, return, arm result, initializer value, coalescing operand -- asks a question the existing
+      relation is documented as unable to answer. It must gain a total sibling, not be changed: overload
+      selection depends on a relation that narrows and ranks without refusing, and the reasoning for
+      that is recorded on ConversionRelation itself.
+      
+      The three kinds the partial relation declines are the work: variance, constructed generics, and
+      open type parameters. Each is a decision about what Mist's conversion rules ARE, not a gap to fill
+      by copying -- WidensToUnknownArguments already records one such decision, that covariance is keyed
+      on the top type and nothing else because Mist has no variance annotation.
+    tasks:
+      - >
+        Classify rather than answer yes-or-no: identity, implicit, explicit-only, and none. The existing
+        IsWithin / IsImplicit / FindOperator split is most of the first three already.
+      - >
+        Settle variance, constructed generics and open type parameters, each as a stated rule.
+      - >
+        Refuse a cast for which no conversion exists, which is order 46's task and the first customer:
+        `(Kelvin)m` where m is typed Measurement must fail even though the runtime value is a Kelvin.
+        samples/CastOperators has the case commented out waiting for it.
+
+  - id: assignability-core
+    name: Assignability at every position that has a target type
+    order: 5
+    subsystem: typechecker
+    requires: [total-conversion-classification]
+    status: missing
+    from: >
+      orders 46, 64, 78, 79, 81, 86, 88, 95, 116 -- the tasks that all reduce to one question asked at
+      different positions
+    evidence: >
+      NINE TASKS ACROSS SEVEN LAYERS ARE ONE RULE AT SEVEN POSITIONS. Classic spreads them over its
+      MIST_TC_0001 and the 0041-0047 family; v2 should ask the question once and report it where it was
+      asked, because the positions are already the places EmitCoerced knows a target type for.
+    tasks:
+      - >
+        Assignment and local initialization, which is classic's MIST_TC_0001 -- and note v2 currently
+        refuses NONE of it: `int x = 1; string s = "a"; x = s;` reaches Roslyn. Measured 2026-09-10.
+      - >
+        An argument against its parameter type, once overload-resolution-by-argument-type can name one,
+        so unknown cannot enter a concrete parameter. Order 81's task.
+      - >
+        A newtype against its source and across newtypes, which needs a cast. Order 86's task.
+      - >
+        A switch arm result against the target type. Order 95's task.
+      - >
+        A coalescing right operand against the left's non-void portion, and a second un-lift in a chain
+        once the void is gone. Order 79's task.
+      - >
+        An object initializer value, plus the rest of classic's MIST_PI_* family: no accessible set or
+        init, readonly field, inaccessible member, duplicate name in one block. Order 64's task.
+      - >
+        A written enum variant value against the base. Order 88's task.
+      - >
+        An explicit foreach element annotation against the inferred element type. Order 116's task.
+      - >
+        A return value against the declared return type, which no emitter task names because emission
+        never needed it -- found while assembling this register.
+
+# ===================================================================
+# Orders 6 onward -- the typechecker proper, expanded when reached.
+# Each block names the emitter-register orders its tasks come from.
+# ===================================================================
+
+  - id: declaration-shape-checks
+    name: Refusals decidable from a declaration alone
+    order: 6
+    subsystem: typechecker
+    requires: [analyzer-contract]
+    status: missing
+    from: orders 39, 42, 48, 50, 56, 57, 66, 84, 86, 87, 88 -- 13 tasks
+    evidence: >
+      THE CHEAPEST CLUSTER AND THE ONE LEAST LIKE THE REST: no expression is walked, no flow is
+      followed, and nothing needs the conversion classification. Accessibility permission and exposure,
+      duplicate alias and newtype names, `sealed` on an alias, a newtype over a sealed type, an enum base
+      that is not deeply readonly, two variants sharing a value, a nested newtype or alias that
+      something references, the Mist-only generic constraints that erase into nothing and so are checked
+      by nothing, and a missing constructor on a closing type.
+      
+      Placed after the contract and beside the assignability work rather than before it, because its
+      value is breadth and the assignability spine is what unblocks everything else.
+    tasks: []
+
+  - id: abstract-conformance-checking
+    name: Slot filling, accessor shape and retroactive conformance
+    order: 7
+    subsystem: typechecker
+    requires: [declaration-shape-checks]
+    status: missing
+    from: orders 69, 70, 73, 74 -- 16 tasks, the largest single cluster
+    evidence: >
+      SPEC-BACKED AND SPEC-CITED: .kiro/specs/abstract-type-unification/requirements.md, Requirements 14
+      and 28, is the authoritative statement, and order 69 records that its own entry did not cite either
+      before. Blocked on one thing first -- order 69's last task: a conformance contract carries no
+      source location, so there is nowhere to report. That is order 2's second task.
+    tasks: []
+
+  - id: pattern-checking
+    name: Impossible, redundant and unreachable patterns
+    order: 8
+    subsystem: typechecker
+    requires: [assignability-core, exhaustiveness-checking]
+    status: missing
+    from: orders 90, 91, 92, 93, 98, 99, 103 -- 11 tasks
+    evidence: >
+      ALL OF THESE ASK THE SAME QUESTION AS ASSIGNABILITY, about a pattern rather than a value: can this
+      type reach that one. A test that can never succeed, one that is always true, a relational bound
+      that is not comparable or not constant, a conjunct that cannot match what its predecessors
+      narrowed to, an arm subsumed by an earlier one, a second test of a constituent already taken.
+      
+      Two are DECISIONS rather than rules and are recorded as such on order 93: whether a relational
+      subpattern on an unknown member stays admitted -- v2 admits it today and it runs, where classic
+      refuses -- and that the impossible-type-test rule must NOT reach a member whose type is unknown,
+      where any test is possible.
+    tasks: []
+
+  - id: operator-and-positional-checks
+    name: Operator admissibility, and the positions with one rule each
+    order: 9
+    subsystem: typechecker
+    requires: [assignability-core]
+    status: missing
+    from: orders 9, 78, 79, 81, 83, 107, 123, 128 -- 11 tasks
+    evidence: >
+      A comparison whose operands no operator admits, `?` applied to a type that already contains void,
+      conditional access on a non-optional receiver, the five unknown use-site rules, member callability
+      on an unknown-typed readonly receiver, a capture inside a static lambda, an index argument
+      admissible for its receiver, and whether a readonly by-ref argument needs an is-this-a-location
+      test.
+      
+      Order 81 carries the ordering trap: universal extensions must be consulted BEFORE any bare-unknown
+      member rule fires, or Standard/Unknown.mist's ToString, GetHashCode and GetType become unreachable.
+    tasks: []
+
+# ===================================================================
+# The other three subsystems. Expanded when reached; the tasks stay on
+# the emitter register until then.
+# ===================================================================
+
+  - id: flow-framework
+    name: One CFG and lattice for every flow-sensitive rule
+    order: 10
+    subsystem: flow
+    requires: [analyzer-contract]
+    status: missing
+    from: the one-flow-framework invariant; orders 132, 140, 148, 155, 158, 165, 166 are its customers
+    evidence: >
+      PROVEN ON DEFINITE ASSIGNMENT FIRST, which is the same discipline order 97 applied to the
+      contract: two tasks on the framework the borrow checker needs fifteen of, so the small customer is
+      what shows the shape is right. Order 165's task is the statement of it -- an assigned-or-unassigned
+      lattice merged at join points, checked on every read including through interpolation, plus a
+      constructor-level all-fields-assigned-on-all-paths verification.
+      
+      ORDER 166 RIDES HERE TOO, and is the one task in the queue that is not a refusal about flow but a
+      classification feeding one: stampability, which decides whether a bare sized array creation is
+      admissible so an array of a reference type can never be observed holding null. It is distinct from
+      C#'s unmanaged rule and order 140's stackalloc task needs the same predicate.
+    tasks: []
+
+  - id: ownership-borrow-checking
+    name: Tiers, moves, lending and the substructural counts
+    order: 11
+    subsystem: ownership
+    requires: [flow-framework, assignability-core]
+    status: missing
+    from: orders 134, 136, 137, 138, 140, 154, 155, 156, 158, 159, 160, 161, 164 -- 15 tasks
+    evidence: >
+      THE LEAST LIKE ANYTHING C# CHECKS and so the least derivable from the target. The tier-satisfaction
+      lattice between owned, borrowed and frozen; the six-state machine per binding with use-after-move
+      across branching flow, lending transitions restoring at end of lease, and re-lending from a borrow;
+      per-field jagged ownership where a partial move leaves siblings usable and the parent not;
+      this-tier inference from field accesses; the counts -- exactly-once for linear, at-least-once for
+      relevant, at-most-once for affine; the containment matrix for a substructural field; and the
+      readonly and stack-only disciplines, which are the same machinery over different lattices.
+      
+      Specs exist: ownership-v2, ownership-system, deep-ownership-types, drop-semantics, readonly-contexts,
+      stack-only-types.
+    tasks: []
+
+  - id: refinement-proving
+    name: Static discharge, implication, and the guards that remain
+    order: 12
+    subsystem: refinement
+    requires: [assignability-core]
+    status: missing
+    from: orders 141, 142, 143, 144, 147, 148 -- 9 tasks
+    evidence: >
+      THE MOST SELF-CONTAINED OF THE FOUR and the only one that gates nothing else, which is why it is
+      last rather than because it is least. A literal evaluated against a predicate including boundary
+      values; subset relationships between two refinements over one base; a non-constant assigned without
+      proof; a predicate discharged at a use site, as `arr[i] where i >= 0 and < 3` must refuse an i not
+      known to satisfy it; implication for forwarding to a base or weakening in an override; and a
+      runtime guard at method entry for what the call site could not prove.
+      
+      Array-bounds flow analysis sits across this and order 10: the symbolic case -- a loop condition
+      entailing the bound only because both name the same array -- needs the prover AND the framework.
+      
+      Specs exist: refinement-types, refinement-comparison-engine, adhoc-refinement-constraints,
+      dependent-type-refinement-constraints, array-bounds-flow-analysis.
+    tasks: []

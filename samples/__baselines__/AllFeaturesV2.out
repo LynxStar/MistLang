@@ -1708,3 +1708,101 @@ item=30
 --- 16. Abstract type dispatch with with-clause ---
   ContextReader.ReadContext()=CountReader.ReadContext: count=7
 === Structured Context Done ===
+--- Ownership ---
+[non-owned-binding] readonly method=10
+[non-owned-binding] describe=Widget(10, alpha)
+[non-owned-binding] field from method=Widget(10, label-1)
+[non-owned-binding] field from move=Widget(10, label-2)
+[non-owned-binding] field from clone=Widget(10, shared-label)
+[non-owned-binding] shared still usable=shared-label
+[non-owned-binding] after move=Widget(10, shared-label)
+[non-owned-binding] unrestricted mutable call=Widget(99, shared)
+[owned-type-binding] initial=Engine(Rpm=1000, Temp=80)
+[owned-type-binding] after rev=Engine(Rpm=1500, Temp=130)
+[owned-type-binding] after second rev=Engine(Rpm=1700, Temp=150)
+[owned-type-binding] getRpm=1700
+[provenance] initial=Container(Inner=Widget(1, first))
+[provenance] after replace=Container(Inner=Widget(2, second))
+[provenance] c2=Container(Inner=Widget(3, third))
+[iclonable] shared=Config(Timeout=30, Host=localhost)
+[iclonable] cloned=Config(Timeout=30, Host=localhost)
+[iclonable] shared after modify=Config(Timeout=60, Host=localhost)
+[iclonable] clone unaffected=Config(Timeout=30, Host=localhost)
+[iclonable] implicit clone=Config(Timeout=60, Host=localhost)
+[iclonable] shared after second modify=Config(Timeout=90, Host=localhost)
+[iclonable] implicit clone unaffected=Config(Timeout=60, Host=localhost)
+[iclonable] vault from shared=Vault(Setting=Config(Timeout=90, Host=localhost))
+[iclonable] shared after host change=Config(Timeout=90, Host=remote)
+[iclonable] vault unaffected=Vault(Setting=Config(Timeout=90, Host=localhost))
+[iclonable] vault after replace=Vault(Setting=Config(Timeout=90, Host=remote))
+[clone-lent] from borrowed=Config(Timeout=15, Host=origin)
+[clone-lent] from frozen=Config(Timeout=15, Host=origin)
+[clone-lent] from readonly ref=Config(Timeout=15, Host=origin)
+[clone-lent] original intact=Config(Timeout=15, Host=origin)
+[lending] readonly ref=Engine(Rpm=2000, Temp=90)
+[lending] after readonly=Engine(Rpm=2000, Temp=90)
+[lending] frozen=Engine(Rpm=2000, Temp=90)
+[lending] after frozen+rev=Engine(Rpm=2050, Temp=95)
+[lending] borrowed mutated=Engine(Rpm=2150, Temp=105)
+[lending] after borrowed=Engine(Rpm=2150, Temp=105)
+[aliasing] a=Widget(42, aliased)
+[aliasing] b=Widget(42, aliased)
+[aliasing] same object=True
+[value-tiers] readonly ref=Vec2(3, 4)
+[value-tiers] frozen=Vec2(3, 4)
+[value-tiers] borrowed=Vec2(3, 4)
+[value-tiers] owned=Vec2(3, 4)
+[value-tiers] original intact=Vec2(3, 4)
+[borrowed-recipient] read=700
+[borrowed-recipient] write=Engine(Rpm=800, Temp=80)
+[borrowed-recipient] re-lent readonly=Engine(Rpm=800, Temp=80)
+[borrowed-recipient] re-lent frozen=Engine(Rpm=800, Temp=80)
+[borrowed-recipient] re-lent borrowed mutated=Engine(Rpm=810, Temp=81)
+[borrowed-recipient] owner after return=Engine(Rpm=810, Temp=81)
+[truth-table] live read=1000
+[truth-table] live write=Engine(Rpm=1100, Temp=110)
+[truth-table] view=1100
+[truth-table] freeze=1100
+[truth-table] after frozen returns, write=Engine(Rpm=1150, Temp=115)
+[move] after owned-to-owned=Engine(Rpm=3000, Temp=100)
+[move] after owned-to-unrestricted=Engine(Rpm=4000, Temp=110)
+[move] consumed=Engine(Rpm=6000, Temp=220)
+[move] transfer complete
+[default] explicit default(T)=Engine(Rpm=0, Temp=0)
+[default] bare default=Engine(Rpm=0, Temp=0)
+[default] e1 after rev=Engine(Rpm=100, Temp=10)
+[default] e2 unaffected=Engine(Rpm=0, Temp=0)
+[owned-field] initial=Document(v1: Hello, world)
+[owned-field] after update=Document(v2: Updated content)
+[owned-field] after bump=Document(v3: Updated content)
+[owned-field] direct assign=Document(v3: Direct assignment)
+[owned-field] cloned=Document(v3: Cloned content)
+[owned-field] shared still alive=Cloned content
+[owned-field] version set=Document(v99: Cloned content)
+[owned-field] shared write=Document(v2: shared-updated)
+[owned-field] shared clone-read=shared-updated
+[owned-type-restrict] initial=Vault(accesses=0, secret=top-secret-123)
+[owned-type-restrict] rotated=Vault(accesses=1, secret=new-secret-456)
+[owned-type-restrict] replaced=Vault(accesses=1, secret=replaced-789)
+[partial-move] extracted=alpha
+[partial-move] right still live=beta
+[partial-move] cloned from right=beta
+[partial-move] right after clone=beta
+[partial-move] left restored=restored
+[partial-move] both live, left=restored, right=beta
+[field-lending] frozen left=alpha
+[field-lending] right during freeze=beta
+[field-lending] right after write=modified-during-freeze
+[field-lending] left after freeze ends=alpha
+[field-lending] both live again, left=alpha, right=modified-during-freeze
+[this-tier] summary=Account(Alice, balance=100)
+[this-tier] after deposit=Account(Alice, balance=150)
+[this-tier] peek=Alice
+[this-tier] shared summary=Account(Bob, balance=200)
+[this-tier] closed=Closed account: Charlie with balance 300
+[inference] inferred owned=Account(Inferred, balance=75)
+[inference] original still live=Account(Original, balance=100)
+[inference] copy=Account(Original, balance=100)
+[inference] simple=just a string
+[inference] alias=just a string
+--- Ownership Done ---

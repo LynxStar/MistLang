@@ -254,13 +254,15 @@ public sealed class AttributeEmissionTests : ProgramModelProbe
     [Fact]
     public void ConstructedTypeArgument_BecomesTypeof()
     {
-        Assert.Equal("[System.ProxyAttribute(typeof(Box<int>))]\n", RenderFieldOf("Args", "Constructed"));
+        Assert.Equal(
+            "[System.ProxyAttribute(typeof(System.Box<int>))]\n",
+            RenderFieldOf("Args", "Constructed"));
     }
 
     [Fact]
     public void GenericAttribute_KeepsItsTypeArgument()
     {
-        Assert.Equal("[TypedAttribute<int>]\n", RenderFieldOf("Args", "GenericAttribute"));
+        Assert.Equal("[System.TypedAttribute<int>]\n", RenderFieldOf("Args", "GenericAttribute"));
     }
 
     /// <summary>

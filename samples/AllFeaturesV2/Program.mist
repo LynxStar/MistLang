@@ -89,5 +89,6 @@ public class Program
         FirstClassFunctions.Program.RunDemo();
         AsyncDropChaining.Program.RunDemo();
         StructuredContext.Program.RunDemo();
+        Ownership.Program.RunDemo();
     }
 }

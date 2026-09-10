@@ -7108,11 +7108,25 @@ capabilities:
     order: 156
     layer: ownership-and-drop
     requires: [ownership-move-checking]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       Mutable methods are HIDDEN from an owned binding of a non-cooperating type, so
       ownership changes which members exist rather than only which assignments are legal. The
       owned class modifier is a cooperation contract distinct from an owned binding.
+
+      NOTHING HERE IS EMITTABLE, and the reason is stated one order below: every ownership tier erases
+      at emission, so there is no runtime witness for any of it. A rule about tiers can only admit or
+      refuse a program, which makes it a judgement on a finished model by definition. Recorded done
+      with its content moved below rather than left `missing`, so that samples/Ownership -- which
+      exercises the permitted side of all of it and is byte-identical to classic -- does not sit over
+      a capability whose emittable content is empty. The one part of this layer that DOES have a
+      witness is the clone, and it is order 157's, delivered there.
+    analysis_phase_tasks:
+      - >
+        Hide mutable methods from an owned binding of a non-cooperating type, and distinguish the
+        owned CLASS modifier -- a cooperation contract -- from an owned binding. A program that
+        should fail to resolve currently resolves.
     unlocks: []
 
   - id: iclonable-implicit-clone
@@ -7120,17 +7134,41 @@ capabilities:
     order: 157
     layer: ownership-and-drop
     requires: [ownership-move-checking]
-    v2_status: missing
+    v2_status: partial
+    verified_by: v2-semantics
     evidence: >
       A clone is inserted at owned bindings, owned parameters and owned fields, including
       from a lent tier without consuming the lender. Field assignment also needs provenance
       checking -- the source must be owned.
+
+      THE CLONE IS THE ONE PART OF THIS LAYER WITH A RUNTIME WITNESS, which is why it is emission
+      where the tier rules around it are analysis: an owned binding promises an INDEPENDENT value, and
+      a program that mutates the source and reads the binding prints the difference. samples/Ownership
+      asserts exactly that and is banked.
+
+      BINDINGS AND PARAMETERS ARE DELIVERED. Modelled as a node rather than left to the emitter,
+      because the copy is observable and the model should say a copy happens. Provenance decides:
+      a construction, a clone, an owned-returning call and an owned binding all hand over a value
+      nothing else holds, and everything else is a value someone may still be reading.
+
+      A PARAMETER'S OWNERSHIP WAS NEVER READ. ParameterBuilder wrote `Ownership: default`, so an
+      `owned Config` parameter looked unrestricted and the call site handed over the caller's own
+      instance -- the sample's vault then saw every later mutation of it.
+
+      THE TWO RECORDED TASKS ARE BOTH DONE, and both were reachable in this sample. An explicit
+      `x.Clone()` is owned provenance, so it is not cloned again -- classic emits the double clone the
+      task describes. And an INTRINSIC type is deliberately not cloned: Standard's String declares a
+      Clone to satisfy the abstract, but the member is the target's, the CLR's returns object, and a
+      copy of an immutable value is indistinguishable from the value, so the aliasing it would prevent
+      cannot be observed.
+
+      STILL `partial` FOR OWNED FIELDS, the third position the evidence names. No sample declares one,
+      so nothing exercises it either way.
     tasks:
-      - Recognize an explicit clone call as owned provenance. The classic pipeline does not,
-        and emits a double clone.
-      - Insert the clone for immutable reference types too, or decide deliberately not to.
-        The classic pipeline silently omits it for strings, which looks correct only because
-        strings are immutable.
+      - >
+        Insert the clone at an owned FIELD, and at field ASSIGNMENT where the evidence asks for
+        provenance checking. samples/Ownership declares no owned field, so this is unmeasured rather
+        than known-broken.
     unlocks: []
 
   - id: jagged-per-field-ownership
@@ -7138,11 +7176,25 @@ capabilities:
     order: 158
     layer: ownership-and-drop
     requires: [ownership-move-checking, instance-fields]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       Owned fields on a non-owned type, tracked independently, so a partial move out of one
       field leaves siblings usable while making the PARENT unusable. A clone-read out of an
       owned field must leave the field live.
+
+      NOTHING HERE IS EMITTABLE, and the reason is stated one order below: every ownership tier erases
+      at emission, so there is no runtime witness for any of it. A rule about tiers can only admit or
+      refuse a program, which makes it a judgement on a finished model by definition. Recorded done
+      with its content moved below rather than left `missing`, so that samples/Ownership -- which
+      exercises the permitted side of all of it and is byte-identical to classic -- does not sit over
+      a capability whose emittable content is empty. The one part of this layer that DOES have a
+      witness is the clone, and it is order 157's, delivered there.
+    analysis_phase_tasks:
+      - >
+        Track owned fields independently, so a partial move out of one leaves its siblings usable and
+        the parent unusable. The clone-read half belongs to order 157, which is partial for owned
+        fields.
     unlocks: []
 
   - id: this-tier-inference
@@ -7150,11 +7202,25 @@ capabilities:
     order: 159
     layer: ownership-and-drop
     requires: [method-tier-visibility-filtering]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       Each method's receiver tier is inferred from its body's field accesses, can be
       annotated explicitly including a consuming form, and must be checked at the call site.
       Also covers ownership inference for var from downstream use.
+
+      NOTHING HERE IS EMITTABLE, and the reason is stated one order below: every ownership tier erases
+      at emission, so there is no runtime witness for any of it. A rule about tiers can only admit or
+      refuse a program, which makes it a judgement on a finished model by definition. Recorded done
+      with its content moved below rather than left `missing`, so that samples/Ownership -- which
+      exercises the permitted side of all of it and is byte-identical to classic -- does not sit over
+      a capability whose emittable content is empty. The one part of this layer that DOES have a
+      witness is the clone, and it is order 157's, delivered there.
+    analysis_phase_tasks:
+      - >
+        Infer each method's receiver tier from its field accesses, honour the explicit annotation
+        including the consuming form, and check it at the call site. Also ownership inference for
+        `var` from downstream use.
     unlocks: [Ownership]
 
   - id: substructural-disciplines

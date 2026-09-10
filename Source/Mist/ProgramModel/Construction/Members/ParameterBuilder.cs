@@ -2,6 +2,7 @@ using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Construction.Resolution;
+using Mist.ProgramModel.Construction.Types;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
@@ -68,7 +69,10 @@ internal sealed class ParameterBuilder
         var modifier = new ParameterModifier(
             IsReadonly: isReadonly,
             IsRef: isRef,
-            Ownership: default,
+            // Read from the specifier rather than left at the default: an `owned` parameter is the
+            // promise a caller has to honour, and a call site that cannot see it hands over a value
+            // someone else still holds. See OwnedProvenance.
+            Ownership: MemberTypeBuilder.ResolveOwnership(param.OwnershipSpecifier),
             Direction: !isRef
                 ? ByRefDirection.None
                 : isReadonly ? ByRefDirection.In : ByRefDirection.Ref);

@@ -660,6 +660,11 @@ internal static class BodyEmitter
                 writer.Append(asyncBlock.IsValueTask ? "))" : ")");
                 break;
 
+            case CloneExpression clone:
+                EmitSubExpression(clone.Source, PrefixPrecedence, writer, diagnostics);
+                writer.Append(".Clone()");
+                break;
+
             case AwaitExpression await when blockingAwaits:
                 EmitSubExpression(await.Operand, PrefixPrecedence, writer, diagnostics);
                 writer.Append(".GetAwaiter().GetResult()");

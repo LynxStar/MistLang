@@ -203,26 +203,33 @@ internal static class StatementBinder
                         }
                     }
 
+                    var ownership = MemberTypeBuilder.ResolveOwnership(typed.OwnershipSpecifier);
                     var local = new LocalVariable(typed.Name.Lexeme, declaredType)
                     {
                         IsRef = MemberTypeBuilder.IsRefSpecifier(typed.OwnershipSpecifier),
                         IsReadonly = IsReadonlyBinding(typed.ReadonlyModifier is not null, typed.OwnershipSpecifier),
+                        Ownership = ownership,
                     };
                     ctx.Scope.DeclareLocal(local, context.Diagnostics);
-                    return new LocalDeclarationStatement(local, initializer);
+                    return new LocalDeclarationStatement(
+                        local,
+                        initializer is null ? null : OwnedProvenance.At(ownership, initializer));
                 }
 
             case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
                 {
                     var initializer = ExpressionBinder.BindExpression(inferred.Initializer, ctx, context);
                     var inferredType = initializer.Type;
+                    var inferredOwnership = MemberTypeBuilder.ResolveOwnership(inferred.OwnershipSpecifier);
                     var local = new LocalVariable(inferred.Name.Lexeme, inferredType)
                     {
                         IsRef = MemberTypeBuilder.IsRefSpecifier(inferred.OwnershipSpecifier),
                         IsReadonly = IsReadonlyBinding(inferred.ReadonlyModifier is not null, inferred.OwnershipSpecifier),
+                        Ownership = inferredOwnership,
                     };
                     ctx.Scope.DeclareLocal(local, context.Diagnostics);
-                    return new LocalDeclarationStatement(local, initializer);
+                    return new LocalDeclarationStatement(
+                        local, OwnedProvenance.At(inferredOwnership, initializer));
                 }
 
             case VarTupleDeconstructionVariableDeclarationStatementNode inferredTuple:

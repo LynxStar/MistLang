@@ -281,3 +281,30 @@ now says something the spec does not.
 **Action:** decide whether the requirement should name MIST_VAR_0012 and add it to the
 spec's diagnostic table, or whether the rule belongs outside the MIST_VAR range entirely --
 it is the one `params` rule that has nothing to do with packs.
+
+## `owned` on a binding initialised from a string-valued local does not parse
+
+Reproducible, and reduced as far as it goes:
+
+```mist
+var borrowed = "x";
+owned var s = borrowed;   // MIST_PARSE_INCOMPLETE, reported at the enclosing class
+```
+
+The same shape over a class-typed local parses:
+
+```mist
+Config other = new Config();
+owned var s = other;      // fine
+```
+
+So does `owned var s = new Config();` and `owned Config s = other;`. Only the string-valued
+source fails, which is strange for a PARSER -- it knows no types -- so the interesting question
+is what else differs between the two, not the ownership specifier itself.
+
+The error surfaces at the enclosing class rather than the statement, which is the
+`MIST_PARSE_INCOMPLETE` behaviour CLAUDE.md warns makes the signature look at fault.
+
+Found while writing tests for order 157; nothing in samples/ hits it, because the sample uses the
+TYPED form (`owned Config implicitClone = shared;`) everywhere. Not investigated further -- it is a
+parser question and the clone work it turned up in is unrelated.

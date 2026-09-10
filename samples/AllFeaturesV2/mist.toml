@@ -71,3 +71,4 @@ StructuredConcurrency = { path = "../StructuredConcurrency" }
 FirstClassFunctions = { path = "../FirstClassFunctions" }
 AsyncDropChaining = { path = "../AsyncDropChaining" }
 StructuredContext = { path = "../StructuredContext" }
+Ownership = { path = "../Ownership" }

@@ -91,13 +91,14 @@ internal sealed class CSharpEmitterV2
         EmitMonomorphs(outputDir, emittedFiles, closures);
         EmitVoidStruct(outputDir, emittedFiles);
 
-        // SKIPPED WHOLESALE, AND ONLY FOR NOW. The rule this stands in for is per DECLARATION:
+        EmitStandardAbstracts(closures, outputDir, emittedFiles);
+
+        // STILL SKIPPED, AND NARROWER THAN IT WAS. The rule this stands in for is per DECLARATION:
         // `intrinsic` says the target already supplies it, and everything else is ordinary Mist that
-        // has to be emitted like any other. Standard/IClonable, Optional, Void, IEnumerable and
-        // IEnumerator declare no intrinsic at all -- classic emits them and v2 emits none of them,
-        // which is why the backend carries hand-written stand-ins (see EmitVoidStruct) that drift
-        // from the Mist they mirror. Telling the two apart needs orders 185 and 186; when they land,
-        // this test narrows to the declaration and those stand-ins are deleted.
+        // has to be emitted like any other. The ABSTRACTS are now emitted from their declarations
+        // just above; what remains skipped is Bootstrap, which is intrinsic throughout and needs
+        // orders 185 and 186 -- operator overloads and the intrinsic modifier itself -- before it can
+        // be told apart declaration by declaration. Void keeps its hand-written stand-in until then.
         foreach(var assembly in programModel.Assemblies)
         {
             if(!assembly.HasMistSource || assembly.Kind == MistAssemblyKind.Standard)
@@ -502,6 +503,54 @@ internal sealed class CSharpEmitterV2
         ArrayLowering.Emit(writer);
 
         var path = Path.Combine(outputDir, "__Array.g.cs");
+        File.WriteAllText(path, writer.ToString());
+        emittedFiles.Add(path);
+    }
+
+    /// <summary>
+    /// Standard's own abstract declarations, emitted as the Mist they are. Only the ones that do NOT
+    /// project onto a CLR interface: IEnumerable and IEnumerator ARE the framework's, so emitting them
+    /// would produce a structurally identical duplicate that satisfies no framework API and no
+    /// foreach -- see <see cref="ClrProjection"/>. IClonable is Mist's own and had no C# to conform
+    /// to, so every type declaring it named an interface that did not exist.
+    /// </summary>
+    private void EmitStandardAbstracts(
+        ConstraintClosureMap closures, string outputDir, List<string> emittedFiles)
+    {
+        var emitted = new List<AbstractType>();
+
+        foreach(var assembly in programModel.Assemblies)
+        {
+            if(assembly.Kind != MistAssemblyKind.Standard)
+            {
+                continue;
+            }
+
+            foreach(var unit in assembly.CompilationUnits)
+            {
+                emitted.AddRange(unit.Types
+                    .OfType<AbstractType>()
+                    .Where(type => !ClrProjection.Projects(type)));
+            }
+        }
+
+        if(emitted.Count == 0)
+        {
+            return;
+        }
+
+        var writer = new CSharpWriter();
+        writer.WriteLine("namespace Standard;");
+
+        foreach(var type in emitted.OrderBy(type => type.Name, StringComparer.Ordinal))
+        {
+            writer.WriteBlankLine();
+            TypeEmitter.EmitTypeBody(
+                type, closures, ((ProgramModel.Model.ProgramModel)programModel).VariadicUses, writer,
+                diagnostics);
+        }
+
+        var path = Path.Combine(outputDir, "__Standard.g.cs");
         File.WriteAllText(path, writer.ToString());
         emittedFiles.Add(path);
     }

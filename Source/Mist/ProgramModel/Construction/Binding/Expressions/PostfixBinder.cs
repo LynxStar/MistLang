@@ -350,7 +350,11 @@ internal static class PostfixBinder
         context.ProgramModel.AwaitUses.RecordCall(ctx.EnclosingMethod, selected);
 
         return AutoAwait(
-            new InvocationExpression(node, callee, bound, returnType, selected), ctx, context);
+            new InvocationExpression(
+                node, callee, OwnedProvenance.AtParameters(bound, selected.ParametersList),
+                returnType, selected),
+            ctx,
+            context);
     }
 
     /// <summary>

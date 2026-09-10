@@ -1,5 +1,7 @@
 using Mist.ProgramModel.Contracts.Types;
 
+using Mist.ProgramModel.Model.Enums;
+
 namespace Mist.ProgramModel.Model;
 
 /// <summary>
@@ -19,6 +21,13 @@ internal sealed class LocalVariable(string name, IMistType type)
     public IMistType Type { get; } = type;
 
     public bool IsRef { get; init; }
+
+    /// <summary>
+    /// The tier the binding was declared at. Every tier erases at emission, but <c>owned</c> is read
+    /// before that: it is what obliges an incoming value to be independent, and so decides whether a
+    /// clone is inserted. See <see cref="Construction.Binding.OwnedProvenance"/>.
+    /// </summary>
+    public OwnershipKind Ownership { get; init; }
 
     /// <summary>
     /// The <c>readonly</c> modifier as written. The backend reads it only PAIRED with

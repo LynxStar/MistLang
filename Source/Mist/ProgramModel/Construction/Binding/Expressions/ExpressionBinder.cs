@@ -301,11 +301,14 @@ internal static class ExpressionBinder
         var arguments = ArgumentBinder.Bind(
             argumentList, ConstructorsOf(type), ctx, context, type as ConstructedType);
 
+        var constructor = SelectConstructor(
+            type, arguments, ArgumentBinder.RefFlags(argumentList), node, context);
+
         return new NewExpression(
             node,
             type,
-            arguments,
-            SelectConstructor(type, arguments, ArgumentBinder.RefFlags(argumentList), node, context),
+            OwnedProvenance.AtParameters(arguments, constructor?.ParametersList),
+            constructor,
             ObjectInitializerBinder.Bind(initializer, type, ctx, context));
     }
 

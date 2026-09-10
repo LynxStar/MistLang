@@ -114,7 +114,7 @@ public sealed class UnknownCovariantWideningTests : ProgramModelProbe
     [Fact]
     public void AConstructionWithNoUnknownKeepsItsArguments()
     {
-        Assert.Equal("MyList<int>", TypeNameEmitter.Emit(TypeOf("MyList<int>")));
+        Assert.Equal("Probe.MyList<int>", TypeNameEmitter.Emit(TypeOf("MyList<int>")));
     }
 
     /// <summary>

@@ -4479,6 +4479,39 @@ capabilities:
       `when` guard, and type-test subpatterns -- all producing correct output and C# that matches the
       source shape. What is missing is a test that would notice if that stopped being true; the sample at
       order 125 is where it comes from.
+      
+      AN UNKNOWN SCRUTINEE NOW ANSWERS EVERY MEMBER NAME, with unknown, where it used to park the whole
+      `is` as UnresolvedExpression. Nothing is known about the shape, so the member can be called neither
+      present nor missing, and the pattern asking for it is the only thing that could have said -- which
+      is what matching an anonymous type held as unknown IS, and the last blocker on samples/AnonymousTypes.
+      A scrutinee that already FAILED keeps parking, and for the reason unknown no longer does: the mistake
+      was reported where the type failed, and answering the member would launder that into a pattern that
+      looks resolved.
+      
+      C# CANNOT PROPERTY-MATCH AN OBJECT EITHER, its member names being resolved at compile time against a
+      type that by then has none, so the emission is a lowering rather than a spelling: a null test that
+      BINDS the scrutinee, plus one test per member beside it reading that binding through `dynamic`. Every
+      subpattern shape survives, because deferring the read defers the whole subpattern to the runtime
+      binder -- the constant, type-test, relational and nested-property forms all work, and the last three
+      are forms CLASSIC EMITS BROKEN C# FOR. Measured on a probe of twelve forms: classic fails three of
+      them with MIST_CS_ERROR against its own generated file.
+      
+      THE TESTS GO IN THE CONDITION, not ahead of the branch where classic puts them, and this is the
+      better shape rather than merely a different one. One evaluation of the scrutinee either way, and the
+      binding then reaches the REST OF THE CONDITION as well as the branch -- so `box is { X: var x } && ...`
+      can read x, which a statement hoisted into the branch cannot offer. It also needs no new channel: the
+      existing `hoisted` list already joins tests onto the condition with `&&`, which is why no statement
+      channel was built.
+      
+      A MISSING MEMBER THROWS rather than failing the match, exactly as on classic, and nothing here checks
+      the shape because there is no shape to check against. Recorded as the sample's first `untested` entry
+      before this work and still true after it.
+      
+      `or` AND `not` ARE REFUSED, with MIST_BE_UNSUPPORTED_UNKNOWN_PROPERTY_PATTERN: the member reads go
+      through a binding of the scrutinee and neither combinator establishes one -- the same wall
+      UnsupportedEnumPattern meets. Classic emits broken C# for these instead. Untested below Tier 6, for
+      this order's existing reason: no harness asserts on a v2 emission refusal, and its two siblings have
+      none either.
     tasks:
       - >
         Move the PropertyPattern alternative above BareTypePattern in PrimaryPattern, so `Dog { ... }`
@@ -4494,7 +4527,16 @@ capabilities:
         slots.
     analysis_phase_tasks:
       - >
-        EXTEND order 90's impossible-type-test rule to reach SUBPATTERNS. `p is { Name: int i }` on a
+        DECIDE WHETHER A RELATIONAL SUBPATTERN ON AN UNKNOWN MEMBER STAYS ADMITTED. Classic refuses
+        `box is { X: > 3 }` with MIST_TC_0052, unknown supporting no comparison operators; v2 admits it and
+        it RUNS, the dynamic binder doing the comparison against whatever X turns out to hold. So v2 is the
+        more permissive of the two and there is no classic runtime behaviour to be held to. Admitting it is
+        consistent with the rest of the lowering -- a wrong-typed member throws exactly as a missing one
+        does -- but it is a choice, and this is where it is recorded rather than assumed.
+      - >
+        EXTEND order 90's impossible-type-test rule to reach SUBPATTERNS, and NOT to a member whose type
+        is unknown -- where any type test is possible, so a rule written for declared members would refuse
+        the anonymous-type case this order exists to admit. `p is { Name: int i }` on a
         string Name binds and emits, and Roslyn then rejects it -- measured, as MIST_CS_ERROR on the
         generated file, so it is loud but reported against C# the user did not write. The rule is order
         90's; what this order adds is that the type it must compare against is the MEMBER's, not the
@@ -7886,11 +7928,39 @@ capabilities:
     order: 180
     layer: anonymous-types
     requires: [class-declaration]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       Explicit and bare-projection member forms with name inference from an identifier or a
       member-access tail, and an ordered structural shape such that two independently
       written same-shape literals unify as one type.
+      
+      A STRUCTURAL TYPE, beside TupleType and FunctionType rather than a declared one, and interned on
+      its shape -- which is what makes two same-shape literals ONE type and therefore assignable to each
+      other. The same rule C# identifies its own anonymous types by, so the identity survives emission
+      instead of being reconstructed there. ORDER IS PART OF THE SHAPE because it is part of C#'s: a set
+      would unify two literals the emitted program keeps apart, and emission would then assign between
+      unrelated C# types. Mutation-checked by sorting the members into the shape name -- the reordered
+      case fails and nothing else does.
+      
+      MEMBERS ANSWER THROUGH ONE HOOK. TypeMemberLookup.FieldsOf is where a structural type contributes
+      what it holds, so `lang.Name` resolves with a single arm beside the tuple's own. Fields rather than
+      properties, the C# side declaring properties and nothing between here and emission caring which.
+      
+      THE PROJECTED NAME COMES FROM THE SYNTAX, never from what the syntax resolved to: `new { lang.Name }`
+      is named Name because the source says Name. Reading it off the bound expression instead would have
+      nothing to read for every form that is not a member access -- and deciding the name first is what
+      lets an unnameable projection be refused without binding anything.
+      
+      THE TYPE HAS NO C# NAME, which makes every position that would have to write one a hazard rather
+      than a feature. C# admits an anonymous type only where it infers the type, so the three inferable
+      declarations -- a local, a foreach variable, a deconstruction target -- route through one
+      TypeNameEmitter.EmitInferable hook that answers `var` whenever the type MENTIONS an anonymous type
+      anywhere, an array of them being as unspellable as one alone. One hook rather than three checks,
+      for the reason UnspellableTypeGuard already records: a check repeated at each site is one that gets
+      missed at the next, and what it lets through is a generated file that does not parse. Found exactly
+      that way -- `var arr = [new { X = 1 }]` emitted garbage C# until the foreach and array-literal paths
+      were routed through it too, where classic had always handled it.
     unlocks: []
 
   - id: anonymous-type-structural-equality
@@ -7898,10 +7968,24 @@ capabilities:
     order: 181
     layer: anonymous-types
     requires: [anonymous-type-expressions]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       Equality is VALUE equality where C# gives reference equality, so this is a deliberate
       divergence rather than a pass-through.
+      
+      LOWERED, NOT DECIDED AGAIN. The model already says the comparison is equality; what differs is how
+      C# spells that for this type, which makes it the emitter's -- the same category as the regex and
+      delegate conversions beside it, and not a second opinion about what `==` means. `object.Equals(a, b)`
+      is what C# supplies for a type whose `==` answers something else, and `!=` takes its negation.
+      
+      EITHER SIDE BEING ANONYMOUS IS ENOUGH. The anonymous type is what makes the comparison mean value
+      equality, and object.Equals answers correctly whichever side arrived boxed -- so an anonymous value
+      compared against one held as unknown is not a third case.
+      
+      A MIST STRUCT IS NOT THIS CASE and stays refused: `==` between two structs with no declared operator
+      is rejected on both pipelines (classic in its type checker, v2 by C#), so nothing here widens to it.
+      The gap between those two refusals is the Stage 5 deferral, not this order.
     unlocks: [AnonymousTypes]
 
   # ===================================================================

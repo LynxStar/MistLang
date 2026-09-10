@@ -280,6 +280,7 @@ internal static class TypeMemberLookup
             ConcreteType concrete => concrete.FieldsList,
             TupleType tuple => tuple.PositionalFields,
             NamedTupleType named => named.Fields,
+            AnonymousType anonymous => anonymous.Fields,
             Newtype { ValueField: { } valueField } => [valueField],
             _ => [],
         };

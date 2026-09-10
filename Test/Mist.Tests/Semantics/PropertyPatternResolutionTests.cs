@@ -231,19 +231,32 @@ public sealed class PropertyPatternResolutionTests : ProgramModelProbe
     }
 
     /// <summary>
-    /// An unknown scrutinee has no members to speak of, so a subpattern against one is not a mistake to
-    /// report -- it is a lookup that could not be made. The whole <c>is</c> parks instead, and emission
-    /// says the form is unsupported, which keeps this off the two channels that would be wrong: an error
-    /// nobody made, or an ErrorExpression with nothing reported. The last assertion is what makes the
-    /// first two non-vacuous -- the SAME scrutinee binds when there is nothing to look up.
+    /// AN UNKNOWN SCRUTINEE ANSWERS EVERY MEMBER NAME, with unknown. Nothing is known about its shape, so
+    /// the member can be called neither present nor missing, and the pattern that asks for it is the only
+    /// thing that could have said -- which is what matching an anonymous type held as unknown IS. The
+    /// subpattern therefore binds and takes unknown as its own scrutinee, rather than the whole <c>is</c>
+    /// parking as it did while no emission could read a member off an object.
     /// </summary>
     [Fact]
-    public void AScrutineeWithNoMembersToSpeakOf_ParksWithoutADiagnostic()
+    public void AScrutineeWithNoMembersToSpeakOf_AnswersWithUnknown()
     {
-        _ = InitializerOf<UnresolvedExpression>("var ok = u is { Length: > 3 };");
+        _ = InitializerOf<IsPatternExpression>("var ok = u is { Length: > 3 };");
         BindsCleanly("var ok = u is { Length: > 3 };");
 
+        _ = Assert.IsType<UnknownType>(OnlySubpatternOf("var ok = u is { Length: var n };").Pattern.NarrowedType);
         _ = Assert.IsType<PropertyPattern>(PatternOf("var ok = u is { };"));
+    }
+
+    /// <summary>
+    /// A scrutinee that already FAILED keeps parking, and for the reason unknown no longer does: there is
+    /// a mistake here, it was reported where the type failed, and answering the member would launder that
+    /// failure into a pattern that looks resolved.
+    /// </summary>
+    [Fact]
+    public void AScrutineeThatAlreadyFailed_StillParks()
+    {
+        _ = InitializerOf<UnresolvedExpression>(
+            "var ok = bad is { Length: > 3 };", extraPreamble: "Nonexistent bad = void;");
     }
 
     [Fact]

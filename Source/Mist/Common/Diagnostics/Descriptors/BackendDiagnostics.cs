@@ -182,6 +182,18 @@ public static class BackendDiagnostics
         "The enum variant '{0}' cannot be combined with 'and', 'or' or 'not' yet, because matching one is an equality comparison rather than a C# pattern.");
 
     /// <summary>
+    /// A property pattern on an <c>unknown</c> scrutinee under <c>or</c> or <c>not</c>. Its members are
+    /// read through a binding of the scrutinee, since C# resolves a property pattern's names against a
+    /// type that an object does not have -- and neither combinator establishes a binding for the reads to
+    /// go through, the same wall <see cref="UnsupportedEnumPattern"/> meets.
+    /// </summary>
+    public static readonly DiagnosticDescriptor UnsupportedUnknownPropertyPattern = new(
+        new DiagnosticId("MIST_BE_UNSUPPORTED_UNKNOWN_PROPERTY_PATTERN"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Backend,
+        "A property pattern on an 'unknown' value cannot be combined with 'or' or 'not' yet, because its members are read through a binding of the value that neither establishes.");
+
+    /// <summary>
     /// A struct and one of its ancestors declare a field of the same name. Legal Mist, because two
     /// levels declaring a private field cannot see each other, but the C# backend flattens
     /// inherited fields into one struct where the name can only resolve to one of them.

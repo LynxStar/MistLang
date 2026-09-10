@@ -983,4 +983,14 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "'{0}' cannot be spread here: its length is not known at this point, so the number of arguments it stands for is not either.");
 
+    /// <summary>
+    /// A projected anonymous member that ends in no name, as <c>new { f() }</c> does. The member has
+    /// to be called something, and a projection says what only by ending in the name it borrows.
+    /// </summary>
+    public static readonly DiagnosticDescriptor AnonymousMemberNotNameable = new(
+        new DiagnosticId("MIST_PM_ANONYMOUS_MEMBER_NOT_NAMEABLE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "This anonymous type member has no name. Write one with 'Name = ', or project something that ends in a name.");
+
 }

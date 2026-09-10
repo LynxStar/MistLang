@@ -266,7 +266,8 @@ internal static class BodyEmitter
                 break;
 
             case ForEachStatement foreachStmt:
-                writer.Write($"foreach ({TypeNameEmitter.Emit(foreachStmt.Variable.Type)} {foreachStmt.Variable.Name} in ");
+                writer.Write(
+                    $"foreach ({TypeNameEmitter.EmitInferable(foreachStmt.Variable.Type)} {foreachStmt.Variable.Name} in ");
                 EmitExpression(foreachStmt.Collection, writer, diagnostics);
                 writer.Append(")");
                 writer.AppendLine();
@@ -404,7 +405,8 @@ internal static class BodyEmitter
     {
         var local = localDecl.Local;
         var refKeyword = RefKeywords.For(local.IsRef, local.IsReadonly);
-        var typeName = $"{refKeyword}{TypeNameEmitter.Emit(local.Type)}";
+
+        var typeName = $"{refKeyword}{TypeNameEmitter.EmitInferable(local.Type)}";
 
         if(localDecl.Initializer is InvocationExpression call && OptionalUnion.IsVoid(call.Type))
         {
@@ -532,7 +534,7 @@ internal static class BodyEmitter
         TupleDeconstructionStatement deconstruction, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var targets = deconstruction.Targets.Select(
-            target => $"{TypeNameEmitter.Emit(target.Type)} {target.Name}");
+            target => $"{TypeNameEmitter.EmitInferable(target.Type)} {target.Name}");
 
         writer.Write($"({string.Join(", ", targets)}) = ");
         EmitExpression(deconstruction.Initializer, writer, diagnostics);
@@ -721,6 +723,14 @@ internal static class BodyEmitter
                 EmitExpression(coalesce.Right, writer, diagnostics);
                 break;
 
+            case BinaryExpression binary
+                when AnonymousEquality.Applies(binary.OperatorKind, binary.Left.Type, binary.Right.Type):
+                writer.Append(AnonymousEquality.Call(
+                    binary.OperatorKind,
+                    Render(binary.Left, diagnostics),
+                    Render(binary.Right, diagnostics)));
+                break;
+
             case BinaryExpression binary:
                 EmitSubExpression(binary.Left, GetPrecedence(binary.OperatorKind), writer, diagnostics);
                 writer.Append($" {MapBinaryOperator(binary.OperatorKind)} ");
@@ -802,8 +812,12 @@ internal static class BodyEmitter
 
             case ArrayLiteralExpression arrayLiteral:
                 // Emitted with an explicit element type rather than as a C# collection
-                // expression so the target type is never required at the use site.
-                writer.Append($"new {TypeNameEmitter.Emit(arrayLiteral.ElementType)}[]");
+                // expression so the target type is never required at the use site. An ANONYMOUS element
+                // is the exception it cannot be: C# has no name for that type, so the only spelling is
+                // the implicit one, which reads the element type back off the elements.
+                writer.Append(arrayLiteral.ElementType is AnonymousType
+                    ? "new[]"
+                    : $"new {TypeNameEmitter.Emit(arrayLiteral.ElementType)}[]");
                 writer.Append(arrayLiteral.Elements.Count == 0 ? " { }" : " { ");
                 EmitList.Separated(arrayLiteral.Elements, ", ", writer, element => EmitExpression(element, writer, diagnostics));
 
@@ -816,6 +830,10 @@ internal static class BodyEmitter
 
             case TupleLiteralExpression tupleLiteral:
                 EmitTupleLiteral(tupleLiteral, writer, diagnostics);
+                break;
+
+            case AnonymousObjectExpression anonymous:
+                EmitAnonymousObject(anonymous, writer, diagnostics);
                 break;
 
             case LambdaExpression lambda:
@@ -982,6 +1000,27 @@ internal static class BodyEmitter
         return type.FullyQualifiedName == WellKnownTypes.String.FullyQualifiedName
             ? "\"\""
             : $"default({TypeNameEmitter.Emit(type)})";
+    }
+
+    private static void EmitAnonymousObject(
+        AnonymousObjectExpression anonymous, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        var names = anonymous.AnonymousType.MemberNames;
+
+        writer.Append("new { ");
+
+        for(var i = 0; i < anonymous.Values.Count; i++)
+        {
+            if(i > 0)
+            {
+                writer.Append(", ");
+            }
+
+            writer.Append($"{names[i]} = ");
+            EmitExpression(anonymous.Values[i], writer, diagnostics);
+        }
+
+        writer.Append(" }");
     }
 
     private static void EmitTupleLiteral(
@@ -1521,7 +1560,7 @@ internal static class BodyEmitter
                 break;
 
             case PropertyPattern property:
-                EmitPropertyPattern(property, writer, diagnostics);
+                EmitPropertyPattern(property, hoisted, writer, diagnostics);
                 break;
 
             case TuplePattern tuple:
@@ -1722,11 +1761,20 @@ internal static class BodyEmitter
     }
 
     private static void EmitPropertyPattern(
-        PropertyPattern property, CSharpWriter writer, DiagnosticBag diagnostics)
+        PropertyPattern property,
+        List<HoistedTest>? hoisted,
+        CSharpWriter writer,
+        DiagnosticBag diagnostics)
     {
         if(property.Subpatterns.Count == 0)
         {
             writer.Append("{ }");
+            return;
+        }
+
+        if(property.NarrowedType is UnknownType)
+        {
+            EmitUnknownPropertyPattern(property, hoisted, writer, diagnostics);
             return;
         }
 
@@ -1739,6 +1787,49 @@ internal static class BodyEmitter
         });
 
         writer.Append(" }");
+    }
+
+    /// <summary>
+    /// C# CANNOT PROPERTY-MATCH AN OBJECT, the member names being resolved at compile time against a
+    /// type that by then has none. So the pattern becomes a null test that BINDS the scrutinee, plus one
+    /// test per member beside it reading that binding through <c>dynamic</c> -- which defers the read,
+    /// and with it the whole subpattern, to the runtime binder. Every subpattern shape therefore
+    /// survives, including the relational and constant ones C# would refuse against an object.
+    /// <para>
+    /// Each member test goes into the condition rather than ahead of the branch, which is where classic
+    /// puts it. One evaluation of the scrutinee either way, and the binding then reaches the REST OF THE
+    /// CONDITION as well as the branch -- so a later conjunct may read it, which a statement hoisted
+    /// into the branch cannot offer.
+    /// </para>
+    /// <para>
+    /// A MISSING MEMBER THROWS rather than failing the match, exactly as it does on classic: nothing
+    /// here checks the shape, because there is no shape to check against.
+    /// </para>
+    /// </summary>
+    private static void EmitUnknownPropertyPattern(
+        PropertyPattern property,
+        List<HoistedTest>? hoisted,
+        CSharpWriter writer,
+        DiagnosticBag diagnostics)
+    {
+        if(hoisted is null)
+        {
+            diagnostics.ReportAtNode(
+                BackendDiagnostics.UnsupportedUnknownPropertyPattern, property.Node, null);
+            writer.Append("/* unsupported: property pattern on unknown under or/not */");
+            return;
+        }
+
+        var bound = TemporaryName();
+        writer.Append($"not null and var {bound}");
+
+        foreach(var subpattern in property.Subpatterns)
+        {
+            var (text, nested) = RenderPattern(subpattern.Pattern, diagnostics);
+
+            hoisted.Add(new HoistedTest($"((dynamic){bound}).{subpattern.MemberName} is {text}"));
+            hoisted.AddRange(nested);
+        }
     }
 
     private static int PatternPrecedence(Pattern pattern)

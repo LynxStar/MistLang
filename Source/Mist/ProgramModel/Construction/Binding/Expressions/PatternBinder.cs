@@ -334,7 +334,13 @@ internal static class PatternBinder
         foreach(var subpattern in Subpatterns(node.Subpatterns))
         {
             var memberName = subpattern.Name.Lexeme;
-            var (memberType, found) = MemberResolution.ResolveStorage(matched, memberName, subpattern, context);
+            var (resolved, found) = MemberResolution.ResolveStorage(matched, memberName, subpattern, context);
+
+            // UNKNOWN ANSWERS EVERY MEMBER NAME, with unknown. Nothing is known about the scrutinee's
+            // shape, so the member cannot be named as missing either -- which is what asking an
+            // anonymous type held as unknown for a property IS, and the whole of what the pattern is
+            // for. The read is the emitter's to defer to the runtime.
+            var memberType = resolved ?? (matched is UnknownType ? UnknownType.Instance : null);
 
             if(memberType is null)
             {

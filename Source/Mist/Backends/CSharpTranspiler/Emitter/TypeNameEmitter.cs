@@ -51,9 +51,26 @@ internal static class TypeNameEmitter
             TypeParameter typeParameter => DependentCarrierNames.Parameter(typeParameter),
             RefinedType refined => Emit(refined.BaseType),
             ErrorType => "/* error */",
+            AnonymousType => "/* anonymous */",
             UnknownType => "object",
             _ => type.Name,
         };
+    }
+
+    /// <summary>
+    /// The spelling for a variable whose type C# can infer from its initializer -- a local, a foreach
+    /// variable, a deconstruction target. <c>var</c> wherever the type mentions an anonymous type, which
+    /// C# has no name for at all, and the ordinary spelling everywhere else so the emitted declaration
+    /// still states what the MODEL resolved rather than leaving C# to reach its own answer.
+    /// <para>
+    /// One hook for the three positions, because a check repeated at each is one that gets missed at the
+    /// next -- and the failure it would let through is the worst kind, a generated file that does not
+    /// parse.
+    /// </para>
+    /// </summary>
+    internal static string EmitInferable(IMistType type)
+    {
+        return AnonymousReach.Mentions(type) ? "var" : Emit(type);
     }
 
     /// <summary>

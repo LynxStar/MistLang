@@ -16,6 +16,7 @@ internal sealed class TypeInterner
     private readonly Dictionary<UnionTypeKey, UnionType> unionTypes = [];
     private readonly Dictionary<TypeListKey, TupleType> tupleTypes = [];
     private readonly Dictionary<TypeListKey, FunctionType> functionTypes = [];
+    private readonly Dictionary<string, AnonymousType> anonymousTypes = [];
     private readonly Dictionary<LiftedTypeKey, LiftedType> liftedTypes = [];
     private readonly Dictionary<IMistType, UnknownValueType> unknownValueTypes = new(ReferenceEqualityComparer.Instance);
 
@@ -188,6 +189,25 @@ internal sealed class TypeInterner
 
         functionTypes[key] = function;
         return function;
+    }
+
+    /// <summary>
+    /// Returns the canonical <see cref="AnonymousType"/> for the given members in the given order.
+    /// Keyed on the type's own NAME rather than on a type list, since the shape includes the member
+    /// names and the name is already built from both halves in order.
+    /// </summary>
+    public AnonymousType GetOrCreateAnonymousType(
+        IReadOnlyList<string> memberNames, IReadOnlyList<IMistType> memberTypes)
+    {
+        var anonymous = new AnonymousType(memberNames, memberTypes);
+
+        if(anonymousTypes.TryGetValue(anonymous.FullyQualifiedName, out var existing))
+        {
+            return existing;
+        }
+
+        anonymousTypes[anonymous.FullyQualifiedName] = anonymous;
+        return anonymous;
     }
 
     /// <summary>

@@ -311,34 +311,12 @@ parser question and the clone work it turned up in is unrelated.
 
 ## AnonymousTypes: a property pattern over an `unknown` scrutinee
 
-The last blocker on samples/AnonymousTypes, reduced and with classic's target shape captured.
+CLOSED. samples/AnonymousTypes is banked on AllFeaturesV2; the reasoning is recorded on orders 93,
+180 and 181 of `backlog/emitter-v2-capability-progression.yaml`.
 
-```mist
-unknown box = new { X = 10, Y = 20 };
-if (box is { X: var x, Y: var y }) { ... }   // x and y resolve nowhere on v2
-```
-
-PatternBinder.BindPropertyPattern bails on `MemberResolution.AnswersMembers(matched)`, which
-excludes UnknownType, so the whole pattern returns null and the `var` bindings are never declared.
-Making it bind is the easy half: the member types are `unknown` and the bindings take that.
-
-THE EMISSION IS THE REAL WORK, because C# cannot property-match on `object` either. Classic lowers
-it to a null check plus dynamic member reads, as STATEMENTS ahead of the branch body:
-
-```csharp
-if (box is not null)
-{
-    dynamic __pat_0 = box;
-    var x = __pat_0.X;
-    var y = __pat_0.Y;
-    ...
-}
-```
-
-v2 has no shape for that. RenderPattern contributes `hoisted` TESTS, joined onto the condition with
-`&&`; nothing lets a pattern contribute statements to the branch it guards. EmitContained already
-wraps a binding-carrying `if` in a block, so the place to put them exists -- what is missing is a way
-for the pattern to hand statements back rather than a condition fragment.
-
-The other two errors in this sample are closed: `object` resolves as a spelling of `unknown`, and the
-first is-test now binds.
+The statement channel this entry called for was never built, and was not needed. The tests go into the
+CONDITION instead -- a null test that binds the scrutinee, plus one `((dynamic)p).Member is <sub>` per
+member joined on with `&&`, which the existing `hoisted` list already carries. That leaves the
+bindings readable in the rest of the condition as well as in the branch, which classic's hoisted
+statements cannot offer, and every subpattern shape survives because deferring the read defers the
+whole subpattern to the runtime binder.

@@ -90,5 +90,6 @@ public class Program
         AsyncDropChaining.Program.RunDemo();
         StructuredContext.Program.RunDemo();
         Ownership.Program.RunDemo();
+        AnonymousTypes.Program.RunDemo();
     }
 }

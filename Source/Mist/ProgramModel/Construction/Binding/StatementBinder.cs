@@ -92,7 +92,28 @@ internal static class StatementBinder
                 enclosingNode,
                 rest,
                 ctx,
+                context,
+                context.Resolver.Resolve(typed.WithTypedDeclaration.Type, ctx.Scope)),
+
+            // The discard and push forms scope nothing, so they name no local; they differ only in
+            // whether the key was written or is the value's own.
+            WithDiscardDeclarationStatementStatementNode discard => BindWithBinding(
+                name: null,
+                discard.WithDiscardDeclaration.Initializer,
+                enclosingNode,
+                rest,
+                ctx,
+                context,
+                context.Resolver.Resolve(discard.WithDiscardDeclaration.Type, ctx.Scope)),
+
+            WithPushStatementStatementNode push => BindWithBinding(
+                name: null,
+                push.WithPushStatement.Value,
+                enclosingNode,
+                rest,
+                ctx,
                 context),
+
             _ => null,
         };
     }
@@ -101,22 +122,36 @@ internal static class StatementBinder
     /// A <c>with</c> whose value is NAMED. The name is declared in the body's own scope, so it is
     /// visible exactly where the value is alive and nowhere after.
     /// </summary>
+    /// <summary>
+    /// The four declaration forms of <c>with</c>, which differ only in whether a name is bound and
+    /// whether the key type is written. A null <paramref name="name"/> is the discard and push forms,
+    /// which scope no name; a null <paramref name="keyType"/> takes the value's own.
+    /// <para>
+    /// The scope is created either way, because the tail is the statement's BODY whether or not
+    /// anything new is visible in it.
+    /// </para>
+    /// </summary>
     private static Statement BindWithBinding(
-        string name,
+        string? name,
         ExpressionNode initializer,
         BlockNode bodyNode,
         IReadOnlyList<StatementNode> body,
         BindingContext ctx,
-        BuilderContext context)
+        BuilderContext context,
+        IMistType? keyType = null)
     {
         var value = ExpressionBinder.BindExpression(initializer, ctx, context);
         var scope = new BodyScope(ctx.Scope);
-        var local = new LocalVariable(name, value.Type);
+        LocalVariable? local = null;
 
-        scope.DeclareLocal(local, context.Diagnostics);
+        if(name is not null)
+        {
+            local = new LocalVariable(name, keyType ?? value.Type);
+            scope.DeclareLocal(local, context.Diagnostics);
+        }
 
         var block = BodyBinder.BindStatementList(bodyNode, body, scope, ctx, context);
-        return new WithBlockStatement(value, block, local);
+        return new WithBlockStatement(value, block, local, keyType);
     }
 
     private static Statement BindWithBlock(

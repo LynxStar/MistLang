@@ -88,5 +88,6 @@ public class Program
         StructuredConcurrency.Program.RunDemo();
         FirstClassFunctions.Program.RunDemo();
         AsyncDropChaining.Program.RunDemo();
+        StructuredContext.Program.RunDemo();
     }
 }

@@ -61,7 +61,10 @@ internal static class ConstructorEmitter
 
             if(constructor.Body is not null)
             {
-                BodyEmitter.EmitBlock(constructor.Body, writer, diagnostics);
+                // Through the same entry a method's body takes: a constructor carries `with` clauses
+                // and owned parameters like any other callable, and emitting its block directly is
+                // what left both silently undone.
+                BodyEmitter.EmitMethodBody(constructor, constructor.Body, writer, diagnostics);
             }
         }
     }

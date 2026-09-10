@@ -70,3 +70,4 @@ SubstructuralFieldDiscipline = { path = "../SubstructuralFieldDiscipline" }
 StructuredConcurrency = { path = "../StructuredConcurrency" }
 FirstClassFunctions = { path = "../FirstClassFunctions" }
 AsyncDropChaining = { path = "../AsyncDropChaining" }
+StructuredContext = { path = "../StructuredContext" }

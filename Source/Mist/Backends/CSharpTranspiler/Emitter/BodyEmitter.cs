@@ -44,7 +44,28 @@ internal static class BodyEmitter
     public static void EmitMethodBody(
         Method method, Block body, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        EmitContextBindings(method, writer);
         EmitParameterDrops(DropInsertion.DroppedParameters(method, body), 0, body, writer, diagnostics);
+    }
+
+    /// <summary>
+    /// A `with Type name` clause read at body entry. Emitted whether the body uses the name or not:
+    /// the clause is what makes the method a context CONSUMER, and a transparent intermediate declares
+    /// one precisely so the value stays reachable through it.
+    /// </summary>
+    private static void EmitContextBindings(Method method, CSharpWriter writer)
+    {
+        if(method.ContextBindingsList.Count > 0)
+        {
+            ContextLowering.Require();
+        }
+
+        foreach(var binding in method.ContextBindingsList)
+        {
+            var type = TypeNameEmitter.Emit(binding.ContextType);
+
+            writer.WriteLine($"var {binding.Identifier} = ({type})MistContext.Peek<{type}>();");
+        }
     }
 
     private static void EmitParameterDrops(
@@ -458,7 +479,11 @@ internal static class BodyEmitter
         ContextLowering.Require();
 
         var bound = withBlock.Binding?.Name ?? TemporaryName();
-        var type = TypeNameEmitter.Emit(withBlock.Value.Type);
+
+        // The KEY the value is filed under, which a form may have written and which is not the
+        // value's own type -- see WithBlockStatement.KeyType. The drop below still asks the VALUE
+        // what it owes, those being different questions about the same instance.
+        var type = TypeNameEmitter.Emit(withBlock.KeyType);
 
         writer.Write($"var {bound} = ");
         EmitExpression(withBlock.Value, writer, diagnostics);

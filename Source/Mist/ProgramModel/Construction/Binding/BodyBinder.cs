@@ -27,6 +27,16 @@ internal static class BodyBinder
             bodyScope.DeclareLocal(new LocalVariable(parameter.Name, parameter.Type), context.Diagnostics);
         }
 
+        // A `with Type name` clause binds like a parameter and differs only in where the value comes
+        // from: the caller passes a parameter, and the ambient context supplies this. Declared after
+        // the parameters, so a clause reusing a parameter's name is the collision the scope reports
+        // rather than a silent shadow.
+        foreach(var binding in method.ContextBindingsList)
+        {
+            bodyScope.DeclareLocal(
+                new LocalVariable(binding.Identifier, binding.ContextType), context.Diagnostics);
+        }
+
         // A constructor chain's arguments are bound in the same scope as the body, since
         // they reference the constructor's parameters, and before it, matching the order
         // they run in.
@@ -232,38 +242,50 @@ internal static class BodyBinder
         BindingContext enclosing,
         BuilderContext context)
     {
-        var bindingCtx = new BindingContext(scope, enclosing.ReturnType, enclosing);
-
-        var statements = new List<Statement>(nodes.Count);
-
-        foreach(var node in nodes)
+        return new Block(enclosingNode)
         {
-            statements.Add(StatementBinder.BindStatement(node, bindingCtx, context));
-        }
-
-        return new Block(enclosingNode) { Statements = statements };
+            Statements = BindList(
+                enclosingNode, nodes, new BindingContext(scope, enclosing.ReturnType, enclosing), context),
+        };
     }
 
     private static void BindStatements(Block block, BindingContext bindingCtx, BuilderContext context)
     {
-        var statements = new List<Statement>(block.Node.Statements.Length);
+        block.Statements = BindList(block.Node, block.Node.Statements, bindingCtx, context);
+    }
 
-        for(var i = 0; i < block.Node.Statements.Length; i++)
+    /// <summary>
+    /// One statement list, however it was reached. A <c>with</c> DECLARATION scopes its name over the
+    /// rest of the list, so the tail becomes its body and the walk stops -- consumed here rather than
+    /// in StatementBinder because no other statement's meaning depends on what follows it, and only
+    /// the list knows what does.
+    /// <para>
+    /// SHARED WITH THE TAIL IT PRODUCES, which is the whole reason it is one method. The tail is
+    /// itself a statement list and may declare a `with` of its own; binding it through a plainer loop
+    /// left every declaration after the first unrecognised, so its name resolved nowhere and only the
+    /// FIRST of a run of them worked.
+    /// </para>
+    /// </summary>
+    private static List<Statement> BindList(
+        BlockNode enclosingNode,
+        IReadOnlyList<StatementNode> nodes,
+        BindingContext bindingCtx,
+        BuilderContext context)
+    {
+        var statements = new List<Statement>(nodes.Count);
+
+        for(var i = 0; i < nodes.Count; i++)
         {
-            // `with var x = e;` scopes x over the REST of the block, so the tail becomes its body.
-            // Consumed here rather than in StatementBinder because no other statement's meaning
-            // depends on what follows it, and only the list knows what does.
             if(StatementBinder.BindWithDeclaration(
-                block.Node, block.Node.Statements[i], block.Node.Statements[(i + 1)..],
-                bindingCtx, context) is { } scoped)
+                enclosingNode, nodes[i], [.. nodes.Skip(i + 1)], bindingCtx, context) is { } scoped)
             {
                 statements.Add(scoped);
                 break;
             }
 
-            statements.Add(StatementBinder.BindStatement(block.Node.Statements[i], bindingCtx, context));
+            statements.Add(StatementBinder.BindStatement(nodes[i], bindingCtx, context));
         }
 
-        block.Statements = statements;
+        return statements;
     }
 }

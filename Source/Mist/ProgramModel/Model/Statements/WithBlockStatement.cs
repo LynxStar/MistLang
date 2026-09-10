@@ -1,3 +1,4 @@
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 
 namespace Mist.ProgramModel.Model.Statements;
@@ -12,12 +13,21 @@ namespace Mist.ProgramModel.Model.Statements;
 /// another backend might not.
 /// </para>
 /// </summary>
-internal sealed class WithBlockStatement(Expression value, Block body, LocalVariable? binding = null)
+internal sealed class WithBlockStatement(
+    Expression value, Block body, LocalVariable? binding = null, IMistType? keyType = null)
     : Statement
 {
     public Expression Value { get; } = value;
 
     public Block Body { get; } = body;
+
+    /// <summary>
+    /// The type the value is made ambient UNDER, which is the declared one where a form names it and
+    /// the value's own otherwise. The two are not the same question: a written type is how the author
+    /// controls variance -- <c>with Shape _ = new Circle(...)</c> offers a Shape -- and reading the
+    /// value's type instead would file it under Circle where nothing looks for it.
+    /// </summary>
+    public IMistType KeyType { get; } = keyType ?? value.Type;
 
     /// <summary>
     /// The name the value was bound to, where one was written -- <c>with (var ms = ...)</c> and

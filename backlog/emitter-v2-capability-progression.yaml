@@ -7662,7 +7662,8 @@ capabilities:
     layer: async-and-context
     requires: [type-alias-declarations, refinement-type-declarations,
                dependent-const-witness-encoding]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       A with clause on a signature is a declared context requirement, resolved from the
       ambient environment at the call site and propagated through intermediates that do not
@@ -7670,6 +7671,29 @@ capabilities:
       IDENTITY function -- aliases and refinements collapse to the underlying key while
       unions and dependent instantiations stay distinct. Requirements on abstract-type
       members must be honoured through dynamic dispatch.
+
+      DELIVERED, and StructuredContext is banked byte-identical to classic across all sixteen of its
+      sections. A clause BINDS LIKE A PARAMETER and differs only in where the value comes from: the
+      caller passes a parameter, the ambient context supplies this, so it is declared in the body
+      scope beside them and read at entry. Emitted whether the body uses the name or not -- the clause
+      is what makes the method a consumer, and a transparent intermediate declares one precisely so
+      the value stays reachable through it.
+
+      THREE FORMS WERE UNBUILT AND ARE NOW ONE FUNCTION. `with T x = e;`, `with T _ = e;` and the bare
+      `with e;` differ only in whether a name is bound and whether the key is written; collapsing them
+      removed the temptation to give each its own scoping rule.
+
+      THE KEY IS NOT THE VALUE'S TYPE. A written type is how the author controls variance -- offering
+      a Circle as a Shape -- and reading the value's own type instead files it where nothing looks for
+      it. WithBlockStatement now carries the two apart, and the drop in the finally still asks the
+      VALUE what it owes: different questions about the same instance.
+
+      TWO BUGS FOUND, BOTH FROM ONE PATH BEING QUIETLY PLAINER THAN ANOTHER. A `with` declaration
+      takes the rest of its block as its body, and the tail was bound through a loop that did not
+      itself look for `with` declarations -- so only the FIRST of a run of them was recognised and
+      every later name resolved nowhere. The two loops are now one method, shared with the tail it
+      produces. And a CONSTRUCTOR's body was emitted through EmitBlock directly rather than the entry
+      a method's body takes, so its clauses -- and its owned-parameter drops -- were silently undone.
     tasks:
       - Make the context store flow-local. The classic pipeline emits a process-global
         static dictionary, which is correct only for a single-threaded synchronous program.

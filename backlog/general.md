@@ -308,3 +308,37 @@ The error surfaces at the enclosing class rather than the statement, which is th
 Found while writing tests for order 157; nothing in samples/ hits it, because the sample uses the
 TYPED form (`owned Config implicitClone = shared;`) everywhere. Not investigated further -- it is a
 parser question and the clone work it turned up in is unrelated.
+
+## AnonymousTypes: a property pattern over an `unknown` scrutinee
+
+The last blocker on samples/AnonymousTypes, reduced and with classic's target shape captured.
+
+```mist
+unknown box = new { X = 10, Y = 20 };
+if (box is { X: var x, Y: var y }) { ... }   // x and y resolve nowhere on v2
+```
+
+PatternBinder.BindPropertyPattern bails on `MemberResolution.AnswersMembers(matched)`, which
+excludes UnknownType, so the whole pattern returns null and the `var` bindings are never declared.
+Making it bind is the easy half: the member types are `unknown` and the bindings take that.
+
+THE EMISSION IS THE REAL WORK, because C# cannot property-match on `object` either. Classic lowers
+it to a null check plus dynamic member reads, as STATEMENTS ahead of the branch body:
+
+```csharp
+if (box is not null)
+{
+    dynamic __pat_0 = box;
+    var x = __pat_0.X;
+    var y = __pat_0.Y;
+    ...
+}
+```
+
+v2 has no shape for that. RenderPattern contributes `hoisted` TESTS, joined onto the condition with
+`&&`; nothing lets a pattern contribute statements to the branch it guards. EmitContained already
+wraps a binding-carrying `if` in a block, so the place to put them exists -- what is missing is a way
+for the pattern to hand statements back rather than a condition fragment.
+
+The other two errors in this sample are closed: `object` resolves as a spelling of `unknown`, and the
+first is-test now binds.

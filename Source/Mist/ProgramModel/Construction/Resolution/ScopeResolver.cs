@@ -671,6 +671,14 @@ internal sealed class ScopeResolver
     /// </summary>
     public IMistType ResolveNamedType(string name, Scope scope, Storm.Runtime.SyntaxNode locationNode)
     {
+        // `object` is a SPELLING of unknown rather than a type of its own. Mist's top type is
+        // unknown, which the backend lowers to object, and a program naming the C# spelling means the
+        // same thing -- so it resolves here rather than failing to find a type nothing declares.
+        if(string.Equals(name, "object", StringComparison.Ordinal))
+        {
+            return UnknownType.Instance;
+        }
+
         var result = scope.Lookup(new LookupRequest(name, MemberVisibility.None, locationNode));
 
         switch(result)

@@ -67,3 +67,6 @@ RefStructs = { path = "../RefStructs" }
 StackOnlyTypes = { path = "../StackOnlyTypes" }
 DropSemantics = { path = "../DropSemantics" }
 SubstructuralFieldDiscipline = { path = "../SubstructuralFieldDiscipline" }
+StructuredConcurrency = { path = "../StructuredConcurrency" }
+FirstClassFunctions = { path = "../FirstClassFunctions" }
+AsyncDropChaining = { path = "../AsyncDropChaining" }

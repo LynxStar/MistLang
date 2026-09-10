@@ -1,3 +1,4 @@
+using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
@@ -191,9 +192,99 @@ internal static class DropInsertion
         LocalDeclarationStatement declaration, IReadOnlyList<Statement> remainder)
     {
         return declaration.Initializer is not null
-            && DropsAtScopeExit(declaration.Local.Type)
-            && ExitAction(declaration.Local.Type) is not null
+            && Releases(declaration.Local.Type)
             && !remainder.Any(statement => Moves(statement, Same(declaration.Local)));
+    }
+
+    /// <summary>
+    /// Whether a scope owes this type anything on the way out, by either route: a drop it can call, or
+    /// an AWAIT. A task is relevant, so a scope holding one owes its completion the same way it owes a
+    /// handle its release -- awaiting is what dropping a task means, and it is the reason a scope-exit
+    /// obligation can make the enclosing method async after the fact.
+    /// </summary>
+    public static bool Releases(IMistType type)
+    {
+        return DropsAtScopeExit(type) && (IsAwaitable(type) || ExitAction(type) is not null);
+    }
+
+    /// <summary>
+    /// A statement that PRODUCES a task and keeps it nowhere. An assignment is not one however
+    /// task-typed it is -- `this.Pending = task;` hands the task to a field, which takes the
+    /// obligation with it, and hoisting it would await a value the type is still holding.
+    /// </summary>
+    public static bool IsDiscardedTask(Expression expression)
+    {
+        return expression is InvocationExpression or AsyncExpression or AsyncBlockExpression
+            && IsAwaitable(expression.Type)
+            ;
+    }
+
+    public static bool IsAwaitable(IMistType type)
+    {
+        return TaskResult.IsTask(type);
+    }
+
+    /// <summary>
+    /// The bindings a body owes something to at its end. Read by the promotion pass as well as by
+    /// emission, because an awaited one makes the enclosing method async and the binder never saw it.
+    /// </summary>
+    public static List<LocalDeclarationStatement> ReleasedBindings(Block body)
+    {
+        var released = new List<LocalDeclarationStatement>();
+
+        Collect(body.Statements, released);
+
+        return released;
+    }
+
+    private static void Collect(
+        IReadOnlyList<Statement> statements, List<LocalDeclarationStatement> released)
+    {
+        for(var i = 0; i < statements.Count; i++)
+        {
+            if(statements[i] is LocalDeclarationStatement declaration
+                && NeedsDrop(declaration, statements.Skip(i + 1).ToList()))
+            {
+                released.Add(declaration);
+            }
+
+            foreach(var nested in Nested(statements[i]))
+            {
+                Collect(nested.Statements, released);
+            }
+        }
+    }
+
+    private static IEnumerable<Block> Nested(Statement statement)
+    {
+        switch(statement)
+        {
+            case Block block:
+                yield return block;
+                break;
+
+            case IfStatement branch:
+                yield return branch.ThenBranch;
+
+                if(branch.ElseBranch is Block otherwise)
+                {
+                    yield return otherwise;
+                }
+
+                break;
+
+            case WhileStatement loop:
+                yield return loop.Body;
+                break;
+
+            case ForEachStatement loop:
+                yield return loop.Body;
+                break;
+
+            case WithBlockStatement scope:
+                yield return scope.Body;
+                break;
+        }
     }
 
     /// <summary>

@@ -73,7 +73,7 @@ internal static class BodyEmitter
 
         using(writer.Block())
         {
-            writer.WriteLine($"{DropInsertion.DropChain(parameter.Name, parameter.Type)};");
+            EmitRelease(parameter.Name, parameter.Type, writer);
         }
     }
 
@@ -107,15 +107,71 @@ internal static class BodyEmitter
 
                 using(writer.Block())
                 {
-                    writer.WriteLine(
-                        $"{DropInsertion.DropChain(declaration.Local.Name, declaration.Local.Type)};");
+                    EmitRelease(declaration.Local.Name, declaration.Local.Type, writer);
                 }
 
                 return;
             }
 
+            if(statements[i] is ExpressionStatement discarded
+                && DropInsertion.IsDiscardedTask(discarded.Expression))
+            {
+                EmitDiscardedTask(discarded, statements, i, writer, diagnostics);
+                return;
+            }
+
             EmitStatement(statements[i], writer, diagnostics);
         }
+    }
+
+    /// <summary>
+    /// A task nobody kept still has to complete, so it is bound to a temporary and awaited at scope
+    /// exit rather than left running -- the same obligation a named binding carries, and the reason it
+    /// takes the same shape. Only reachable in an ASYNC context: a sync one awaits the call where it
+    /// stands, so the statement is an await by the time it arrives here and never a bare task.
+    /// </summary>
+    private static void EmitDiscardedTask(
+        ExpressionStatement discarded,
+        IReadOnlyList<Statement> statements,
+        int index,
+        CSharpWriter writer,
+        DiagnosticBag diagnostics)
+    {
+        var name = TemporaryName();
+
+        writer.Write($"var {name} = ");
+        EmitExpression(discarded.Expression, writer, diagnostics);
+        writer.Append(";");
+        writer.AppendLine();
+        writer.WriteLine("try");
+
+        using(writer.Block())
+        {
+            EmitStatements(statements, index + 1, writer, diagnostics);
+        }
+
+        writer.WriteLine("finally");
+
+        using(writer.Block())
+        {
+            EmitRelease(name, discarded.Expression.Type, writer);
+        }
+    }
+
+    /// <summary>
+    /// What a scope owes a binding on the way out. A task is completed rather than dropped -- that is
+    /// what dropping a task means -- and the wait blocks in a sync lambda for the same reason any other
+    /// does there.
+    /// </summary>
+    private static void EmitRelease(string name, IMistType type, CSharpWriter writer)
+    {
+        if(!DropInsertion.IsAwaitable(type))
+        {
+            writer.WriteLine($"{DropInsertion.DropChain(name, type)};");
+            return;
+        }
+
+        writer.WriteLine(blockingAwaits ? $"{name}.GetAwaiter().GetResult();" : $"await {name};");
     }
 
     private static IReadOnlyList<Statement> Remainder(IReadOnlyList<Statement> statements, int from)

@@ -1538,3 +1538,123 @@ SumSpan=179
   result=7
   LinearValueTaskHolder<T>.Drop()
 === Done ===
+=== Structured Concurrency Sample ===
+[task-type-reference]
+  Task<int> obtained, type is Task
+[async-method-declaration]
+  ComputeAsync() auto-awaited=7
+[await-in-async]
+  awaited result=7
+[multi-await]
+  first=7 second=7 same=True
+[discarded-sync-implicit-await]
+  sync-discard: logged
+  implicit await completed
+[discarded-async-scope-exit]
+  task-a: logged
+  task-b: logged
+  scope-exit will await both tasks
+[async-functor-sync]
+  async ComputeSync() produced Task, awaiting...
+[async-functor-async]
+  async ComputeAsync() captured Task (no auto-await)
+[await-unwrap]
+  unwrapped value=fetched
+[sequential-sync]
+  seq: step=1
+  seq: step=2
+  seq: step=3
+  sequential results: 1, 2, 3
+[concurrent-async]
+  concurrent-a: step=1
+  concurrent-b: step=2
+  tasks scheduled concurrently
+[entry-point-async]
+  entry point called async method, result=fetched
+=== Structured Concurrency Done ===
+=== FirstClassFunctions Sample ===
+--- Expression Lambda ---
+doubler(5)=10
+doubler(0)=0
+--- Multi-Param Lambda ---
+adder(3,4)=7
+--- Zero-Param Lambda ---
+greeter()=Hello, Mist!
+--- Block Lambda ---
+describer(5)=positive
+describer(-1)=negative
+describer(0)=zero
+--- Var Inference ---
+square(6)=36
+--- Action Lambda ---
+printed: test
+--- Higher-Order Parameter ---
+Apply(10, x=>x+5)=15
+--- Higher-Order Return ---
+multiplier(7)=21
+multiplier(0)=0
+--- Method Group ---
+fn(42)=-42
+--- Type Alias ---
+isEven(4)=True
+isEven(7)=False
+toStr(99)=val=99
+--- Capture ---
+increment()=1
+increment()=2
+counter=2
+--- Static Lambda ---
+staticAdd(10,20)=30
+--- Nested Func Type ---
+add5(3)=8
+curryAdd(1)(2)=3
+--- Sync Lambda Calls Async ---
+syncLookup(1)=item-1
+syncLookup(2)=item-2
+--- Async Lambda Explicit Await ---
+asyncLookup(3)=item-3
+--- Async Lambda Scope Exit ---
+asyncFire completed
+--- Sync Lambda Async Lift ---
+liftedSync(10)=20
+--- Async Lambda Async Lift ---
+asyncLifted(20)=40
+--- Sync Lambda Returns Task ---
+taskReturner(5)=item-5
+--- Mist Extension Method ---
+evens.Length=2
+evens[0]=2
+evens[1]=4
+--- C# Extension Method ---
+item=10
+item=20
+item=30
+=== FirstClassFunctions Done ===
+=== AsyncDropChaining Sample ===
+--- 1. Func auto-unwrap in sync context ---
+  FetchAsync(test) executed
+  lambdaResult=result-test
+  type is string (not Task): True
+--- 2. Func auto-unwrap computed ---
+  computeResult=105
+--- 3. Async functor scope-exit ---
+  async functor produced Task, value will be: 42
+  async functor scope-exit completed
+--- 4. Recursive drop Task scope-exit ---
+  Task<int> captured via async functor
+  task scope-exit drop resolved
+--- 5. Custom recursive drop ---
+  DropChainBox created
+  DropChainBox(boxed).Drop() called, yielding ResourceHandle
+  ResourceHandle(boxed).Drop() called
+  custom recursive drop completed
+--- 6. Non-recursive drop baseline ---
+  handle created
+  ResourceHandle(baseline).Drop() called
+  non-recursive drop done
+--- 7. Explicit capture stops recursion ---
+  DropChainBox(captured).Drop() called, yielding ResourceHandle
+  DropChainBox dropped, inner handle captured
+  ResourceHandle(captured).Drop() called
+  explicit capture completed
+=== AsyncDropChaining Done ===

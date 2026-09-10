@@ -7590,12 +7590,28 @@ capabilities:
     order: 173
     layer: async-and-context
     requires: [auto-await-and-explicit-await]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       A discarded task carries a completion obligation -- awaited immediately in sync
       context, deferred to scope exit in async context. The classic pipeline does NOT emit
       the scope-exit await, so several samples are bare fire-and-forget and read correctly
       only because every helper completes synchronously.
+
+      BOTH HALVES ARE DELIVERED, and the second makes v2 do what classic does not. The sync half was
+      already there: an auto-await wraps a task-returning call where it stands, so a discarded one in
+      a sync context is awaited immediately and never arrives at emission as a bare task. The async
+      half binds it to a temporary and awaits at scope exit, nested like any other release, which is
+      why StructuredConcurrency's `scope-exit will await both tasks` is now true rather than aspirational.
+
+      IT CHANGES NO BASELINE, which is the point rather than a reprieve: awaiting a task that already
+      completed is invisible, and every helper in these samples completes synchronously. The guarantee
+      is real now instead of resting on that.
+
+      AN ASSIGNMENT IS NOT A DISCARD, and reading it as one broke a banked sample. The first cut
+      hoisted any task-typed expression statement, which caught `this.Pending = task;` in a
+      constructor -- a task handed to a FIELD, which takes the obligation with it. It awaited a value
+      the type was still holding, in a constructor no promotion had made async.
     unlocks: [FirstClassFunctions]
 
   - id: async-state-machine-lowering
@@ -7603,10 +7619,19 @@ capabilities:
     order: 174
     layer: async-and-context
     requires: [auto-await-and-explicit-await]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       Emission must place a scope-exit await inside the finally block, which is where the
       discarded-task cases are currently missing.
+
+      DELIVERED, AND IT IS THE DROP MACHINERY. Standard's Task is declared `relevant`, so a scope
+      holding one already owed it something under order 161's rule; what was missing is that the
+      thing owed is an AWAIT rather than a Drop call -- awaiting is what dropping a task means. The
+      try/finally nesting, the reverse ordering and the move elision all came from there unchanged.
+
+      StructuredConcurrency's emitted shape now matches classic's line for line where it used to bind
+      the task and walk away.
     unlocks: [StructuredConcurrency]
 
   - id: async-drop-chaining
@@ -7614,11 +7639,21 @@ capabilities:
     order: 175
     layer: async-and-context
     requires: [async-state-machine-lowering, drop-recognition-and-insertion]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
       A scope-exit drop obligation can RETROACTIVELY make the enclosing method async,
       because dropping a task means awaiting it inside the finally block. Explicit capture of
       a drop result suppresses the recursive chain and gives the local its own obligation.
+
+      BOTH CLAUSES DELIVERED. The retroactive promotion is a second seed in AsyncPromotion: the
+      binder cannot have recorded these awaits, because the emitter is what inserts them, so the pass
+      walks each body for a binding it will owe an await to and promotes the method as if an await
+      had been written. Explicit capture needs no rule of its own -- calling Drop is a MOVE, so the
+      chain stops there and the local the result was captured into carries its own obligation, which
+      is order 161's move analysis answering a question it was already built to answer.
+
+      AsyncDropChaining matches classic.
     unlocks: [AsyncDropChaining]
 
   - id: structured-context

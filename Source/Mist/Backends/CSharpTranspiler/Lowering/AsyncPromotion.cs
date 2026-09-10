@@ -74,7 +74,7 @@ internal sealed class AsyncPromotion
 
     public static IDisposable Enter(ProgramModelClass programModel)
     {
-        inScope = new AsyncPromotion(Compute(programModel.AwaitUses), programModel);
+        inScope = new AsyncPromotion(Compute(programModel.AwaitUses, programModel), programModel);
         return new Scope();
     }
 
@@ -84,9 +84,24 @@ internal sealed class AsyncPromotion
     /// Mist declared async is excluded throughout -- it already carries the modifier and its callers
     /// already await it, so promoting it again would wrap its return type twice.
     /// </summary>
-    private static IReadOnlySet<Method> Compute(AwaitUseRegistry uses)
+    private static IReadOnlySet<Method> Compute(AwaitUseRegistry uses, ProgramModelClass programModel)
     {
         var promoted = new HashSet<Method>(uses.Awaiting.Where(method => !method.Modifiers.IsAsync));
+
+        // RETROACTIVE, and the binder could not have known: a scope holding a task owes its completion,
+        // and completing it is an await this pass inserts. So the obligation makes the method async
+        // after the fact, exactly as a written await would have.
+        foreach(var method in Methods(programModel))
+        {
+            if(!method.Modifiers.IsAsync
+                && method.Body is { } body
+                && DropInsertion.ReleasedBindings(body).Any(
+                    declaration => DropInsertion.IsAwaitable(declaration.Local.Type)))
+            {
+                _ = promoted.Add(method);
+            }
+        }
+
         var changed = true;
 
         while(changed)
@@ -109,6 +124,23 @@ internal sealed class AsyncPromotion
         }
 
         return promoted;
+    }
+
+    private static IEnumerable<Method> Methods(ProgramModelClass programModel)
+    {
+        foreach(var assembly in programModel.Assemblies)
+        {
+            foreach(var unit in assembly.CompilationUnits)
+            {
+                foreach(var type in unit.Types.OfType<MemberType>())
+                {
+                    foreach(var method in type.MethodsList)
+                    {
+                        yield return method;
+                    }
+                }
+            }
+        }
     }
 
     private sealed class Scope : IDisposable

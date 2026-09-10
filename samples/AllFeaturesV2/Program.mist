@@ -85,5 +85,8 @@ public class Program
         StackOnlyTypes.Program.RunDemo();
         DropSemantics.Program.RunDemo();
         SubstructuralFieldDiscipline.Program.RunDemo();
+        StructuredConcurrency.Program.RunDemo();
+        FirstClassFunctions.Program.RunDemo();
+        AsyncDropChaining.Program.RunDemo();
     }
 }

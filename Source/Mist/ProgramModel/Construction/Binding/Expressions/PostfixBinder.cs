@@ -1,9 +1,7 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
-using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
-using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
@@ -24,14 +22,21 @@ internal static class PostfixBinder
             result = BindPostfixSuffix(suffix, result, ctx, context);
         }
 
-        // A group is born inside this walk and has to be consumed inside it, so this is the last
-        // point that still knows one went unconsumed. Left to the emitter it would surface as
+        // A group is born inside this walk, so this is the last point that still knows one went
+        // unconsumed -- unless an enclosing call has yet to choose the overload that would consume it,
+        // which is what the context flag says. Left to the emitter it would surface as
         // MethodGroupReachedEmission, which blames the compiler for what is a gap in the frontend.
         if(result is MethodGroupExpression group)
         {
-            if(ConvertMethodGroup(group, ctx.TargetType, context) is { } converted)
+            if(MethodGroupConversion.Convert(group, ctx.TargetType, context.ProgramModel.TypeInterner)
+                is { } converted)
             {
                 return converted;
+            }
+
+            if(ctx.CallSettlesMethodGroups)
+            {
+                return group;
             }
 
             context.Diagnostics.ReportAtNode(
@@ -41,70 +46,6 @@ internal static class PostfixBinder
         }
 
         return result;
-    }
-
-    /// <summary>
-    /// A group in a slot expecting a function type resolves to the one overload whose signature IS that
-    /// type, selected by the TARGET rather than by arguments since there are none. The second and last of
-    /// the two contexts that consume a group.
-    /// <para>
-    /// Identity per position rather than assignability, matching how the CLR binds a delegate: a method
-    /// taking an <c>int</c> does not convert to a <c>func&lt;long, ...&gt;</c> even though the argument
-    /// would widen at a call. A GENERIC method is declined, its type arguments being inferable only from
-    /// the target, which is inference this does not do.
-    /// </para>
-    /// </summary>
-    private static Expression? ConvertMethodGroup(
-        MethodGroupExpression group, IMistType? targetType, BuilderContext context)
-    {
-        if(targetType is not IFunctionType target)
-        {
-            return null;
-        }
-
-        var substitution = TypeSubstitution.ForReceiver(group.ReceiverConstructed);
-        var interner = context.ProgramModel.TypeInterner;
-        Method? match = null;
-
-        foreach(var candidate in group.Candidates)
-        {
-            if(!SignatureIs(candidate, target, substitution, interner))
-            {
-                continue;
-            }
-
-            if(match is not null)
-            {
-                return null;
-            }
-
-            match = candidate;
-        }
-
-        return match is null ? null : new FunctionReferenceExpression(group.Node, group.Receiver, match, target);
-    }
-
-    private static bool SignatureIs(
-        Method candidate, IFunctionType target, TypeSubstitution substitution, TypeInterner interner)
-    {
-        if(candidate.ParametersList.Count != target.ParameterTypes.Count
-            || candidate.TypeParametersList.Count > 0)
-        {
-            return false;
-        }
-
-        for(var i = 0; i < candidate.ParametersList.Count; i++)
-        {
-            var parameter = substitution.Apply(candidate.ParametersList[i].Type, interner);
-
-            if(!ConversionRelation.IsIdentity(parameter, target.ParameterTypes[i]))
-            {
-                return false;
-            }
-        }
-
-        return ConversionRelation.IsIdentity(
-            substitution.Apply(candidate.ReturnType, interner), target.ReturnType);
     }
 
     /// <summary>
@@ -321,6 +262,9 @@ internal static class PostfixBinder
 
             return new ErrorExpression(node);
         }
+
+        bound = MethodGroupConversion.Settle(
+            bound, selected.ParametersList, choice.Substitution, context);
 
         var returnType = ClrInboundLifting.Close(
             selected.Modifiers,

@@ -26,6 +26,8 @@ internal static class ConversionRelation
     /// </summary>
     private static readonly Dictionary<string, string[]> NumericWidening = BuildNumericWidening();
 
+    private static readonly string[] BaseDelegateNames = ["System.Delegate", "System.MulticastDelegate"];
+
     public static bool IsImplicit(IMistType from, IMistType to)
     {
         return IsWithin(from, to) || FindOperator(from, to, includeExplicit: false) is not null;
@@ -57,7 +59,18 @@ internal static class ConversionRelation
             || WidensIntoUnion(from, to)
             || WidensElementwise(from, to)
             || WidensToUnknownArguments(from, to)
+            || WidensToBaseDelegate(from, to)
             ;
+    }
+
+    /// <summary>
+    /// Every function value IS a delegate once emitted, so the CLR root of the delegate family
+    /// contains all of them. Named by its CLR name because Mist has no spelling of its own for it: a
+    /// function type is structural and reaches <c>System.Delegate</c> only through what it emits as.
+    /// </summary>
+    private static bool WidensToBaseDelegate(IMistType from, IMistType to)
+    {
+        return from is IFunctionType && Array.IndexOf(BaseDelegateNames, to.FullyQualifiedName) >= 0;
     }
 
     /// <summary>

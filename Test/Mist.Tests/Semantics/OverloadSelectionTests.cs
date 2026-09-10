@@ -6,6 +6,7 @@
 // what selection replaced, so a fixture that happens to want the first one passes either way.
 
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Semantics;
@@ -383,6 +384,33 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
     }
 
     /// <summary>
+    /// TWO overloads of the same arity, which is what leaves the group with no target type: the binder
+    /// cannot know which parameter the argument is for until the argument's type has picked it. So the
+    /// group survives binding untyped and SELECTION converts it, asking each candidate whether one of
+    /// the group's overloads is the function it declares.
+    /// </summary>
+    [Fact]
+    public void AMethodGroupAmongSeveralSameArityOverloads_PicksTheFunctionTypedOne()
+    {
+        var invocation = SingleInvocation("var chosen = Combiner.Apply(Combiner.Add);", GroupTypes);
+
+        Assert.NotNull(invocation.Method);
+        _ = Assert.IsType<FunctionType>(Assert.Single(invocation.Method.ParametersList).Type);
+
+        var argument = Assert.IsType<FunctionReferenceExpression>(Assert.Single(invocation.Arguments));
+        Assert.Equal("Add", argument.Method.Name);
+    }
+
+    [Fact]
+    public void AMethodGroupNoSameArityOverloadAccepts_IsReportedOnceAsTheCall()
+    {
+        var diagnostics = BuildRun("var chosen = Combiner.Apply(Combiner.Join);", GroupTypes);
+
+        _ = Assert.Single(Errors(diagnostics, UnresolvableId));
+        Assert.Empty(Errors(diagnostics, MethodGroupId));
+    }
+
+    /// <summary>
     /// TWO overloads on purpose. A lone candidate is returned without applicability being consulted at
     /// all, so a single-overload fixture passes whether or not the conversion is seen -- which is why
     /// the CastOperators sample cannot cover this and this fixture can.
@@ -464,6 +492,19 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
             public static int Take(A a) { return 1; }
 
             public static int Take(B b) { return 2; }
+        }
+        """;
+
+    private const string GroupTypes = """
+        public class Combiner
+        {
+            public static int Add(int a, int b) { return a + b; }
+
+            public static int Join(int a, string b) { return a; }
+
+            public static int Apply(bool flag) { return 1; }
+
+            public static int Apply(func<int, int, int> combine) { return combine(2, 3); }
         }
         """;
 

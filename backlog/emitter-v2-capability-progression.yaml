@@ -5163,7 +5163,7 @@ capabilities:
     order: 109
     layer: functions
     requires: [method-group-conversion]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
       NOT ATTEMPTED, and the `requires` above understates what it needs. Mist has no delegate
@@ -5225,6 +5225,38 @@ capabilities:
       with no target cannot be converted. Its own comment already says why: choosing between candidates
       needs the argument types, which is what binding the argument is about to produce. C# resolves this
       by trying each candidate; v2 would have to do the same.
+      
+      THE GROUP IS NOW LEFT UNSETTLED RATHER THAN TRIED REPEATEDLY, which answers the paragraph above
+      without the speculative re-binding it assumed. A group whose call has several arity matches survives
+      binding untyped, applicability asks whether one of its overloads IS the parameter's function type,
+      and the chosen overload converts it. So the argument is bound once, not once per candidate: the only
+      thing a target was needed for was a question selection could ask directly. Speculative binding would
+      also have had to re-declare a lambda's parameters in the scope, which this never reaches.
+      
+      THE OTHER TWO REFUSALS WERE NOT ABOUT METHOD GROUPS AT ALL, and the diagnostic hid that behind the
+      one that was. `app?.MapGet("/hello", () => "Hello!")` has candidates (string, func) and
+      (string, Delegate), and the lambda failed applicability against BOTH because no conversion from a
+      function type to System.Delegate was known. Every function value IS a delegate once emitted, so that
+      is containment and ConversionRelation now says so. It went unnoticed while MapGet was the only such
+      call, since a lone candidate is selected without consulting the relation at all.
+      
+      C# KEEPS A DISTINCTION THE MODEL ERASES, and that is the emitter's to restore. A CLR delegate and
+      its function shape are one type to Mist and two to C#, which converts between them only through a
+      CONSTRUCTION. A first attempt projected the delegate's SHELL as an alias too, so that Mist source
+      naming System.Predicate<int> resolved to the function type -- coherent, and reverted: it left the
+      call `numbers.FindAll(predicate)` emitting a Func into a CLR parameter C# declares as Predicate,
+      a mismatch nothing in the model could see. Nominal shells stay, and DelegateLowering materialises
+      the construction at the sites EmitCoerced already knows a target type for -- the same channel, and
+      the same reasoning, as the regex-to-string conversion beside it.
+      
+      ONE DIVERGENCE FROM CLASSIC SURVIVES, and order 108 already names the reason: a group passed where
+      a GENERIC candidate could take it is declined, since its type arguments are inferable only from the
+      target. `Keep<T>(T)` beside `Keep(bool)` given a group binds on classic and is refused here.
+      Measured rather than assumed, and it refused before this order too -- with three diagnostics where
+      there are now two.
+      
+      samples/DelegateFuncConversion now matches classic byte for byte, standalone. It is NOT BANKED, for
+      a reason that is not a capability gap -- see the sample's own blocked_by.
     tasks:
       - >
         Correct this entry's requires to include clr-assembly-type-projection, or move the order after
@@ -8905,6 +8937,18 @@ samples:
         survives wrapping, so removal from an event or a list would fail undetected.
       - The endpoint registration is never invoked, so the lambda-to-delegate-base path's
         runtime behaviour is never exercised.
+    blocked_by: composition
+    note: >
+      GREEN ON v2 STANDALONE AND NOT BANKABLE, the same composition wall CSharpInteropV2 is behind:
+      referenced FROM AllFeaturesV2 it cannot see its own [framework_references], so
+      Microsoft.AspNetCore.Http and Microsoft.AspNetCore.Builder fail to resolve and WebApplication is
+      an unresolved identifier. CLASSIC FAILS IDENTICALLY on the same three names, so a project
+      reference does not carry the referenced project's framework references in either pipeline. It is
+      absent from AllFeatures too, which is where that was always visible.
+      
+      Recorded rather than left as an unexplained absence: standalone on v2 the sample matches classic
+      byte for byte, and its capability closure holds no `missing`. Whoever fixes reference flow should
+      expect it to become bankable with no compiler change.
 
   - name: FirstClassFunctions
     intro_order: 65

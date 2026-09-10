@@ -1402,6 +1402,12 @@ internal static class BodyEmitter
             return;
         }
 
+        if(DelegateLowering.NeedsConstruction(expression.Type, target))
+        {
+            writer.Append($"new {TypeNameEmitter.Emit(target!)}({Render(expression, diagnostics)})");
+            return;
+        }
+
         EmitExpression(expression, writer, diagnostics);
     }
 

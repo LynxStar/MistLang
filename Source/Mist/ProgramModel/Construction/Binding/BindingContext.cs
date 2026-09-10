@@ -50,6 +50,14 @@ internal sealed class BindingContext
     /// </summary>
     public Property? EnclosingProperty { get; set; }
 
+    /// <summary>
+    /// Whether a method group reaching the end of an expression is an ARGUMENT to a call that has not
+    /// chosen its overload yet, which makes the call the thing that converts it. Carried rather than
+    /// passed, because the group surfaces at the bottom of the expression recursion and the call that
+    /// settles it sits at the top.
+    /// </summary>
+    public bool CallSettlesMethodGroups { get; set; }
+
     public BindingContext(BodyScope scope, IMistType? returnType)
     {
         Scope = scope;
@@ -80,6 +88,11 @@ internal sealed class BindingContext
         return new TargetTypeScope(this, type);
     }
 
+    public MethodGroupSettlementScope PushMethodGroupSettlement(bool settled)
+    {
+        return new MethodGroupSettlementScope(this, settled);
+    }
+
     /// <summary>
     /// RAII guard that restores <see cref="TargetType"/> to its
     /// previous value on dispose. Struct to avoid allocation.
@@ -99,6 +112,24 @@ internal sealed class BindingContext
         public void Dispose()
         {
             ctx.TargetType = previous;
+        }
+    }
+
+    internal struct MethodGroupSettlementScope : IDisposable
+    {
+        private readonly BindingContext ctx;
+        private readonly bool previous;
+
+        public MethodGroupSettlementScope(BindingContext ctx, bool settled)
+        {
+            this.ctx = ctx;
+            previous = ctx.CallSettlesMethodGroups;
+            ctx.CallSettlesMethodGroups = settled;
+        }
+
+        public void Dispose()
+        {
+            ctx.CallSettlesMethodGroups = previous;
         }
     }
 }

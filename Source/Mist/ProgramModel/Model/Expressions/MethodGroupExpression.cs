@@ -9,10 +9,12 @@ namespace Mist.ProgramModel.Model.Expressions;
 /// Every overload a name resolved to, held between the lookup that found them and the context that
 /// constrains them to one. A binder intermediate rather than anything in the finished program.
 /// <para>
-/// Exactly two contexts consume it, each supplying a different constraint: an invocation selects on
-/// its bound argument types, and a conversion to a function type selects on the target signature.
-/// There is no third, so a group still standing at the end of binding is two failures rather than a
-/// representable state -- nothing resolved it, and nothing reported that.
+/// Two constraints consume it: an invocation selects on its bound argument types, and a conversion to
+/// a function type selects on the target signature. The second arrives either from the position the
+/// group sits in or, where an argument's own call has yet to choose, from the parameter that call
+/// settles on -- see <see cref="Construction.Binding.MethodGroupConversion"/>. Nothing else consumes
+/// one, so a group still standing at the end of binding is two failures rather than a representable
+/// state -- nothing resolved it, and nothing reported that.
 /// </para>
 /// <para>
 /// It has to exist because arguments are bound before the overload they are arguments to is

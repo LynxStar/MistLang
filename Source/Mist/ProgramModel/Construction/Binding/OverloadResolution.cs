@@ -267,7 +267,23 @@ internal static class OverloadResolution
                 return false;
             }
 
-            if(!ConversionRelation.IsImplicit(arguments[i].Type, ParameterType(candidate, i, interner)))
+            var parameter = ParameterType(candidate, i, interner);
+
+            // A method group has no type to convert FROM, so applicability is the conversion itself:
+            // whether one of its overloads is the function this parameter asks for. Asked here because
+            // it is the only question that can tell two arity-matching candidates apart when the
+            // argument is a group -- which is the whole reason the group was left unsettled.
+            if(arguments[i] is MethodGroupExpression group)
+            {
+                if(!MethodGroupConversion.Accepts(group, parameter, interner))
+                {
+                    return false;
+                }
+
+                continue;
+            }
+
+            if(!ConversionRelation.IsImplicit(arguments[i].Type, parameter))
             {
                 return false;
             }

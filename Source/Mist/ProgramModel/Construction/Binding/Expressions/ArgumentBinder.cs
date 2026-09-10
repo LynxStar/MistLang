@@ -67,7 +67,8 @@ internal static class ArgumentBinder
         ArgumentListNode? argumentList,
         IReadOnlyList<IMistType>? targets,
         BindingContext ctx,
-        BuilderContext context)
+        BuilderContext context,
+        bool settlesMethodGroups = false)
     {
         if(argumentList is null)
         {
@@ -76,6 +77,8 @@ internal static class ArgumentBinder
 
         var expressions = argumentList.GetAllExpressions();
         var bound = new List<Expression>(expressions.Length);
+
+        using var settlement = ctx.PushMethodGroupSettlement(settlesMethodGroups);
 
         for(var i = 0; i < expressions.Length; i++)
         {
@@ -202,13 +205,15 @@ internal static class ArgumentBinder
             .Select(parameter => substitution.Apply(parameter.Type, interner))
             .ToList();
 
-        return BindTargeted(argumentList, targets, ctx, context);
+        return BindTargeted(argumentList, targets, ctx, context, settlesMethodGroups: targets is null);
     }
 
     /// <summary>
     /// The parameters of the one candidate taking this many arguments, or null where none or several
-    /// do. Several cannot be narrowed here, and that is not a gap to close later: choosing between
-    /// them needs the argument types, which are what this is about to produce.
+    /// do. Several cannot be narrowed here: choosing between them needs the argument types, which are
+    /// what this is about to produce. An argument that cannot be bound WITHOUT a target therefore
+    /// survives untyped and the selection settles it -- see <see cref="MethodGroupConversion"/>, which
+    /// is the one such argument so far.
     /// </summary>
     private static IReadOnlyList<Parameter>? SoleByArity<T>(IReadOnlyList<T> candidates, int argumentCount)
         where T : Method

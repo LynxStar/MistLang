@@ -301,14 +301,17 @@ internal static class ExpressionBinder
         var arguments = ArgumentBinder.Bind(
             argumentList, ConstructorsOf(type), ctx, context, type as ConstructedType);
 
-        var constructor = SelectConstructor(
+        var choice = SelectConstructor(
             type, arguments, ArgumentBinder.RefFlags(argumentList), node, context);
+
+        var settled = MethodGroupConversion.Settle(
+            arguments, choice.Selected?.ParametersList, choice.Substitution, context);
 
         return new NewExpression(
             node,
             type,
-            OwnedProvenance.AtParameters(arguments, constructor?.ParametersList),
-            constructor,
+            OwnedProvenance.AtParameters(settled, choice.Selected?.ParametersList),
+            choice.Selected,
             ObjectInitializerBinder.Bind(initializer, type, ctx, context));
     }
 
@@ -344,16 +347,17 @@ internal static class ExpressionBinder
     }
 
     /// <summary>
-    /// The constructor the arguments select. Null without a diagnostic whenever no constructor could
-    /// be named at all -- the definition declares none, or is not a concrete type to declare any --
-    /// because a construction that reaches neither is already being reported elsewhere or is a C#
-    /// default with nothing to choose between.
+    /// The constructor the arguments select, with the substitution its signature has to be read
+    /// through. Nothing selected and no diagnostic whenever no constructor could be named at all --
+    /// the definition declares none, or is not a concrete type to declare any -- because a construction
+    /// that reaches neither is already being reported elsewhere or is a C# default with nothing to
+    /// choose between.
     /// <para>
     /// A constructed type is unwrapped to reach the definition its constructors are declared on, and
     /// passed on as the source of the arguments to substitute in.
     /// </para>
     /// </summary>
-    private static Constructor? SelectConstructor(
+    private static OverloadChoice<Constructor> SelectConstructor(
         IMistType type,
         IReadOnlyList<Expression> arguments,
         IReadOnlyList<bool> argumentIsRef,
@@ -365,7 +369,7 @@ internal static class ExpressionBinder
 
         if(definition is not ConcreteType { ConstructorsList.Count: > 0 } concrete)
         {
-            return null;
+            return new OverloadChoice<Constructor> { Selected = null };
         }
 
         var choice = OverloadResolution.Select(
@@ -381,7 +385,7 @@ internal static class ExpressionBinder
                 $"constructor '{name}'", node, context.Diagnostics);
         }
 
-        return choice.Selected;
+        return choice;
     }
 
     private static Expression BindArrayCreation(ArrayCreationExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)

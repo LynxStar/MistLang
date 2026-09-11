@@ -6,13 +6,17 @@ public class Program
 {
     private static void Describe(object value)
     {
-        if (value is int i)
         {
-            Console.WriteLine($"int: {i}");
+            if (value is int i)
+            {
+                Console.WriteLine($"int: {i}");
+            }
         }
-        if (value is string s)
         {
-            Console.WriteLine($"string: {s}");
+            if (value is string s)
+            {
+                Console.WriteLine($"string: {s}");
+            }
         }
     }
 
@@ -22,9 +26,12 @@ public class Program
         Describe("mist");
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

@@ -1,5 +1,2 @@
 using System;
 
-int flags = 0b1010_0101;
-int mask = 0b1111_0000;
-Console.WriteLine($"flags={flags}, mask={mask}");

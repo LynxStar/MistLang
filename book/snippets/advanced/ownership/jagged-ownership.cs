@@ -5,9 +5,7 @@ namespace Snippet;
 public class Connection
 {
     public string Handle;
-
     public string Label;
-
     public int RetryCount;
 
     public Connection(string handle, string label)
@@ -22,20 +20,24 @@ public class Connection
         return $"Connection(handle={Handle}, label={Label}, retries={RetryCount})";
     }
 }
+
 public class JaggedOwnershipDemo
 {
     public static void Run()
     {
-        var conn = new Connection("socket-1", "primary");
+        Snippet.Connection conn = new Snippet.Connection("socket-1", "primary");
         conn.Label = "renamed";
         conn.RetryCount = 3;
         conn.Handle = "socket-2";
-        System.Console.WriteLine($"jagged={conn.Describe()}");
+        Console.WriteLine($"jagged={conn.Describe()}");
+    }
+
+    public JaggedOwnershipDemo()
+    {
     }
 
     public static JaggedOwnershipDemo __CreateDefault()
     {
-        var inst = new JaggedOwnershipDemo();
-        return inst;
+        return new JaggedOwnershipDemo();
     }
 }

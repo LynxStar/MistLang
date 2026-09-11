@@ -12,14 +12,10 @@ public class Config
 
     public Config()
     {
-        this.Timeout = 0;
-        this.Verbose = false;
-        this.Name = "";
     }
 
     public static Config __CreateDefault()
     {
-        var inst = new Config();
-        return inst;
+        return new Config();
     }
 }

@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-private class Outer
+public class Outer
 {
     private int secret;
 
@@ -11,11 +11,17 @@ private class Outer
         this.secret = secret;
     }
 
-    private class Inner
+    public int ExposeViaInner()
     {
-        private Outer owner;
+        Snippet.Outer.Inner inner = new Snippet.Outer.Inner(this);
+        return inner.ReadSecret();
+    }
 
-        public Inner(Outer owner)
+    class Inner
+    {
+        private Snippet.Outer owner;
+
+        public Inner(Snippet.Outer owner)
         {
             this.owner = owner;
         }
@@ -24,11 +30,5 @@ private class Outer
         {
             return owner.secret;
         }
-    }
-
-    public int ExposeViaInner()
-    {
-        var inner = new Inner(this);
-        return inner.ReadSecret();
     }
 }

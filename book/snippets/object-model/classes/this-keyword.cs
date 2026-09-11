@@ -5,7 +5,6 @@ namespace Snippet;
 public class Point
 {
     private int x;
-
     private int y;
 
     public Point(int x, int y)
@@ -14,9 +13,9 @@ public class Point
         this.y = y;
     }
 
-    public Point Translate(int dx, int dy)
+    public Snippet.Point Translate(int dx, int dy)
     {
-        return new Point(this.x + dx, this.y + dy);
+        return new Snippet.Point(this.x + dx, this.y + dy);
     }
 
     public string Describe()

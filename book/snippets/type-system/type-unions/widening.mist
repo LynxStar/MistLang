@@ -1,3 +1,5 @@
+using Standard;
+
 type Narrow = int | string;
 type Wide = int | string | bool;
 

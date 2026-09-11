@@ -4,7 +4,7 @@ namespace Snippets;
 
 public class Connection
 {
-    int Id;
+    private int Id;
 
     public Connection(int id)
     {
@@ -18,12 +18,13 @@ public class Connection
 
     public void Drop()
     {
-        System.Console.WriteLine($"Connection({Id}).Drop()");
+        Console.WriteLine($"Connection({Id}).Drop()");
     }
 }
+
 public class AffineHolder<T>
 {
-    T Value;
+    private T Value;
 
     public AffineHolder(T value)
     {
@@ -32,15 +33,15 @@ public class AffineHolder<T>
 
     public void Drop()
     {
-        System.Console.WriteLine("AffineHolder<T>.Drop()");
+        Console.WriteLine("AffineHolder<T>.Drop()");
         ((dynamic)this.Value).Drop();
     }
 }
+
 public class RelevantHolder<T>
 {
-    T Value;
-
-    bool Dropped;
+    private T Value;
+    private bool Dropped;
 
     public RelevantHolder(T value)
     {
@@ -55,29 +56,32 @@ public class RelevantHolder<T>
             return;
         }
         this.Dropped = true;
-        System.Console.WriteLine("RelevantHolder<T>.Drop()");
+        Console.WriteLine("RelevantHolder<T>.Drop()");
         ((dynamic)this.Value).Drop();
     }
 }
+
 public class Program
 {
     public static void Main()
     {
-        var __with_0 = new AffineHolder<Connection>(new Connection(1));
-        MistContext.Push<AffineHolder<Connection>>(__with_0);
+        {
+            var __e5 = new Snippets.AffineHolder<Snippets.Connection>(new Snippets.Connection(1));
+            MistContext.Push<Snippets.AffineHolder<Snippets.Connection>>(__e5);
+            try
+            {
+                Console.WriteLine("Linear type in affine box");
+            }
+            finally
+            {
+                MistContext.Pop<Snippets.AffineHolder<Snippets.Connection>>();
+                __e5.Drop();
+            }
+        }
+        Snippets.RelevantHolder<Snippets.Connection> r = new Snippets.RelevantHolder<Snippets.Connection>(new Snippets.Connection(2));
         try
         {
-            System.Console.WriteLine("Linear type in affine box");
-        }
-        finally
-        {
-            MistContext.Pop<AffineHolder<Connection>>();
-            __with_0.Drop();
-        }
-        var r = new RelevantHolder<Connection>(new Connection(2));
-        try
-        {
-            System.Console.WriteLine("Linear type in relevant box");
+            Console.WriteLine("Linear type in relevant box");
         }
         finally
         {
@@ -85,9 +89,12 @@ public class Program
         }
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

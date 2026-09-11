@@ -12,9 +12,12 @@ public class Program
         Console.WriteLine($"byteVal = {byteVal}");
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

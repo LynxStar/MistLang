@@ -2,9 +2,9 @@ using System;
 
 namespace Snippets;
 
-private class AffineToken
+public class AffineToken
 {
-    int Id;
+    private int Id;
 
     public AffineToken(int id)
     {
@@ -13,57 +13,64 @@ private class AffineToken
 
     public void Drop()
     {
-        System.Console.WriteLine($"AffineToken({Id}).Drop()");
+        Console.WriteLine($"AffineToken({Id}).Drop()");
     }
 }
-private class PlainData
+
+public class PlainData
 {
-    int Value;
+    private int Value;
 
     public PlainData(int v)
     {
         this.Value = v;
     }
 }
+
 public class AffineContainer
 {
-    AffineToken Inner;
-
-    PlainData Data;
+    private Snippets.AffineToken Inner;
+    private Snippets.PlainData Data;
 
     public AffineContainer(int id)
     {
-        this.Inner = new AffineToken(id);
-        this.Data = new PlainData(id);
+        this.Inner = new Snippets.AffineToken(id);
+        this.Data = new Snippets.PlainData(id);
     }
 
     public void Drop()
     {
-        System.Console.WriteLine("AffineContainer.Drop()");
+        Console.WriteLine("AffineContainer.Drop()");
         this.Inner.Drop();
     }
 }
+
 public class Program
 {
     public static void Main()
     {
-        var __with_0 = new AffineContainer(1);
-        MistContext.Push<AffineContainer>(__with_0);
-        try
         {
-            System.Console.WriteLine("Inside with block — container will be dropped");
+            var __e6 = new Snippets.AffineContainer(1);
+            MistContext.Push<Snippets.AffineContainer>(__e6);
+            try
+            {
+                Console.WriteLine("Inside with block — container will be dropped");
+            }
+            finally
+            {
+                MistContext.Pop<Snippets.AffineContainer>();
+                __e6.Drop();
+            }
         }
-        finally
-        {
-            MistContext.Pop<AffineContainer>();
-            __with_0.Drop();
-        }
-        System.Console.WriteLine("Done");
+        Console.WriteLine("Done");
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

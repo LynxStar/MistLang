@@ -7,15 +7,23 @@ public class Program
     public static void Main(string[] args)
     {
         int counter = 0;
-        System.Func<int> increment = () => { counter = counter + 1; return counter; };
-        System.Console.WriteLine($"increment()={increment()}");
-        System.Console.WriteLine($"increment()={increment()}");
-        System.Console.WriteLine($"counter={counter}");
+        System.Func<int> increment = () => 
+        {
+            counter = counter + 1;
+            return counter;
+        }
+;
+        Console.WriteLine($"increment()={increment()}");
+        Console.WriteLine($"increment()={increment()}");
+        Console.WriteLine($"counter={counter}");
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

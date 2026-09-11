@@ -6,12 +6,15 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        System.Console.WriteLine("Hello, World!");
+        Console.WriteLine("Hello, World!");
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

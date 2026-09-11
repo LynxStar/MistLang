@@ -2,15 +2,15 @@ using System;
 
 namespace Snippet;
 
-public interface IOrderable
+interface IOrderable
 {
     int GetOrder();
 }
-internal class Sorter<T>
-    where T : IOrderable
+
+class Sorter<T>
+    where T : Snippet.IOrderable
 {
     public T First;
-
     public T Second;
 
     public Sorter(T first, T second)

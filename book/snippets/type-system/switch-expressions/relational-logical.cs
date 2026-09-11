@@ -6,30 +6,20 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        var temp = 75;
-        var comfort = temp switch
-        {
-            < 32 => "Freezing",
-            < 60 => "Cold",
-            <= 80 => "Comfortable",
-            var _ => "Hot",
-        };
+        int temp = 75;
+        string comfort = temp switch { < 32 => "Freezing", < 60 => "Cold", <= 80 => "Comfortable", var _ => "Hot" };
         Console.WriteLine($"Temperature {temp} => {comfort}");
-        var score = 85;
-        var grade = score switch
-        {
-            >= 90 and <= 100 => "A",
-            >= 80 and < 90 => "B",
-            >= 70 and < 80 => "C",
-            >= 60 and < 70 => "D",
-            var _ => "F",
-        };
+        int score = 85;
+        string grade = score switch { >= 90 and <= 100 => "A", >= 80 and < 90 => "B", >= 70 and < 80 => "C", >= 60 and < 70 => "D", var _ => "F" };
         Console.WriteLine($"Score {score} => Grade {grade}");
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

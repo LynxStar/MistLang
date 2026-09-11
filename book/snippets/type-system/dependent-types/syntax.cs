@@ -2,12 +2,9 @@ using System;
 
 namespace Snippet;
 
-[DependentType("Size", typeof(int))]
 public class FixedBuffer<TSize>
     where TSize : IConstInt
 {
-    public static int Size => TSize.Value;
-
     public int GetSize()
     {
         return TSize.Value;
@@ -16,5 +13,14 @@ public class FixedBuffer<TSize>
     public string Describe()
     {
         return $"FixedBuffer<{TSize.Value}>";
+    }
+
+    public FixedBuffer()
+    {
+    }
+
+    public static FixedBuffer<TSize> __CreateDefault()
+    {
+        return new FixedBuffer<TSize>();
     }
 }

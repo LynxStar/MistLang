@@ -5,7 +5,6 @@ namespace Snippet;
 public class PrivilegeRemovalDemo
 {
     public readonly int X;
-
     public readonly int Y;
 
     public PrivilegeRemovalDemo(int x, int y)
@@ -13,7 +12,7 @@ public class PrivilegeRemovalDemo
         this.X = x;
         this.Y = y;
         {
-            var sum = X + Y;
+            int sum = X + Y;
         }
     }
 

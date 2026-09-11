@@ -21,16 +21,17 @@ public class Resource
         this.Id = id;
     }
 }
+
 public class OwnershipScopeDemo
 {
-    public static void ReadOnly(Resource r)
+    public static void ReadOnly(Snippet.Resource r)
     {
         Console.WriteLine($"frozen view: {r.Describe()}");
     }
 
     public static void Main(string[] args)
     {
-        Resource res = new Resource(1);
+        Snippet.Resource res = new Snippet.Resource(1);
         {
             ReadOnly(res);
         }
@@ -38,9 +39,12 @@ public class OwnershipScopeDemo
         Console.WriteLine($"after update: {res.Describe()}");
     }
 
+    public OwnershipScopeDemo()
+    {
+    }
+
     public static OwnershipScopeDemo __CreateDefault()
     {
-        var inst = new OwnershipScopeDemo();
-        return inst;
+        return new OwnershipScopeDemo();
     }
 }

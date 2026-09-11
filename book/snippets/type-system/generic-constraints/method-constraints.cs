@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-internal class MethodConstraints
+class MethodConstraints
 {
     public static T CreateItem<T>()
         where T : new()
@@ -10,9 +10,12 @@ internal class MethodConstraints
         return new T();
     }
 
+    public MethodConstraints()
+    {
+    }
+
     public static MethodConstraints __CreateDefault()
     {
-        var inst = new MethodConstraints();
-        return inst;
+        return new MethodConstraints();
     }
 }

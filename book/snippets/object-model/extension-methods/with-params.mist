@@ -1,3 +1,5 @@
+using Standard;
+
 extension(Greeting self)
 {
     public Greeting Repeat(int times)

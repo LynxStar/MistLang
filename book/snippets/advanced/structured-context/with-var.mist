@@ -1,3 +1,5 @@
+using Standard;
+
 public class Greeter
 {
     public static string GetGreeting() with string message

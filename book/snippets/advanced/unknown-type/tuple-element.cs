@@ -16,21 +16,27 @@ public class Greeter
         return $"Hello from {this.Name}";
     }
 }
+
 public class Program
 {
     public static void Main(string[] args)
     {
-        (int tag, object payload) envelope = (tag: 1, payload: new Greeter("Mist"));
+        (int tag, object payload) envelope = (tag: 1, payload: new Snippet.Greeter("Mist"));
         Console.WriteLine($"tag={envelope.tag}");
-        if (envelope.payload is Greeter g)
         {
-            Console.WriteLine($"payload: {g.Greet()}");
+            if (envelope.payload is Snippet.Greeter g)
+            {
+                Console.WriteLine($"payload: {g.Greet()}");
+            }
         }
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

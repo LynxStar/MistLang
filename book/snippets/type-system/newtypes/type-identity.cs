@@ -1,6 +1,8 @@
 using System;
 
-public readonly struct UserId
+namespace Snippet;
+
+readonly struct UserId
 {
     public readonly int Value;
 
@@ -10,21 +12,24 @@ public readonly struct UserId
     }
 
     public static explicit operator UserId(int value) => new UserId(value);
-    public static explicit operator int(UserId id) => id.Value;
+    public static explicit operator int(UserId wrapped) => wrapped.Value;
 }
-namespace Snippet;
 
 public class Program
 {
     private static void Identify(object value)
     {
-        if (value is int n)
         {
-            Console.WriteLine($"matched int: {n}");
+            if (value is int n)
+            {
+                Console.WriteLine($"matched int: {n}");
+            }
         }
-        if (value is UserId id)
         {
-            Console.WriteLine($"matched UserId");
+            if (value is UserId id)
+            {
+                Console.WriteLine($"matched UserId");
+            }
         }
     }
 
@@ -34,9 +39,12 @@ public class Program
         Identify(user);
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

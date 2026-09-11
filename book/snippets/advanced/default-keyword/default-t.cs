@@ -12,9 +12,12 @@ public class Program
         Console.WriteLine($"int={i} bool={b} string={s}");
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

@@ -1,3 +1,5 @@
+using Standard;
+
 public class FixedBuffer<Size:int>
 {
     public int GetSize() { return Size; }

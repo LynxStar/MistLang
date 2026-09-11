@@ -1,3 +1,5 @@
+using Standard;
+
 int i = 42;
 uint ui = 100u;
 long l = 100L;

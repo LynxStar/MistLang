@@ -11,41 +11,52 @@ public class Service
         return $"name={name}, count={count}";
     }
 
+    public Service()
+    {
+    }
+
     public static Service __CreateDefault()
     {
-        var inst = new Service();
-        return inst;
+        return new Service();
     }
 }
+
 public class Program
 {
     public static void Main(string[] args)
     {
-        var name = "alpha";
-        MistContext.Push<string>(name);
-        try
         {
-            var count = 5;
-            MistContext.Push<int>(count);
+            var name = "alpha";
+            MistContext.Push<string>(name);
             try
             {
-                var result = Service.Describe();
-                Console.WriteLine(result);
+                {
+                    var count = 5;
+                    MistContext.Push<int>(count);
+                    try
+                    {
+                        string result = Snippet.Service.Describe();
+                        Console.WriteLine(result);
+                    }
+                    finally
+                    {
+                        MistContext.Pop<int>();
+                    }
+                }
             }
             finally
             {
-                MistContext.Pop<int>();
+                MistContext.Pop<string>();
             }
         }
-        finally
-        {
-            MistContext.Pop<string>();
-        }
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

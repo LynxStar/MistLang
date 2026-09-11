@@ -1,3 +1,5 @@
+using Standard;
+
 // Dependent type parameter with ad-hoc refinement constraint
 public class FixedArray<TValue, Size:int> where Size >= 0
 {

@@ -5,11 +5,8 @@ namespace Snippet;
 public class Account
 {
     public string name;
-
     private int balance;
-
     protected int overdraftLimit;
-
     internal string accountType;
 
     public Account(string name, int balance, int overdraftLimit, string accountType)

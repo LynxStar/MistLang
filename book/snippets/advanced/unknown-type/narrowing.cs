@@ -7,16 +7,21 @@ public class Program
     public static void Main(string[] args)
     {
         object maybeInt = 17;
-        if (maybeInt is int narrowed)
         {
-            var doubled = narrowed + narrowed;
-            Console.WriteLine($"narrowed int doubled: {doubled}");
+            if (maybeInt is int narrowed)
+            {
+                int doubled = narrowed + narrowed;
+                Console.WriteLine($"narrowed int doubled: {doubled}");
+            }
         }
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

@@ -5,7 +5,6 @@ namespace Snippet;
 public class Pair
 {
     public int X;
-
     public int Y;
 
     public Pair(int x, int y)
@@ -24,9 +23,10 @@ public class Pair
         return $"Pair({X}, {Y})";
     }
 }
+
 public class Program
 {
-    public static void MutateBorrowed(Pair p)
+    public static void MutateBorrowed(Snippet.Pair p)
     {
         p.SetX(999);
         Console.WriteLine($"mutated={p.Describe()}");
@@ -34,14 +34,17 @@ public class Program
 
     public static void Main()
     {
-        Pair p = new Pair(1, 2);
+        Snippet.Pair p = new Snippet.Pair(1, 2);
         MutateBorrowed(p);
         Console.WriteLine($"owner after={p.Describe()}");
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

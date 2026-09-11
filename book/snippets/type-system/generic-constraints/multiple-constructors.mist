@@ -1,3 +1,5 @@
+using Standard;
+
 class MultiFactory<T> where T : new(), new(int), new(bool)
 {
     public T CreateDefault()

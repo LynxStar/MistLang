@@ -1,3 +1,5 @@
+using Standard;
+
 public class DependentMethods
 {
     public static void Repeat<N:int>(string text)

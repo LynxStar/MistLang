@@ -9,13 +9,17 @@ namespace Namespaces.MixedA
             return "AlphaType";
         }
 
+        public AlphaType()
+        {
+        }
+
         public static AlphaType __CreateDefault()
         {
-            var inst = new AlphaType();
-            return inst;
+            return new AlphaType();
         }
     }
 }
+
 namespace Namespaces.MixedB
 {
     public class BetaType
@@ -25,10 +29,13 @@ namespace Namespaces.MixedB
             return "BetaType";
         }
 
+        public BetaType()
+        {
+        }
+
         public static BetaType __CreateDefault()
         {
-            var inst = new BetaType();
-            return inst;
+            return new BetaType();
         }
     }
 }

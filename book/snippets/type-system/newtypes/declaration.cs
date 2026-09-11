@@ -1,6 +1,8 @@
 using System;
 
-public readonly struct UserId
+namespace Snippet;
+
+readonly struct UserId
 {
     public readonly int Value;
 
@@ -10,9 +12,10 @@ public readonly struct UserId
     }
 
     public static explicit operator UserId(int value) => new UserId(value);
-    public static explicit operator int(UserId id) => id.Value;
+    public static explicit operator int(UserId wrapped) => wrapped.Value;
 }
-public readonly struct Label
+
+readonly struct Label
 {
     public readonly string Value;
 
@@ -22,9 +25,10 @@ public readonly struct Label
     }
 
     public static explicit operator Label(string value) => new Label(value);
-    public static explicit operator string(Label id) => id.Value;
+    public static explicit operator string(Label wrapped) => wrapped.Value;
 }
-public readonly struct Flag
+
+readonly struct Flag
 {
     public readonly bool Value;
 
@@ -34,5 +38,5 @@ public readonly struct Flag
     }
 
     public static explicit operator Flag(bool value) => new Flag(value);
-    public static explicit operator bool(Flag id) => id.Value;
+    public static explicit operator bool(Flag wrapped) => wrapped.Value;
 }

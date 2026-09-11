@@ -5,7 +5,6 @@ namespace Snippet;
 public class Interval
 {
     public readonly int Start;
-
     public readonly int End;
 
     public Interval(int start, int end)
@@ -14,21 +13,26 @@ public class Interval
         this.End = end;
     }
 }
+
 public class Program
 {
     public static void Main(string[] args)
     {
-        var r = new Interval(10, 50);
-        if (r.Start >= 0)
+        Snippet.Interval r = new Snippet.Interval(10, 50);
         {
-            Interval valid = r;
-            Console.WriteLine($"Valid: Start={valid.Start}");
+            if (r is Snippet.Interval and { Start: >= 0 } and var valid)
+            {
+                Console.WriteLine($"Valid: Start={valid.Start}");
+            }
         }
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

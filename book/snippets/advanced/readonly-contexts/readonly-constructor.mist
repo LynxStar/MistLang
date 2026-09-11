@@ -1,3 +1,5 @@
+using Standard;
+
 public readonly class PrivilegeRemovalDemo
 {
     public int X;

@@ -1,5 +1,4 @@
 using System;
-using System.Text.RegularExpressions;
 
 namespace Snippet;
 
@@ -14,19 +13,23 @@ public class Program
             Console.WriteLine($"Narrowed to AdultAge: {narrowed}");
         }
         int userInput = 21;
-        if (userInput >= 21)
         {
-            int validAge = userInput;
-            Console.WriteLine($"Valid drinking age: {validAge}");
+            if (userInput is int and >= 21 and var validAge)
+            {
+                Console.WriteLine($"Valid drinking age: {validAge}");
+            }
         }
         int age = 30;
         int baseValue = age;
         Console.WriteLine($"Widened to int: {baseValue}");
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

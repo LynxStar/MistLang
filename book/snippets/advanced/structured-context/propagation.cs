@@ -10,45 +10,58 @@ public class Consumer
         return msg;
     }
 
+    public Consumer()
+    {
+    }
+
     public static Consumer __CreateDefault()
     {
-        var inst = new Consumer();
-        return inst;
+        return new Consumer();
     }
 }
+
 public class Intermediary
 {
     public static string Forward()
     {
-        return Consumer.GetMessage();
+        return Snippet.Consumer.GetMessage();
+    }
+
+    public Intermediary()
+    {
     }
 
     public static Intermediary __CreateDefault()
     {
-        var inst = new Intermediary();
-        return inst;
+        return new Intermediary();
     }
 }
+
 public class Program
 {
     public static void Main(string[] args)
     {
-        var message = "propagated";
-        MistContext.Push<string>(message);
-        try
         {
-            var result = Intermediary.Forward();
-            Console.WriteLine(result);
+            var message = "propagated";
+            MistContext.Push<string>(message);
+            try
+            {
+                string result = Snippet.Intermediary.Forward();
+                Console.WriteLine(result);
+            }
+            finally
+            {
+                MistContext.Pop<string>();
+            }
         }
-        finally
-        {
-            MistContext.Pop<string>();
-        }
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

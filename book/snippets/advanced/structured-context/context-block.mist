@@ -1,3 +1,5 @@
+using Standard;
+
 public class Consumers
 {
     public static int GetInt() with int n

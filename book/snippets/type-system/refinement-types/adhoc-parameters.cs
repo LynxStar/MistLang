@@ -14,25 +14,32 @@ public class Validator
         return $"Range({min}, {max}) accepted";
     }
 
+    public Validator()
+    {
+    }
+
     public static Validator __CreateDefault()
     {
-        var inst = new Validator();
-        return inst;
+        return new Validator();
     }
 }
+
 public class Program
 {
     public static void Main(string[] args)
     {
-        var result = Validator.Process(42);
+        string result = Snippet.Validator.Process(42);
         Console.WriteLine(result);
-        var range = Validator.Range(5, 500);
+        string range = Snippet.Validator.Range(5, 500);
         Console.WriteLine(range);
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

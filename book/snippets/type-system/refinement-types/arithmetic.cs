@@ -10,16 +10,20 @@ public class Program
         int sum = a + 5;
         int diff = a - 2;
         int computed = a + 10;
-        if (computed >= 18)
         {
-            int verified = computed;
-            Console.WriteLine($"Still adult: {verified}");
+            if (computed is int and >= 18 and var verified)
+            {
+                Console.WriteLine($"Still adult: {verified}");
+            }
         }
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

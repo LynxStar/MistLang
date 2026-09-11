@@ -7,20 +7,25 @@ public class Program
     public static void Main(string[] args)
     {
         object box = 99;
-        int? maybeInt = (box is int __as_tmp_0 ? __as_tmp_0 : default(int?));
-        if (maybeInt is int n)
+        int? maybeInt = (box is int __as159 ? __as159 : default(int?));
         {
-            System.Console.WriteLine($"Got int: {n}");
+            if (maybeInt is int n)
+            {
+                Console.WriteLine($"Got int: {n}");
+            }
+            else
+            {
+                Console.WriteLine("Not an int");
+            }
         }
-        else
-        {
-            System.Console.WriteLine("Not an int");
-        }
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

@@ -5,7 +5,6 @@ namespace Snippet;
 public class Entity
 {
     private string name;
-
     private int id;
 
     public Entity(string name, int id)
@@ -29,10 +28,10 @@ public class Entity
         return $"Entity({this.name}, {this.id})";
     }
 }
-public class Actor
+
+class Actor
 {
     private string name;
-
     private int id;
 
     public Actor(string name, int id)

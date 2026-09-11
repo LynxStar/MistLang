@@ -8,22 +8,26 @@ public class Program
     public static void Main()
     {
         {
-            var ms = new MemoryStream();
+            var ms = new System.IO.MemoryStream();
+            MistContext.Push<System.IO.MemoryStream>(ms);
             try
             {
                 ms.WriteByte(42);
-                System.Console.WriteLine($"length={ms.Length}");
+                Console.WriteLine($"length={ms.Length}");
             }
             finally
             {
-                ms.Dispose();
+                MistContext.Pop<System.IO.MemoryStream>();
             }
         }
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

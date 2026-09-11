@@ -12,16 +12,19 @@ public class Program
     public static void Main(string[] args)
     {
         {
-            if (Program.ComputeScore() is var score and > 0)
+            if (Snippet.Program.ComputeScore() is var score and > 0)
             {
                 Console.WriteLine($"Positive score: {score}");
             }
         }
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

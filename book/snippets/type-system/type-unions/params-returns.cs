@@ -6,15 +6,17 @@ public class Program
 {
     private static void Describe(Union_Int32_String value)
     {
-        if (value.IsInt32)
         {
-            int n = value.AsInt32;
-            Console.WriteLine($"  int: {n}");
+            if (value.AsInt32OrNull is int n)
+            {
+                Console.WriteLine($"  int: {n}");
+            }
         }
-        if (value.IsString)
         {
-            string s = value.AsString;
-            Console.WriteLine($"  string: {s}");
+            if (value.AsStringOrNull is string s)
+            {
+                Console.WriteLine($"  string: {s}");
+            }
         }
     }
 
@@ -29,15 +31,18 @@ public class Program
 
     public static void Main(string[] args)
     {
-        Program.Describe(7);
-        Program.Describe("Mist");
-        Union_Int32_String result = Program.GetValue(true);
+        Snippet.Program.Describe(7);
+        Snippet.Program.Describe("Mist");
+        Union_Int32_String result = Snippet.Program.GetValue(true);
         Console.WriteLine($"GetValue(true) returned a value");
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

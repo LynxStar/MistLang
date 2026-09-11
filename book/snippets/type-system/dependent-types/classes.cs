@@ -2,12 +2,9 @@ using System;
 
 namespace Snippet;
 
-[DependentType("Size", typeof(int))]
 public class TypedBuffer<T, TSize>
     where TSize : IConstInt
 {
-    public static int Size => TSize.Value;
-
     public T Value;
 
     public TypedBuffer(T value)

@@ -5,7 +5,6 @@ namespace Snippet;
 public class GameState
 {
     private int level;
-
     private bool active;
 
     public GameState(int level, bool active)

@@ -1,3 +1,5 @@
+using Standard;
+
 var text = "Hello, world";
 
 // Slicing a string produces a NEW string containing the selected characters.

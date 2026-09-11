@@ -1,15 +1,26 @@
 using System;
 
+namespace Snippet;
+
 public class Program
 {
-    public static int Describe<T1, T2, T3>(System.ValueTuple<T1, T2, T3> args)
+    public static int Describe_3<T1, T2, T3>((T1, T2, T3) args)
     {
         return 3;
     }
 
     public static void Main(string[] cmdArgs)
     {
-        var arity = Describe((1, "x", true));
-        System.Console.WriteLine($"arity={arity}");
+        int arity = Describe_3<int, string, bool>((1, "x", true));
+        Console.WriteLine($"arity={arity}");
+    }
+
+    public Program()
+    {
+    }
+
+    public static Program __CreateDefault()
+    {
+        return new Program();
     }
 }

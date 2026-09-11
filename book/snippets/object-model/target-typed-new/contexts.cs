@@ -2,10 +2,9 @@ using System;
 
 namespace Snippet;
 
-public class Point
+class Point
 {
     public int X;
-
     public int Y;
 
     public Point(int x, int y)
@@ -19,34 +18,49 @@ public class Point
         return $"Point({X}, {Y})";
     }
 }
-internal class Container
+
+class Container
 {
-    public Point Origin = new Point(0, 0);
-}
-internal class Program
-{
-    public static Point MakePoint(int x, int y)
+    public Snippet.Point Origin = new Snippet.Point(0, 0);
+
+    public Container()
     {
-        return new Point(x, y);
+        this.Origin = new Snippet.Point(0, 0);
     }
 
-    public static void PrintPoint(Point p)
+    public static Container __CreateDefault()
     {
-        System.Console.WriteLine(p.Describe());
+        return new Container();
+    }
+}
+
+class Program
+{
+    public static Snippet.Point MakePoint(int x, int y)
+    {
+        return new Snippet.Point(x, y);
+    }
+
+    public static void PrintPoint(Snippet.Point p)
+    {
+        Console.WriteLine(p.Describe());
     }
 
     public static void Main(string[] args)
     {
-        Point p1 = new Point(1, 2);
-        Point p2 = new Point(0, 0);
-        p2 = new Point(3, 4);
-        var p3 = MakePoint(5, 6);
-        PrintPoint(new(7, 8));
+        Snippet.Point p1 = new Snippet.Point(1, 2);
+        Snippet.Point p2 = new Snippet.Point(0, 0);
+        p2 = new Snippet.Point(3, 4);
+        Snippet.Point p3 = MakePoint(5, 6);
+        PrintPoint(new Snippet.Point(7, 8));
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

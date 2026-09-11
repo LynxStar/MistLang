@@ -2,13 +2,29 @@ using System;
 
 namespace Snippet;
 
-public interface IIterator<TCursor>
-    where TCursor : struct
+public interface IIterator<Cursor>
+    where Cursor : struct
 {
-    TCursor CreateCursor(int pos);
+    Cursor CreateCursor(int pos);
 }
-internal class RangeIterator : IIterator<RangeIterator.Cursor>
+
+class RangeIterator : Snippet.IIterator<Snippet.RangeIterator.Cursor>
 {
+    public Snippet.RangeIterator.Cursor CreateCursor(int pos)
+    {
+        return new Snippet.RangeIterator.Cursor(pos);
+    }
+
+    public RangeIterator()
+    {
+    }
+
+    public static RangeIterator __CreateDefault()
+    {
+        return new RangeIterator();
+    }
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
     public struct Cursor
     {
         public int Position;
@@ -17,31 +33,34 @@ internal class RangeIterator : IIterator<RangeIterator.Cursor>
         {
             Position = pos;
         }
-    }
 
-    public Cursor CreateCursor(int pos)
-    {
-        return new Cursor(pos);
-    }
+        private Cursor(int p0, Mist.Emission.CSharp.__StructInit marker)
+        {
+            this.Position = p0;
+        }
 
-    public static RangeIterator __CreateDefault()
-    {
-        var inst = new RangeIterator();
-        return inst;
+        internal static Cursor __FromParts(int p0, Mist.Emission.CSharp.__StructInit marker)
+        {
+            return new Cursor(p0, default(Mist.Emission.CSharp.__StructInit));
+        }
     }
 }
+
 public class Program
 {
     public static void Main(string[] args)
     {
-        var iter = new RangeIterator();
-        var cursor = iter.CreateCursor(42);
+        Snippet.RangeIterator iter = new Snippet.RangeIterator();
+        Snippet.RangeIterator.Cursor cursor = iter.CreateCursor(42);
         Console.WriteLine($"cursor.Position={cursor.Position}");
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

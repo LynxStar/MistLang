@@ -10,41 +10,53 @@ public class Consumers
         return n;
     }
 
+    public Consumers()
+    {
+    }
+
     public static Consumers __CreateDefault()
     {
-        var inst = new Consumers();
-        return inst;
+        return new Consumers();
     }
 }
+
 public class Program
 {
     public static void Main(string[] args)
     {
-        var count = 10;
-        MistContext.Push<int>(count);
-        try
         {
-            Console.WriteLine(Consumers.GetInt());
-            MistContext.Push<int>(99);
+            var count = 10;
+            MistContext.Push<int>(count);
             try
             {
-                Console.WriteLine(Consumers.GetInt());
+                Console.WriteLine(Snippet.Consumers.GetInt());
+                {
+                    var __e2 = 99;
+                    MistContext.Push<int>(__e2);
+                    try
+                    {
+                        Console.WriteLine(Snippet.Consumers.GetInt());
+                    }
+                    finally
+                    {
+                        MistContext.Pop<int>();
+                    }
+                }
+                Console.WriteLine(Snippet.Consumers.GetInt());
             }
             finally
             {
                 MistContext.Pop<int>();
             }
-            Console.WriteLine(Consumers.GetInt());
         }
-        finally
-        {
-            MistContext.Pop<int>();
-        }
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

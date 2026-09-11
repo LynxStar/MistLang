@@ -1,6 +1,6 @@
-// SnippetEmitter — Compiles .mist book snippets and writes the emitted C# to
-// their corresponding .cs files. This ensures the book's "Emitted C#" tabs
-// always reflect the actual compiler output.
+// SnippetEmitter — Compiles .mist book snippets on the experimental pipeline and
+// writes the emitted C# to their corresponding .cs files. This ensures the book's
+// "Emitted C#" tabs always reflect the actual compiler output.
 //
 // Usage:
 //   dotnet run --project tools/SnippetEmitter [snippets-dir]
@@ -9,14 +9,12 @@
 // working directory.
 
 using System.Collections.Immutable;
-using Mist.Analysis.Builtin;
 using Mist.Analysis.Contracts;
 using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
-using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 
 var snippetsDir = args.Length > 0
@@ -99,67 +97,74 @@ string? EmitSnippet(string mistPath)
         var tempMistPath = Path.Combine(scratchDir, fileName);
         File.WriteAllText(tempMistPath, source);
 
-        var capture = new CapturingSemanticModelBuilder();
+        var outputDir = Path.Combine(scratchDir, "output");
         var driver = new CompilerDriver(
             new Mist.Lexing.MistLexer(),
             new Mist.Parsing.MistParser(),
-            capture,
-            ImmutableArray.Create<IAnalyzer>(new TypeCheckerAnalyzer()),
+            new SemanticModelBuilder(),
+            ImmutableArray<IAnalyzer>.Empty,
             ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
 
         var options = new CompilerOptions(
             ProjectFolder: scratchDir,
             SourcePaths: ImmutableArray.Create(tempMistPath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: Path.Combine(scratchDir, "output"),
+            OutputDirectory: outputDir,
             BinDirectory: Path.Combine(scratchDir, "bin"),
             ProjectName: "Snippet",
             NamespaceRoot: "Snippet",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,
-            EmitToDisk: false);
+            Pipeline: PipelineMode.Experimental);
 
         var result = driver.Compile(options);
 
-        // Check for fatal errors that prevent emission.
-        var fatalErrors = result.Diagnostics
-            .Where(d => d.Severity == DiagnosticSeverity.Error)
-            .Where(d => d.Id.Value is not "MIST_TC_0017") // Ignore "no entry point" for non-TLS snippets
-            .ToList();
-
-        if (capture.CapturedModel is null)
+        // A snippet without a Main is either a top-level-statements program or a library, which a
+        // project file would say and a snippet cannot; the emitter refuses an executable without an
+        // entry point, so each shape is tried in turn and the emitted C# is the same either way.
+        if (result.Diagnostics.Any(d => d.Id.Value == "MIST_MISSING_ENTRY_POINT"))
         {
-            Console.Error.WriteLine($"  FAILED (no semantic model): {relativeMist}");
-            foreach (var d in fatalErrors.Take(3))
+            result = driver.Compile(options with { EntryPoint = "top-level" });
+
+            if (!result.Succeeded)
+            {
+                result = driver.Compile(options with { OutputType = ProjectOutputType.Library });
+            }
+        }
+
+        if (!result.Succeeded)
+        {
+            Console.Error.WriteLine($"  FAILED: {relativeMist}");
+            foreach (var d in result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).Take(3))
                 Console.Error.WriteLine($"    {d.Id.Value}: {d.Message}");
             return null;
         }
 
-        // Emit to memory.
-        var emitDiag = new DiagnosticBag();
-        var emittedFiles = CSharpEmitter.EmitToMemory(capture.CapturedModel, emitDiag);
-
-        // Find the emitted file (should be named after the .mist file with .cs extension).
+        // The emitted file is named after the .mist file and sits under the assembly's folder; the
+        // rest of the output is runtime support the book does not show.
         var expectedCsName = Path.ChangeExtension(fileName, ".cs");
-        if (!emittedFiles.TryGetValue(expectedCsName, out var csContent))
+        var emitted = Directory.GetFiles(outputDir, "*.cs", SearchOption.AllDirectories)
+            .Where(path => !Path.GetFileName(path).StartsWith("__", StringComparison.Ordinal))
+            .OrderBy(path => path)
+            .ToList();
+
+        var expectedCsPath = emitted.FirstOrDefault(path => Path.GetFileName(path) == expectedCsName);
+        if (expectedCsPath is not null)
         {
-            // Try the first (and likely only) emitted file.
-            if (emittedFiles.Count == 1)
-            {
-                csContent = emittedFiles.Values.First();
-            }
-            else if (emittedFiles.Count == 0)
-            {
-                Console.Error.WriteLine($"  FAILED (no emitted output): {relativeMist}");
-                return null;
-            }
-            else
-            {
-                // Multiple files emitted — pick the one matching the source file name.
-                csContent = emittedFiles.Values.First();
-            }
+            return File.ReadAllText(expectedCsPath);
         }
 
-        return csContent;
+        var candidates = emitted;
+
+        if (candidates.Count == 0)
+        {
+            var produced = Directory.Exists(outputDir)
+                ? string.Join(", ", Directory.GetFiles(outputDir, "*", SearchOption.AllDirectories).Select(Path.GetFileName).OrderBy(name => name))
+                : "no output directory";
+            Console.Error.WriteLine($"  FAILED (no emitted output): {relativeMist} -- output holds: {produced}");
+            return null;
+        }
+
+        return File.ReadAllText(candidates[0]);
     }
     catch (Exception ex)
     {
@@ -169,28 +174,5 @@ string? EmitSnippet(string mistPath)
     finally
     {
         try { Directory.Delete(scratchDir, recursive: true); } catch { /* best effort */ }
-    }
-}
-
-/// <summary>
-/// Wraps SemanticModelBuilder to capture the model for EmitToMemory.
-/// </summary>
-sealed class CapturingSemanticModelBuilder : ISemanticModelBuilder
-{
-    private readonly SemanticModelBuilder _inner = new();
-    public ISemanticModel? CapturedModel { get; private set; }
-
-    public ISemanticModel Build(
-        MistCompilation compilation,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        IAmbientTypeResolver? ambientTypeResolver,
-        string namespaceRoot,
-        string projectFolder,
-        DiagnosticBag diagnostics,
-        ImmutableHashSet<string>? directReferencePaths = null)
-    {
-        var model = _inner.Build(compilation, asts, ambientTypeResolver, namespaceRoot, projectFolder, diagnostics, directReferencePaths);
-        CapturedModel = model;
-        return model;
     }
 }

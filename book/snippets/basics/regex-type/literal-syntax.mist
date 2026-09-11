@@ -1,3 +1,5 @@
+using Standard;
+
 var digits = `\d+`;
 Console.WriteLine($"pattern={digits.Pattern}");
 Console.WriteLine($"matches_123={digits.IsMatch("123")}");

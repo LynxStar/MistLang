@@ -2,9 +2,9 @@ using System;
 
 namespace Snippets;
 
-private class Handle
+public class Handle
 {
-    int Id;
+    private int Id;
 
     public Handle(int id)
     {
@@ -13,19 +13,19 @@ private class Handle
 
     public void Drop()
     {
-        System.Console.WriteLine($"Handle({Id}) released");
+        Console.WriteLine($"Handle({Id}) released");
     }
 }
+
 public class Session
 {
-    Handle Conn;
-
-    Handle Log;
+    private Snippets.Handle Conn;
+    private Snippets.Handle Log;
 
     public Session(int connId, int logId)
     {
-        this.Conn = new Handle(connId);
-        this.Log = new Handle(logId);
+        this.Conn = new Snippets.Handle(connId);
+        this.Log = new Snippets.Handle(logId);
     }
 
     public void Drop()
@@ -34,14 +34,15 @@ public class Session
         this.Log.Drop();
     }
 }
+
 public class Program
 {
     public static void Main()
     {
-        var session = new Session(1, 2);
+        Snippets.Session session = new Snippets.Session(1, 2);
         try
         {
-            System.Console.WriteLine("Session active");
+            Console.WriteLine("Session active");
         }
         finally
         {
@@ -49,9 +50,12 @@ public class Program
         }
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

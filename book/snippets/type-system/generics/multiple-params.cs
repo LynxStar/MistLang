@@ -5,7 +5,6 @@ namespace Snippet;
 public class KeyValueStore<K, V>
 {
     private K key;
-
     private V value;
 
     public KeyValueStore(K key, V value)

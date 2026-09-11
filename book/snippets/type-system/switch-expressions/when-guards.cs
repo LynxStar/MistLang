@@ -6,27 +6,20 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        var number = -5;
-        var sign = number switch
-        {
-            int n when n > 0 => "positive",
-            int n when n < 0 => "negative",
-            var _ => "zero",
-        };
+        int number = -5;
+        string sign = number switch { int n when n > 0 => "positive", int n when n < 0 => "negative", var _ => "zero" };
         Console.WriteLine($"Number {number} => {sign}");
-        var amount = 150;
-        var tier = amount switch
-        {
-            int n when n >= 100 => $"premium (value={n})",
-            int n when n >= 50 => $"standard (value={n})",
-            var _ => "basic",
-        };
+        int amount = 150;
+        string tier = amount switch { int n when n >= 100 => $"premium (value={n})", int n when n >= 50 => $"standard (value={n})", var _ => "basic" };
         Console.WriteLine($"Amount {amount} => {tier}");
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

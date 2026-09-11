@@ -14,9 +14,12 @@ public class MathHelper
         return a + b;
     }
 
+    public MathHelper()
+    {
+    }
+
     public static MathHelper __CreateDefault()
     {
-        var inst = new MathHelper();
-        return inst;
+        return new MathHelper();
     }
 }

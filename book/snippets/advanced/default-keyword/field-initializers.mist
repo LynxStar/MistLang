@@ -1,3 +1,5 @@
+using Standard;
+
 public class Settings
 {
     public int Timeout = 30;

@@ -2,12 +2,9 @@ using System;
 
 namespace Snippet;
 
-[DependentType("Size", typeof(int))]
 public class FixedArray<TValue, TSize>
     where TSize : IConstInt
 {
-    public static int Size => TSize.Value;
-
     public int GetSize()
     {
         return TSize.Value;
@@ -17,17 +14,21 @@ public class FixedArray<TValue, TSize>
     {
         return $"FixedArray<Size={TSize.Value}>";
     }
+
+    public FixedArray()
+    {
+    }
+
+    public static FixedArray<TValue, TSize> __CreateDefault()
+    {
+        return new FixedArray<TValue, TSize>();
+    }
 }
-[DependentType("Rows", typeof(int))]
-[DependentType("Cols", typeof(int))]
+
 public class Matrix<TRows, TCols>
     where TRows : IConstInt
     where TCols : IConstInt
 {
-    public static int Rows => TRows.Value;
-
-    public static int Cols => TCols.Value;
-
     public int GetRows()
     {
         return TRows.Value;
@@ -37,20 +38,33 @@ public class Matrix<TRows, TCols>
     {
         return TCols.Value;
     }
+
+    public Matrix()
+    {
+    }
+
+    public static Matrix<TRows, TCols> __CreateDefault()
+    {
+        return new Matrix<TRows, TCols>();
+    }
 }
+
 public class Program
 {
     public static void Main(string[] args)
     {
-        var arr = new FixedArray<int, Const_Int_5>();
+        Snippet.FixedArray<int, Const_Int_5> arr = new Snippet.FixedArray<int, Const_Int_5>();
         Console.WriteLine(arr.Describe());
-        var mat = new Matrix<Const_Int_3, Const_Int_4>();
+        Snippet.Matrix<Const_Int_3, Const_Int_4> mat = new Snippet.Matrix<Const_Int_3, Const_Int_4>();
         Console.WriteLine($"Matrix<{mat.GetRows()}x{mat.GetCols()}>");
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

@@ -2,22 +2,25 @@ using System;
 
 namespace Snippet;
 
-internal class Program
+class Program
 {
     public static void Main(string[] args)
     {
-        var city = "Portland";
-        var population = 650000;
-        var info = new { city, population };
-        System.Console.WriteLine($"city={info.city} population={info.population}");
+        string city = "Portland";
+        int population = 650000;
+        var info = new { city = city, population = population };
+        Console.WriteLine($"city={info.city} population={info.population}");
         var lang = new { Name = "Mist", Version = 1 };
-        var projected = new { lang.Name };
-        System.Console.WriteLine($"projected.Name={projected.Name}");
+        var projected = new { Name = lang.Name };
+        Console.WriteLine($"projected.Name={projected.Name}");
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

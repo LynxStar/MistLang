@@ -6,7 +6,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        var count = 0;
+        int count = 0;
         while (count < 3)
         {
             Console.WriteLine($"Count: {count}");
@@ -14,9 +14,12 @@ public class Program
         }
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

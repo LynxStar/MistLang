@@ -6,15 +6,21 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        System.Action<string> printer = msg => System.Console.WriteLine($"[LOG] {msg}");
-        System.Action doNothing = () => { };
+        System.Action<string> printer = (string msg) => Console.WriteLine($"[LOG] {msg}");
+        System.Action doNothing = () => 
+        {
+        }
+;
         printer("hello");
         doNothing();
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

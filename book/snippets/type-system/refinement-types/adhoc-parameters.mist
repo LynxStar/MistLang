@@ -1,3 +1,5 @@
+using Standard;
+
 public class Validator
 {
     // Ad-hoc refinement on a method parameter

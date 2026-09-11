@@ -5,46 +5,51 @@ namespace Snippet;
 public class Pair
 {
     public int X;
-
     public int Y;
 
     public Pair()
     {
-        this.X = 0;
-        this.Y = 0;
+        this.X = default(int);
+        this.Y = default(int);
     }
 
     public static Pair __CreateDefault()
     {
-        var inst = new Pair();
-        return inst;
+        return new Pair();
     }
 }
+
 public class Factory
 {
-    public static T Create<T>(Func<T> __defaultT)
-        // where T : default (Mist constraint — enforced at compile time)
+    public static T Create<T>(System.Func<T> __default_T)
     {
-        return __defaultT();
+        return __default_T();
+    }
+
+    public Factory()
+    {
     }
 
     public static Factory __CreateDefault()
     {
-        var inst = new Factory();
-        return inst;
+        return new Factory();
     }
 }
+
 public class Program
 {
     public static void Main(string[] args)
     {
-        var p = Factory.Create<Pair>(() => Pair.__CreateDefault());
+        Snippet.Pair p = Snippet.Factory.Create<Snippet.Pair>(() => Snippet.Pair.__CreateDefault());
         Console.WriteLine($"X={p.X} Y={p.Y}");
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

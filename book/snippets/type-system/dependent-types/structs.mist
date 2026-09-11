@@ -1,3 +1,5 @@
+using Standard;
+
 public struct FixedSpan<Length:int>
 {
     public int GetLength() { return Length; }

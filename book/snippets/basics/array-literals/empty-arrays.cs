@@ -1,4 +1,4 @@
 using System;
 
-int[] empty = Array.Empty<int>();
-string[] noNames = Array.Empty<string>();
+int[] empty = new int[] { };
+string[] noNames = new string[] { };

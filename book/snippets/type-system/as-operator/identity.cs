@@ -11,18 +11,22 @@ public class Dog
         Name = name;
     }
 }
+
 public class Program
 {
     public static void Main(string[] args)
     {
-        var dog = new Dog("Rex");
-        Dog same = dog;
-        System.Console.WriteLine(same.Name);
+        Snippet.Dog dog = new Snippet.Dog("Rex");
+        Snippet.Dog same = dog;
+        Console.WriteLine(same.Name);
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

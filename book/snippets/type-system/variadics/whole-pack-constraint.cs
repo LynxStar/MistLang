@@ -7,36 +7,57 @@ public interface IShape
     int Area();
 }
 
-public struct Circle : IShape
+[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+public struct Circle : Snippet.IShape
 {
-    public readonly int Area()
+    private Circle(Mist.Emission.CSharp.__StructInit marker)
+    {
+    }
+
+    internal static Circle __FromParts(Mist.Emission.CSharp.__StructInit marker)
+    {
+        return new Circle(default(Mist.Emission.CSharp.__StructInit));
+    }
+
+    public int Area()
     {
         return 3;
     }
+
+    public Circle()
+    {
+    }
+
+    public static Circle __CreateDefault()
+    {
+        return new Circle();
+    }
 }
 
-public struct Square : IShape
+[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+public struct Square : Snippet.IShape
 {
-    public readonly int Area()
+    private Square(Mist.Emission.CSharp.__StructInit marker)
+    {
+    }
+
+    internal static Square __FromParts(Mist.Emission.CSharp.__StructInit marker)
+    {
+        return new Square(default(Mist.Emission.CSharp.__StructInit));
+    }
+
+    public int Area()
     {
         return 4;
     }
-}
 
-public struct ShapePair<T1, T2> where T1 : IShape where T2 : IShape
-{
-    public System.ValueTuple<T1, T2> Shape;
-    public T1 Shape1 { get => Shape.Item1; set => Shape.Item1 = value; }
-    public T2 Shape2 { get => Shape.Item2; set => Shape.Item2 = value; }
-
-    public ShapePair(System.ValueTuple<T1, T2> values)
+    public Square()
     {
-        Shape = values;
     }
 
-    public int TotalArea()
+    public static Square __CreateDefault()
     {
-        return Shape1.Area() + Shape2.Area();
+        return new Square();
     }
 }
 
@@ -44,7 +65,16 @@ public class Program
 {
     public static void Main(string[] cmdArgs)
     {
-        var pair = new ShapePair<Circle, Square>((new Circle(), new Square()));
-        System.Console.WriteLine($"area={pair.TotalArea()}");
+        ShapePair_2<Snippet.Circle, Snippet.Square> pair = new ShapePair_2<Snippet.Circle, Snippet.Square>((new Snippet.Circle(), new Snippet.Square()));
+        Console.WriteLine($"area={pair.TotalArea()}");
+    }
+
+    public Program()
+    {
+    }
+
+    public static Program __CreateDefault()
+    {
+        return new Program();
     }
 }

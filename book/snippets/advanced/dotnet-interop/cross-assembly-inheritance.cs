@@ -7,17 +7,20 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        var memory = new MemoryStream();
+        System.IO.MemoryStream memory = new System.IO.MemoryStream();
         memory.WriteByte(65);
         memory.WriteByte(66);
-        Stream stream = memory;
-        System.Console.WriteLine($"length={stream.Length}");
-        System.Console.WriteLine($"canRead={stream.CanRead}");
+        System.IO.Stream stream = memory;
+        Console.WriteLine($"length={stream.Length}");
+        Console.WriteLine($"canRead={stream.CanRead}");
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

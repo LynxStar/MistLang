@@ -1,3 +1,5 @@
+using Standard;
+
 // This compiles but produces a warning: the protected
 // accessibility is unnecessary because a sealed type
 // cannot be inherited.

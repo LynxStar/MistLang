@@ -11,7 +11,8 @@ public class Animal
         Name = name;
     }
 }
-public class Dog : Animal
+
+public class Dog : Snippet.Animal
 {
     public string Breed;
 
@@ -20,21 +21,27 @@ public class Dog : Animal
         Breed = breed;
     }
 }
+
 public class Program
 {
     public static void Main(string[] args)
     {
-        Animal animal = new Dog("Rex", "Labrador");
-        string? breed = ((animal as Dog))?.Breed;
-        if (breed is string b)
+        Snippet.Animal animal = new Snippet.Dog("Rex", "Labrador");
+        string breed = (animal as Snippet.Dog)?.Breed;
         {
-            System.Console.WriteLine($"Breed: {b}");
+            if (breed is string b)
+            {
+                Console.WriteLine($"Breed: {b}");
+            }
         }
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

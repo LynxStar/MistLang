@@ -18,8 +18,17 @@ public class Counter
 
     public static void Main(string[] args)
     {
-        var c1 = new Counter();
-        var c2 = new Counter();
-        Console.WriteLine($"Total: {Counter.GetTotalCreated()}");
+        Snippet.Counter c1 = new Snippet.Counter();
+        Snippet.Counter c2 = new Snippet.Counter();
+        Console.WriteLine($"Total: {Snippet.Counter.GetTotalCreated()}");
+    }
+
+    private Counter(Mist.Emission.CSharp.__DefaultInit marker)
+    {
+    }
+
+    public static Counter __CreateDefault()
+    {
+        return new Counter(default(Mist.Emission.CSharp.__DefaultInit));
     }
 }

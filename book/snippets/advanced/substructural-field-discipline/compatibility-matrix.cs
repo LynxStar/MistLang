@@ -2,9 +2,9 @@ using System;
 
 namespace Snippets;
 
-private class Resource
+public class Resource
 {
-    int Id;
+    private int Id;
 
     public Resource(int id)
     {
@@ -13,12 +13,13 @@ private class Resource
 
     public void Drop()
     {
-        System.Console.WriteLine($"Resource({Id}).Drop()");
+        Console.WriteLine($"Resource({Id}).Drop()");
     }
 }
-private class Token
+
+public class Token
 {
-    int Id;
+    private int Id;
 
     public Token(int id)
     {
@@ -27,14 +28,14 @@ private class Token
 
     public void Drop()
     {
-        System.Console.WriteLine($"Token({Id}).Drop()");
+        Console.WriteLine($"Token({Id}).Drop()");
     }
 }
-private class Subscription
-{
-    int Id;
 
-    bool Dropped;
+public class Subscription
+{
+    private int Id;
+    private bool Dropped;
 
     public Subscription(int id)
     {
@@ -49,52 +50,52 @@ private class Subscription
             return;
         }
         this.Dropped = true;
-        System.Console.WriteLine($"Subscription({Id}).Drop()");
+        Console.WriteLine($"Subscription({Id}).Drop()");
     }
 }
-private class PlainData
+
+public class PlainData
 {
-    int Value;
+    private int Value;
 
     public PlainData(int v)
     {
         this.Value = v;
     }
 }
+
 public class LinearHolder
 {
-    Resource Lin;
-
-    Token Aff;
-
-    Subscription Rel;
-
-    PlainData Plain;
+    private Snippets.Resource Lin;
+    private Snippets.Token Aff;
+    private Snippets.Subscription Rel;
+    private Snippets.PlainData Plain;
 
     public LinearHolder()
     {
-        this.Lin = new Resource(1);
-        this.Aff = new Token(2);
-        this.Rel = new Subscription(3);
-        this.Plain = new PlainData(4);
+        this.Lin = new Snippets.Resource(1);
+        this.Aff = new Snippets.Token(2);
+        this.Rel = new Snippets.Subscription(3);
+        this.Plain = new Snippets.PlainData(4);
     }
 
     public void Drop()
     {
-        System.Console.WriteLine("LinearHolder.Drop()");
+        Console.WriteLine("LinearHolder.Drop()");
         this.Lin.Drop();
         this.Aff.Drop();
         this.Rel.Drop();
     }
 }
+
 public class Program
 {
     public static void Main()
     {
-        var holder = new LinearHolder();
+        Snippets.LinearHolder holder = new Snippets.LinearHolder();
         try
         {
-            System.Console.WriteLine("Linear container holds all four disciplines:");
+            Console.WriteLine("Linear container holds all four disciplines:");
         }
         finally
         {
@@ -102,9 +103,12 @@ public class Program
         }
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

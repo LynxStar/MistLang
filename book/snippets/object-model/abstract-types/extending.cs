@@ -2,11 +2,12 @@ using System;
 
 namespace Snippet;
 
-public interface IDescribable
+interface IDescribable
 {
     string Describe();
 }
-public interface IFullyDescribable : IDescribable
+
+interface IFullyDescribable : Snippet.IDescribable
 {
     string DetailedDescribe();
 }

@@ -1,3 +1,5 @@
+using Standard;
+
 type UserId = new int;
 type Label = new string;
 type Flag = new bool;

@@ -5,7 +5,6 @@ namespace Snippet;
 public class Label
 {
     public readonly string text;
-
     public readonly int code;
 
     public Label(string text, int code)
@@ -19,27 +18,28 @@ public class Label
         return $"Label({this.text}, {this.code})";
     }
 }
-public record class Severity(Label Value)
+
+public sealed record class Severity(Snippet.Label Value)
 {
-    public static readonly Severity Critical = new Severity(new Label("CRITICAL", 1));
-    public static readonly Severity Warning = new Severity(new Label("WARNING", 2));
-    public static readonly Severity Info = new Severity(new Label("INFO", 3));
+    public static readonly Severity Critical = new Severity(new Snippet.Label("CRITICAL", 1));
+    public static readonly Severity Warning = new Severity(new Snippet.Label("WARNING", 2));
+    public static readonly Severity Info = new Severity(new Snippet.Label("INFO", 3));
 
-    public static implicit operator Label(Severity e) => e.Value;
+    public static implicit operator Snippet.Label(Severity e) => e.Value;
 
-    public static explicit operator Severity?(Label value)
+    public static explicit operator Severity?(Snippet.Label value)
     {
-        if (Equals(value, Critical.Value)) return Critical;
-        else if (Equals(value, Warning.Value)) return Warning;
-        else if (Equals(value, Info.Value)) return Info;
+        if(Equals(value, Severity.Critical.Value)) return Severity.Critical;
+        if(Equals(value, Severity.Warning.Value)) return Severity.Warning;
+        if(Equals(value, Severity.Info.Value)) return Severity.Info;
         return null;
     }
 
     public override string ToString()
     {
-        if (ReferenceEquals(this, Critical)) return "Critical";
-        else if (ReferenceEquals(this, Warning)) return "Warning";
-        else if (ReferenceEquals(this, Info)) return "Info";
+        if(ReferenceEquals(this, Severity.Critical)) return "Critical";
+        if(ReferenceEquals(this, Severity.Warning)) return "Warning";
+        if(ReferenceEquals(this, Severity.Info)) return "Info";
         return Value.ToString();
     }
 }

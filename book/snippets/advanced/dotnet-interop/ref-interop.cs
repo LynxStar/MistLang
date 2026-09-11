@@ -8,13 +8,16 @@ public class Program
     public static void Main(string[] args)
     {
         int value = 42;
-        int old = Interlocked.Exchange(ref value, 100);
-        System.Console.WriteLine($"old={old}, new={value}");
+        int old = System.Threading.Interlocked.Exchange(ref value, 100);
+        Console.WriteLine($"old={old}, new={value}");
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

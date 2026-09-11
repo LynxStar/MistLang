@@ -2,7 +2,7 @@ using System;
 
 namespace Enums;
 
-public record class Permission(string Value)
+public sealed record class Permission(string Value)
 {
     public static readonly Permission Read = new Permission("Read");
     public static readonly Permission Write = new Permission("Write");
@@ -12,21 +12,22 @@ public record class Permission(string Value)
 
     public static explicit operator Permission?(string value)
     {
-        if (Equals(value, Read.Value)) return Read;
-        else if (Equals(value, Write.Value)) return Write;
-        else if (Equals(value, Execute.Value)) return Execute;
+        if(Equals(value, Permission.Read.Value)) return Permission.Read;
+        if(Equals(value, Permission.Write.Value)) return Permission.Write;
+        if(Equals(value, Permission.Execute.Value)) return Permission.Execute;
         return null;
     }
 
     public override string ToString()
     {
-        if (ReferenceEquals(this, Read)) return "Read";
-        else if (ReferenceEquals(this, Write)) return "Write";
-        else if (ReferenceEquals(this, Execute)) return "Execute";
+        if(ReferenceEquals(this, Permission.Read)) return "Read";
+        if(ReferenceEquals(this, Permission.Write)) return "Write";
+        if(ReferenceEquals(this, Permission.Execute)) return "Execute";
         return Value.ToString();
     }
 }
-public record class Environment(string Value)
+
+public sealed record class Environment(string Value)
 {
     public static readonly Environment Development = new Environment("dev");
     public static readonly Environment Staging = new Environment("Staging");
@@ -36,33 +37,37 @@ public record class Environment(string Value)
 
     public static explicit operator Environment?(string value)
     {
-        if (Equals(value, Development.Value)) return Development;
-        else if (Equals(value, Staging.Value)) return Staging;
-        else if (Equals(value, Production.Value)) return Production;
+        if(Equals(value, Environment.Development.Value)) return Environment.Development;
+        if(Equals(value, Environment.Staging.Value)) return Environment.Staging;
+        if(Equals(value, Environment.Production.Value)) return Environment.Production;
         return null;
     }
 
     public override string ToString()
     {
-        if (ReferenceEquals(this, Development)) return "Development";
-        else if (ReferenceEquals(this, Staging)) return "Staging";
-        else if (ReferenceEquals(this, Production)) return "Production";
+        if(ReferenceEquals(this, Environment.Development)) return "Development";
+        if(ReferenceEquals(this, Environment.Staging)) return "Staging";
+        if(ReferenceEquals(this, Environment.Production)) return "Production";
         return Value.ToString();
     }
 }
+
 public class Program
 {
     public static void Main()
     {
         string perm = Permission.Read;
-        System.Console.WriteLine(perm);
+        Console.WriteLine(perm);
         string env = Environment.Staging;
-        System.Console.WriteLine(env);
+        Console.WriteLine(env);
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

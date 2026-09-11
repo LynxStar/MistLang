@@ -15,9 +15,12 @@ public class Logger
         Log("Processing complete");
     }
 
+    public Logger()
+    {
+    }
+
     public static Logger __CreateDefault()
     {
-        var inst = new Logger();
-        return inst;
+        return new Logger();
     }
 }

@@ -1,3 +1,5 @@
+using Standard;
+
 public class Outer
 {
     private int secret;

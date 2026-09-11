@@ -2,12 +2,13 @@ using System;
 
 namespace Snippet;
 
-public interface IStringable
+interface IStringable
 {
     string Stringify();
 }
-public interface IProducer<TOutput>
-    where TOutput : IStringable
+
+interface IProducer<Output>
+    where Output : Snippet.IStringable
 {
-    TOutput CreateOutput(string msg);
+    Output CreateOutput(string msg);
 }

@@ -2,10 +2,10 @@ using System;
 
 namespace Snippet;
 
+[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
 public struct Pair<A, B>
 {
     public A First;
-
     public B Second;
 
     public Pair(A first, B second)
@@ -14,7 +14,18 @@ public struct Pair<A, B>
         this.Second = second;
     }
 
-    public readonly string Describe()
+    private Pair(A p0, B p1, Mist.Emission.CSharp.__StructInit marker)
+    {
+        this.First = p0;
+        this.Second = p1;
+    }
+
+    internal static Pair<A, B> __FromParts(A p0, B p1, Mist.Emission.CSharp.__StructInit marker)
+    {
+        return new Pair<A, B>(p0, p1, default(Mist.Emission.CSharp.__StructInit));
+    }
+
+    public string Describe()
     {
         return $"({First}, {Second})";
     }

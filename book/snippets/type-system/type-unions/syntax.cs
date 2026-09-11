@@ -12,9 +12,12 @@ public class Program
         Console.WriteLine($"y holds a string");
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

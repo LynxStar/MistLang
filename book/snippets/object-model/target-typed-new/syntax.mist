@@ -1,3 +1,5 @@
+using Standard;
+
 class Point
 {
     public int X;

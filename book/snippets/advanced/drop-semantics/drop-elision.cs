@@ -4,7 +4,7 @@ namespace Snippets;
 
 public class Connection
 {
-    string Host;
+    private string Host;
 
     public Connection(string host)
     {
@@ -13,7 +13,7 @@ public class Connection
 
     public void Drop()
     {
-        System.Console.WriteLine($"Connection({Host}) closed");
+        Console.WriteLine($"Connection({Host}) closed");
     }
 
     public string GetHost()
@@ -21,13 +21,14 @@ public class Connection
         return Host;
     }
 }
+
 public class Program
 {
-    public static void Send(Connection conn)
+    public static void Send(Snippets.Connection conn)
     {
         try
         {
-            System.Console.WriteLine($"Sending on {conn.GetHost()}");
+            Console.WriteLine($"Sending on {conn.GetHost()}");
         }
         finally
         {
@@ -35,18 +36,18 @@ public class Program
         }
     }
 
-    public static Connection Upgrade(Connection conn)
+    public static Snippets.Connection Upgrade(Snippets.Connection conn)
     {
-        System.Console.WriteLine($"Upgrading {conn.GetHost()}");
+        Console.WriteLine($"Upgrading {conn.GetHost()}");
         return conn;
     }
 
     public static void Main()
     {
-        var c = new Connection("example.com");
+        Snippets.Connection c = new Snippets.Connection("example.com");
         Send(c);
-        var c2 = new Connection("other.com");
-        var c3 = Upgrade(c2);
+        Snippets.Connection c2 = new Snippets.Connection("other.com");
+        Snippets.Connection c3 = Upgrade(c2);
         try
         {
         }
@@ -56,9 +57,12 @@ public class Program
         }
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

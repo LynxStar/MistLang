@@ -8,13 +8,16 @@ public class Program
     {
         int? opt = 42;
         int? shorthand = opt;
-        System.Console.WriteLine($"opt={(object?)opt ?? "Void"}");
-        System.Console.WriteLine($"shorthand={(object?)shorthand ?? "Void"}");
+        Console.WriteLine($"opt={(object?)opt ?? "Void"}");
+        Console.WriteLine($"shorthand={(object?)shorthand ?? "Void"}");
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

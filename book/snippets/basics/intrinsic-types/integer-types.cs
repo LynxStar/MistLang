@@ -1,7 +1,7 @@
 using System;
 
 int i = 42;
-uint ui = 100u;
+uint ui = 100U;
 long l = 100L;
 ulong ul = 999UL;
 short s = 16;

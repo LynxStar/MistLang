@@ -1,5 +1,4 @@
 using System;
-using System.Text.RegularExpressions;
 
 namespace Snippet;
 
@@ -17,16 +16,20 @@ public class Logger
         return $"[{prefix}] {message}";
     }
 }
+
 public class LoggerFactory
 {
-    public static string GetPrefix(Logger logger)
+    public static string GetPrefix(Snippet.Logger logger)
     {
         return logger.prefix;
     }
 
+    public LoggerFactory()
+    {
+    }
+
     public static LoggerFactory __CreateDefault()
     {
-        var inst = new LoggerFactory();
-        return inst;
+        return new LoggerFactory();
     }
 }

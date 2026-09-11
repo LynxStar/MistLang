@@ -1,3 +1,5 @@
+using Standard;
+
 public abstract IStrictProcessor
 {
     string Process(int x) where x >= 10 and <= 100;

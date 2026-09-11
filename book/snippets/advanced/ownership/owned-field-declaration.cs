@@ -5,7 +5,6 @@ namespace Snippet;
 public class Document
 {
     public string Content;
-
     public int Version;
 
     public Document(string content, int version)
@@ -19,19 +18,23 @@ public class Document
         return $"Document(v{Version}: {Content})";
     }
 }
+
 public class OwnedFieldDeclarationDemo
 {
     public static void Run()
     {
-        var doc = new Document("Hello", 1);
-        System.Console.WriteLine($"initial={doc.Describe()}");
+        Snippet.Document doc = new Snippet.Document("Hello", 1);
+        Console.WriteLine($"initial={doc.Describe()}");
         doc.Content = "Updated";
-        System.Console.WriteLine($"updated={doc.Describe()}");
+        Console.WriteLine($"updated={doc.Describe()}");
+    }
+
+    public OwnedFieldDeclarationDemo()
+    {
     }
 
     public static OwnedFieldDeclarationDemo __CreateDefault()
     {
-        var inst = new OwnedFieldDeclarationDemo();
-        return inst;
+        return new OwnedFieldDeclarationDemo();
     }
 }

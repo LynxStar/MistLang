@@ -16,6 +16,7 @@ public class Container<T>
         return value;
     }
 }
+
 public class InferenceDemo
 {
     public static T Identity<T>(T value)
@@ -23,22 +24,25 @@ public class InferenceDemo
         return value;
     }
 
-    public static T Unwrap<T>(Container<T> container)
+    public static T Unwrap<T>(Snippet.Container<T> container)
     {
         return container.GetValue();
     }
 
     public static void Run()
     {
-        var x = Identity(42);
-        var y = Identity > (42);
-        var box = new Container<string>("hello");
-        var s = Unwrap(box);
+        int x = Identity<int>(42);
+        int y = Identity<int>(42);
+        Snippet.Container<string> box = new Snippet.Container<string>("hello");
+        string s = Unwrap<string>(box);
+    }
+
+    public InferenceDemo()
+    {
     }
 
     public static InferenceDemo __CreateDefault()
     {
-        var inst = new InferenceDemo();
-        return inst;
+        return new InferenceDemo();
     }
 }

@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-public record class MixedResult(Union_Int32_String Value)
+public sealed record class MixedResult(Union_Int32_String Value)
 {
     public static readonly MixedResult Success = new MixedResult(0);
     public static readonly MixedResult ErrorMsg = new MixedResult("error");
@@ -11,15 +11,15 @@ public record class MixedResult(Union_Int32_String Value)
 
     public static explicit operator MixedResult?(Union_Int32_String value)
     {
-        if (Equals(value, Success.Value)) return Success;
-        else if (Equals(value, ErrorMsg.Value)) return ErrorMsg;
+        if(Equals(value, MixedResult.Success.Value)) return MixedResult.Success;
+        if(Equals(value, MixedResult.ErrorMsg.Value)) return MixedResult.ErrorMsg;
         return null;
     }
 
     public override string ToString()
     {
-        if (ReferenceEquals(this, Success)) return "Success";
-        else if (ReferenceEquals(this, ErrorMsg)) return "ErrorMsg";
+        if(ReferenceEquals(this, MixedResult.Success)) return "Success";
+        if(ReferenceEquals(this, MixedResult.ErrorMsg)) return "ErrorMsg";
         return Value.ToString();
     }
 }

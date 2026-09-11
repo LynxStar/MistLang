@@ -2,10 +2,9 @@ using System;
 
 namespace Snippet;
 
-public sealed class Config
+public class Config
 {
     private string key;
-
     private string value;
 
     public Config(string key, string value)

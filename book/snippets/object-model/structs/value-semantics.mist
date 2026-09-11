@@ -1,3 +1,5 @@
+using Standard;
+
 // Struct: copy semantics
 var a = new Color(255, 0, 0);
 var b = a;          // b is an independent copy

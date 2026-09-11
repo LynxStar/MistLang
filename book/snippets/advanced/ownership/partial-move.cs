@@ -5,7 +5,6 @@ namespace Snippet;
 public class Pair
 {
     public string Left;
-
     public string Right;
 
     public Pair(string left, string right)
@@ -14,19 +13,23 @@ public class Pair
         this.Right = right;
     }
 }
+
 public class PartialMoveDemo
 {
     public static void Run()
     {
-        var p = new Pair("alpha", "beta");
-        var extracted = p.Left;
-        System.Console.WriteLine($"extracted={extracted}");
-        System.Console.WriteLine($"right still live={p.Right}");
+        Snippet.Pair p = new Snippet.Pair("alpha", "beta");
+        string extracted = p.Left;
+        Console.WriteLine($"extracted={extracted}");
+        Console.WriteLine($"right still live={p.Right}");
+    }
+
+    public PartialMoveDemo()
+    {
     }
 
     public static PartialMoveDemo __CreateDefault()
     {
-        var inst = new PartialMoveDemo();
-        return inst;
+        return new PartialMoveDemo();
     }
 }

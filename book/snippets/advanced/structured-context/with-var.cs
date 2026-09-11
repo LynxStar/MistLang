@@ -10,33 +10,42 @@ public class Greeter
         return message;
     }
 
+    public Greeter()
+    {
+    }
+
     public static Greeter __CreateDefault()
     {
-        var inst = new Greeter();
-        return inst;
+        return new Greeter();
     }
 }
+
 public class Program
 {
     public static void Main(string[] args)
     {
-        var greeting = "hello";
-        MistContext.Push<string>(greeting);
-        try
         {
-            Console.WriteLine(greeting);
-            var result = Greeter.GetGreeting();
-            Console.WriteLine(result);
+            var greeting = "hello";
+            MistContext.Push<string>(greeting);
+            try
+            {
+                Console.WriteLine(greeting);
+                string result = Snippet.Greeter.GetGreeting();
+                Console.WriteLine(result);
+            }
+            finally
+            {
+                MistContext.Pop<string>();
+            }
         }
-        finally
-        {
-            MistContext.Pop<string>();
-        }
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

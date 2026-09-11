@@ -16,14 +16,17 @@ public class MathUtils
 
     public static void Main(string[] args)
     {
-        var result = Add(3, 4);
+        int result = Add(3, 4);
         Console.WriteLine($"Add(3, 4) = {result}");
         Console.WriteLine(Greet("Mist"));
     }
 
+    public MathUtils()
+    {
+    }
+
     public static MathUtils __CreateDefault()
     {
-        var inst = new MathUtils();
-        return inst;
+        return new MathUtils();
     }
 }

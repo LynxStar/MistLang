@@ -1,3 +1,5 @@
+using Standard;
+
 public class FrozenDemo
 {
     public static void FreezeAndRead(frozen Pair p)

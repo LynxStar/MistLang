@@ -6,10 +6,10 @@ public interface IDescribable
 {
     string Describe();
 }
-public class Person : IDescribable
+
+public class Person : Snippet.IDescribable
 {
     private string name;
-
     private int age;
 
     public Person(string name, int age)

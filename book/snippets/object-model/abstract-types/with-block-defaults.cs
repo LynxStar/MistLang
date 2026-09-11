@@ -5,44 +5,48 @@ namespace Snippet;
 public interface ITaggable
 {
     string Tag();
+
     string DisplayTag()
     {
         return $"[{this.Tag()}]";
     }
 }
-public class Widget : ITaggable
+
+public class Widget : Snippet.ITaggable
 {
     public string GetWidgetTag()
     {
         return "widget";
     }
 
-    string ITaggable.Tag() => this.GetWidgetTag();
-
-    public string DisplayTag()
+    public Widget()
     {
-        return $"[{this.Tag()}]";
     }
 
     public static Widget __CreateDefault()
     {
-        var inst = new Widget();
-        return inst;
+        return new Widget();
     }
+
+    string Snippet.ITaggable.Tag() => this.GetWidgetTag();
 }
+
 public class Program
 {
     public static void Main(string[] args)
     {
-        var widget = new Widget();
-        ITaggable taggable = widget;
+        Snippet.Widget widget = new Snippet.Widget();
+        Snippet.ITaggable taggable = widget;
         Console.WriteLine(taggable.Tag());
         Console.WriteLine(taggable.DisplayTag());
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

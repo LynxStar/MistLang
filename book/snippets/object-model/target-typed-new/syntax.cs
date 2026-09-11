@@ -2,10 +2,9 @@ using System;
 
 namespace Snippet;
 
-internal class Point
+class Point
 {
     public int X;
-
     public int Y;
 
     public Point(int x, int y)
@@ -19,17 +18,21 @@ internal class Point
         return $"Point({X}, {Y})";
     }
 }
-internal class Program
+
+class Program
 {
     public static void Main(string[] args)
     {
-        Point p = new Point(3, 4);
+        Snippet.Point p = new Snippet.Point(3, 4);
         Console.WriteLine(p.Describe());
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

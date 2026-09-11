@@ -5,7 +5,6 @@ namespace Snippet;
 public class Point
 {
     public int X;
-
     public int Y;
 
     public Point(int x, int y)
@@ -19,17 +18,21 @@ public class Point
         return $"Point({X}, {Y})";
     }
 }
+
 public class OwnedBindingDemo
 {
     public static void Run()
     {
-        Point p = new Point(3, 7);
-        System.Console.WriteLine($"owned binding={p.Describe()}");
+        Snippet.Point p = new Snippet.Point(3, 7);
+        Console.WriteLine($"owned binding={p.Describe()}");
+    }
+
+    public OwnedBindingDemo()
+    {
     }
 
     public static OwnedBindingDemo __CreateDefault()
     {
-        var inst = new OwnedBindingDemo();
-        return inst;
+        return new OwnedBindingDemo();
     }
 }

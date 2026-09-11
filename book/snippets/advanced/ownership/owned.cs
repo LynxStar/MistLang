@@ -5,7 +5,6 @@ namespace Snippet;
 public class Pair
 {
     public int X;
-
     public int Y;
 
     public Pair(int x, int y)
@@ -24,18 +23,22 @@ public class Pair
         return $"Pair({X}, {Y})";
     }
 }
+
 public class OwnedDemo
 {
     public static void Run()
     {
-        Pair p = new Pair(3, 7);
+        Snippet.Pair p = new Snippet.Pair(3, 7);
         p.SetX(100);
         Console.WriteLine($"owned pair={p.Describe()}");
     }
 
+    public OwnedDemo()
+    {
+    }
+
     public static OwnedDemo __CreateDefault()
     {
-        var inst = new OwnedDemo();
-        return inst;
+        return new OwnedDemo();
     }
 }

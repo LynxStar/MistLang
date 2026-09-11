@@ -5,7 +5,6 @@ namespace Snippet;
 public class Vault
 {
     public string Secret;
-
     public int AccessCount;
 
     public Vault(string secret)
@@ -25,19 +24,23 @@ public class Vault
         return $"Vault(accesses={AccessCount}, secret={Secret})";
     }
 }
+
 public class FieldTypeRestrictionDemo
 {
     public static void Run()
     {
-        var vault = new Vault("top-secret");
-        System.Console.WriteLine($"initial={vault.Describe()}");
+        Snippet.Vault vault = new Snippet.Vault("top-secret");
+        Console.WriteLine($"initial={vault.Describe()}");
         vault.RotateSecret("new-secret");
-        System.Console.WriteLine($"rotated={vault.Describe()}");
+        Console.WriteLine($"rotated={vault.Describe()}");
+    }
+
+    public FieldTypeRestrictionDemo()
+    {
     }
 
     public static FieldTypeRestrictionDemo __CreateDefault()
     {
-        var inst = new FieldTypeRestrictionDemo();
-        return inst;
+        return new FieldTypeRestrictionDemo();
     }
 }

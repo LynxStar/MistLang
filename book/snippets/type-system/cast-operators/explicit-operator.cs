@@ -16,11 +16,12 @@ public class Celsius
         return degrees;
     }
 
-    public static explicit operator Kelvin(Celsius c)
+    public static explicit operator Snippet.Kelvin(Snippet.Celsius c)
     {
-        return new Kelvin(c.GetDegrees() + 273.15);
+        return new Snippet.Kelvin(c.GetDegrees() + 273.15);
     }
 }
+
 public class Kelvin
 {
     private double degrees;

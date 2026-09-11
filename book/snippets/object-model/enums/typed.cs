@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-public record class Direction(string Value)
+public sealed record class Direction(string Value)
 {
     public static readonly Direction North = new Direction("N");
     public static readonly Direction South = new Direction("S");
@@ -13,19 +13,19 @@ public record class Direction(string Value)
 
     public static explicit operator Direction?(string value)
     {
-        if (Equals(value, North.Value)) return North;
-        else if (Equals(value, South.Value)) return South;
-        else if (Equals(value, East.Value)) return East;
-        else if (Equals(value, West.Value)) return West;
+        if(Equals(value, Direction.North.Value)) return Direction.North;
+        if(Equals(value, Direction.South.Value)) return Direction.South;
+        if(Equals(value, Direction.East.Value)) return Direction.East;
+        if(Equals(value, Direction.West.Value)) return Direction.West;
         return null;
     }
 
     public override string ToString()
     {
-        if (ReferenceEquals(this, North)) return "North";
-        else if (ReferenceEquals(this, South)) return "South";
-        else if (ReferenceEquals(this, East)) return "East";
-        else if (ReferenceEquals(this, West)) return "West";
+        if(ReferenceEquals(this, Direction.North)) return "North";
+        if(ReferenceEquals(this, Direction.South)) return "South";
+        if(ReferenceEquals(this, Direction.East)) return "East";
+        if(ReferenceEquals(this, Direction.West)) return "West";
         return Value.ToString();
     }
 }

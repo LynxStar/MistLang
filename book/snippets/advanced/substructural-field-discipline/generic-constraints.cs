@@ -4,7 +4,7 @@ namespace Snippets;
 
 public class FileHandle
 {
-    int Fd;
+    private int Fd;
 
     public FileHandle(int fd)
     {
@@ -18,12 +18,13 @@ public class FileHandle
 
     public void Drop()
     {
-        System.Console.WriteLine($"FileHandle({Fd}).Drop()");
+        Console.WriteLine($"FileHandle({Fd}).Drop()");
     }
 }
+
 public class LinearBox<T>
 {
-    T Value;
+    private T Value;
 
     public LinearBox(T value)
     {
@@ -32,19 +33,19 @@ public class LinearBox<T>
 
     public T Drop()
     {
-        System.Console.WriteLine("LinearBox<T>.Drop()");
+        Console.WriteLine("LinearBox<T>.Drop()");
         return Value;
-        ((dynamic)this.Value).Drop();
     }
 }
+
 public class Program
 {
     public static void Main()
     {
-        var box = new LinearBox<FileHandle>(new FileHandle(42));
+        Snippets.LinearBox<Snippets.FileHandle> box = new Snippets.LinearBox<Snippets.FileHandle>(new Snippets.FileHandle(42));
         try
         {
-            System.Console.WriteLine("Boxed resource created");
+            Console.WriteLine("Boxed resource created");
         }
         finally
         {
@@ -52,9 +53,12 @@ public class Program
         }
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

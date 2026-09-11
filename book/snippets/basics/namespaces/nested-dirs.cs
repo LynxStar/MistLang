@@ -5,7 +5,6 @@ namespace Snippet;
 public class Player
 {
     private string name;
-
     private int health;
 
     public Player(string name, int health)

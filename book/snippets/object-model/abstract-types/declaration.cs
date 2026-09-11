@@ -2,9 +2,11 @@ using System;
 
 namespace Snippet;
 
-public interface IShape
+interface IShape
 {
-    string Name { get; }
+    public string Name { get; }
+
     string Describe();
+
     int Area();
 }

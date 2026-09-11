@@ -5,12 +5,14 @@ namespace Snippet;
 public interface IGreetable
 {
     string Name();
+
     string Greet()
     {
         return $"Hello, I am {this.Name()}";
     }
 }
-public class FriendlyDog : IGreetable
+
+public class FriendlyDog : Snippet.IGreetable
 {
     private string dogName;
 

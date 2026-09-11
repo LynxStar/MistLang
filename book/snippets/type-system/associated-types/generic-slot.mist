@@ -1,3 +1,5 @@
+using Standard;
+
 abstract ITransform<TIn, TOut>
 {
     TOut Transform(TIn input);

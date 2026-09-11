@@ -5,7 +5,6 @@ namespace Snippet;
 public class Account
 {
     public string Name;
-
     public int Balance;
 
     public Account(string name, int balance)
@@ -24,21 +23,25 @@ public class Account
         return $"Account({Name}, balance={Balance})";
     }
 }
+
 public class ThisTierInferenceDemo
 {
     public static void Run()
     {
-        var acct = new Account("Alice", 100);
-        System.Console.WriteLine($"summary={acct.Summary()}");
+        Snippet.Account acct = new Snippet.Account("Alice", 100);
+        Console.WriteLine($"summary={acct.Summary()}");
         acct.Deposit(50);
-        System.Console.WriteLine($"after deposit={acct.Summary()}");
-        var shared = new Account("Bob", 200);
-        System.Console.WriteLine($"shared summary={shared.Summary()}");
+        Console.WriteLine($"after deposit={acct.Summary()}");
+        Snippet.Account shared = new Snippet.Account("Bob", 200);
+        Console.WriteLine($"shared summary={shared.Summary()}");
+    }
+
+    public ThisTierInferenceDemo()
+    {
     }
 
     public static ThisTierInferenceDemo __CreateDefault()
     {
-        var inst = new ThisTierInferenceDemo();
-        return inst;
+        return new ThisTierInferenceDemo();
     }
 }

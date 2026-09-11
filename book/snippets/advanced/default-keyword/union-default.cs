@@ -6,13 +6,16 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        int? maybeInt = default;
+        int? maybeInt = null;
         Console.WriteLine($"maybeInt={(object?)maybeInt ?? "Void"}");
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

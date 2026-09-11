@@ -5,7 +5,6 @@ namespace Snippet;
 public class Point
 {
     private int x;
-
     private int y;
 
     public Point(int x, int y)
@@ -21,7 +20,7 @@ public class Point
 
     public static void Main(string[] args)
     {
-        var p = new Point(3, 4);
+        Snippet.Point p = new Snippet.Point(3, 4);
         Console.WriteLine($"Distance: {p.DistanceFromOrigin()}");
     }
 }

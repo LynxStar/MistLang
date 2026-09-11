@@ -5,7 +5,6 @@ namespace Snippet;
 public class Person
 {
     public int Age;
-
     public string Name;
 
     public Person(string name)
@@ -14,12 +13,11 @@ public class Person
         this.Age = 18;
     }
 }
+
 public class Program
 {
     private static string DescribeAge(int age)
     {
-        if (!(age >= 18))
-            throw new ArgumentException($"Value {age} does not satisfy refinement '>= 18' on type 'AdultAge'", nameof(age));
         return $"Adult age is {age}";
     }
 
@@ -31,14 +29,17 @@ public class Program
     public static void Main(string[] args)
     {
         int score = 85;
-        var person = new Person("Alice");
-        int defaultAge = Program.GetDefaultAge();
-        var desc = Program.DescribeAge(defaultAge);
+        Snippet.Person person = new Snippet.Person("Alice");
+        int defaultAge = Snippet.Program.GetDefaultAge();
+        string desc = Snippet.Program.DescribeAge(defaultAge);
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

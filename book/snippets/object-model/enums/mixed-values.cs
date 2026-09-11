@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-public record class HttpStatus(int Value)
+public sealed record class HttpStatus(int Value)
 {
     public static readonly HttpStatus Ok = new HttpStatus(200);
     public static readonly HttpStatus Created = new HttpStatus(201);
@@ -14,21 +14,21 @@ public record class HttpStatus(int Value)
 
     public static explicit operator HttpStatus?(int value)
     {
-        if (Equals(value, Ok.Value)) return Ok;
-        else if (Equals(value, Created.Value)) return Created;
-        else if (Equals(value, BadRequest.Value)) return BadRequest;
-        else if (Equals(value, NotFound.Value)) return NotFound;
-        else if (Equals(value, InternalError.Value)) return InternalError;
+        if(Equals(value, HttpStatus.Ok.Value)) return HttpStatus.Ok;
+        if(Equals(value, HttpStatus.Created.Value)) return HttpStatus.Created;
+        if(Equals(value, HttpStatus.BadRequest.Value)) return HttpStatus.BadRequest;
+        if(Equals(value, HttpStatus.NotFound.Value)) return HttpStatus.NotFound;
+        if(Equals(value, HttpStatus.InternalError.Value)) return HttpStatus.InternalError;
         return null;
     }
 
     public override string ToString()
     {
-        if (ReferenceEquals(this, Ok)) return "Ok";
-        else if (ReferenceEquals(this, Created)) return "Created";
-        else if (ReferenceEquals(this, BadRequest)) return "BadRequest";
-        else if (ReferenceEquals(this, NotFound)) return "NotFound";
-        else if (ReferenceEquals(this, InternalError)) return "InternalError";
+        if(ReferenceEquals(this, HttpStatus.Ok)) return "Ok";
+        if(ReferenceEquals(this, HttpStatus.Created)) return "Created";
+        if(ReferenceEquals(this, HttpStatus.BadRequest)) return "BadRequest";
+        if(ReferenceEquals(this, HttpStatus.NotFound)) return "NotFound";
+        if(ReferenceEquals(this, HttpStatus.InternalError)) return "InternalError";
         return Value.ToString();
     }
 }

@@ -4,30 +4,43 @@ namespace Snippet;
 
 public class Config
 {
-    public int Timeout { get; set; } = 0;
-
-    public bool Verbose { get; set; } = false;
-
-    public string Name { get; set; } = "";
-
     public Config()
     {
         this.Timeout = 0;
         this.Verbose = false;
         this.Name = "";
     }
+
+    public int Timeout { get; set; } = 0;
+
+    public bool Verbose { get; set; } = false;
+
+    public string Name { get; set; } = "";
+
+    private Config(Mist.Emission.CSharp.__DefaultInit marker)
+    {
+    }
+
+    public static Config __CreateDefault()
+    {
+        return new Config(default(Mist.Emission.CSharp.__DefaultInit));
+    }
 }
+
 public class Program
 {
     public static void Main(string[] args)
     {
-        var cfg = new Config() { Timeout = 60, Verbose = true, Name = "production" };
+        Snippet.Config cfg = new Snippet.Config() { Timeout = 60, Verbose = true, Name = "production" };
         Console.WriteLine($"Timeout={cfg.Timeout}, Name={cfg.Name}");
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

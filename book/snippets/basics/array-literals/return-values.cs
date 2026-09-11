@@ -6,7 +6,7 @@ public class Program
 {
     private static int[] GetDefaults()
     {
-        return new[] { 10, 20, 30 };
+        return new int[] { 10, 20, 30 };
     }
 
     public static void Main(string[] args)
@@ -15,9 +15,12 @@ public class Program
         Console.WriteLine($"Count: {values.Length}");
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

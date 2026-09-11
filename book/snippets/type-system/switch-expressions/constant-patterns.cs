@@ -6,38 +6,23 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        var day = 3;
-        var dayName = day switch
-        {
-            1 => "Monday",
-            2 => "Tuesday",
-            3 => "Wednesday",
-            4 => "Thursday",
-            5 => "Friday",
-            var _ => "Weekend",
-        };
+        int day = 3;
+        string dayName = day switch { 1 => "Monday", 2 => "Tuesday", 3 => "Wednesday", 4 => "Thursday", 5 => "Friday", var _ => "Weekend" };
         Console.WriteLine($"Day {day} is {dayName}");
-        var command = "quit";
-        var response = command switch
-        {
-            "start" => "Starting...",
-            "stop" => "Stopping...",
-            "quit" => "Goodbye!",
-            var _ => "Unknown command",
-        };
+        string command = "quit";
+        string response = command switch { "start" => "Starting...", "stop" => "Stopping...", "quit" => "Goodbye!", var _ => "Unknown command" };
         Console.WriteLine($"Command '{command}' => {response}");
-        var isActive = true;
-        var status = isActive switch
-        {
-            true => "Active",
-            false => "Inactive",
-        };
+        bool isActive = true;
+        string status = isActive switch { true => "Active", false => "Inactive" };
         Console.WriteLine($"isActive={isActive} => {status}");
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

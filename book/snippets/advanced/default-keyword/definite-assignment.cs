@@ -5,9 +5,7 @@ namespace Snippet;
 public class Connection
 {
     public string Host;
-
     public int Port;
-
     public bool Secure;
 
     public Connection(string host, int port)
@@ -17,17 +15,21 @@ public class Connection
         this.Secure = false;
     }
 }
+
 public class Program
 {
     public static void Main(string[] args)
     {
-        var conn = new Connection("localhost", 8080);
+        Snippet.Connection conn = new Snippet.Connection("localhost", 8080);
         Console.WriteLine($"host={conn.Host} port={conn.Port} secure={conn.Secure}");
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

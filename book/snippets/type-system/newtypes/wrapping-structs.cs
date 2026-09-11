@@ -2,10 +2,10 @@ using System;
 
 namespace Snippet;
 
+[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
 public struct Point
 {
     public int X;
-
     public int Y;
 
     public Point(int x, int y)
@@ -14,15 +14,27 @@ public struct Point
         this.Y = y;
     }
 
-    public readonly string Describe()
+    private Point(int p0, int p1, Mist.Emission.CSharp.__StructInit marker)
+    {
+        this.X = p0;
+        this.Y = p1;
+    }
+
+    internal static Point __FromParts(int p0, int p1, Mist.Emission.CSharp.__StructInit marker)
+    {
+        return new Point(p0, p1, default(Mist.Emission.CSharp.__StructInit));
+    }
+
+    public string Describe()
     {
         return $"({this.X}, {this.Y})";
     }
 }
-public struct Position
+
+[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+struct Position
 {
     public int X;
-
     public int Y;
 
     public Position(int x, int y)
@@ -31,7 +43,7 @@ public struct Position
         this.Y = y;
     }
 
-    public readonly string Describe()
+    public string Describe()
     {
         return $"({this.X}, {this.Y})";
     }

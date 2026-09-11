@@ -11,14 +11,15 @@ public class Greeting
         Message = message;
     }
 }
-public static class GreetingExtensions_declaring_L11
+
+public static class GreetingExtensions_declaring_0
 {
-    public static int WordCount(this Greeting self)
+    public static int WordCount(this Snippet.Greeting self)
     {
         return self.Message.Length;
     }
 
-    public static string Uppercase(this Greeting self)
+    public static string Uppercase(this Snippet.Greeting self)
     {
         return self.Message;
     }

@@ -14,12 +14,15 @@ public class Program
 
     public static void Main(string[] args)
     {
-        PrintAll([10, 20, 30]);
+        PrintAll(new int[] { 10, 20, 30 });
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

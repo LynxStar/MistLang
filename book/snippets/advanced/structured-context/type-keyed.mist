@@ -1,3 +1,5 @@
+using Standard;
+
 // Each type is an independent context key
 with var cfg = new Config("db-connection");
 with var locale = new Locale("fr-FR");

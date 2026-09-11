@@ -16,17 +16,21 @@ public class GenericBox<T>
         return $"Box({this.value})";
     }
 }
+
 public class Program
 {
     public static void Main(string[] args)
     {
-        var intBox = new GenericBox<int>(42);
-        var strBox = new GenericBox<string>("Mist");
+        Snippet.GenericBox<int> intBox = new Snippet.GenericBox<int>(42);
+        Snippet.GenericBox<string> strBox = new Snippet.GenericBox<string>("Mist");
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

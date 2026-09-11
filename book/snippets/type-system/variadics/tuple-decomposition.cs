@@ -11,8 +11,17 @@ public class Program
 
     public static void Main(string[] cmdArgs)
     {
-        var pair = (10, 20);
-        var result = Add2(pair.Item1, pair.Item2);
-        System.Console.WriteLine($"result={result}");
+        (int, int) pair = (10, 20);
+        int result = Add2(pair.Item1, pair.Item2);
+        Console.WriteLine($"result={result}");
+    }
+
+    public Program()
+    {
+    }
+
+    public static Program __CreateDefault()
+    {
+        return new Program();
     }
 }

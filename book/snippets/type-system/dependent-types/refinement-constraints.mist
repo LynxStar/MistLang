@@ -1,3 +1,5 @@
+using Standard;
+
 // A refinement type with an allowed primitive base type (int)
 type PositiveInt = int >= 1;
 

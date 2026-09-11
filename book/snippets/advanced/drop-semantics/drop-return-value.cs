@@ -4,7 +4,7 @@ namespace Snippets;
 
 public class SecretBox
 {
-    string Secret;
+    private string Secret;
 
     public SecretBox(string secret)
     {
@@ -13,22 +13,26 @@ public class SecretBox
 
     public string Drop()
     {
-        System.Console.WriteLine("SecretBox consumed");
+        Console.WriteLine("SecretBox consumed");
         return Secret;
     }
 }
+
 public class Program
 {
     public static void Main()
     {
-        var box = new SecretBox("password123");
-        var secret = box.Drop();
-        System.Console.WriteLine($"Got: {secret}");
+        Snippets.SecretBox box = new Snippets.SecretBox("password123");
+        string secret = box.Drop();
+        Console.WriteLine($"Got: {secret}");
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

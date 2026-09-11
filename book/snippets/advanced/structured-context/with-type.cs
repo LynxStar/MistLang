@@ -11,41 +11,51 @@ public class Config
         this.Value = value;
     }
 }
+
 public class Consumers
 {
     public static string GetConfig()
     {
-        var cfg = (Config)MistContext.Peek<Config>();
+        var cfg = (Snippet.Config)MistContext.Peek<Snippet.Config>();
         return cfg.Value;
+    }
+
+    public Consumers()
+    {
     }
 
     public static Consumers __CreateDefault()
     {
-        var inst = new Consumers();
-        return inst;
+        return new Consumers();
     }
 }
+
 public class Program
 {
     public static void Main(string[] args)
     {
-        Config cfg = new Config("production");
-        MistContext.Push<Config>(cfg);
-        try
         {
-            Console.WriteLine(cfg.Value);
-            var result = Consumers.GetConfig();
-            Console.WriteLine(result);
+            var cfg = new Snippet.Config("production");
+            MistContext.Push<Snippet.Config>(cfg);
+            try
+            {
+                Console.WriteLine(cfg.Value);
+                string result = Snippet.Consumers.GetConfig();
+                Console.WriteLine(result);
+            }
+            finally
+            {
+                MistContext.Pop<Snippet.Config>();
+            }
         }
-        finally
-        {
-            MistContext.Pop<Config>();
-        }
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

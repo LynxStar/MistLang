@@ -12,12 +12,15 @@ public class Program
     public static void Main(string[] args)
     {
         System.Func<int, int> fn = Negate;
-        System.Console.WriteLine($"fn(42)={fn(42)}");
+        Console.WriteLine($"fn(42)={fn(42)}");
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

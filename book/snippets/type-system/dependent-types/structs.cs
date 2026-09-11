@@ -2,19 +2,35 @@ using System;
 
 namespace Snippet;
 
-[DependentType("Length", typeof(int))]
+[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
 public struct FixedSpan<TLength>
     where TLength : IConstInt
 {
-    public static int Length => TLength.Value;
+    private FixedSpan(Mist.Emission.CSharp.__StructInit marker)
+    {
+    }
 
-    public readonly int GetLength()
+    internal static FixedSpan<TLength> __FromParts(Mist.Emission.CSharp.__StructInit marker)
+    {
+        return new FixedSpan<TLength>(default(Mist.Emission.CSharp.__StructInit));
+    }
+
+    public int GetLength()
     {
         return TLength.Value;
     }
 
-    public readonly string Describe()
+    public string Describe()
     {
         return $"FixedSpan<{TLength.Value}>";
+    }
+
+    public FixedSpan()
+    {
+    }
+
+    public static FixedSpan<TLength> __CreateDefault()
+    {
+        return new FixedSpan<TLength>();
     }
 }

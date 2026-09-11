@@ -5,7 +5,6 @@ namespace Snippet;
 public class Counter
 {
     private static int totalCreated;
-
     private string name;
 
     public Counter(string name)
@@ -21,8 +20,8 @@ public class Counter
 
     public static void Main(string[] args)
     {
-        var a = new Counter("Alpha");
-        var b = new Counter("Beta");
-        Console.WriteLine($"Total created: {Counter.GetTotalCreated()}");
+        Snippet.Counter a = new Snippet.Counter("Alpha");
+        Snippet.Counter b = new Snippet.Counter("Beta");
+        Console.WriteLine($"Total created: {Snippet.Counter.GetTotalCreated()}");
     }
 }

@@ -13,9 +13,9 @@ public class ReadonlyBlockDemo
 
     public string SafeRead()
     {
-        var result = "";
+        string result = "";
         {
-            var v = Value;
+            int v = Value;
             result = $"SafeRead={v}";
         }
         return result;
@@ -23,9 +23,9 @@ public class ReadonlyBlockDemo
 
     public string MixedMethod()
     {
-        var before = Value;
+        int before = Value;
         this.Value = Value + 1;
-        var after = 0;
+        int after = 0;
         {
             after = Value;
         }

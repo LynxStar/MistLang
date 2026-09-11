@@ -1,3 +1,5 @@
+using Standard;
+
 // Both files are in namespace "Namespaces" — no using needed
 var config = new AppConfig("Namespace Demo", "1.0");
 Console.WriteLine(config.Display());

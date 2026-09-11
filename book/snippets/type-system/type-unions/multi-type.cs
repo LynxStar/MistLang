@@ -6,17 +6,23 @@ public class Program
 {
     private static void DescribeTriple(Union_Boolean_Int32_String value)
     {
-        if (value is int n)
         {
-            Console.WriteLine($"  int: {n}");
+            if (value.AsInt32OrNull is int n)
+            {
+                Console.WriteLine($"  int: {n}");
+            }
         }
-        if (value is string s)
         {
-            Console.WriteLine($"  string: {s}");
+            if (value.AsStringOrNull is string s)
+            {
+                Console.WriteLine($"  string: {s}");
+            }
         }
-        if (value is bool b)
         {
-            Console.WriteLine($"  bool: {b}");
+            if (value.AsBooleanOrNull is bool b)
+            {
+                Console.WriteLine($"  bool: {b}");
+            }
         }
     }
 
@@ -25,14 +31,17 @@ public class Program
         Union_Boolean_Int32_String tri1 = 99;
         Union_Boolean_Int32_String tri2 = "triple";
         Union_Boolean_Int32_String tri3 = true;
-        Program.DescribeTriple(tri1);
-        Program.DescribeTriple(tri2);
-        Program.DescribeTriple(tri3);
+        Snippet.Program.DescribeTriple(tri1);
+        Snippet.Program.DescribeTriple(tri2);
+        Snippet.Program.DescribeTriple(tri3);
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

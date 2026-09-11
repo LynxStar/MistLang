@@ -6,7 +6,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        var numbers = new int[3];
+        int[] numbers = new int[3];
         numbers[0] = 10;
         numbers[1] = 20;
         numbers[2] = 30;
@@ -16,9 +16,12 @@ public class Program
         }
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

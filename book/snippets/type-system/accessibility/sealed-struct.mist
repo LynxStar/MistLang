@@ -1,3 +1,5 @@
+using Standard;
+
 public sealed struct Coordinate
 {
     public int x;

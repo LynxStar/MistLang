@@ -1,10 +1,8 @@
-using Standard;
 using System;
-using System.Text.RegularExpressions;
 
 namespace Snippet;
 
-public class Tag : IClonable<Tag>
+public class Tag : Standard.IClonable<Snippet.Tag>
 {
     public int Code;
 
@@ -13,9 +11,9 @@ public class Tag : IClonable<Tag>
         this.Code = code;
     }
 
-    public Tag Clone()
+    public Snippet.Tag Clone()
     {
-        return new Tag(Code);
+        return new Snippet.Tag(Code);
     }
 
     public string Describe()
@@ -23,18 +21,22 @@ public class Tag : IClonable<Tag>
         return $"Tag({Code})";
     }
 }
+
 public class IClonableDemo
 {
     public static void Run()
     {
-        var shared = new Tag(7);
-        Tag fresh = shared;
-        System.Console.WriteLine($"source={shared.Describe()}, owned clone={fresh.Describe()}");
+        Snippet.Tag shared = new Snippet.Tag(7);
+        Snippet.Tag fresh = shared.Clone();
+        Console.WriteLine($"source={shared.Describe()}, owned clone={fresh.Describe()}");
+    }
+
+    public IClonableDemo()
+    {
     }
 
     public static IClonableDemo __CreateDefault()
     {
-        var inst = new IClonableDemo();
-        return inst;
+        return new IClonableDemo();
     }
 }

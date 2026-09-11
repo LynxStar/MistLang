@@ -6,14 +6,14 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        var pair = new int[2];
+        int[] pair = new int[2];
         pair[0] = 1;
         pair[1] = 2;
         if (pair is [> 0, > 0])
         {
             Console.WriteLine("Array has two positive elements");
         }
-        var triple = new int[3];
+        int[] triple = new int[3];
         triple[0] = 10;
         triple[1] = 20;
         triple[2] = 30;
@@ -23,9 +23,12 @@ public class Program
         }
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

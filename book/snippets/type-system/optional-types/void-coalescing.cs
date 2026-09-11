@@ -14,9 +14,12 @@ public class Program
         Console.WriteLine($"noValue ?? 42={result2}");
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

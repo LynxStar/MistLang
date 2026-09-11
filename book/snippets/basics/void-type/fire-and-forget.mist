@@ -1,3 +1,5 @@
+using Standard;
+
 public static void PrintMessage(string msg)
 {
     Console.WriteLine(msg);

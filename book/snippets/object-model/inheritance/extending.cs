@@ -5,7 +5,6 @@ namespace Snippet;
 public class Animal
 {
     private string name;
-
     private int age;
 
     public Animal(string name, int age)
@@ -29,7 +28,8 @@ public class Animal
         return $"{name} (age {age})";
     }
 }
-public class Dog : Animal
+
+public class Dog : Snippet.Animal
 {
     private string breed;
 

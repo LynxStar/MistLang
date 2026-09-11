@@ -16,24 +16,28 @@ public class Sensor
         return $"Sensor({Reading})";
     }
 }
+
 public class Program
 {
-    public static void ReadSensor(ref readonly Sensor s)
+    public static void ReadSensor(ref readonly Snippet.Sensor s)
     {
         Console.WriteLine($"reading={s.Describe()}");
     }
 
     public static void Main()
     {
-        Sensor s = new Sensor(42);
-        ReadSensor(s);
+        Snippet.Sensor s = new Snippet.Sensor(42);
+        ReadSensor(in s);
         s.Reading = 100;
         Console.WriteLine($"after={s.Describe()}");
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

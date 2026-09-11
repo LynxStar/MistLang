@@ -6,54 +6,66 @@ public interface IDescribable
 {
     string Describe();
 }
-public class Sensor : IDescribable
+
+public class Sensor : Snippet.IDescribable
 {
     public string GetReading()
     {
         return "Temperature: 23C";
     }
 
-    string IDescribable.Describe() => this.GetReading();
+    public Sensor()
+    {
+    }
 
     public static Sensor __CreateDefault()
     {
-        var inst = new Sensor();
-        return inst;
+        return new Sensor();
     }
+
+    string Snippet.IDescribable.Describe() => this.GetReading();
 }
-public class Actuator : IDescribable
+
+public class Actuator : Snippet.IDescribable
 {
     public string GetStatus()
     {
         return "Motor: active";
     }
 
-    string IDescribable.Describe() => this.GetStatus();
+    public Actuator()
+    {
+    }
 
     public static Actuator __CreateDefault()
     {
-        var inst = new Actuator();
-        return inst;
+        return new Actuator();
     }
+
+    string Snippet.IDescribable.Describe() => this.GetStatus();
 }
+
 public class Program
 {
-    private static void PrintInfo(IDescribable item)
+    private static void PrintInfo(Snippet.IDescribable item)
     {
         Console.WriteLine(item.Describe());
     }
 
     public static void Main(string[] args)
     {
-        var sensor = new Sensor();
-        var actuator = new Actuator();
+        Snippet.Sensor sensor = new Snippet.Sensor();
+        Snippet.Actuator actuator = new Snippet.Actuator();
         PrintInfo(sensor);
         PrintInfo(actuator);
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

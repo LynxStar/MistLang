@@ -2,18 +2,9 @@ using System;
 
 namespace Snippet;
 
-internal class MultiFactory<T>
-    where T : new()
+class MultiFactory<T>
+    where T : Mist.Emission.CSharp.__IConstruct_int<T>, Mist.Emission.CSharp.__IConstruct_bool<T>, new()
 {
-    private readonly Func<int, T> _factoryT_int;
-    private readonly Func<bool, T> _factoryT_bool;
-
-    public MultiFactory(Func<int, T> factoryT_int, Func<bool, T> factoryT_bool)
-    {
-        _factoryT_int = factoryT_int;
-        _factoryT_bool = factoryT_bool;
-    }
-
     public T CreateDefault()
     {
         return new T();
@@ -21,11 +12,20 @@ internal class MultiFactory<T>
 
     public T CreateFromInt(int value)
     {
-        return _factoryT_int(value);
+        return T.__New(value);
     }
 
     public T CreateFromBool(bool flag)
     {
-        return _factoryT_bool(flag);
+        return T.__New(flag);
+    }
+
+    public MultiFactory()
+    {
+    }
+
+    public static MultiFactory<T> __CreateDefault()
+    {
+        return new MultiFactory<T>();
     }
 }

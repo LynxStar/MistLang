@@ -4,7 +4,7 @@ namespace Snippets;
 
 public class Transaction
 {
-    string Id;
+    private string Id;
 
     public Transaction(string id)
     {
@@ -13,7 +13,7 @@ public class Transaction
 
     public void Drop()
     {
-        System.Console.WriteLine($"Transaction({Id}) committed");
+        Console.WriteLine($"Transaction({Id}) committed");
     }
 
     public string GetId()
@@ -21,28 +21,34 @@ public class Transaction
         return Id;
     }
 }
+
 public class Program
 {
     public static void Main()
     {
-        var __with_0 = new Transaction("tx-001");
-        MistContext.Push<Transaction>(__with_0);
-        try
         {
-            System.Console.WriteLine("Inside transaction");
+            var __e1 = new Snippets.Transaction("tx-001");
+            MistContext.Push<Snippets.Transaction>(__e1);
+            try
+            {
+                Console.WriteLine("Inside transaction");
+            }
+            finally
+            {
+                MistContext.Pop<Snippets.Transaction>();
+                __e1.Drop();
+            }
         }
-        finally
-        {
-            MistContext.Pop<Transaction>();
-            __with_0.Drop();
-        }
-        var token = new Transaction("tx-002");
-        System.Console.WriteLine($"Created {token.GetId()}, not dropping");
+        Snippets.Transaction token = new Snippets.Transaction("tx-002");
+        Console.WriteLine($"Created {token.GetId()}, not dropping");
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

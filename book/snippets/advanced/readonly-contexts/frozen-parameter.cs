@@ -5,7 +5,6 @@ namespace Snippet;
 public class Pair
 {
     public int X;
-
     public int Y;
 
     public Pair(int x, int y)
@@ -29,25 +28,29 @@ public class Pair
         this.X = x;
     }
 }
+
 public class FrozenDemo
 {
-    public static void FreezeAndRead(Pair p)
+    public static void FreezeAndRead(Snippet.Pair p)
     {
-        var sum = p.Sum();
+        int sum = p.Sum();
         Console.WriteLine($"frozen sum={sum}");
     }
 
     public static void Main(string[] args)
     {
-        Pair p = new Pair(5, 10);
+        Snippet.Pair p = new Snippet.Pair(5, 10);
         FreezeAndRead(p);
         p.SetX(50);
         Console.WriteLine($"after thaw={p.Describe()}");
     }
 
+    public FrozenDemo()
+    {
+    }
+
     public static FrozenDemo __CreateDefault()
     {
-        var inst = new FrozenDemo();
-        return inst;
+        return new FrozenDemo();
     }
 }

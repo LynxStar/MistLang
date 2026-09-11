@@ -28,7 +28,7 @@ public class Account
 
     public static void Main(string[] args)
     {
-        var acct = new Account(100);
+        Snippet.Account acct = new Snippet.Account(100);
         acct.Deposit(50);
         Console.WriteLine($"Balance: {acct.GetBalance()}");
     }

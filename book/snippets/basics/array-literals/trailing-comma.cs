@@ -1,3 +1,3 @@
 using System;
 
-var items = new[] { 1, 2, 3 };
+int[] items = new int[] { 1, 2, 3 };

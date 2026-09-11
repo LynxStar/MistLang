@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-public interface Container<TElement>
+interface Container<Element>
 {
-    TElement Get(int index);
+    Element Get(int index);
 }

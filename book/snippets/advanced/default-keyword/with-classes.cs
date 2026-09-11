@@ -5,35 +5,36 @@ namespace Snippet;
 public class Config
 {
     public int MaxRetries;
-
     public bool Verbose;
-
     public string Label;
 
     public Config()
     {
-        this.MaxRetries = 0;
-        this.Verbose = false;
+        this.MaxRetries = default(int);
+        this.Verbose = default(bool);
         this.Label = "";
     }
 
     public static Config __CreateDefault()
     {
-        var inst = new Config();
-        return inst;
+        return new Config();
     }
 }
+
 public class Program
 {
     public static void Main(string[] args)
     {
-        Config cfg = Config.__CreateDefault();
+        Snippet.Config cfg = Snippet.Config.__CreateDefault();
         Console.WriteLine($"MaxRetries={cfg.MaxRetries} Verbose={cfg.Verbose} Label={cfg.Label}");
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

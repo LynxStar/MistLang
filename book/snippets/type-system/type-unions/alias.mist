@@ -1,3 +1,5 @@
+using Standard;
+
 type Result = int | string;
 
 public class Program

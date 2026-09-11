@@ -1,3 +1,5 @@
+using Standard;
+
 type AdultAge = int >= 18;
 
 public class Program

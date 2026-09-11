@@ -6,33 +6,41 @@ public interface INamed
 {
     string Name();
 }
-public class Logger : INamed
+
+public class Logger : Snippet.INamed
 {
     public string GetLabel()
     {
         return "SystemLogger";
     }
 
-    string INamed.Name() => this.GetLabel();
+    public Logger()
+    {
+    }
 
     public static Logger __CreateDefault()
     {
-        var inst = new Logger();
-        return inst;
+        return new Logger();
     }
+
+    string Snippet.INamed.Name() => this.GetLabel();
 }
+
 public class Program
 {
     public static void Main(string[] args)
     {
-        var logger = new Logger();
-        INamed named = logger;
+        Snippet.Logger logger = new Snippet.Logger();
+        Snippet.INamed named = logger;
         Console.WriteLine(named.Name());
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

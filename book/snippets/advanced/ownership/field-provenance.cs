@@ -16,13 +16,13 @@ public class Node
         return $"Node({Id})";
     }
 }
+
 public class Slot
 {
-    public Node Current;
-
+    public Snippet.Node Current;
     public int Count;
 
-    public Slot(Node first)
+    public Slot(Snippet.Node first)
     {
         this.Current = first;
         this.Count = 1;
@@ -33,19 +33,23 @@ public class Slot
         return $"Slot(Current={Current.Describe()}, Count={Count})";
     }
 }
+
 public class FieldProvenanceDemo
 {
     public static void Run()
     {
-        Slot s = new Slot(new Node(1));
-        s.Current = new Node(2);
+        Snippet.Slot s = new Snippet.Slot(new Snippet.Node(1));
+        s.Current = new Snippet.Node(2);
         s.Count = 2;
-        System.Console.WriteLine($"provenance={s.Describe()}");
+        Console.WriteLine($"provenance={s.Describe()}");
+    }
+
+    public FieldProvenanceDemo()
+    {
     }
 
     public static FieldProvenanceDemo __CreateDefault()
     {
-        var inst = new FieldProvenanceDemo();
-        return inst;
+        return new FieldProvenanceDemo();
     }
 }

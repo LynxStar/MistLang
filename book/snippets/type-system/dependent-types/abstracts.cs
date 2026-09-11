@@ -2,14 +2,15 @@ using System;
 
 namespace Snippet;
 
-[DependentType("Size", typeof(int))]
 public interface IFixedCollection<TSize>
     where TSize : IConstInt
 {
     int GetSize();
+
     string GetInfo();
 }
-public class TinyCollection : IFixedCollection<Const_Int_8>
+
+public class TinyCollection : Snippet.IFixedCollection<Const_Int_8>
 {
     public int GetSize()
     {
@@ -21,9 +22,12 @@ public class TinyCollection : IFixedCollection<Const_Int_8>
         return $"TinyCollection(size={this.GetSize()})";
     }
 
+    public TinyCollection()
+    {
+    }
+
     public static TinyCollection __CreateDefault()
     {
-        var inst = new TinyCollection();
-        return inst;
+        return new TinyCollection();
     }
 }

@@ -5,7 +5,6 @@ namespace Snippet;
 public class AppConfig
 {
     private string appName;
-
     private string version;
 
     public AppConfig(string appName, string version)

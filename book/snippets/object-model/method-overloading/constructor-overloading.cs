@@ -14,4 +14,14 @@ public class Printer
     public Printer() : this("[default]")
     {
     }
+
+    private Printer(Mist.Emission.CSharp.__DefaultInit marker)
+    {
+        this._prefix = "";
+    }
+
+    public static Printer __CreateDefault()
+    {
+        return new Printer(default(Mist.Emission.CSharp.__DefaultInit));
+    }
 }

@@ -2,36 +2,56 @@ using System;
 
 namespace Snippet;
 
-[DependentType("V", typeof(int))]
 public class IntParam<TV>
     where TV : IConstInt
 {
-    public static int V => TV.Value;
-
     public int GetValue()
     {
         return TV.Value;
     }
+
+    public IntParam()
+    {
+    }
+
+    public static IntParam<TV> __CreateDefault()
+    {
+        return new IntParam<TV>();
+    }
 }
-[DependentType("V", typeof(bool))]
+
 public class BoolParam<TV>
     where TV : IConstBool
 {
-    public static bool V => TV.Value;
-
     public string Describe()
     {
         return $"BoolParam<{TV.Value}>";
     }
+
+    public BoolParam()
+    {
+    }
+
+    public static BoolParam<TV> __CreateDefault()
+    {
+        return new BoolParam<TV>();
+    }
 }
-[DependentType("V", typeof(char))]
+
 public class CharParam<TV>
     where TV : IConstChar
 {
-    public static char V => TV.Value;
-
     public string Describe()
     {
         return $"CharParam<{TV.Value}>";
+    }
+
+    public CharParam()
+    {
+    }
+
+    public static CharParam<TV> __CreateDefault()
+    {
+        return new CharParam<TV>();
     }
 }

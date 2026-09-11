@@ -9,6 +9,22 @@ public class Thermostat
         this.Temperature = initial;
     }
 
-    private int _Temperature_k__BackingField;
-    public int Temperature { get { return _Temperature_k__BackingField; } set { if (value < -273) { _Temperature_k__BackingField = -273; } } }
+    public int Temperature
+    {
+        get
+        {
+            return field;
+        }
+        set
+        {
+            if (value < -273)
+            {
+                field = -273;
+            }
+            else
+            {
+                field = value;
+            }
+        }
+    }
 }

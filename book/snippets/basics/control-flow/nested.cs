@@ -6,13 +6,13 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        var values = new int[5];
+        int[] values = new int[5];
         values[0] = 3;
         values[1] = 7;
         values[2] = 2;
         values[3] = 9;
         values[4] = 4;
-        var sum = 0;
+        int sum = 0;
         foreach (int v in values)
         {
             if (v > 5)
@@ -23,9 +23,12 @@ public class Program
         Console.WriteLine($"Sum of values > 5: {sum}");
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

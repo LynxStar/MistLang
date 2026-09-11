@@ -5,7 +5,6 @@ namespace Snippet;
 public class Config
 {
     public string Environment;
-
     public int MaxRetries;
 
     public Config(string env)
@@ -14,8 +13,7 @@ public class Config
         this.MaxRetries = 3;
     }
 
-
-    protected Config()
+    private Config(Mist.Emission.CSharp.__DefaultInit marker)
     {
         this.Environment = "development";
         this.MaxRetries = 1;
@@ -23,23 +21,26 @@ public class Config
 
     public static Config __CreateDefault()
     {
-        var inst = new Config();
-        return inst;
+        return new Config(default(Mist.Emission.CSharp.__DefaultInit));
     }
 }
+
 public class Program
 {
     public static void Main(string[] args)
     {
-        var prod = new Config("production");
-        Config dev = Config.__CreateDefault();
+        Snippet.Config prod = new Snippet.Config("production");
+        Snippet.Config dev = Snippet.Config.__CreateDefault();
         Console.WriteLine($"new: env={prod.Environment} retries={prod.MaxRetries}");
         Console.WriteLine($"default: env={dev.Environment} retries={dev.MaxRetries}");
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

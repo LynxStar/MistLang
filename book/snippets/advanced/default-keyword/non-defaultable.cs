@@ -5,7 +5,6 @@ namespace Snippet;
 public class DatabaseConnection
 {
     public string ConnectionString;
-
     public int Timeout;
 
     public DatabaseConnection(string connStr, int timeout)
@@ -14,17 +13,21 @@ public class DatabaseConnection
         this.Timeout = timeout;
     }
 }
+
 public class Program
 {
     public static void Main(string[] args)
     {
-        var db = new DatabaseConnection("Server=localhost", 30);
+        Snippet.DatabaseConnection db = new Snippet.DatabaseConnection("Server=localhost", 30);
         Console.WriteLine($"conn={db.ConnectionString} timeout={db.Timeout}");
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

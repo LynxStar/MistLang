@@ -1,3 +1,5 @@
+using Standard;
+
 owned UniqueHandle h1 = new UniqueHandle(1);
 owned UniqueHandle h2 = h1;
 // Error: use of moved value 'h1'

@@ -15,22 +15,27 @@ public class Scorer
 
     public static void Main(string[] args)
     {
-        var result = Scorer.Grade(95);
-        if (result.IsString)
+        Union_Int32_String result = Introduction.Scorer.Grade(95);
         {
-            string letter = result.AsString;
-            System.Console.WriteLine($"Grade: {letter}");
+            if (result.AsStringOrNull is string letter)
+            {
+                Console.WriteLine($"Grade: {letter}");
+            }
         }
-        if (result.IsInt32)
         {
-            int numeric = result.AsInt32;
-            System.Console.WriteLine($"Score: {numeric}");
+            if (result.AsInt32OrNull is int numeric)
+            {
+                Console.WriteLine($"Score: {numeric}");
+            }
         }
+    }
+
+    public Scorer()
+    {
     }
 
     public static Scorer __CreateDefault()
     {
-        var inst = new Scorer();
-        return inst;
+        return new Scorer();
     }
 }

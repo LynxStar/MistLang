@@ -1,3 +1,5 @@
+using Standard;
+
 abstract IRepository<T> where T : class, new()
 {
     T GetById(int id);

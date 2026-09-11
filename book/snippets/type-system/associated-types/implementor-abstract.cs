@@ -6,14 +6,30 @@ public interface IStringable
 {
     string Stringify();
 }
-public interface IProducer<TOutput>
-    where TOutput : IStringable
+
+public interface IProducer<Output>
+    where Output : Snippet.IStringable
 {
-    TOutput CreateOutput(string msg);
+    Output CreateOutput(string msg);
 }
-internal class MessageProducer : IProducer<MessageProducer.Output>
+
+class MessageProducer : Snippet.IProducer<Snippet.MessageProducer.Output>
 {
-    public class Output : IStringable
+    public Snippet.MessageProducer.Output CreateOutput(string msg)
+    {
+        return new Snippet.MessageProducer.Output(msg);
+    }
+
+    public MessageProducer()
+    {
+    }
+
+    public static MessageProducer __CreateDefault()
+    {
+        return new MessageProducer();
+    }
+
+    public class Output : Snippet.IStringable
     {
         public string Value;
 
@@ -27,30 +43,23 @@ internal class MessageProducer : IProducer<MessageProducer.Output>
             return $"Output({Value})";
         }
     }
-
-    public Output CreateOutput(string msg)
-    {
-        return new Output(msg);
-    }
-
-    public static MessageProducer __CreateDefault()
-    {
-        var inst = new MessageProducer();
-        return inst;
-    }
 }
+
 public class Program
 {
     public static void Main(string[] args)
     {
-        var producer = new MessageProducer();
-        var output = producer.CreateOutput("hello");
+        Snippet.MessageProducer producer = new Snippet.MessageProducer();
+        Snippet.MessageProducer.Output output = producer.CreateOutput("hello");
         Console.WriteLine(output.Stringify());
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

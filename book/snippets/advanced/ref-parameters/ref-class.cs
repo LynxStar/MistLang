@@ -16,24 +16,28 @@ public class Container
         return $"Container({Value})";
     }
 }
+
 public class Program
 {
-    private static void ReplaceContainer(ref Container c)
+    private static void ReplaceContainer(ref Snippet.Container c)
     {
-        c = new Container(999);
+        c = new Snippet.Container(999);
     }
 
     public static void Main()
     {
-        var box = new Container(42);
+        Snippet.Container box = new Snippet.Container(42);
         Console.WriteLine($"before: {box.Describe()}");
         ReplaceContainer(ref box);
         Console.WriteLine($"after: {box.Describe()}");
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

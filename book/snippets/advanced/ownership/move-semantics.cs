@@ -16,26 +16,30 @@ public class Handle
         return $"Handle({Id})";
     }
 }
+
 public class MoveDemo
 {
-    public static void Consume(Handle h)
+    public static void Consume(Snippet.Handle h)
     {
-        System.Console.WriteLine($"consumed={h.Describe()}");
+        Console.WriteLine($"consumed={h.Describe()}");
     }
 
     public static void Run()
     {
-        Handle h1 = new Handle(10);
-        System.Console.WriteLine($"before move={h1.Describe()}");
-        Handle h2 = h1;
-        System.Console.WriteLine($"after move to h2={h2.Describe()}");
+        Snippet.Handle h1 = new Snippet.Handle(10);
+        Console.WriteLine($"before move={h1.Describe()}");
+        Snippet.Handle h2 = h1;
+        Console.WriteLine($"after move to h2={h2.Describe()}");
         Consume(h2);
-        System.Console.WriteLine($"transfer complete");
+        Console.WriteLine($"transfer complete");
+    }
+
+    public MoveDemo()
+    {
     }
 
     public static MoveDemo __CreateDefault()
     {
-        var inst = new MoveDemo();
-        return inst;
+        return new MoveDemo();
     }
 }

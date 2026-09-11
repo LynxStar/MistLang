@@ -2,27 +2,27 @@ using System;
 
 namespace Snippet;
 
-public record class Color(byte Value)
+public sealed record class Color(byte Value)
 {
-    public static readonly Color Red = new Color((byte)0);
-    public static readonly Color Green = new Color((byte)1);
-    public static readonly Color Blue = new Color((byte)2);
+    public static readonly Color Red = new Color(0);
+    public static readonly Color Green = new Color(1);
+    public static readonly Color Blue = new Color(2);
 
     public static implicit operator byte(Color e) => e.Value;
 
     public static explicit operator Color?(byte value)
     {
-        if (Equals(value, Red.Value)) return Red;
-        else if (Equals(value, Green.Value)) return Green;
-        else if (Equals(value, Blue.Value)) return Blue;
+        if(Equals(value, Color.Red.Value)) return Color.Red;
+        if(Equals(value, Color.Green.Value)) return Color.Green;
+        if(Equals(value, Color.Blue.Value)) return Color.Blue;
         return null;
     }
 
     public override string ToString()
     {
-        if (ReferenceEquals(this, Red)) return "Red";
-        else if (ReferenceEquals(this, Green)) return "Green";
-        else if (ReferenceEquals(this, Blue)) return "Blue";
+        if(ReferenceEquals(this, Color.Red)) return "Red";
+        if(ReferenceEquals(this, Color.Green)) return "Green";
+        if(ReferenceEquals(this, Color.Blue)) return "Blue";
         return Value.ToString();
     }
 }

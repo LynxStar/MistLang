@@ -16,21 +16,25 @@ public class Item
         return this.value;
     }
 }
+
 public class Program
 {
     public static void Main(string[] args)
     {
-        Item present = new Item(5);
-        Item absent = null;
+        Snippet.Item present = new Snippet.Item(5);
+        Snippet.Item absent = null;
         int? result1 = present?.GetValue();
         int? result2 = absent?.GetValue();
         Console.WriteLine($"present?.GetValue()={(object?)result1 ?? "Void"}");
         Console.WriteLine($"absent?.GetValue()={(object?)result2 ?? "Void"}");
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

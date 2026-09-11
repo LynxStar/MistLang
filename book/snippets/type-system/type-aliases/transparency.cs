@@ -14,12 +14,15 @@ public class Program
         int aliasedId = 100;
         int rawId = aliasedId;
         int plainInt = 7;
-        Program.PrintUserId(plainInt);
+        Snippet.Program.PrintUserId(plainInt);
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

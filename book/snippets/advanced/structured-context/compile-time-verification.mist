@@ -1,3 +1,5 @@
+using Standard;
+
 public class Service
 {
     public static string GetConfig() with Config cfg

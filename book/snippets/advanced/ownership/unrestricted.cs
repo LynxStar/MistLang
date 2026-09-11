@@ -21,19 +21,23 @@ public class Counter
         return $"Counter({Value})";
     }
 }
+
 public class UnrestrictedDemo
 {
     public static void Run()
     {
-        var c1 = new Counter(10);
-        var c2 = c1;
+        Snippet.Counter c1 = new Snippet.Counter(10);
+        Snippet.Counter c2 = c1;
         c2.Increment();
         Console.WriteLine($"c1={c1.Describe()}, c2={c2.Describe()}");
     }
 
+    public UnrestrictedDemo()
+    {
+    }
+
     public static UnrestrictedDemo __CreateDefault()
     {
-        var inst = new UnrestrictedDemo();
-        return inst;
+        return new UnrestrictedDemo();
     }
 }

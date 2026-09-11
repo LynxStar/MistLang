@@ -16,11 +16,12 @@ public class Celsius
         return degrees;
     }
 
-    public static implicit operator Fahrenheit(Celsius c)
+    public static implicit operator Snippet.Fahrenheit(Snippet.Celsius c)
     {
-        return new Fahrenheit(c.GetDegrees() * 1.8 + 32.0);
+        return new Snippet.Fahrenheit(c.GetDegrees() * 1.8 + 32.0);
     }
 }
+
 public class Fahrenheit
 {
     private double degrees;

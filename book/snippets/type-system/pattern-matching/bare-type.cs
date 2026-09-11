@@ -4,36 +4,41 @@ namespace Snippet;
 
 public class Shape
 {
-    public string Kind { get; }
-
     public Shape(string kind)
     {
         this.Kind = kind;
     }
-}
-public class Circle : Shape
-{
-    public int Radius { get; }
 
+    public string Kind { get; }
+}
+
+public class Circle : Snippet.Shape
+{
     public Circle(int radius) : base("circle")
     {
         this.Radius = radius;
     }
+
+    public int Radius { get; }
 }
+
 public class Program
 {
     public static void Main(string[] args)
     {
-        Shape shape = new Circle(5);
-        if (shape is Circle)
+        Snippet.Shape shape = new Snippet.Circle(5);
+        if (shape is Snippet.Circle)
         {
             Console.WriteLine("It's a circle");
         }
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

@@ -1,5 +1,4 @@
 using System;
-using System.Text.RegularExpressions;
 
 namespace Snippet;
 
@@ -12,7 +11,8 @@ public class Vehicle
         this.speed = speed;
     }
 }
-public class Car : Vehicle
+
+public class Car : Snippet.Vehicle
 {
     private string model;
 

@@ -5,9 +5,7 @@ namespace Snippet;
 public class Counter
 {
     private static int totalCreated;
-
     private string name;
-
     private int value;
 
     public Counter(string name)
@@ -29,7 +27,7 @@ public class Counter
 
     public static void Main(string[] args)
     {
-        var c = new Counter("Alpha");
+        Snippet.Counter c = new Snippet.Counter("Alpha");
         c.Increment();
         c.Increment();
         Console.WriteLine(c.Describe());

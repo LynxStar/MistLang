@@ -1,9 +1,8 @@
 using System;
-using System.Text.RegularExpressions;
 
 namespace Snippet;
 
-private class Payload
+public class Payload
 {
     public int Size;
 
@@ -17,13 +16,13 @@ private class Payload
         return $"Payload({Size})";
     }
 }
+
 public class Envelope
 {
-    Payload Body;
+    private Snippet.Payload Body;
+    private int Stamp;
 
-    int Stamp;
-
-    public Envelope(Payload body)
+    public Envelope(Snippet.Payload body)
     {
         this.Body = body;
         this.Stamp = 1;
@@ -31,7 +30,7 @@ public class Envelope
 
     public void Reseal()
     {
-        this.Body = new Payload(0);
+        this.Body = new Snippet.Payload(0);
         this.Stamp = Stamp + 1;
     }
 
@@ -40,19 +39,23 @@ public class Envelope
         return $"Envelope(Body={Body.Describe()}, Stamp={Stamp})";
     }
 }
+
 public class CooperationContractDemo
 {
     public static void Run()
     {
-        Payload body = new Payload(256);
-        Envelope e = new Envelope(body);
+        Snippet.Payload body = new Snippet.Payload(256);
+        Snippet.Envelope e = new Snippet.Envelope(body);
         e.Reseal();
-        System.Console.WriteLine($"contract={e.Describe()}");
+        Console.WriteLine($"contract={e.Describe()}");
+    }
+
+    public CooperationContractDemo()
+    {
     }
 
     public static CooperationContractDemo __CreateDefault()
     {
-        var inst = new CooperationContractDemo();
-        return inst;
+        return new CooperationContractDemo();
     }
 }

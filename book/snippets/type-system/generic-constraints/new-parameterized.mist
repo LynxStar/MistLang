@@ -1,3 +1,5 @@
+using Standard;
+
 class IntFactory<T> where T : new(int)
 {
     public T Create(int value)

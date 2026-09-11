@@ -9,9 +9,12 @@ public class StringHelper
         return $"Hello, {name}!";
     }
 
+    public StringHelper()
+    {
+    }
+
     public static StringHelper __CreateDefault()
     {
-        var inst = new StringHelper();
-        return inst;
+        return new StringHelper();
     }
 }

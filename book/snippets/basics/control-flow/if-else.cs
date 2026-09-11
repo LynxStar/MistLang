@@ -6,12 +6,12 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        var score = 85;
+        int score = 85;
         if (score >= 90)
         {
             Console.WriteLine("Grade: A");
         }
-        else if (score >= 80)
+        else         if (score >= 80)
         {
             Console.WriteLine("Grade: B");
         }
@@ -21,9 +21,12 @@ public class Program
         }
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

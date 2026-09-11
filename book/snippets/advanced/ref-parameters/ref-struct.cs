@@ -2,10 +2,10 @@ using System;
 
 namespace Snippet;
 
+[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
 public struct Point
 {
     public int X;
-
     public int Y;
 
     public Point(int x, int y)
@@ -14,14 +14,26 @@ public struct Point
         this.Y = y;
     }
 
+    private Point(int p0, int p1, Mist.Emission.CSharp.__StructInit marker)
+    {
+        this.X = p0;
+        this.Y = p1;
+    }
+
+    internal static Point __FromParts(int p0, int p1, Mist.Emission.CSharp.__StructInit marker)
+    {
+        return new Point(p0, p1, default(Mist.Emission.CSharp.__StructInit));
+    }
+
     public string Describe()
     {
         return $"Point({X}, {Y})";
     }
 }
+
 public class Program
 {
-    private static void MutatePoint(ref Point p)
+    private static void MutatePoint(ref Snippet.Point p)
     {
         p.X = 100;
         p.Y = 200;
@@ -29,15 +41,18 @@ public class Program
 
     public static void Main()
     {
-        var pt = new Point(1, 2);
+        Snippet.Point pt = new Snippet.Point(1, 2);
         Console.WriteLine($"before: {pt.Describe()}");
         MutatePoint(ref pt);
         Console.WriteLine($"after: {pt.Describe()}");
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

@@ -4,14 +4,14 @@ namespace Snippet;
 
 public class DataService
 {
-    async System.Threading.Tasks.Task<int> FetchCount()
+    private async System.Threading.Tasks.Task<int> FetchCount()
     {
         return 42;
     }
 
-    async System.Threading.Tasks.Task LogMessage(string message)
+    private async System.Threading.Tasks.Task LogMessage(string message)
     {
-        System.Console.WriteLine(message);
+        Console.WriteLine(message);
     }
 
     public static async System.Threading.Tasks.Task<string> GetName()
@@ -19,9 +19,12 @@ public class DataService
         return "Mist";
     }
 
+    public DataService()
+    {
+    }
+
     public static DataService __CreateDefault()
     {
-        var inst = new DataService();
-        return inst;
+        return new DataService();
     }
 }

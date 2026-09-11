@@ -4,9 +4,8 @@ namespace Snippet;
 
 public class UniqueHandle
 {
-    int Id;
-
-    int RefCount;
+    private int Id;
+    private int RefCount;
 
     public UniqueHandle(int id)
     {
@@ -29,18 +28,22 @@ public class UniqueHandle
         return $"UniqueHandle(Id={Id}, RefCount={RefCount})";
     }
 }
+
 public class OwnedTypeDemo
 {
     public static void Run()
     {
-        UniqueHandle h = new UniqueHandle(42);
+        Snippet.UniqueHandle h = new Snippet.UniqueHandle(42);
         h.Touch();
         Console.WriteLine($"handle={h.Describe()}");
     }
 
+    public OwnedTypeDemo()
+    {
+    }
+
     public static OwnedTypeDemo __CreateDefault()
     {
-        var inst = new OwnedTypeDemo();
-        return inst;
+        return new OwnedTypeDemo();
     }
 }

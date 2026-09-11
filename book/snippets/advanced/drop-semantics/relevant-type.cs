@@ -4,9 +4,8 @@ namespace Snippets;
 
 public class Logger
 {
-    string Name;
-
-    bool Flushed;
+    private string Name;
+    private bool Flushed;
 
     public Logger(string name)
     {
@@ -21,22 +20,23 @@ public class Logger
             return;
         }
         this.Flushed = true;
-        System.Console.WriteLine($"Logger({Name}) flushed");
+        Console.WriteLine($"Logger({Name}) flushed");
     }
 
     public void Log(string msg)
     {
-        System.Console.WriteLine($"[{Name}] {msg}");
+        Console.WriteLine($"[{Name}] {msg}");
     }
 }
+
 public class Program
 {
     public static void Main()
     {
-        var logger = new Logger("app");
+        Snippets.Logger logger = new Snippets.Logger("app");
         try
         {
-            var alias = logger;
+            Snippets.Logger alias = logger;
             try
             {
                 alias.Log("hello");
@@ -53,9 +53,12 @@ public class Program
         }
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

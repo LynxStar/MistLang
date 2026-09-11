@@ -1,26 +1,27 @@
 using System;
-using System.Text.RegularExpressions;
 
 namespace Snippet;
 
-internal class Program
+class Program
 {
     public static void Main(string[] args)
     {
         object box = new { X = 10, Y = 20 };
-        System.Console.WriteLine($"box is object: {box is object}");
-        if (box is not null)
+        Console.WriteLine($"box is object: {box is object}");
         {
-            dynamic __pat_0 = box;
-            var x = __pat_0.X;
-            var y = __pat_0.Y;
-            System.Console.WriteLine($"X={x} Y={y}");
+            if ((box is not null and var __e7 && ((dynamic)__e7).X is var x && ((dynamic)__e7).Y is var y))
+            {
+                Console.WriteLine($"X={x} Y={y}");
+            }
         }
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

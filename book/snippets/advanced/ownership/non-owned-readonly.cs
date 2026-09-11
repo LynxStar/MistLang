@@ -21,17 +21,21 @@ public class Counter
         this.Value = Value + 1;
     }
 }
+
 public class NonOwnedReadonlyDemo
 {
     public static void Run()
     {
-        Counter c = new Counter(10);
-        System.Console.WriteLine($"readonly view={c.Describe()}");
+        Snippet.Counter c = new Snippet.Counter(10);
+        Console.WriteLine($"readonly view={c.Describe()}");
+    }
+
+    public NonOwnedReadonlyDemo()
+    {
     }
 
     public static NonOwnedReadonlyDemo __CreateDefault()
     {
-        var inst = new NonOwnedReadonlyDemo();
-        return inst;
+        return new NonOwnedReadonlyDemo();
     }
 }

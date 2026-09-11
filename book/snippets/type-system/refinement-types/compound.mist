@@ -1,3 +1,5 @@
+using Standard;
+
 type Percentage = int >= 0 and <= 100;
 
 public class Program

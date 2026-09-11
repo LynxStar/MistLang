@@ -11,7 +11,8 @@ public class Animal
         Name = name;
     }
 }
-public class Dog : Animal
+
+public class Dog : Snippet.Animal
 {
     public string Breed;
 
@@ -20,7 +21,8 @@ public class Dog : Animal
         Breed = breed;
     }
 }
-public class Cat : Animal
+
+public class Cat : Snippet.Animal
 {
     public int Lives;
 
@@ -29,18 +31,22 @@ public class Cat : Animal
         Lives = lives;
     }
 }
+
 public class Program
 {
     public static void Main(string[] args)
     {
-        Animal animal = new Cat("Luna", 7);
-        var dog = (animal as Dog) ?? new Dog("Default", "Unknown");
-        System.Console.WriteLine($"{dog.Name}, {dog.Breed}");
+        Snippet.Animal animal = new Snippet.Cat("Luna", 7);
+        Snippet.Dog dog = (animal as Snippet.Dog) ?? new Snippet.Dog("Default", "Unknown");
+        Console.WriteLine($"{dog.Name}, {dog.Breed}");
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

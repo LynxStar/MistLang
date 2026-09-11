@@ -6,20 +6,17 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        var num = 2;
-        var parity = num switch
-        {
-            1 => "odd",
-            2 => "even",
-            3 => "odd",
-            var _ => "unknown",
-        };
+        int num = 2;
+        string parity = num switch { 1 => "odd", 2 => "even", 3 => "odd", var _ => "unknown" };
         Console.WriteLine($"num={num} parity={parity}");
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

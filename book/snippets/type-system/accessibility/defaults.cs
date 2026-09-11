@@ -1,11 +1,10 @@
 using System;
-using System.Text.RegularExpressions;
 
 namespace Snippet;
 
-internal class TopLevelService
+class TopLevelService
 {
-    int counter;
+    private int counter;
 
     public TopLevelService()
     {
@@ -15,5 +14,15 @@ internal class TopLevelService
     public int GetCounter()
     {
         return counter;
+    }
+
+    private TopLevelService(Mist.Emission.CSharp.__DefaultInit marker)
+    {
+        this.counter = default(int);
+    }
+
+    public static TopLevelService __CreateDefault()
+    {
+        return new TopLevelService(default(Mist.Emission.CSharp.__DefaultInit));
     }
 }

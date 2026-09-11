@@ -7,18 +7,21 @@ public class Program
 {
     public static void Main()
     {
-        var dict = new Dictionary<string, int>();
+        System.Collections.Generic.Dictionary<string, int> dict = new System.Collections.Generic.Dictionary<string, int>();
         dict.Add("answer", 42);
         if (dict.ContainsKey("answer"))
         {
-            var value = dict["answer"];
-            System.Console.WriteLine($"Found={value}");
+            int value = dict["answer"];
+            Console.WriteLine($"Found={value}");
         }
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

@@ -2,12 +2,9 @@ using System;
 
 namespace Snippet;
 
-[DependentType("Count", typeof(int))]
 public class SizedCollection<TCount>
     where TCount : IConstInt
 {
-    public static int Count => TCount.Value;
-
     public int GetCount()
     {
         return TCount.Value;
@@ -17,15 +14,41 @@ public class SizedCollection<TCount>
     {
         return $"SizedCollection<{TCount.Value}>";
     }
+
+    public SizedCollection()
+    {
+    }
+
+    public static SizedCollection<TCount> __CreateDefault()
+    {
+        return new SizedCollection<TCount>();
+    }
 }
-[DependentType("Capacity", typeof(int))]
+
+[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
 public struct FixedSlot<TCapacity>
     where TCapacity : IConstInt
 {
-    public static int Capacity => TCapacity.Value;
+    private FixedSlot(Mist.Emission.CSharp.__StructInit marker)
+    {
+    }
 
-    public readonly int GetCapacity()
+    internal static FixedSlot<TCapacity> __FromParts(Mist.Emission.CSharp.__StructInit marker)
+    {
+        return new FixedSlot<TCapacity>(default(Mist.Emission.CSharp.__StructInit));
+    }
+
+    public int GetCapacity()
     {
         return TCapacity.Value;
+    }
+
+    public FixedSlot()
+    {
+    }
+
+    public static FixedSlot<TCapacity> __CreateDefault()
+    {
+        return new FixedSlot<TCapacity>();
     }
 }

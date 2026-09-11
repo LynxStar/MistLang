@@ -4,7 +4,7 @@ namespace Snippets;
 
 public class FileHandle
 {
-    int Fd;
+    private int Fd;
 
     public FileHandle(int fd)
     {
@@ -13,7 +13,7 @@ public class FileHandle
 
     public void Drop()
     {
-        System.Console.WriteLine($"FileHandle({Fd}) closed");
+        Console.WriteLine($"FileHandle({Fd}) closed");
     }
 
     public int GetFd()
@@ -21,14 +21,15 @@ public class FileHandle
         return Fd;
     }
 }
+
 public class Program
 {
     public static void Main()
     {
-        var f = new FileHandle(42);
+        Snippets.FileHandle f = new Snippets.FileHandle(42);
         try
         {
-            System.Console.WriteLine($"Using handle {f.GetFd()}");
+            Console.WriteLine($"Using handle {f.GetFd()}");
         }
         finally
         {
@@ -36,9 +37,12 @@ public class Program
         }
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

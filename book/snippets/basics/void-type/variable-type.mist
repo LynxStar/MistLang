@@ -1,2 +1,4 @@
+using Standard;
+
 void unit = void;
 Console.WriteLine($"typed void variable: {unit}");

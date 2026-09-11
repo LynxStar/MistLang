@@ -5,11 +5,8 @@ namespace Snippet;
 public class AppState
 {
     public int ErrorCount;
-
     public bool Ready;
-
     public string Status;
-
 
     public AppState()
     {
@@ -20,21 +17,24 @@ public class AppState
 
     public static AppState __CreateDefault()
     {
-        var inst = new AppState();
-        return inst;
+        return new AppState();
     }
 }
+
 public class Program
 {
     public static void Main(string[] args)
     {
-        AppState state = AppState.__CreateDefault();
+        Snippet.AppState state = Snippet.AppState.__CreateDefault();
         Console.WriteLine($"ErrorCount={state.ErrorCount} Ready={state.Ready} Status={state.Status}");
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

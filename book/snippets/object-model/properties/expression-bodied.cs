@@ -10,11 +10,19 @@ public class Rectangle
         this.Height = height;
     }
 
-    public int Area => Width * Height;
+    public int Area
+    {
+        get => Width * Height;
+    }
 
-    private int _Width_k__BackingField;
-    public int Width { get => _Width_k__BackingField; }
+    public int Width
+    {
+        get => field;
+    }
 
-    private int _Height_k__BackingField;
-    public int Height { get => _Height_k__BackingField; set => _Height_k__BackingField = value; }
+    public int Height
+    {
+        get => field;
+        set => field = value;
+    }
 }

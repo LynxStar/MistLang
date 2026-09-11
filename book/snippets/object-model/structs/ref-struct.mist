@@ -1,3 +1,5 @@
+using Standard;
+
 public ref struct IntBuffer
 {
     public int value;

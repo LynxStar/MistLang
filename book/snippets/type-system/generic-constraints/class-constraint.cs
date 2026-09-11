@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-internal class RefOnly<T>
+class RefOnly<T>
     where T : class
 {
     public T Item;

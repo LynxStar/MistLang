@@ -19,9 +19,12 @@ public class Program
         Console.WriteLine($"10! = {Factorial(10)}");
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

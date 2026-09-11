@@ -2,10 +2,9 @@ using System;
 
 namespace Snippet;
 
-internal class Pair<T>
+class Pair<T>
 {
     public T First;
-
     public T Second;
 
     public Pair(T first, T second)
@@ -19,19 +18,23 @@ internal class Pair<T>
         return $"Pair({First}, {Second})";
     }
 }
-internal class Program
+
+class Program
 {
     public static void Main(string[] args)
     {
-        Pair<int> intPair = new Pair<int>(1, 2);
-        Pair<string> strPair = new Pair<string>("hello", "world");
+        Snippet.Pair<int> intPair = new Snippet.Pair<int>(1, 2);
+        Snippet.Pair<string> strPair = new Snippet.Pair<string>("hello", "world");
         Console.WriteLine(intPair.Describe());
         Console.WriteLine(strPair.Describe());
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

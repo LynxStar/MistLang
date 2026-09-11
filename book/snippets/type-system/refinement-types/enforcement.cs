@@ -8,26 +8,31 @@ public class Program
     {
         int known = 20;
         int userInput = 25;
-        if (userInput >= 18)
         {
-            int validAge = userInput;
-            Console.WriteLine($"Valid adult age: {validAge}");
+            if (userInput is int and >= 18 and var validAge)
+            {
+                Console.WriteLine($"Valid adult age: {validAge}");
+            }
         }
         int childInput = 10;
-        if (childInput >= 18)
         {
-            int childAge = childInput;
-            Console.WriteLine("This won't print");
+            if (childInput is int and >= 18 and var childAge)
+            {
+                Console.WriteLine("This won't print");
+            }
+            else
+            {
+                Console.WriteLine("Not an adult age");
+            }
         }
-        else
-        {
-            Console.WriteLine("Not an adult age");
-        }
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

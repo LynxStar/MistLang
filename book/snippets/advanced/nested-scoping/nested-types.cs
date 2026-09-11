@@ -4,6 +4,21 @@ namespace Snippet;
 
 public class Outer
 {
+    public static void Demo()
+    {
+        Console.WriteLine(Snippet.Outer.Inner.Hello());
+        Console.WriteLine($"Status.Active = {Status.Active}");
+    }
+
+    public Outer()
+    {
+    }
+
+    public static Outer __CreateDefault()
+    {
+        return new Outer();
+    }
+
     public class Inner
     {
         public static string Hello()
@@ -11,14 +26,17 @@ public class Outer
             return "Outer.Inner";
         }
 
+        public Inner()
+        {
+        }
+
         public static Inner __CreateDefault()
         {
-            var inst = new Inner();
-            return inst;
+            return new Inner();
         }
     }
 
-    public record class Status(string Value)
+    public sealed record class Status(string Value)
     {
         public static readonly Status Active = new Status("active");
         public static readonly Status Inactive = new Status("inactive");
@@ -27,42 +45,34 @@ public class Outer
 
         public static explicit operator Status?(string value)
         {
-            if (Equals(value, Active.Value)) return Active;
-            else if (Equals(value, Inactive.Value)) return Inactive;
+            if(Equals(value, Status.Active.Value)) return Status.Active;
+            if(Equals(value, Status.Inactive.Value)) return Status.Inactive;
             return null;
         }
 
         public override string ToString()
         {
-            if (ReferenceEquals(this, Active)) return "Active";
-            else if (ReferenceEquals(this, Inactive)) return "Inactive";
+            if(ReferenceEquals(this, Status.Active)) return "Active";
+            if(ReferenceEquals(this, Status.Inactive)) return "Inactive";
             return Value.ToString();
         }
     }
-
-    public static void Demo()
-    {
-        Console.WriteLine(Inner.Hello());
-        Console.WriteLine($"Status.Active = {Status.Active}");
-    }
-
-    public static Outer __CreateDefault()
-    {
-        var inst = new Outer();
-        return inst;
-    }
 }
+
 public class Program
 {
     public static void Main(string[] args)
     {
-        Console.WriteLine(Outer.Inner.Hello());
-        Outer.Demo();
+        Console.WriteLine(Snippet.Outer.Inner.Hello());
+        Snippet.Outer.Demo();
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

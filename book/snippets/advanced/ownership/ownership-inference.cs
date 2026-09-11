@@ -21,22 +21,26 @@ public class Counter
         return $"Counter({Value})";
     }
 }
+
 public class OwnershipInferenceDemo
 {
     public static void Run()
     {
-        var counter = new Counter(0);
+        Snippet.Counter counter = new Snippet.Counter(0);
         counter.Increment();
-        System.Console.WriteLine($"inferred owned={counter.Describe()}");
-        var label = "hello";
-        var alias = label;
-        System.Console.WriteLine($"label={label}");
-        System.Console.WriteLine($"alias={alias}");
+        Console.WriteLine($"inferred owned={counter.Describe()}");
+        string label = "hello";
+        string alias = label;
+        Console.WriteLine($"label={label}");
+        Console.WriteLine($"alias={alias}");
+    }
+
+    public OwnershipInferenceDemo()
+    {
     }
 
     public static OwnershipInferenceDemo __CreateDefault()
     {
-        var inst = new OwnershipInferenceDemo();
-        return inst;
+        return new OwnershipInferenceDemo();
     }
 }

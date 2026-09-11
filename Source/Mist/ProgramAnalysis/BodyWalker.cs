@@ -28,6 +28,17 @@ internal static class BodyWalker
 
     internal static IReadOnlyCollection<Type> Kinds => Children.Keys;
 
+    public static IEnumerable<object> ChildrenOf(object node)
+    {
+        if(!Children.TryGetValue(node.GetType(), out var children))
+        {
+            throw new InvalidOperationException(
+                $"ICE: BodyWalker has no row for {node.GetType().Name}, so nothing beneath it would be analysed.");
+        }
+
+        return children(node).OfType<object>();
+    }
+
     public static IEnumerable<object> DescendantsAndSelf(object root)
     {
         var pending = new Stack<object>();
@@ -38,18 +49,9 @@ internal static class BodyWalker
             var node = pending.Pop();
             yield return node;
 
-            if(!Children.TryGetValue(node.GetType(), out var children))
+            foreach(var child in ChildrenOf(node).Reverse())
             {
-                throw new InvalidOperationException(
-                    $"ICE: BodyWalker has no row for {node.GetType().Name}, so nothing beneath it would be analysed.");
-            }
-
-            foreach(var child in children(node).Reverse())
-            {
-                if(child is not null)
-                {
-                    pending.Push(child);
-                }
+                pending.Push(child);
             }
         }
     }

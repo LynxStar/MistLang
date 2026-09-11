@@ -1,0 +1,15 @@
+using Standard;
+
+namespace Refusal;
+
+type Meters = new double;
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_ARRAY_REQUIRES_INITIALIZER
+        var distances = new Meters[3];
+        Console.WriteLine("unreachable");
+    }
+}

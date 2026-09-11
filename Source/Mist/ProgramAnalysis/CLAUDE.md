@@ -21,6 +21,10 @@ diagnostic ids and messages are observable behaviour and may be matched; its cod
   table (`BodyWalker`); a new node kind in the model means a new row, and `BodyWalkerCoverageTest` fails
   until it has one. Never replace the table with reflection — see the class comment for why.
 - Scope is the project's own source, exactly as emission's is. Never Standard.
+- Anything flow-sensitive stands on `Flow/`: one `FlowGraph` per body root from `FlowGraphBuilder`,
+  one forward solver, `FlowSolution`, over whatever `IFlowLattice` the rule defines. A rule that
+  walks statements with its own notion of a join is the five-frameworks failure the register's
+  one-flow-framework invariant names.
 - A target the binder knew but the model dropped — a return's, an argument's, an initializer entry's —
   is recorded ON the model (`ReturnStatement.TargetType`, `InvocationExpression.ParameterTypes`) rather
   than re-derived by a rule. Re-deriving means repeating substitution and overload selection, and

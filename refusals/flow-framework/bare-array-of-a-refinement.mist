@@ -1,0 +1,15 @@
+using Standard;
+
+namespace Refusal;
+
+type PositiveInt = int > 0;
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_ARRAY_REQUIRES_INITIALIZER
+        var counts = new PositiveInt[3];
+        Console.WriteLine("unreachable");
+    }
+}

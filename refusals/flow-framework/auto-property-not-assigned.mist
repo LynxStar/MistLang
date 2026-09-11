@@ -1,0 +1,33 @@
+using Standard;
+
+namespace Refusal;
+
+public class Dog
+{
+    public string Name;
+
+    public Dog(string name)
+    {
+        Name = name;
+    }
+}
+
+public class Account
+{
+    public Dog Pet { get; set; }
+
+    // REFUSE: MIST_PA_FIELD_NOT_DEFINITELY_ASSIGNED
+    public Account()
+    {
+        Console.WriteLine("nothing assigned");
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var account = new Account();
+        Console.WriteLine("unreachable");
+    }
+}

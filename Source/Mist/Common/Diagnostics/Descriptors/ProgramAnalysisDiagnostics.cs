@@ -225,4 +225,34 @@ public static class ProgramAnalysisDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.Analysis,
         "The optional suffix '?' cannot be applied to '{0}', which already contains 'void'.");
+
+    public static readonly DiagnosticDescriptor LocalReadBeforeAssignment = new(
+        new DiagnosticId("MIST_PA_LOCAL_READ_BEFORE_ASSIGNMENT"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Local variable '{0}' is read before being definitely assigned.");
+
+    public static readonly DiagnosticDescriptor FieldReadBeforeAssignment = new(
+        new DiagnosticId("MIST_PA_FIELD_READ_BEFORE_ASSIGNMENT"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Field '{0}' is read before being definitely assigned in constructor '{1}'.");
+
+    public static readonly DiagnosticDescriptor FieldNotDefinitelyAssigned = new(
+        new DiagnosticId("MIST_PA_FIELD_NOT_DEFINITELY_ASSIGNED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Field '{0}' must be definitely assigned before constructor '{1}' completes. The field's type '{2}' is not defaultable and has no initializer.");
+
+    public static readonly DiagnosticDescriptor ArrayRequiresInitializer = new(
+        new DiagnosticId("MIST_PA_ARRAY_REQUIRES_INITIALIZER"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot create a bare array 'new {0}[size]' because {1}. Use 'new Array<{0}, Size>(i => ...)' to supply a value for each element, or use an array literal with explicit elements.");
+
+    public static readonly DiagnosticDescriptor StackallocElementNotStampable = new(
+        new DiagnosticId("MIST_PA_STACKALLOC_ELEMENT_NOT_STAMPABLE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot use '{0}' as a stackalloc element type because {1}. Only primitives and structs whose fields are all stampable can be stack-allocated.");
 }

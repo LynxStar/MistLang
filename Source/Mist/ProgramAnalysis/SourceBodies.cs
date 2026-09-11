@@ -9,7 +9,8 @@ namespace Mist.ProgramAnalysis;
 /// Every root under which the project's own source holds code -- member bodies, constructor chains,
 /// accessors, initializers, default blocks, enum values, extension blocks and top-level statements --
 /// over the declarations <see cref="SourceTypes"/> scopes, each with the type whose declaration it
-/// sits inside, or null for code that sits in none.
+/// sits inside, or null for code that sits in none, and the member it belongs to, or null for a
+/// default block or an enum value.
 /// </summary>
 internal static class SourceBodies
 {
@@ -19,22 +20,22 @@ internal static class SourceBodies
         {
             if(unit.TopLevelMethod?.Body is { } topLevel)
             {
-                yield return new SourceRoot(topLevel, unit.TopLevelMethod.DeclaringType, assembly);
+                yield return new SourceRoot(topLevel, unit.TopLevelMethod.DeclaringType, assembly, unit.TopLevelMethod);
             }
 
             foreach(var type in unit.Types.SelectMany(AndNested))
             {
-                foreach(var root in OfType(type))
+                foreach(var (root, member) in OfType(type))
                 {
-                    yield return new SourceRoot(root, type, assembly);
+                    yield return new SourceRoot(root, type, assembly, member);
                 }
             }
 
             foreach(var block in unit.Extensions)
             {
-                foreach(var root in OfExtension(block))
+                foreach(var (root, member) in OfExtension(block))
                 {
-                    yield return new SourceRoot(root, Owner: null, assembly);
+                    yield return new SourceRoot(root, Owner: null, assembly, member);
                 }
             }
         }
@@ -50,7 +51,7 @@ internal static class SourceBodies
         }
     }
 
-    private static IEnumerable<object> OfType(MistType type)
+    private static IEnumerable<(object Root, object? Member)> OfType(MistType type)
     {
         if(type is MemberType member)
         {
@@ -65,26 +66,26 @@ internal static class SourceBodies
             {
                 if(enumMember.Value is { } value)
                 {
-                    yield return value;
+                    yield return (value, null);
                 }
             }
         }
     }
 
-    private static IEnumerable<object> OfMembers(MemberType member)
+    private static IEnumerable<(object Root, object? Member)> OfMembers(MemberType member)
     {
         foreach(var method in member.EnumerateDelegates())
         {
             if(method.Body is { } body)
             {
-                yield return body;
+                yield return (body, method);
             }
 
             if(method is Constructor constructor)
             {
                 foreach(var argument in constructor.ChainArgumentsList)
                 {
-                    yield return argument;
+                    yield return (argument, constructor);
                 }
             }
         }
@@ -93,12 +94,12 @@ internal static class SourceBodies
         {
             if(property.Initializer is { } initializer)
             {
-                yield return initializer;
+                yield return (initializer, property);
             }
 
             foreach(var root in OfAccessors(property.Getter, property.Setter))
             {
-                yield return root;
+                yield return (root, property);
             }
         }
 
@@ -106,7 +107,7 @@ internal static class SourceBodies
         {
             foreach(var root in OfAccessors(indexer.Getter, indexer.Setter))
             {
-                yield return root;
+                yield return (root, indexer);
             }
         }
 
@@ -119,23 +120,23 @@ internal static class SourceBodies
         {
             if(field.Initializer is { } initializer)
             {
-                yield return initializer;
+                yield return (initializer, field);
             }
         }
 
         foreach(var root in OfDefaults(concrete.DefaultBlock?.Entries ?? []))
         {
-            yield return root;
+            yield return (root, null);
         }
     }
 
-    private static IEnumerable<object> OfExtension(ExtensionBlock block)
+    private static IEnumerable<(object Root, object? Member)> OfExtension(ExtensionBlock block)
     {
         foreach(var method in block.MethodsList)
         {
             if(method.Body is { } body)
             {
-                yield return body;
+                yield return (body, method);
             }
         }
 
@@ -143,7 +144,7 @@ internal static class SourceBodies
         {
             foreach(var root in OfAccessors(property.Getter, property.Setter))
             {
-                yield return root;
+                yield return (root, property);
             }
         }
     }
@@ -186,4 +187,4 @@ internal static class SourceBodies
     }
 }
 
-internal sealed record SourceRoot(object Root, MistType? Owner, MistAssembly Assembly);
+internal sealed record SourceRoot(object Root, MistType? Owner, MistAssembly Assembly, object? Member);

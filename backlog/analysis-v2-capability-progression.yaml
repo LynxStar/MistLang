@@ -785,21 +785,106 @@ rules:
     order: 10
     subsystem: flow
     requires: [analyzer-contract]
-    status: missing
+    status: done
     from: the one-flow-framework invariant; orders 132, 140, 148, 155, 158, 165, 166 are its customers
     evidence: >
-      PROVEN ON DEFINITE ASSIGNMENT FIRST, which is the same discipline order 97 applied to the
-      contract: two tasks on the framework the borrow checker needs fifteen of, so the small customer is
-      what shows the shape is right. Order 165's task is the statement of it -- an assigned-or-unassigned
-      lattice merged at join points, checked on every read including through interpolation, plus a
-      constructor-level all-fields-assigned-on-all-paths verification.
-      
-      ORDER 166 RIDES HERE TOO, and is the one task in the queue that is not a refusal about flow but a
-      classification feeding one: stampability, which decides whether a bare sized array creation is
-      admissible so an array of a reference type can never be observed holding null. It is distinct from
-      C#'s unmanaged rule and order 140's stackalloc task needs the same predicate.
-    tasks: []
+      PROVEN ON DEFINITE ASSIGNMENT FIRST, which is the same discipline order 97 applied to the contract:
+      two tasks on the framework the borrow checker needs fifteen of, so the small customer is what shows
+      the shape is right. Order 165's task is the statement of it -- an assigned-or-unassigned lattice
+      merged at join points, checked on every read including through interpolation, plus a
+      constructor-level all-fields-assigned-on-all-paths verification. Order 166 rides here too: the
+      classification feeding a refusal, stampability, with order 140's stackalloc element task on the
+      same predicate.
 
+      THE FRAMEWORK. ProgramAnalysis/Flow holds it: FlowGraphBuilder builds a FlowGraph over any body root
+      -- blocks of steps in evaluation order, one Evaluate step per node on any path, Declare, Introduce
+      and Bind steps where a local comes to be -- with every branch the language has as a branch: if,
+      the three loops, `&&`, `||`, `!`, `??`, `??=`, an `is` test, a switch's arms and guards, and each
+      pattern's own match-or-not, so a binding is bound only on the path that matched. A literal
+      condition has one exit, which is what `while(true) { ...; break; }` needs. A lambda or async
+      block is a graph of its own under Nested, reached from the step that creates it, since when it
+      runs is not the enclosing body's to know. FlowSolution is the forward worklist solver over any
+      IFlowLattice: Join, Same, Transfer, an entry state, reachability kept apart from the state, and a
+      Replay that hands a rule the state at every step of every reached block. Nothing in it knows what
+      definite assignment is.
+
+      THE CUSTOMER. DefiniteAssignmentAnalyzer's lattice is the set of what is assigned: intersection
+      at a join, a declaration without an initializer removing its local, an assignment adding its
+      target, a read adding the local it read so one unassigned local is one complaint per path. Locals
+      are tracked only when declared without an initializer, every other way a local comes to be giving
+      it a value. Writing a field of a struct held in a local writes the local and reads none of it --
+      Roslyn admits `Point p; p.x = 1; p.y = 2;` -- and Roslyn keeps the per-field precision v2 does
+      not have (the task below). Classic's own analyzer reports NONE of the local cases: it emits
+      `int x;` and Roslyn refuses with CS0165, measured on a 27-shape probe compiled through the
+      emitted project. Every one of Roslyn's eleven refusals is v2's, at the same read, including the
+      read inside a lambda before the capture is assigned and an assignment inside a lambda or async
+      block that does not count outside. Every shape Roslyn admits is admitted.
+
+      FIELDS ARE TRACKED AS CLASSIC TRACKS THEM, measured on 34 constructor shapes. Storage is an
+      instance field or auto-property of the constructor's own type with no initializer and no default
+      -- `string` and `int` have one; `Dog`, with a constructor, does not -- and not a type parameter
+      or a pack, whose default is each instantiation's to decide, which is where the first sweep found
+      ten findings on four working samples. A read is refused only through an explicit `this`: classic
+      admits a bare `owner.Name` before assignment, a call to a method on `this`, `this` handed to a
+      local, and `this.owner` inside a lambda, and v2 admits each; the spec's stricter wording is the
+      first task below. The end-of-constructor check reports every tracked storage not assigned on
+      every path to the exit, so a chain to `this(...)` is exempt. Three divergences, each more
+      permissive and each principled: a base class's field read through `this` (classic refuses it,
+      though the base constructor assigned it), a constructor chained to `this(...)` (classic refuses
+      both ways, though the chained constructor assigned everything), and an int auto-property read
+      through `this` (classic refuses, though an int field is admitted). A bare read of an
+      auto-property before assignment gets a garbled TC_0016 from classic; v2 admits it when it is
+      assigned later.
+
+      STAMPABILITY, beside Defaultability in ProgramModel/Construction so the emitter can reach it:
+      an intrinsic struct, or a tuple or struct of stampable fields, through an alias; not a class, a
+      refinement whose zero need not satisfy its predicate, an enum whose zero need not be a variant,
+      a newtype, a type parameter, a ref struct, or a struct that contains itself. Each is classic's
+      verdict, measured, except the alias: classic refuses `new Coord[3]` for `type Coord = Point`,
+      and v2 admits what the alias names. Classic's message had its placeholders unformatted; v2's
+      names the element type and the reason. `new Pair<int>[3]` and `stackalloc Span<int>[2]` are not
+      measurable on v2: the binder does not resolve a generic type in element position, recorded below.
+
+      MEASURED: the first sweep reported ten findings, all type-parameter or pack fields in generic
+      containers, fixed at the source; then zero findings and identical stdout on AllFeaturesV2 and
+      AllFeatures, and zero on the three unbanked samples. Thirty corpus cases, one per refused shape.
+      Fifty-seven decision rows pin the admits and the divergences; five framework facts pin the graph's
+      shape. Twenty-three mutations, each on a confirmed build, all caught: the rule silenced, join as
+      union, a read not settling its local, lambda bodies not judged or judged from nothing assigned,
+      no storage tracked, the field-read rule silenced, a chained constructor still checked, type
+      parameter storage tracked, an explicit `this` write not counted, an auto-property not tracked,
+      the end-of-constructor check silenced, a struct local's receiver read, a literal condition
+      splitting both ways, a binding bound on both paths, a return falling through, the stampability
+      rule silenced, struct fields unexamined, an enum, a class, a type parameter or an alias admitted,
+      and unreached blocks judged -- the last one survived until a row pinned that a read in
+      unreachable code is not judged, which is Roslyn's verdict too.
+    tasks:
+      - >
+        The definite-assignment spec is stricter than classic: Req 1.1 refuses any read of an
+        unassigned field, and Req 1.8 treats `this` passed, returned, or invoked on as a read of every
+        unassigned field. Classic refuses only a read through an explicit `this`, and v2 follows
+        classic. Whether to adopt the spec's rule -- which refuses samples-shaped code like a helper
+        method called from a constructor before every field is assigned -- is a decision.
+      - >
+        Per-field definite assignment of a struct local is left to Roslyn (CS0170): `Point p;
+        p.x = 1; return p.y;` passes Stage 5, since a field write counts as writing the whole local,
+        and is refused by the emitted C#. Tracking (local, field) pairs is the natural extension.
+      - >
+        A generic type in element position -- `new Pair<int>[3]`, `stackalloc Span<int>[2]` -- is
+        MIST_PM_UNRESOLVED_TYPE on v2; the binder resolves only a simple name there. Until it does,
+        the generic-struct and ref-struct stampability refusals cannot be measured or pinned.
+      - >
+        `Span<T>` erases its length to `unknown` rather than an unknown int VALUE, so `int n =
+        span.Length;` is refused by order 5 as unknown-to-int; `int[]` gets this right. Found while
+        probing stackalloc; not a flow matter, and left as an order 5 finding.
+      - >
+        Parameters have no Introduce step: the model keeps a method's parameters as Parameter, and
+        the LocalVariable each is referenced through is the body scope's. Order 11 will want them on
+        the graph, and will need the binder to record the mapping.
+      - >
+        The worklist's iteration to a fixpoint is exercised by every loop in the corpus but cannot be
+        told apart from a single pass on an intersection lattice, whose back edges only remove. The
+        first customer whose lattice grows along a back edge is the one that will observe it.
   - id: ownership-borrow-checking
     name: Tiers, moves, lending and the substructural counts
     order: 11

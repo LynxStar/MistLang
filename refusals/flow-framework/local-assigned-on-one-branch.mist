@@ -1,0 +1,20 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static void Main()
+    {
+        var flag = true;
+        int x;
+        if(flag)
+        {
+            x = 1;
+        }
+
+        // REFUSE: MIST_PA_LOCAL_READ_BEFORE_ASSIGNMENT
+        Console.WriteLine(x);
+        Console.WriteLine("unreachable");
+    }
+}

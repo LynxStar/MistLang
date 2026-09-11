@@ -1,0 +1,39 @@
+using Standard;
+
+namespace Refusal;
+
+public class Dog
+{
+    public string Name;
+
+    public Dog(string name)
+    {
+        Name = name;
+    }
+}
+
+public class Account
+{
+    public Dog owner;
+
+    public Account(bool flag)
+    {
+        if(flag)
+        {
+            owner = new Dog("a");
+        }
+
+        // REFUSE: MIST_PA_FIELD_READ_BEFORE_ASSIGNMENT
+        Console.WriteLine(this.owner.Name);
+        owner = new Dog("b");
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var account = new Account(true);
+        Console.WriteLine("unreachable");
+    }
+}

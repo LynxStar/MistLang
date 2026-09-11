@@ -28,6 +28,11 @@ internal static class Defaultability
         return IsDefaultable(type, []);
     }
 
+    public static bool FieldHasDefault(ConcreteType type, Field field)
+    {
+        return CanDefault(type, field, []);
+    }
+
     public static bool NeedsSentinel(ConcreteType type)
     {
         return type.ConstructorsList.Exists(c => !c.Modifiers.IsStatic);

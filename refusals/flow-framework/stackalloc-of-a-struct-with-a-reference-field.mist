@@ -1,0 +1,18 @@
+using Standard;
+
+namespace Refusal;
+
+public struct Named
+{
+    public string label;
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_STACKALLOC_ELEMENT_NOT_STAMPABLE
+        Span<Named> items = stackalloc Named[2];
+        Console.WriteLine("unreachable");
+    }
+}

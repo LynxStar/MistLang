@@ -8345,10 +8345,55 @@ capabilities:
     order: 186
     layer: stdlib-only
     requires: [class-declaration]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      Marks a declaration whose implementation is supplied by the compiler rather than by a
-      Mist body. Used throughout Source/Standard/Bootstrap and by nothing in samples.
+      LANDED 2026-09-11. Marks a declaration whose implementation is supplied by the compiler rather
+      than by a Mist body. Used throughout Source/Standard/Bootstrap and by nothing in samples.
+
+      THE SKIP IS NOW PER DECLARATION. CSharpEmitterV2 skipped the whole Standard ASSEMBLY; it now
+      skips only an assembly with no Mist source, and Standard's compilation units go through the same
+      EmitCompilationUnit path as a user's. What the target already supplies is dropped one declaration
+      at a time by TypeEmitter.SuppliedByBackend: an intrinsic type, whose implementation is the
+      backend's by declaration; Standard.Void; and an abstract that IS a CLR interface.
+
+      WHAT THAT ACTUALLY EMITS IS ONE FILE, and the register's earlier reading of "five Standard files
+      declare no intrinsic" does not survive contact with them. IClonable is the only one that is
+      ordinary Mist with a C# counterpart to write: it now emits from its own compilation unit to
+      out/Standard/IClonable.cs, where EmitStandardAbstracts used to collect it into __Standard.g.cs,
+      and that hand-rolled aggregator is deleted. Optional.mist declares a type ALIAS, which erases, so
+      there is nothing to emit and its file is skipped. IEnumerable and IEnumerator project onto the
+      CLR interfaces, so emitting them would duplicate a framework type that satisfies no framework API
+      and no foreach -- ClrProjection, the rule EmitStandardAbstracts already applied, now expressed per
+      declaration. Unknown.mist is an extension block whose bodies are placeholders by its own header
+      ("actual behavior comes from the .NET runtime"), and Standard's extension blocks stay skipped for
+      the reason EmittableBlocks records. Bootstrap emits nothing: every type in it is intrinsic or an
+      alias.
+
+      VOID STAYS A STAND-IN, and the reason is not intrinsic-ness -- Void.mist declares none. Its C#
+      shape needs members Mist cannot spell: Mist has no base object and no `override`, so the equality
+      overrides, IEquatable and the ToString that makes a void value print as "Void" have no Mist
+      spelling. Six baseline lines print exactly that, so emitting Void.mist from source would change
+      them to "Standard.Void". EmitVoidStruct moved out of CSharpEmitterV2 (935 lines, past the split
+      signal) into VoidStandIn, and StandardDeclarationEmissionTests now holds that text to every member
+      Void.mist declares, so the drift the stdlib target warned about fails a test instead of passing
+      unnoticed. A stale doc comment describing Void, which had drifted onto EmitContextRuntime, is gone.
+
+      NO MEMBER-LEVEL FILTER WAS ADDED, because one would be unreachable. IntrinsicMemberValidation
+      refuses a member-level `intrinsic` whose containing type is not itself intrinsic
+      (MIST_PM_INTRINSIC_REQUIRES_INTRINSIC_TYPE, the standard-library spec's Req 5.15), and an
+      intrinsic type emits nothing -- so no emitted type can hold an intrinsic member, and a test for
+      "one intrinsic method and one ordinary method" would describe a model the builder refuses.
+
+      MEASURED: AllFeaturesV2 byte-identical to baseline and samples/Testing green under `mist test` on
+      v2, which is the one consumer that compiles emitted code through MSBuild and so sees C# warnings.
+      A Tier 3 test pins that an intrinsic type produces no declaration and writes nothing.
+    tasks:
+      - An intrinsic type's ORDINARY members are dropped with the type. The standard-library spec's
+        Req 5.12 admits them -- Mist-bodied members composing the intrinsics on a backend-backed type --
+        and none exists in Standard today, so nothing is lost yet. C# has nowhere to put them, since a
+        backing type like System.Int32 cannot be reopened; extension members would be the shape. Silent
+        today, which is the part worth fixing first.
     unlocks: [stdlib]
 
   # ===================================================================
@@ -9825,19 +9870,26 @@ non_sample_targets:
     path: Source/Standard
     threshold: intrinsic-member-declarations
     evidence: >
-      NOTHING OF THE STDLIB IS EMITTED BY v2 TODAY, which the untested entries below assume away.
-      CSharpEmitterV2 skips the whole Standard ASSEMBLY, where the rule is per DECLARATION:
-      `intrinsic` says the target already supplies it -- stages 1-5 are pure Mist and only stage 6
-      answers where it comes from -- and everything else is ordinary Mist that has to be emitted.
+      THE SKIP IS PER DECLARATION AS OF ORDER 186 (2026-09-11), where it used to be per assembly.
+      Standard's compilation units go through the same emission path as a user's, and
+      TypeEmitter.SuppliedByBackend drops what the target already has.
 
-      FIVE STANDARD FILES DECLARE NO INTRINSIC AT ALL: IClonable, Optional, Void, IEnumerable and
-      IEnumerator, with Unknown nearly so. Classic emits them (IClonable.cs and Unknown.cs appear in
-      every classic out/); v2 emits none, and carries hand-written C# stand-ins instead --
-      CSharpEmitterV2.EmitVoidStruct is a transcription of Void.mist that can drift from it silently.
+      EMITTED FROM SOURCE: IClonable, to out/Standard/IClonable.cs. That is the whole list, and it is
+      not a shortfall -- it is what the stdlib actually contains once each file is read. SUPPLIED BY THE
+      BACKEND: every Bootstrap type, intrinsic by declaration (the ten numerics, Boolean, Char, String,
+      Array, Span, Func, Task, Type, Console, Math, Convert, Regex, Index, Range); IEnumerable and
+      IEnumerator, which ARE the CLR's interfaces; and Standard.Void, whose C# shape needs overrides
+      Mist cannot spell (see order 186). ERASED, so there is nothing to emit: Optional, Action, and the
+      other type aliases. STILL SKIPPED: Standard's extension blocks, Unknown.mist being placeholder
+      bodies whose behaviour is the runtime's.
 
-      WHAT LIFTS THE SKIP is orders 185 and 186: the emitter has to be able to tell an intrinsic
-      declaration from an ordinary one before the test can narrow from the assembly to the
-      declaration. Every other capability this target requires is already done.
+      THE DRIFT THIS ENTRY WARNED ABOUT IS NOW A TEST. EmitVoidStruct, a transcription of Void.mist
+      that could drift from it silently, is VoidStandIn, and StandardDeclarationEmissionTests holds it
+      to every member Void.mist declares.
+
+      The earlier count here -- "five Standard files declare no intrinsic at all" -- was right about
+      the files and wrong about what follows from it: an alias and a CLR-projected abstract have
+      nothing to emit whether or not they say `intrinsic`.
     requires: [intrinsic-member-declarations, operator-overload-declarations,
                cast-operator-declarations, property-declarations-and-accessors,
                indexer-declarations, associated-type-slots, type-pack-declarations,
@@ -9960,6 +10012,10 @@ uncovered_constructs:
     what: The intrinsic modifier
     disposition: stdlib-only
     capability: intrinsic-member-declarations
+    note: >
+      Stays stdlib-only BY RULE, not for want of a sample: the standard-library spec reserves
+      `intrinsic` to the Standard library (Req 5.6 and 5.13), so no sample may declare one. Order 186
+      pins it instead with a Tier 3 test over an intrinsic type, which produces no declaration at all.
 
   - construct: BinaryLiteralExpressionPrimaryNode
     what: Binary integer literals

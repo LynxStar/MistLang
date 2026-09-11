@@ -1,5 +1,6 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
@@ -22,14 +23,28 @@ internal static class TypeEmitter
     /// </summary>
     public static bool ProducesDeclaration(DeclaredType type)
     {
-        return type is (MemberType or EnumType or Newtype) and not ConcreteType { IsIntrinsic: true };
+        return type is MemberType or EnumType or Newtype && !SuppliedByBackend(type);
+    }
+
+    /// <summary>
+    /// The declarations whose C# the target already has, so that emitting one would collide with it
+    /// rather than add anything: an intrinsic type, whose implementation is the backend's by
+    /// declaration; Standard.Void, whose shape needs members Mist cannot spell (see
+    /// <see cref="VoidStandIn"/>); and an abstract that IS a CLR interface, where a structurally
+    /// identical duplicate would satisfy no framework API (see <see cref="ClrProjection"/>).
+    /// </summary>
+    private static bool SuppliedByBackend(DeclaredType type)
+    {
+        return type is ConcreteType { IsIntrinsic: true }
+            || OptionalUnion.IsVoid(type)
+            || (type is AbstractType && ClrProjection.Projects(type));
     }
 
     /// <summary>
     /// Total over every declaration kind, and it OWNS the blank line that precedes what it writes --
-    /// so a kind that writes nothing leaves no separator behind and no caller has to ask first. An
-    /// intrinsic is skipped because the backend supplies its implementation, and an alias because
-    /// it names an existing type and its uses emit as that type.
+    /// so a kind that writes nothing leaves no separator behind and no caller has to ask first. A
+    /// declaration <see cref="SuppliedByBackend"/> answers for is skipped, and an alias because it
+    /// names an existing type and its uses emit as that type.
     /// <para>
     /// The arms that write must agree with <see cref="ProducesDeclaration"/>; the throwing default is
     /// what keeps that agreement honest, failing the first program that declares a kind only one of
@@ -46,8 +61,10 @@ internal static class TypeEmitter
     {
         switch(type)
         {
-            case ConcreteType { IsIntrinsic: true }:
             case TypeAlias:
+                break;
+
+            case DeclaredType when SuppliedByBackend(type):
                 break;
 
             case Newtype newtype:

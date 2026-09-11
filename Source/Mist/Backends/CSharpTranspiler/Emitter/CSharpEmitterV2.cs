@@ -103,19 +103,15 @@ internal sealed class CSharpEmitterV2
         EmitUnionCarriers(outputDir, emittedFiles);
         EmitDependentCarriers(outputDir, emittedFiles);
         EmitMonomorphs(outputDir, emittedFiles, closures);
-        EmitVoidStruct(outputDir, emittedFiles);
+        EmitVoidStandIn(outputDir, emittedFiles);
 
-        EmitStandardAbstracts(closures, outputDir, emittedFiles);
-
-        // STILL SKIPPED, AND NARROWER THAN IT WAS. The rule this stands in for is per DECLARATION:
-        // `intrinsic` says the target already supplies it, and everything else is ordinary Mist that
-        // has to be emitted like any other. The ABSTRACTS are now emitted from their declarations
-        // just above; what remains skipped is Bootstrap, which is intrinsic throughout and needs
-        // orders 185 and 186 -- operator overloads and the intrinsic modifier itself -- before it can
-        // be told apart declaration by declaration. Void keeps its hand-written stand-in until then.
+        // THE SKIP IS PER DECLARATION NOW, not per assembly: Standard's compilation units go through
+        // the same path as a user's, and what the target already supplies is dropped one declaration
+        // at a time by TypeEmitter.ProducesDeclaration. Bootstrap is intrinsic throughout and so
+        // emits nothing; IClonable is ordinary Mist and emits as itself.
         foreach(var assembly in programModel.Assemblies)
         {
-            if(!assembly.HasMistSource || assembly.Kind == MistAssemblyKind.Standard)
+            if(!assembly.HasMistSource)
             {
                 continue;
             }
@@ -484,15 +480,6 @@ internal sealed class CSharpEmitterV2
         emittedFiles.Add(path);
     }
 
-    /// <summary>
-    /// The CLR shape of Standard.Void, generated because System.Void is refused in every
-    /// position a unit type needs, and because the stdlib is skipped wholesale rather than by
-    /// declaration -- see the Assemblies loop in <see cref="Emit"/>. Void.mist declares no
-    /// intrinsic, so it is Mist that ought simply to be emitted; what is still outstanding is
-    /// operator declarations, order 185. Delete this in its favour once that lands. Members follow
-    /// Void.mist; ToString and the equality overrides are backend additions so interpolation prints
-    /// "Void" and the operators compile clean.
-    /// </summary>
     private static void EmitContextRuntime(string outputDir, List<string> emittedFiles)
     {
         if(!ContextLowering.Used())
@@ -523,81 +510,10 @@ internal sealed class CSharpEmitterV2
         emittedFiles.Add(path);
     }
 
-    /// <summary>
-    /// Standard's own abstract declarations, emitted as the Mist they are. Only the ones that do NOT
-    /// project onto a CLR interface: IEnumerable and IEnumerator ARE the framework's, so emitting them
-    /// would produce a structurally identical duplicate that satisfies no framework API and no
-    /// foreach -- see <see cref="ClrProjection"/>. IClonable is Mist's own and had no C# to conform
-    /// to, so every type declaring it named an interface that did not exist.
-    /// </summary>
-    private void EmitStandardAbstracts(
-        ConstraintClosureMap closures, string outputDir, List<string> emittedFiles)
-    {
-        var emitted = new List<AbstractType>();
-
-        foreach(var assembly in programModel.Assemblies)
-        {
-            if(assembly.Kind != MistAssemblyKind.Standard)
-            {
-                continue;
-            }
-
-            foreach(var unit in assembly.CompilationUnits)
-            {
-                emitted.AddRange(unit.Types
-                    .OfType<AbstractType>()
-                    .Where(type => !ClrProjection.Projects(type)));
-            }
-        }
-
-        if(emitted.Count == 0)
-        {
-            return;
-        }
-
-        var writer = new CSharpWriter();
-        writer.WriteLine("namespace Standard;");
-
-        foreach(var type in emitted.OrderBy(type => type.Name, StringComparer.Ordinal))
-        {
-            writer.WriteBlankLine();
-            TypeEmitter.EmitTypeBody(
-                type, closures, ((ProgramModel.Model.ProgramModel)programModel).VariadicUses, writer,
-                diagnostics);
-        }
-
-        var path = Path.Combine(outputDir, "__Standard.g.cs");
-        File.WriteAllText(path, writer.ToString());
-        emittedFiles.Add(path);
-    }
-
-    private static void EmitVoidStruct(string outputDir, List<string> emittedFiles)
+    private static void EmitVoidStandIn(string outputDir, List<string> emittedFiles)
     {
         var writer = new CSharpWriter();
-        writer.WriteLine("#nullable enable");
-        writer.WriteLine("namespace Standard;");
-        writer.WriteBlankLine();
-        writer.WriteLine("[System.Runtime.CompilerServices.CompilerGenerated]");
-        writer.WriteLine("public readonly struct Void : System.IEquatable<Void>");
-
-        using(writer.Block())
-        {
-            writer.WriteLine("public static readonly Void Instance = default;");
-            writer.WriteBlankLine();
-            writer.WriteLine("public bool Equals(Void other) => true;");
-            writer.WriteBlankLine();
-            writer.WriteLine("public override bool Equals(object? obj) => obj is Void;");
-            writer.WriteBlankLine();
-            writer.WriteLine("public override int GetHashCode() => 0;");
-            writer.WriteBlankLine();
-            writer.WriteLine("public static bool operator ==(Void left, Void right) => true;");
-            writer.WriteBlankLine();
-            writer.WriteLine("public static bool operator !=(Void left, Void right) => false;");
-            writer.WriteBlankLine();
-            writer.WriteLine("public override string ToString() => \"Void\";");
-            writer.WriteBlankLine();
-            writer.WriteLine("public static implicit operator System.Type(Void v) => typeof(Void);");
-        }
+        VoidStandIn.Emit(writer);
 
         var path = Path.Combine(outputDir, "__Void.g.cs");
         File.WriteAllText(path, writer.ToString());

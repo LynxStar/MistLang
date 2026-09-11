@@ -20,7 +20,7 @@ namespace Mist.Tests.Helpers;
 /// </summary>
 internal static class StdlibTestHelper
 {
-    private static string FindRepoRoot()
+    internal static string FindRepoRoot()
     {
         var dir = AppContext.BaseDirectory;
         while(dir is not null)

@@ -401,9 +401,10 @@ rules:
       whose target is void, which is order 6's question; and a constructor chain's arguments, since no
       chained constructor is recorded.
 
-      MEASURED: zero findings and identical stdout on AllFeaturesV2 and on AllFeatures, and on
-      CSharpInteropV2 and DelegateFuncConversion built standalone; samples/Testing cannot be measured on
-      v2 because its ambient projection throws at HEAD before any rule runs, recorded in backlog/general.md.
+      MEASURED: zero findings and identical stdout on AllFeaturesV2 and on AllFeatures, and zero findings on
+      CSharpInteropV2, DelegateFuncConversion and Testing built standalone -- the last only once
+      ClrNullability tolerated an attribute type TestHost 17.12 references but never defines, which had
+      thrown before any rule ran.
       39 corpus cases, one per refused shape. 71 decision rows pinning the admits, the divergences and the
       three reach facts, with a fixture whose bodies exercise a value parameter's domain, an async int
       return, an untargeted lambda in an int method, and a constrained T returned as its constraint.

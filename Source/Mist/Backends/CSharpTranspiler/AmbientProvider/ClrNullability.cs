@@ -78,15 +78,39 @@ internal static class ClrNullability
         });
     }
 
+    /// <summary>
+    /// An attribute the loader cannot resolve counts as absent. The list is read eagerly but each entry's
+    /// TYPE is resolved only when touched, and a package can reference a type its own assemblies no
+    /// longer define -- three assemblies of TestHost 17.12 name one CoreUtilities lacks -- which says
+    /// nothing about nullability and must not take the projection down with it.
+    /// </summary>
     private static IEnumerable<CustomAttributeData> SafeAttributes(Func<IList<CustomAttributeData>> read)
     {
+        IList<CustomAttributeData> attributes;
+
         try
         {
-            return read();
+            attributes = read();
         }
         catch
         {
             return [];
+        }
+
+        return attributes.Where(Resolvable);
+    }
+
+    private static bool Resolvable(CustomAttributeData attribute)
+    {
+        try
+        {
+            _ = attribute.AttributeType;
+            _ = attribute.ConstructorArguments;
+            return true;
+        }
+        catch
+        {
+            return false;
         }
     }
 

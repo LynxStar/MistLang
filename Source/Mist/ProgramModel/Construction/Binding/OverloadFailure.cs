@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
@@ -25,17 +26,28 @@ internal static class OverloadFailure
     public static void Report<T>(
         OverloadChoice<T> choice,
         IReadOnlyList<T> candidates,
-        int argumentCount,
+        IReadOnlyList<Expression> arguments,
         string description,
         Storm.Runtime.SyntaxNode node,
         DiagnosticBag diagnostics)
         where T : Method
     {
+        // AN ARGUMENT THAT ALREADY FAILED MAKES THIS FAILURE DERIVED, so it is not reported: no
+        // overload could have matched, and saying so adds a second complaint about one mistake.
+        // Keyed on ErrorExpression rather than on ErrorType because the two sentinels mean opposite
+        // things here -- IdentifierBinder.ReportUnresolved records the distinction, and an
+        // UnresolvedExpression is the compiler being unfinished with nothing yet reported, which must
+        // still reach the message it has not had.
+        if(arguments.Any(argument => argument is ErrorExpression))
+        {
+            return;
+        }
+
         if(choice.NoArityMatch)
         {
             diagnostics.ReportAtNode(
                 ProgramModelDiagnostics.NoApplicableOverload, node, null,
-                description, argumentCount, DescribeArities(candidates));
+                description, arguments.Count, DescribeArities(candidates));
 
             return;
         }

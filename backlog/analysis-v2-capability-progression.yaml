@@ -65,7 +65,7 @@ rules:
     order: 1
     subsystem: infrastructure
     requires: []
-    status: missing
+    status: done
     from: the deferral itself; no emitter-register task states it because no emitter task needed it
     evidence: >
       WHAT IS MISSING IS A PLACE TO PUT A PROGRAM THAT MUST NOT COMPILE. The emitter arc had one
@@ -83,13 +83,43 @@ rules:
       class in the probe style, extended to admit whole compilation units. The corpus wins on making
       progress un-loseable the way the baseline did; the probe style wins on keeping the reason for each
       refusal next to it. Neither is obviously right and the choice shapes every rule below it.
+      BOTH, WITH THE CORPUS AS THE SPINE -- Arthur's call. `refusals/` holds the programs Mist must not
+      compile, one directory per rule below, walked by one test (RefusalCorpusTest, Tier 5). The Tier 3
+      probe classes stay for the cases where the reasoning matters more than the count: decisions,
+      near-misses, and suppression on an already-failed type. A new refusal goes in the corpus unless it
+      needs a doc comment to be intelligible, in which case it goes in a probe class and the corpus
+      carries the plain version.
+      
+      THE EXPECTATION LIVES IN THE PROGRAM, directly above the line it is about -- `// REFUSE: <ID>` --
+      so it cannot drift out of step with an edit the way a hand-written line number does. The
+      file-scoped `// REFUSE-FILE: <ID>` exists for the rules that report at an enclosing declaration,
+      which is a parse failure and every conformance failure. A file with no marker FAILS: a case that
+      does not say what it is for is not a case.
+      
+      EXACT ON ERRORS, which is the half that does the work. Every marked diagnostic must be reported,
+      AND no unpredicted error may be -- so the corpus enforces the no-cascade invariant directly rather
+      than leaving it to judgement. That caught a real defect on the FIRST RUN, with three cases in it:
+      `Console.WriteLine(neverDeclared)` reported the unresolved identifier AND a derived
+      MIST_PM_UNRESOLVABLE_OVERLOAD for WriteLine. Fixed in OverloadFailure.Report, which now says
+      nothing when an argument is already an ErrorExpression. Keyed on ErrorExpression and not ErrorType
+      because the two sentinels mean opposite things -- IdentifierBinder.ReportUnresolved already records
+      the distinction, and an UnresolvedExpression is the compiler being unfinished with nothing yet
+      reported.
+      
+      SEEDED FROM STAGE 4, not Stage 5, and deliberately: the binder already makes 104 refusals and the
+      ledger does not care which stage said no. That is what let the harness be proven before a single
+      analyzer existed -- mutation-checked both ways, a wrong id and a deleted marker each failing it.
+      
+      COST: ~0.7s per case through the real pipeline, measured at three cases. Worth re-measuring around
+      30; a shells-only ambient provider is the lever if it becomes a problem, at the price of a rule
+      that mis-fires on a CLR type passing anyway.
     tasks:
-      - >
-        Settle the ledger shape, then state in this entry how a rule below proves itself -- a rule with
-        no stated witness is not done however much code it has.
       - >
         Keep the 72 banked samples as the FALSE-POSITIVE half. A new analyzer that refuses a working
         program fails AllFeaturesV2 on both pipelines, which is already wired and already enforced.
+      - >
+        Re-measure the per-case cost around 30 cases, and decide then rather than now whether the
+        corpus needs a cheaper provider.
 
   - id: analyzer-contract
     name: The v2 analyzer contract and runner

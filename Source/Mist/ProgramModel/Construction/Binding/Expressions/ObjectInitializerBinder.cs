@@ -99,7 +99,7 @@ internal static class ObjectInitializerBinder
         if(choice.Selected is null)
         {
             OverloadFailure.Report(
-                choice, group.Methods, 1, "method 'Add'", assignment, context.Diagnostics);
+                choice, group.Methods, [value], "method 'Add'", assignment, context.Diagnostics);
 
             return;
         }

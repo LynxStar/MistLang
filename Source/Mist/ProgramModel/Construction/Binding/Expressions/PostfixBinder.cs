@@ -257,7 +257,7 @@ internal static class PostfixBinder
         if(choice.Selected is not { } selected)
         {
             OverloadFailure.Report(
-                choice, group.Candidates, bound.Count,
+                choice, group.Candidates, bound,
                 $"method '{group.MemberName}'", node, context.Diagnostics);
 
             return new ErrorExpression(node);

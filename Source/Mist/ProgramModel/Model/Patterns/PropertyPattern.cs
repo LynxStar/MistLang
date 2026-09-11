@@ -25,4 +25,4 @@ internal sealed class PropertyPattern(
     public override LocalVariable? Binding => null;
 }
 
-internal sealed record PropertySubpattern(string MemberName, Pattern Pattern);
+internal sealed record PropertySubpattern(string MemberName, Pattern Pattern, IMistType MemberType);

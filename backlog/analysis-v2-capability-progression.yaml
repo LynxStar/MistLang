@@ -634,19 +634,69 @@ rules:
     order: 8
     subsystem: typechecker
     requires: [assignability-core, exhaustiveness-checking]
-    status: missing
-    from: orders 90, 91, 92, 93, 98, 99, 103 -- 11 tasks
+    status: done
+    from: >
+      orders 90, 91, 92, 93, 98, 99, 103 -- 11 tasks
     evidence: >
       ALL OF THESE ASK THE SAME QUESTION AS ASSIGNABILITY, about a pattern rather than a value: can this
-      type reach that one. A test that can never succeed, one that is always true, a relational bound
-      that is not comparable or not constant, a conjunct that cannot match what its predecessors
-      narrowed to, an arm subsumed by an earlier one, a second test of a constituent already taken.
-      
-      Two are DECISIONS rather than rules and are recorded as such on order 93: whether a relational
-      subpattern on an unknown member stays admitted -- v2 admits it today and it runs, where classic
-      refuses -- and that the impossible-type-test rule must NOT reach a member whose type is unknown,
-      where any test is possible.
-    tasks: []
+      type reach that one. Each pattern is judged against the type flowing INTO it -- the scrutinee's,
+      a conjunct's predecessor's narrowing, a member's, a tuple element's -- so one walk reaches the
+      top-level test, the subpattern order 93 asked for, the tuple element order 103 asked for, and the
+      conjunct order 92 hit while writing its sample. PropertySubpattern now records the member's type,
+      which the binder had and dropped.
+
+      CLASSIC'S VERDICTS ARE THE CONTRACT, measured on a 20-shape probe. Classic refuses a relational
+      pattern on a type with no comparison operators and a constant of an incomparable type (TC_0051
+      and TC_0052, two complaints for one mistake) and narrowing to unknown (TC_0063); it warns on a
+      union constituent tested twice (TC_0093) and a non-constituent test (TC_0074). Classic ADMITS an
+      impossible type test, a relational bound that is no constant, an impossible subpattern, tuple
+      element, negated test and conjunct after narrowing -- and Roslyn then refuses every one of them, so
+      each is a Stage 5 error under the policy order 5 records. Classic also admits a test that is always
+      true, and that one RUNS: samples/DependentTypes tests `target is FixedBuffer<5>` on a
+      FixedBuffer<5> on purpose, so the always-true rule order 90 asked for is NOT built, whatever
+      severity -- a warning on a banked sample fails the ledger -- and is the decision recorded below.
+
+      THE RULE. A type test is impossible when neither the input reaches the tested type nor the tested
+      type the input, unless one side is an abstract and the other an unsealed class, which a derivation
+      may yet implement -- C#'s rule, and classic's silence on `shape is Dog`. An indeterminate input
+      admits any test: a type parameter, unknown, an unknown value, an error, a lifted length, a pack
+      or a tuple carrying one; a union input is the binder's, which already refuses a non-constituent.
+      Narrowing a determinate input to unknown is an error as classic has it. A relational bound must
+      be a constant -- a literal, its negation, or an enum variant -- and the input a primitive numeric,
+      a char, or a refinement or enum over one; a constant pattern's constant must reach the input or be
+      reached by it, an int literal counting against any numeric. An arm is unreachable when an earlier
+      unguarded arm is a catch-all, a type test the arm's type is within, or the same literal. That one
+      is an ERROR though classic warns: Roslyn refuses the emitted switch (CS8510), so a warning would
+      only move the refusal onto generated code, which the corpus measured before the severity was fixed.
+
+      DECISIONS, each recorded rather than assumed. A relational subpattern on an unknown member stays
+      admitted, as order 93 asked; an unknown input admits every test, so the rule never reaches it.
+      Enum exhaustiveness is order 3's. Tuple exhaustiveness waits on order 12's range reasoning.
+
+      MEASURED: the first sweep reported four findings on working programs -- the always-true rule, and
+      a pack-typed tuple scrutinee judged as determinate -- then zero findings and identical stdout on
+      AllFeaturesV2 and AllFeatures, and zero on the three unbanked samples standalone. Twelve corpus
+      cases, one per refused shape. 28 decision rows pinning the admits, the comparisons the input
+      supports, the arms some value reaches, the already-failed inputs, and the reach facts. Twelve
+      mutations, each on a confirmed build: the impossible test never reported, the abstract exemption
+      dropped and then widened to sealed classes, conjunct narrowing not followed, negation and tuple
+      elements not walked, the member type not recorded, every type comparable, the bound not required
+      constant, the unreachable arm and the unknown narrowing not reported, every constant fitting.
+      Eleven caught on the first pass; the comparability mutation did not compile and a compiling
+      variant was caught. Twelve of twelve.
+    tasks:
+      - >
+        The always-true test is not reported, in any severity: classic is silent, samples/DependentTypes
+        does it deliberately, and Roslyn's CS0183 is a warning the driver does not collect. Whether Mist
+        wants a warning that the sample would then have to lose is a decision.
+      - >
+        A list pattern's elements are not judged against the collection's element type.
+      - >
+        An arm is judged unreachable only against a catch-all, a covering type test, or the same
+        literal; relational overlap and exhausted unions are left to order 12's range reasoning.
+      - >
+        A tuple pattern on a pack-typed scrutinee is not judged at all, as it cannot be until the pack
+        is closed.
 
   - id: operator-and-positional-checks
     name: Operator admissibility, and the positions with one rule each

@@ -359,7 +359,7 @@ internal static class PatternBinder
                 return null;
             }
 
-            subpatterns.Add(new PropertySubpattern(memberName, bound));
+            subpatterns.Add(new PropertySubpattern(memberName, bound, memberType));
         }
 
         return new PropertyPattern(node, narrowed, subpatterns);

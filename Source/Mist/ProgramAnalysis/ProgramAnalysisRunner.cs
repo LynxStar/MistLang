@@ -16,6 +16,7 @@ internal static class ProgramAnalysisRunner
         new ConstraintAnalyzer(),
         new DefaultabilityAnalyzer(),
         new ConformanceAnalyzer(),
+        new PatternAnalyzer(),
     ];
 
     public static void Run(ProgramModelClass model, DiagnosticBag diagnostics)

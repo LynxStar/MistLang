@@ -1,0 +1,31 @@
+using Standard;
+
+namespace Refusal;
+
+public class Animal
+{
+}
+
+public class Dog : Animal
+{
+}
+
+public class Cat : Animal
+{
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        Animal a = new Dog();
+        var r = a switch
+        {
+            Dog d => 1,
+            Animal x => 2,
+            // REFUSE: MIST_PA_SWITCH_ARM_UNREACHABLE
+            Cat c => 3,
+        };
+        Console.WriteLine("unreachable");
+    }
+}

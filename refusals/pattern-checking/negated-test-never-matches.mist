@@ -1,0 +1,29 @@
+using Standard;
+
+namespace Refusal;
+
+public class Animal
+{
+}
+
+public class Dog : Animal
+{
+}
+
+public class Cat : Animal
+{
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        Dog d = new Dog();
+        // REFUSE: MIST_PA_PATTERN_NEVER_MATCHES
+        if(d is not Cat)
+        {
+            Console.WriteLine("dog");
+        }
+        Console.WriteLine("unreachable");
+    }
+}

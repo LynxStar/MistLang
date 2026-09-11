@@ -141,4 +141,40 @@ public static class ProgramAnalysisDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.Analysis,
         "Nested type '{0}' does not satisfy constraint '{1}' of associated type slot '{2}.{3}'.");
+
+    public static readonly DiagnosticDescriptor PatternNeverMatches = new(
+        new DiagnosticId("MIST_PA_PATTERN_NEVER_MATCHES"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "A value of type '{0}' can never be '{1}', so this pattern never matches.");
+
+    public static readonly DiagnosticDescriptor PatternNarrowsToUnknown = new(
+        new DiagnosticId("MIST_PA_PATTERN_NARROWS_TO_UNKNOWN"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Narrowing to 'unknown' is not meaningful: the pattern is tautologically true and introduces no new type information. Remove the pattern or narrow to a concrete type.");
+
+    public static readonly DiagnosticDescriptor PatternNotComparable = new(
+        new DiagnosticId("MIST_PA_PATTERN_NOT_COMPARABLE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "A relational pattern cannot be applied to a value of type '{0}', which supports no comparison operators.");
+
+    public static readonly DiagnosticDescriptor PatternConstantMismatch = new(
+        new DiagnosticId("MIST_PA_PATTERN_CONSTANT_MISMATCH"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "A constant of type '{0}' cannot be compared with a value of type '{1}'.");
+
+    public static readonly DiagnosticDescriptor PatternBoundNotConstant = new(
+        new DiagnosticId("MIST_PA_PATTERN_BOUND_NOT_CONSTANT"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "The bound of a relational pattern must be a constant.");
+
+    public static readonly DiagnosticDescriptor SwitchArmUnreachable = new(
+        new DiagnosticId("MIST_PA_SWITCH_ARM_UNREACHABLE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "This switch arm is unreachable: an earlier arm already matches everything it could.");
 }

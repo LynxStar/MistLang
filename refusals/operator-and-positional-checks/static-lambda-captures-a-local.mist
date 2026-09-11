@@ -1,0 +1,14 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static void Main()
+    {
+        int captured = 1;
+        // REFUSE: MIST_PA_STATIC_LAMBDA_CAPTURE
+        func<int, int> f = static x => x + captured;
+        Console.WriteLine("unreachable");
+    }
+}

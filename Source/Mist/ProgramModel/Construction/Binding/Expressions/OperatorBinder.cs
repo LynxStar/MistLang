@@ -445,72 +445,14 @@ internal static class OperatorBinder
     }
 
     /// <summary>
-    /// A comparison or logical operator produces bool, a concatenation a string, and arithmetic over
-    /// two primitives the wider of the two by C#'s own promotion. Anything else -- an enum, a
-    /// refinement, a type with operators of its own -- keeps the left operand's type, since the
-    /// operator is emitted as written and Roslyn decides it again.
+    /// The type <see cref="OperatorAdmissibility"/> gives the operator over these operands, or the error
+    /// type where no operator admits them: the operator rule reports that against the operands, and an
+    /// error-typed result keeps everything downstream from complaining about it a second time.
     /// </summary>
     private static IMistType BinaryResultType(Expression left, BinaryOperatorKind op, Expression right, BuilderContext context)
     {
-        return op switch
-        {
-            BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual
-                or BinaryOperatorKind.LessThan or BinaryOperatorKind.GreaterThan
-                or BinaryOperatorKind.LessThanOrEqual or BinaryOperatorKind.GreaterThanOrEqual
-                or BinaryOperatorKind.LogicalAnd or BinaryOperatorKind.LogicalOr
-                => context.Resolver.LookupWellKnown(WellKnownTypes.Boolean),
-            BinaryOperatorKind.Concatenate => context.Resolver.LookupWellKnown(WellKnownTypes.String),
-            BinaryOperatorKind.Add when IsWellKnown(left.Type, WellKnownTypes.String) || IsWellKnown(right.Type, WellKnownTypes.String)
-                => context.Resolver.LookupWellKnown(WellKnownTypes.String),
-            _ => Promoted(left.Type, right.Type) is { } promoted ? context.Resolver.LookupWellKnown(promoted) : left.Type,
-        };
-    }
-
-    private static readonly WellKnownType[] NumericPromotionOrder =
-    [
-        WellKnownTypes.Decimal, WellKnownTypes.Double, WellKnownTypes.Single,
-        WellKnownTypes.UInt64, WellKnownTypes.Int64, WellKnownTypes.UInt32,
-    ];
-
-    private static readonly WellKnownType[] IntegralOperands =
-    [
-        WellKnownTypes.Int32, WellKnownTypes.Int16, WellKnownTypes.SByte, WellKnownTypes.Byte,
-        WellKnownTypes.UInt16, WellKnownTypes.Char,
-    ];
-
-    private static WellKnownType? Promoted(IMistType left, IMistType right)
-    {
-        if(!IsNumeric(left) || !IsNumeric(right))
-        {
-            return null;
-        }
-
-        foreach(var candidate in NumericPromotionOrder)
-        {
-            if(IsWellKnown(left, candidate) || IsWellKnown(right, candidate))
-            {
-                var other = IsWellKnown(left, candidate) ? right : left;
-
-                return candidate == WellKnownTypes.UInt32 && IsSigned(other) ? WellKnownTypes.Int64 : candidate;
-            }
-        }
-
-        return WellKnownTypes.Int32;
-    }
-
-    private static bool IsNumeric(IMistType type)
-    {
-        return NumericPromotionOrder.Concat(IntegralOperands).Any(candidate => IsWellKnown(type, candidate));
-    }
-
-    private static bool IsSigned(IMistType type)
-    {
-        return IsWellKnown(type, WellKnownTypes.Int32) || IsWellKnown(type, WellKnownTypes.Int16) || IsWellKnown(type, WellKnownTypes.SByte);
-    }
-
-    private static bool IsWellKnown(IMistType type, WellKnownType wellKnown)
-    {
-        return type.FullyQualifiedName == wellKnown.FullyQualifiedName;
+        return OperatorAdmissibility.ResultType(op, left.Type, right.Type, context.Resolver.LookupWellKnown)
+            ?? ErrorType.Instance;
     }
 
     private static BinaryOperatorKind MapOperator(string? lexeme)

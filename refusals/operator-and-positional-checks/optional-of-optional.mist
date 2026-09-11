@@ -1,0 +1,15 @@
+using Standard;
+
+namespace Refusal;
+
+type MaybeInt = int | void;
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_OPTIONAL_OF_OPTIONAL
+        MaybeInt? y = void;
+        Console.WriteLine("unreachable");
+    }
+}

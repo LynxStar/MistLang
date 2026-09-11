@@ -1,0 +1,14 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static void Main()
+    {
+        readonly int | void k = void;
+        // REFUSE: MIST_PA_READONLY_LOCAL_REASSIGNED
+        k ??= 1;
+        Console.WriteLine("unreachable");
+    }
+}

@@ -1,0 +1,87 @@
+using Mist.Common.Diagnostics;
+using Mist.ProgramModel;
+using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Scopes;
+using Mist.ProgramModel.Model.Types;
+
+namespace Mist.ProgramAnalysis.Rules;
+
+/// <summary>
+/// An operator no operator admits, a member of <c>unknown</c>, and conditional access on a receiver
+/// that cannot be absent. Order 9 of the analysis register, the half whose subject is an expression.
+/// The binder already typed each of these as an error so that nothing downstream complains twice;
+/// this is where the complaint itself is made, against the operands, whose types are sound.
+/// </summary>
+internal sealed class OperatorAnalyzer : IProgramAnalyzer
+{
+    public string Id => "operator-and-positional-checks";
+
+    public void Analyze(AnalysisContext context)
+    {
+        foreach(var node in context.Nodes)
+        {
+            switch(node)
+            {
+                case BinaryExpression binary when binary.Type is ErrorType:
+                    JudgeBinary(context, binary);
+                    break;
+
+                case MemberAccessExpression { IsConditional: true } access
+                    when !OptionalUnion.AdmitsConditionalAccess(access.Receiver.Type):
+                    context.Report(
+                        ProgramAnalysisDiagnostics.ConditionalAccessOnNonOptional, access.Node, [access.Receiver],
+                        TypeDisplay.Mist(access.Receiver.Type));
+                    break;
+
+                case MemberAccessExpression { Receiver.Type: UnknownType, Member: null or NotFoundResult, Type: ErrorType } access:
+                    context.Report(
+                        ProgramAnalysisDiagnostics.UnknownHasNoMembers, access.Node, [access.Receiver], access.MemberName);
+                    break;
+            }
+        }
+    }
+
+    private static void JudgeBinary(AnalysisContext context, BinaryExpression binary)
+    {
+        IMistType wellKnown(WellKnownType type)
+        {
+            return context.Model.TypesByFQN[type.FullyQualifiedName];
+        }
+
+        if(OperatorAdmissibility.ResultType(binary.OperatorKind, binary.Left.Type, binary.Right.Type, wellKnown) is not null)
+        {
+            return;
+        }
+
+        var descriptor = binary.Left.Type is UnknownType || binary.Right.Type is UnknownType
+            ? ProgramAnalysisDiagnostics.UnknownHasNoOperators
+            : ProgramAnalysisDiagnostics.OperatorNotApplicable;
+
+        context.Report(
+            descriptor, binary.Node, [binary.Left, binary.Right],
+            Spelling(binary.OperatorKind), TypeDisplay.Mist(binary.Left.Type), TypeDisplay.Mist(binary.Right.Type));
+    }
+
+    private static string Spelling(BinaryOperatorKind kind)
+    {
+        return kind switch
+        {
+            BinaryOperatorKind.Add or BinaryOperatorKind.Concatenate => "+",
+            BinaryOperatorKind.Subtract => "-",
+            BinaryOperatorKind.Multiply => "*",
+            BinaryOperatorKind.Divide => "/",
+            BinaryOperatorKind.Modulo => "%",
+            BinaryOperatorKind.Equal => "==",
+            BinaryOperatorKind.NotEqual => "!=",
+            BinaryOperatorKind.LessThan => "<",
+            BinaryOperatorKind.GreaterThan => ">",
+            BinaryOperatorKind.LessThanOrEqual => "<=",
+            BinaryOperatorKind.GreaterThanOrEqual => ">=",
+            BinaryOperatorKind.LogicalAnd => "&&",
+            BinaryOperatorKind.LogicalOr => "||",
+            _ => kind.ToString(),
+        };
+    }
+}

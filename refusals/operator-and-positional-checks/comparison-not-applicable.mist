@@ -1,0 +1,13 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_OPERATOR_NOT_APPLICABLE
+        bool b = "a" < 1;
+        Console.WriteLine("unreachable");
+    }
+}

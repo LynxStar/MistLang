@@ -74,6 +74,8 @@ public sealed class ProgramModel : IProgramModel
 
     internal AwaitUseRegistry AwaitUses { get; } = new();
 
+    internal OptionalApplicationRegistry OptionalApplications { get; } = new();
+
     /// <summary>
     /// Retroactive conformance declarations collected during Phase 2c.
     /// </summary>

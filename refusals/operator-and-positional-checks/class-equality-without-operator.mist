@@ -1,0 +1,20 @@
+using Standard;
+
+namespace Refusal;
+
+public class Dog
+{
+    public string Name = "d";
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        Dog d = new Dog();
+        Dog e = new Dog();
+        // REFUSE: MIST_PA_OPERATOR_NOT_APPLICABLE
+        bool same = d == e;
+        Console.WriteLine("unreachable");
+    }
+}

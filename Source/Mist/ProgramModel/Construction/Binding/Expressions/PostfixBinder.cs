@@ -377,6 +377,11 @@ internal static class PostfixBinder
     private static Expression BindConditionalAccess(
         Storm.Runtime.SyntaxNode node, Expression receiver, string memberName, BindingContext ctx, BuilderContext context)
     {
+        if(!OptionalUnion.AdmitsConditionalAccess(receiver.Type))
+        {
+            return new MemberAccessExpression(node, receiver, memberName, ErrorType.Instance, isConditional: true);
+        }
+
         var interner = context.ProgramModel.TypeInterner;
         var projected = OptionalLifting.NonVoidPortion(receiver.Type, interner);
 

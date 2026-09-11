@@ -703,18 +703,77 @@ rules:
     order: 9
     subsystem: typechecker
     requires: [assignability-core]
-    status: missing
-    from: orders 9, 78, 79, 81, 83, 107, 123, 128 -- 11 tasks
+    status: done
+    from: >
+      orders 9, 78, 79, 81, 83, 107, 123, 128 -- 11 tasks
     evidence: >
-      A comparison whose operands no operator admits, `?` applied to a type that already contains void,
-      conditional access on a non-optional receiver, the five unknown use-site rules, member callability
-      on an unknown-typed readonly receiver, a capture inside a static lambda, an index argument
-      admissible for its receiver, and whether a readonly by-ref argument needs an is-this-a-location
-      test.
-      
-      Order 81 carries the ordering trap: universal extensions must be consulted BEFORE any bare-unknown
-      member rule fires, or Standard/Unknown.mist's ToString, GetHashCode and GetType become unreachable.
-    tasks: []
+      CLASSIC'S VERDICTS ARE THE CONTRACT, measured on a 24-shape probe that had to be split three ways,
+      classic's symbol and resolution stages each gating its checker. Classic refuses a comparison,
+      equality or arithmetic no operator admits (TC_0003 to 0005), `?.` on a receiver that cannot be
+      absent (TC_0111), `??=` as a sub-expression (TC_0047), reassigning a readonly local by `=` or
+      `??=` (READONLY_LOCAL_0001, and a garbled TC_0043 for the second), an operator or a member on
+      unknown (TC_0066, TC_0065), a static lambda reaching an outer local or an instance field
+      (TC_0122), and `?` over a type already holding void (TC_0045); `void?` does not parse, so TC_0046
+      is unreachable. Every one is refused by v2 at the same construct. Three of classic's refusals are
+      NOT followed, each more permissive and each compiling: `"a" + 1` concatenates, as C# has it and as
+      order 5 already types it; a variant of one enum equals another; and `ToString` on unknown reaches
+      Standard/Unknown.mist's universal extension, which order 81 asked for. Class equality without a
+      declared operator is refused as classic refuses it. `numbers[^1]` stays admitted: order 123's
+      task would refuse samples/RangesAndIndices, and is the decision recorded below.
+
+      ONE HOME FOR WHAT AN OPERATOR ADMITS. OperatorAdmissibility, beside the classifier, gives the type
+      a binary operator produces over two operand types or null where none does: numeric promotion as
+      C# promotes, string concatenation, a declared operator on either operand's type with projected
+      CLR operators included, bool for the logical pair and every equality, and equality for a string,
+      a char, a variant of one enum, an anonymous shape, and an intrinsic or projected type against
+      itself, whose equality is the CLR's to define. An indeterminate operand admits anything; unknown
+      and a union admit nothing. The binder types the expression by it -- comparisons were typed as
+      their left operand until order 5, and arithmetic over a class as the class -- and types an
+      inadmissible one as the error type, so that nothing downstream complains a second time about a
+      mistake the operator rule reports once, against the operands. A misapplied `?.` is typed the same
+      way by the same predicate, OptionalUnion.AdmitsConditionalAccess, which admits an optional, an
+      indeterminate receiver, and a CLR-projected one, whose nullability is Roslyn's: both unbanked
+      interop samples chain through a non-optional CLR value on purpose. A `?` the source applied is
+      recorded by the resolver in OptionalApplicationRegistry with the type it was applied to, since
+      resolution flattens `(int | void)?` into the same union as `int?` and leaves nothing to judge.
+
+      THE POSITIONS. `??=` is judged at statement position by the set of expression statements it heads;
+      any other occurrence is refused. A readonly local as an assignment target is refused whatever the
+      operator. A static lambda's own names are its parameters and whatever its body declares -- a
+      local, a loop or deconstruction variable, a pattern binding, a nested lambda's parameters -- and
+      any other local, `this`, or an instance field or property is a capture, reported at each use.
+
+      MEASURED: the first sweep reported four findings on working programs, equality on an anonymous
+      shape and on Type, then two more on the interop samples, `?.` on a CLR value; each was a rule
+      admitting less than the language does, fixed at its source. Then zero findings and identical
+      stdout on AllFeaturesV2 and AllFeatures, and zero on the three unbanked samples standalone.
+      Fifteen corpus cases, one per refused shape. Decision rows pin the admits and the divergences.
+      Fourteen mutations, each on a confirmed build, all caught: the operator rule silenced, everything
+      admitted, unknown admitted, a union admitted, class equality admitted, declared operators
+      ignored, `?.` admitting any receiver, `??=` not judged for position, a readonly local not
+      judged, captures not judged, a lambda's own names not collected, a `?` application not
+      recorded, an inadmissible operator typed as its left operand, the unknown-member rule silenced.
+      Two of those first survived: unknown and a union were refused by the numeric rules anyway, and
+      only concatenation admits any operand -- so `u + "x"` and `m + "x"` are the two cases that
+      pin the guard.
+    tasks:
+      - >
+        `numbers[^1]` is admitted, order 123's task notwithstanding: Array's indexer takes a refinement
+        of int and Standard.Index satisfies none, yet samples/RangesAndIndices indexes from the end and
+        runs. Whether the indexer parameter should be judged is a decision, and it would need Index to
+        be admitted first.
+      - >
+        A readonly FIELD assigned outside a constructor is left to Roslyn (CS0191): the analysis owner
+        of a body is its type, not its member, so a constructor cannot yet be told from a method.
+      - >
+        Member callability on an unknown-typed readonly receiver (order 83) is not decided; nothing
+        distinguishes closed-with-unknown from an open generic construction yet.
+      - >
+        Unary operators are typed as their operand and not judged; `-` on a class binds and reaches
+        Roslyn.
+      - >
+        A user operator is found on either operand's own type and its base chain, not through
+        conformances or extensions.
 
 # ===================================================================
 # The other three subsystems. Expanded when reached; the tasks stay on

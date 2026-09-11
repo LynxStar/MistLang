@@ -209,6 +209,7 @@ internal sealed class ScopeResolver
 
         if(HasOptionalToken(singleRef) && inner is not ErrorType)
         {
+            context.ProgramModel.OptionalApplications.Record(inner, singleRef);
             return WrapOptional(inner);
         }
 

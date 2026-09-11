@@ -177,4 +177,52 @@ public static class ProgramAnalysisDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.Analysis,
         "This switch arm is unreachable: an earlier arm already matches everything it could.");
+
+    public static readonly DiagnosticDescriptor OperatorNotApplicable = new(
+        new DiagnosticId("MIST_PA_OPERATOR_NOT_APPLICABLE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Operator '{0}' cannot be applied to operands of type '{1}' and '{2}'.");
+
+    public static readonly DiagnosticDescriptor UnknownHasNoOperators = new(
+        new DiagnosticId("MIST_PA_UNKNOWN_HAS_NO_OPERATORS"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Operator '{0}' cannot be applied to operands of type '{1}' and '{2}': no operators are defined for 'unknown'. Narrow the value with an 'is' pattern first.");
+
+    public static readonly DiagnosticDescriptor UnknownHasNoMembers = new(
+        new DiagnosticId("MIST_PA_UNKNOWN_HAS_NO_MEMBERS"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot access member '{0}' on a value of type 'unknown': 'unknown' has no members. Narrow the value with an 'is' pattern first.");
+
+    public static readonly DiagnosticDescriptor ConditionalAccessOnNonOptional = new(
+        new DiagnosticId("MIST_PA_CONDITIONAL_ACCESS_ON_NON_OPTIONAL"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "The optional chaining operator '?.' requires a receiver of the form 'T | void', but found '{0}'.");
+
+    public static readonly DiagnosticDescriptor CoalescingAssignmentNotAStatement = new(
+        new DiagnosticId("MIST_PA_COALESCING_ASSIGNMENT_NOT_A_STATEMENT"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "The void-coalescing assignment '??=' is a statement and cannot be used as a sub-expression.");
+
+    public static readonly DiagnosticDescriptor ReadonlyLocalReassigned = new(
+        new DiagnosticId("MIST_PA_READONLY_LOCAL_REASSIGNED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot reassign readonly local variable '{0}'.");
+
+    public static readonly DiagnosticDescriptor StaticLambdaCapture = new(
+        new DiagnosticId("MIST_PA_STATIC_LAMBDA_CAPTURE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "A static lambda cannot reference {0} '{1}'.");
+
+    public static readonly DiagnosticDescriptor OptionalOfOptional = new(
+        new DiagnosticId("MIST_PA_OPTIONAL_OF_OPTIONAL"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "The optional suffix '?' cannot be applied to '{0}', which already contains 'void'.");
 }

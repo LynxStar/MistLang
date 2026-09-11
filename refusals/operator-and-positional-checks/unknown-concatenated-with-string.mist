@@ -1,0 +1,14 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static void Main()
+    {
+        unknown u = 1;
+        // REFUSE: MIST_PA_UNKNOWN_HAS_NO_OPERATORS
+        var s = u + "x";
+        Console.WriteLine("unreachable");
+    }
+}

@@ -27,6 +27,15 @@ internal static class OptionalUnion
         return type is UnionType { Constituents.Count: 2 } union && HasVoidConstituent(union);
     }
 
+    public static bool AdmitsConditionalAccess(IMistType type)
+    {
+        var definition = type is ConstructedType constructed ? constructed.Definition : type;
+
+        return ContainsVoid(type)
+            || type is UnknownType or UnknownValueType or TypeParameter or ErrorType or NotProjectedType
+            || definition is DeclaredType { Assembly.HasMistSource: false };
+    }
+
     public static IMistType? InnerType(IMistType type)
     {
         if(!IsOptional(type))

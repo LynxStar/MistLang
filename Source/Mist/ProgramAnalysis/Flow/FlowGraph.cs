@@ -1,3 +1,5 @@
+using Mist.ProgramModel.Model.Statements;
+
 namespace Mist.ProgramAnalysis.Flow;
 
 /// <summary>
@@ -12,6 +14,7 @@ internal sealed class FlowGraph(
     FlowBlock entry,
     FlowBlock exit,
     IReadOnlyList<FlowBlock> blocks,
+    IReadOnlyList<FlowLoop> loops,
     IReadOnlyDictionary<object, FlowGraph> nested)
 {
     public FlowBlock Entry { get; } = entry;
@@ -20,8 +23,12 @@ internal sealed class FlowGraph(
 
     public IReadOnlyList<FlowBlock> Blocks { get; } = blocks;
 
+    public IReadOnlyList<FlowLoop> Loops { get; } = loops;
+
     public IReadOnlyDictionary<object, FlowGraph> Nested { get; } = nested;
 }
+
+internal sealed record FlowLoop(FlowBlock Header, FlowBlock Latch, Block Body);
 
 internal sealed class FlowBlock(int ordinal)
 {

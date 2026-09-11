@@ -1,0 +1,34 @@
+using Standard;
+
+namespace Refusal;
+
+public linear class Handle
+{
+    public int Fd;
+
+    public Handle(int fd)
+    {
+        this.Fd = fd;
+    }
+
+    public void Drop()
+    {
+        Console.WriteLine("drop");
+    }
+
+    public int Get()
+    {
+        return Fd;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_OWNED_SUBSTRUCTURAL_BINDING
+        owned var h = new Handle(1);
+        Console.WriteLine(h.Get());
+        Console.WriteLine("unreachable");
+    }
+}

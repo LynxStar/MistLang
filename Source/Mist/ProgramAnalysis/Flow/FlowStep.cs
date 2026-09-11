@@ -9,7 +9,9 @@ namespace Mist.ProgramAnalysis.Flow;
 /// <see cref="Variable"/> into being: Declare carries the LocalDeclarationStatement, whose local is
 /// assigned only when it has an initializer; Introduce carries the construct that gives its variable a
 /// value outright -- a foreach, a deconstruction, a with block, a lambda's parameter list; Bind
-/// carries a pattern, and sits only on the path where the pattern matched.
+/// carries a pattern, and sits only on the path where the pattern matched. Leave carries the block
+/// whose scope ends here, on every path out of it -- the fall-through, a return, a break -- so that
+/// whatever a declaration in it started, a lease or a drop obligation, has a step to end at.
 /// </summary>
 internal readonly record struct FlowStep(FlowStepKind Kind, object Node, LocalVariable? Variable = null);
 
@@ -19,4 +21,5 @@ internal enum FlowStepKind
     Declare,
     Introduce,
     Bind,
+    Leave,
 }

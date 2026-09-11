@@ -1,0 +1,29 @@
+using Standard;
+
+namespace Refusal;
+
+public readonly class Frozen
+{
+    public int X;
+
+    public Frozen(int x)
+    {
+        this.X = x;
+    }
+
+    public void Thaw()
+    {
+        // REFUSE: MIST_PA_FIELD_ASSIGNED_IN_READONLY_MEMBER
+        this.X = 2;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var f = new Frozen(1);
+        f.Thaw();
+        Console.WriteLine("unreachable");
+    }
+}

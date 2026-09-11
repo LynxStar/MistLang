@@ -1,0 +1,20 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static Span<int> Make()
+    {
+        Span<int> s = stackalloc int[4];
+        Span<int> t = s;
+        // REFUSE: MIST_PA_STACK_SPAN_RETURNED
+        return t;
+    }
+
+    public static void Main()
+    {
+        var s = Make();
+        Console.WriteLine("unreachable");
+    }
+}

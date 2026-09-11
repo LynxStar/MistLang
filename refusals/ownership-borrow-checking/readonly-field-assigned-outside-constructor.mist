@@ -1,0 +1,29 @@
+using Standard;
+
+namespace Refusal;
+
+public class Counter
+{
+    public readonly int Id;
+
+    public Counter(int id)
+    {
+        this.Id = id;
+    }
+
+    public void Renumber()
+    {
+        // REFUSE: MIST_PA_READONLY_FIELD_ASSIGNED
+        this.Id = 3;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var c = new Counter(1);
+        c.Renumber();
+        Console.WriteLine("unreachable");
+    }
+}

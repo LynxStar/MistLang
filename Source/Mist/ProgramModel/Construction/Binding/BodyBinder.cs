@@ -24,7 +24,7 @@ internal static class BodyBinder
         var bodyScope = new BodyScope(method.Scope);
         foreach(var parameter in method.ParametersList)
         {
-            bodyScope.DeclareLocal(new LocalVariable(parameter.Name, parameter.Type), context.Diagnostics);
+            bodyScope.DeclareLocal(ParameterLocal(parameter), context.Diagnostics);
         }
 
         // A `with Type name` clause binds like a parameter and differs only in where the value comes
@@ -151,7 +151,7 @@ internal static class BodyBinder
 
         foreach(var parameter in parameters)
         {
-            bodyScope.DeclareLocal(new LocalVariable(parameter.Name, parameter.Type), context.Diagnostics);
+            bodyScope.DeclareLocal(ParameterLocal(parameter), context.Diagnostics);
         }
 
         if(isSetter)
@@ -287,5 +287,15 @@ internal static class BodyBinder
         }
 
         return statements;
+    }
+
+    private static LocalVariable ParameterLocal(Parameter parameter)
+    {
+        return new LocalVariable(parameter.Name, parameter.Type)
+        {
+            Ownership = parameter.Modifier.Ownership,
+            IsRef = parameter.Modifier.IsRef,
+            Parameter = parameter,
+        };
     }
 }

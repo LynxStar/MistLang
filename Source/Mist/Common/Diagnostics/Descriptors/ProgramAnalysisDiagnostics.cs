@@ -255,4 +255,124 @@ public static class ProgramAnalysisDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.Analysis,
         "Cannot use '{0}' as a stackalloc element type because {1}. Only primitives and structs whose fields are all stampable can be stack-allocated.");
+
+    public static readonly DiagnosticDescriptor UseAfterMove = new(
+        new DiagnosticId("MIST_PA_USE_AFTER_MOVE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Variable '{0}' has been {1} and cannot be accessed here.");
+
+    public static readonly DiagnosticDescriptor LoopMove = new(
+        new DiagnosticId("MIST_PA_LOOP_MOVE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Owned variable '{0}' is moved inside a loop. Re-assign it before the next iteration or remove the move.");
+
+    public static readonly DiagnosticDescriptor LeaseViolation = new(
+        new DiagnosticId("MIST_PA_LEASE_VIOLATION"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot {1} '{0}' while a {2} lease of it is outstanding.");
+
+    public static readonly DiagnosticDescriptor IncompatibleLend = new(
+        new DiagnosticId("MIST_PA_INCOMPATIBLE_LEND"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot pass {0} variable '{1}' to {2} parameter '{3}': a {2} parameter needs at least {2} access.");
+
+    public static readonly DiagnosticDescriptor ThisTierMismatch = new(
+        new DiagnosticId("MIST_PA_THIS_TIER_MISMATCH"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot call '{0}', which requires {1} access to 'this': the receiver '{2}' provides {3} access.");
+
+    public static readonly DiagnosticDescriptor ThisTierInsufficient = new(
+        new DiagnosticId("MIST_PA_THIS_TIER_INSUFFICIENT"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Method '{0}' declares 'with {1}' but its body requires at least {2} access to 'this'.");
+
+    public static readonly DiagnosticDescriptor SharedExtract = new(
+        new DiagnosticId("MIST_PA_SHARED_EXTRACT"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot extract owned field '{0}' through unrestricted binding '{1}': extracting from an owned field requires an owned binding to its holder.");
+
+    public static readonly DiagnosticDescriptor OwnedAbstract = new(
+        new DiagnosticId("MIST_PA_OWNED_ABSTRACT"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "The 'owned' modifier cannot be applied to abstract type '{0}'.");
+
+    public static readonly DiagnosticDescriptor OwnedSubstructuralBinding = new(
+        new DiagnosticId("MIST_PA_OWNED_SUBSTRUCTURAL_BINDING"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "The 'owned' specifier cannot be applied to '{0}' of {1} type '{2}': a substructural type carries its own discipline.");
+
+    public static readonly DiagnosticDescriptor ConflictingDiscipline = new(
+        new DiagnosticId("MIST_PA_CONFLICTING_DISCIPLINE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "'{0}' cannot be both {1} and 'owned': {2}.");
+
+    public static readonly DiagnosticDescriptor FieldDisciplineContainment = new(
+        new DiagnosticId("MIST_PA_FIELD_DISCIPLINE_CONTAINMENT"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "{0} type '{1}' cannot contain {2} field '{3}': {4}.");
+
+    public static readonly DiagnosticDescriptor FieldTypeParameterUnconstrained = new(
+        new DiagnosticId("MIST_PA_FIELD_TYPE_PARAMETER_UNCONSTRAINED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "{0} type '{1}' contains field '{2}' of unconstrained type parameter '{3}'. Add a substructural constraint, such as 'where {3} : {4}'.");
+
+    public static readonly DiagnosticDescriptor RefOnClass = new(
+        new DiagnosticId("MIST_PA_REF_ON_CLASS"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "The 'ref' modifier is only valid on struct declarations; '{0}' is a class.");
+
+    public static readonly DiagnosticDescriptor RefStructField = new(
+        new DiagnosticId("MIST_PA_REF_STRUCT_FIELD"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Ref struct '{0}' cannot be a field of '{1}', which is not a ref struct.");
+
+    public static readonly DiagnosticDescriptor RefStructTypeArgument = new(
+        new DiagnosticId("MIST_PA_REF_STRUCT_TYPE_ARGUMENT"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Ref struct '{0}' cannot be a type argument.");
+
+    public static readonly DiagnosticDescriptor FieldAssignedInReadonlyMember = new(
+        new DiagnosticId("MIST_PA_FIELD_ASSIGNED_IN_READONLY_MEMBER"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot assign to field '{0}' within readonly member '{1}'.");
+
+    public static readonly DiagnosticDescriptor FieldAssignedOnReadonlyParameter = new(
+        new DiagnosticId("MIST_PA_FIELD_ASSIGNED_ON_READONLY_PARAMETER"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot assign to field '{0}' of readonly parameter '{1}'.");
+
+    public static readonly DiagnosticDescriptor ReadonlyFieldAssigned = new(
+        new DiagnosticId("MIST_PA_READONLY_FIELD_ASSIGNED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot assign to readonly field '{0}' outside a constructor of '{1}'.");
+
+    public static readonly DiagnosticDescriptor StackSpanReturned = new(
+        new DiagnosticId("MIST_PA_STACK_SPAN_RETURNED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "A stackalloc-backed span cannot be returned: it would escape its stack frame.");
+
+    public static readonly DiagnosticDescriptor CapturedBinding = new(
+        new DiagnosticId("MIST_PA_CAPTURED_BINDING"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot capture {0} variable '{1}' in a lambda: {2}.");
 }

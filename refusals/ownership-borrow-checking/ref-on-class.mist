@@ -1,0 +1,18 @@
+using Standard;
+
+namespace Refusal;
+
+// REFUSE-FILE: MIST_PA_REF_ON_CLASS
+public ref class Wrong
+{
+    public int X;
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        Console.WriteLine("declared");
+        Console.WriteLine("unreachable");
+    }
+}

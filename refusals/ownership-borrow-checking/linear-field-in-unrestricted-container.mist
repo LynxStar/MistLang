@@ -1,0 +1,43 @@
+using Standard;
+
+namespace Refusal;
+
+public linear class Handle
+{
+    public int Fd;
+
+    public Handle(int fd)
+    {
+        this.Fd = fd;
+    }
+
+    public void Drop()
+    {
+        Console.WriteLine("drop");
+    }
+
+    public int Get()
+    {
+        return Fd;
+    }
+}
+
+public class Plain
+{
+    // REFUSE: MIST_PA_FIELD_DISCIPLINE_CONTAINMENT
+    public Handle Held;
+
+    public Plain(Handle h)
+    {
+        this.Held = h;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var p = new Plain(new Handle(1));
+        Console.WriteLine("unreachable");
+    }
+}

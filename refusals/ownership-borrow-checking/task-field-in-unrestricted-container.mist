@@ -1,0 +1,23 @@
+using Standard;
+
+namespace Refusal;
+
+public class Pending
+{
+    // REFUSE: MIST_PA_FIELD_DISCIPLINE_CONTAINMENT
+    public Task<int> Work;
+
+    public Pending(Task<int> work)
+    {
+        this.Work = work;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        Console.WriteLine("declared");
+        Console.WriteLine("unreachable");
+    }
+}

@@ -122,6 +122,7 @@ internal abstract class MemberTypeBuilder
         {
             OwnedSpecifierOwnershipSpecifierNode => OwnershipKind.Owned,
             BorrowedSpecifierOwnershipSpecifierNode => OwnershipKind.Borrowed,
+            FrozenSpecifierOwnershipSpecifierNode => OwnershipKind.Frozen,
             _ => OwnershipKind.Unrestricted
         };
     }

@@ -1,6 +1,6 @@
 using Mist.ProgramModel.Contracts.Types;
-
 using Mist.ProgramModel.Model.Enums;
+using Mist.ProgramModel.Model.Members;
 
 namespace Mist.ProgramModel.Model;
 
@@ -36,4 +36,6 @@ internal sealed class LocalVariable(string name, IMistType type)
     /// then forbids is readonly-locals-and-blocks' question rather than this one's.
     /// </summary>
     public bool IsReadonly { get; init; }
+
+    public Parameter? Parameter { get; init; }
 }

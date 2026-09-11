@@ -1,0 +1,25 @@
+using Standard;
+
+namespace Refusal;
+
+public ref struct Cursor
+{
+    public int Pos;
+
+    public Cursor(int pos)
+    {
+        this.Pos = pos;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var c = new Cursor(1);
+        // REFUSE: MIST_PA_CAPTURED_BINDING
+        func<int, int> f = x => x + c.Pos;
+        Console.WriteLine(f(1));
+        Console.WriteLine("unreachable");
+    }
+}

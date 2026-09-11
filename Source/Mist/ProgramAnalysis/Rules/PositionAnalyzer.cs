@@ -1,8 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
-using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
-using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 
@@ -62,37 +60,8 @@ internal sealed class PositionAnalyzer : IProgramAnalyzer
 
     private static void JudgeCaptures(AnalysisContext context, LambdaExpression lambda)
     {
-        var body = (object?)lambda.Body ?? lambda.Result;
-
-        if(body is null)
-        {
-            return;
-        }
-
-        var inside = BodyWalker.DescendantsAndSelf(body).ToList();
-        var own = new HashSet<LocalVariable>(lambda.Parameters, ReferenceEqualityComparer.Instance);
-
-        foreach(var node in inside)
-        {
-            switch(node)
-            {
-                case LocalDeclarationStatement declaration:
-                    _ = own.Add(declaration.Local);
-                    break;
-                case ForEachStatement loop:
-                    _ = own.Add(loop.Variable);
-                    break;
-                case TupleDeconstructionStatement deconstruction:
-                    own.UnionWith(deconstruction.Targets);
-                    break;
-                case LambdaExpression nested:
-                    own.UnionWith(nested.Parameters);
-                    break;
-                case Pattern { Binding: { } binding }:
-                    _ = own.Add(binding);
-                    break;
-            }
-        }
+        var inside = LambdaCaptures.Inside(lambda);
+        var own = LambdaCaptures.OwnNames(lambda, inside);
 
         foreach(var node in inside)
         {

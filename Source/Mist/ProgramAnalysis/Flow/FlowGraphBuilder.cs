@@ -21,7 +21,9 @@ internal sealed class FlowGraphBuilder
 {
     private readonly List<FlowBlock> blocks = [];
     private readonly Dictionary<object, FlowGraph> nested = new(ReferenceEqualityComparer.Instance);
-    private readonly Stack<FlowBlock> breakTargets = new();
+    private readonly List<FlowLoop> loops = [];
+    private readonly Stack<(FlowBlock Exit, int Depth)> breakTargets = new();
+    private readonly Stack<Block> scopes = new();
     private readonly FlowBlock exit;
 
     private FlowGraphBuilder()
@@ -53,7 +55,7 @@ internal sealed class FlowGraphBuilder
 
         end.Successors.Add(builder.exit);
 
-        return new FlowGraph(entry, builder.exit, builder.blocks, builder.nested);
+        return new FlowGraph(entry, builder.exit, builder.blocks, builder.loops, builder.nested);
     }
 
     private FlowBlock Statement(Statement statement, FlowBlock current)
@@ -61,11 +63,15 @@ internal sealed class FlowGraphBuilder
         switch(statement)
         {
             case Block block:
+                scopes.Push(block);
+
                 foreach(var inner in block.Statements)
                 {
                     current = Statement(inner, current);
                 }
 
+                _ = scopes.Pop();
+                current.Steps.Add(new FlowStep(FlowStepKind.Leave, block));
                 return current;
 
             case ExpressionStatement expressionStatement:
@@ -97,12 +103,14 @@ internal sealed class FlowGraphBuilder
                 }
 
                 current.Steps.Add(Evaluate(returnStatement));
+                Leave(current, depth: 0);
                 current.Successors.Add(exit);
                 return NewBlock();
 
             case BreakStatement breakStatement:
                 current.Steps.Add(Evaluate(breakStatement));
-                current.Successors.Add(breakTargets.Count > 0 ? breakTargets.Peek() : exit);
+                Leave(current, breakTargets.Count > 0 ? breakTargets.Peek().Depth : 0);
+                current.Successors.Add(breakTargets.Count > 0 ? breakTargets.Peek().Exit : exit);
                 return NewBlock();
 
             case IfStatement ifStatement:
@@ -175,7 +183,7 @@ internal sealed class FlowGraphBuilder
         var header = Successor(current);
         var (bodyEntry, loopExit) = head(header);
 
-        breakTargets.Push(loopExit);
+        breakTargets.Push((loopExit, scopes.Count));
         var bodyEnd = Statement(body, bodyEntry);
         _ = breakTargets.Pop();
 
@@ -185,6 +193,7 @@ internal sealed class FlowGraphBuilder
         }
 
         bodyEnd.Successors.Add(header);
+        loops.Add(new FlowLoop(header, bodyEnd, body));
         return loopExit;
     }
 
@@ -445,6 +454,14 @@ internal sealed class FlowGraphBuilder
     public static bool IsValueLocal(LocalReferenceExpression local)
     {
         return local.Type is StructType or ConstructedType { Definition: StructType };
+    }
+
+    private void Leave(FlowBlock current, int depth)
+    {
+        foreach(var scope in scopes.Take(scopes.Count - depth))
+        {
+            current.Steps.Add(new FlowStep(FlowStepKind.Leave, scope));
+        }
     }
 
     private static FlowStep Evaluate(object node)

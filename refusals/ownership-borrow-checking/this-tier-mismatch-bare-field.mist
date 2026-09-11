@@ -1,0 +1,44 @@
+using Standard;
+
+namespace Refusal;
+
+public class Account
+{
+    public owned int Balance;
+
+    public Account(owned int balance)
+    {
+        this.Balance = balance;
+    }
+
+    public void Deposit(owned int amount)
+    {
+        this.Balance = this.Balance + amount;
+    }
+}
+
+public class Bank
+{
+    public Account Main;
+
+    public Bank()
+    {
+        this.Main = new Account(1);
+    }
+
+    public void Pay()
+    {
+        // REFUSE: MIST_PA_THIS_TIER_MISMATCH
+        Main.Deposit(1);
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var bank = new Bank();
+        bank.Pay();
+        Console.WriteLine("unreachable");
+    }
+}

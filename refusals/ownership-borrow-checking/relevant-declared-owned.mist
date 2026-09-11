@@ -1,0 +1,20 @@
+using Standard;
+
+namespace Refusal;
+
+// REFUSE-FILE: MIST_PA_CONFLICTING_DISCIPLINE
+public relevant owned class Wrong
+{
+    public void Drop()
+    {
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        Console.WriteLine("declared");
+        Console.WriteLine("unreachable");
+    }
+}

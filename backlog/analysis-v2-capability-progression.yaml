@@ -890,21 +890,124 @@ rules:
     order: 11
     subsystem: ownership
     requires: [flow-framework, assignability-core]
-    status: missing
-    from: orders 134, 136, 137, 138, 140, 154, 155, 156, 158, 159, 160, 161, 164 -- 15 tasks
+    status: done
+    from: >
+      orders 134, 136, 137, 138, 140, 154, 155, 156, 158, 159, 160, 161, 164 -- 15 tasks
     evidence: >
-      THE LEAST LIKE ANYTHING C# CHECKS and so the least derivable from the target. The tier-satisfaction
-      lattice between owned, borrowed and frozen; the six-state machine per binding with use-after-move
-      across branching flow, lending transitions restoring at end of lease, and re-lending from a borrow;
-      per-field jagged ownership where a partial move leaves siblings usable and the parent not;
-      this-tier inference from field accesses; the counts -- exactly-once for linear, at-least-once for
-      relevant, at-most-once for affine; the containment matrix for a substructural field; and the
-      readonly and stack-only disciplines, which are the same machinery over different lattices.
-      
-      Specs exist: ownership-v2, ownership-system, deep-ownership-types, drop-semantics, readonly-contexts,
-      stack-only-types.
-    tasks: []
+      THE LEAST LIKE ANYTHING C# CHECKS, so it was measured on classic more than any order before it:
+      twelve probes, 150 shapes, each run through classic and then through v2 until the two agreed
+      everywhere but where a divergence is recorded below. What classic refuses is narrower than the
+      specs say, and v2 follows classic: the spec's stricter wordings are the tasks.
 
+      MOVES AND LEASES ARE THE FLOW FRAMEWORK'S SECOND CUSTOMER, and needed two things of it: a Leave
+      step where a block's scope ends, on the fall-through, a return and a break alike, and the loops,
+      header and latch, on the graph. OwnershipAnalyzer's lattice is a map of moved bindings and a map of
+      leases. A binding is moved by a declaration or assignment that takes it directly, by an owned
+      parameter or owned constructor argument, by an array literal, by a call `with owned`, and for a
+      linear or affine value by `Drop()`; NOT by a field taking it, and NOT by a plain parameter taking a
+      linear value, since classic admits a use after both. A use after a move is refused at the use, and
+      a move inside a loop of a binding declared outside it at the move; a reassignment restores. A lease
+      is a local declared frozen, borrowed or readonly ref from another local -- the binder now records
+      the frozen tier, which it had folded into unrestricted -- and lasts until its block's Leave: the
+      lender cannot be moved meanwhile, nor mutated or borrowed while frozen, nor touched at all while
+      borrowed; a lease by call lasts only the call. Two paths join by remembering either's move, as
+      classic does; a binding once complained of is settled, so one mistake is one complaint per path.
+      Structs are never tracked: a copy is a value of its own, and classic passes one to every tier.
+
+      TIERS, ONE LATTICE: unrestricted, readonly ref, frozen, borrowed, owned. ThisTiers gives what a
+      method needs -- its `with` clause, or borrowed when its body assigns an owned field (a field
+      declared owned, or any field of an owned type), or what a callee reached through an explicit
+      `this.` needs -- and what a receiver gives: its declared tier for a local or parameter, owned for
+      an unrestricted LOCAL, unrestricted for an unrestricted PARAMETER, owned for an owned field and
+      unrestricted for a bare plain field, and owned for anything else. Every one of those is classic's
+      verdict measured, including the two it draws oddly: an implicit `Deposit(1)` is not followed where
+      `this.Deposit(1)` is, and `Spare.Rev(1)` is refused where `this.Spare.Rev(1)` is admitted. A
+      `with` clause below what the body needs is refused at the method. Lending by call is judged by
+      declared tiers only -- an unrestricted local is refused for a borrowed or frozen parameter even
+      when it was `new`, which is classic's verdict and the one place its `var` inference does not
+      reach -- and an owned parameter accepts any argument, the move being the flow rule's. Extracting
+      an owned field into an owned binding through an unrestricted local is refused; through a clone,
+      which the binder inserts for a clonable type, nothing is extracted, so string fields pass.
+
+      DECLARATIONS, in DisciplineAnalyzer: `owned` on an abstract; `affine` or `linear` beside `owned`,
+      which they imply, and `relevant` beside it, which it excludes; `ref` on a class; a ref struct as
+      a field of anything but a ref struct, or as a type argument; an owned binding of a linear or
+      affine value; and the containment matrix -- linear holds anything, affine holds affine or
+      unrestricted, relevant holds relevant or unrestricted, every other container only unrestricted,
+      with a type parameter counting as its constraint says and refused unconstrained inside a
+      disciplined container. Standard's Task is relevant and ValueTask linear, so a plain class holding
+      either is refused, as classic refuses it. ReadonlyAnalyzer refuses the three field writes classic
+      refuses: inside a readonly method or a method of a readonly type, through a readonly parameter,
+      and to a readonly field outside a constructor -- from outside the type too, which classic leaves
+      to Roslyn. EscapeAnalyzer refuses a stackalloc-backed span returned, directly or through a local,
+      and a lambda capturing a ref struct, an owned binding, a frozen or borrowed lease, or a readonly
+      ref parameter, the last being Roslyn's refusal of an `in` parameter in a lambda.
+
+      NOT ENFORCED, BECAUSE CLASSIC DOES NOT: the readonly-context rules beyond field writes (a mutable
+      call from a readonly method, a readonly block, allocation of a mutable type), the hiding of
+      mutable methods on an owned binding of a non-owned type, field-assignment provenance on an owned
+      binding, the cooperation contract of an owned type, an owned binding initialised from a
+      non-clonable shared value, per-field jagged ownership beyond shared extraction, lending a frozen
+      or readonly ref lender to an owned parameter, and a second borrow by call while frozen. Each is
+      measured admitted and each is a task below. Three divergences, more permissive and principled: a
+      move on a branch that returns does not poison the path that did not take it (classic refuses,
+      being path-insensitive there); a linear value passed to a plain parameter is not moved (classic
+      agrees, though the emitter elides its drop -- the task below); and a frozen or borrowed lender lent
+      again by call is admitted, as classic admits it.
+
+      THE BINDER NOW CARRIES THE TIERS a parameter's local needs: Ownership and IsRef from the modifier
+      and a link to the Parameter itself. An owned parameter passed on to an owned position is a move
+      rather than the clone the binder inserted before, which no baseline could see.
+
+      MEASURED: zero findings and identical stdout on AllFeaturesV2 and AllFeatures, and zero on the
+      three unbanked samples, on every sweep. Sixty corpus cases, one per refused shape. Fifty-eight
+      decision rows pin the admits and the divergences. Thirty-nine mutations, each on a confirmed
+      build, all caught: across the flow rule nothing tracked, structs tracked, a join forgetting a
+      move, a declaration or an owned parameter or a consuming call not moving, a leave never
+      releasing, a reassignment not restoring, use-after-move and loop-move silenced, each lease
+      admitting what it forbids; across the tier rule receivers, lend pairs, shared extraction and the
+      `with` clause unjudged, an owned-field write or an explicit `this.` call needing nothing, an
+      owned type's fields plain, an unrestricted parameter or a bare field providing owned; across
+      the declaration rule the matrix admitting all, an unconstrained parameter, an owned abstract, a
+      ref struct field or type argument, an owned substructural binding, a conflicting discipline and
+      `ref` on a class admitted; the three readonly writes admitted; the stack span return and the
+      captures admitted; and a break leaving no scope. Two first survived -- the join, until an
+      else-branch move pinned the order paths arrive in, and the break, until a lease taken inside a
+      loop and left by break pinned its release.
+    tasks:
+      - >
+        The ownership-v2 spec is stricter than classic in five places v2 follows classic on: mutable
+        methods hidden on an owned binding of a non-owned type (Req 2.4), field-assignment provenance
+        (Req 4), the cooperation contract (Req 5), an owned binding from a non-clonable shared source
+        (Req 1.6), and a borrow by call while a frozen lease stands (Req 9.8). Each is measured
+        admitted by classic; adopting any is a decision.
+      - >
+        The readonly-contexts spec's base rules 7 to 10 -- no mutable call, no setter, no mutable
+        allocation in a readonly context -- and its readonly block (Req 9) are not enforced by classic
+        and not by v2. They need readonly INFERENCE over members, which nothing in v2 computes yet.
+        Whether to build it is a decision.
+      - >
+        Per-field jagged ownership (order 158): classic tracks only shared extraction. A move out of an
+        owned field, a lease on one, and the composite state of the parent are unmeasured because
+        every probe with clonable fields cloned instead; with Engine fields classic admits them all.
+      - >
+        A linear value passed to a plain parameter is admitted after the call by classic and by v2,
+        while the emitter's DropInsertion counts that call as a move and elides the drop. One of the
+        two is wrong about what a call does to a linear value.
+      - >
+        Ownership inference for `var` (order 159's second half) is approximated: an unrestricted local
+        satisfies any receiver tier, and none for a lend by call. Classic's inference is finer in
+        neither measured direction, but a `var` initialised from a parameter and used as a receiver
+        needing borrowed is admitted here and may not be by classic.
+      - >
+        `this` inside a method is given the method's own tier when it is the receiver of an explicit
+        call, and owned inside a constructor; `this` passed as an argument is not judged.
+      - >
+        Assignment to a readonly or borrowed parameter itself is admitted, as classic admits it.
+      - >
+        The stackalloc escape rule covers a return, directly or through a local or a Slice. A span
+        stored into a field or collection escapes too and is unmeasured: the field form is refused
+        first as a ref struct field.
   - id: refinement-proving
     name: Static discharge, implication, and the guards that remain
     order: 12

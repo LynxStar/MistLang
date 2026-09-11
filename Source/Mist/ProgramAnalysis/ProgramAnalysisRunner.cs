@@ -21,6 +21,11 @@ internal static class ProgramAnalysisRunner
         new PositionAnalyzer(),
         new DefiniteAssignmentAnalyzer(),
         new StampabilityAnalyzer(),
+        new OwnershipAnalyzer(),
+        new TierAnalyzer(),
+        new DisciplineAnalyzer(),
+        new ReadonlyAnalyzer(),
+        new EscapeAnalyzer(),
     ];
 
     public static void Run(ProgramModelClass model, DiagnosticBag diagnostics)

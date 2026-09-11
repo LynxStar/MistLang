@@ -1,0 +1,45 @@
+using Standard;
+
+namespace Refusal;
+
+public owned class Engine
+{
+    public int Rpm;
+
+    public Engine(int rpm)
+    {
+        this.Rpm = rpm;
+    }
+
+    public void Rev(int by)
+    {
+        this.Rpm = this.Rpm + by;
+    }
+
+    public int Get()
+    {
+        return Rpm;
+    }
+}
+
+public class Car
+{
+    public owned Engine Front;
+
+    public Car()
+    {
+        this.Front = new Engine(1);
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var car = new Car();
+        // REFUSE: MIST_PA_SHARED_EXTRACT
+        owned var f = car.Front;
+        Console.WriteLine(f.Get());
+        Console.WriteLine("unreachable");
+    }
+}

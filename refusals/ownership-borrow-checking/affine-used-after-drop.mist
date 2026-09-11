@@ -1,0 +1,27 @@
+using Standard;
+
+namespace Refusal;
+
+public affine class Token
+{
+    public void Drop()
+    {
+    }
+
+    public int Peek()
+    {
+        return 1;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var t = new Token();
+        t.Drop();
+        // REFUSE: MIST_PA_USE_AFTER_MOVE
+        Console.WriteLine(t.Peek());
+        Console.WriteLine("unreachable");
+    }
+}

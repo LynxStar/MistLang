@@ -30,7 +30,10 @@ internal static class EnumerableElement
     /// <summary>
     /// Walks the conformance graph outward, carrying the substitution each step contributes so a
     /// generic sequence closed at its use site yields the closed element -- <c>MyList&lt;int&gt;</c>
-    /// declaring <c>: IEnumerable&lt;T&gt;</c> answers int rather than T.
+    /// declaring <c>: IEnumerable&lt;T&gt;</c> answers int rather than T. Each step's arguments are
+    /// closed through the substitution so far, since a projected <c>List&lt;int&gt;</c> reaches
+    /// <c>IEnumerable</c> only through <c>IList</c> and <c>ICollection</c>, each naming the previous
+    /// one's parameter, and a binding that stops one step short answers with that parameter.
     /// </summary>
     private static IMistType? Search(IMistType type, TypeSubstitution substitution, int depth)
     {
@@ -52,8 +55,11 @@ internal static class EnumerableElement
 
             if(definition is MemberType generic)
             {
-                substitution = substitution.Extend(
-                    TypeSubstitution.ForParameters(generic.TypeParametersList, constructed.TypeArguments));
+                var closed = constructed.TypeArguments
+                    .Select(argument => substitution.Apply(argument, interner: null))
+                    .ToList();
+
+                substitution = substitution.Extend(TypeSubstitution.ForParameters(generic.TypeParametersList, closed));
             }
 
             return Search(definition, substitution, depth + 1);

@@ -97,7 +97,7 @@ internal static class StructInitEmitter
             using(writer.Block())
             {
                 EmitChainCall(constructor, ancestor.Definition, names, writer, diagnostics);
-                BodyEmitter.EmitBlock(constructor.Body, writer, diagnostics);
+                BodyEmitter.EmitBlock(constructor.Body, constructor.ParametersList.Select(parameter => parameter.Name), writer, diagnostics);
             }
         }
     }

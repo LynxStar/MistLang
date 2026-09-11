@@ -24,7 +24,7 @@ internal static class AccessorEmitter
             writer.WriteLine(header);
             using(writer.Block())
             {
-                BodyEmitter.EmitBlock(body, writer, diagnostics);
+                BodyEmitter.EmitBlock(body, isSetter ? ["value"] : [], writer, diagnostics);
             }
 
             return;

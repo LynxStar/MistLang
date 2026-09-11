@@ -52,10 +52,22 @@ internal static class Indexability
             return context.Resolver.ConstructArray(element, null);
         }
 
+        if(receiverType is ConstructedType { TypeArguments.Count: 2 } spanLike && SpanKind(spanLike.Definition) is { } kind)
+        {
+            return context.Resolver.ConstructLengthIndexed(kind, spanLike.TypeArguments[0], null);
+        }
+
         return receiverType.FullyQualifiedName == WellKnownTypes.String.FullyQualifiedName
             ? receiverType
             : ErrorType.Instance
             ;
+    }
+
+    private static WellKnownType? SpanKind(IMistType definition)
+    {
+        return definition.FullyQualifiedName == WellKnownTypes.Span.FullyQualifiedName ? WellKnownTypes.Span
+            : definition.FullyQualifiedName == WellKnownTypes.ReadOnlySpan.FullyQualifiedName ? WellKnownTypes.ReadOnlySpan
+            : null;
     }
 
     private static IMistType IndexerType(IMistType receiverType, BuilderContext context)

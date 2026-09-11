@@ -33,6 +33,13 @@ internal static class BodyEmitter
 
     public static void EmitBlock(Block block, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        EmitBlock(block, [], writer, diagnostics);
+    }
+
+    public static void EmitBlock(
+        Block block, IEnumerable<string> parameterNames, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        using var names = LocalNames.Enter(block, parameterNames);
         EmitStatements(block.Statements, 0, writer, diagnostics);
     }
 
@@ -44,6 +51,7 @@ internal static class BodyEmitter
     public static void EmitMethodBody(
         Method method, Block body, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        using var names = LocalNames.Enter(body, method.ParametersList.Select(parameter => parameter.Name));
         EmitContextBindings(method, writer);
         EmitParameterDrops(DropInsertion.DroppedParameters(method, body), 0, body, writer, diagnostics);
     }
@@ -128,7 +136,7 @@ internal static class BodyEmitter
 
                 using(writer.Block())
                 {
-                    EmitRelease(declaration.Local.Name, declaration.Local.Type, writer);
+                    EmitRelease(LocalNames.Of(declaration.Local), declaration.Local.Type, writer);
                 }
 
                 return;
@@ -267,7 +275,7 @@ internal static class BodyEmitter
 
             case ForEachStatement foreachStmt:
                 writer.Write(
-                    $"foreach ({TypeNameEmitter.EmitInferable(foreachStmt.Variable.Type)} {foreachStmt.Variable.Name} in ");
+                    $"foreach ({TypeNameEmitter.EmitInferable(foreachStmt.Variable.Type)} {LocalNames.Of(foreachStmt.Variable)} in ");
                 EmitExpression(foreachStmt.Collection, writer, diagnostics);
                 writer.Append(")");
                 writer.AppendLine();
@@ -414,11 +422,11 @@ internal static class BodyEmitter
             EmitExpression(call, writer, diagnostics);
             writer.Append(";");
             writer.AppendLine();
-            writer.WriteLine($"{typeName} {localDecl.Local.Name} = Standard.Void.Instance;");
+            writer.WriteLine($"{typeName} {LocalNames.Of(localDecl.Local)} = Standard.Void.Instance;");
             return;
         }
 
-        writer.Write($"{typeName} {local.Name}");
+        writer.Write($"{typeName} {LocalNames.Of(local)}");
         if(localDecl.Initializer is not null)
         {
             // C# marks the alias TWICE, once on the type and once on what is aliased, and Mist writes
@@ -480,7 +488,7 @@ internal static class BodyEmitter
     {
         ContextLowering.Require();
 
-        var bound = withBlock.Binding?.Name ?? TemporaryName();
+        var bound = withBlock.Binding is { } bindingLocal ? LocalNames.Of(bindingLocal) : TemporaryName();
 
         // The KEY the value is filed under, which a form may have written and which is not the
         // value's own type -- see WithBlockStatement.KeyType. The drop below still asks the VALUE
@@ -534,7 +542,7 @@ internal static class BodyEmitter
         TupleDeconstructionStatement deconstruction, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var targets = deconstruction.Targets.Select(
-            target => $"{TypeNameEmitter.EmitInferable(target.Type)} {target.Name}");
+            target => $"{TypeNameEmitter.EmitInferable(target.Type)} {LocalNames.Of(target)}");
 
         writer.Write($"({string.Join(", ", targets)}) = ");
         EmitExpression(deconstruction.Initializer, writer, diagnostics);
@@ -584,7 +592,7 @@ internal static class BodyEmitter
         if(forStmt.Initializer is LocalDeclarationStatement initDecl)
         {
             var typeName = TypeNameEmitter.Emit(initDecl.Local.Type);
-            writer.Append($"{typeName} {initDecl.Local.Name}");
+            writer.Append($"{typeName} {LocalNames.Of(initDecl.Local)}");
             if(initDecl.Initializer is not null)
             {
                 writer.Append(" = ");
@@ -909,7 +917,7 @@ internal static class BodyEmitter
                 break;
 
             case LocalReferenceExpression localRef:
-                writer.Append(localRef.Local.Name);
+                writer.Append(LocalNames.Of(localRef.Local));
                 break;
 
             case ThisExpression:
@@ -1092,7 +1100,7 @@ internal static class BodyEmitter
         LambdaExpression lambda, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var parameters = lambda.Parameters.Select(
-            parameter => $"{TypeNameEmitter.Emit(parameter.Type)} {parameter.Name}");
+            parameter => $"{TypeNameEmitter.Emit(parameter.Type)} {LocalNames.Of(parameter)}");
 
         writer.Append(lambda.IsAsync ? "async " : "");
         writer.Append(lambda.IsStatic ? "static (" : "(");
@@ -1537,7 +1545,7 @@ internal static class BodyEmitter
                 break;
 
             case CatchAllPattern catchAll:
-                writer.Append(catchAll.Binding is { } caught ? $"var {caught.Name}" : "var _");
+                writer.Append(catchAll.Binding is { } caught ? $"var {LocalNames.Of(caught)}" : "var _");
                 break;
 
             case ComparisonPattern comparison:
@@ -1613,7 +1621,7 @@ internal static class BodyEmitter
 
             if(typeTest.Binding is { } bound)
             {
-                writer.Append($" and var {bound.Name}");
+                writer.Append($" and var {LocalNames.Of(bound)}");
             }
 
             return;
@@ -1621,7 +1629,7 @@ internal static class BodyEmitter
 
         if(typeTest.Binding is { } tested)
         {
-            writer.Append($" {tested.Name}");
+            writer.Append($" {LocalNames.Of(tested)}");
         }
     }
 
@@ -1676,7 +1684,7 @@ internal static class BodyEmitter
 
         if(tuple.Binding is { } whole)
         {
-            writer.Append($" {whole.Name}");
+            writer.Append($" {LocalNames.Of(whole)}");
         }
     }
 

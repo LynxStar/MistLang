@@ -26,8 +26,8 @@ internal static class LambdaBinder
 
         var isAsync = modifiers.Any(modifier => modifier is AsyncLambdaModifierLambdaModifierNode);
         var isStatic = modifiers.Any(modifier => modifier is StaticLambdaModifierLambdaModifierNode);
-        var target = AliasTransparency.Expand(
-            ctx.TargetType ?? ErrorType.Instance, context.ProgramModel.TypeInterner) as IFunctionType;
+        var target = DelegateShape.Of(AliasTransparency.Expand(
+            ctx.TargetType ?? ErrorType.Instance, context.ProgramModel.TypeInterner));
         var declared = ParameterNodes(parameterList);
 
         if(target is not null && target.ParameterTypes.Count != declared.Count)

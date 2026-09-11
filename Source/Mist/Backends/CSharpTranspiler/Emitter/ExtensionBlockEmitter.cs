@@ -73,7 +73,7 @@ internal static class ExtensionBlockEmitter
         {
             if(method.Body is not null)
             {
-                BodyEmitter.EmitBlock(method.Body, writer, diagnostics);
+                BodyEmitter.EmitBlock(method.Body, method.ParametersList.Select(parameter => parameter.Name), writer, diagnostics);
             }
         }
     }

@@ -399,6 +399,14 @@ capabilities:
     evidence: >
       BodyEmitter cases for IfStatement (recursive else-if), WhileStatement, ForStatement,
       ForEachStatement, BreakStatement and nested Block.
+
+      NESTED SHADOWING, 2026-09-11. Mist lets a nested block redeclare a name an enclosing block or the
+      parameter list holds; C# refuses it (CS0136) whichever declaration comes first in the text, and
+      classic emitted the shadowing as written, so no sample can be baselined from it and the book's
+      nested-scoping snippets never compiled. LocalNames builds one map per body -- a scope walk over
+      statements, lambdas, switch arms and pattern bindings mirroring C#'s rule -- and renames the inner
+      local apart; every site BodyEmitter spells a local reads it. Siblings keep their names. Verified by
+      the three nested-scoping snippets and both suites unchanged, since no banked sample shadows.
     unlocks: []
 
   - id: arrays-sized-index-length
@@ -3556,6 +3564,12 @@ capabilities:
       the carrier's implicit operators carry the conversion downstream, exactly as numeric
       widening rides Roslyn. Declaration, reassignment, argument and return positions plus
       var inference all probe byte-identical to classic; TypeUnions itself banks at order 98.
+
+      UNION INTO UNION, 2026-09-11. `Wide widened = narrow` bound (WidensIntoUnion admits it) and emitted
+      `Union_Boolean_Int32_String widened = value`, which C# refused for want of a conversion. Each
+      carrier now declares an implicit operator from every carrier holding a strict subset of its
+      constituents, rewrapping by tag, so the use site stays an assignment. Verified by the type-unions
+      widening snippet; no banked sample widens a union into a wider one.
     unlocks: []
 
   - id: optional-union-representation
@@ -5121,6 +5135,11 @@ capabilities:
       AN ASYNC LAMBDA IS PARKED, not reported: the modifier changes what the body's type MEANS, so
       binding it as a synchronous lambda would answer confidently with the wrong result. It belongs to
       the async layer, orders 169-175.
+
+      A CLR DELEGATE AS TARGET, 2026-09-11. `System.Predicate<int> pred = x => x < 10` refused to infer
+      `x`, the binder asking only whether the target IS a function type. It now reads the target through
+      DelegateShape, so a CLR delegate's Invoke shape types the parameters as a func would. Verified by
+      the delegate-system-delegate snippet.
     unlocks: []
 
   - id: lambda-closure-capture
@@ -5779,11 +5798,12 @@ capabilities:
       MUTATION-CHECKED, and this one IS sample-visible. Making IsRange never match fails four model
       tests AND the AllFeaturesV2 baseline, because `mid.Length` does not resolve on an int. So unlike
       order 123's index typing, the index-versus-range branch is guarded from both directions.
+
+      SPANS SLICE, 2026-09-11. `span[1..4]` was refused as not sliceable, arrays and strings being the
+      only receivers Indexability.SliceType answered for. A Span or ReadOnlySpan slices to the same kind
+      over an unknown length, and emits as written, C# indexing a span by a range natively. Verified by
+      the span-slice snippet.
     tasks:
-      - Classify SPAN as sliceable. Span<T> and ReadOnlySpan<T> declare `this[SpanBounds index]` so
-        they are already indexable through the ordinary indexer path, but SliceType answers ErrorType
-        for them and a span slice therefore reports. No sample in scope reaches it -- CSharpInteropV2
-        and RefStructs both bottom out at span-projection-and-length-erasure.
       - Classify a RANGE-INDEXER type and a COUNTABLE-PLUS-SLICE-MEMBER type as sliceable, which the
         spec sentence names and this does not implement. NOTHING IN THE REPOSITORY DECLARES EITHER --
         no type in Source/Standard/Bootstrap has an indexer taking Standard.Range, and none declares
@@ -5935,6 +5955,12 @@ capabilities:
       sample" because ArityOverloads exercises only Add and Count. samples/AssemblyTypeProvider
       does `list[0]`, runs clean on v2 and byte-identical to classic -- so the indexer half is
       proven, and the claim was about the wrong sample rather than about the capability.
+
+      THE ELEMENT OF A PROJECTED SEQUENCE, 2026-09-11. `foreach (int item in list)` over a CLR
+      `List<int>` was judged as yielding `T`: EnumerableElement reaches IEnumerable only through IList
+      and ICollection, each naming the previous one's parameter, and a substitution extended without
+      closing its arguments stopped one step short. The arguments are now closed through the substitution
+      so far at each step. Verified by the collection-usage snippet.
     unlocks: [ArityOverloads]
 
   - id: clr-byref-parameter-projection

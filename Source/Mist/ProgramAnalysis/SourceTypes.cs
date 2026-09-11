@@ -13,7 +13,7 @@ namespace Mist.ProgramAnalysis;
 /// </summary>
 internal static class SourceTypes
 {
-    public static IEnumerable<CompilationUnit> UnitsOf(ProgramModelClass model)
+    public static IEnumerable<SourceUnit> UnitsOf(ProgramModelClass model)
     {
         foreach(var assembly in model.Assemblies)
         {
@@ -24,14 +24,14 @@ internal static class SourceTypes
 
             foreach(var unit in assembly.CompilationUnits)
             {
-                yield return unit;
+                yield return new SourceUnit(assembly, unit);
             }
         }
     }
 
     public static IEnumerable<MistType> Of(ProgramModelClass model)
     {
-        foreach(var unit in UnitsOf(model))
+        foreach(var (_, unit) in UnitsOf(model))
         {
             foreach(var type in unit.Types)
             {
@@ -45,7 +45,7 @@ internal static class SourceTypes
 
     public static IEnumerable<ExtensionBlock> ExtensionsOf(ProgramModelClass model)
     {
-        foreach(var unit in UnitsOf(model))
+        foreach(var (_, unit) in UnitsOf(model))
         {
             foreach(var block in unit.Extensions)
             {
@@ -67,3 +67,5 @@ internal static class SourceTypes
         }
     }
 }
+
+internal sealed record SourceUnit(MistAssembly Assembly, CompilationUnit Unit);

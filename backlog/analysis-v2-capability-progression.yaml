@@ -448,19 +448,109 @@ rules:
     order: 6
     subsystem: typechecker
     requires: [analyzer-contract]
-    status: missing
-    from: orders 39, 42, 48, 50, 56, 57, 66, 84, 86, 87, 88 -- 13 tasks
+    status: done
+    from: >
+      orders 39, 42, 48, 50, 56, 57, 66, 84, 86, 87, 88 -- 13 tasks
     evidence: >
-      THE CHEAPEST CLUSTER AND THE ONE LEAST LIKE THE REST: no expression is walked, no flow is
-      followed, and nothing needs the conversion classification. Accessibility permission and exposure,
-      duplicate alias and newtype names, `sealed` on an alias, a newtype over a sealed type, an enum base
-      that is not deeply readonly, two variants sharing a value, a nested newtype or alias that
-      something references, the Mist-only generic constraints that erase into nothing and so are checked
-      by nothing, and a missing constructor on a closing type.
-      
-      Placed after the contract and beside the assignability work rather than before it, because its
-      value is breadth and the assignability spine is what unblocks everything else.
-    tasks: []
+      THE CHEAPEST CLUSTER AND THE ONE LEAST LIKE THE REST: no expression is walked for its value, no
+      flow is followed, and only the constraint rule asks the conversion classification. Accessibility
+      permission and exposure, sealed on a base, a newtype source or an alias, an enum base that is not
+      readonly, two variants sharing a value, a default block naming something that is not a field, the
+      Mist-only generic constraints that erase into nothing, a missing constructor on a closing type, and
+      `default` of a type that has none. Placed after the assignability spine because its value is
+      breadth.
+
+      CLASSIC'S VERDICTS ARE THE CONTRACT, measured on a probe whose symbol-stage shapes had to be split
+      from its type-checker shapes, since classic's symbol errors gate its type checker and v2's binder
+      errors gate Stage 5 the same way. Classic refuses private and protected access from outside the
+      domain (TC_0170/0171), every inconsistent-accessibility shape -- return, parameter, field and
+      property type, base class (TC_0173/0174) -- deriving from a sealed type (0177), a newtype over one
+      (0178), `sealed` on an alias (0179), a non-readonly enum base and union constituent (0102/0103),
+      duplicate names (SB_0061/0063), duplicate variant values (SB_0085), and `default` of a type with
+      no default (DEFAULT_NOT_SUPPORTED, printed with its placeholder unfilled). Every one is refused by v2
+      at the same construct. Classic admits `readonly` on a class method, an unknown default-block
+      entry, and every constraint violation at a field initializer while refusing the same violation in a
+      method body (TC_0077, CONSTRAINT_0015) -- so the constraint rule judges every closing, which is
+      classic's verdict at more positions, and the unknown default entry is refused because Roslyn refuses
+      the factory it emits.
+
+      FOUR RULES OVER THE MODEL, all reporting as one register order. AccessibilityAnalyzer asks the two
+      questions of the full-accessibility-model spec: whether a use sits inside the member's domain -- the
+      declaring type for private, that type or a derivation for protected, the same assembly for internal,
+      a nested type counting as inside its enclosing one -- and whether a declaration exposes a type less
+      accessible than itself, with effective accessibility the narrowest along the nesting and, for
+      anything structural, the narrowest of what it is built from. Internal and protected are
+      incomparable, as C# has them. The abstract bases in a base list are EXEMPT, whatever Requirement
+      6.2 of the spec says: C# lets a public class implement an internal interface, samples/Variadics does
+      exactly that with an unmodified `abstract ICountable`, and classic runs it. DeclarationShapeAnalyzer
+      holds the sealed, enum and default-block rules. ConstraintAnalyzer judges every type argument the
+      source closes against every constraint of its parameter: a type constraint by the classifier, class
+      and struct by the definition's kind, readonly, mutable and owned by the declared modifiers, the
+      substructural three by discipline where LINEAR SATISFIES AFFINE AND RELEVANT -- exactly once is both
+      at most once and at least once, and samples/SubstructuralFieldDiscipline closes both with a linear
+      token -- a pack parameter elementwise over the lifted pack value, `new(T...)` by a public
+      constructor of that exact signature read through the argument's own substitution, and `default` by
+      Defaultability. DefaultabilityAnalyzer refuses a `default` of a class or struct the synthesis
+      cannot build, against the Mist source, where the backend used to name the expression unsupported.
+
+      WHAT THE MODEL GAINED. Method, Field, Property and Indexer carry the type that declares them and
+      the node they were written at, set by the source builders and, for the declaring type, the ambient
+      projectors; an exposure rule has nowhere else to report. MemberAccessExpression records what its
+      name resolved to, so the access rule never resolves a second time. ConstraintClosureRegistry
+      records every closing, not only the parameterized constructor ones emission needed a witness for.
+      A duplicate type is reported at its declaration rather than at no location. Defaultability moved
+      from the backend's synthesis into the model, since what has a default is a language rule the
+      backend happened to need first; the synthesis now consults it. Each body root carries the type it
+      sits in and the assembly it came from, and AnalysisContext answers both per node, because a body
+      reaches its type only through a scope chain that is the binder's.
+
+      THE SWEEP FOUND THREE RULE ERRORS ON THE FIRST RUN, twelve findings on working programs: internal
+      access compared against the orchestrator's assembly rather than the accessing code's, which
+      refused every internal read inside a referenced project; the substructural lattice taken as exact
+      match; and a pack parameter judged as one argument. Each was a rule fixed, not a sample carved out.
+
+      DIVERGENCES, all more permissive and all compiling. A nested newtype or alias is left alone, order
+      66's task notwithstanding: classic cannot resolve one, v2 resolves, emits and runs it. A private
+      alias exposed by a public member is silent, because the alias is transparent and the member's type
+      IS what it names -- classic folds the alias into TC_0173. `readonly` on a class method is left
+      silent, as classic leaves it; whether it should constrain or be refused is an open decision recorded
+      below. A private member reached by simple name from a derived type is refused by the binder as an
+      unresolved identifier before this order sees it, which is the right verdict with a less precise
+      message.
+
+      MEASURED: zero findings and identical stdout on AllFeaturesV2 and on AllFeatures, and zero
+      findings on the three unbanked samples built standalone. 23 corpus cases, one per refused shape,
+      plus the duplicate-type case under binding now that it has a line to be marked on. 26 decision rows
+      whose fixtures are themselves under analysis in every row, so a private member read from its own
+      and a nested type, a protected one from a derivation and its nested type, an internal one across
+      types, and a public class over an unmodified abstract are silences proven twenty-six times over.
+      Seventeen mutations, each on a confirmed build: the two access rules silenced, protected judged as
+      private, nesting dropped from effective accessibility, each declaration-shape rule removed in turn,
+      keyword and constructor constraints always satisfied, the substructural lattice flattened, the
+      defaultability rule silenced, the resolved member and the closings no longer recorded, and the
+      duplicate reported at no location. Fifteen caught on the first pass. Nesting SURVIVED, because the
+      corpus case declared its nested type private and so refused without it; a public type nested in an
+      internal one now pins the nesting half. The location mutation did not compile; a compiling variant
+      was caught. Seventeen of seventeen.
+    tasks:
+      - >
+        `readonly` on a class method is admitted and means nothing, as in classic. Either it constrains
+        the method not to mutate `this` and wants enforcing, or it is invalid and wants a diagnostic.
+        A decision, not a rule.
+      - >
+        Override and interface-implementation accessibility (Requirement 7 of the spec) is not judged:
+        the model records no override relation, and Roslyn refuses the C# forms.
+      - >
+        A protected instance member reached through a base-typed receiver from a derived type is
+        admitted, where C# demands the receiver be of the accessing type. Permissive on purpose until a
+        program shows it matters.
+      - >
+        Internal is judged within one compilation and a sample proves the referenced-project case; no
+        Tier 3 test can build two assemblies, so the assembly comparison is pinned by the sweep alone.
+      - >
+        The unknown default-entry refusal and the constraint checks at field initializers are stricter
+        than classic's analyzer; the first Roslyn refuses anyway, the second classic itself refuses one
+        position over.
 
   - id: abstract-conformance-checking
     name: Slot filling, accessor shape and retroactive conformance

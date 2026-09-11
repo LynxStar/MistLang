@@ -1,0 +1,15 @@
+using Standard;
+
+namespace Refusal;
+
+// REFUSE: MIST_PA_SEALED_TYPE_ALIAS
+public sealed type Alias = int;
+
+public class Probe
+{
+    public static void Main()
+    {
+        int n = 1;
+        Console.WriteLine("unreachable");
+    }
+}

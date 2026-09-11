@@ -43,7 +43,10 @@ internal static class FieldProjector
                 ClrResultIsNonNull = ClrNullability.ResultIsNonNull(field, field),
             };
 
-            var projected = new Field(field.Name, resolvedType, OwnershipKind.Unrestricted, modifiers);
+            var projected = new Field(field.Name, resolvedType, OwnershipKind.Unrestricted, modifiers)
+            {
+                DeclaringType = concreteType,
+            };
             AttributeProjector.Project(field, projected.AttributesList, concreteType.Scope, resolver);
             concreteType.FieldsList.Add(projected);
         }

@@ -1,6 +1,7 @@
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Model.Members;
 
@@ -17,6 +18,10 @@ internal sealed class Property(
     public IMistType Type { get; } = type;
 
     public MemberModifiers Modifiers { get; } = modifiers;
+
+    public MemberType? DeclaringType { get; init; }
+
+    public Storm.Runtime.SyntaxNode? DeclarationNode { get; init; }
 
     /// <summary>
     /// The attributes applied to this property.

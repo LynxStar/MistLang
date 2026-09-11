@@ -33,4 +33,70 @@ public static class ProgramAnalysisDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.Analysis,
         "Cannot implicitly convert type '{0}' to '{1}'. An explicit cast exists (are you missing a cast?)");
+
+    public static readonly DiagnosticDescriptor InaccessibleMember = new(
+        new DiagnosticId("MIST_PA_INACCESSIBLE_MEMBER"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "'{0}' is inaccessible due to its protection level: {1} members are accessible only {2}.");
+
+    public static readonly DiagnosticDescriptor InconsistentAccessibility = new(
+        new DiagnosticId("MIST_PA_INCONSISTENT_ACCESSIBILITY"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Inconsistent accessibility: {0} '{1}' is less accessible than {2} '{3}'.");
+
+    public static readonly DiagnosticDescriptor SealedBaseType = new(
+        new DiagnosticId("MIST_PA_SEALED_BASE_TYPE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot derive from sealed type '{0}'.");
+
+    public static readonly DiagnosticDescriptor NewtypeOverSealedType = new(
+        new DiagnosticId("MIST_PA_NEWTYPE_OVER_SEALED_TYPE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot declare a newtype over sealed type '{0}'.");
+
+    public static readonly DiagnosticDescriptor SealedTypeAlias = new(
+        new DiagnosticId("MIST_PA_SEALED_TYPE_ALIAS"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "The 'sealed' modifier is not valid on a type alias; it can only be applied to class or struct declarations.");
+
+    public static readonly DiagnosticDescriptor EnumBaseNotReadonly = new(
+        new DiagnosticId("MIST_PA_ENUM_BASE_NOT_READONLY"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Enum '{0}' has a non-readonly base type '{1}'. Enum base types, and every constituent of a union base, must be readonly.");
+
+    public static readonly DiagnosticDescriptor EnumDuplicateValue = new(
+        new DiagnosticId("MIST_PA_ENUM_DUPLICATE_VALUE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Enum member '{0}' has the same value as member '{1}' in enum '{2}'.");
+
+    public static readonly DiagnosticDescriptor DefaultEntryNotAField = new(
+        new DiagnosticId("MIST_PA_DEFAULT_ENTRY_NOT_A_FIELD"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "'{0}' is not a field of '{1}', so a default block cannot assign it.");
+
+    public static readonly DiagnosticDescriptor ConstraintNotSatisfied = new(
+        new DiagnosticId("MIST_PA_CONSTRAINT_NOT_SATISFIED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Type argument '{0}' does not satisfy the '{1}' constraint on type parameter '{2}'.");
+
+    public static readonly DiagnosticDescriptor ConstructorConstraintNotSatisfied = new(
+        new DiagnosticId("MIST_PA_CONSTRUCTOR_CONSTRAINT_NOT_SATISFIED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Type '{0}' must have a public constructor with parameters '({1})' to satisfy the 'new({1})' constraint on type parameter '{2}'.");
+
+    public static readonly DiagnosticDescriptor NotDefaultable = new(
+        new DiagnosticId("MIST_PA_NOT_DEFAULTABLE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Type '{0}' has no default: it declares no default block or parameterless constructor, or a field or base of it has none. Give it a default block, or construct it explicitly.");
 }

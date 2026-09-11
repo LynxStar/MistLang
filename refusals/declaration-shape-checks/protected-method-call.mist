@@ -1,0 +1,18 @@
+using Standard;
+
+namespace Refusal;
+
+public class Owner
+{
+    protected static int Guarded() { return 1; }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_INACCESSIBLE_MEMBER
+        int n = Owner.Guarded();
+        Console.WriteLine("unreachable");
+    }
+}

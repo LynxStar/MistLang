@@ -36,7 +36,10 @@ internal static class ConstructorProjector
                 Accessibility = ClrAccessibilityMap.FromMethod(ctor),
             };
 
-            var projected = new Constructor(concreteType.Name, concreteType, parameters, modifiers);
+            var projected = new Constructor(concreteType.Name, concreteType, parameters, modifiers)
+            {
+                DeclaringType = concreteType,
+            };
             AttributeProjector.Project(ctor, projected.AttributesList, concreteType.Scope, resolver);
             concreteType.ConstructorsList.Add(projected);
         }

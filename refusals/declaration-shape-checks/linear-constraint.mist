@@ -1,0 +1,17 @@
+using Standard;
+
+namespace Refusal;
+
+public class NeedsLinear<T> where T : linear
+{
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_CONSTRAINT_NOT_SATISFIED
+        var a = new NeedsLinear<int>();
+        Console.WriteLine("unreachable");
+    }
+}

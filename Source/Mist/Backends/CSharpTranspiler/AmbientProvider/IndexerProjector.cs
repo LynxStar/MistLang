@@ -60,6 +60,7 @@ internal static class IndexerProjector
 
             var projected = new Indexer(resolvedType, parameters, modifiers)
             {
+                DeclaringType = memberType,
                 Getter = getter,
                 Setter = setter,
             };

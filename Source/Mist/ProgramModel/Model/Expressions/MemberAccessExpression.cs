@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Scopes;
 using Storm.Runtime;
 
 namespace Mist.ProgramModel.Model.Expressions;
@@ -13,7 +14,8 @@ internal sealed class MemberAccessExpression(
     string memberName,
     IMistType type,
     IReadOnlyList<IMistType>? typeArguments = null,
-    bool isConditional = false) : Expression(node)
+    bool isConditional = false,
+    LookupResult? member = null) : Expression(node)
 {
     /// <summary>
     /// The expression whose member is being accessed.
@@ -38,4 +40,12 @@ internal sealed class MemberAccessExpression(
     public IReadOnlyList<IMistType> TypeArguments { get; } = typeArguments ?? [];
 
     public override IMistType Type { get; } = type;
+
+    /// <summary>
+    /// What the name resolved to -- a field, a property, an enum variant -- with the type it was found on.
+    /// Recorded because the expression otherwise keeps only the NAME, and a rule judging the access, as
+    /// accessibility does, would have to resolve it a second time and could disagree with the binder.
+    /// Null where the access resolved no member of its own: a spread element, a callee.
+    /// </summary>
+    public LookupResult? Member { get; } = member;
 }

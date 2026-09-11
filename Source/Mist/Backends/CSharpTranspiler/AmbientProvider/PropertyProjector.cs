@@ -46,6 +46,7 @@ internal static class PropertyProjector
 
             var projected = new Property(prop.Name, resolvedType, modifiers)
             {
+                DeclaringType = memberType,
                 Getter = getter,
                 Setter = setter,
             };

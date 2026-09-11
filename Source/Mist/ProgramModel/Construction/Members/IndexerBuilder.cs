@@ -87,7 +87,13 @@ internal sealed class IndexerBuilder
             }
         }
 
-        var indexer = new Indexer(type, parameters, modifiers) { Getter = getter, Setter = setter };
+        var indexer = new Indexer(type, parameters, modifiers)
+        {
+            DeclaringType = memberType,
+            DeclarationNode = indexerDecl,
+            Getter = getter,
+            Setter = setter,
+        };
 
         if(getter is null && setter is null)
         {

@@ -1,0 +1,19 @@
+using Standard;
+
+namespace Refusal;
+
+public sealed class Final
+{
+}
+
+// REFUSE: MIST_PA_NEWTYPE_OVER_SEALED_TYPE
+type Wrapped = new Final;
+
+public class Probe
+{
+    public static void Main()
+    {
+        var f = new Final();
+        Console.WriteLine("unreachable");
+    }
+}

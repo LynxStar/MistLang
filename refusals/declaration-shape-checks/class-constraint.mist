@@ -1,0 +1,22 @@
+using Standard;
+
+namespace Refusal;
+
+public struct SomeStruct
+{
+    public int v = 1;
+}
+
+public class NeedsClass<T> where T : class
+{
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_CONSTRAINT_NOT_SATISFIED
+        var a = new NeedsClass<SomeStruct>();
+        Console.WriteLine("unreachable");
+    }
+}

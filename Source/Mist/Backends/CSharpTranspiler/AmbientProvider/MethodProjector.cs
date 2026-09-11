@@ -82,6 +82,7 @@ internal static class MethodProjector
 
         var projected = new Method(method.Name, returnType, parameters, modifiers)
         {
+            DeclaringType = memberType,
             Scope = methodScope,
         };
 

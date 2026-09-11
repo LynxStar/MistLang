@@ -396,7 +396,7 @@ internal static class PostfixBinder
         var lifted = OptionalLifting.Lift(
             resolved, context.Resolver.LookupWellKnown(WellKnownTypes.Void), interner);
 
-        return new MemberAccessExpression(node, receiver, memberName, lifted, isConditional: true);
+        return new MemberAccessExpression(node, receiver, memberName, lifted, isConditional: true, member: found);
     }
 
     private static Expression BindMemberAccess(Storm.Runtime.SyntaxNode node, Expression receiver, string memberName, BindingContext ctx, BuilderContext context)
@@ -446,7 +446,7 @@ internal static class PostfixBinder
             context.Resolver.LookupWellKnown(WellKnownTypes.Void),
             context.ProgramModel.TypeInterner);
 
-        return new MemberAccessExpression(node, receiver, memberName, resolved);
+        return new MemberAccessExpression(node, receiver, memberName, resolved, member: found);
     }
 
     /// <summary>

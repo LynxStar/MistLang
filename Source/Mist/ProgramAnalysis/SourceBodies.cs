@@ -8,34 +8,45 @@ namespace Mist.ProgramAnalysis;
 /// <summary>
 /// Every root under which the project's own source holds code -- member bodies, constructor chains,
 /// accessors, initializers, default blocks, enum values, extension blocks and top-level statements --
-/// over the declarations <see cref="SourceTypes"/> scopes.
+/// over the declarations <see cref="SourceTypes"/> scopes, each with the type whose declaration it
+/// sits inside, or null for code that sits in none.
 /// </summary>
 internal static class SourceBodies
 {
-    public static IEnumerable<object> Of(ProgramModelClass model)
+    public static IEnumerable<SourceRoot> Of(ProgramModelClass model)
     {
-        foreach(var unit in SourceTypes.UnitsOf(model))
+        foreach(var (assembly, unit) in SourceTypes.UnitsOf(model))
         {
             if(unit.TopLevelMethod?.Body is { } topLevel)
             {
-                yield return topLevel;
+                yield return new SourceRoot(topLevel, unit.TopLevelMethod.DeclaringType, assembly);
+            }
+
+            foreach(var type in unit.Types.SelectMany(AndNested))
+            {
+                foreach(var root in OfType(type))
+                {
+                    yield return new SourceRoot(root, type, assembly);
+                }
+            }
+
+            foreach(var block in unit.Extensions)
+            {
+                foreach(var root in OfExtension(block))
+                {
+                    yield return new SourceRoot(root, Owner: null, assembly);
+                }
             }
         }
+    }
 
-        foreach(var type in SourceTypes.Of(model))
-        {
-            foreach(var root in OfType(type))
-            {
-                yield return root;
-            }
-        }
+    private static IEnumerable<MistType> AndNested(MistType type)
+    {
+        yield return type;
 
-        foreach(var block in SourceTypes.ExtensionsOf(model))
+        foreach(var nested in type.NestedTypes.SelectMany(AndNested))
         {
-            foreach(var root in OfExtension(block))
-            {
-                yield return root;
-            }
+            yield return nested;
         }
     }
 
@@ -174,3 +185,5 @@ internal static class SourceBodies
         }
     }
 }
+
+internal sealed record SourceRoot(object Root, MistType? Owner, MistAssembly Assembly);

@@ -1,5 +1,6 @@
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Model.Members;
 
@@ -16,6 +17,10 @@ internal sealed class Indexer(
     public List<Parameter> ParametersList { get; } = parameters;
 
     public MemberModifiers Modifiers { get; } = modifiers;
+
+    public MemberType? DeclaringType { get; init; }
+
+    public Storm.Runtime.SyntaxNode? DeclarationNode { get; init; }
 
     /// <summary>
     /// The attributes applied to this indexer.

@@ -65,6 +65,15 @@ internal class Method(
     /// </summary>
     public OwnershipKind ReturnOwnership { get; init; }
 
+    /// <summary>
+    /// The type that declares this member, and where it was written -- what a rule needs to judge the
+    /// member as a declaration, since neither the scope chain nor the body says. Both null on a
+    /// projected or synthesized member, which has no Mist source to report against.
+    /// </summary>
+    public MemberType? DeclaringType { get; init; }
+
+    public Storm.Runtime.SyntaxNode? DeclarationNode { get; init; }
+
     IReadOnlyList<ITypeParameter> IGenericDeclaration.TypeParameters => TypeParametersList;
     IReadOnlyList<IContextBinding> IMethod.ContextBindings => ContextBindingsList;
     IReadOnlyList<IParameter> IMethod.Parameters => ParametersList;

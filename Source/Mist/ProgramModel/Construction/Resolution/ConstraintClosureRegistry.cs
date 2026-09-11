@@ -26,8 +26,16 @@ namespace Mist.ProgramModel.Construction.Resolution;
 internal sealed class ConstraintClosureRegistry
 {
     private readonly Dictionary<(IMistType, string), ConstraintClosure> closures = [];
+    private readonly List<TypeArgumentClosing> closings = [];
 
     public IEnumerable<ConstraintClosure> Closures => closures.Values;
+
+    /// <summary>
+    /// Every type argument written or inferred in source against the parameter it closes, whatever
+    /// that parameter's constraints. The constructor closures above are the subset emission needs a
+    /// witness for; a rule judging the closing itself needs all of them, and the node each was closed at.
+    /// </summary>
+    public IReadOnlyList<TypeArgumentClosing> Closings => closings;
 
     /// <summary>
     /// Records the closures a constructed generic TYPE performs, one per parameterized constructor
@@ -56,6 +64,11 @@ internal sealed class ConstraintClosureRegistry
     {
         for(var i = 0; i < parameters.Count && i < typeArguments.Count; i++)
         {
+            if(typeArguments[i] is not TypeParameter)
+            {
+                closings.Add(new TypeArgumentClosing(parameters[i], typeArguments[i], node));
+            }
+
             foreach(var signature in Parameterized(parameters[i]))
             {
                 var argument = typeArguments[i];
@@ -96,3 +109,5 @@ internal sealed class ConstraintClosureRegistry
 
 internal sealed record ConstraintClosure(
     IMistType TypeArgument, IReadOnlyList<IMistType> Signature, SyntaxNode Node);
+
+internal sealed record TypeArgumentClosing(TypeParameter Parameter, IMistType Argument, SyntaxNode Node);

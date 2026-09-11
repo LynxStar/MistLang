@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Types;
 using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
@@ -7,11 +8,37 @@ using SyntaxNode = Storm.Runtime.SyntaxNode;
 namespace Mist.ProgramAnalysis;
 
 internal sealed class AnalysisContext(
-    ProgramModelClass model, IReadOnlyList<object> nodes, DiagnosticBag diagnostics, string analyzerId)
+    ProgramModelClass model,
+    IReadOnlyList<object> nodes,
+    IReadOnlyDictionary<object, SourceRoot> roots,
+    IReadOnlySet<string> sourcePaths,
+    DiagnosticBag diagnostics,
+    string analyzerId)
 {
     public ProgramModelClass Model { get; } = model;
 
     public IReadOnlyList<object> Nodes { get; } = nodes;
+
+    /// <summary>
+    /// The type whose declaration a body node sits inside, or null for top-level statements, an
+    /// extension block, or a node that was never walked. What a rule about ACCESS needs and the node
+    /// cannot say: a body reaches its type only through a scope chain, which is the binder's, not the
+    /// model's.
+    /// </summary>
+    public MistType? OwnerOf(object node)
+    {
+        return roots.TryGetValue(node, out var root) ? root.Owner : null;
+    }
+
+    public MistAssembly? AssemblyOf(object node)
+    {
+        return roots.TryGetValue(node, out var root) ? root.Assembly : null;
+    }
+
+    public bool IsInSource(SyntaxNode node)
+    {
+        return sourcePaths.Contains(DiagnosticHelper.ResolveLocation(node).Path);
+    }
 
     /// <summary>
     /// Reports a finding ABOUT the given expressions, and stays silent when any of them already failed.

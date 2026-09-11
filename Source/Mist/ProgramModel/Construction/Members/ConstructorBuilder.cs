@@ -47,6 +47,8 @@ internal sealed class ConstructorBuilder
 
         var constructor = new Constructor(concreteType.Name, concreteType, common.Parameters, common.Modifiers)
         {
+            DeclaringType = concreteType,
+            DeclarationNode = ctorDecl,
             Body = common.Body,
             Scope = constructorScope,
             ChainKind = ResolveChainKind(ctorDecl.Chain),

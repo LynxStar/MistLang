@@ -155,7 +155,12 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
             IntrinsicMemberValidation.Validate(typeDef.IsIntrinsic, typeDef.Name, modifiers.Accessibility == Accessibility.Public, fieldDecl, Context.Diagnostics);
         }
 
-        var field = new Field(name, type, ownership, modifiers) { Initializer = initializer };
+        var field = new Field(name, type, ownership, modifiers)
+        {
+            DeclaringType = typeDef,
+            DeclarationNode = fieldDecl,
+            Initializer = initializer,
+        };
         Context.Attributes.Build(fieldDecl.Attributes, field.DeclaredAttributesList, typeDef.Scope);
         typeDef.FieldsList.Add(field);
     }

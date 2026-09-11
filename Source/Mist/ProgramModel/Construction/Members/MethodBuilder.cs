@@ -68,6 +68,8 @@ internal sealed class MethodBuilder
 
         var resolvedMethod = new Method(name, returnType, common.Parameters, common.Modifiers)
         {
+            DeclaringType = host as MemberType,
+            DeclarationNode = methodDecl,
             Body = common.Body,
             ReturnOwnership = returnOwnership,
             Scope = methodScope,

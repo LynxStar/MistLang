@@ -27,6 +27,11 @@ internal static class AmbientProviderTestHelper
         // the same way, keeping the fixture faithful to a real compilation.
         var standard = programModel.AddStandardAssembly();
 
+        var readonlyNames = WellKnownTypes.PrimitiveTypes.Select(primitive => primitive.Name)
+            .Append(WellKnownTypes.String.Name)
+            .Append(WellKnownTypes.Regex.Name)
+            .ToHashSet(StringComparer.Ordinal);
+
         void register(MistType type)
         {
             type.Assembly = standard;
@@ -34,10 +39,15 @@ internal static class AmbientProviderTestHelper
             // The real Standard declarations carry `intrinsic` (Boolean.mist, Int32.mist, ...),
             // and construction branches on it -- NewtypeBuilder synthesizes the Value accessor
             // only for intrinsic sources -- so an unflagged shell would diverge from a real
-            // compilation exactly where a test is trying to observe it.
+            // compilation exactly where a test is trying to observe it. The primitives, String and
+            // Regex carry `readonly` too, which an enum base and a readonly constraint are judged by.
             if(type is ConcreteType concrete)
             {
-                concrete.Modifiers = concrete.Modifiers with { IsIntrinsic = true };
+                concrete.Modifiers = concrete.Modifiers with
+                {
+                    IsIntrinsic = true,
+                    IsReadonly = readonlyNames.Contains(type.Name),
+                };
             }
 
             _ = programModel.RegisterType(type);

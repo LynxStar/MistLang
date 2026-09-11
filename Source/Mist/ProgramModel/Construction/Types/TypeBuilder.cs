@@ -340,7 +340,23 @@ internal sealed class TypeBuilder
         // Register in the flat FQN dictionary.
         if(!context.ProgramModel.RegisterType(typeDef))
         {
-            context.Diagnostics.Report(ProgramModelDiagnostics.DuplicateTypeName, default, "", typeDef.Name, typeDef.NamespaceName);
+            var declared = typeDef switch
+            {
+                MemberType member => (Storm.Runtime.SyntaxNode?)member.DeclarationNode,
+                TypeAlias alias => alias.DeclarationNode,
+                Newtype newtype => newtype.DeclarationNode,
+                EnumType enumType => enumType.DeclarationNode,
+                _ => null,
+            };
+
+            if(declared is null)
+            {
+                context.Diagnostics.Report(ProgramModelDiagnostics.DuplicateTypeName, default, "", typeDef.Name, typeDef.NamespaceName);
+            }
+            else
+            {
+                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.DuplicateTypeName, declared, null, typeDef.Name, typeDef.NamespaceName);
+            }
         }
 
         // Ensure the namespace exists (for extensions/conformances that reference it).

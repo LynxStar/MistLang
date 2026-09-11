@@ -1,0 +1,18 @@
+using Standard;
+
+namespace Refusal;
+
+public class NoDefault
+{
+    public NoDefault(int x) { }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_NOT_DEFAULTABLE
+        NoDefault n = default;
+        Console.WriteLine("unreachable");
+    }
+}

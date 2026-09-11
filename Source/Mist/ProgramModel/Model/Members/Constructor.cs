@@ -34,4 +34,13 @@ internal sealed class Constructor(
     /// The bound arguments passed to the chained constructor, populated in Phase 3.
     /// </summary>
     public List<Expression> ChainArgumentsList { get; } = [];
+
+    /// <summary>
+    /// Which constructor the chain's arguments selected, and the type each was bound against, for
+    /// the reason <see cref="InvocationExpression.Method"/> records its selection. Null
+    /// when there is no chain, or the chained type names no constructor to choose between.
+    /// </summary>
+    public Constructor? ChainedConstructor { get; internal set; }
+
+    public IReadOnlyList<IMistType>? ChainParameterTypes { get; internal set; }
 }

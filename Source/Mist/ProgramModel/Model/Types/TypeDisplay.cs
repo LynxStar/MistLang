@@ -43,6 +43,9 @@ internal static class TypeDisplay
             case UnknownValueType unknownValue:
                 return Mist(unknownValue.Domain);
 
+            case RefinedType { IsAnonymous: true } refined:
+                return Mist(refined.BaseType);
+
             default:
                 return MistType.StripArity(Keyword(type));
         }

@@ -7,6 +7,7 @@ using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
@@ -21,12 +22,15 @@ namespace Mist.ProgramAnalysis.Rules;
 /// widened to infinity the third time a join moves it, so a counting loop settles while an inner loop
 /// revisited by an outer one keeps the bound the outer condition gave, and a symbolic upper bound
 /// `i &lt; a.Length` remembered against the array itself, which is what indexing an array of unknown
-/// length needs. What cannot be proven is refused where classic refuses it -- a declaration, an assignment, a
-/// return, an index into an array whose length is known or that a local holds -- and NOT at a call,
-/// nor into an unknown-length array a field holds: classic leaves a refined or constrained parameter
-/// to a runtime guard at the callee and such an index to the runtime's own check, and both are
-/// admitted here as classic admits them, the first task on order 12 of the register. What the prover cannot read -- a property pattern, a real,
-/// an expression that is neither a constant nor a local -- is not refused either.
+/// length needs. What cannot be proven is refused where the value meets the refinement -- a
+/// declaration, an assignment, a return, an index into an array whose length is known or that a local
+/// holds, and an argument at a call, a construction or a constructor chain. A parameter's `where` IS
+/// the parameter's type, an anonymous refinement of the declared one, so the model has one way to say
+/// a value is narrowed and this rule one way to read it, and nothing is left to a runtime guard at the
+/// callee: refinement is type checking, and a call is where the type is met. Not judged: an index into
+/// an unknown-length array a field holds, which classic leaves to the runtime's own check, a task on
+/// order 12 of the register. What the prover cannot read -- a property pattern, a real, an expression
+/// that is neither a constant nor a local -- is not refused either.
 /// </summary>
 internal sealed class RefinementAnalyzer : IProgramAnalyzer
 {
@@ -50,6 +54,15 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
         foreach(var concrete in SourceTypes.Of(context.Model).OfType<ConcreteType>())
         {
             JudgeImplementations(context, concrete);
+
+            foreach(var constructor in concrete.ConstructorsList)
+            {
+                if(constructor is { ChainedConstructor: { } chained, DeclarationNode: { } declared } && context.IsInSource(declared))
+                {
+                    new Proving(context).NeedArguments(
+                        Proving.Nothing, constructor.ChainArgumentsList, constructor.ChainParameterTypes, chained.ParametersList);
+                }
+            }
         }
     }
 
@@ -59,7 +72,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
         foreach(var (abstractType, substitution) in ConformanceAnalyzer.Reached(concrete.BaseAbstractTypes, context.Model.TypeInterner))
         {
-            foreach(var slot in abstractType.MethodsList.Where(slot => slot.ParametersList.Any(parameter => parameter.Refinement is not null)))
+            foreach(var slot in abstractType.MethodsList)
             {
                 var filler = fillers.FirstOrDefault(candidate => candidate.Method is { } method
                     && method.Name == slot.Name && SlotSignatures.Answers(slot, method, substitution, context.Model.TypeInterner))?.Method;
@@ -71,10 +84,14 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
                 for(var i = 0; i < slot.ParametersList.Count && i < filler.ParametersList.Count; i++)
                 {
-                    var promised = Requirement.Of(slot.ParametersList[i].Refinement);
-                    var demanded = Requirement.Of(filler.ParametersList[i].Refinement);
+                    if(Requirement.OfType(filler.ParametersList[i].Type) is not { } demanded)
+                    {
+                        continue;
+                    }
 
-                    if(promised is not null && demanded is not null && !promised.Values.IsSubsetOf(demanded.Values))
+                    var promised = Requirement.OfType(slot.ParametersList[i].Type) ?? Requirement.Anything;
+
+                    if(!promised.Values.IsSubsetOf(demanded.Values))
                     {
                         context.Report(
                             ProgramAnalysisDiagnostics.ConstraintStrengthened, filler.DeclarationNode, [],
@@ -116,7 +133,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             (null, null) => null,
             ({ } only, null) => only,
             (null, { } alone) => alone,
-            ({ } both, { } and) => new Requirement(both.Values.And(and.Values), both.Bounds.AddRange(and.Bounds)),
+            ({ } both, { } and) => both.And(and),
         };
     }
 
@@ -207,7 +224,15 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { IsCoalescing: false } assignment }:
-                    Need(state, assignment.Value, assignment.Target.Type, assignment.Value);
+                    if(Requirement.IsAnonymous(assignment.Target.Type) && Requirement.OfType(assignment.Target.Type) is { } constrained)
+                    {
+                        Need(state, assignment.Value, constrained, assignment.Value, onConstraint: Display(assignment.Target));
+                    }
+                    else
+                    {
+                        Need(state, assignment.Value, assignment.Target.Type, assignment.Value);
+                    }
+
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: ReturnStatement { Value: { } value, TargetType: { } target } }:
@@ -218,9 +243,51 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                     NeedIndex(state, index);
                     break;
 
+                case { Kind: FlowStepKind.Evaluate, Node: InvocationExpression call }:
+                    NeedArguments(state, call.Arguments, call.ParameterTypes, call.Method?.ParametersList);
+                    break;
+
+                case { Kind: FlowStepKind.Evaluate, Node: NewExpression construction }:
+                    NeedArguments(state, construction.Arguments, construction.ParameterTypes, construction.Constructor?.ParametersList);
+                    break;
+
                 case { Kind: FlowStepKind.Evaluate, Node: LambdaExpression or AsyncBlockExpression } when graph.Nested.TryGetValue(step.Node, out var nested):
                     new Proving(context).Judge(nested, Nothing);
                     break;
+            }
+        }
+
+        public void NeedArguments(
+            ImmutableDictionary<LocalVariable, Knowledge> state, IReadOnlyList<Expression> arguments,
+            IReadOnlyList<IMistType>? parameterTypes, IReadOnlyList<Parameter>? parameters)
+        {
+            if(parameterTypes is null)
+            {
+                return;
+            }
+
+            for(var i = 0; i < arguments.Count && i < parameterTypes.Count; i++)
+            {
+                var parameter = parameters is not null && i < parameters.Count ? parameters[i] : null;
+
+                if(parameter is { IsFlattened: true })
+                {
+                    return;
+                }
+
+                if(parameter is { Modifier.Direction: ByRefDirection.Out })
+                {
+                    continue;
+                }
+
+                if(Requirement.IsAnonymous(parameterTypes[i]) && Requirement.OfType(parameterTypes[i]) is { } demanded)
+                {
+                    Need(state, arguments[i], demanded, arguments[i], onConstraint: parameter?.Name ?? Display(arguments[i]));
+                }
+                else
+                {
+                    Need(state, arguments[i], parameterTypes[i], arguments[i]);
+                }
             }
         }
 
@@ -249,7 +316,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
             var indexer = (receiverType is ConstructedType other ? other.Definition : receiverType) is MemberType member ? member.IndexersList.FirstOrDefault() : null;
 
-            if(indexer is { ParametersList: [{ Refinement: { } predicate } parameter] } && Requirement.Of(predicate) is { } constraint)
+            if(indexer is { ParametersList: [var parameter] } && Requirement.OfType(parameter.Type) is { } constraint)
             {
                 Need(state, index.Index, constraint, index.Index, onConstraint: parameter.Name);
             }
@@ -383,9 +450,8 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             }
 
             var flow = state.TryGetValue(local.Local, out var known) ? known : Knowledge.Unknown;
-            var declared = Requirement.Of(local.Local.Parameter?.Refinement)?.Values ?? Admitted.Everything;
 
-            return new Knowledge(flow.Values.And(typed).And(declared), flow.Bounds);
+            return new Knowledge(flow.Values.And(typed), flow.Bounds);
         }
 
         private static ImmutableDictionary<LocalVariable, Knowledge> Learn(

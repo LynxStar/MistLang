@@ -58,7 +58,7 @@ Here is a small Mist program and the C# code the compiler emits:
 {{#endtab }}
 {{#endtabs }}
 
-This small example shows three features working together: a **type alias** (`Percentage`) gives a readable name to `int` and is erased in the output, an **adhoc refinement** (`where score >= 0 and <= 100`) generates a runtime guard, and a **type union** (`string | int`) emits as a discriminated struct that is narrowed via pattern matching. The compiler verifies these stronger guarantees and then emits standard C# that runs anywhere .NET does.
+This small example shows three features working together: a **type alias** (`Percentage`) gives a readable name to `int` and is erased in the output, an **adhoc refinement** (`where score >= 0 and <= 100`) is proven at every call site at compile time, and a **type union** (`string | int`) emits as a discriminated struct that is narrowed via pattern matching. The compiler verifies these stronger guarantees and then emits standard C# that runs anywhere .NET does.
 
 ## What This Book Covers
 

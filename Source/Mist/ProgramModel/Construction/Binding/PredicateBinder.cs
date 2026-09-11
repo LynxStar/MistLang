@@ -73,9 +73,9 @@ internal static class PredicateBinder
     {
         foreach(var parameter in parameters)
         {
-            if(parameter.RefinementNode is AndPatternNode predicate && parameter.Refinement is null)
+            if(parameter.Type is RefinedType { Predicate: null } refined)
             {
-                parameter.Refinement = PatternBinder.BindPredicate(predicate, parameter.Type, Context(scope), context);
+                refined.Predicate = PatternBinder.BindRefinement(refined, Context(scope), context);
             }
         }
     }

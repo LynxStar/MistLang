@@ -299,14 +299,7 @@ internal static class ExpressionBinder
         BindingContext ctx,
         BuilderContext context)
     {
-        var arguments = ArgumentBinder.Bind(
-            argumentList, ConstructorsOf(type), ctx, context, type as ConstructedType);
-
-        var choice = SelectConstructor(
-            type, arguments, ArgumentBinder.RefFlags(argumentList), node, context);
-
-        var settled = MethodGroupConversion.Settle(
-            arguments, choice.Selected?.ParametersList, choice.Substitution, context);
+        var (settled, choice) = BindConstructorCall(type, argumentList, node, ctx, context);
 
         return new NewExpression(
             node,
@@ -342,6 +335,25 @@ internal static class ExpressionBinder
         }
 
         return definition;
+    }
+
+    internal static (IReadOnlyList<Expression> Arguments, OverloadChoice<Constructor> Choice) BindConstructorCall(
+        IMistType type,
+        ArgumentListNode? argumentList,
+        Storm.Runtime.SyntaxNode node,
+        BindingContext ctx,
+        BuilderContext context)
+    {
+        var arguments = ArgumentBinder.Bind(
+            argumentList, ConstructorsOf(type), ctx, context, type as ConstructedType);
+
+        var choice = SelectConstructor(
+            type, arguments, ArgumentBinder.RefFlags(argumentList), node, context);
+
+        var settled = MethodGroupConversion.Settle(
+            arguments, choice.Selected?.ParametersList, choice.Substitution, context);
+
+        return (settled, choice);
     }
 
     private static IReadOnlyList<Constructor> ConstructorsOf(IMistType type)

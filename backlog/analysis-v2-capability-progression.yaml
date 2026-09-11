@@ -1009,7 +1009,7 @@ rules:
         stored into a field or collection escapes too and is unmeasured: the field form is refused
         first as a ref struct field.
   - id: refinement-proving
-    name: Static discharge, implication, and the guards that remain
+    name: Static discharge, implication, and nothing left to a guard
     order: 12
     subsystem: refinement
     requires: [assignability-core]
@@ -1049,15 +1049,25 @@ rules:
       a value, so a counting loop settles while an inner loop revisited by an outer one keeps the
       bound the outer condition gave.
 
-      WHAT IS JUDGED, AS CLASSIC JUDGES IT: a declaration, an assignment and a return into a refined
-      type, or into a union with refined constituents, any of which a constant may satisfy; an index
-      into an array or span whose length is known, or whose length is unknown and which a local holds;
-      an indexer's `where`; a dependent type argument against its parameter's `where` and domain;
-      and an implementation that constrains a parameter more than the member it implements. NOT a
-      call: classic checks neither a refined parameter's argument nor a method's `where` at the call
-      -- `Twice(3)` against `AdultAge` and `Process(200)` against `where x < 100` are both admitted,
-      the guard being the callee's -- and NOT an unknown-length array a field holds, which classic
-      leaves to the runtime. Each is the first task below.
+      WHAT IS JUDGED: a declaration, an assignment and a return into a refined type, or into a union
+      with refined constituents, any of which a constant may satisfy; an index into an array or span
+      whose length is known, or whose length is unknown and which a local holds; an indexer's `where`;
+      a dependent type argument against its parameter's `where` and domain; an implementation that
+      constrains a parameter more than the member it implements; and, since 2026-09-11, EVERY ARGUMENT
+      AT A CALL OR A CONSTRUCTION -- method, constructor, abstract slot and func value alike. Classic
+      checks neither a refined parameter's argument nor a method's `where` at the call: `Twice(3)`
+      against `AdultAge` and `Process(200)` against `where x < 100` are both admitted, the first
+      caught by a guard classic emits at the callee and the second by nothing at all. The language's
+      owner decided otherwise: a refinement is type checking and a call is where the type is met, so
+      an argument is judged as the assignment it is, with the same three verdicts, and no guard is
+      emitted (refinement-types R5.3, adhoc 6.1-6.9 and Req 7). A parameter's `where` is read as an
+      anonymous refinement of the parameter's type -- `Foo(int x) where x > 90` takes an unnamed
+      `int > 90` -- so a named refinement and a `where` on one parameter are one requirement, their
+      intersection, and one finding. The constructor position reached the model only with this:
+      ConstructorBuilder had never handed its `constraints` to the resolver, so `new Bounded(0)`
+      against `where size > 0` bound nothing to judge. NOT judged: an unknown-length array a field
+      holds, which classic leaves to the runtime, and a constructor chain's `base(...)` arguments,
+      whose chained constructor the model does not record. Each is a task below.
 
       DIVERGENCES, each more permissive and each principled: a char literal against a char
       refinement is evaluated where classic prints '?' and refuses; a local given a constant carries
@@ -1081,13 +1091,38 @@ rules:
       dependent argument or a strengthening implementation unjudged, predicates never bound, no
       assumption on a split, and an increment forgetting its lower bound. One first survived -- the
       symbolic bound, until a case with a proven lower bound and nothing above pinned it.
+
+      THE CALL RULE, MEASURED: eight corpus cases, one per refused shape -- a literal, an unproven
+      value and an unimplied refinement against a refined parameter, a literal and an unproven value
+      against a `where`, each at a method and the two at a constructor, and a `where` on an abstract
+      slot met through the abstract; fourteen decision rows for what a call discharges -- a literal,
+      an implied refinement, a constant-carrying local, a narrowed local, a forwarded `where`, a
+      constructor, a slot, a named refinement and a `where` on one parameter; AllFeaturesV2 and
+      AllFeatures identical to baseline with the rule live, and the two green unbanked samples green.
+
+      THE WHERE IS THE TYPE, since the same day. ConstraintResolver makes a parameter's `where` the
+      parameter's type, an anonymous RefinedType over the declared one, and PredicateBinder binds it
+      as it binds an alias's; Parameter.Refinement is gone, and every reader -- this rule, the
+      strengthening check, the indexer path, the flow's knowledge of a parameter local -- reads
+      Requirement.OfType, which now intersects a refinement with the refinement beneath it, so a
+      `where` over a named refinement asks both. An anonymous refinement displays as its base and is
+      named apart by its predicate's offset. Two identities had to look through it. SlotSignatures
+      agrees modulo refinement, so an implementation answers a slot over a narrower or a wider set
+      and the strengthening check judges the direction, which now also catches a slot over `int`
+      filled by a method over `AdultAge`, unjudged before. ConversionRelation.IsImplicit unrefines
+      both ends, because a refined value into an overloaded call, and a base value into a refined
+      parameter with a sibling overload, were both unresolvable already for NAMED refinements: a
+      sole candidate wins without applicability, which is the only reason `Twice(x)` ever bound. A
+      constructor chain records the constructor its arguments selected, as `new` does, and its
+      arguments are judged from an empty state. Three more corpus cases -- a chain, a `where`
+      parameter reassigned outside its predicate, a slot strengthened by a named refinement -- and
+      five more rows, two of them through an overloaded callee; both suites identical again.
     tasks:
       - >
-        The specs are stricter than classic at a call: refinement-types Req 5.3 and adhoc Req 6.2
-        refuse a constant argument that violates a refined or constrained parameter, and 6.5 an
-        unproven one. Classic checks neither, relying on a runtime guard at method entry (order 144)
-        that v2 does not emit either. Whether to check at the call, emit the guard, or both is a
-        decision; v2 admits as classic admits.
+        A method group over a `where` parameter converted to a func over the base -- `func<int, string>
+        f = Process` -- needs contravariance judged, since the func promises any int. Moot until v2
+        converts method groups to function types at all (MIST_PM_METHOD_GROUP_NOT_CONVERTED); when it
+        does, MethodGroupConversion's identity test already refuses it, and the message should say why.
       - >
         Indexing an unknown-length array held in a field is admitted as classic admits it; only a
         local's array carries a symbolic bound. A field could carry one too, invalidated on any write

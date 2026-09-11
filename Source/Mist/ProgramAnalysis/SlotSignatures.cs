@@ -13,7 +13,9 @@ namespace Mist.ProgramAnalysis;
 /// for, and an associated type slot, which the conformer's nested type IS by another name, both count
 /// as agreeing, since reading either as a mismatch refuses <c>IntBox : IBox&lt;int&gt;</c> and every
 /// conformer of an abstract with a slot-typed signature; the cost is that such a slot is checked on
-/// arity alone.
+/// arity alone. A refinement, named or a parameter's `where`, is looked through: it is the same
+/// signature over a narrower set of values, and whether the filler narrows MORE than the slot
+/// promised is the refinement rule's to judge, not a reason to say no member answers at all.
 /// </summary>
 internal static class SlotSignatures
 {
@@ -72,6 +74,12 @@ internal static class SlotSignatures
 
     private static IMistType Structural(IMistType type)
     {
-        return type is INamedTupleType named ? named.Underlying : type;
+        return type switch
+        {
+            INamedTupleType named => named.Underlying,
+            RefinedType refined => Structural(refined.BaseType),
+            TypeAlias { AliasedType: RefinedType refined } => Structural(refined),
+            _ => type,
+        };
     }
 }

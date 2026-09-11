@@ -88,12 +88,26 @@ internal sealed record Requirement(Admitted Values, ImmutableArray<SymbolicBound
 
     public static Requirement? OfType(IMistType type)
     {
-        return type switch
+        switch(type)
         {
-            RefinedType refined => Of(refined.Predicate),
-            TypeAlias { AliasedType: { } aliased } => OfType(aliased),
-            _ => null,
-        };
+            case RefinedType refined:
+                {
+                    var own = Of(refined.Predicate);
+                    var beneath = OfType(refined.BaseType);
+                    return own is null ? null : beneath is null ? own : own.And(beneath);
+                }
+
+            case TypeAlias { AliasedType: { } aliased }:
+                return OfType(aliased);
+
+            default:
+                return null;
+        }
+    }
+
+    public static bool IsAnonymous(IMistType type)
+    {
+        return Refined(type) is RefinedType { IsAnonymous: true };
     }
 
     public static IMistType? Refined(IMistType type)
@@ -118,6 +132,11 @@ internal sealed record Requirement(Admitted Values, ImmutableArray<SymbolicBound
             CloneExpression clone => Constant(clone.Source),
             _ => null,
         };
+    }
+
+    public Requirement And(Requirement other)
+    {
+        return new Requirement(Values.And(other.Values), Bounds.AddRange(other.Bounds));
     }
 
     public static Admitted Interval(ComparisonKind kind, long constant)

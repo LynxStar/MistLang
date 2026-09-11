@@ -1,0 +1,20 @@
+using Standard;
+
+namespace Refusal;
+
+type AdultAge = int >= 18;
+
+public class Probe
+{
+    public static int Twice(AdultAge a)
+    {
+        return a + a;
+    }
+
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_REFINEMENT_VIOLATED
+        Console.WriteLine(Twice(3));
+        Console.WriteLine("unreachable");
+    }
+}

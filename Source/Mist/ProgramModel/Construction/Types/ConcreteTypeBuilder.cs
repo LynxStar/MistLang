@@ -23,7 +23,7 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
     public ConcreteTypeBuilder(BuilderContext context, ScopeResolver scopeResolver)
         : base(context, scopeResolver)
     {
-        constructorBuilder = new ConstructorBuilder(context, DelegateResolver);
+        constructorBuilder = new ConstructorBuilder(context, DelegateResolver, ConstraintResolver);
         castOperatorBuilder = new CastOperatorBuilder(context, scopeResolver, DelegateResolver);
     }
 

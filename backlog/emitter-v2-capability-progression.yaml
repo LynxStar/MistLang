@@ -6658,14 +6658,17 @@ capabilities:
       erasure would not lose a check but silently pass one, so an unbound predicate must not fall
       through to `x is int`.
 
-      THE PARAMETER GUARD IS THE OTHER MODE and is not built, because WHICH call sites need one is
-      decided by the static discharge that v2 does not run. Emitting a guard at every parameter
-      would be sound and wrong -- the spec asks for a residual guard, residual to a proof.
+      THE PARAMETER GUARD IS THE OTHER MODE and is deliberately absent. On 2026-09-11 the language's
+      owner decided that a refinement is type checking and a call is where the type is met: analysis
+      order 12 judges every argument at the call against its parameter's refinement, named or a
+      `where`, so the residual set R12.4 asks a guard for is empty by construction. Adhoc Req 7 says
+      the same of a `where`, and classic emits no guard for one either.
     analysis_phase_tasks:
       - >
-        Emit a runtime validation guard at method entry for a refined parameter whose argument was
-        not statically proven at the call site (R12.4). Needs order 142's discharge first, since
-        "not statically proven" is its output; without it every parameter looks unproven.
+        Judge every argument at the call against its parameter's refinement (R5.3, adhoc 6.1-6.9), a
+        `where` being an anonymous refinement of the parameter's type. No guard is emitted at method
+        entry (adhoc Req 7); the call-site proof leaves R12.4 nothing residual. Done on analysis
+        order 12.
     unlocks: [RefinementTypes]
 
   - id: dependent-type-parameters
@@ -6760,7 +6763,7 @@ capabilities:
     order: 147
     layer: refinement-and-dependent
     requires: [refinement-implication-engine, dependent-const-witness-encoding]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
       The SYNTAX binds and emits, with the predicate ERASED, which is all a where clause needs to be
@@ -6778,7 +6781,13 @@ capabilities:
       THE REQUIRES EDGES STAY AS THEY ARE. Erasing a predicate needs neither the implication engine nor
       witness encoding, but the capability is not finished until the obligations are discharged, and
       those are what it depends on. So the dependencies describe the whole capability while the status
-      describes the part that is delivered -- which is what `partial` means.
+      describes the part that is delivered -- which is what `partial` meant.
+
+      DONE ON 2026-09-11, by analysis order 12: a use site, a call, a construction, a chain and an
+      index are judged against the clause; implication is decided by interval subset; a strengthening
+      implementation is refused; and every position the clause is admitted in reaches the model, the
+      constructor position from this day, since ConstructorBuilder had never resolved its constraints.
+      The clause is the parameter's TYPE, an anonymous RefinedType, rather than a field beside it.
     analysis_phase_tasks:
       - >
         DISCHARGE a predicate at a use site: `arr[i] where i >= 0 and < 3` must refuse an `i` not known

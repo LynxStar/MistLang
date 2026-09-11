@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
@@ -15,11 +16,13 @@ internal sealed class ConstructorBuilder
 {
     private readonly BuilderContext context;
     private readonly DelegateResolver delegateResolver;
+    private readonly ConstraintResolver constraintResolver;
 
-    public ConstructorBuilder(BuilderContext context, DelegateResolver delegateResolver)
+    public ConstructorBuilder(BuilderContext context, DelegateResolver delegateResolver, ConstraintResolver constraintResolver)
     {
         this.context = context;
         this.delegateResolver = delegateResolver;
+        this.constraintResolver = constraintResolver;
     }
 
     /// <summary>
@@ -34,6 +37,7 @@ internal sealed class ConstructorBuilder
 
         var common = delegateResolver.ResolveFullDelegate(ctorDecl, constructorScope, concreteType, concreteType.Name);
         constructorScope.IsStatic = common.Modifiers.IsStatic;
+        constraintResolver.Resolve(ctorDecl.Constraints, [], common.Parameters, constructorScope);
 
         if(common.Modifiers.IsAsync)
         {

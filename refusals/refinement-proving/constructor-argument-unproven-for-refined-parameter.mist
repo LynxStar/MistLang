@@ -1,0 +1,31 @@
+using Standard;
+
+namespace Refusal;
+
+type AdultAge = int >= 18;
+
+public class Person
+{
+    public AdultAge Age;
+
+    public Person(AdultAge age)
+    {
+        Age = age;
+    }
+}
+
+public class Probe
+{
+    public static int Accept(int x)
+    {
+        // REFUSE: MIST_PA_REFINEMENT_UNPROVEN
+        var p = new Person(x);
+        return p.Age;
+    }
+
+    public static void Main()
+    {
+        Console.WriteLine(Accept(20));
+        Console.WriteLine("unreachable");
+    }
+}

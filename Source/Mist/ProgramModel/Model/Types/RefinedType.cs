@@ -6,23 +6,23 @@ using Storm.Runtime;
 namespace Mist.ProgramModel.Model.Types;
 
 /// <summary>
-/// A refinement type — a base type narrowed by a predicate constraint.
-/// Produced from type alias declarations with refinement predicates
-/// (<c>type Percentage = int >= 0 and &lt;= 100;</c>) or adhoc parameter
-/// constraints (<c>where x >= 0</c>).
-///
-/// The predicate is stored as its raw AST node; interpretation and
-/// enforcement happen in later phases once the pattern infrastructure
-/// is in place.
+/// A base type narrowed by a predicate. Named when a type alias declares it
+/// (<c>type Percentage = int >= 0 and &lt;= 100;</c>) and anonymous when a parameter's
+/// <c>where</c> clause does (<c>where x >= 0</c>), which is the same type without a name to
+/// spell it by: an anonymous one displays as its base and is never identical to another, since
+/// nothing can name it twice. The predicate is bound once, by PredicateBinder, before any body.
 /// </summary>
 internal sealed class RefinedType : MistType, IRefinedType
 {
     public RefinedType(IMistType baseType, SyntaxNode predicateNode, string? name = null)
-        : base(name ?? BuildName(baseType, predicateNode), new Scope(null), declaringType: null)
+        : base(name ?? Anonymous(baseType, predicateNode), new Scope(null), declaringType: null)
     {
         BaseType = baseType;
         PredicateNode = predicateNode;
+        IsAnonymous = name is null;
     }
+
+    public bool IsAnonymous { get; }
 
     /// <summary>
     /// The underlying type being refined (e.g., <c>Int32</c> for <c>int >= 0</c>).
@@ -41,14 +41,8 @@ internal sealed class RefinedType : MistType, IRefinedType
 
     IMistType IRefinedType.BaseType => BaseType;
 
-    private static string BuildName(IMistType baseType, SyntaxNode predicateNode)
+    private static string Anonymous(IMistType baseType, SyntaxNode predicateNode)
     {
-        // For display purposes, use the base type name with a marker.
-        // A more descriptive name can be produced later when predicate
-        // printing infrastructure is available.
-        var span = predicateNode.Span;
-        return span.Length > 0
-            ? $"{baseType.Name}{{refined}}"
-            : $"{baseType.Name}{{refined}}";
+        return $"{baseType.Name}{{where@{predicateNode.Span.Start}}}";
     }
 }

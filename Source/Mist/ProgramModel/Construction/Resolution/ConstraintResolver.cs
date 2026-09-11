@@ -103,8 +103,11 @@ internal sealed class ConstraintResolver
     }
 
     /// <summary>
-    /// Resolves an adhoc refinement constraint (where x >= 0). Stashes the predicate
-    /// AST node on the matching dependent type parameter or method parameter.
+    /// Resolves an adhoc refinement constraint (where x >= 0). On a dependent type parameter the
+    /// predicate is stashed beside its domain; on a method parameter it BECOMES the parameter's type,
+    /// an anonymous refinement of the declared one -- `Foo(int x) where x > 90` takes an unnamed
+    /// `int > 90` -- so every reader of a parameter's type sees the constraint where a named
+    /// refinement would sit, and nothing has to remember a second field.
     /// </summary>
     private void ResolveAdhocRefinement(
         AdhocRefinementConstraintWhereClauseNode adhoc,
@@ -125,7 +128,7 @@ internal sealed class ConstraintResolver
         var param = FindParameter(name, parameters);
         if(param is not null)
         {
-            param.RefinementNode = adhoc.Predicate;
+            param.Type = TypeInterner.CreateRefinedType(param.Type, adhoc.Predicate);
             return;
         }
 

@@ -1,0 +1,22 @@
+using Standard;
+
+namespace Refusal;
+
+type AdultAge = int >= 18;
+type DrinkingAge = int >= 21;
+
+public class Probe
+{
+    public static string Serve(DrinkingAge d)
+    {
+        return "served";
+    }
+
+    public static void Main()
+    {
+        AdultAge adult = 19;
+        // REFUSE: MIST_PA_REFINEMENT_NOT_IMPLIED
+        Console.WriteLine(Serve(adult));
+        Console.WriteLine("unreachable");
+    }
+}

@@ -124,7 +124,7 @@ The `if (x >= 18)` condition is recognized as implying the `AdultAge` predicate,
 
 ## Refinements as Variable, Parameter, Return, and Field Types
 
-Refinement types can appear anywhere a regular type can — as variable types, method parameters, return types, and class fields. When used as a parameter type, the compiler emits a runtime guard at method entry that validates the predicate.
+Refinement types can appear anywhere a regular type can — as variable types, method parameters, return types, and class fields. When used as a parameter type, every call is checked at compile time: the argument must be a value the compiler can prove satisfies the predicate, exactly as an assignment must.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -139,7 +139,7 @@ Refinement types can appear anywhere a regular type can — as variable types, m
 {{#endtab }}
 {{#endtabs }}
 
-Parameters with refinement types are guarded at method entry — if a caller passes an unchecked value, the constraint is enforced at runtime. Variable types, field types, and return types rely on static analysis and `is` checks for correctness.
+Parameters, variables, fields, and return types all rely on the same static analysis: a literal is evaluated against the predicate, a refined value is checked by implication, and any other value must first be narrowed by an `is` check or by a condition that proves the predicate. Nothing is deferred to runtime, so a call that cannot be proven is a compile error at the call site rather than an exception in the callee.
 
 ## Arithmetic Produces the Base Type
 

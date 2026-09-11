@@ -1,0 +1,18 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static string Process(int x) where x < 100
+    {
+        return "ok";
+    }
+
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_CONSTRAINT_VIOLATED
+        Console.WriteLine(Process(200));
+        Console.WriteLine("unreachable");
+    }
+}

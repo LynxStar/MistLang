@@ -30,7 +30,24 @@ internal static class ConversionRelation
 
     public static bool IsImplicit(IMistType from, IMistType to)
     {
-        return IsWithin(from, to) || FindOperator(from, to, includeExplicit: false) is not null;
+        return IsWithin(Unrefined(from), Unrefined(to)) || FindOperator(from, to, includeExplicit: false) is not null;
+    }
+
+    /// <summary>
+    /// A refinement read as the type it narrows, named or a parameter's `where`. A refined value is
+    /// always a value of its base, and a base value reaches a refined target -- whether its predicate
+    /// holds is the refinement prover's to discharge, not applicability's to refuse -- so a call is
+    /// selected as if the refinement were absent and judged afterwards. <see cref="IsWithin"/> keeps the
+    /// refinement, since containment into a narrower set is exactly what it cannot assert.
+    /// </summary>
+    private static IMistType Unrefined(IMistType type)
+    {
+        return type switch
+        {
+            RefinedType refined => Unrefined(refined.BaseType),
+            TypeAlias { AliasedType: RefinedType refined } => Unrefined(refined),
+            _ => type,
+        };
     }
 
     /// <summary>

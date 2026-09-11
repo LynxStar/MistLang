@@ -1,7 +1,7 @@
 // Tier 3 (Component): what order 12's prover deliberately does NOT report -- the constants that
 // satisfy, the implications that hold, the narrowings the flow establishes, the indices it proves,
-// and the call arguments classic leaves to a runtime guard -- and the reach facts the corpus cannot
-// phrase. WHY each is silent, and which of them classic refuses, is recorded once, on order 12 of
+// and the arguments a call discharges the same way -- and the reach facts the corpus cannot phrase.
+// WHY each is silent, and which of them classic refuses, is recorded once, on order 12 of
 // backlog/analysis-v2-capability-progression.yaml.
 
 using Mist.Common.Diagnostics;
@@ -90,10 +90,48 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
             }
         }
 
+        public class Bounded
+        {
+            public int Size;
+
+            public Bounded(int size) where size > 0
+            {
+                Size = size;
+            }
+
+            public Bounded() : this(1)
+            {
+            }
+        }
+
+        public class Derived : Bounded
+        {
+            public Derived() : base(3)
+            {
+            }
+        }
+
+        public class Person
+        {
+            public AdultAge Age;
+
+            public Person(AdultAge age)
+            {
+                Age = age;
+            }
+        }
+
         public class Helpers
         {
             public static int Twice(AdultAge a) { return a + a; }
+            public static string Older(DrinkingAge d) { return "ok"; }
             public static string Process(int x) where x < 100 { return "ok"; }
+            public static int Forward(int x) where x >= 0 and < 50 { return Helpers.Process(x).Length; }
+            public static int Both(AdultAge a) where a <= 65 { return a; }
+            public static int Rebound(int x) where x > 90 { x = 95; return x; }
+            public static string Pick(int x) where x < 100 { return "int"; }
+            public static string Pick(string s) { return s; }
+            public static string Choose(int x) where x < 50 { Console.WriteLine(x); return Helpers.Pick(x); }
             public static AdultAge Grown() { return 30; }
             public static int Sum(int[] items) { int s = 0; for(int i = 0; i < items.Length; i = i + 1) { s = s + items[i]; } return s; }
             public static int Sized(int[] items, int i) { if(i >= 0 && i < items.Length) { return items[i]; } return 0; }
@@ -172,14 +210,32 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
     }
 
     [Theory]
-    [InlineData("Console.WriteLine(Helpers.Twice(3));")]
-    [InlineData("Console.WriteLine(Helpers.Twice(x));")]
-    [InlineData("Console.WriteLine(Helpers.Process(200));")]
-    [InlineData("Console.WriteLine(Helpers.Process(x));")]
-    [InlineData("var a = (AdultAge)7; var b = (AdultAge)x;")]
+    [InlineData("Console.WriteLine(Helpers.Twice(30));")]
+    [InlineData("Console.WriteLine(Helpers.Twice(adult) + Helpers.Twice(drinking));")]
+    [InlineData("int y = 40; Console.WriteLine(Helpers.Twice(y));")]
+    [InlineData("if(x >= 18) { Console.WriteLine(Helpers.Twice(x)); }")]
+    [InlineData("if(x is AdultAge a) { Console.WriteLine(Helpers.Twice(x)); }")]
+    [InlineData("Console.WriteLine(Helpers.Older(drinking));")]
+    [InlineData("Console.WriteLine(Helpers.Process(42) + Helpers.Process(digit));")]
+    [InlineData("if(x < 100) { Console.WriteLine(Helpers.Process(x)); }")]
+    [InlineData("Console.WriteLine(Helpers.Narrowed(5) + Helpers.Forward(7));")]
+    [InlineData("Console.WriteLine(Helpers.Both(30) + Helpers.Both(drinking));")]
+    [InlineData("var b = new Bounded(3); Console.WriteLine(b.Size);")]
+    [InlineData("var d = new Derived(); var b = new Bounded(); Console.WriteLine(d.Size + b.Size);")]
+    [InlineData("Console.WriteLine(Helpers.Rebound(100));")]
+    [InlineData("Console.WriteLine(Helpers.Pick(42) + Helpers.Pick(\"a\") + Helpers.Choose(7));")]
+    [InlineData("Console.WriteLine(adult); Console.WriteLine(Helpers.Pick(adult));")]
+    [InlineData("var p = new Person(adult); Console.WriteLine(p.Age);")]
+    [InlineData("IValidator v = new Same(); Console.WriteLine(v.Validate(0));")]
     [InlineData("var f = new FixedArray<int, 3>(); var w = new Wrapper<2>(); Console.WriteLine(f.Count() + w.Count());")]
-    [InlineData("Console.WriteLine(Helpers.Narrowed(5));")]
-    public void WhatClassicLeavesToTheCallee_IsAdmitted(string statement)
+    public void AnArgumentTheProverDischarges_IsAdmitted(string statement)
+    {
+        AssertSilent(statement);
+    }
+
+    [Theory]
+    [InlineData("var a = (AdultAge)7; var b = (AdultAge)x;")]
+    public void ACastToARefinement_IsNotJudged(string statement)
     {
         AssertSilent(statement);
     }
@@ -187,6 +243,7 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
     [Theory]
     [InlineData("AdultAge a = 7; AdultAge b = 7;")]
     [InlineData("var a = new int[3]; Console.WriteLine(a[5] + a[5]);")]
+    [InlineData("Console.WriteLine(Helpers.Twice(3) + Helpers.Twice(3));")]
     public void AFindingIsReportedPerSite(string statement)
     {
         Assert.Equal(2, Analyse(statement).Count);
@@ -195,6 +252,7 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
     [Theory]
     [InlineData("AdultAge a = nothing;")]
     [InlineData("var a = new int[3]; Console.WriteLine(a[nothing]);")]
+    [InlineData("Console.WriteLine(Helpers.Twice(nothing));")]
     public void AValueThatAlreadyFailed_IsNotReportedAgain(string statement)
     {
         AssertSilent(statement);

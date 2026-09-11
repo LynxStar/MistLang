@@ -1,0 +1,36 @@
+using Standard;
+
+namespace Refusal;
+
+// A `>` over other operands is not the pair of `<`: it must take and return what `<` does, so each
+// of the two is left without its pair.
+public struct Meters
+{
+    public int Value;
+
+    public Meters(int value)
+    {
+        Value = value;
+    }
+
+    // REFUSE: MIST_PA_OPERATOR_UNPAIRED
+    public static bool operator <(Meters a, Meters b)
+    {
+        return a.Value < b.Value;
+    }
+
+    // REFUSE: MIST_PA_OPERATOR_UNPAIRED
+    public static bool operator >(Meters a, int b)
+    {
+        return a.Value > b;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var m = new Meters(1);
+        Console.WriteLine("unreachable");
+    }
+}

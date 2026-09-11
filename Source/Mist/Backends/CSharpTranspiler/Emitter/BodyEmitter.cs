@@ -25,6 +25,8 @@ internal static class BodyEmitter
 
     private const int PrefixPrecedence = 7;
 
+    private const int PostfixPrecedence = 8;
+
     private const int DisjunctionPrecedence = 1;
 
     private const int ConjunctionPrecedence = 2;
@@ -730,7 +732,7 @@ internal static class BodyEmitter
                 }
                 else
                 {
-                    EmitExpression(invocation.Receiver, writer, diagnostics);
+                    EmitSubExpression(invocation.Receiver, PostfixPrecedence, writer, diagnostics);
                 }
 
                 writer.Append("(");
@@ -820,7 +822,7 @@ internal static class BodyEmitter
                 break;
 
             case IndexExpression elementAccess:
-                EmitExpression(elementAccess.Receiver, writer, diagnostics);
+                EmitSubExpression(elementAccess.Receiver, PostfixPrecedence, writer, diagnostics);
                 writer.Append("[");
                 EmitExpression(elementAccess.Index, writer, diagnostics);
                 writer.Append("]");
@@ -1982,7 +1984,7 @@ internal static class BodyEmitter
             return;
         }
 
-        EmitExpression(memberAccess.Receiver, writer, diagnostics);
+        EmitSubExpression(memberAccess.Receiver, PostfixPrecedence, writer, diagnostics);
         writer.Append(memberAccess.IsConditional ? "?." : ".");
         writer.Append(CalleeName(memberAccess.MemberName, memberAccess.TypeArguments, parameters));
         writer.Append(EmitTypeArguments(memberAccess.TypeArguments, parameters));
@@ -2258,6 +2260,7 @@ internal static class BodyEmitter
         return expression switch
         {
             BinaryExpression binary => GetPrecedence(binary.OperatorKind),
+            UnaryExpression => PrefixPrecedence,
             IsPatternExpression => RelationalPrecedence,
             _ => int.MaxValue,
         };

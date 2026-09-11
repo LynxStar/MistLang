@@ -8283,15 +8283,61 @@ capabilities:
     order: 185
     layer: stdlib-only
     requires: [class-declaration]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      TypeEmitter has no operator path yet -- it walks fields, constructors and methods
-      only, so OperatorsList is never reached. The stdlib declares operators in 16 files
-      and the emitted stdlib contains none of them, so every arithmetic and comparison
-      operator on a Mist primitive is still absent from v2's output. Their bodies DO bind:
-      Phase 3 walks MemberType.EnumerateDelegates, which includes operators, so the
-      remaining work is emission alone. No sample declares an operator overload, so the
-      sample suite structurally cannot exercise this once the work lands.
+      LANDED 2026-09-11. Emission alone, as recorded, and closed the way cast operators were at order
+      45: OperatorEmitter writes `public static R operator <symbol>(...)` from Operator.Symbol, never
+      from Method.Name, which is the CLR spelling (op_Addition) and not a C# identifier, and TypeEmitter
+      walks OperatorsList after the cast operators. The symbol table lives on the model,
+      Operator.SymbolOf, so the emitter and the order-6 rules below spell an operator from one place.
+
+      THE SAMPLE IS samples/OperatorOverloads, AND CLASSIC CANNOT RUN IT -- nor any program declaring an
+      operator. Probed as a black box: classic drops every operator declaration and then calls
+      `Vec2.op_GreaterThan(a, b)`, spelling unary minus `Vec2.op_Subtraction(b)`, so Roslyn refuses its
+      output; it also types `3 * v`, the operator declared on the RIGHT operand's type, as Int32. So the
+      sample follows the samples/LocalFunctions precedent: banked on AllFeaturesV2 alone, its 22 lines
+      captured from v2 and each read against the program by hand, and NOT on AllFeatures, which it would
+      break. v2 finds `3 * v` on the right operand, as the standard-library spec's Req 6.1 asks.
+
+      THREE THINGS THE SAMPLE FOUND beyond the missing walk. (1) A receiver lost its parentheses:
+      `(a + b).Describe()` emitted as `a + b.Describe()` and `(-a).Describe()` as `-a.Describe()`.
+      Binding drops source parentheses and EmitSubExpression re-derives them, but a member access, an
+      invocation and an index wrote their receiver bare, and a unary expression ranked as a primary --
+      invisible until an operator could yield a type with members. (2) A unary operator was typed as its
+      operand: `!v` on Vec2 was a Vec2 though the declared `!` answers bool. OperatorAdmissibility gained
+      UnaryResultType beside the binary rule; a declaration answering its operand's own type -- every
+      stdlib negation and Boolean's `!` -- keeps the operand as written, so no existing type moves. (3)
+      CS0660 and CS0661: C# warns on a type declaring == or != without overriding Equals and
+      GetHashCode. The in-process compile reports errors only, so AllFeaturesV2 could not see it; MSBuild
+      reported four on the sample. Mist has no object base and no `override`, so no Mist type can declare
+      either. DECIDED BY THE OWNER: suppress rather than synthesize. TypeEmitter wraps each type
+      declaring == or != in `#pragma warning disable CS0660, CS0661`. The accepted cost: CLR Equals and
+      the hashed collections keep reference or field equality and can disagree with the declared ==.
+      Rejected: an Equals derived from == (exact) beside a constant GetHashCode (the only hash that
+      agrees with an arbitrary ==, at the price of linear lookup), and a field-combined hash (fast, and
+      wrong whenever == ignores a field).
+
+      THE REFUSALS ARE THE FRONTEND'S, on analysis order 6, measured on both pipelines first. Classic
+      refuses a non-public and a non-static operator (MIST_SB_0035) and ADMITS an unpaired == or <=, and
+      && on a user struct -- only because it drops the declaration unread. v2 left the unpaired and the
+      private ones to Roslyn (CS0216, CS0558) and crashed on && at emission. Now refused: an operator not
+      public (not-static stays construction's, MIST_PM_OPERATOR_MUST_BE_STATIC, since the binder needs
+      it); a ==/!=, </> or <=/>= declared without its pair over the same operand and result types; && or
+      || anywhere but Boolean, the spec's Req 4.5; and an operator taking no parameter of its declaring
+      type, which is C#'s CS0562/CS0563 and in Mist a declaration its operands' lookup can never select.
+      Nothing of an operator's declaration is left to Roslyn.
+
+      PROOF: the sample; Test/Mist.Tests/Backend/OperatorEmissionTests.cs on the emitted text (public
+      static by symbol and never by op_ name, the receiver parentheses, the pragma present only where
+      equality is declared); five corpus cases under refusals/declaration-shape-checks/; decision rows for
+      a complete operator set and for a unary result type. The 16 stdlib files that declare operators
+      declare them all intrinsic, which is order 186's.
+    tasks:
+      - An operator declared on an ABSTRACT binds -- AbstractTypeBuilder resolves it into OperatorsList --
+        and is not emitted, since TypeEmitter walks a concrete type's operators only, as it does cast
+        operators. C# would need a `static abstract` interface member. No sample and no spec asks for
+        one; whether to refuse it or emit it is undecided.
     unlocks: []
 
   - id: intrinsic-member-declarations
@@ -9902,12 +9948,13 @@ uncovered_constructs:
 
   - construct: OperatorMemberMemberDeclarationNode
     what: User-declared operator overloads
-    disposition: stdlib-only
+    disposition: covered
     capability: operator-overload-declarations
     note: >
-      The sharpest gap in the suite. Declared in 16 stdlib files, dropped silently by the
-      emitter, and unreachable from any sample. Every arithmetic and comparison operator on a
-      Mist primitive depends on it.
+      Covered by samples/OperatorOverloads on v2 only, banked on AllFeaturesV2: classic cannot compile
+      any program declaring an operator, so the sample is not on AllFeatures (order 185). Before it,
+      declared in 16 stdlib files, every one intrinsic, dropped by the emitter and unreachable from any
+      sample.
 
   - construct: IntrinsicModifierModifierNode
     what: The intrinsic modifier

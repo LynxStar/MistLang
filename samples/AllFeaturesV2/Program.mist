@@ -94,5 +94,6 @@ public class Program
         LocalFunctions.Program.RunDemo();
         CSharpInteropV2.Program.RunDemo();
         DelegateFuncConversion.Program.RunDemo();
+        OperatorOverloads.Program.RunDemo();
     }
 }

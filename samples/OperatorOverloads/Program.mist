@@ -1,0 +1,178 @@
+using Standard;
+
+namespace OperatorOverloads;
+
+// Every printed value below is computed THROUGH a declared operator, so a dropped or misspelled one
+// fails the build or changes a line. `*` takes the scalar on the LEFT, so `3 * a` is found on the
+// right operand's type, and `<` and `>` order by length, so unequal vectors can be neither.
+public struct Vec2
+{
+    public int X;
+    public int Y;
+
+    public Vec2(int x, int y)
+    {
+        X = x;
+        Y = y;
+    }
+
+    public int LengthSquared()
+    {
+        return X * X + Y * Y;
+    }
+
+    public string Describe()
+    {
+        return $"({X}, {Y})";
+    }
+
+    public static Vec2 operator +(Vec2 a, Vec2 b)
+    {
+        return new Vec2(a.X + b.X, a.Y + b.Y);
+    }
+
+    public static Vec2 operator -(Vec2 a, Vec2 b)
+    {
+        return new Vec2(a.X - b.X, a.Y - b.Y);
+    }
+
+    public static Vec2 operator -(Vec2 v)
+    {
+        return new Vec2(-v.X, -v.Y);
+    }
+
+    public static Vec2 operator *(int k, Vec2 v)
+    {
+        return new Vec2(k * v.X, k * v.Y);
+    }
+
+    public static bool operator ==(Vec2 a, Vec2 b)
+    {
+        return a.X == b.X && a.Y == b.Y;
+    }
+
+    public static bool operator !=(Vec2 a, Vec2 b)
+    {
+        return a.X != b.X || a.Y != b.Y;
+    }
+
+    public static bool operator <(Vec2 a, Vec2 b)
+    {
+        return a.LengthSquared() < b.LengthSquared();
+    }
+
+    public static bool operator >(Vec2 a, Vec2 b)
+    {
+        return a.LengthSquared() > b.LengthSquared();
+    }
+
+    public static bool operator !(Vec2 v)
+    {
+        return v.X == 0 && v.Y == 0;
+    }
+}
+
+public class Money
+{
+    private int cents;
+
+    public Money(int cents)
+    {
+        this.cents = cents;
+    }
+
+    public string Describe()
+    {
+        return $"{cents / 100}.{cents % 100} EUR";
+    }
+
+    public static Money operator +(Money a, Money b)
+    {
+        return new Money(a.cents + b.cents);
+    }
+
+    public static bool operator ==(Money a, Money b)
+    {
+        return a.cents == b.cents;
+    }
+
+    public static bool operator !=(Money a, Money b)
+    {
+        return a.cents != b.cents;
+    }
+}
+
+public class Program
+{
+    private static string Farthest(Vec2 a, Vec2 b)
+    {
+        if(a > b)
+        {
+            return a.Describe();
+        }
+
+        return b.Describe();
+    }
+
+    private static Vec2 Sum(Vec2[] items)
+    {
+        var total = new Vec2(0, 0);
+        foreach(var item in items)
+        {
+            total = total + item;
+        }
+
+        return total;
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Operator Overloads ===");
+
+        var a = new Vec2(1, 2);
+        var b = new Vec2(3, 4);
+        var zero = new Vec2(0, 0);
+
+        Console.WriteLine($"a + b = {(a + b).Describe()}");
+        Console.WriteLine($"b - a = {(b - a).Describe()}");
+        Console.WriteLine($"-a = {(-a).Describe()}");
+        Console.WriteLine($"3 * a = {(3 * a).Describe()}");
+        Console.WriteLine($"a + b - a = {(a + b - a).Describe()}");
+
+        Console.WriteLine($"a == a = {a == new Vec2(1, 2)}");
+        Console.WriteLine($"a == b = {a == b}");
+        Console.WriteLine($"a != b = {a != b}");
+        Console.WriteLine($"a < b = {a < b}");
+        Console.WriteLine($"a > b = {a > b}");
+
+        var turned = new Vec2(2, 1);
+        Console.WriteLine($"a < turned = {a < turned}, a > turned = {a > turned}, a == turned = {a == turned}");
+
+        Console.WriteLine($"!zero = {!zero}");
+        Console.WriteLine($"!a = {!a}");
+        if(!(a - a))
+        {
+            Console.WriteLine("a - a is the zero vector");
+        }
+
+        Vec2 negated = -b;
+        Console.WriteLine($"-b + b == zero = {negated + b == zero}");
+
+        Console.WriteLine($"farthest = {Farthest(a, b)}");
+        Console.WriteLine($"sum = {Sum([a, b, turned]).Describe()}");
+
+        var lunch = new Money(1250);
+        var coffee = new Money(375);
+        var total = lunch + coffee;
+        Console.WriteLine($"total = {total.Describe()}");
+        Console.WriteLine($"total == 16.25 = {total == new Money(1625)}");
+        Console.WriteLine($"lunch != coffee = {lunch != coffee}");
+
+        Console.WriteLine("=== Operator Overloads Done ===");
+    }
+}

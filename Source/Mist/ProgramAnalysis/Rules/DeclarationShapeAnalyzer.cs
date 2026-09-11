@@ -1,6 +1,9 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 using SyntaxNode = Storm.Runtime.SyntaxNode;
 
@@ -8,9 +11,11 @@ namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
 /// Refusals decidable from a declaration alone: a base or a newtype source that is sealed, `sealed` on
-/// an alias, an enum base that is not readonly, two variants sharing a value, and a default block
-/// naming something that is not a field. Order 6 of the analysis register; each shape is classic's
-/// verdict, measured, and the enum and sealed rules are the full-accessibility-model and
+/// an alias, an enum base that is not readonly, two variants sharing a value, a default block
+/// naming something that is not a field, and an operator that is not public, is declared without its
+/// pair, is a logical operator off Boolean, or takes no parameter of the type declaring it. Order 6 of
+/// the analysis register; each shape is classic's verdict, measured, or the spec's where classic
+/// dropped the declaration unread, and the enum and sealed rules are the full-accessibility-model and
 /// enum-readonly-restriction specs' own.
 /// </summary>
 internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
@@ -30,10 +35,12 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
                     }
 
                     CheckDefaults(context, concrete);
+                    CheckOperators(context, concrete);
                     break;
 
                 case ConcreteType concrete:
                     CheckDefaults(context, concrete);
+                    CheckOperators(context, concrete);
                     break;
 
                 case Newtype { SourceType: { } source } newtype when Declarations.IsSealed(source):
@@ -126,6 +133,65 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
                 CheckEntries(context, bound, nested.NestedEntries);
             }
         }
+    }
+
+    private static readonly Dictionary<OperatorKind, OperatorKind> Complements = new()
+    {
+        [OperatorKind.EqualEqual] = OperatorKind.NotEqual,
+        [OperatorKind.NotEqual] = OperatorKind.EqualEqual,
+        [OperatorKind.LessThan] = OperatorKind.GreaterThan,
+        [OperatorKind.GreaterThan] = OperatorKind.LessThan,
+        [OperatorKind.LessThanOrEqual] = OperatorKind.GreaterThanOrEqual,
+        [OperatorKind.GreaterThanOrEqual] = OperatorKind.LessThanOrEqual,
+    };
+
+    private static void CheckOperators(AnalysisContext context, ConcreteType type)
+    {
+        foreach(var op in type.OperatorsList)
+        {
+            if(op.Modifiers.Accessibility != Accessibility.Public)
+            {
+                Report(context, op.DeclarationNode, ProgramAnalysisDiagnostics.OperatorNotPublic, op.Symbol);
+            }
+
+            if(op.Kind is OperatorKind.LogicalAnd or OperatorKind.LogicalOr)
+            {
+                Report(context, op.DeclarationNode, ProgramAnalysisDiagnostics.LogicalOperatorDeclared, op.Symbol);
+                continue;
+            }
+
+            if(!op.ParametersList.Exists(parameter => Names(parameter.Type, type)))
+            {
+                Report(context, op.DeclarationNode, ProgramAnalysisDiagnostics.OperatorNotOnDeclaringType, op.Symbol, TypeDisplay.Mist(type));
+            }
+
+            if(Complements.TryGetValue(op.Kind, out var complement)
+                && !type.OperatorsList.Exists(other => other.Kind == complement && SameSignature(other, op)))
+            {
+                Report(
+                    context, op.DeclarationNode, ProgramAnalysisDiagnostics.OperatorUnpaired,
+                    op.Symbol, TypeDisplay.Mist(type), Operator.SymbolOf(complement));
+            }
+        }
+    }
+
+    private static bool Names(IMistType parameter, ConcreteType declaring)
+    {
+        return parameter switch
+        {
+            RefinedType refined => Names(refined.BaseType, declaring),
+            LiftedType lifted => Names(lifted.Type, declaring),
+            UnionType union => union.Constituents.Any(constituent => Names(constituent, declaring)),
+            ConstructedType constructed => constructed.Definition.FullyQualifiedName == declaring.FullyQualifiedName,
+            _ => parameter.FullyQualifiedName == declaring.FullyQualifiedName,
+        };
+    }
+
+    private static bool SameSignature(Operator left, Operator right)
+    {
+        return left.ReturnType.FullyQualifiedName == right.ReturnType.FullyQualifiedName
+            && left.ParametersList.Select(parameter => parameter.Type.FullyQualifiedName)
+                .SequenceEqual(right.ParametersList.Select(parameter => parameter.Type.FullyQualifiedName));
     }
 
     private static void Report(AnalysisContext context, SyntaxNode? at, DiagnosticDescriptor descriptor, params object?[] args)

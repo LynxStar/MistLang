@@ -49,6 +49,8 @@ internal sealed class OperatorBuilder
         {
             Body = common.Body,
             Scope = operatorScope,
+            DeclaringType = memberType,
+            DeclarationNode = opDecl,
         };
         memberType.OperatorsList.Add(op);
     }

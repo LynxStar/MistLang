@@ -19,6 +19,8 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
         "MIST_PA_NEWTYPE_OVER_SEALED_TYPE", "MIST_PA_SEALED_TYPE_ALIAS", "MIST_PA_ENUM_BASE_NOT_READONLY",
         "MIST_PA_ENUM_DUPLICATE_VALUE", "MIST_PA_DEFAULT_ENTRY_NOT_A_FIELD", "MIST_PA_CONSTRAINT_NOT_SATISFIED",
         "MIST_PA_CONSTRUCTOR_CONSTRAINT_NOT_SATISFIED", "MIST_PA_NOT_DEFAULTABLE",
+        "MIST_PA_OPERATOR_NOT_PUBLIC", "MIST_PA_OPERATOR_UNPAIRED", "MIST_PA_LOGICAL_OPERATOR_DECLARED",
+        "MIST_PA_OPERATOR_NOT_ON_DECLARING_TYPE",
     ];
 
     public DeclarationShapeDecisionTests()
@@ -156,6 +158,20 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
 
             public Inner Make() { return (Inner)1; }
         }
+
+        public struct Ordered
+        {
+            public int v = 1;
+
+            public static bool operator ==(Ordered a, Ordered b) { return a.v == b.v; }
+            public static bool operator !=(Ordered a, Ordered b) { return a.v != b.v; }
+            public static bool operator <(Ordered a, Ordered b) { return a.v < b.v; }
+            public static bool operator >(Ordered a, Ordered b) { return a.v > b.v; }
+            public static bool operator <=(Ordered a, Ordered b) { return a.v <= b.v; }
+            public static bool operator >=(Ordered a, Ordered b) { return a.v >= b.v; }
+            public static Ordered operator *(int k, Ordered o) { return o; }
+            public static Ordered operator -(Ordered o) { return o; }
+        }
         """;
 
     protected override string Preamble { get; } = """
@@ -203,6 +219,16 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
     public void ADefaultOfATypeThatHasOne_IsAdmitted(string statement)
     {
         AssertSilent(statement);
+    }
+
+    /// <summary>
+    /// Every pair complete, each over the same operands and result, and an operator whose declaring
+    /// type is only its RIGHT operand -- found there, since an operator is searched on either operand.
+    /// </summary>
+    [Fact]
+    public void ACompleteOperatorSetOnItsOwnType_IsAdmitted()
+    {
+        AssertSilent("var o = new Ordered();");
     }
 
     [Theory]

@@ -63,8 +63,9 @@ public sealed class SamplesCompileAndMatchBaselineTest
     /// <para>
     /// The stored baseline was captured from the classic pipeline, which compiles and
     /// runs this sample correctly, so it is pipeline-independent: both pipelines are
-    /// held to the same output. The one exception is LocalFunctions, which classic cannot
-    /// parse: its lines were captured from v2 and read against the program by hand.
+    /// held to the same output. The two exceptions are LocalFunctions, which classic cannot
+    /// parse, and OperatorOverloads, which classic cannot compile: their lines were captured
+    /// from v2 and read against the program by hand.
     /// </para>
     /// <para>
     /// See <c>.kiro/steering/testing-philosophy.md</c>, Tier 6.

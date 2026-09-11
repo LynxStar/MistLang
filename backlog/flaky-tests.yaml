@@ -593,3 +593,30 @@ flakes:
           filtered out for being a warning -- the whole build output was discarded before anything
           could read it. Redirecting a build to /dev/null and then trusting `--no-build` is the same
           mistake as grepping the output for errors only.
+
+  - id: snippet-emitter-nre-on-one-snippet
+    test: tools/SnippetEmitter (object-model/inheritance/method-overriding.mist)
+    file: tools/SnippetEmitter/Program.cs, book/snippets/object-model/inheritance/method-overriding.mist
+    discovered: 2026-09-11
+    status: unreproduced
+    symptom: >
+      `dotnet run --project tools/SnippetEmitter` reported "FAILED (exception):
+      object-model/inheritance/method-overriding.mist: Object reference not set to an instance of an
+      object." on the SECOND of two back-to-back runs, the first having reported "0 updated, 367
+      unchanged, 0 failed" from the same binaries over the same sources. Neither run updated a
+      snippet. The snippet declares three classes in an inheritance chain, with no operator, no unary
+      expression and no parenthesized receiver.
+    cause: unknown
+    evidence: >
+      Seen while landing emitter order 185 (user-declared operator overloads), whose emitter changes
+      are the operator walk, receiver parenthesisation and the equality pragma. Three further runs
+      immediately afterwards, with nothing edited between them, each reported 0 updated, 367
+      unchanged, 0 failed -- four clean runs against the one failure, and the book is byte-identical
+      throughout. The tool compiles snippets sequentially in a single process (no Parallel in
+      tools/SnippetEmitter), so it is not a race between snippets. A per-process difference such as
+      randomized string hashing reaching a dictionary-ordered path would fit the shape, but nothing
+      measured confirms it, and a guess here would stop the next person looking.
+    fix: >
+      Print the exception and its stack rather than only ex.Message at the catch in
+      tools/SnippetEmitter/Program.cs, so that one recurrence names the throwing frame instead of
+      leaving the next person exactly where this entry is.

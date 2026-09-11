@@ -2,6 +2,7 @@ using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
@@ -108,6 +109,17 @@ internal static class TypeEmitter
         {
             StructFlattener.ReportIntrinsicBase(structType, diagnostics);
             flattened = new StructFlattener(diagnostics).Flatten(structType);
+        }
+
+        // Mist has no object base and no `override`, so a type declaring == has no Equals or
+        // GetHashCode it could keep in step, and C#'s demand for them is the target's rather than the
+        // program's. Suppressed instead of synthesized, by the decision recorded on order 185.
+        var declaresEquality = type is ConcreteType { OperatorsList: var declared }
+            && declared.Exists(op => op.Kind is OperatorKind.EqualEqual or OperatorKind.NotEqual);
+
+        if(declaresEquality)
+        {
+            writer.WriteLine("#pragma warning disable CS0660, CS0661");
         }
 
         if(type is StructType)
@@ -230,6 +242,12 @@ internal static class TypeEmitter
                 CastOperatorEmitter.Emit(castOperator, writer, diagnostics);
             }
 
+            foreach(var op in concrete?.OperatorsList ?? [])
+            {
+                SeparateMember(writer, ref anyEmitted);
+                OperatorEmitter.Emit(op, writer, diagnostics);
+            }
+
             if(concrete is not null && DefaultSynthesis.IsDefaultable(type))
             {
                 DefaultEmitter.Emit(concrete, writer, diagnostics, ref anyEmitted);
@@ -263,6 +281,11 @@ internal static class TypeEmitter
             {
                 Emit(nested, closures, uses, writer, diagnostics, ref anyEmitted);
             }
+        }
+
+        if(declaresEquality)
+        {
+            writer.WriteLine("#pragma warning restore CS0660, CS0661");
         }
     }
 

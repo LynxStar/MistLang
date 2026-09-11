@@ -5,6 +5,7 @@
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
+using Mist.ProgramModel.Model.Expressions;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
@@ -21,6 +22,18 @@ public sealed class OperatorDecisionTests : ProgramModelProbe
     public OperatorDecisionTests()
         : base("MistOperator_")
     {
+    }
+
+    /// <summary>
+    /// A declared unary operator answers for itself, as a binary one does: Money's `!` is a bool, so the
+    /// expression is not typed as its Money operand.
+    /// </summary>
+    [Fact]
+    public void AUserUnaryOperatorTypesTheExpressionByItsReturnType()
+    {
+        var negated = InitializerOf<UnaryExpression>("var empty = !new Money();");
+
+        Assert.Equal("Standard.Boolean", negated.Type.FullyQualifiedName);
     }
 
     protected override string Fixtures { get; } = """
@@ -46,6 +59,11 @@ public sealed class OperatorDecisionTests : ProgramModelProbe
             public static bool operator !=(Money left, Money right)
             {
                 return left.Cents != right.Cents;
+            }
+
+            public static bool operator !(Money money)
+            {
+                return money.Cents == 0;
             }
         }
 

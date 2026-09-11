@@ -298,13 +298,17 @@ internal static class OperatorBinder
             case NegateUnaryNode negate:
                 {
                     var operand = BindUnary(negate.Operand, ctx, context);
-                    return new UnaryExpression(node, UnaryOperatorKind.Negate, operand, operand.Type);
+                    return new UnaryExpression(
+                        node, UnaryOperatorKind.Negate, operand,
+                        OperatorAdmissibility.UnaryResultType(UnaryOperatorKind.Negate, operand.Type));
                 }
 
             case LogicalNotUnaryNode logicalNot:
                 {
                     var operand = BindUnary(logicalNot.Operand, ctx, context);
-                    return new UnaryExpression(node, UnaryOperatorKind.LogicalNot, operand, operand.Type);
+                    return new UnaryExpression(
+                        node, UnaryOperatorKind.LogicalNot, operand,
+                        OperatorAdmissibility.UnaryResultType(UnaryOperatorKind.LogicalNot, operand.Type));
                 }
 
             // Alone among the unary arms this does not answer with its operand's type. `^1` is an

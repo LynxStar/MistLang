@@ -82,6 +82,30 @@ public static class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "'{0}' is not a field of '{1}', so a default block cannot assign it.");
 
+    public static readonly DiagnosticDescriptor OperatorNotPublic = new(
+        new DiagnosticId("MIST_PA_OPERATOR_NOT_PUBLIC"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Operator '{0}' must be declared 'public static'.");
+
+    public static readonly DiagnosticDescriptor OperatorUnpaired = new(
+        new DiagnosticId("MIST_PA_OPERATOR_UNPAIRED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Operator '{0}' on '{1}' requires a matching operator '{2}', with the same parameter and return types, to also be declared.");
+
+    public static readonly DiagnosticDescriptor LogicalOperatorDeclared = new(
+        new DiagnosticId("MIST_PA_LOGICAL_OPERATOR_DECLARED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Operator '{0}' can be declared only on Boolean.");
+
+    public static readonly DiagnosticDescriptor OperatorNotOnDeclaringType = new(
+        new DiagnosticId("MIST_PA_OPERATOR_NOT_ON_DECLARING_TYPE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Operator '{0}' must take '{1}', the type declaring it, as a parameter; an operator is found only through its operands' types.");
+
     public static readonly DiagnosticDescriptor ConstraintNotSatisfied = new(
         new DiagnosticId("MIST_PA_CONSTRAINT_NOT_SATISFIED"),
         DiagnosticSeverity.Error,

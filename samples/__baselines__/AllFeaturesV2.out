@@ -1868,3 +1868,25 @@ predicate(6)=True
 predicate(7)=False
 mapGetRegistered=true
 === DelegateFuncConversion Done ===
+=== Operator Overloads ===
+a + b = (4, 6)
+b - a = (2, 2)
+-a = (-1, -2)
+3 * a = (3, 6)
+a + b - a = (3, 4)
+a == a = True
+a == b = False
+a != b = True
+a < b = True
+a > b = False
+a < turned = False, a > turned = False, a == turned = False
+!zero = True
+!a = False
+a - a is the zero vector
+-b + b == zero = True
+farthest = (3, 4)
+sum = (6, 7)
+total = 16.25 EUR
+total == 16.25 = True
+lunch != coffee = True
+=== Operator Overloads Done ===

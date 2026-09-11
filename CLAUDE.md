@@ -46,10 +46,11 @@ greenness. The one sample it cannot hold is `samples/Testing`, a library with no
 which `Testing_RunsUnderTheTestCommandOnTheExperimentalPipeline` holds under `mist test` instead.
 
 The baseline was captured from classic and is pipeline-independent: both pipelines are held
-to the same stdout. The one exception is `samples/LocalFunctions`, which classic cannot parse:
-it is referenced from `AllFeaturesV2` alone, and its lines were captured from v2 and read against
-the program by hand. Note the blind spot — a stdout diff cannot see things like a dropped
-`sealed` modifier.
+to the same stdout. There are two exceptions: `samples/LocalFunctions`, which classic cannot
+parse, and `samples/OperatorOverloads`, which classic parses but cannot compile (it never emits
+an operator declaration). Each is referenced from `AllFeaturesV2` alone, and its lines were
+captured from v2 and read against the program by hand. Note the blind spot — a stdout diff cannot
+see things like a dropped `sealed` modifier.
 
 ## Backlog registers
 

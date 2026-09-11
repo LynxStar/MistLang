@@ -68,6 +68,40 @@ internal static class OperatorAdmissibility
         };
     }
 
+    /// <summary>
+    /// A unary operator declared on the operand's type answers for itself; one answering the operand's
+    /// own type -- every numeric negation and Boolean's <c>!</c> -- keeps the operand as written, so a
+    /// lift or a refinement on it survives exactly as it did before any declaration was consulted.
+    /// </summary>
+    public static IMistType UnaryResultType(UnaryOperatorKind op, IMistType operand)
+    {
+        var kind = op switch
+        {
+            UnaryOperatorKind.Negate => OperatorKind.Minus,
+            UnaryOperatorKind.LogicalNot => OperatorKind.Exclamation,
+            _ => (OperatorKind?)null,
+        };
+
+        if(kind is null || IsIndeterminate(operand))
+        {
+            return operand;
+        }
+
+        foreach(var candidate in Operators(operand))
+        {
+            if(candidate.Kind == kind.Value
+                && candidate.ParametersList.Count == 1
+                && Accepts(candidate.ParametersList[0].Type, operand))
+            {
+                return candidate.ReturnType.FullyQualifiedName == Underlying(operand).FullyQualifiedName
+                    ? operand
+                    : candidate.ReturnType;
+            }
+        }
+
+        return operand;
+    }
+
     private static IMistType? Declared(BinaryOperatorKind op, IMistType left, IMistType right)
     {
         var kind = op switch

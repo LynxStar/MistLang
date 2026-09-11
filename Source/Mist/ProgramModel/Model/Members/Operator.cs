@@ -19,6 +19,30 @@ internal sealed class Operator(
 
     public bool IsUnary => ParametersList.Count == 1;
 
+    public string Symbol => SymbolOf(Kind);
+
+    public static string SymbolOf(OperatorKind kind)
+    {
+        return kind switch
+        {
+            OperatorKind.Plus => "+",
+            OperatorKind.Minus => "-",
+            OperatorKind.Star => "*",
+            OperatorKind.Slash => "/",
+            OperatorKind.Modulo => "%",
+            OperatorKind.EqualEqual => "==",
+            OperatorKind.NotEqual => "!=",
+            OperatorKind.LessThan => "<",
+            OperatorKind.GreaterThan => ">",
+            OperatorKind.LessThanOrEqual => "<=",
+            OperatorKind.GreaterThanOrEqual => ">=",
+            OperatorKind.LogicalAnd => "&&",
+            OperatorKind.LogicalOr => "||",
+            OperatorKind.Exclamation => "!",
+            _ => throw new InvalidOperationException($"ICE: unrecognized operator kind '{kind}'"),
+        };
+    }
+
     private static string MapOperatorName(OperatorKind kind)
     {
         return kind switch

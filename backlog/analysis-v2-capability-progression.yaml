@@ -532,6 +532,19 @@ rules:
       corpus case declared its nested type private and so refused without it; a public type nested in an
       internal one now pins the nesting half. The location mutation did not compile; a compiling variant
       was caught. Seventeen of seventeen.
+
+      OPERATOR DECLARATIONS, 2026-09-11, from emitter order 185, which made them emittable and so made
+      their shape matter. Four rules, each reported at the operator: not public
+      (MIST_PA_OPERATOR_NOT_PUBLIC, classic's MIST_SB_0035 message); a ==/!=, </> or <=/>= without its
+      pair over the same parameter and return types (MIST_PA_OPERATOR_UNPAIRED); && or || declared
+      anywhere but Boolean, the standard-library spec's Req 4.5 (MIST_PA_LOGICAL_OPERATOR_DECLARED); and
+      no parameter naming the declaring type, through a refinement, a lift or an optional
+      (MIST_PA_OPERATOR_NOT_ON_DECLARING_TYPE). Classic admits the last three only because it never reads
+      an operator declaration at all -- see order 185 -- so their verdict is the spec's and C#'s rather
+      than classic's; the first is classic's. Not-static stays construction's
+      (MIST_PM_OPERATOR_MUST_BE_STATIC): the binder needs it to scope the body. Five corpus cases; a
+      complete operator set, scalar-left `*` and unary `-` included, is a fixture under analysis in every
+      decision row.
     tasks:
       - >
         `readonly` on a class method is admitted and means nothing, as in classic. Either it constrains
@@ -779,8 +792,11 @@ rules:
         Member callability on an unknown-typed readonly receiver (order 83) is not decided; nothing
         distinguishes closed-with-unknown from an open generic construction yet.
       - >
-        Unary operators are typed as their operand and not judged; `-` on a class binds and reaches
-        Roslyn.
+        Unary operators are not judged. Since emitter order 185 a declared one types the expression by
+        its return (OperatorAdmissibility.UnaryResultType) and any other is typed as its operand, so `-`
+        on a class declaring none binds and reaches Roslyn. Refusing it needs the numeric promotions the
+        stdlib does not declare -- Byte, UInt16, UInt32, UInt64 and Char have no unary `-` -- to be
+        admitted first.
       - >
         A user operator is found on either operand's own type and its base chain, not through
         conformances or extensions.

@@ -1,27 +1,5 @@
 using Standard;
-
-public class Greeting
-{
-    public string Message;
-
-    public Greeting(string message)
-    {
-        Message = message;
-    }
-}
-
-extension(Greeting self)
-{
-    public int WordCount()
-    {
-        return self.Message.Length;
-    }
-
-    public string Uppercase()
-    {
-        return self.Message;
-    }
-}
+// with: declaring.mist
 
 extension(Greeting self)
 {

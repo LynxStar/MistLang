@@ -1,14 +1,5 @@
 using Standard;
-
-public abstract IDescribable
-{
-    string Describe();
-}
-
-abstract IFullyDescribable : IDescribable
-{
-    string DetailedDescribe();
-}
+// with: extending.mist
 
 public class Robot : IFullyDescribable
 {

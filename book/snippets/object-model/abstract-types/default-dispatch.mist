@@ -1,49 +1,5 @@
 using Standard;
-
-public abstract IGreetable
-{
-    string Name();
-
-    string Greet()
-    {
-        return $"Hello, I am {this.Name()}";
-    }
-}
-
-public class FriendlyDog : IGreetable
-{
-    private string dogName;
-
-    public FriendlyDog(string dogName)
-    {
-        this.dogName = dogName;
-    }
-
-    public string Name()
-    {
-        return dogName;
-    }
-}
-
-public class FormalCat : IGreetable
-{
-    private string catName;
-
-    public FormalCat(string catName)
-    {
-        this.catName = catName;
-    }
-
-    public string Name()
-    {
-        return catName;
-    }
-
-    public string Greet()
-    {
-        return $"Good day. I am {this.Name()}, and I require attention.";
-    }
-}
+// with: default-method.mist, default-override.mist
 
 public class Program
 {

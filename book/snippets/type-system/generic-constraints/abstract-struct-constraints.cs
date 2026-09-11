@@ -2,11 +2,6 @@ using System;
 
 namespace Snippet;
 
-interface IPrintable
-{
-    string Print();
-}
-
 interface IRepository<T>
     where T : class, new()
 {

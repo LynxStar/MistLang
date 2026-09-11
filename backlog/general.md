@@ -326,8 +326,9 @@ whole subpattern to the runtime binder.
 ## 🟡 5 book snippets do not compile on the experimental pipeline
 
 **Found 2026-09-11**, the day `tools/SnippetEmitter` moved from classic to `--pipeline experimental`; 58
-failed that morning. By evening 30 had their sibling declarations inlined so each is a program of its
-own, 5 imported the CLR namespaces they used or declared the attribute they applied, 2 were content
+failed that morning. By evening 30 named the sibling snippets they build on with a `// with:` line,
+which the tool compiles alongside them (four keep a declaration inline where their own chapter's
+pages overlap), 5 imported the CLR namespaces they used or declared the attribute they applied, 2 were content
 bugs classic's tool never caught because it skipped Roslyn, and 6 were v2 defects since fixed: nested
 local shadowing, union-into-union widening, span slicing, a CLR delegate as a lambda's target, and
 the element type of a projected `List<int>`. Ten fragments that do not parse on either pipeline

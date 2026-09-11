@@ -1,19 +1,5 @@
 using Standard;
-
-public enum Color
-{
-    Red,
-    Green,
-    Blue
-}
-
-public enum Direction : string
-{
-    North = "N",
-    South = "S",
-    East = "E",
-    West = "W"
-}
+// with: name-only.mist, typed.mist
 
 public class Program
 {

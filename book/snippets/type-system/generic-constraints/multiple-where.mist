@@ -1,9 +1,5 @@
 using Standard;
-
-abstract IOrderable
-{
-    int GetOrder();
-}
+// with: abstract-constraint.mist
 
 class Pair<K, V> where K : IOrderable where V : new()
 {

@@ -1,19 +1,5 @@
 using Standard;
-
-public class Kelvin
-{
-    private double degrees;
-
-    public Kelvin(double degrees)
-    {
-        this.degrees = degrees;
-    }
-
-    public string Describe()
-    {
-        return $"{degrees} K";
-    }
-}
+// with: explicit-operator.mist
 
 public class Measurement
 {

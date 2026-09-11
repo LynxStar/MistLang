@@ -2,30 +2,7 @@ using System;
 
 namespace Snippet;
 
-public class Greeting
-{
-    public string Message;
-
-    public Greeting(string message)
-    {
-        Message = message;
-    }
-}
-
 public static class GreetingExtensions_withparams_0
-{
-    public static int WordCount(this Snippet.Greeting self)
-    {
-        return self.Message.Length;
-    }
-
-    public static string Uppercase(this Snippet.Greeting self)
-    {
-        return self.Message;
-    }
-}
-
-public static class GreetingExtensions_withparams_1
 {
     public static Snippet.Greeting Repeat(this Snippet.Greeting self, int times)
     {

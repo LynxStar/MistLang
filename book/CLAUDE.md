@@ -59,9 +59,11 @@ Use the tabbed include pattern for every snippet:
 - Each `.mist` file MUST be a complete program: `using Standard;`, namespace, class with `Main`, etc.
   A snippet that needs a package or framework reference keeps a project file beside it, named as the
   snippet is (`framework-reference.toml`), which the tool uses as the scratch project's `mist.toml`.
-  A snippet that only makes sense across files keeps the other files in `<snippet>.support/`, with
-  the folder layout the demonstration needs; they are compiled with it and the book shows only the
-  snippet.
+  A snippet that builds on a sibling names it on a `// with: declaring.mist` line after the usings;
+  the named files, and whatever they name in turn, are compiled alongside it and the book shows only
+  the snippet. A companion must declare only: a file with a `Main` or top-level statements is a
+  program of its own and cannot be one. A snippet that needs a folder layout, such as a namespace
+  inferred from a folder, keeps its other files in `<snippet>.support/` instead.
 - Each snippet should be small and focused — one concept per file.
 - The snippet MUST compile and run without errors through the Mist CLI.
 - If a feature is not yet implemented, use an inline code block with a blockquote explaining the limitation. Do NOT create a snippet file for code that doesn't compile.

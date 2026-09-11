@@ -2,11 +2,6 @@ using System;
 
 namespace Snippet;
 
-interface IOrderable
-{
-    int GetOrder();
-}
-
 class Pair<K, V>
     where K : Snippet.IOrderable
     where V : new()

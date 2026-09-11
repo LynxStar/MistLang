@@ -9,6 +9,7 @@
 // working directory.
 
 using System.Collections.Immutable;
+using System.Text.RegularExpressions;
 using Mist.Analysis.Contracts;
 using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
@@ -82,6 +83,38 @@ return failed > 0 ? 1 : 0;
 
 // --- Compilation logic ---
 
+IReadOnlyList<string> Companions(string mistPath)
+{
+    var found = new List<string>();
+    var pending = new Stack<string>();
+    pending.Push(mistPath);
+
+    while (pending.Count > 0)
+    {
+        var current = pending.Pop();
+        var directory = Path.GetDirectoryName(current)!;
+
+        foreach (var line in File.ReadLines(current).TakeWhile(l => l.Length == 0 || l.StartsWith("//", StringComparison.Ordinal) || l.StartsWith("using ", StringComparison.Ordinal)))
+        {
+            var match = Regex.Match(line, @"^//\s*with:\s*(.+)$");
+            if (!match.Success)
+                continue;
+
+            foreach (var name in match.Groups[1].Value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+            {
+                var companion = Path.GetFullPath(Path.Combine(directory, name));
+                if (companion != mistPath && !found.Contains(companion))
+                {
+                    found.Add(companion);
+                    pending.Push(companion);
+                }
+            }
+        }
+    }
+
+    return found;
+}
+
 string? EmitSnippet(string mistPath)
 {
     var relativeMist = Path.GetRelativePath(snippetsDir, mistPath);
@@ -115,10 +148,18 @@ string? EmitSnippet(string mistPath)
             }
         }
 
-        // A snippet that only makes sense across files -- a namespace inferred from a folder, say --
-        // keeps the other files in a folder beside it, named as the snippet is, which is copied into
-        // the scratch project with its layout; the book shows only the snippet.
+        // A chapter's snippets build on one another, so a snippet names the siblings it uses with a
+        // `// with: a.mist, b.mist` line and they are compiled alongside it, each bringing its own
+        // companions; the book shows only the snippet. A demonstration that needs a folder layout --
+        // a namespace inferred from a folder -- keeps its other files in a folder beside it instead.
         var sources = new List<string> { tempMistPath };
+        foreach (var companion in Companions(mistPath))
+        {
+            var copied = Path.Combine(scratchDir, Path.GetFileName(companion));
+            File.Copy(companion, copied);
+            sources.Add(copied);
+        }
+
         var supportDir = Path.Combine(Path.GetDirectoryName(mistPath)!, Path.GetFileNameWithoutExtension(mistPath) + ".support");
         if (Directory.Exists(supportDir))
         {

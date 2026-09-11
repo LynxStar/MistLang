@@ -1,6 +1,5 @@
 using Standard;
-
-type UserId = new int;
+// with: declaration.mist
 
 public class Program
 {

@@ -1,10 +1,5 @@
 using Standard;
-
-public class FixedBuffer<Size:int>
-{
-    public int GetSize() { return Size; }
-    public string Describe() { return $"FixedBuffer<{Size}>"; }
-}
+// with: syntax.mist
 
 public class DependentMethods
 {

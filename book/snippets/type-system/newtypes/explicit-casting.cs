@@ -2,19 +2,6 @@ using System;
 
 namespace Snippet;
 
-readonly struct UserId
-{
-    public readonly int Value;
-
-    public UserId(int value)
-    {
-        Value = value;
-    }
-
-    public static explicit operator UserId(int value) => new UserId(value);
-    public static explicit operator int(UserId wrapped) => wrapped.Value;
-}
-
 public class Program
 {
     public static void Main(string[] args)

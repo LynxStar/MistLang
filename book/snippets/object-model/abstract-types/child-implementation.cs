@@ -2,16 +2,6 @@ using System;
 
 namespace Snippet;
 
-public interface IDescribable
-{
-    string Describe();
-}
-
-interface IFullyDescribable : Snippet.IDescribable
-{
-    string DetailedDescribe();
-}
-
 public class Robot : Snippet.IFullyDescribable
 {
     private string model;

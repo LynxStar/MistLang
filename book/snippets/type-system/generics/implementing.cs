@@ -2,11 +2,6 @@ using System;
 
 namespace Snippet;
 
-interface IGenericContainer<T>
-{
-    T GetItem();
-}
-
 public class GenericBox<T> : Snippet.IGenericContainer<T>
 {
     private T item;

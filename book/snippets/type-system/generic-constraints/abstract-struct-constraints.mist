@@ -1,9 +1,5 @@
 using Standard;
-
-abstract IPrintable
-{
-    string Print();
-}
+// with: multiple-constraints.mist
 
 abstract IRepository<T> where T : class, new()
 {

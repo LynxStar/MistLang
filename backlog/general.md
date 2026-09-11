@@ -323,13 +323,21 @@ whole subpattern to the runtime binder.
 
 ## `mist build samples/Testing --pipeline experimental` throws before any rule runs
 
-**Severity: medium** -- the only unbanked sample that cannot be measured on v2 at all. The ambient
-projection of `Microsoft.TestPlatform.CoreUtilities` (the `netcoreapp3.1` build under
-`microsoft.testplatform.objectmodel/17.12.0`) throws `TypeLoadException` for
+**Severity: medium** -- the only unbanked sample that cannot be measured on v2 at all. Projecting
+`Microsoft.TestPlatform.TestHost` 17.12.0 throws `TypeLoadException` for
 `System.Diagnostics.CodeAnalysis.NotNullIfNotNullAttribute` inside `ClrNullability.FirstFlag`, and the
 CLI dies with exit code 134. Classic builds the same project cleanly.
 
-**Verified** at `a5b8ec2c` in a clean worktree, so it predates Stage 5's order 5, which found it while
-sweeping the three unbanked samples. Reading attributes off a reference assembly built for an older
-framework needs the metadata-only load path, or the attribute lookup needs to tolerate a type the
-loaded framework does not define.
+**Cause, read off the metadata.** Three of TestHost's own `netcoreapp3.1` assemblies
+(`CommunicationUtilities`, `CrossPlatEngine`, `Common`) reference that attribute as a type DEFINED IN
+`Microsoft.TestPlatform.CoreUtilities`, and the CoreUtilities shipped beside them does not define it
+(`Utilities.dll` carries a private copy instead). The package is internally inconsistent, but nothing
+notices at runtime or under Roslyn, because an attribute's type is resolved only when something reads
+that attribute. v2's ambient provider reads nullability attributes on every member of every loaded
+assembly, so it is the one consumer that asks. Classic projects lazily and never looks there.
+
+**Fix.** `ClrNullability.SafeAttributes` guards the read of the attribute list, but the attribute's
+type is resolved lazily when `FirstFlag` touches `AttributeType`, one line outside the guard. An
+attribute whose type cannot be resolved says nothing about nullability and should count as absent;
+the enumeration belongs inside the guard. Verified at `a5b8ec2c` in a clean worktree, so it predates
+Stage 5's order 5, which found it while sweeping the three unbanked samples.

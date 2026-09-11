@@ -50,8 +50,8 @@ public class Program
     public static void Main()
     {
         {
-            var __e6 = new Snippets.AffineContainer(1);
-            MistContext.Push<Snippets.AffineContainer>(__e6);
+            var __e1 = new Snippets.AffineContainer(1);
+            MistContext.Push<Snippets.AffineContainer>(__e1);
             try
             {
                 Console.WriteLine("Inside with block — container will be dropped");
@@ -59,7 +59,7 @@ public class Program
             finally
             {
                 MistContext.Pop<Snippets.AffineContainer>();
-                __e6.Drop();
+                __e1.Drop();
             }
         }
         Console.WriteLine("Done");

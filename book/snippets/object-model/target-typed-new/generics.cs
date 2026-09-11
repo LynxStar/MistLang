@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-class Pair<T>
+internal class Pair<T>
 {
     public T First;
     public T Second;
@@ -19,7 +19,7 @@ class Pair<T>
     }
 }
 
-class Program
+internal class Program
 {
     public static void Main(string[] args)
     {

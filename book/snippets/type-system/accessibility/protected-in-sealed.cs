@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-public class Singleton
+public sealed class Singleton
 {
     protected int instanceCount;
 

@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-interface IRepository<T>
+internal interface IRepository<T>
     where T : class, new()
 {
     T GetById(int id);
@@ -11,7 +11,7 @@ interface IRepository<T>
 }
 
 [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
-struct Holder<T>
+internal struct Holder<T>
     where T : Snippet.IPrintable
 {
     public T Value;

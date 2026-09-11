@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-class Countdown : System.Collections.Generic.IEnumerable<int>
+internal class Countdown : System.Collections.Generic.IEnumerable<int>
 {
     private int start;
 

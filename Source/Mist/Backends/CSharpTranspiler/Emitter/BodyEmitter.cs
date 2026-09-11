@@ -1518,13 +1518,19 @@ internal static class BodyEmitter
     /// COUNTED RATHER THAN DERIVED FROM THE NODE, because one node can be emitted at many sites. A
     /// refinement's predicate is written once in its alias and reached by every test of that
     /// refinement, so a name taken from its span repeats -- two `is Email` tests in one scope
-    /// declared the same local. Deterministic because emission walks in a fixed order, and
-    /// thread-static so parallel emissions cannot hand out the same number.
+    /// declared the same local. Deterministic because emission walks in a fixed order and the count
+    /// starts over for each program, so what a process emitted before it leaves no mark; thread-static
+    /// so parallel emissions cannot hand out the same number.
     /// </para>
     /// </summary>
     private static string TemporaryName()
     {
         return $"__e{++temporaries}";
+    }
+
+    public static void ResetTemporaries()
+    {
+        temporaries = 0;
     }
 
     /// <summary>

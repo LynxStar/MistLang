@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-public class Config
+public sealed class Config
 {
     private string key;
     private string value;

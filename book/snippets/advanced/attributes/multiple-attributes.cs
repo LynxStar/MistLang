@@ -4,7 +4,7 @@ namespace Snippet;
 
 [System.SerializableAttribute]
 [System.ObsoleteAttribute("combined")]
-class Legacy
+internal class Legacy
 {
     public Legacy()
     {
@@ -18,7 +18,7 @@ class Legacy
 
 [System.SerializableAttribute]
 [System.ObsoleteAttribute("use NewService")]
-class OldService
+internal class OldService
 {
     public OldService()
     {

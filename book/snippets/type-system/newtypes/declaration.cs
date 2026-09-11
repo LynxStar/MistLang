@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-readonly struct UserId
+internal readonly struct UserId
 {
     public readonly int Value;
 
@@ -15,7 +15,7 @@ readonly struct UserId
     public static explicit operator int(UserId wrapped) => wrapped.Value;
 }
 
-readonly struct Label
+internal readonly struct Label
 {
     public readonly string Value;
 
@@ -28,7 +28,7 @@ readonly struct Label
     public static explicit operator string(Label wrapped) => wrapped.Value;
 }
 
-readonly struct Flag
+internal readonly struct Flag
 {
     public readonly bool Value;
 

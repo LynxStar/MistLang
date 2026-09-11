@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-class Box<T>
+internal class Box<T>
 {
     public T Value;
 

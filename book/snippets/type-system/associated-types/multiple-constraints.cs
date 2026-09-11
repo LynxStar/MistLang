@@ -2,17 +2,17 @@ using System;
 
 namespace Snippet;
 
-interface IStringable
+internal interface IStringable
 {
     string Stringify();
 }
 
-interface IResettable
+internal interface IResettable
 {
     string GetState();
 }
 
-interface IStatefulProducer<State>
+internal interface IStatefulProducer<State>
     where State : Snippet.IStringable, Snippet.IResettable
 {
     string GetProducerName();

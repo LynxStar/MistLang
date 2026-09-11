@@ -29,7 +29,7 @@ public class Entity
     }
 }
 
-class Actor
+internal class Actor
 {
     private string name;
     private int id;

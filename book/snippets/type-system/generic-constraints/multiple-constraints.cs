@@ -2,12 +2,12 @@ using System;
 
 namespace Snippet;
 
-interface IPrintable
+internal interface IPrintable
 {
     string Print();
 }
 
-class PrintableCreator<T>
+internal class PrintableCreator<T>
     where T : class, Snippet.IPrintable, new()
 {
     public T CreateNew()

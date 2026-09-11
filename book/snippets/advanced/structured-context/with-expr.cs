@@ -46,8 +46,8 @@ public class Program
     public static void Main(string[] args)
     {
         {
-            var __e3 = new Snippet.Locale("en-US");
-            MistContext.Push<Snippet.Locale>(__e3);
+            var __e1 = new Snippet.Locale("en-US");
+            MistContext.Push<Snippet.Locale>(__e1);
             try
             {
                 string result = Snippet.Consumers.GetLocale();

@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-class Point
+internal class Point
 {
     public int X;
     public int Y;
@@ -19,7 +19,7 @@ class Point
     }
 }
 
-class Container
+internal class Container
 {
     public Snippet.Point Origin = new Snippet.Point(0, 0);
 
@@ -34,7 +34,7 @@ class Container
     }
 }
 
-class Program
+internal class Program
 {
     public static Snippet.Point MakePoint(int x, int y)
     {

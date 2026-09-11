@@ -3,7 +3,7 @@ using System;
 namespace Snippet;
 
 [System.SerializableAttribute]
-class Config
+internal class Config
 {
     private string name;
 
@@ -13,7 +13,7 @@ class Config
     }
 }
 
-class Service
+internal class Service
 {
     [System.ObsoleteAttribute("use RunV2")]
     public void Run()

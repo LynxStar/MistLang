@@ -5,7 +5,7 @@ using System.Diagnostics;
 namespace Snippet;
 
 [System.Diagnostics.DebuggerTypeProxyAttribute(typeof(System.Collections.Generic.List<int>))]
-class CustomList
+internal class CustomList
 {
     public CustomList()
     {
@@ -30,7 +30,7 @@ public class TaggedAttribute<T> : System.Attribute
 }
 
 [Snippet.TaggedAttribute<int>]
-class TypedConfig
+internal class TypedConfig
 {
     public TypedConfig()
     {

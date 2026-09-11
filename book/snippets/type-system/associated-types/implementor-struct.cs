@@ -8,7 +8,7 @@ public interface IIterator<Cursor>
     Cursor CreateCursor(int pos);
 }
 
-class RangeIterator : Snippet.IIterator<Snippet.RangeIterator.Cursor>
+internal class RangeIterator : Snippet.IIterator<Snippet.RangeIterator.Cursor>
 {
     public Snippet.RangeIterator.Cursor CreateCursor(int pos)
     {

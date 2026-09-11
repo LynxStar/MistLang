@@ -17,7 +17,7 @@ public class Outer
         return inner.ReadSecret();
     }
 
-    class Inner
+    private class Inner
     {
         private Snippet.Outer owner;
 

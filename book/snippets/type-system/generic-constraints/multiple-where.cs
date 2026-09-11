@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-class Pair<K, V>
+internal class Pair<K, V>
     where K : Snippet.IOrderable
     where V : new()
 {

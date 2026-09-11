@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-interface IGenericContainer<T>
+internal interface IGenericContainer<T>
 {
     T GetItem();
 }

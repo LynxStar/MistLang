@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-readonly struct UserId
+internal readonly struct UserId
 {
     public readonly int Value;
 

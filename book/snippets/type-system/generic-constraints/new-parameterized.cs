@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-class IntFactory<T>
+internal class IntFactory<T>
     where T : Mist.Emission.CSharp.__IConstruct_int<T>
 {
     public T Create(int value)

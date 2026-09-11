@@ -2,12 +2,12 @@ using System;
 
 namespace Snippet;
 
-interface IOrderable
+internal interface IOrderable
 {
     int GetOrder();
 }
 
-class Sorter<T>
+internal class Sorter<T>
     where T : Snippet.IOrderable
 {
     public T First;

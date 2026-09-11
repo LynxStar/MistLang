@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-class Point
+internal class Point
 {
     public int X;
     public int Y;
@@ -19,7 +19,7 @@ class Point
     }
 }
 
-class Program
+internal class Program
 {
     public static void Main(string[] args)
     {

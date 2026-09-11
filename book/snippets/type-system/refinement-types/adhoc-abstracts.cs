@@ -7,7 +7,7 @@ public interface IStrictProcessor
     string Process(int x);
 }
 
-class WeakerProcessor : Snippet.IStrictProcessor
+internal class WeakerProcessor : Snippet.IStrictProcessor
 {
     public string Process(int x)
     {
@@ -24,7 +24,7 @@ class WeakerProcessor : Snippet.IStrictProcessor
     }
 }
 
-class LenientProcessor : Snippet.IStrictProcessor
+internal class LenientProcessor : Snippet.IStrictProcessor
 {
     public string Process(int x)
     {

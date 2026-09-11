@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-class MultiFactory<T>
+internal class MultiFactory<T>
     where T : Mist.Emission.CSharp.__IConstruct_int<T>, Mist.Emission.CSharp.__IConstruct_bool<T>, new()
 {
     public T CreateDefault()

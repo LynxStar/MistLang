@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-class TopLevelService
+internal class TopLevelService
 {
     private int counter;
 

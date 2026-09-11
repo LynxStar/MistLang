@@ -2,14 +2,14 @@ using System;
 
 async System.Threading.Tasks.Task<int> SlowCompute()
 {
-    var __e3 = System.Threading.Tasks.Task.Yield();
+    var __e1 = System.Threading.Tasks.Task.Yield();
     try
     {
         return 42;
     }
     finally
     {
-        await __e3;
+        await __e1;
     }
 }
 async System.Threading.Tasks.Task Main()
@@ -17,7 +17,7 @@ async System.Threading.Tasks.Task Main()
     System.Threading.Tasks.Task<int> task = SlowCompute();
     try
     {
-        var __e4 = System.Threading.Tasks.Task.Yield();
+        var __e2 = System.Threading.Tasks.Task.Yield();
         try
         {
             int result = await task;
@@ -25,7 +25,7 @@ async System.Threading.Tasks.Task Main()
         }
         finally
         {
-            await __e4;
+            await __e2;
         }
     }
     finally

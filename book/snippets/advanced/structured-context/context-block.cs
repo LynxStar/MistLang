@@ -31,8 +31,8 @@ public class Program
             {
                 Console.WriteLine(Snippet.Consumers.GetInt());
                 {
-                    var __e2 = 99;
-                    MistContext.Push<int>(__e2);
+                    var __e1 = 99;
+                    MistContext.Push<int>(__e1);
                     try
                     {
                         Console.WriteLine(Snippet.Consumers.GetInt());

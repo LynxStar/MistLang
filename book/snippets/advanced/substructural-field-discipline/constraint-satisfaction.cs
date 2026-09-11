@@ -66,8 +66,8 @@ public class Program
     public static void Main()
     {
         {
-            var __e5 = new Snippets.AffineHolder<Snippets.Connection>(new Snippets.Connection(1));
-            MistContext.Push<Snippets.AffineHolder<Snippets.Connection>>(__e5);
+            var __e1 = new Snippets.AffineHolder<Snippets.Connection>(new Snippets.Connection(1));
+            MistContext.Push<Snippets.AffineHolder<Snippets.Connection>>(__e1);
             try
             {
                 Console.WriteLine("Linear type in affine box");
@@ -75,7 +75,7 @@ public class Program
             finally
             {
                 MistContext.Pop<Snippets.AffineHolder<Snippets.Connection>>();
-                __e5.Drop();
+                __e1.Drop();
             }
         }
         Snippets.RelevantHolder<Snippets.Connection> r = new Snippets.RelevantHolder<Snippets.Connection>(new Snippets.Connection(2));

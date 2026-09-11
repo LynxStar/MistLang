@@ -13,7 +13,7 @@ public interface IProducer<Output>
     Output CreateOutput(string msg);
 }
 
-class MessageProducer : Snippet.IProducer<Snippet.MessageProducer.Output>
+internal class MessageProducer : Snippet.IProducer<Snippet.MessageProducer.Output>
 {
     public Snippet.MessageProducer.Output CreateOutput(string msg)
     {

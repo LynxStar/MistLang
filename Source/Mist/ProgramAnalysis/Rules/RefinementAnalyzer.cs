@@ -241,6 +241,11 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                         Need(state, assignment.Value, assignment.Target.Type, assignment.Value);
                     }
 
+                    if(assignment.Target is IndexExpression written)
+                    {
+                        NeedIndex(state, written);
+                    }
+
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: ReturnStatement { Value: { } value, TargetType: { } target } }:

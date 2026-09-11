@@ -222,6 +222,24 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
     }
 
     [Theory]
+    [InlineData("var a = new int[3]; a[0] = 1; a[2] = a[0];")]
+    [InlineData("var a = new int[3]; for(var i = 0; i < a.Length; i = i + 1) { a[i] = i; }")]
+    [InlineData("if(x >= 0 && x < items.Length) { items[x] = 1; }")]
+    [InlineData("var b = new Buffer(); b[4] = 1;")]
+    public void AnIndexWriteTheFlowProves_IsAdmitted(string statement)
+    {
+        AssertSilent(statement);
+    }
+
+    [Theory]
+    [InlineData("int[] items = new int[3]; public void Run() { for(int i = 0; i < items.Length; i = i + 1) { items[i] = i; } }")]
+    [InlineData("int[] items = new int[3]; public void Run(int i) { if(i >= 0 && i < this.items.Length) { this.items[i] = 1; } }")]
+    public void AnIndexWriteIntoAFieldHeldArrayTheFlowProves_IsAdmitted(string members)
+    {
+        AssertSilent("var held = new Held();", $"public class Held {{ {members} }}");
+    }
+
+    [Theory]
     [InlineData("Console.WriteLine(Helpers.Twice(30));")]
     [InlineData("Console.WriteLine(Helpers.Twice(adult) + Helpers.Twice(drinking));")]
     [InlineData("int y = 40; Console.WriteLine(Helpers.Twice(y));")]

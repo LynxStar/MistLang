@@ -332,7 +332,7 @@ public class LookupTable
     public int this[int index]
     {
         get { if(index >= 0 && index < data.Length) { return data[index]; } return 0; }
-        set { data[index] = value; }
+        set { if(index >= 0 && index < data.Length) { data[index] = value; } }
     }
 }
 ```

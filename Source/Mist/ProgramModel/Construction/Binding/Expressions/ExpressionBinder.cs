@@ -313,7 +313,9 @@ internal static class ExpressionBinder
             type,
             OwnedProvenance.AtParameters(settled, choice.Selected?.ParametersList),
             choice.Selected,
-            ObjectInitializerBinder.Bind(initializer, type, ctx, context));
+            ObjectInitializerBinder.Bind(initializer, type, ctx, context),
+            choice.Selected?.ParametersList.ConvertAll(
+                parameter => choice.Substitution.Apply(parameter.Type, context.ProgramModel.TypeInterner)));
     }
 
     /// <summary>
@@ -393,8 +395,8 @@ internal static class ExpressionBinder
     {
         var elementType = ResolveElementType(node.Type, ctx, context);
         var size = BindExpression(node.Size, ctx, context);
-        // The size is an arbitrary expression, so the length is not statically known.
-        var arrayType = context.Resolver.ConstructArray(elementType, null);
+        var length = size is LiteralExpression { Value: long written } && written <= int.MaxValue ? (int?)written : null;
+        var arrayType = context.Resolver.ConstructArray(elementType, length);
         return new ArrayCreationExpression(node, elementType, size, arrayType);
     }
 

@@ -1,0 +1,14 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static void Main()
+    {
+        string s = "abc";
+        // REFUSE: MIST_PA_CAST_REQUIRED
+        regex r = s;
+        Console.WriteLine("unreachable");
+    }
+}

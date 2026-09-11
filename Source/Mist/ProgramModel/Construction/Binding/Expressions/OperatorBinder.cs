@@ -24,18 +24,23 @@ internal static class OperatorBinder
             return left;
         }
 
-        // Each link un-lifts: the result is the non-void portion of its left operand, and the
-        // right operand binds against that portion, since it supplies a value exactly when the
-        // left holds absence.
+        // Each link un-lifts: the right operand binds against the non-void portion of its left, since it
+        // supplies a value exactly when the left holds absence -- and the link IS that portion unless the
+        // right operand is itself still optional, in which case the absence survives to the next link.
         foreach(var operand in node.LogicalOrs)
         {
-            var resultType = OptionalLifting.NonVoidPortion(left.Type, context.ProgramModel.TypeInterner);
+            var interner = context.ProgramModel.TypeInterner;
+            var portion = OptionalLifting.NonVoidPortion(left.Type, interner);
 
             Expression right;
-            using(ctx.PushTargetType(resultType))
+            using(ctx.PushTargetType(portion))
             {
                 right = BindLogicalOr(operand, ctx, context);
             }
+
+            var resultType = OptionalUnion.ContainsVoid(right.Type)
+                ? OptionalLifting.Lift(portion, context.Resolver.LookupWellKnown(WellKnownTypes.Void), interner)
+                : portion;
 
             left = new CoalesceExpression(node, left, right, resultType);
         }
@@ -56,7 +61,7 @@ internal static class OperatorBinder
         foreach(var operand in node.LogicalAnds)
         {
             var right = BindLogicalAnd(operand, ctx, context);
-            left = MakeBinary(node, left, BinaryOperatorKind.LogicalOr, right);
+            left = MakeBinary(node, left, BinaryOperatorKind.LogicalOr, right, context);
         }
 
         return left;
@@ -74,7 +79,7 @@ internal static class OperatorBinder
         foreach(var operand in node.Equalitys)
         {
             var right = BindEquality(operand, ctx, context);
-            left = MakeBinary(node, left, BinaryOperatorKind.LogicalAnd, right);
+            left = MakeBinary(node, left, BinaryOperatorKind.LogicalAnd, right, context);
         }
 
         return left;
@@ -89,7 +94,7 @@ internal static class OperatorBinder
         {
             var op = MapOperator(group.Operator.Lexeme);
             var right = BindRelational(group.Right, ctx, context);
-            left = MakeBinary(node, left, op, right);
+            left = MakeBinary(node, left, op, right, context);
         }
 
         return left;
@@ -113,7 +118,7 @@ internal static class OperatorBinder
                     {
                         var op = MapOperator(group.Operator.Lexeme);
                         var right = BindAdditive(group.Right, ctx, context);
-                        left = MakeBinary(node, left, op, right);
+                        left = MakeBinary(node, left, op, right, context);
                     }
 
                     return left;
@@ -244,7 +249,7 @@ internal static class OperatorBinder
         {
             var op = MapOperator(group.Operator.Lexeme);
             var right = BindMultiplicative(group.Right, ctx, context);
-            left = MakeBinary(node, left, op, right);
+            left = MakeBinary(node, left, op, right, context);
         }
 
         return left;
@@ -258,7 +263,7 @@ internal static class OperatorBinder
         {
             var op = MapOperator(group.Operator.Lexeme);
             var right = BindRange(group.Right, ctx, context);
-            left = MakeBinary(node, left, op, right);
+            left = MakeBinary(node, left, op, right, context);
         }
 
         return left;
@@ -399,7 +404,9 @@ internal static class OperatorBinder
     {
         var body = new Block(bodyNode);
         var enclosingIsAsync = ctx.IsAsyncContext;
+        var enclosingReturn = ctx.ReturnType;
         ctx.IsAsyncContext = true;
+        ctx.ReturnType = null;
 
         try
         {
@@ -408,6 +415,7 @@ internal static class OperatorBinder
         finally
         {
             ctx.IsAsyncContext = enclosingIsAsync;
+            ctx.ReturnType = enclosingReturn;
         }
 
         var produced = LambdaBinder.InferredReturnType(body, node, context)
@@ -430,30 +438,79 @@ internal static class OperatorBinder
         return operand is AwaitExpression { IsImplicit: true } inserted ? inserted.Operand : operand;
     }
 
-    private static BinaryExpression MakeBinary(Storm.Runtime.SyntaxNode node, Expression left, BinaryOperatorKind op, Expression right)
+    private static BinaryExpression MakeBinary(
+        Storm.Runtime.SyntaxNode node, Expression left, BinaryOperatorKind op, Expression right, BuilderContext context)
     {
-        var resultType = InferBinaryResultType(left, op);
-        return new BinaryExpression(node, left, op, right, resultType);
+        return new BinaryExpression(node, left, op, right, BinaryResultType(left, op, right, context));
     }
 
     /// <summary>
-    /// Infers the result type of a binary operation. Simplified: comparison/logical
-    /// operators produce bool, arithmetic produces the left operand's type.
+    /// A comparison or logical operator produces bool, a concatenation a string, and arithmetic over
+    /// two primitives the wider of the two by C#'s own promotion. Anything else -- an enum, a
+    /// refinement, a type with operators of its own -- keeps the left operand's type, since the
+    /// operator is emitted as written and Roslyn decides it again.
     /// </summary>
-    private static IMistType InferBinaryResultType(Expression left, BinaryOperatorKind op)
+    private static IMistType BinaryResultType(Expression left, BinaryOperatorKind op, Expression right, BuilderContext context)
     {
         return op switch
         {
-            BinaryOperatorKind.Equal or
-            BinaryOperatorKind.NotEqual or
-            BinaryOperatorKind.LessThan or
-            BinaryOperatorKind.GreaterThan or
-            BinaryOperatorKind.LessThanOrEqual or
-            BinaryOperatorKind.GreaterThanOrEqual or
-            BinaryOperatorKind.LogicalAnd or
-            BinaryOperatorKind.LogicalOr => left.Type, // Should be Boolean — use left for now
-            _ => left.Type, // Arithmetic: result is same type as operands
+            BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual
+                or BinaryOperatorKind.LessThan or BinaryOperatorKind.GreaterThan
+                or BinaryOperatorKind.LessThanOrEqual or BinaryOperatorKind.GreaterThanOrEqual
+                or BinaryOperatorKind.LogicalAnd or BinaryOperatorKind.LogicalOr
+                => context.Resolver.LookupWellKnown(WellKnownTypes.Boolean),
+            BinaryOperatorKind.Concatenate => context.Resolver.LookupWellKnown(WellKnownTypes.String),
+            BinaryOperatorKind.Add when IsWellKnown(left.Type, WellKnownTypes.String) || IsWellKnown(right.Type, WellKnownTypes.String)
+                => context.Resolver.LookupWellKnown(WellKnownTypes.String),
+            _ => Promoted(left.Type, right.Type) is { } promoted ? context.Resolver.LookupWellKnown(promoted) : left.Type,
         };
+    }
+
+    private static readonly WellKnownType[] NumericPromotionOrder =
+    [
+        WellKnownTypes.Decimal, WellKnownTypes.Double, WellKnownTypes.Single,
+        WellKnownTypes.UInt64, WellKnownTypes.Int64, WellKnownTypes.UInt32,
+    ];
+
+    private static readonly WellKnownType[] IntegralOperands =
+    [
+        WellKnownTypes.Int32, WellKnownTypes.Int16, WellKnownTypes.SByte, WellKnownTypes.Byte,
+        WellKnownTypes.UInt16, WellKnownTypes.Char,
+    ];
+
+    private static WellKnownType? Promoted(IMistType left, IMistType right)
+    {
+        if(!IsNumeric(left) || !IsNumeric(right))
+        {
+            return null;
+        }
+
+        foreach(var candidate in NumericPromotionOrder)
+        {
+            if(IsWellKnown(left, candidate) || IsWellKnown(right, candidate))
+            {
+                var other = IsWellKnown(left, candidate) ? right : left;
+
+                return candidate == WellKnownTypes.UInt32 && IsSigned(other) ? WellKnownTypes.Int64 : candidate;
+            }
+        }
+
+        return WellKnownTypes.Int32;
+    }
+
+    private static bool IsNumeric(IMistType type)
+    {
+        return NumericPromotionOrder.Concat(IntegralOperands).Any(candidate => IsWellKnown(type, candidate));
+    }
+
+    private static bool IsSigned(IMistType type)
+    {
+        return IsWellKnown(type, WellKnownTypes.Int32) || IsWellKnown(type, WellKnownTypes.Int16) || IsWellKnown(type, WellKnownTypes.SByte);
+    }
+
+    private static bool IsWellKnown(IMistType type, WellKnownType wellKnown)
+    {
+        return type.FullyQualifiedName == wellKnown.FullyQualifiedName;
     }
 
     private static BinaryOperatorKind MapOperator(string? lexeme)

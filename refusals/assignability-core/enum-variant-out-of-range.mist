@@ -1,0 +1,15 @@
+using Standard;
+
+namespace Refusal;
+
+// REFUSE: MIST_PA_NO_IMPLICIT_CONVERSION
+public enum Small : byte { A = 300 }
+
+public class Probe
+{
+    public static void Main()
+    {
+        Console.WriteLine(Small.A);
+        Console.WriteLine("unreachable");
+    }
+}

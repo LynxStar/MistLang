@@ -1,0 +1,18 @@
+using Standard;
+
+namespace Refusal;
+
+public class Box
+{
+    public Box(int count) { }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_NO_IMPLICIT_CONVERSION
+        var b = new Box("a");
+        Console.WriteLine("unreachable");
+    }
+}

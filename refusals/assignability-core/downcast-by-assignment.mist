@@ -1,0 +1,22 @@
+using Standard;
+
+namespace Refusal;
+
+public class Animal
+{
+}
+
+public class Dog : Animal
+{
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        Animal animal = new Dog();
+        // REFUSE: MIST_PA_NO_IMPLICIT_CONVERSION
+        Dog dog = animal;
+        Console.WriteLine("unreachable");
+    }
+}

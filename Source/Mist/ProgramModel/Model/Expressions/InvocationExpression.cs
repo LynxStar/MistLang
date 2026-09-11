@@ -13,7 +13,8 @@ internal sealed class InvocationExpression(
     Expression receiver,
     IReadOnlyList<Expression> arguments,
     IMistType type,
-    Method? method) : Expression(node)
+    Method? method,
+    IReadOnlyList<IMistType>? parameterTypes) : Expression(node)
 {
     /// <summary>
     /// The expression being invoked (a method reference, member access, or delegate value).
@@ -35,6 +36,14 @@ internal sealed class InvocationExpression(
     /// </para>
     /// </summary>
     public Method? Method { get; } = method;
+
+    /// <summary>
+    /// The type each argument position was bound against, read through the call's own substitution:
+    /// the selected overload's parameters with its type arguments applied, or a function value's
+    /// parameter types. Null when the callee named nothing to read them off. Recorded for the reason
+    /// <see cref="Method"/> is, and because the substitution that produced them is not.
+    /// </summary>
+    public IReadOnlyList<IMistType>? ParameterTypes { get; } = parameterTypes;
 
     public override IMistType Type { get; } = type;
 }

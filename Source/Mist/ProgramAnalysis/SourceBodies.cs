@@ -1,4 +1,3 @@
-using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -8,46 +7,34 @@ namespace Mist.ProgramAnalysis;
 
 /// <summary>
 /// Every root under which the project's own source holds code -- member bodies, constructor chains,
-/// accessors, initializers, default blocks, enum values, extension blocks and top-level statements.
-/// <para>
-/// SCOPED AS EMISSION IS: source assemblies other than Standard. Standard's code is the library's, and
-/// a finding there lands on a file nobody in the project wrote. Nested types are absent from a unit's
-/// type list by design, so they are reached through their declaring type.
-/// </para>
+/// accessors, initializers, default blocks, enum values, extension blocks and top-level statements --
+/// over the declarations <see cref="SourceTypes"/> scopes.
 /// </summary>
 internal static class SourceBodies
 {
     public static IEnumerable<object> Of(ProgramModelClass model)
     {
-        foreach(var assembly in model.Assemblies)
+        foreach(var unit in SourceTypes.UnitsOf(model))
         {
-            if(!assembly.HasMistSource || assembly.Kind == MistAssemblyKind.Standard)
+            if(unit.TopLevelMethod?.Body is { } topLevel)
             {
-                continue;
+                yield return topLevel;
             }
+        }
 
-            foreach(var unit in assembly.CompilationUnits)
+        foreach(var type in SourceTypes.Of(model))
+        {
+            foreach(var root in OfType(type))
             {
-                if(unit.TopLevelMethod?.Body is { } topLevel)
-                {
-                    yield return topLevel;
-                }
+                yield return root;
+            }
+        }
 
-                foreach(var type in unit.Types)
-                {
-                    foreach(var root in OfType(type))
-                    {
-                        yield return root;
-                    }
-                }
-
-                foreach(var block in unit.Extensions)
-                {
-                    foreach(var root in OfExtension(block))
-                    {
-                        yield return root;
-                    }
-                }
+        foreach(var block in SourceTypes.ExtensionsOf(model))
+        {
+            foreach(var root in OfExtension(block))
+            {
+                yield return root;
             }
         }
     }
@@ -69,14 +56,6 @@ internal static class SourceBodies
                 {
                     yield return value;
                 }
-            }
-        }
-
-        foreach(var nested in type.NestedTypes)
-        {
-            foreach(var root in OfType(nested))
-            {
-                yield return root;
             }
         }
     }

@@ -341,7 +341,7 @@ internal static class StatementBinder
     {
         if(returnStatement.Value is null)
         {
-            return new ReturnStatement(value: null);
+            return new ReturnStatement(value: null, targetType: ctx.ReturnType);
         }
 
         Expression value;
@@ -350,7 +350,7 @@ internal static class StatementBinder
             value = ExpressionBinder.BindExpression(returnStatement.Value, ctx, context);
         }
 
-        return new ReturnStatement(value, returnStatement.RefKeyword is not null);
+        return new ReturnStatement(value, ctx.ReturnType, returnStatement.RefKeyword is not null);
     }
 
     private static IfStatement BindIf(IfStatementNode node, BindingContext ctx, BuilderContext context)

@@ -60,7 +60,7 @@ internal static class ObjectInitializerBinder
             value = ExpressionBinder.BindExpression(named.Value, ctx, context);
         }
 
-        bound.Add(new ObjectInitializerAssignment(named, memberName, value));
+        bound.Add(new ObjectInitializerAssignment(named, memberName, value, target));
     }
 
     /// <summary>
@@ -104,7 +104,7 @@ internal static class ObjectInitializerBinder
             return;
         }
 
-        bound.Add(new ObjectInitializerAssignment(assignment, memberName: null, value, choice.Selected));
+        bound.Add(new ObjectInitializerAssignment(assignment, memberName: null, value, targetType: null, choice.Selected));
     }
 
     private static ExpressionNode? Expression(PropertyAssignmentNode assignment)

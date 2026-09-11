@@ -3,6 +3,7 @@
 // ConversionRelation declines, stated -- so a changed answer is a changed language, and the reasons are
 // recorded once, on order 4 of backlog/analysis-v2-capability-progression.yaml.
 
+using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Statements;
@@ -65,6 +66,12 @@ public sealed class ConversionClassifierTests : ProgramModelProbe
         type Meters = new double;
         type Feet = new double;
         type AdultAge = int >= 18;
+        type PositiveInt = int > 0;
+        type Pred<T> = func<T, bool>;
+
+        public class Sized<Count:PositiveInt>
+        {
+        }
         """;
 
     protected override string Preamble { get; } = """
@@ -86,6 +93,11 @@ public sealed class ConversionClassifierTests : ProgramModelProbe
         AdultAge adult = (AdultAge)20;
         Celsius celsius = new Celsius();
         Kelvin kelvin = new Kelvin();
+        int[] arr = [1, 2];
+        var lit = [1, 2];
+        int[2] two = [1, 2];
+        int[3] three = [1, 2, 3];
+        func<int, bool> even = x => true;
         """;
 
     [Theory]
@@ -114,6 +126,11 @@ public sealed class ConversionClassifierTests : ProgramModelProbe
     [InlineData("i", "adult", "Explicit")]
     [InlineData("celsius", "kelvin", "Explicit")]
     [InlineData("kelvin", "celsius", "None")]
+    [InlineData("lit", "arr", "Implicit")]
+    [InlineData("two", "arr", "Implicit")]
+    [InlineData("arr", "lit", "None")]
+    [InlineData("lit", "two", "Identity")]
+    [InlineData("two", "three", "None")]
     public void TheClassificationBetweenTwoLocalsIsTheStatedOne(string from, string to, string expected)
     {
         var types = LocalTypes();
@@ -133,6 +150,73 @@ public sealed class ConversionClassifierTests : ProgramModelProbe
         Assert.Equal(ConversionKind.Implicit, ConversionClassifier.Classify(parameter, animal));
         Assert.Equal(ConversionKind.None, ConversionClassifier.Classify(animal, parameter));
         Assert.Equal(ConversionKind.None, ConversionClassifier.Classify(parameter, dog));
+    }
+
+    [Fact]
+    public void AValueParameterIsWithinItsDomain()
+    {
+        var model = BuildModel("", extraTypes: "", extraPreamble: "", out _);
+        var count = Assert.Single(((ClassType)model.TypesByFQN["Probe.Sized<>"]).TypeParametersList);
+        var integer = model.TypesByFQN[WellKnownTypes.Int32.FullyQualifiedName];
+
+        Assert.Equal(ConversionKind.Implicit, ConversionClassifier.Classify(count, integer));
+        Assert.Equal(ConversionKind.None, ConversionClassifier.Classify(integer, count));
+    }
+
+    [Fact]
+    public void AConstructedAliasIsWhatItNamesOnceAnInternerCanExpandIt()
+    {
+        var model = BuildModel("", extraTypes: "", extraPreamble: "", out _);
+        var integer = model.TypesByFQN[WellKnownTypes.Int32.FullyQualifiedName];
+        var unexpanded = model.TypeInterner.GetOrCreateConstructedType(model.TypesByFQN["Probe.Pred<>"], [integer]);
+        var function = ((ClassType)model.TypesByFQN["Probe.Probe"]).MethodsList.Single(m => m.Name == "Run").Body!
+            .Statements.OfType<LocalDeclarationStatement>()
+            .Single(declaration => declaration.Local.Name == "even").Local.Type;
+
+        Assert.Equal(ConversionKind.Identity, ConversionClassifier.Classify(function, unexpanded, model.TypeInterner));
+        Assert.Equal(ConversionKind.Identity, ConversionClassifier.Classify(unexpanded, function, model.TypeInterner));
+        Assert.Equal(ConversionKind.None, ConversionClassifier.Classify(function, unexpanded));
+    }
+
+    [Fact]
+    public void AFunctionTypeAndADelegateOfTheSameShapeReachEachOther()
+    {
+        var model = Build(
+            """
+            namespace System;
+
+            public class MulticastDelegate
+            {
+            }
+
+            public class Predicate<T> : MulticastDelegate
+            {
+                public bool Invoke(T value) { return true; }
+            }
+
+            public class Comparison<T> : MulticastDelegate
+            {
+                public int Invoke(T left, T right) { return 0; }
+            }
+
+            public class Probe
+            {
+                public static void Run()
+                {
+                    func<int, bool> even = x => true;
+                    Predicate<int> named = new Predicate<int>();
+                    Comparison<int> other = new Comparison<int>();
+                }
+            }
+            """,
+            out _);
+        var locals = ((ClassType)model.TypesByFQN["System.Probe"]).MethodsList.Single(m => m.Name == "Run").Body!
+            .Statements.OfType<LocalDeclarationStatement>()
+            .ToDictionary(declaration => declaration.Local.Name, declaration => declaration.Local.Type);
+
+        Assert.Equal(ConversionKind.Implicit, ConversionClassifier.Classify(locals["even"], locals["named"]));
+        Assert.Equal(ConversionKind.Implicit, ConversionClassifier.Classify(locals["named"], locals["even"]));
+        Assert.Equal(ConversionKind.None, ConversionClassifier.Classify(locals["even"], locals["other"]));
     }
 
     [Fact]

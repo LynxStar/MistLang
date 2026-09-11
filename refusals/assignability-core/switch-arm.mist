@@ -1,0 +1,18 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static void Main()
+    {
+        bool flag = true;
+        string s = flag switch
+        {
+            // REFUSE: MIST_PA_NO_IMPLICIT_CONVERSION
+            true => 1,
+            false => "b",
+        };
+        Console.WriteLine("unreachable");
+    }
+}

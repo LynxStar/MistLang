@@ -296,7 +296,8 @@ internal static class PostfixBinder
         return AutoAwait(
             new InvocationExpression(
                 node, callee, OwnedProvenance.AtParameters(bound, selected.ParametersList),
-                returnType, selected),
+                returnType, selected,
+                selected.ParametersList.ConvertAll(parameter => choice.Substitution.Apply(parameter.Type, interner))),
             ctx,
             context);
     }
@@ -345,7 +346,7 @@ internal static class PostfixBinder
         if(receiver.Type is not IFunctionType function)
         {
             var untargeted = ArgumentBinder.Bind(arguments, ctx, context);
-            return new InvocationExpression(node, receiver, untargeted, receiver.Type, null);
+            return new InvocationExpression(node, receiver, untargeted, receiver.Type, null, parameterTypes: null);
         }
 
         var bound = ArgumentBinder.BindTargeted(arguments, function.ParameterTypes, ctx, context);
@@ -363,7 +364,7 @@ internal static class PostfixBinder
         // the call produces and where it sits, and a delegate returning a task is a task-returning
         // call however it was reached.
         return AutoAwait(
-            new InvocationExpression(node, receiver, bound, function.ReturnType, null), ctx, context);
+            new InvocationExpression(node, receiver, bound, function.ReturnType, null, function.ParameterTypes), ctx, context);
     }
 
     /// <summary>

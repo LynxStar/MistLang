@@ -1,0 +1,17 @@
+using Standard;
+
+namespace Refusal;
+
+type Meters = new double;
+type Feet = new double;
+
+public class Probe
+{
+    public static void Main()
+    {
+        Feet f = (Feet)2.0;
+        // REFUSE: MIST_PA_NO_IMPLICIT_CONVERSION
+        Meters m = f;
+        Console.WriteLine("unreachable");
+    }
+}

@@ -326,38 +326,116 @@ rules:
     order: 5
     subsystem: typechecker
     requires: [total-conversion-classification]
-    status: missing
+    status: done
     from: >
       orders 46, 64, 78, 79, 81, 86, 88, 95, 116 -- the tasks that all reduce to one question asked at
       different positions
     evidence: >
       NINE TASKS ACROSS SEVEN LAYERS ARE ONE RULE AT SEVEN POSITIONS. Classic spreads them over its
-      MIST_TC_0001 and the 0041-0047 family; v2 should ask the question once and report it where it was
-      asked, because the positions are already the places EmitCoerced knows a target type for.
+      MIST_TC_0001 and the 0041-0047 family; v2 asks the question once and reports it where it was asked,
+      because the positions are already the places the binder pushes a target type for.
+
+      CLASSIC'S VERDICTS ARE THE CONTRACT, measured on a 44-case probe with one refusal candidate per
+      method so no failure could cascade into the next. Classic refuses 31 of them; every one of those is
+      refused by v2 at the same construct. The other 13 classic ADMITS AND ROSLYN THEN REFUSES -- a long
+      or double into an int local, an int variable into a byte, a constant out of range, a double literal
+      into a float or decimal, a long literal into an int, a single-candidate argument of the wrong type
+      (unknown included, which order 81 asked for), a lambda result or block return against the target, a
+      constructed generic argument, a deconstruction element, a written enum variant value, and a field
+      or property initializer. Measured a second time by running exactly those through classic's whole
+      pipeline: 23 Roslyn errors, none of them a program that ran. v2 refuses all 13 at Stage 5. This is
+      stricter than classic's analyzer and identical to classic's verdict, and it is the one place this
+      order departs from the never-refuse-what-classic-admits rule on purpose.
+
+      THE RULE. A value may stand at a position when Classify answers identity or implicit; explicit is
+      reported as a missing cast (MIST_PA_CAST_REQUIRED, classic's TC_0001 wording), none as no
+      conversion (MIST_PA_NO_IMPLICIT_CONVERSION). Two admits the classification alone would refuse:
+      an integer constant into any integral type it fits, which is C#'s constant conversion and what
+      makes `byte b = 1` a program -- an int constant into sbyte, byte, short, ushort, uint or ulong in
+      range, a long constant into ulong when not negative, never into char, which classic also refuses;
+      and a target that is a refinement over a type the value already belongs to, left to order 12 as its
+      predicate is, since a rule judging it here refused `AdultAge age = 20`, `AdultAge | void`, and
+      DrinkingAge into AdultAge, all of which classic admits.
+
+      THE POSITIONS: local initializer, assignment and coalescing assignment against the target's
+      non-void portion, return against the return target, argument against the selected overload's
+      substituted parameter, constructor argument likewise, initializer entry against the member,
+      coalescing right operand against the link, each switch arm against the switch, each array literal
+      element against the literal's element type, each deconstruction element against its target,
+      an expression-bodied lambda result against the function's result, a typed foreach variable against
+      the collection's element, a written enum variant value against the base, a field or property
+      initializer against its declaration, and an expression-bodied getter against the property. Four of
+      those targets the binder knew and dropped, so the model now carries them: ReturnStatement.TargetType,
+      InvocationExpression.ParameterTypes and NewExpression.ParameterTypes read through the call's own
+      substitution, and ObjectInitializerAssignment.TargetType.
+
+      THE SWEEP WAS THE WORK. The first run reported 44 findings across the 72 banked samples, every one
+      a typing gap emission never needed and a checker cannot stand on. Each was fixed at its source
+      rather than carved out of the rule: a comparison or logical operator now types as bool, a
+      concatenation as string, and primitive arithmetic by C#'s promotion, where all of them took the left
+      operand's type; a `??` whose right operand is still optional stays optional, so a chain closes at
+      its last link and `int c = opt ?? o3` is refused at the local as classic refuses it; an untargeted
+      block-bodied lambda, and an async block, no longer inherit the enclosing method's return type for
+      their own returns;
+      `new int[3]` carries its length; a projected System.Span<T> gains the unknown length its Mist
+      declaration has a slot for, as a projected array always did; the classifier looks through a type
+      alias, admits a value parameter into its domain, expands a constructed alias when handed the
+      interner so `Action<int>` is the function type it names, holds a sized array within the unsized one
+      by absorbing a lifted length into an unknown-value slot, and treats a structural function type and
+      a CLR delegate of the same Invoke shape as within each other, the crossing DelegateLowering
+      materialises -- whose shape logic moved into the model as DelegateShape so the two agree by
+      construction. A nested refinement is unwrapped before the prover carve-out asks about its base.
+
+      DIVERGENCES, all more permissive than classic and all compiling in C#: a typed foreach variable
+      admits a widening, where classic demands the element type exactly; a switch whose arms are int and
+      string is admitted into an `int | string` or `unknown` target, where classic demands one arm type
+      regardless of target; a chained `??` is admitted, where classic refuses any chain outright;
+      `Task<int> t = Async()` is admitted because the position wants the task, where classic auto-awaits
+      and refuses; and `return v` with `T : Animal` from a method returning Animal is admitted, the
+      assignability form of order 4's first divergence.
+
+      NOT JUDGED, each on purpose: an argument to a CLR-projected member, because the model does not
+      represent CLR optional parameters and so can select an overload by arity that Roslyn will not --
+      `builder.UseNpgsql("...")` named the (Action) overload; an argument absorbed by a flattened pack
+      slot; a collection-initializer element, whose Add overload the binder already selects; a return
+      whose target is void, which is order 6's question; and a constructor chain's arguments, since no
+      chained constructor is recorded.
+
+      MEASURED: zero findings and identical stdout on AllFeaturesV2 and on AllFeatures, and on
+      CSharpInteropV2 and DelegateFuncConversion built standalone; samples/Testing cannot be measured on
+      v2 because its ambient projection throws at HEAD before any rule runs, recorded in backlog/general.md.
+      39 corpus cases, one per refused shape. 71 decision rows pinning the admits, the divergences and the
+      three reach facts, with a fixture whose bodies exercise a value parameter's domain, an async int
+      return, an untargeted lambda in an int method, and a constrained T returned as its constraint.
+      Classifier rows for sized and unsized arrays, and facts for a value parameter's domain, alias
+      expansion under an interner, and the delegate crossing. Sixteen mutations, each on a confirmed
+      build: rule silenced, constant fit removed, refinement carve-out removed, explicit reported as
+      none, array-length and delegate-shape and alias-expansion and value-domain rules removed one at a
+      time, return and argument targets not recorded, the lambda and coalesce and comparison and
+      array-creation fixes reverted, enum values and initializer entries not judged. Fifteen were caught
+      on the first pass; alias expansion SURVIVED, because the alias the fact wrote in source was
+      expanded by the resolver before the classifier saw it. The fact now constructs the alias through
+      the interner unexpanded, as a projected `Action<int>` parameter arrives, and the rerun caught it.
     tasks:
       - >
-        Assignment and local initialization, which is classic's MIST_TC_0001 -- and note v2 currently
-        refuses NONE of it: `int x = 1; string s = "a"; x = s;` reaches Roslyn. Measured 2026-09-10.
+        CLR optional parameters are not representable, so arity can select an overload Roslyn will not;
+        until they are, no argument to a CLR-projected member is judged, and the `UseNpgsql` call in
+        samples/CSharpInteropV2 is the case to prove it on.
       - >
-        An argument against its parameter type, once overload-resolution-by-argument-type can name one,
-        so unknown cannot enter a concrete parameter. Order 81's task.
+        A collection-initializer element is not judged against the Add overload the binder selected,
+        and a constructor chain's arguments have no chained constructor to be judged against.
       - >
-        A newtype against its source and across newtypes, which needs a cast. Order 86's task.
+        Arithmetic whose operands are not both primitives keeps the left operand's type, so `int x = money
+        * 2` with a user operator returning something else is a false negative, never a false positive.
       - >
-        A switch arm result against the target type. Order 95's task.
+        A return with a value in a void method, and a top-level `return 0`, carry a void target and are
+        skipped here; order 6 owns the declaration-shape refusal.
       - >
-        A coalescing right operand against the left's non-void portion, and a second un-lift in a chain
-        once the void is gone. Order 79's task.
+        `int c = opt ?? o3` is refused at the local, since the link is now optional; classic blamed the
+        right operand. Same verdict, different line.
       - >
-        An object initializer value, plus the rest of classic's MIST_PI_* family: no accessible set or
-        init, readonly field, inaccessible member, duplicate name in one block. Order 64's task.
-      - >
-        A written enum variant value against the base. Order 88's task.
-      - >
-        An explicit foreach element annotation against the inferred element type. Order 116's task.
-      - >
-        A return value against the declared return type, which no emitter task names because emission
-        never needed it -- found while assembling this register.
+        A CLR `System.Object` parameter or local is not a top type to the classifier; invisible today
+        only because every CLR-projected callee is skipped.
 
 # ===================================================================
 # Orders 6 onward -- the typechecker proper, expanded when reached.

@@ -320,3 +320,16 @@ member joined on with `&&`, which the existing `hoisted` list already carries. T
 bindings readable in the rest of the condition as well as in the branch, which classic's hoisted
 statements cannot offer, and every subpattern shape survives because deferring the read defers the
 whole subpattern to the runtime binder.
+
+## `mist build samples/Testing --pipeline experimental` throws before any rule runs
+
+**Severity: medium** -- the only unbanked sample that cannot be measured on v2 at all. The ambient
+projection of `Microsoft.TestPlatform.CoreUtilities` (the `netcoreapp3.1` build under
+`microsoft.testplatform.objectmodel/17.12.0`) throws `TypeLoadException` for
+`System.Diagnostics.CodeAnalysis.NotNullIfNotNullAttribute` inside `ClrNullability.FirstFlag`, and the
+CLI dies with exit code 134. Classic builds the same project cleanly.
+
+**Verified** at `a5b8ec2c` in a clean worktree, so it predates Stage 5's order 5, which found it while
+sweeping the three unbanked samples. Reading attributes off a reference assembly built for an older
+framework needs the metadata-only load path, or the attribute lookup needs to tolerate a type the
+loaded framework does not define.

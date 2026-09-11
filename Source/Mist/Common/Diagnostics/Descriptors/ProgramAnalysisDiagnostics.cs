@@ -21,4 +21,16 @@ public static class ProgramAnalysisDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.Analysis,
         "No conversion is defined from '{0}' to '{1}'. A cast reaches only a type the value already is, or one a declared cast operator reaches; to narrow a value, test it with an 'is' pattern instead.");
+
+    public static readonly DiagnosticDescriptor NoImplicitConversion = new(
+        new DiagnosticId("MIST_PA_NO_IMPLICIT_CONVERSION"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot implicitly convert type '{0}' to '{1}'.");
+
+    public static readonly DiagnosticDescriptor CastRequired = new(
+        new DiagnosticId("MIST_PA_CAST_REQUIRED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot implicitly convert type '{0}' to '{1}'. An explicit cast exists (are you missing a cast?)");
 }

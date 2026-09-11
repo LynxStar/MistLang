@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Resolution;
+using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
@@ -247,6 +248,18 @@ internal sealed class AmbientTypeResolver
         foreach(var clrArg in clrArgs)
         {
             resolvedArgs.Add(Resolve(clrArg, scope));
+        }
+
+        // A span's Mist declaration carries a length the CLR one has no slot for (WellKnownTypeMap says
+        // why), so the CLR arguments fill the leading slots and the length arrives unknown, as an
+        // array's does.
+        if(definition is IGenericDeclaration { TypeParameters.Count: var declared } && declared > resolvedArgs.Count
+            && wellKnownTypes.TryGetValue("System.Int32", out var int32))
+        {
+            while(resolvedArgs.Count < declared)
+            {
+                resolvedArgs.Add(typeInterner.GetOrCreateUnknownValue(int32));
+            }
         }
 
         return typeInterner.GetOrCreateConstructedType(definition, resolvedArgs);

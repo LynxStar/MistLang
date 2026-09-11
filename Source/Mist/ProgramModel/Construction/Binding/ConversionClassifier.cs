@@ -1,3 +1,4 @@
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
@@ -28,7 +29,10 @@ internal enum ConversionKind
 /// its underlying type and reached from it only explicitly -- from any numeric type, for a numeric one,
 /// since C# admits an explicit numeric step into an explicit operator. A newtype and its source reach
 /// each other only explicitly. Those are the conversions the emitter spells as operators, stated here
-/// because the model declares none.
+/// because the model declares none. A constructed type whose argument is an unknown value of some domain
+/// takes any value of that domain in the slot, so a sized array is within the unsized one; and a structural
+/// function type and a CLR delegate with the same Invoke shape are each within the other, the two being
+/// one type that emission alone tells apart.
 /// </para>
 /// <para>
 /// UNCLASSIFIED is not a fifth kind of conversion. It answers for a sentinel standing in for a failure or
@@ -38,10 +42,10 @@ internal enum ConversionKind
 /// </summary>
 internal static class ConversionClassifier
 {
-    public static ConversionKind Classify(IMistType from, IMistType to)
+    public static ConversionKind Classify(IMistType from, IMistType to, TypeInterner? interner = null)
     {
-        from = Normalize(from);
-        to = Normalize(to);
+        from = Normalize(Expanded(from, interner));
+        to = Normalize(Expanded(to, interner));
 
         if(IsSentinel(from) || IsSentinel(to))
         {
@@ -65,11 +69,17 @@ internal static class ConversionClassifier
             ;
     }
 
+    private static IMistType Expanded(IMistType type, TypeInterner? interner)
+    {
+        return interner is null ? type : AliasTransparency.Expand(type, interner);
+    }
+
     private static IMistType Normalize(IMistType type)
     {
         return type switch
         {
             INamedTupleType named => named.Underlying,
+            TypeAlias { AliasedType: { } aliased } => Normalize(aliased),
             LiftedType lifted => Normalize(lifted.Type),
             UnknownValueType value => Normalize(value.Domain),
             _ => type,
@@ -88,7 +98,7 @@ internal static class ConversionClassifier
 
     private static bool Within(IMistType from, IMistType to, HashSet<string> visited)
     {
-        if(ConversionRelation.IsWithin(from, to))
+        if(ConversionRelation.IsWithin(from, to) || AgreesUpToUnknownValues(from, to) || CrossesDelegateShape(from, to))
         {
             return true;
         }
@@ -101,7 +111,8 @@ internal static class ConversionClassifier
         var wider = from switch
         {
             TypeParameter parameter => parameter.ConstraintsList.OfType<TypeConstraint>()
-                .Select(constraint => constraint.ConstraintType),
+                .Select(constraint => constraint.ConstraintType)
+                .Concat(parameter.Domain is { } domain ? new IMistType[] { domain } : []),
             RefinedType refined => [refined.BaseType],
             EnumType { UnderlyingType: { } underlying } => [underlying],
             _ => Bases(from),
@@ -120,7 +131,43 @@ internal static class ConversionClassifier
 
     private static bool Reaches(IMistType from, IMistType to, HashSet<string> visited)
     {
+        from = Normalize(from);
+
         return Same(from, to) || Within(from, to, visited);
+    }
+
+    private static bool AgreesUpToUnknownValues(IMistType from, IMistType to)
+    {
+        if(from is not ConstructedType source
+            || to is not ConstructedType target
+            || !Same(source.Definition, target.Definition)
+            || source.TypeArguments.Count != target.TypeArguments.Count)
+        {
+            return false;
+        }
+
+        for(var i = 0; i < source.TypeArguments.Count; i++)
+        {
+            var argument = source.TypeArguments[i];
+            var slot = target.TypeArguments[i];
+
+            if(!Same(argument, slot)
+                && !(slot is UnknownValueType unknown && argument is LiftedType or UnknownValueType && Same(Normalize(argument), unknown.Domain))
+                && !AgreesUpToUnknownValues(argument, slot))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool CrossesDelegateShape(IMistType from, IMistType to)
+    {
+        return (from is IFunctionType) != (to is IFunctionType)
+            && DelegateShape.Of(from) is { } source
+            && DelegateShape.Of(to) is { } target
+            && DelegateShape.SameShape(source, target);
     }
 
     private static IEnumerable<IMistType> Bases(IMistType type)

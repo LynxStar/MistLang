@@ -1,0 +1,15 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    private static void Take(int v) { }
+
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_NO_IMPLICIT_CONVERSION
+        Take("a");
+        Console.WriteLine("unreachable");
+    }
+}

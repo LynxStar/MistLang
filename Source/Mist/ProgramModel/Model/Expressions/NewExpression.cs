@@ -12,7 +12,8 @@ internal sealed class NewExpression(
     IMistType type,
     IReadOnlyList<Expression> arguments,
     Constructor? constructor,
-    IReadOnlyList<ObjectInitializerAssignment> initializer) : Expression(node)
+    IReadOnlyList<ObjectInitializerAssignment> initializer,
+    IReadOnlyList<IMistType>? parameterTypes) : Expression(node)
 {
     public IReadOnlyList<Expression> Arguments { get; } = arguments;
 
@@ -23,6 +24,12 @@ internal sealed class NewExpression(
     /// reported.
     /// </summary>
     public Constructor? Constructor { get; } = constructor;
+
+    /// <summary>
+    /// The type each argument position was bound against, as <see cref="InvocationExpression.ParameterTypes"/>
+    /// records it for a call. Null when no constructor was selected.
+    /// </summary>
+    public IReadOnlyList<IMistType>? ParameterTypes { get; } = parameterTypes;
 
     public IReadOnlyList<ObjectInitializerAssignment> Initializer { get; } = initializer;
 
@@ -36,7 +43,7 @@ internal sealed class NewExpression(
 /// assignment to a name in scope.
 /// </summary>
 internal sealed class ObjectInitializerAssignment(
-    SyntaxNode node, string? memberName, Expression value, Method? add = null)
+    SyntaxNode node, string? memberName, Expression value, IMistType? targetType, Method? add = null)
 {
     public SyntaxNode Node { get; } = node;
 
@@ -55,4 +62,6 @@ internal sealed class ObjectInitializerAssignment(
     public Method? Add { get; } = add;
 
     public Expression Value { get; } = value;
+
+    public IMistType? TargetType { get; } = targetType;
 }

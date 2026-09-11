@@ -1,0 +1,15 @@
+using Standard;
+
+namespace Refusal;
+
+type Meters = new double;
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_CAST_REQUIRED
+        Meters m = 1.0;
+        Console.WriteLine("unreachable");
+    }
+}

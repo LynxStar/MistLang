@@ -125,7 +125,20 @@ internal static class LambdaBinder
         BuilderContext context)
     {
         var body = new Block(bodyNode);
-        BodyBinder.BindNestedBlock(body, ctx.Scope, ctx, context, bodyTarget);
+
+        // A nested block inherits the enclosing ReturnType where it is handed none, which is right for
+        // a block and wrong for a lambda: an untargeted lambda's returns answer to it alone.
+        var enclosingReturn = ctx.ReturnType;
+        ctx.ReturnType = bodyTarget;
+
+        try
+        {
+            BodyBinder.BindNestedBlock(body, ctx.Scope, ctx, context, bodyTarget);
+        }
+        finally
+        {
+            ctx.ReturnType = enclosingReturn;
+        }
 
         var produced = target?.ReturnType is { } declared && !isAsync
             ? declared

@@ -21,7 +21,7 @@ internal sealed class CastAnalyzer : IProgramAnalyzer
         foreach(var node in context.Nodes)
         {
             if(node is CastExpression cast
-                && ConversionClassifier.Classify(cast.Operand.Type, cast.Type) == ConversionKind.None)
+                && ConversionClassifier.Classify(cast.Operand.Type, cast.Type, context.Model.TypeInterner) == ConversionKind.None)
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.CastHasNoConversion,

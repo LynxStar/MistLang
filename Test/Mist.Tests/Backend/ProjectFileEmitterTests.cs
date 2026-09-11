@@ -22,7 +22,8 @@ public sealed class ProjectFileEmitterTests
         ProjectOutputType outputType = ProjectOutputType.Executable,
         ImmutableArray<NuGetPackageReference> packages = default,
         ImmutableArray<FrameworkReference> frameworkReferences = default,
-        ImmutableArray<CsprojProperty> csprojProperties = default)
+        ImmutableArray<CsprojProperty> csprojProperties = default,
+        bool carriesEntryPoint = false)
     {
         var options = new CompilerOptions(
             ProjectFolder: "probe",
@@ -38,7 +39,7 @@ public sealed class ProjectFileEmitterTests
             CsprojProperties: csprojProperties,
             OutputType: outputType);
 
-        return XDocument.Parse(ProjectFileEmitter.Emit(options));
+        return XDocument.Parse(ProjectFileEmitter.Emit(options, carriesEntryPoint));
     }
 
     private static IEnumerable<string> Items(XDocument project, string element, params string[] attributes)
@@ -79,17 +80,23 @@ public sealed class ProjectFileEmitterTests
     }
 
     [Fact]
-    public void LibraryOutput_SuppressesTheTestSdkGeneratedEntryPoint()
+    public void LibraryOutputCarryingAMain_SuppressesTheTestSdkGeneratedEntryPoint()
     {
         Assert.Equal(
             "false",
-            Emit(ProjectOutputType.Library).Descendants("GenerateProgramFile").Single().Value);
+            Emit(ProjectOutputType.Library, carriesEntryPoint: true).Descendants("GenerateProgramFile").Single().Value);
+    }
+
+    [Fact]
+    public void LibraryOutputCarryingNoMain_LeavesTheTestSdkGeneratedEntryPointAlone()
+    {
+        Assert.Empty(Emit(ProjectOutputType.Library).Descendants("GenerateProgramFile"));
     }
 
     [Fact]
     public void ExecutableOutput_LeavesTheTestSdkGeneratedEntryPointAlone()
     {
-        Assert.Empty(Emit(ProjectOutputType.Executable).Descendants("GenerateProgramFile"));
+        Assert.Empty(Emit(ProjectOutputType.Executable, carriesEntryPoint: true).Descendants("GenerateProgramFile"));
     }
 
     [Fact]

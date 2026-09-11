@@ -104,6 +104,33 @@ public sealed class SamplesCompileAndMatchBaselineTest
     }
 
     /// <summary>
+    /// Tier 5, and the one sample the experimental orchestrator cannot hold: Testing is a library
+    /// with no entry point, so it has no RunDemo to call and no stdout to diff, and its verdict
+    /// comes from the external test runner. The runner's own tally is the assertion, and the
+    /// absence of C# warnings is asserted with it because MSBuild is the only consumer that sees
+    /// them -- the in-process compile does not treat a generated file as generated.
+    /// </summary>
+    [Fact]
+    public async Task Testing_RunsUnderTheTestCommandOnTheExperimentalPipeline()
+    {
+        var repoRoot = FindRepoRoot();
+        var sampleDir = Path.Combine(repoRoot, "samples", "Testing");
+        var cliProjectPath = Path.Combine(repoRoot, "Source", "Mist.CLI", "Mist.CLI.csproj");
+
+        Assert.True(Directory.Exists(sampleDir), $"Sample directory not found: {sampleDir}");
+        Assert.True(File.Exists(cliProjectPath), $"CLI project not found: {cliProjectPath}");
+
+        var (exitCode, stdout, stderr) = await RunMistCli(cliProjectPath, sampleDir, "experimental", command: "test");
+
+        Assert.True(
+            exitCode == 0,
+            $"Testing failed under 'mist test' on the experimental pipeline (exit code {exitCode}).\nStdout:\n{stdout}\nStderr:\n{stderr}");
+        Assert.Matches(@"Passed:\s+5\b", stdout);
+        Assert.Matches(@"Failed:\s+0\b", stdout);
+        Assert.DoesNotContain("warning CS", stdout, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// Verifies that the EnumReadonlyRestriction sample compiles and runs
     /// without errors, producing the expected output demonstrating all
     /// readonly-base enum patterns (primitive, struct, class, name-only,
@@ -235,7 +262,7 @@ public sealed class SamplesCompileAndMatchBaselineTest
     /// </para>
     /// </summary>
     private static async Task<(int ExitCode, string Stdout, string Stderr)> RunMistCli(
-        string cliProjectPath, string sampleDir, string? pipeline = null)
+        string cliProjectPath, string sampleDir, string? pipeline = null, string command = "run")
     {
         var pipelineFlag = pipeline is null ? "" : $" --pipeline {pipeline}";
 
@@ -245,7 +272,7 @@ public sealed class SamplesCompileAndMatchBaselineTest
             {
                 FileName = "dotnet",
                 Arguments =
-                    $"run --project \"{cliProjectPath}\" --no-build -v q -- run \"{sampleDir}\" --quiet{pipelineFlag}",
+                    $"run --project \"{cliProjectPath}\" --no-build -v q -- {command} \"{sampleDir}\" --quiet{pipelineFlag}",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,

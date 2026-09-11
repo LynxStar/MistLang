@@ -10,12 +10,12 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// </summary>
 internal static class ProjectFileEmitter
 {
-    public static string Emit(CompilerOptions options)
+    public static string Emit(CompilerOptions options, bool carriesEntryPoint)
     {
         var outputType = options.OutputType == ProjectOutputType.Executable ? "Exe" : "Library";
 
         var sections = string.Concat(
-            EmitEntryPointSuppression(options.OutputType),
+            EmitEntryPointSuppression(options.OutputType, carriesEntryPoint),
             EmitPropertyGroup(options.CsprojProperties),
             EmitItemGroup(options.Packages, p => $"""<PackageReference Include="{p.Name}" Version="{p.Version}" />"""),
             EmitItemGroup(options.FrameworkReferences, f => $"""<FrameworkReference Include="{f.Name}" />"""));
@@ -37,12 +37,15 @@ internal static class ProjectFileEmitter
     /// <summary>
     /// Every assembly lands in one CLR assembly, so a library that composes an executable
     /// carries that executable's <c>Main</c>. The test SDK synthesizes a second one unless
-    /// told not to, and the two collide as CS0017. Splitting emission per assembly removes
-    /// the need for this; see <c>backlog/multi-project-emission.md</c>.
+    /// told not to, and the two collide as CS0017 -- but told not to when the sources carry
+    /// none, it still turns the output into an executable, and that has no entry point at all
+    /// (CS5001), which is what a plain test project is. So the suppression follows the
+    /// <c>Main</c>. Splitting emission per assembly removes the need for this; see
+    /// <c>backlog/multi-project-emission.md</c>.
     /// </summary>
-    private static string EmitEntryPointSuppression(ProjectOutputType outputType)
+    private static string EmitEntryPointSuppression(ProjectOutputType outputType, bool carriesEntryPoint)
     {
-        if(outputType != ProjectOutputType.Library)
+        if(outputType != ProjectOutputType.Library || !carriesEntryPoint)
         {
             return "";
         }

@@ -42,7 +42,8 @@ Select a pipeline with `--pipeline experimental` (v2); omitting the flag runs cl
 referenced from `samples/AllFeaturesV2/mist.toml`, its `RunDemo()` is called from
 `samples/AllFeaturesV2/Program.mist`, and its output is in
 `samples/__baselines__/AllFeaturesV2.out`. There is deliberately no second place asserting
-greenness.
+greenness. The one sample it cannot hold is `samples/Testing`, a library with no entry point,
+which `Testing_RunsUnderTheTestCommandOnTheExperimentalPipeline` holds under `mist test` instead.
 
 The baseline was captured from classic and is pipeline-independent: both pipelines are held
 to the same stdout. The one exception is `samples/LocalFunctions`, which classic cannot parse:

@@ -73,6 +73,19 @@ internal sealed class CSharpEmitterV2
             return new CompilerResult(false, null, diagnostics.ToImmutableArray());
         }
 
+        if(isTopLevelEntry && options.OutputType == ProjectOutputType.Library)
+        {
+            var files = programModel.Assemblies
+                .SelectMany(assembly => assembly.CompilationUnits)
+                .Where(unit => unit.HasTopLevelStatements)
+                .Select(unit => unit.SourcePath);
+            diagnostics.Report(
+                EntryPointDiagnostics.LibraryWithTopLevelStatements, default, options.ProjectName, (object?)string.Join(", ", files));
+            return new CompilerResult(false, null, diagnostics.ToImmutableArray());
+        }
+
+        var carriesEntryPoint = isTopLevelEntry || programModel.Assemblies.Any(assembly => assembly.EntryPoint is not null);
+
         var outputDir = options.OutputDirectory;
         _ = Directory.CreateDirectory(outputDir);
 
@@ -116,7 +129,7 @@ internal sealed class CSharpEmitterV2
         EmitContextRuntime(outputDir, emittedFiles);
         EmitArrayRuntime(outputDir, emittedFiles);
 
-        var csprojContent = ProjectFileEmitter.Emit(options);
+        var csprojContent = ProjectFileEmitter.Emit(options, carriesEntryPoint);
         var csprojPath = Path.Combine(outputDir, $"{options.ProjectName}.csproj");
         File.WriteAllText(csprojPath, csprojContent);
 
@@ -560,6 +573,7 @@ internal sealed class CSharpEmitterV2
     private static void EmitVoidStruct(string outputDir, List<string> emittedFiles)
     {
         var writer = new CSharpWriter();
+        writer.WriteLine("#nullable enable");
         writer.WriteLine("namespace Standard;");
         writer.WriteBlankLine();
         writer.WriteLine("[System.Runtime.CompilerServices.CompilerGenerated]");

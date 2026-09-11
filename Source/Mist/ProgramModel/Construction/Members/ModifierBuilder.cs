@@ -105,6 +105,23 @@ internal static class ModifierBuilder
     }
 
     /// <summary>
+    /// A MEMBER's modifiers, which inherit the declaring type's <c>readonly</c>: the readonly-contexts
+    /// spec makes every member of a readonly type readonly (Req 8.1), and a member that did not record
+    /// it could not be judged as the context it is. Kept apart from <see cref="Build"/> because that one
+    /// also builds a nested TYPE's modifiers, where the same parameter is the ENCLOSING type and
+    /// readonly does not reach through it.
+    /// </summary>
+    public static MemberModifiers ForMember<TNode>(TNode node, DiagnosticBag diagnostics, MistType? declaringType)
+        where TNode : SyntaxNode, IHasModifiersNode
+    {
+        var modifiers = Build(node, diagnostics, declaringType);
+
+        return declaringType is MemberType { IsReadonly: true }
+            ? modifiers with { IsReadonly = true }
+            : modifiers;
+    }
+
+    /// <summary>
     /// The accessibility a declaration takes when it names none.
     /// <para>
     /// A CONSTRUCTOR IS PUBLIC, WHERE EVERY OTHER MEMBER OF A CLASS OR STRUCT IS PRIVATE. Mist parts

@@ -19,7 +19,7 @@ public struct Circle : Snippet.IShape
         return new Circle(default(Mist.Emission.CSharp.__StructInit));
     }
 
-    public int Area()
+    public readonly int Area()
     {
         return 3;
     }
@@ -46,7 +46,7 @@ public struct Square : Snippet.IShape
         return new Square(default(Mist.Emission.CSharp.__StructInit));
     }
 
-    public int Area()
+    public readonly int Area()
     {
         return 4;
     }

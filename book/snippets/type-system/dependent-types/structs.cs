@@ -15,12 +15,12 @@ public struct FixedSpan<TLength>
         return new FixedSpan<TLength>(default(Mist.Emission.CSharp.__StructInit));
     }
 
-    public int GetLength()
+    public readonly int GetLength()
     {
         return TLength.Value;
     }
 
-    public string Describe()
+    public readonly string Describe()
     {
         return $"FixedSpan<{TLength.Value}>";
     }

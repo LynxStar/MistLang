@@ -988,8 +988,7 @@ rules:
       and a lambda capturing a ref struct, an owned binding, a frozen or borrowed lease, or a readonly
       ref parameter, the last being Roslyn's refusal of an `in` parameter in a lambda.
 
-      NOT ENFORCED, BECAUSE CLASSIC DOES NOT: the readonly-context rules beyond field writes (a mutable
-      call from a readonly method, a readonly block, allocation of a mutable type), the hiding of
+      NOT ENFORCED, BECAUSE CLASSIC DOES NOT: the hiding of
       mutable methods on an owned binding of a non-owned type, field-assignment provenance on an owned
       binding, the cooperation contract of an owned type, an owned binding initialised from a
       non-clonable shared value, per-field jagged ownership beyond shared extraction, lending a frozen
@@ -1026,6 +1025,24 @@ rules:
       The moves and leases inside the body are judged on its nested graph from the state at the
       declaration, exactly as a lambda's are, which shares the lambda's gap: a call before the declaration
       sees the declaration's state. Two corpus cases, an owned binding and a borrowed parameter.
+      THE READONLY-CONTEXT BASE RULES ARE ADOPTED, 2026-09-11, with emitter order 135, which built the
+      inference they were waiting on. The decision they were recorded as -- classic enforces none of them
+      -- was taken FOR adopting, the readonly-contexts spec being the sanctioned input, and the sweep
+      then said what a working program does: AllFeaturesV2 and the four readonly samples standalone
+      report NOTHING, byte-identical stdout, so no banked program calls a mutable member from a readonly
+      context. The rules are base rules 7 to 10 inside any readonly context -- no field written, no
+      setter called, no callee that is not readonly, no allocation through a constructor that is not --
+      plus the readonly BLOCK (Req 9), which is why ReadonlyAnalyzer now walks bodies structurally
+      instead of sweeping nodes: a block turns the context on part-way through, and suspends a
+      constructor's privilege for its extent (Req 11.13). Two privileges cut across: a constructor
+      assigns the fields of its own type and calls its own readonly setters, and a readonly setter writes
+      its backing field. Four corpus cases, one per report, and the admits are decision rows.
+
+      WHAT COUNTS AS READONLY is ReadonlyInference's answer and nothing else. A member with no Mist body
+      -- intrinsic, CLR-projected or abstract -- is readonly only if it SAYS so, which makes the stdlib's
+      readonly TYPES (the primitives, String, Regex) readonly throughout and leaves Console and Math
+      mutable. That is strict enough to refuse `Console.WriteLine` inside a declared readonly method, and
+      no banked sample does it.
     tasks:
       - >
         The ownership-v2 spec is stricter than classic in five places v2 follows classic on: mutable
@@ -1034,10 +1051,19 @@ rules:
         (Req 1.6), and a borrow by call while a frozen lease stands (Req 9.8). Each is measured
         admitted by classic; adopting any is a decision.
       - >
-        The readonly-contexts spec's base rules 7 to 10 -- no mutable call, no setter, no mutable
-        allocation in a readonly context -- and its readonly block (Req 9) are not enforced by classic
-        and not by v2. They need readonly INFERENCE over members, which nothing in v2 computes yet.
-        Whether to build it is a decision.
+        What a readonly PARAMETER constrains is still only the field write through it
+        (MIST_PA_FIELD_ASSIGNED_ON_READONLY_PARAMETER). The readonly-contexts spec also refuses calling a
+        non-readonly method or setter ON one (Req 14.2 and 14.4), which the inference could now answer.
+      - >
+        An INDEXER setter is not judged by base rule 9, and an indexer getter not by rule 8: the model
+        records no indexer for an index access -- IndexExpression carries a receiver and an index, and
+        there is no IndexerResult beside FieldResult and PropertyResult -- so an element write through an
+        array cannot be told from one through a user indexer. Rule 9 reaches property setters only.
+      - >
+        An operator call is not judged. A BinaryExpression records the operator's RESULT TYPE but not the
+        Operator it selected (OperatorAdmissibility answers the type), so a readonly context calling a
+        user operator whose body writes a static field is admitted. Recording the selected operator on
+        the expression is the prerequisite.
       - >
         Per-field jagged ownership (order 158): classic tracks only shared extraction. A move out of an
         owned field, a lease on one, and the composite state of the parent are unmeasured because

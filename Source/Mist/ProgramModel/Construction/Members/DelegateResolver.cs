@@ -38,7 +38,7 @@ internal sealed class DelegateResolver
     public ResolvedDelegate ResolveDelegate<TNode>(TNode node, Scope scope, IMethodHost host, string memberName)
         where TNode : SyntaxNode, IDelegateNode
     {
-        var modifiers = ModifierBuilder.Build(node, context.Diagnostics, host as MistType);
+        var modifiers = ModifierBuilder.ForMember(node, context.Diagnostics, host as MistType);
 
         var parameters = parameterBuilder.Resolve(node.Parameters, scope);
         var body = ResolveBody(node.Body);

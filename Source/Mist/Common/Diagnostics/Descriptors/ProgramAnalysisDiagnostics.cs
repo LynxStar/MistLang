@@ -394,6 +394,30 @@ public static class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "Cannot assign to field '{0}' of readonly parameter '{1}'.");
 
+    public static readonly DiagnosticDescriptor FieldAssignedInReadonlyBlock = new(
+        new DiagnosticId("MIST_PA_FIELD_ASSIGNED_IN_READONLY_BLOCK"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot assign to field '{0}' inside a readonly block, which admits no field write and suspends a constructor's privilege to make one.");
+
+    public static readonly DiagnosticDescriptor ReadonlyContextCallsMutable = new(
+        new DiagnosticId("MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot call '{0}' from readonly {1}: it is not readonly.");
+
+    public static readonly DiagnosticDescriptor ReadonlyContextSetsProperty = new(
+        new DiagnosticId("MIST_PA_READONLY_CONTEXT_SETS_PROPERTY"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot set '{0}' from readonly {1}: a readonly context calls no setter.");
+
+    public static readonly DiagnosticDescriptor ReadonlyContextAllocatesMutable = new(
+        new DiagnosticId("MIST_PA_READONLY_CONTEXT_ALLOCATES_MUTABLE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot allocate '{0}' from readonly {1}: its constructor is not readonly.");
+
     public static readonly DiagnosticDescriptor ReadonlyFieldAssigned = new(
         new DiagnosticId("MIST_PA_READONLY_FIELD_ASSIGNED"),
         DiagnosticSeverity.Error,

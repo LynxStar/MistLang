@@ -25,7 +25,7 @@ public struct Vec2
         return new Vec2(p0, p1, default(Mist.Emission.CSharp.__StructInit));
     }
 
-    public string Describe()
+    public readonly string Describe()
     {
         return $"Vec2({X}, {Y})";
     }

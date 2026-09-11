@@ -25,7 +25,7 @@ public struct Pair<A, B>
         return new Pair<A, B>(p0, p1, default(Mist.Emission.CSharp.__StructInit));
     }
 
-    public string Describe()
+    public readonly string Describe()
     {
         return $"({First}, {Second})";
     }

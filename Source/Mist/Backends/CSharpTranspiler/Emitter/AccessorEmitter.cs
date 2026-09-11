@@ -15,9 +15,10 @@ internal static class AccessorEmitter
     /// Which half of the member this is. Not derivable from the accessor, whose shape is identical
     /// for a getter and a setter -- only the member knows which slot it filled.
     /// </param>
-    public static void Emit(PropertyAccessor accessor, bool isSetter, CSharpWriter writer, DiagnosticBag diagnostics)
+    public static void Emit(
+        PropertyAccessor accessor, bool isSetter, bool isReadonly, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        var header = Header(accessor, isSetter);
+        var header = Header(accessor, isSetter, isReadonly);
 
         if(accessor.Body is { } body)
         {
@@ -47,7 +48,7 @@ internal static class AccessorEmitter
     /// </summary>
     public static string EmitBodiless(PropertyAccessor accessor, bool isSetter)
     {
-        return $"{Header(accessor, isSetter)};";
+        return $"{Header(accessor, isSetter, isReadonly: false)};";
     }
 
     /// <summary>
@@ -58,7 +59,7 @@ internal static class AccessorEmitter
         return accessor is null or { Body: null, ExpressionBody: null };
     }
 
-    private static string Header(PropertyAccessor accessor, bool isSetter)
+    private static string Header(PropertyAccessor accessor, bool isSetter, bool isReadonly)
     {
         var keyword = isSetter
             ? accessor.IsInit ? "init" : "set"
@@ -67,6 +68,6 @@ internal static class AccessorEmitter
         // Public on an accessor means "whatever the member said", so only a narrowing is spelled.
         var accessibility = accessor.Accessibility == Accessibility.Private ? "private " : "";
 
-        return $"{accessibility}{keyword}";
+        return $"{accessibility}{(isReadonly ? "readonly " : "")}{keyword}";
     }
 }

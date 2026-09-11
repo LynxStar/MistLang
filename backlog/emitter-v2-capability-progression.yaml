@@ -6408,7 +6408,7 @@ capabilities:
     order: 134
     layer: readonly-discipline
     requires: [property-declarations-and-accessors, instance-fields]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
       MOSTLY ALREADY BUILT, by 1c18f5c7 ("Emit readonly where C# accepts it, and only there"), and
@@ -6450,13 +6450,16 @@ capabilities:
 
       Enums banked BYTE-IDENTICAL to classic. EnumReadonlyRestriction banked with a three-line
       divergence that is not this order's -- see the sample.
-    tasks:
-      - Propagate a readonly TYPE's modifier onto its members in the MODEL. A readonly struct's method
-        carries `Modifiers.IsReadonly == false` today, so the model does not say what the language
-        does. Unobservable in emission, which is why both samples bank over it -- C# already treats every
-        member of a `readonly struct` as readonly without being told, and on a readonly class no member
-        but a field may carry it. The consumer is order 136, which cannot check a context the model
-        does not record.
+      PROPAGATION LANDED 2026-09-11 with order 135. A readonly TYPE's modifier now reaches its members
+      through ModifierBuilder.ForMember, which is the member half of the one call every member builder
+      already made -- kept apart from Build because that one also builds a nested TYPE's modifiers, where
+      the same parameter is the ENCLOSING type and readonly does not reach through it. Emission is
+      unchanged, ReadonlyEmission dropping the modifier on a readonly struct's members exactly as before;
+      what changed is that order 136's rules can now read the context off the member. One measured
+      consequence: a readonly type's FIELDS became readonly too, which moved the verdict on a field write
+      inside such a type's method from FIELD_ASSIGNED_IN_READONLY_MEMBER to READONLY_FIELD_ASSIGNED, so
+      ReadonlyAnalyzer now judges the member context before the field -- the corpus case that caught it
+      is refusals/ownership-borrow-checking/field-assigned-in-readonly-type.mist.
     analysis_phase_tasks:
       - Enforce what a readonly parameter constrains. The model now records one and nothing reads it,
         so `readonly int x` is a declaration with no effect. Judging a finished model, so deferred by
@@ -6469,10 +6472,50 @@ capabilities:
     order: 135
     layer: readonly-discipline
     requires: [readonly-member-and-type-contexts]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      Classification of each member body as reads-only or writes-storage, with a bounded
-      fixed point because a readonly caller's status depends on its callees.
+      LANDED 2026-09-11. Classification of each member body as reads-only or writes-storage, with a
+      bounded fixed point because a readonly caller's status depends on its callees.
+
+      ReadonlyInference sits beside ThisTiers, which is the one home for what a BODY does: both walk a
+      body with BodyWalker and answer a question about it, and a second walker could disagree with the
+      first. The classification is the readonly-contexts spec's base rules read as a predicate -- a field
+      written, a setter called, a callee that is not readonly, an allocation through a constructor that
+      is not -- with a constructor privileged to assign the fields of its own type (Req 10.7). A call
+      asks the CALLEE's status and never its body (Req 10.8), which is what makes this a fixed point over
+      the call graph. It is the GREATEST one: a member is readonly unless something reachable from it
+      writes, so two methods that only call each other settle readonly instead of deadlocking, and the
+      walk memoises only what it proved -- everything reached when nothing writes, the root alone when
+      something does.
+
+      THE INFERRED STATUS IS NOT ON THE MODEL, and that is a deliberate departure from this order's
+      task. ProgramModel/CLAUDE.md makes the model immutable after construction with later-pass results
+      in separate stores, and ProgramAnalysis/CLAUDE.md makes a rule something that reads the model and
+      changes nothing -- so recording it would have meant either Stage 5 mutating the model or
+      construction calling Stage 5. It is a memoised store instead, which both Stage 5 and the emitter
+      read; the backend already reaches into ProgramAnalysis for AsyncPromotion and LocalNames, so the
+      direction is not new. What the MODEL gained is order 134's half: a readonly type's modifier now
+      propagates onto its members through ModifierBuilder.ForMember.
+
+      EMITTABLE, AND NARROWER THAN MIST INFERS. C# takes `readonly` on a struct's INSTANCE members only,
+      never on a static (CS8657) and not usefully on a readonly struct's, whose members it already treats
+      as readonly -- so ReadonlyEmission decides the position: a getter-only property carries it on the
+      property, a get/set pair on the getter (CS8658 refuses the accessor form without both, CS8661 both
+      at once), and a Drop carries it never, since the emitter appends field drops after the author's
+      body and would be claiming what the emitted form does not do. AllFeaturesV2 is byte-identical with
+      the modifier on struct members throughout, which is the point: it buys Roslyn checking the claim
+      and the defensive copy going away, and changes no output.
+
+      TWO DEFECTS FOUND BY LANDING IT. The first attempt emitted `readonly get` on getter-only
+      properties and Roslyn refused it (CS8658) -- caught by the orchestrator, not by a unit test, which
+      is why the Tier 3 rows now pin both positions. The second is older and not this order's: LocalNames
+      held its name maps in plain statics where every other ambient emitter state is [ThreadStatic], so
+      two emission tests running in parallel clobbered each other's renames. Adding one more Tier 3
+      emission class made it reproducible; the fields are now [ThreadStatic] like AsyncPromotion's.
+
+      THE REFUSALS ARE ORDER 11'S and landed with this, the base rules having been waiting on exactly
+      this inference. See the analysis register.
     unlocks: []
 
   - id: readonly-mutation-checking
@@ -6493,10 +6536,14 @@ capabilities:
       both run on v2 and match classic, because neither mutates what the rule would forbid.
     analysis_phase_tasks:
       - >
-        Track method, getter, setter, indexer setter, constructor and block contexts, with constructor
-        privilege for field assignment, a backing-field exemption inside a readonly setter only, and a
-        readonly block that suspends constructor privilege for its extent. Block readonly-ness is recorded on
-        the model by order 133.
+        LANDED 2026-09-11 with order 135, on analysis order 11. ReadonlyAnalyzer walks bodies
+        structurally and tracks method, getter, setter, constructor and block contexts, with constructor
+        privilege for field assignment and for its own readonly setters, a backing-field exemption inside
+        a readonly setter only, and a readonly block that suspends the privilege for its extent -- which
+        is what the structural walk is for, a node sweep being unable to see where a block begins. Block
+        readonly-ness is recorded on the model by order 133, as this said. INDEXER contexts are the one
+        piece not delivered: the model records no indexer for an index access, so an element write cannot
+        be told from a user indexer's setter; recorded as a task on analysis order 11.
     unlocks: [UnknownReadonlySemantics]
 
   - id: readonly-generic-constraints

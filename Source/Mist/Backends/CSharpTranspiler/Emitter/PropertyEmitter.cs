@@ -8,10 +8,10 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// </summary>
 internal static class PropertyEmitter
 {
-    public static void Emit(Property property, bool inStruct, CSharpWriter writer, DiagnosticBag diagnostics)
+    public static void Emit(
+        Property property, bool emitReadonly, bool readonlyGetter, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        var modifiers = MemberModifierEmitter.Emit(
-            property.Modifiers, emitReadonly: inStruct && property.Modifiers.IsReadonly);
+        var modifiers = MemberModifierEmitter.Emit(property.Modifiers, emitReadonly);
         var declaration = $"{modifiers}{TypeNameEmitter.Emit(property.Type)} {property.Name}";
 
         AttributeEmitter.EmitLines(property.DeclaredAttributesList, writer, diagnostics);
@@ -25,7 +25,7 @@ internal static class PropertyEmitter
             writer.WriteLine(declaration);
             writer.WriteLine("{");
             writer.Indent();
-            EmitAccessors(property, writer, diagnostics);
+            EmitAccessors(property, readonlyGetter, writer, diagnostics);
             writer.Dedent();
 
             // Written by hand rather than through CSharpWriter.Block, whose closing brace ends its
@@ -60,16 +60,17 @@ internal static class PropertyEmitter
         return string.Join(" ", parts);
     }
 
-    private static void EmitAccessors(Property property, CSharpWriter writer, DiagnosticBag diagnostics)
+    private static void EmitAccessors(
+        Property property, bool readonlyGetter, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         if(property.Getter is { } getter)
         {
-            AccessorEmitter.Emit(getter, isSetter: false, writer, diagnostics);
+            AccessorEmitter.Emit(getter, isSetter: false, readonlyGetter, writer, diagnostics);
         }
 
         if(property.Setter is { } setter)
         {
-            AccessorEmitter.Emit(setter, isSetter: true, writer, diagnostics);
+            AccessorEmitter.Emit(setter, isSetter: true, isReadonly: false, writer, diagnostics);
         }
     }
 }

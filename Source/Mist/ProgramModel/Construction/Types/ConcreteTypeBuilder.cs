@@ -135,7 +135,7 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
         var type = SpreadMember.AggregateType(
             ScopeResolver.Resolve(fieldDecl.Type, typeDef.Scope), ScopeResolver.Interner);
         var ownership = ResolveOwnership(fieldDecl.OwnershipSpecifier);
-        var modifiers = ModifierBuilder.Build(fieldDecl, Context.Diagnostics, typeDef);
+        var modifiers = ModifierBuilder.ForMember(fieldDecl, Context.Diagnostics, typeDef);
 
         MemberNameValidation.Validate(name, typeDef.Name, fieldDecl, Context.Diagnostics);
         StorageTypeValidation.Validate(type, $"Field '{typeDef.Name}.{name}'", fieldDecl, Context);

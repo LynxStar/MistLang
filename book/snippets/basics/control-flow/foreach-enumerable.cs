@@ -40,7 +40,7 @@ internal class Countdown : System.Collections.Generic.IEnumerable<int>
             return new Enumerator(p0, default(Mist.Emission.CSharp.__StructInit));
         }
 
-        public int Current
+        public readonly int Current
         {
             get => current;
         }

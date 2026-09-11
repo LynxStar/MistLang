@@ -38,7 +38,7 @@ public struct FixedSlot<TCapacity>
         return new FixedSlot<TCapacity>(default(Mist.Emission.CSharp.__StructInit));
     }
 
-    public int GetCapacity()
+    public readonly int GetCapacity()
     {
         return TCapacity.Value;
     }

@@ -47,7 +47,7 @@ internal sealed class PropertyBuilder
     {
         var name = exprProp.Name.Lexeme;
         var type = scopeResolver.Resolve(exprProp.Type, host.Scope);
-        var modifiers = ModifierBuilder.Build(exprProp, context.Diagnostics, host as MistType);
+        var modifiers = ModifierBuilder.ForMember(exprProp, context.Diagnostics, host as MistType);
 
         MemberNameValidation.Validate(name, host, exprProp, context.Diagnostics);
         StorageTypeValidation.Validate(type, $"Property '{host.Name}.{name}'", exprProp, context);
@@ -81,7 +81,7 @@ internal sealed class PropertyBuilder
     {
         var name = blockProp.Name.Lexeme;
         var type = scopeResolver.Resolve(blockProp.Type, host.Scope);
-        var modifiers = ModifierBuilder.Build(blockProp, context.Diagnostics, host as MistType);
+        var modifiers = ModifierBuilder.ForMember(blockProp, context.Diagnostics, host as MistType);
         var isAbstract = host.IsAbstract;
         var isExtension = host is ExtensionBlock;
 

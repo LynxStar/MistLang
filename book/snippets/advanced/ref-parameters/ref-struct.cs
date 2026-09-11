@@ -25,7 +25,7 @@ public struct Point
         return new Point(p0, p1, default(Mist.Emission.CSharp.__StructInit));
     }
 
-    public string Describe()
+    public readonly string Describe()
     {
         return $"Point({X}, {Y})";
     }

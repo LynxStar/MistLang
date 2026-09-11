@@ -89,20 +89,22 @@ internal static class NewtypeEmitter
             foreach(var property in source.PropertiesList)
             {
                 TypeEmitter.SeparateMember(writer, ref anyEmitted);
-                PropertyEmitter.Emit(property, inStruct, writer, diagnostics);
+                PropertyEmitter.Emit(
+                    property, inStruct && property.Modifiers.IsReadonly, readonlyGetter: false, writer, diagnostics);
             }
 
             foreach(var indexer in source.IndexersList)
             {
                 TypeEmitter.SeparateMember(writer, ref anyEmitted);
-                IndexerEmitter.Emit(indexer, inStruct, writer, diagnostics);
+                IndexerEmitter.Emit(
+                    indexer, inStruct && indexer.Modifiers.IsReadonly, readonlyGetter: false, writer, diagnostics);
             }
 
             foreach(var method in source.MethodsList)
             {
                 TypeEmitter.SeparateMember(writer, ref anyEmitted);
                 MethodEmitter.ReportReadonlyRefReturn(method, source.DeclarationNode, diagnostics);
-                MethodEmitter.Emit(method, inStruct, writer, diagnostics);
+                MethodEmitter.Emit(method, inStruct && method.Modifiers.IsReadonly, writer, diagnostics);
             }
         }
     }

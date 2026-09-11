@@ -1,0 +1,30 @@
+using Standard;
+
+namespace Refusal;
+
+public class Counter
+{
+    public int count;
+
+    public void Bump()
+    {
+        count = count + 1;
+    }
+
+    public readonly int Peek()
+    {
+        // REFUSE: MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE
+        Bump();
+        return count;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var c = new Counter();
+        var p = c.Peek();
+        Console.WriteLine("unreachable");
+    }
+}

@@ -161,6 +161,7 @@ internal static class TypeEmitter
             var anyEmitted = false;
             var inStruct = type is StructType;
             var inReadonlyType = type.IsReadonly;
+            var readonlyMembers = ReadonlyEmission.For(type);
 
             // Fields first so they read as the type's state before the members that use
             // it, and because C# requires nothing of the order. Each is a single line, so
@@ -216,7 +217,9 @@ internal static class TypeEmitter
             foreach(var property in properties)
             {
                 SeparateMember(writer, ref anyEmitted);
-                PropertyEmitter.Emit(property, inStruct, writer, diagnostics);
+                PropertyEmitter.Emit(
+                    property, readonlyMembers.OnProperty(property), readonlyMembers.OnGetterOf(property),
+                    writer, diagnostics);
             }
 
             SpreadProjectionEmitter.Emit(type, writer, ref anyEmitted);
@@ -224,7 +227,9 @@ internal static class TypeEmitter
             foreach(var indexer in type.IndexersList)
             {
                 SeparateMember(writer, ref anyEmitted);
-                IndexerEmitter.Emit(indexer, inStruct, writer, diagnostics);
+                IndexerEmitter.Emit(
+                    indexer, readonlyMembers.OnIndexer(indexer), readonlyMembers.OnGetterOf(indexer),
+                    writer, diagnostics);
             }
 
             var methods = flattened?.Methods ?? (IReadOnlyList<Method>)type.MethodsList;
@@ -240,7 +245,7 @@ internal static class TypeEmitter
                     using(monomorph.Enter())
                     {
                         SeparateMember(writer, ref anyEmitted);
-                        EmitMethod(method, type, inStruct, writer, diagnostics);
+                        EmitMethod(method, type, readonlyMembers.OnMethod(method), writer, diagnostics);
                     }
                 }
 
@@ -250,7 +255,7 @@ internal static class TypeEmitter
                 }
 
                 SeparateMember(writer, ref anyEmitted);
-                EmitMethod(method, type, inStruct, writer, diagnostics);
+                EmitMethod(method, type, readonlyMembers.OnMethod(method), writer, diagnostics);
             }
 
             foreach(var castOperator in concrete?.CastOperatorsList ?? [])
@@ -420,7 +425,7 @@ internal static class TypeEmitter
     /// </para>
     /// </summary>
     private static void EmitMethod(
-        Method method, MemberType type, bool inStruct, CSharpWriter writer, DiagnosticBag diagnostics)
+        Method method, MemberType type, bool emitReadonly, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         MethodEmitter.ReportReadonlyRefReturn(method, type.DeclarationNode, diagnostics);
 
@@ -430,7 +435,7 @@ internal static class TypeEmitter
         }
         else
         {
-            MethodEmitter.Emit(method, inStruct, writer, diagnostics, type);
+            MethodEmitter.Emit(method, emitReadonly, writer, diagnostics, type);
         }
     }
 

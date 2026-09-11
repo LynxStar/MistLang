@@ -18,8 +18,10 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// </summary>
 internal static class LocalNames
 {
+    [ThreadStatic]
     private static Dictionary<LocalVariable, string>? active;
 
+    [ThreadStatic]
     private static Dictionary<Method, string>? activeFunctions;
 
     public static Body? Enter(Block body, IEnumerable<string> parameterNames)

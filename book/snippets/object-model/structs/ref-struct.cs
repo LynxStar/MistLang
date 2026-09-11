@@ -25,7 +25,7 @@ public ref struct IntBuffer
         return new IntBuffer(p0, p1, default(Mist.Emission.CSharp.__StructInit));
     }
 
-    public int Remaining()
+    public readonly int Remaining()
     {
         return this.capacity - this.value;
     }

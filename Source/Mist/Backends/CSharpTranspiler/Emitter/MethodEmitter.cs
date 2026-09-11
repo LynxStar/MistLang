@@ -13,15 +13,12 @@ internal static class MethodEmitter
 {
     public static void Emit(
         Method method,
-        bool inStruct,
+        bool emitReadonly,
         CSharpWriter writer,
         DiagnosticBag diagnostics,
         MemberType? owner = null)
     {
-        // A readonly method is a struct-only concept in C#, so on a class the modifier is dropped
-        // rather than passed through -- Mist admits it there and CS0106 refuses it.
-        var modifiers = MemberModifierEmitter.Emit(
-            method.Modifiers, emitReadonly: inStruct && method.Modifiers.IsReadonly)
+        var modifiers = MemberModifierEmitter.Emit(method.Modifiers, emitReadonly)
             + (AsyncPromotion.EmitsAsync(method) ? "async " : "");
 
         AttributeEmitter.EmitLines(method.DeclaredAttributesList, writer, diagnostics);

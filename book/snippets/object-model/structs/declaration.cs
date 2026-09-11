@@ -28,7 +28,7 @@ public struct Color
         return new Color(p0, p1, p2, default(Mist.Emission.CSharp.__StructInit));
     }
 
-    public int Brightness()
+    public readonly int Brightness()
     {
         return (this.r + this.g + this.b) / 3;
     }

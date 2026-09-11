@@ -57,6 +57,7 @@ to the same stdout. Note the blind spot — a stdout diff cannot see things like
 | `backlog/program-model-body-tasks.yaml` | The other axis: what the binder does not yet understand, by language construct. **Not valid YAML** despite the extension. |
 | `backlog/flaky-tests.yaml` | Flake register. Recording a flake is mandatory (see `Test/CLAUDE.md`). |
 | `backlog/general.md` | Issues outside any active spec. |
+| `backlog/inventory-<date>.md` | Dated snapshots of what v2 still needs, counted from the registers above. |
 
 A capability in the emitter register is measured by what it makes **representable and
 emittable** — what new part of a program can be held in memory, or emitted and run. Rules

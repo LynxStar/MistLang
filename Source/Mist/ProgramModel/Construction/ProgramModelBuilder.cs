@@ -163,6 +163,7 @@ public sealed class ProgramModelBuilder
         conformanceBuilder.BuildAll();
 
         // Phase 3.
+        PredicateBinder.BindAll(programModel, context);
         MemberBinder.BindAll(sourceTypes, context);
         MemberBinder.BindExtensions(
             programModel.Namespaces.Values.SelectMany(ns => ns.Extensions.Values).SelectMany(blocks => blocks),

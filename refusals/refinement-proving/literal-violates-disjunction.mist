@@ -1,0 +1,16 @@
+using Standard;
+
+namespace Refusal;
+
+type Even = int (2 or 4 or 6);
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_REFINEMENT_VIOLATED
+        Even e = 3;
+        Console.WriteLine(e);
+        Console.WriteLine("unreachable");
+    }
+}

@@ -215,9 +215,9 @@ internal sealed class TypeInterner
     /// predicate AST node. Refined types are not interned — each declaration site
     /// produces a distinct type instance even if the predicate is textually identical.
     /// </summary>
-    public static RefinedType CreateRefinedType(IMistType baseType, SyntaxNode predicateNode)
+    public static RefinedType CreateRefinedType(IMistType baseType, SyntaxNode predicateNode, string? name = null)
     {
-        return new RefinedType(baseType, predicateNode);
+        return new RefinedType(baseType, predicateNode, name);
     }
 
     /// <summary>

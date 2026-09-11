@@ -225,7 +225,7 @@ internal sealed class FlowGraphBuilder
                 {
                     current = Expression(test.Scrutinee, current);
                     var (matched, unmatched) = Pattern(test.Pattern, current);
-                    return Evaluated(test, matched, unmatched);
+                    return Assumed(test, Evaluated(test, matched, unmatched));
                 }
 
             case LiteralExpression { Value: bool constant }:
@@ -234,8 +234,15 @@ internal sealed class FlowGraphBuilder
 
             default:
                 current = Expression(condition, current);
-                return (Successor(current), Successor(current));
+                return Assumed(condition, (Successor(current), Successor(current)));
         }
+    }
+
+    private static (FlowBlock, FlowBlock) Assumed(Expression condition, (FlowBlock WhenTrue, FlowBlock WhenFalse) exits)
+    {
+        exits.WhenTrue.Steps.Add(new FlowStep(FlowStepKind.Assume, condition));
+        exits.WhenFalse.Steps.Add(new FlowStep(FlowStepKind.Assume, condition, Holds: false));
+        return exits;
     }
 
     private static (FlowBlock, FlowBlock) Evaluated(Expression node, FlowBlock whenTrue, FlowBlock whenFalse)

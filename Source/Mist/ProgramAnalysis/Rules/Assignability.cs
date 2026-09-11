@@ -70,6 +70,8 @@ internal static class Assignability
 
     private static bool Fits(long constant, IMistType from, IMistType to)
     {
+        to = Unrefined(to);
+
         if(from.FullyQualifiedName == WellKnownTypes.Int64.FullyQualifiedName)
         {
             return to.FullyQualifiedName == WellKnownTypes.UInt64.FullyQualifiedName && constant >= 0;

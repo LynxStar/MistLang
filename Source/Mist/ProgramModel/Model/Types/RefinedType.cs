@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Scopes;
 using Storm.Runtime;
 
@@ -16,8 +17,8 @@ namespace Mist.ProgramModel.Model.Types;
 /// </summary>
 internal sealed class RefinedType : MistType, IRefinedType
 {
-    public RefinedType(IMistType baseType, SyntaxNode predicateNode)
-        : base(BuildName(baseType, predicateNode), new Scope(null), declaringType: null)
+    public RefinedType(IMistType baseType, SyntaxNode predicateNode, string? name = null)
+        : base(name ?? BuildName(baseType, predicateNode), new Scope(null), declaringType: null)
     {
         BaseType = baseType;
         PredicateNode = predicateNode;
@@ -35,6 +36,8 @@ internal sealed class RefinedType : MistType, IRefinedType
     /// Opaque until the pattern resolution phase interprets it.
     /// </summary>
     public SyntaxNode PredicateNode { get; }
+
+    public Pattern? Predicate { get; internal set; }
 
     IMistType IRefinedType.BaseType => BaseType;
 

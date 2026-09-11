@@ -1,0 +1,22 @@
+using Standard;
+
+namespace Refusal;
+
+public class FixedArray<TValue, Size:int> where Size >= 0
+{
+    public int Count()
+    {
+        return Size;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_DEPENDENT_ARGUMENT_VIOLATED
+        var f = new FixedArray<int, -1>();
+        Console.WriteLine(f.Count());
+        Console.WriteLine("unreachable");
+    }
+}

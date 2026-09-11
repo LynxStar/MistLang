@@ -1,0 +1,30 @@
+using Standard;
+
+namespace Refusal;
+
+public class Buffer
+{
+    int[5] items = new int[5];
+
+    public int this[int index] where index >= 0 and < 5
+    {
+        get { return items[index]; }
+        set { items[index] = value; }
+    }
+}
+
+public class Probe
+{
+    public static int At(int i)
+    {
+        var b = new Buffer();
+        // REFUSE: MIST_PA_CONSTRAINT_UNPROVEN
+        return b[i];
+    }
+
+    public static void Main()
+    {
+        Console.WriteLine(At(1));
+        Console.WriteLine("unreachable");
+    }
+}

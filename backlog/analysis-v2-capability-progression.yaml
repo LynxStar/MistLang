@@ -1013,19 +1013,93 @@ rules:
     order: 12
     subsystem: refinement
     requires: [assignability-core]
-    status: missing
-    from: orders 141, 142, 143, 144, 147, 148 -- 9 tasks
+    status: done
+    from: >
+      orders 141, 142, 143, 144, 147, 148 -- 9 tasks
     evidence: >
-      THE MOST SELF-CONTAINED OF THE FOUR and the only one that gates nothing else, which is why it is
-      last rather than because it is least. A literal evaluated against a predicate including boundary
-      values; subset relationships between two refinements over one base; a non-constant assigned without
-      proof; a predicate discharged at a use site, as `arr[i] where i >= 0 and < 3` must refuse an i not
-      known to satisfy it; implication for forwarding to a base or weakening in an override; and a
-      runtime guard at method entry for what the call site could not prove.
-      
-      Array-bounds flow analysis sits across this and order 10: the symbolic case -- a loop condition
-      entailing the bound only because both name the same array -- needs the prover AND the framework.
-      
-      Specs exist: refinement-types, refinement-comparison-engine, adhoc-refinement-constraints,
-      dependent-type-refinement-constraints, array-bounds-flow-analysis.
-    tasks: []
+      THE MOST SELF-CONTAINED OF THE FOUR, and the flow framework's third customer. Measured on five
+      classic probes of 80 shapes; classic's verdicts are narrower than the specs and v2 follows
+      them, the specs' stricter wordings being the tasks.
+
+      A PREDICATE IS BOUND ONCE. PredicateBinder binds every refinement the program declares -- a
+      refined alias's, a dependent parameter's `where`, a method or indexer parameter's `where` --
+      onto the model before any body is bound, and every `is` against the alias shares that pattern:
+      the binder no longer re-binds it per use, and an indexer's `where` clause reaches the model at
+      all, which it had not. A refined type now carries its alias's name, so a message says
+      'AdultAge' where it said 'Int32{refined}'.
+
+      THE PROVER. Admitted is a sorted list of disjoint closed intervals over long -- a code point and
+      a truth being integers too -- with intersection, union, complement, subset, shift and widening,
+      each an exact set operation. Requirement reads what a bound predicate asks: relational patterns
+      as intervals, `and` as intersection, `or` as union, `not` as complement, a nested refinement's
+      own predicate, and `&lt; Length` as a bound named symbolically; a property pattern, a regex or a
+      real reads as nothing the prover can decide, and nothing is refused on its account. A
+      refinement holds of a value when what is known of the value is a subset of what the predicate
+      admits: a constant is its own interval; a refined value is its predicate; a parameter carries
+      its `where`; and a local carries what the flow established. Implication between two
+      refinements is the same subset, which is what a `>= 21` assigned to a `>= 18` needs.
+
+      THE FLOW. The framework gains an Assume step at the head of each path out of a condition, true
+      or false. RefinementAnalyzer's lattice is a map of locals to interval sets with symbolic upper
+      bounds: `if(x >= 18)` narrows x on the then path and `x < 18` on the else path, an `is` pattern
+      narrows its scrutinee, a constant initialiser or assignment sets the local, `i = i + 1` shifts
+      it, any other assignment forgets it, and `i < a.Length` is a number when the array's length is
+      known and a bound against the array itself when it is not, forgotten when the array is
+      reassigned. Two paths join as the union, widened to infinity only the third time a join moves
+      a value, so a counting loop settles while an inner loop revisited by an outer one keeps the
+      bound the outer condition gave.
+
+      WHAT IS JUDGED, AS CLASSIC JUDGES IT: a declaration, an assignment and a return into a refined
+      type, or into a union with refined constituents, any of which a constant may satisfy; an index
+      into an array or span whose length is known, or whose length is unknown and which a local holds;
+      an indexer's `where`; a dependent type argument against its parameter's `where` and domain;
+      and an implementation that constrains a parameter more than the member it implements. NOT a
+      call: classic checks neither a refined parameter's argument nor a method's `where` at the call
+      -- `Twice(3)` against `AdultAge` and `Process(200)` against `where x < 100` are both admitted,
+      the guard being the callee's -- and NOT an unknown-length array a field holds, which classic
+      leaves to the runtime. Each is the first task below.
+
+      DIVERGENCES, each more permissive and each principled: a char literal against a char
+      refinement is evaluated where classic prints '?' and refuses; a local given a constant carries
+      it (`int y = 40; AdultAge a = y;`); `x > 17` narrows to `>= 18` as intervals do and classic's
+      exact-match narrowing does not; the else path of `x < 18` narrows too; `i >= 0 && i < 3`
+      proves an index; a `while` loop with its own increment proves one; and an implementation
+      constrained to `>= -5` under an abstract's `>= 0` is weaker and admitted, where classic cannot
+      read the negative literal and refuses.
+
+      MEASURED: the first sweep reported five findings on three working samples -- indexing an
+      unknown-length array through a field, and a loop over an array literal's length, which a
+      nested loop then widened away -- fixed at the source; then zero findings and identical stdout
+      on AllFeaturesV2 and AllFeatures, and zero on the three unbanked samples. Twenty-nine corpus
+      cases, one per refused shape. Fifty-four decision rows pin the admits and the divergences;
+      eleven interval facts pin the prover. Twenty-three mutations, each on a confirmed build, all
+      caught: nothing judged, assumptions ignored or taken as true on the false path, a reassignment
+      keeping its narrowing, a join keeping the stronger path, subset always holding, `>` admitting
+      its bound, negation as identity, disjunction as intersection, a constant or a refined type or
+      a parameter's `where` saying nothing, an index needing nothing with the length known or
+      unknown, a symbolic bound never needed, an indexer constraint, a return, a declaration, a
+      dependent argument or a strengthening implementation unjudged, predicates never bound, no
+      assumption on a split, and an increment forgetting its lower bound. One first survived -- the
+      symbolic bound, until a case with a proven lower bound and nothing above pinned it.
+    tasks:
+      - >
+        The specs are stricter than classic at a call: refinement-types Req 5.3 and adhoc Req 6.2
+        refuse a constant argument that violates a refined or constrained parameter, and 6.5 an
+        unproven one. Classic checks neither, relying on a runtime guard at method entry (order 144)
+        that v2 does not emit either. Whether to check at the call, emit the guard, or both is a
+        decision; v2 admits as classic admits.
+      - >
+        Indexing an unknown-length array held in a field is admitted as classic admits it; only a
+        local's array carries a symbolic bound. A field could carry one too, invalidated on any write
+        to the field, which the framework can express.
+      - >
+        A union with refined constituents is judged per constituent by the value's base type, or for
+        a constant by any integral constituent it fits; a runtime `is` against a union of refinements
+        narrows to a constituent (Req 10.3) and is not judged beyond order 8's pattern rules.
+      - >
+        Real-valued refinements (`double > 0.0`) are not proven: the interval set is over long. A
+        property-pattern refinement is not proven either, as the comparison engine spec says.
+      - >
+        A refined return through a lambda, an `async` result, or a `switch` arm is judged where the
+        binder recorded a target; a refined field initialiser is judged as a declaration is.
+

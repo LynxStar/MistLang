@@ -1,6 +1,7 @@
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
+using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Scopes;
 
 namespace Mist.ProgramModel.Model.Types;
@@ -98,6 +99,8 @@ internal class TypeParameter : MistType, ITypeParameter
     /// Null until resolved. Interpretation deferred to the pattern resolution phase.
     /// </summary>
     public Storm.Runtime.SyntaxNode? RefinementNode { get; internal set; }
+
+    public Pattern? Refinement { get; internal set; }
 
     IMistType? ITypeParameter.Domain => Domain;
 

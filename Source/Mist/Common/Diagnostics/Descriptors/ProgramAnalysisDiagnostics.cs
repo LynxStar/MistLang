@@ -375,4 +375,64 @@ public static class ProgramAnalysisDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.Analysis,
         "Cannot capture {0} variable '{1}' in a lambda: {2}.");
+
+    public static readonly DiagnosticDescriptor RefinementViolated = new(
+        new DiagnosticId("MIST_PA_REFINEMENT_VIOLATED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Value '{0}' does not satisfy refinement '{1}' on type '{2}'.");
+
+    public static readonly DiagnosticDescriptor RefinementUnproven = new(
+        new DiagnosticId("MIST_PA_REFINEMENT_UNPROVEN"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot assign '{0}' to '{1}' without proving its refinement '{2}': narrow the value with a pattern first.");
+
+    public static readonly DiagnosticDescriptor RefinementNotImplied = new(
+        new DiagnosticId("MIST_PA_REFINEMENT_NOT_IMPLIED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot assign '{0}' to '{1}': '{2}' does not imply '{3}'.");
+
+    public static readonly DiagnosticDescriptor IndexOutOfBounds = new(
+        new DiagnosticId("MIST_PA_INDEX_OUT_OF_BOUNDS"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Index {0} is outside the bounds of '{1}', which needs {2}.");
+
+    public static readonly DiagnosticDescriptor IndexUnproven = new(
+        new DiagnosticId("MIST_PA_INDEX_UNPROVEN"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Index '{0}' is not proven within the bounds of '{1}', which needs {2}.");
+
+    public static readonly DiagnosticDescriptor ConstraintViolated = new(
+        new DiagnosticId("MIST_PA_CONSTRAINT_VIOLATED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Value '{0}' violates the refinement constraint '{1}' on parameter '{2}'.");
+
+    public static readonly DiagnosticDescriptor ConstraintUnproven = new(
+        new DiagnosticId("MIST_PA_CONSTRAINT_UNPROVEN"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Argument '{0}' is not proven to satisfy the refinement constraint '{1}' on parameter '{2}'.");
+
+    public static readonly DiagnosticDescriptor DependentArgumentViolated = new(
+        new DiagnosticId("MIST_PA_DEPENDENT_ARGUMENT_VIOLATED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Dependent type argument '{0}' does not satisfy '{1}' on parameter '{2}'.");
+
+    public static readonly DiagnosticDescriptor DependentForwardUnproven = new(
+        new DiagnosticId("MIST_PA_DEPENDENT_FORWARD_UNPROVEN"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Dependent parameter '{0}' cannot be forwarded to '{1}': {2} is not proven to imply '{3}'.");
+
+    public static readonly DiagnosticDescriptor ConstraintStrengthened = new(
+        new DiagnosticId("MIST_PA_CONSTRAINT_STRENGTHENED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "'{0}' constrains parameter '{1}' more than the member it implements: '{2}' does not imply '{3}'.");
 }

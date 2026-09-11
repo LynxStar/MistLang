@@ -1,0 +1,22 @@
+using Standard;
+
+namespace Refusal;
+
+type Digit = int >= 0 and <= 9;
+
+public class Probe
+{
+    public static int At(Digit d)
+    {
+        var a = new int[3];
+        // REFUSE: MIST_PA_INDEX_UNPROVEN
+        return a[d];
+    }
+
+    public static void Main()
+    {
+        Digit d = 1;
+        Console.WriteLine(At(d));
+        Console.WriteLine("unreachable");
+    }
+}

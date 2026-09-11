@@ -197,7 +197,7 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
         }
     }
 
-    private static IEnumerable<(AbstractType Abstract, TypeSubstitution Substitution)> Reached(
+    internal static IEnumerable<(AbstractType Abstract, TypeSubstitution Substitution)> Reached(
         IEnumerable<IMistType> roots, TypeInterner interner)
     {
         var pending = new Queue<IMistType>(roots);
@@ -223,7 +223,7 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
         }
     }
 
-    private static IEnumerable<Filler> Fillers(ConcreteType concrete)
+    internal static IEnumerable<Filler> Fillers(ConcreteType concrete)
     {
         var substitution = TypeSubstitution.Empty;
 
@@ -262,5 +262,5 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
         return type.FullyQualifiedName;
     }
 
-    private sealed record Filler(Method? Method, Property? Property, TypeSubstitution Substitution);
+    internal sealed record Filler(Method? Method, Property? Property, TypeSubstitution Substitution);
 }

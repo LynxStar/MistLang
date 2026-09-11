@@ -1,0 +1,16 @@
+using Standard;
+
+namespace Refusal;
+
+type Percentage = int >= 0 and <= 100;
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_REFINEMENT_VIOLATED
+        Percentage full = 101;
+        Console.WriteLine(full);
+        Console.WriteLine("unreachable");
+    }
+}

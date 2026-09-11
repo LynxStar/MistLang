@@ -17,13 +17,17 @@ internal sealed class IndexerBuilder
     private readonly ScopeResolver scopeResolver;
     private readonly AccessorBuilder accessorBuilder;
     private readonly ParameterBuilder parameterBuilder;
+    private readonly ConstraintResolver constraintResolver;
 
-    public IndexerBuilder(BuilderContext context, ScopeResolver scopeResolver, AccessorBuilder accessorBuilder, ParameterBuilder parameterBuilder)
+    public IndexerBuilder(
+        BuilderContext context, ScopeResolver scopeResolver, AccessorBuilder accessorBuilder, ParameterBuilder parameterBuilder,
+        ConstraintResolver constraintResolver)
     {
         this.context = context;
         this.scopeResolver = scopeResolver;
         this.accessorBuilder = accessorBuilder;
         this.parameterBuilder = parameterBuilder;
+        this.constraintResolver = constraintResolver;
     }
 
     /// <summary>
@@ -34,6 +38,7 @@ internal sealed class IndexerBuilder
         var type = scopeResolver.Resolve(indexerDecl.Type, memberType.Scope);
         var modifiers = ModifierBuilder.Build(indexerDecl, context.Diagnostics, memberType);
         var parameters = parameterBuilder.Resolve(indexerDecl.Parameters, memberType.Scope);
+        constraintResolver.Resolve(indexerDecl.Constraints, [], parameters, memberType.Scope);
         var isAbstract = memberType is AbstractType;
 
         StorageTypeValidation.Validate(type, $"Indexer '{memberType.Name}.this[]'", indexerDecl, context);

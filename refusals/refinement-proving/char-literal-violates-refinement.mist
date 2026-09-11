@@ -1,0 +1,16 @@
+using Standard;
+
+namespace Refusal;
+
+type Upper = char >= 'A' and <= 'Z';
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_REFINEMENT_VIOLATED
+        Upper u = 'a';
+        Console.WriteLine(u);
+        Console.WriteLine("unreachable");
+    }
+}

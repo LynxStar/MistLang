@@ -26,6 +26,7 @@ internal static class ProgramAnalysisRunner
         new DisciplineAnalyzer(),
         new ReadonlyAnalyzer(),
         new EscapeAnalyzer(),
+        new RefinementAnalyzer(),
     ];
 
     public static void Run(ProgramModelClass model, DiagnosticBag diagnostics)

@@ -3,7 +3,6 @@ using Mist.Generated;
 using Mist.ProgramModel.Construction.Members;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
-using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Types;
@@ -73,19 +72,19 @@ internal sealed class TypeAliasBuilder
             // Union type alias: resolve all constituents, each potentially refined.
             var constituents = new List<IMistType>(refinableExpr.RefinableSingleTypeExprs.Length + 1)
             {
-                ResolvePossiblyRefined(refinableExpr.First, typeDef.Scope)
+                ResolvePossiblyRefined(refinableExpr.First, typeDef)
             };
 
             foreach(var constituent in refinableExpr.RefinableSingleTypeExprs)
             {
-                constituents.Add(ResolvePossiblyRefined(constituent, typeDef.Scope));
+                constituents.Add(ResolvePossiblyRefined(constituent, typeDef));
             }
 
             SetAliasedType(typeDef, context.ProgramModel.TypeInterner.GetOrCreateUnionType(constituents));
             return;
         }
 
-        SetAliasedType(typeDef, ResolvePossiblyRefined(refinableExpr.First, typeDef.Scope));
+        SetAliasedType(typeDef, ResolvePossiblyRefined(refinableExpr.First, typeDef));
     }
 
     /// <summary>
@@ -102,13 +101,13 @@ internal sealed class TypeAliasBuilder
     /// Resolves a single refinable type expression. If a refinement predicate is
     /// present, wraps the resolved base type in a <see cref="RefinedType"/>.
     /// </summary>
-    private IMistType ResolvePossiblyRefined(RefinableSingleTypeExprNode node, Scope scope)
+    private IMistType ResolvePossiblyRefined(RefinableSingleTypeExprNode node, TypeAlias alias)
     {
-        var baseType = scopeResolver.Resolve(node.Type, scope);
+        var baseType = scopeResolver.Resolve(node.Type, alias.Scope);
 
         if(node.Refinement is not null)
         {
-            return TypeInterner.CreateRefinedType(baseType, node.Refinement);
+            return TypeInterner.CreateRefinedType(baseType, node.Refinement, alias.Name);
         }
 
         return baseType;

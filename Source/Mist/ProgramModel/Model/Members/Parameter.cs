@@ -2,6 +2,8 @@ using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 
+using Mist.ProgramModel.Model.Patterns;
+
 namespace Mist.ProgramModel.Model.Members;
 
 /// <summary>
@@ -39,6 +41,8 @@ internal sealed class Parameter(
     /// Interpretation deferred to the pattern resolution phase.
     /// </summary>
     public Storm.Runtime.SyntaxNode? RefinementNode { get; internal set; }
+
+    public Pattern? Refinement { get; internal set; }
 
     IReadOnlyList<AttributeData> IHasAttributes.Attributes => AttributesList;
 }

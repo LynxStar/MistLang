@@ -45,7 +45,7 @@ internal abstract class MemberTypeBuilder
         ParameterBuilder = new ParameterBuilder(scopeResolver, context.Attributes, context.Diagnostics);
         DelegateResolver = new DelegateResolver(context, ParameterBuilder, scopeResolver);
         PropertyBuilder = new PropertyBuilder(context, scopeResolver, accessorBuilder);
-        IndexerBuilder = new IndexerBuilder(context, scopeResolver, accessorBuilder, ParameterBuilder);
+        IndexerBuilder = new IndexerBuilder(context, scopeResolver, accessorBuilder, ParameterBuilder, ConstraintResolver);
         MethodBuilder = new MethodBuilder(context, scopeResolver, DelegateResolver, ConstraintResolver);
         OperatorBuilder = new OperatorBuilder(context, scopeResolver, DelegateResolver);
     }

@@ -1,0 +1,16 @@
+using Standard;
+
+namespace Refusal;
+
+type Flag = bool true;
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_REFINEMENT_VIOLATED
+        Flag f = false;
+        Console.WriteLine(f);
+        Console.WriteLine("unreachable");
+    }
+}

@@ -231,6 +231,11 @@ internal static class PatternBinder
             return null;
         }
 
+        if(refined.Predicate is { } bound)
+        {
+            return bound;
+        }
+
         var predicate = refined.PredicateNode switch
         {
             SimpleRefinementPredicateRefinementPredicateNode simple => simple.Predicate,
@@ -241,6 +246,11 @@ internal static class PatternBinder
         return predicate is null
             ? null
             : BindAnd(predicate, refined.BaseType, bindingsPermitted: false, ctx, context);
+    }
+
+    internal static Pattern? BindPredicate(AndPatternNode predicate, IMistType baseType, BindingContext ctx, BuilderContext context)
+    {
+        return BindAnd(predicate, baseType, bindingsPermitted: false, ctx, context);
     }
 
     private static Expression? EnumVariant(

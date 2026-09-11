@@ -25,6 +25,9 @@ diagnostic ids and messages are observable behaviour and may be matched; its cod
   one forward solver, `FlowSolution`, over whatever `IFlowLattice` the rule defines. A rule that
   walks statements with its own notion of a join is the five-frameworks failure the register's
   one-flow-framework invariant names.
+- What a predicate admits has one home too: `Refinements/` reads a bound predicate into an interval
+  set (`Requirement`, `Admitted`) and every proof -- a constant, an implication, a narrowing -- is a
+  subset question there. What a receiver gives `this` and what a method needs of it is `ThisTiers`.
 - A target the binder knew but the model dropped — a return's, an argument's, an initializer entry's —
   is recorded ON the model (`ReturnStatement.TargetType`, `InvocationExpression.ParameterTypes`) rather
   than re-derived by a rule. Re-deriving means repeating substitution and overload selection, and

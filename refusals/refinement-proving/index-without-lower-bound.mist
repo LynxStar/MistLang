@@ -1,0 +1,24 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static int At(int i)
+    {
+        var a = new int[3];
+        if(i < a.Length)
+        {
+            // REFUSE: MIST_PA_INDEX_UNPROVEN
+            return a[i];
+        }
+
+        return 0;
+    }
+
+    public static void Main()
+    {
+        Console.WriteLine(At(1));
+        Console.WriteLine("unreachable");
+    }
+}

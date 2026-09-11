@@ -1,0 +1,25 @@
+using Standard;
+
+namespace Refusal;
+
+public abstract IBox<T>
+{
+    T Get();
+    void Put(T value);
+}
+
+// REFUSE: MIST_PA_SLOT_SIGNATURE_MISMATCH
+public class BadBox : IBox<int>
+{
+    public int Get() { return 1; }
+    public void Put(string value) { }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var b = new BadBox();
+        Console.WriteLine("unreachable");
+    }
+}

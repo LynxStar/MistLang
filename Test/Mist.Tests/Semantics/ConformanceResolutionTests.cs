@@ -169,7 +169,7 @@ public sealed class ConformanceResolutionTests : ProgramModelProbe
     }
 
     /// <summary>
-    /// Refused at emission, not here: <see cref="BackendDiagnostics.RedundantConformance"/>.
+    /// Refused by the conformance rule of Stage 5, not here.
     /// </summary>
     [Fact]
     public void AConformanceRestatingTheBaseList_IsRecordedAndLeavesTheAbstractReachableTwice()

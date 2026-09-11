@@ -19,12 +19,6 @@ internal static class ConformanceEmitter
         {
             if(!reached.Add(TypeNameEmitter.Emit(conformance.AbstractType)))
             {
-                diagnostics.ReportAtNode(
-                    BackendDiagnostics.RedundantConformance,
-                    conformance.DeclarationNode,
-                    null,
-                    TypeDisplay.Mist(type),
-                    TypeDisplay.Mist(conformance.AbstractType));
                 continue;
             }
 

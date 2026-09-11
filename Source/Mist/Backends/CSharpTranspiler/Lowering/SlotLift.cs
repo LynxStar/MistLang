@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -46,22 +47,9 @@ internal static class SlotLift
         return lifted;
     }
 
-    /// <summary>
-    /// Every abstract <paramref name="type"/> reaches, whether by naming it in the base list or by
-    /// conforming to it retroactively. Both spell the abstract into the emitted base list, so both
-    /// have to carry the lift.
-    /// </summary>
     public static IEnumerable<IMistType> Reached(MemberType type)
     {
-        foreach(var abstractBase in type.BaseAbstractTypes)
-        {
-            yield return abstractBase;
-        }
-
-        foreach(var conformance in (type as ConcreteType)?.ConformancesList ?? [])
-        {
-            yield return conformance.AbstractType;
-        }
+        return TypeSlots.Reached(type);
     }
 
     /// <summary>
@@ -69,7 +57,7 @@ internal static class SlotLift
     /// <paramref name="conformer"/>, with the filler for each lifted slot appended to whatever type
     /// arguments were already written. Null when the abstract lifts nothing, or when a filler is
     /// missing, leaving the entry to be spelled as it always was -- which
-    /// <see cref="ReportUnfilled"/> has already refused by then.
+    /// the conformance rule has already refused by then.
     /// </summary>
     public static IMistType? Base(IMistType abstractRef, MemberType conformer)
     {
@@ -96,28 +84,6 @@ internal static class SlotLift
         }
 
         return new ConstructedType(Definition(abstractRef), arguments);
-    }
-
-    /// <summary>
-    /// Reports every lifted slot no nested type fills. Split from <see cref="Base"/>, which two
-    /// callers use, so the refusal happens once per declaration rather than once per spelling of
-    /// its base list.
-    /// </summary>
-    public static void ReportUnfilled(MemberType type, DiagnosticBag diagnostics)
-    {
-        foreach(var abstractRef in Reached(type))
-        {
-            foreach(var slot in Lifted(abstractRef))
-            {
-                if(Filler(slot, type) is null)
-                {
-                    Report(BackendDiagnostics.UnfilledTypeSlot, type, diagnostics,
-                        TypeDisplay.Mist(type),
-                        MistType.StripArity(slot.Name),
-                        TypeDisplay.Mist(Definition(abstractRef)));
-                }
-            }
-        }
     }
 
     /// <summary>
@@ -165,28 +131,9 @@ internal static class SlotLift
         }
     }
 
-    /// <summary>
-    /// The nested type on <paramref name="conformer"/> that fills <paramref name="slot"/>, matched by
-    /// name and arity. Inherited fillers count, so the base chain is walked.
-    /// </summary>
     private static IMistType? Filler(TypeSlot slot, MemberType conformer)
     {
-        var name = MistType.StripArity(slot.Name);
-
-        foreach(var nested in conformer.NestedTypes)
-        {
-            if(nested is MemberType member
-                && MistType.StripArity(member.Name) == name
-                && member.TypeParametersList.Count == slot.TypeParametersList.Count)
-            {
-                return member;
-            }
-        }
-
-        return conformer is ConcreteType { BaseType: MemberType inherited }
-            ? Filler(slot, inherited)
-            : null
-            ;
+        return TypeSlots.Filler(slot, conformer);
     }
 
     private static IMistType? Bound(TypeSlot slot)

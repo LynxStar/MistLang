@@ -1,0 +1,28 @@
+using Standard;
+
+namespace Refusal;
+
+public abstract IDescribable
+{
+    string Describe();
+}
+
+public abstract IFull : IDescribable
+{
+    string Detail();
+}
+
+// REFUSE: MIST_PA_SLOT_NOT_FILLED
+public class Half : IFull
+{
+    public string Detail() { return "d"; }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var h = new Half();
+        Console.WriteLine("unreachable");
+    }
+}

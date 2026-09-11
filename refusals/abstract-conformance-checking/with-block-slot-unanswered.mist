@@ -1,0 +1,33 @@
+using Standard;
+
+namespace Refusal;
+
+public abstract IDescribable
+{
+    string Describe();
+}
+
+public abstract IFull : IDescribable
+{
+    string Detail();
+}
+
+public class Plain
+{
+    public string Text() { return "plain"; }
+}
+
+// REFUSE: MIST_PA_CONFORMANCE_SLOT_UNANSWERED
+with Plain : IFull
+{
+    Text as Describe;
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var p = new Plain();
+        Console.WriteLine("unreachable");
+    }
+}

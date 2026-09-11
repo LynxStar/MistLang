@@ -1,0 +1,27 @@
+using Standard;
+
+namespace Refusal;
+
+public abstract IDescribable
+{
+    string Describe();
+}
+
+public abstract IHasKind
+{
+    type Kind : IDescribable;
+}
+
+// REFUSE: MIST_PA_TYPE_SLOT_UNFILLED
+public class Kindless : IHasKind
+{
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var k = new Kindless();
+        Console.WriteLine("unreachable");
+    }
+}

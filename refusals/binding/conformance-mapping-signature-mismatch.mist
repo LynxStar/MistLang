@@ -1,0 +1,28 @@
+using Standard;
+
+namespace Refusal;
+
+public abstract IDescribable
+{
+    string Describe();
+}
+
+public class Plain
+{
+    public string Text(int n) { return "plain"; }
+}
+
+// REFUSE: MIST_PM_CONFORMANCE_MAPPING_UNSATISFIED
+with Plain : IDescribable
+{
+    Text as Describe;
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var p = new Plain();
+        Console.WriteLine("unreachable");
+    }
+}

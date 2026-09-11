@@ -13,6 +13,7 @@ internal sealed class ConformanceDeclaration(
     IMistType abstractType,
     string namespaceName,
     IReadOnlyList<MemberMapping> mappings,
+    IReadOnlyList<string> unresolvedTargets,
     SyntaxNode declarationNode) : IConformanceDeclaration
 {
     public IMistType ConformingType { get; } = conformingType;
@@ -22,6 +23,13 @@ internal sealed class ConformanceDeclaration(
     public string NamespaceName { get; } = namespaceName;
 
     public IReadOnlyList<MemberMapping> Mappings { get; } = mappings;
+
+    /// <summary>
+    /// The slot names of mappings the builder refused and reported. Kept so a rule counting unanswered
+    /// slots treats each as answered: the author did map it, and the mapping's fault has one complaint
+    /// already.
+    /// </summary>
+    public IReadOnlyList<string> UnresolvedTargets { get; } = unresolvedTargets;
 
     internal SyntaxNode DeclarationNode { get; } = declarationNode;
 

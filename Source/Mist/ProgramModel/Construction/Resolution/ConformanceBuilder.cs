@@ -87,6 +87,7 @@ internal sealed class ConformanceBuilder
         }
 
         var mappings = new List<MemberMapping>();
+        var unresolved = new List<string>();
 
         foreach(var mapping in decl.Mappings)
         {
@@ -94,10 +95,14 @@ internal sealed class ConformanceBuilder
             {
                 mappings.Add(resolved);
             }
+            else
+            {
+                unresolved.Add(mapping.TargetName.Lexeme);
+            }
         }
 
         var conformance = new ConformanceDeclaration(
-            conformer, abstractType, pending.NamespaceName, mappings, decl);
+            conformer, abstractType, pending.NamespaceName, mappings, unresolved, decl);
 
         // Dropping the flat registration silently disables CSharpEmitterV2.ReportForeignConformances.
         conformer.ConformancesList.Add(conformance);

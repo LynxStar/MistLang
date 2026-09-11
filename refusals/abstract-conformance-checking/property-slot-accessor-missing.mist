@@ -1,0 +1,23 @@
+using Standard;
+
+namespace Refusal;
+
+public abstract ILabeled
+{
+    string Label { get; set; }
+}
+
+// REFUSE: MIST_PA_PROPERTY_SLOT_ACCESSOR_MISSING
+public class GetOnly : ILabeled
+{
+    public string Label { get; }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var g = new GetOnly();
+        Console.WriteLine("unreachable");
+    }
+}

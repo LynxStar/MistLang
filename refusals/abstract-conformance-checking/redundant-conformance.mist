@@ -1,0 +1,28 @@
+using Standard;
+
+namespace Refusal;
+
+public abstract IDescribable
+{
+    string Describe();
+}
+
+public class Twice : IDescribable
+{
+    public string Describe() { return "twice"; }
+}
+
+// REFUSE: MIST_PA_REDUNDANT_CONFORMANCE
+with Twice : IDescribable
+{
+    Describe as Describe;
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var t = new Twice();
+        Console.WriteLine("unreachable");
+    }
+}

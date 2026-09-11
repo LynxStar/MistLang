@@ -276,40 +276,6 @@ public static class BackendDiagnostics
         "Type '{0}' is not declared in Mist, so it cannot be declared to conform to '{1}'. The C# backend satisfies a retroactive conformance by adding the interface to the conforming type's declaration, which a precompiled type cannot receive.");
 
     /// <summary>
-    /// An analyzer's judgement under the test
-    /// <see cref="ProgramModelDiagnostics.ConformanceSourceNotConcrete"/> records, reported at
-    /// emission because Stage 5 is an empty stub and because there is no valid C# to write
-    /// instead -- the interface ends up named twice, or the slot implemented twice. Refused
-    /// rather than collapsed: deduplicating the emitted base list runs a program the language
-    /// forbids, and where two blocks map one slot to different members it also picks a winner on
-    /// the author's behalf.
-    /// </summary>
-    public static readonly DiagnosticDescriptor RedundantConformance = new(
-        new DiagnosticId("MIST_BE_REDUNDANT_CONFORMANCE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.Backend,
-        "'{0}' is already declared to conform to '{1}', so this with block is redundant. A type reaches an abstract once: remove the with block, or remove '{1}' from the base list, or drop the duplicate with block.");
-
-    /// <summary>
-    /// An implementor supplies no nested type for an associated type slot. C# has no abstract nested
-    /// type, so the backend LIFTS a slot to a type parameter on the emitted interface, which makes
-    /// the filler a type ARGUMENT the implementor's base list has to carry. With nothing to pass, the
-    /// base list would name the interface at the wrong arity.
-    /// <para>
-    /// Whether the obligation exists at all belongs to nominal conformance checking, which judges a
-    /// finished model; this is the narrower question of whether the lift can be spelled, so it is
-    /// reported here. Refused rather than defaulted: no type is a safe stand-in for one the author
-    /// never named, and emitting the interface unlifted moves the failure onto a generated file with
-    /// no Mist-level cause -- the shape <see cref="UnsupportedExpression"/> exists to avoid.
-    /// </para>
-    /// </summary>
-    public static readonly DiagnosticDescriptor UnfilledTypeSlot = new(
-        new DiagnosticId("MIST_BE_UNFILLED_TYPE_SLOT"),
-        DiagnosticSeverity.Error,
-        PipelineStage.Backend,
-        "'{0}' declares no nested type named '{1}' to fill the associated type slot '{2}.{1}'. Declare a nested type called '{1}' on '{0}' satisfying the slot's constraints.");
-
-    /// <summary>
     /// A parameterized associated type slot declares no abstract bound. C# has no higher-kinded
     /// type, so such a slot cannot be lifted the way a plain one is; the backend ERASES it to its
     /// bound instead, and an unbounded slot leaves nothing to erase to.

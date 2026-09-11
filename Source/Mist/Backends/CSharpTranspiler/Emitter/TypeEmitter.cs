@@ -122,7 +122,6 @@ internal static class TypeEmitter
         AttributeEmitter.EmitLines(type.DeclaredAttributesList, writer, diagnostics);
 
         SlotLift.ReportUnboundedParameterized(type, diagnostics);
-        SlotLift.ReportUnfilled(type, diagnostics);
 
         writer.WriteLine(
             $"{accessibility}{readonlyModifier}{refModifier}{typeKeyword} {typeName}{EmitBaseList(type, closedConstraints)}");

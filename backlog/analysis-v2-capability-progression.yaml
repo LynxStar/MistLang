@@ -556,15 +556,78 @@ rules:
     name: Slot filling, accessor shape and retroactive conformance
     order: 7
     subsystem: typechecker
-    requires: [declaration-shape-checks]
-    status: missing
-    from: orders 69, 70, 73, 74 -- 16 tasks, the largest single cluster
+    requires: [assignability-core, exhaustiveness-checking]
+    status: done
+    from: >
+      orders 69, 70, 73, 74 -- 16 tasks, the largest single cluster
     evidence: >
       SPEC-BACKED AND SPEC-CITED: .kiro/specs/abstract-type-unification/requirements.md, Requirements 14
-      and 28, is the authoritative statement, and order 69 records that its own entry did not cite either
-      before. Blocked on one thing first -- order 69's last task: a conformance contract carries no
-      source location, so there is nowhere to report. That is order 2's second task.
-    tasks: []
+      and 28. The blocker order 69 recorded -- no source location on the contract -- was moot for Stage
+      5 as built: the rules run over the concrete model, where MemberType.DeclarationNode is reachable,
+      and an unfilled slot is reported at the conformer's declaration as 14.2 asks.
+
+      CLASSIC'S VERDICTS ARE THE CONTRACT, measured on a 17-shape probe. Classic refuses an unfilled
+      slot, one filled with the wrong parameter or return type, a slot inherited through the abstract
+      hierarchy, a generic slot left half filled, a property slot missing an accessor (SM_0022 and
+      MISSING_ABSTRACT_PROPERTY_ACCESSOR), a with block leaving a slot unanswered (WITH_0004), a mapping
+      of the wrong signature (WITH_0005), a with block naming an abstract the base list already reaches
+      (WITH_0003), and a nested type filling an associated type slot without meeting its constraint
+      (AT_0003); it also refuses a slot hidden by a default restated on a derived abstract, which order
+      69 had measured on both pipelines. Every one is refused by v2 at the same construct, and the
+      mapping of the wrong signature by the binder alone. Classic admits a default left unfilled, a
+      default the conformer restates, a generic slot closed by the base list, a slot filled by an
+      inherited member, a diamond filled once, and a with block answered by a mapping; v2 admits all of
+      those and a with block answered by the type's own member, which C# implements implicitly.
+
+      THE RULE. Slots are the bodiless instance members of the abstracts the type's own base list
+      reaches, transitively through the abstract hierarchy, each abstract visited once so a diamond asks
+      once. Fillers are the public instance members the type declares or inherits along its concrete
+      base chain, each read through the substitution of the base it came from; a default is a member,
+      not a slot, and fills nothing but its own name. A member answers a slot when the arity matches
+      and every type AGREES: identical by name once the abstract's own type arguments are applied,
+      structurally through a construction, or indeterminate on either side -- a type parameter the
+      conformer supplies nothing for, and an associated type slot, which the conformer's nested type IS
+      under another name. A property slot is answered by name and judged by accessor shape, which is
+      carried by which accessors exist, and its type is compared as the method types are. A with block
+      answers the slots of the abstract it names by its mappings, judged by signature alone since a
+      mapping renames, or by the type's own public members; a slot whose mapping the binder already
+      refused counts as answered, because the author did map it and that fault has its complaint. A
+      with block naming an abstract the base list or an earlier block reaches is redundant, reported
+      here now rather than at emission, which kept only the deduplication. An associated type slot's
+      filler is judged against the slot's constraints, and its absence reported here, both moved out of
+      the backend's lift, which now consults TypeSlots in the model for the filler itself.
+
+      NOT JUDGED, each on purpose, and each a task below: a mapping onto a non-public source member,
+      which C# accepts and nobody has decided; a conformance's namespace scoping, recorded and read by
+      nothing; and indexer and operator slots.
+
+      MEASURED: the first sweep reported four findings on working programs, two rule errors -- a
+      mapping's source keeps its own name, so the name check did not apply to it, and a slot typed by an
+      associated type slot compared by name where it must agree -- then zero findings and identical
+      stdout on AllFeaturesV2 and AllFeatures, and zero on the three unbanked samples standalone. 13
+      corpus cases, one per refused shape, plus a refused mapping under binding pinning that it draws
+      one complaint and not two. Nine decision rows over fixtures that are themselves under analysis,
+      so the admits above are silences proven nine times over. Thirteen mutations, each on a confirmed
+      build: method slots skipped, every signature agreeing, non-public members filling, base abstracts
+      not walked, accessor shape and with-block slots and redundancy and the two type-slot rules each
+      not judged, mappings judged by name, the abstract's type arguments not applied, refused mappings
+      not counted as answered, and slot-typed signatures compared by name. Thirteen of thirteen caught
+      on the first pass.
+    tasks:
+      - >
+        A mapping onto a NON-PUBLIC source member is admitted. Classic requires public; C# accepts the
+        forwarding body. Whether conformance being a public claim should forbid it is a language
+        question nobody has asked.
+      - >
+        A conformance's namespace scoping is recorded and read by nothing, on both pipelines.
+        Requirement 19.2 gives the syntax and Requirement 20 what conformance means; neither settles it.
+      - >
+        Indexer and operator slots are not judged, and a static abstract member is not a slot.
+      - >
+        A slot mentioning an open type parameter or an associated type slot is checked on arity alone.
+      - >
+        Requirement 14 wants a clause saying a default restated on a derived abstract HIDES the base's
+        slot; the rule does what both pipelines measure, and the spec still does not say it.
 
   - id: pattern-checking
     name: Impossible, redundant and unreachable patterns

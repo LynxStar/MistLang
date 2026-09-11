@@ -1,0 +1,24 @@
+using Standard;
+
+namespace Refusal;
+
+public abstract IBox<T>
+{
+    T Get();
+    void Put(T value);
+}
+
+// REFUSE: MIST_PA_SLOT_NOT_FILLED
+public class HalfBox : IBox<int>
+{
+    public int Get() { return 1; }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var b = new HalfBox();
+        Console.WriteLine("unreachable");
+    }
+}

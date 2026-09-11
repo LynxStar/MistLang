@@ -99,4 +99,46 @@ public static class ProgramAnalysisDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.Analysis,
         "Type '{0}' has no default: it declares no default block or parameterless constructor, or a field or base of it has none. Give it a default block, or construct it explicitly.");
+
+    public static readonly DiagnosticDescriptor SlotNotFilled = new(
+        new DiagnosticId("MIST_PA_SLOT_NOT_FILLED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "'{0}' does not fill slot '{1}' of '{2}': it declares no public member named '{3}'.");
+
+    public static readonly DiagnosticDescriptor SlotSignatureMismatch = new(
+        new DiagnosticId("MIST_PA_SLOT_SIGNATURE_MISMATCH"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "'{0}' does not fill slot '{1}' of '{2}': its '{3}' has a different signature.");
+
+    public static readonly DiagnosticDescriptor PropertySlotAccessorMissing = new(
+        new DiagnosticId("MIST_PA_PROPERTY_SLOT_ACCESSOR_MISSING"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "'{0}.{1}' does not implement the '{2}' accessor required by abstract type '{3}'.");
+
+    public static readonly DiagnosticDescriptor ConformanceSlotUnanswered = new(
+        new DiagnosticId("MIST_PA_CONFORMANCE_SLOT_UNANSWERED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "The with block for '{0} : {1}' leaves slot '{2}' unanswered. Map a member onto it, or declare a public member of that name and signature.");
+
+    public static readonly DiagnosticDescriptor RedundantConformance = new(
+        new DiagnosticId("MIST_PA_REDUNDANT_CONFORMANCE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "'{0}' already conforms to '{1}', so this with block is redundant. A type reaches an abstract once: remove the with block, or remove '{1}' from the base list.");
+
+    public static readonly DiagnosticDescriptor TypeSlotUnfilled = new(
+        new DiagnosticId("MIST_PA_TYPE_SLOT_UNFILLED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "'{0}' declares no nested type named '{1}' to fill the associated type slot '{2}.{1}'.");
+
+    public static readonly DiagnosticDescriptor TypeSlotConstraintNotSatisfied = new(
+        new DiagnosticId("MIST_PA_TYPE_SLOT_CONSTRAINT_NOT_SATISFIED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Nested type '{0}' does not satisfy constraint '{1}' of associated type slot '{2}.{3}'.");
 }

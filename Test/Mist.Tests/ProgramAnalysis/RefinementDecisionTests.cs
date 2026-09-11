@@ -210,6 +210,18 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
     }
 
     [Theory]
+    [InlineData("int[] items = new int[3]; public int Run() { int s = 0; for(int i = 0; i < items.Length; i = i + 1) { s = s + items[i]; } return s; }")]
+    [InlineData("int[] items = new int[3]; public int Run() { int s = 0; for(int i = 0; i < this.items.Length; i = i + 1) { s = s + this.items[i]; } return s; }")]
+    [InlineData("int[] items = new int[3]; public int Run(int i) { if(i >= 0 && i < items.Length) { return items[i]; } return 0; }")]
+    [InlineData("int[] items = new int[3]; public int Run() { int s = 0; for(int i = 0; i < items.Length; i = i + 1) { s = s + items[i]; Log(); } return s; } static void Log() { }")]
+    [InlineData("readonly int[] items = new int[3]; public int Run() { int s = 0; for(int i = 0; i < items.Length; i = i + 1) { Log(); s = s + items[i]; } return s; } static void Log() { }")]
+    [InlineData("readonly int[] items = new int[3]; public int Run(int i) { if(i >= 0 && i < items.Length) { var other = new Held(); return items[i]; } return 0; }")]
+    public void AnIndexIntoAFieldHeldArrayTheFlowProves_IsAdmitted(string members)
+    {
+        AssertSilent("var held = new Held();", $"public class Held {{ {members} }}");
+    }
+
+    [Theory]
     [InlineData("Console.WriteLine(Helpers.Twice(30));")]
     [InlineData("Console.WriteLine(Helpers.Twice(adult) + Helpers.Twice(drinking));")]
     [InlineData("int y = 40; Console.WriteLine(Helpers.Twice(y));")]
@@ -260,14 +272,14 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
 
     // ── Harness ─────────────────────────────────────────────────────────
 
-    private void AssertSilent(string statement)
+    private void AssertSilent(string statement, string extraTypes = "")
     {
-        Assert.Empty(Analyse(statement));
+        Assert.Empty(Analyse(statement, extraTypes));
     }
 
-    private List<Diagnostic> Analyse(string statement)
+    private List<Diagnostic> Analyse(string statement, string extraTypes = "")
     {
-        var model = BuildModel(statement, extraTypes: "", extraPreamble: "", out _);
+        var model = BuildModel(statement, extraTypes, extraPreamble: "", out _);
         var findings = new DiagnosticBag();
 
         ProgramAnalysisRunner.Run(model, findings);

@@ -331,7 +331,7 @@ public class LookupTable
     [Obsolete("Use Get method instead")]
     public int this[int index]
     {
-        get { return data[index]; }
+        get { if(index >= 0 && index < data.Length) { return data[index]; } return 0; }
         set { data[index] = value; }
     }
 }

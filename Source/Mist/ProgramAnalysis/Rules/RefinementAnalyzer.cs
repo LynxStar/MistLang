@@ -9,6 +9,7 @@ using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 
@@ -22,15 +23,16 @@ namespace Mist.ProgramAnalysis.Rules;
 /// widened to infinity the third time a join moves it, so a counting loop settles while an inner loop
 /// revisited by an outer one keeps the bound the outer condition gave, and a symbolic upper bound
 /// `i &lt; a.Length` remembered against the array itself, which is what indexing an array of unknown
-/// length needs. What cannot be proven is refused where the value meets the refinement -- a
-/// declaration, an assignment, a return, an index into an array whose length is known or that a local
-/// holds, and an argument at a call, a construction or a constructor chain. A parameter's `where` IS
-/// the parameter's type, an anonymous refinement of the declared one, so the model has one way to say
-/// a value is narrowed and this rule one way to read it, and nothing is left to a runtime guard at the
-/// callee: refinement is type checking, and a call is where the type is met. Not judged: an index into
-/// an unknown-length array a field holds, which classic leaves to the runtime's own check, a task on
-/// order 12 of the register. What the prover cannot read -- a property pattern, a real, an expression
-/// that is neither a constant nor a local -- is not refused either.
+/// length needs. The array may be a local or a field of this instance; the bound is forgotten when
+/// that holder is reassigned and, for a field that is not readonly, at any call, object creation or
+/// await, since code the flow cannot see may reassign it then. What cannot be proven is refused where
+/// the value meets the refinement -- a declaration, an assignment, a return, an index into an array
+/// whose length is known or that a local or a field holds, and an argument at a call, a construction
+/// or a constructor chain. A parameter's `where` IS the parameter's type, an anonymous refinement of
+/// the declared one, so the model has one way to say a value is narrowed and this rule one way to
+/// read it, and nothing is left to a runtime guard at the callee: refinement is type checking, and a
+/// call is where the type is met. What the prover cannot read -- a property pattern, a real, an
+/// expression that is neither a constant nor a local -- is not refused either.
 /// </summary>
 internal sealed class RefinementAnalyzer : IProgramAnalyzer
 {
@@ -137,7 +139,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
         };
     }
 
-    private sealed record Bound(LocalVariable Array, ComparisonKind Kind);
+    private sealed record Bound(object Holder, ComparisonKind Kind);
 
     private sealed record Knowledge(Admitted Values, ImmutableHashSet<Bound> Bounds, int Changes = 0)
     {
@@ -194,7 +196,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                     return Given(state, declaration.Local, declaration.Initializer);
 
                 case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { IsCoalescing: false, Target: LocalReferenceExpression target } assignment }:
-                    state = Forget(state, target.Local);
+                    state = Forget(state, holder => ReferenceEquals(holder, target.Local));
 
                     if(assignment.Value is BinaryExpression { Left: LocalReferenceExpression { Local: var same }, OperatorKind: BinaryOperatorKind.Add or BinaryOperatorKind.Subtract } step2
                         && ReferenceEquals(same, target.Local) && Requirement.Constant(step2.Right) is { } by && state.TryGetValue(target.Local, out var before))
@@ -203,6 +205,12 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                     }
 
                     return Given(state, target.Local, assignment.Value);
+
+                case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { Target: var target } } when Assigned(target) is { } field:
+                    return Forget(state, holder => ReferenceEquals(holder, field));
+
+                case { Kind: FlowStepKind.Evaluate, Node: InvocationExpression or NewExpression or AwaitExpression }:
+                    return Forget(state, holder => holder is Field { Modifiers.IsReadonly: false });
 
                 default:
                     return state;
@@ -306,7 +314,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                 {
                     Need(state, index.Index, new Requirement(Admitted.Between(0, length - 1), []), index.Index, onIndex: index.Receiver);
                 }
-                else if(index.Receiver is LocalReferenceExpression)
+                else if(Holder(index.Receiver) is not null)
                 {
                     Need(state, index.Index, new Requirement(Admitted.AtLeast(0), [new SymbolicBound("Length", ComparisonKind.LessThan)]), index.Index, onIndex: index.Receiver);
                 }
@@ -386,7 +394,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
             foreach(var bound in required.Bounds)
             {
-                if(!constant && (onIndex is not LocalReferenceExpression array || !known.Bounds.Contains(new Bound(array.Local, bound.Kind))))
+                if(!constant && (Holder(onIndex) is not { } holder || !known.Bounds.Contains(new Bound(holder, bound.Kind))))
                 {
                     return false;
                 }
@@ -475,10 +483,10 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                             return Narrow(state, subject.Local, Requirement.Interval(upper, length));
                         }
 
-                        if(measured is LocalReferenceExpression array)
+                        if(Holder(measured) is { } holder)
                         {
                             var known = state.TryGetValue(subject.Local, out var existing) ? existing : Knowledge.Unknown;
-                            return state.SetItem(subject.Local, known with { Bounds = known.Bounds.Add(new Bound(array.Local, upper)) });
+                            return state.SetItem(subject.Local, known with { Bounds = known.Bounds.Add(new Bound(holder, upper)) });
                         }
                     }
 
@@ -525,17 +533,38 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             return state.Remove(local);
         }
 
-        private static ImmutableDictionary<LocalVariable, Knowledge> Forget(ImmutableDictionary<LocalVariable, Knowledge> state, LocalVariable local)
+        private static ImmutableDictionary<LocalVariable, Knowledge> Forget(ImmutableDictionary<LocalVariable, Knowledge> state, Func<object, bool> lost)
         {
             foreach(var (other, known) in state)
             {
-                if(known.Bounds.Any(bound => ReferenceEquals(bound.Array, local)))
+                if(known.Bounds.Any(bound => lost(bound.Holder)))
                 {
-                    state = state.SetItem(other, known with { Bounds = known.Bounds.Where(bound => !ReferenceEquals(bound.Array, local)).ToImmutableHashSet() });
+                    state = state.SetItem(other, known with { Bounds = known.Bounds.Where(bound => !lost(bound.Holder)).ToImmutableHashSet() });
                 }
             }
 
             return state;
+        }
+
+        private static object? Holder(Expression? array)
+        {
+            return array switch
+            {
+                LocalReferenceExpression local => local.Local,
+                FieldReferenceExpression field => field.Field,
+                MemberAccessExpression { Receiver: ThisExpression, Member: FieldResult { Field: var field } } => field,
+                _ => null,
+            };
+        }
+
+        private static Field? Assigned(Expression target)
+        {
+            return target switch
+            {
+                FieldReferenceExpression field => field.Field,
+                MemberAccessExpression { Member: FieldResult { Field: var field } } => field,
+                _ => null,
+            };
         }
 
         private static bool Accepts(IMistType constituent, IMistType valueType)
@@ -657,6 +686,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             {
                 LocalReferenceExpression local => local.Local.Name,
                 FieldReferenceExpression field => field.Field.Name,
+                ThisExpression => "this",
                 MemberAccessExpression access => $"{Display(access.Receiver)}.{access.MemberName}",
                 _ => TypeDisplay.Mist(expression.Type),
             };

@@ -141,7 +141,16 @@ public class Words : IEnumerable<string>
         private int index;
         public Enumerator(string[] items) { this.items = items; index = -1; }
         public bool MoveNext() { index = index + 1; return index < items.Length; }
-        public string Current => items[index];
+        // The index is a field, which the flow does not track; Current copies it to a local and proves the bound itself.
+        public string Current
+        {
+            get
+            {
+                var i = index;
+                if(i >= 0 && i < items.Length) { return items[i]; }
+                return "";
+            }
+        }
     }
 
     private string[] data;

@@ -323,19 +323,18 @@ whole subpattern to the runtime binder.
 
 ---
 
-## 🟡 2 book snippets have nothing to show on the experimental pipeline
+## 🟡 10 book snippets do not parse on either pipeline
 
 **Found 2026-09-11**, the day `tools/SnippetEmitter` moved from classic to `--pipeline experimental`; 58
 failed that morning. By evening 30 named the sibling snippets they build on with a `// with:` line,
 which the tool compiles alongside them (four keep a declaration inline where their own chapter's
 pages overlap), 5 imported the CLR namespaces they used or declared the attribute they applied, 2 were
-content bugs classic's tool never caught because it skipped Roslyn, and 9 were v2 defects since fixed:
+content bugs classic's tool never caught because it skipped Roslyn, 9 were v2 defects since fixed --
 nested local shadowing, union-into-union widening, span slicing, a CLR delegate as a lambda's target,
 the element type of a projected `List<int>`, a method generic over a slot-bearing abstract with
-`T.Output`, narrowing after `??=`, and a union alias over a type parameter. Ten fragments that do not
-parse on either pipeline (`advanced/structured-concurrency/*`, `basics/void-type/*`: a bare or
-`public static` function at file top) are left as they are by decision. Two keep a hand-written `.cs`:
-
-- `type-system/variadics/declaration-kinds.mist`, `declaration-syntax.mist` -- declare variadic types
-  and use none, and a monomorph is emitted only per arity used, so there is nothing to show. Either
-  the snippets gain a use at one arity, or the pages keep an explanatory block instead of a tab.
+`T.Output`, narrowing after `??=`, and a union alias over a type parameter -- and 2 variadic
+declaration snippets keep a hand-written C# tab marked as an illustration, by decision, since a
+monomorph is emitted only per arity used and they use none. What remains, left as it is by decision
+for now: `advanced/structured-concurrency/*` (6) and `basics/void-type/*` (4) place a bare or
+`public static` function at file top, which the shared parser refuses, so neither pipeline ever
+compiled them and their `.cs` tabs are not compiler output.

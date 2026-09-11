@@ -75,6 +75,9 @@ Inline code blocks (without `{{#include}}`) are acceptable ONLY for:
 - Pseudocode or conceptual examples explicitly marked as "not Mist syntax"
 - Features that are designed but not yet implemented (must be marked with a blockquote noting the limitation)
 - Error message examples showing compiler diagnostics
+- A declaration-only snippet the compiler emits nothing for, such as a variadic declaration with no use,
+  whose C# tab is an illustration: keep it inline, name the tab `Emitted C# (illustration)`, note under
+  the tabs why nothing is generated, and give the snippet no `.cs` twin so the tool does not count it
 
 ## Syntax Highlighting Sync
 

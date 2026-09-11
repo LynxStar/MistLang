@@ -24,12 +24,18 @@ Both spellings declare the same parameter:
 {{#include ../../snippets/type-system/variadics/declaration-syntax.mist}}
 ```
 {{#endtab }}
-{{#tab name="Emitted C#" }}
+{{#tab name="Emitted C# (illustration)" }}
 ```csharp
-{{#include ../../snippets/type-system/variadics/declaration-syntax.cs}}
+// Both forms emit the same monomorphized C# class per observed arity.
+// For example, Foo<int, string> and Bar<[int, string]> both emit:
+public class Foo<T1, T2> { }
+public class Bar<T1, T2> { }
 ```
 {{#endtab }}
 {{#endtabs }}
+
+> The C# above is an illustration, not compiler output. The snippet declares variadic types and uses none, and the compiler emits a monomorph only for each arity a program actually uses, so a file with no use produces nothing to show.
+
 
 The `params` spelling grants bracket-free construction at the use site. The explicit `Type[]:` form requires the caller to pass arguments in brackets.
 
@@ -335,12 +341,21 @@ A pack type-parameter list is permitted on every generic-capable declaration kin
 {{#include ../../snippets/type-system/variadics/declaration-kinds.mist}}
 ```
 {{#endtab }}
-{{#tab name="Emitted C#" }}
+{{#tab name="Emitted C# (illustration)" }}
 ```csharp
-{{#include ../../snippets/type-system/variadics/declaration-kinds.cs}}
+// Each variadic declaration emits per-arity monomorphized C#.
+// For example, at arity 2:
+public class Bundle<T1, T2> { }
+public struct Pair<T1, T2> { }
+public interface IApplier<T1, T2, TResult> { }
+// Action<int, string> resolves to System.Action<int, string>
+// Row<int, string> emits a newtype wrapping System.ValueTuple<T1, T2>
 ```
 {{#endtab }}
 {{#endtabs }}
+
+> The C# above is an illustration, not compiler output. The snippet declares variadic types and uses none, and the compiler emits a monomorph only for each arity a program actually uses, so a file with no use produces nothing to show.
+
 
 The same rules apply uniformly: binding, arity-in-slots, and one `params` per list.
 

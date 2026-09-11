@@ -279,7 +279,7 @@ capabilities:
     verified_by: v2-semantics
     evidence: >
       TypeEmitter.Emit writes `{accessibility}{typeKeyword} {Name}`. Accessibility
-      collapses to "public " or "" -- see non-public-type-accessibility for that gap.
+      collapsed to "public " or "" until order 40 spelled every level.
     unlocks: []
 
   - id: methods-static-and-instance
@@ -1394,11 +1394,29 @@ capabilities:
     order: 40
     layer: accessibility
     requires: [class-declaration]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      TypeEmitter emits "public " for public and the empty string for everything else, so
-      every other level silently becomes C# internal. No tier-0 or tier-1 sample declares a
-      non-public type, so this is latent rather than live.
+      TypeEmitter emitted "public " for public and the empty string for everything else, and so did
+      EnumEmitter and NewtypeEmitter. No sample declares a non-public type, so it was recorded as
+      latent -- and RE-MEASURED, it was live: "" is C# internal at namespace level and C# PRIVATE
+      inside a type, so `public class Outer { internal class Mid { } protected class Prot { } }`
+      bound clean and failed Roslyn with 'Outer.Mid' is inaccessible due to its protection level.
+      Top-level `internal class` only worked because C#'s default happened to agree.
+
+      DELIVERED: MemberModifierEmitter.Spell gives every level its keyword, with a trailing space,
+      and the three type emitters use it, so `internal`, `protected`, `private` and `public` are
+      spelled wherever they were declared, and a bare declaration spells the default the binder
+      resolved (internal at top level, private nested). The two-project probe above now prints.
+      Pinned by TypeModifierEmissionTests, Tier 3 on the emitted text, top-level and nested per
+      level, which is the only place it is observable. Misuse is Stage 5's, and order 6's corpus
+      already observes it: nested-in-internal-type-less-accessible, nested-type-less-accessible,
+      base-type-less-accessible, the four member-type less-accessible cases, private-member-access
+      and protected-member-access.
+
+      A top-level `private class` is still spelled as written and refused by Roslyn as CS1527,
+      which is exactly what classic does with it; whether the frontend should refuse it first is
+      recorded on analysis order 6.
     unlocks: []
 
   - id: sealed-modifier
@@ -1406,11 +1424,20 @@ capabilities:
     order: 41
     layer: accessibility
     requires: [class-declaration]
-    v2_status: missing
+    v2_status: done
+    verified_by: v2-semantics
     evidence: >
-      MemberModifiers.IsSealed exists and ModifierBuilder sets it, but neither
-      MemberModifierEmitter nor TypeEmitter emits it. FullAccessibilityModel declares one
+      MemberModifiers.IsSealed existed and ModifierBuilder set it, but neither
+      MemberModifierEmitter nor TypeEmitter emitted it. FullAccessibilityModel declares one
       sealed class and one sealed struct.
+
+      DELIVERED, class-only as decided below: TypeEmitter spells `sealed` between the accessibility
+      and the `class` keyword, and a sealed struct gains nothing. Pinned by TypeModifierEmissionTests
+      on the emitted text -- `public sealed class Closed`, and `public struct Frozen` with no
+      `sealed` in it -- since stdout cannot see either. AllFeaturesV2 is byte-identical with the
+      modifier emitted, so FullAccessibilityModel's Ledger now compiles sealed and Frozen carries no
+      protected member for CS0628 to find. Misuse is Stage 5's and order 6's corpus observes it:
+      sealed-base-type, newtype-over-sealed-type and sealed-type-alias.
 
       NOT WHAT GATED THAT SAMPLE, and it was wrongly listed among its requirements until the sample
       was banked without this. CLASSIC DROPS SEALED TOO -- its committed out/Ledger.cs is
@@ -1420,10 +1447,6 @@ capabilities:
       WHEN IT IS BUILT, IT IS CLASS-ONLY. `sealed struct` is CS0106 in C#, and a Mist struct is
       sealed in the C# sense the moment it is emitted as a struct at all, so the modifier has nothing
       to add there.
-    tasks:
-      - Emit sealed on CLASS declarations. Not on structs; see above.
-      - Keep the sealed-with-protected-member warning from firing on Frozen, which
-        deliberately has no protected member.
     unlocks: []
 
   - id: struct-inheritance
@@ -5347,8 +5370,9 @@ capabilities:
       Measured rather than assumed, and it refused before this order too -- with three diagnostics where
       there are now two.
       
-      samples/DelegateFuncConversion now matches classic byte for byte, standalone. It is NOT BANKED, for
-      a reason that is not a capability gap -- see the sample's own blocked_by.
+      samples/DelegateFuncConversion now matches classic byte for byte, standalone, and is banked on
+      AllFeaturesV2 since order 129 carried a referenced manifest's framework references. Its own entry
+      says why AllFeatures lacks it.
     tasks:
       - >
         Correct this entry's requires to include clr-assembly-type-projection, or move the order after
@@ -6099,6 +6123,22 @@ capabilities:
       PackageReference. That is a backend requirement rather than anything the manifest
       declares, so it is outside this capability; net10.0 carries Microsoft.CSharp in the
       shared framework and v2's `dynamic` emission compiles without it.
+
+      A REFERENCED PROJECT'S MANIFEST NOW REACHES RESOLUTION TOO. Both pipelines read packages and
+      framework references off CompilerOptions, and the CLI fills those from the root manifest
+      alone, so a referenced project's [packages] and [framework_references] were parsed into its
+      ProjectConfiguration and read by nothing. Standalone that is invisible; composed,
+      CSharpInteropV2 lost Newtonsoft, EntityFrameworkCore and AspNetCore.Http and
+      DelegateFuncConversion lost WebApplication, in both pipelines. ProjectDependencyUnion folds
+      every resolved project's declarations into the options before Stage 1.5, so the one seam
+      feeds PackageResolver, FrameworkReferenceResolver, ProjectFileEmitter and classic's csproj
+      patch alike. The rule for one package declared at two versions: the highest wins, whichever
+      manifest declared it, because a declared version is a floor and every project lands in one
+      assembly; a framework is declared once by name. Pinned by ProjectDependencyUnionTests (Tier 1)
+      and ReferencedManifestDependenciesTests (Tier 4: a referenced [framework_references] reaching
+      v2's resolution and the emitted csproj). CSharpInteropV2 and DelegateFuncConversion are
+      banked on AllFeaturesV2 with it, and CSharpInteropV2 on AllFeatures; DelegateFuncConversion's
+      entry says why not both.
     unlocks: []
 
   - id: clr-nullable-projection
@@ -8574,9 +8614,9 @@ samples:
         the sample is legal under "everything is public". A compiler that parsed, recorded
         and emitted the modifiers and never checked them passes the whole sample.
       - >
-        sealed-modifier was listed as a requirement and is not one -- neither pipeline emits sealed,
-        and stdout cannot see it. Removed from `requires` when the sample was banked without it. See
-        order 41.
+        sealed-modifier was listed as a requirement and is not one -- stdout cannot see it, and the
+        sample banked without it while neither pipeline emitted it. Removed from `requires` then; v2
+        emits it since order 41 was delivered, and only TypeModifierEmissionTests can tell.
       - protected is indistinguishable from internal or public here. Both protected reads are
         from a derived type in the same compilation.
       - internal is indistinguishable from public -- single compilation, assembly boundary
@@ -9137,18 +9177,21 @@ samples:
         survives wrapping, so removal from an event or a list would fail undetected.
       - The endpoint registration is never invoked, so the lambda-to-delegate-base path's
         runtime behaviour is never exercised.
-    blocked_by: composition
     note: >
-      GREEN ON v2 STANDALONE AND NOT BANKABLE, the same composition wall CSharpInteropV2 is behind:
-      referenced FROM AllFeaturesV2 it cannot see its own [framework_references], so
-      Microsoft.AspNetCore.Http and Microsoft.AspNetCore.Builder fail to resolve and WebApplication is
-      an unresolved identifier. CLASSIC FAILS IDENTICALLY on the same three names, so a project
-      reference does not carry the referenced project's framework references in either pipeline. It is
-      absent from AllFeatures too, which is where that was always visible.
-      
-      Recorded rather than left as an unexplained absence: standalone on v2 the sample matches classic
-      byte for byte, and its capability closure holds no `missing`. Whoever fixes reference flow should
-      expect it to become bankable with no compiler change.
+      BANKED ON AllFeaturesV2 AND ABSENT FROM AllFeatures, and the absence is classic's. Once a project
+      reference carried the referenced manifest's [framework_references] (order 129), v2 composed this
+      sample first time and byte-identical to its standalone output. Classic still refuses it in
+      composition with MIST_TC_0001 at lines 46 and 52 -- func<int, bool> to System.Predicate<int> and
+      back -- whenever ANY other project in the compilation declares a Mist class implementing a CLR
+      interface: a two-project probe whose second project is only `class Manual : IDisposable`
+      reproduces it, and DisposableDropInterop and Attributes are the two samples that carry one.
+      Standalone, and beside every other sample, classic composes it fine. The defect is behind the
+      clean-room line, so it stays; backlog/general.md records the probes.
+
+      The AllFeaturesV2 baseline lines for this sample and for CSharpInteropV2 were taken from
+      classic's STANDALONE runs, appended in RunDemo order, and the v2 composed run matched that
+      assembly byte for byte. A recapture of AllFeaturesV2.out from classic must be assembled the same
+      way, because classic cannot compile the orchestrator while this sample is in it.
 
   - name: FirstClassFunctions
     intro_order: 65
@@ -9348,18 +9391,6 @@ samples:
         conversion competition is exercised even though ref structs are visible candidates
         that must lose.
       - All string returns are optional-projected and never narrowed.
-    blocked_by: composition
-    note: >
-      GREEN ON v2 STANDALONE AND NOT BANKABLE, for a reason that is neither pipeline's
-      capability gap: referenced FROM AllFeaturesV2 it cannot see its own [packages] or
-      [framework_references], so Microsoft.EntityFrameworkCore, Newtonsoft and
-      Microsoft.AspNetCore.Http all fail to resolve. CLASSIC FAILS IDENTICALLY -- four
-      MIST_UNDEFINED_* against the same four names -- so a project reference does not carry
-      the referenced project's package and framework references in either pipeline.
-
-      Recorded here rather than left as an unexplained absence, because the sample is
-      otherwise finished: standalone on v2 it matches classic byte for byte. Whoever fixes
-      reference flow should expect this to become bankable with no compiler change.
 
   - name: ClrRefInterop
     intro_order: 59
@@ -9790,16 +9821,20 @@ orphan_capabilities:
 
       It was listed among FullAccessibilityModel's requirements until that sample was banked
       WITHOUT it, which is what removed the edge and left this unreachable. Recording it here
-      rather than deleting it keeps the fact that the emission is missing; deleting it would
+      rather than deleting it keeps the fact that the emission was missing; deleting it would
       have made a silent drop disappear from the file along with the entry.
 
-      Needs a unit test on emitted C#, per class and per struct. A sample cannot serve, and that
-      is a property of the acceptance test rather than of the construct.
+      DELIVERED ON v2 and still an orphan, because delivery changed nothing a sample can see:
+      TypeModifierEmissionTests pins `public sealed class` on the emitted text and pins that a
+      sealed struct gains nothing. Classic still drops it.
 
   - id: non-public-type-accessibility
     reason: >
-      No tier-0 through tier-8 sample declares a non-public type, so the current collapse of
-      every non-public level to C# internal is latent. Needs a unit test per level.
+      No tier-0 through tier-8 sample declares a non-public type, so the collapse of every
+      non-public level to "" was latent -- and, measured on the day it was delivered, live for a
+      NESTED type, where "" means C# private and a nested `internal` or `protected` class failed
+      Roslyn. TypeModifierEmissionTests now pins every level, top-level and nested. Still an
+      orphan: a sample declaring one would print the same either way.
 
 # =====================================================================
 # UNCOVERED CONSTRUCTS

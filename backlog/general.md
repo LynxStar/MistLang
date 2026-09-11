@@ -19,12 +19,33 @@ numbers[7] = 10;   // compiles; throws System.IndexOutOfRangeException at runtim
 
 **Why this matters now:** The `stack-only-types` spec deliberately mirrors `Array` for `Span<T, Length>` (Option 1), so spans inherit this exact hole. Closing the array gap closes it for spans too, since spans reuse the same bounds machinery.
 
+**Where v2 stands (2026-09-11):** analysis order 12 refuses an unproven index READ into any array or span of unknown length, whether a local or a field of `this` holds it. A field-held array carries the same symbolic bound `i < items.Length` a local does, forgotten on any assignment to the field and, unless the field is `readonly`, at any call, object creation or `await`. Two samples indexed a field-held array without a bound and were changed to prove it (`Iterators`'s enumerator and `Attributes`'s indexer; the spec proof code follows them). What remains open on v2 is the WRITE side, which is this entry's own example: `numbers[7] = 10` is not judged at all, because an index in assignment-target position never reaches the prover. Classic is unchanged on both.
+
 **Action (to scope into its own spec):**
 1. Decide the intended guarantee: should unknown-length indexing be a hard compile error (no runtime fallback), or should it require an explicit opt-in / pattern-match to index?
 2. Stop erasing `KnownLength` when a known-length creation is bound to an annotated local of the same element type (narrow the local's tracked length, like nullable flow narrowing) so `int[] x = new int[3]` retains length 3.
 3. Re-evaluate the literal-fallback branch (`longVal >= 0 && !KnownLength.HasValue → return`) and Case 4's unconditional accept for unknown-length arrays.
 4. Apply the same tightening to `Span<T, Length>` / `ReadOnlySpan<T, Length>` once they exist.
 5. Audit the blast radius: existing samples/tests/snippets that rely on runtime-deferred indexing into unknown-length arrays will need updating.
+
+---
+
+## 🟡 Classic cannot compose DelegateFuncConversion beside a Mist type that implements a CLR interface
+
+**Severity: medium** -- `samples/AllFeatures` is the classic regression guard, and it now lacks one sample that classic compiles fine standalone: `DelegateFuncConversion`.
+
+**Verified empirically** (2026-09-11) -- a root project referencing `DelegateFuncConversion` plus a second project whose only content is `public class Manual : IDisposable { public void Dispose() { } }` fails on classic with:
+
+```
+Program.mist(46,43): error MIST_TC_0001: Cannot implicitly convert type 'Func<[Int32], Boolean>' to 'Predicate<Int32>'.
+Program.mist(52,44): error MIST_TC_0001: Cannot implicitly convert type 'Predicate<Int32>' to 'Func<[Int32], Boolean>'.
+```
+
+The same root without the second project compiles and runs, as it does when the second project only uses CLR types (`using System;`, `new IO.MemoryStream()`, `new System.IO.MemoryStream()`) or declares a `[global_usings]` table. In the sample tree the two carriers are `DisposableDropInterop` (`ManualDisposable : IDisposable`) and `Attributes` (`ParamTagAttribute : Attribute`); each alone beside `DelegateFuncConversion` reproduces it, and the other 70 were cleared in groups of 18, 6 and 1. The experimental pipeline composes all of them.
+
+**Consequence:** `DelegateFuncConversion` is banked on `AllFeaturesV2` but not on `AllFeatures`, and classic cannot compile `AllFeaturesV2` at all, so that baseline's last 11 lines are assembled from classic's standalone run (see the sample's entry in `backlog/emitter-v2-capability-progression.yaml`).
+
+**Action:** none in classic, which the v2 rewrite replaces. Cite this entry if `AllFeatures` is ever expected to be the complete sample list.
 
 ---
 

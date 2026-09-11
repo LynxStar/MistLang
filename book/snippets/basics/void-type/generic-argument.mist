@@ -17,17 +17,11 @@ public class Result<T>
     }
 }
 
-public class Program
+// Using Result<void> to represent success with no value:
+public static Result<void> SuccessResult()
 {
-    // Using Result<void> to represent success with no value:
-    public static Result<void> SuccessResult()
-    {
-        return new Result<void>(void, true);
-    }
-
-    public static void Main(string[] args)
-    {
-        var success = SuccessResult();
-        Console.WriteLine($"IsSuccess: {success.IsSuccess()}");
-    }
+    return new Result<void>(void, true);
 }
+
+var success = SuccessResult();
+Console.WriteLine($"IsSuccess: {success.IsSuccess()}");

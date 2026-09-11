@@ -1,0 +1,34 @@
+using Standard;
+
+namespace Refusal;
+
+public owned class Engine
+{
+    public int Rpm;
+
+    public Engine(int rpm)
+    {
+        this.Rpm = rpm;
+    }
+
+    public int Get()
+    {
+        return Rpm;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        owned var e = new Engine(1);
+
+        int Read()
+        {
+            // REFUSE: MIST_PA_CAPTURED_BINDING
+            return e.Get();
+        }
+
+        Console.WriteLine(Read());
+    }
+}

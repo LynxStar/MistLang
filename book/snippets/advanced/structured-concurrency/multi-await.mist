@@ -1,21 +1,18 @@
 using Standard;
 
-public class Program
+async int ExpensiveComputation()
 {
-    public static async int ExpensiveComputation()
-    {
-        Console.WriteLine("Computing...");
-        return 42;
-    }
+    Console.WriteLine("Computing...");
+    return 42;
+}
 
-    public static async void Main(string[] args)
-    {
-        var task = ExpensiveComputation();
+async void Main()
+{
+    var task = ExpensiveComputation();
 
-        // Await the same task multiple times — work executes only once
-        var first = await task;   // suspends until complete, returns 42
-        var second = await task;  // already complete, returns 42 immediately
+    // Await the same task multiple times — work executes only once
+    var first = await task;   // suspends until complete, returns 42
+    var second = await task;  // already complete, returns 42 immediately
 
-        Console.WriteLine(first == second);  // true
-    }
+    Console.WriteLine(first == second);  // true
 }

@@ -30,7 +30,7 @@ The `entry_point` field serves as a universal disambiguation mechanism for two c
 #### Acceptance Criteria
 
 1. WHEN a `.mist` file contains statements at file scope (outside any type declaration), THE Compiler SHALL parse those statements as top-level statements belonging to that file.
-2. THE Compiler SHALL allow the following constructs as top-level statements: variable declarations, expression statements, if statements, while statements, for statements, foreach statements, return statements, and break statements.
+2. THE Compiler SHALL allow the following constructs as top-level statements: variable declarations, expression statements, if statements, while statements, for statements, foreach statements, return statements, break statements, and local function declarations (see `.kiro/specs/local-functions`, which added them on 2026-09-11).
 3. WHEN a top-level statement file contains `using` declarations, THE Compiler SHALL process them before the top-level statements, following the same rules as `using` declarations in non-top-level files.
 4. WHEN a top-level statement file contains type declarations (classes, structs, enums, interfaces, traits) after the top-level statements, THE Compiler SHALL parse those type declarations as normal declarations belonging to the file's namespace (inferred or explicit). They are not file-local — they are visible to other files in the same namespace.
 5. WHEN a top-level statement file contains a file-scoped namespace declaration (e.g., `namespace Foo;`), THE Compiler SHALL apply that namespace to the type declarations in the file. The top-level statements themselves are not placed in a namespace (they become the entry point).

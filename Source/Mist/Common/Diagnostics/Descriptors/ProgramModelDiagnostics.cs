@@ -609,6 +609,28 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "A variable named '{0}' is already declared in this scope.");
 
+    public static readonly DiagnosticDescriptor DuplicateLocalFunction = new(
+        new DiagnosticId("MIST_PM_DUPLICATE_LOCAL_FUNCTION"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "A local function named '{0}' is already declared in this scope.");
+
+    /// <summary>
+    /// A modifier a local function cannot carry: it has no accessibility to seal, no <c>this</c> of
+    /// its own to be readonly for, no discipline to declare, and no body the compiler supplies.
+    /// </summary>
+    public static readonly DiagnosticDescriptor LocalFunctionModifier = new(
+        new DiagnosticId("MIST_PM_LOCAL_FUNCTION_MODIFIER"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "A local function cannot be declared '{0}'.");
+
+    public static readonly DiagnosticDescriptor LocalFunctionGeneric = new(
+        new DiagnosticId("MIST_PM_LOCAL_FUNCTION_GENERIC"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "Local function '{0}' cannot declare type parameters.");
+
     // ── Body binding ─────────────────────────────────────────────────────
 
     /// <summary>A 'this' reference appears where there is no enclosing type.</summary>

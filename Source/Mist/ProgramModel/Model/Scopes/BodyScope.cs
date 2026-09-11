@@ -1,5 +1,7 @@
 using Mist.Common.Diagnostics;
+using Mist.Generated;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Members;
 
 namespace Mist.ProgramModel.Model.Scopes;
 
@@ -15,9 +17,20 @@ internal sealed class BodyScope(Scope parent) : Scope(parent)
 {
     private readonly Dictionary<string, LocalVariable> locals = [];
 
+    private readonly Dictionary<string, Method> functions = [];
+
+    private readonly Dictionary<LocalFunctionDeclarationNode, Method> functionsByNode = new(ReferenceEqualityComparer.Instance);
+
     private readonly Dictionary<LocalVariable, IMistType?> narrowed = new(ReferenceEqualityComparer.Instance);
 
     public IReadOnlyDictionary<string, LocalVariable> Locals => locals;
+
+    /// <summary>
+    /// The local function built for each declaration in this scope's statement list, kept by node
+    /// rather than by name so a declaration whose name was refused as a duplicate still binds its
+    /// own body rather than the first declaration's.
+    /// </summary>
+    public IReadOnlyDictionary<LocalFunctionDeclarationNode, Method> LocalFunctions => functionsByNode;
 
     /// <summary>
     /// What a `??=` established about a local for the statements after it in this scope and its
@@ -46,8 +59,13 @@ internal sealed class BodyScope(Scope parent) : Scope(parent)
     {
         // A local is neither instance nor static state, so member visibility does not apply: one
         // declared in a static member's body is reachable from it.
-        return locals.TryGetValue(request.Name, out var local)
-            ? new VariableResult(local)
+        if(locals.TryGetValue(request.Name, out var local))
+        {
+            return new VariableResult(local);
+        }
+
+        return functions.TryGetValue(request.Name, out var function)
+            ? new MethodGroupResult([function])
             : new NotFoundResult();
     }
 
@@ -57,7 +75,7 @@ internal sealed class BodyScope(Scope parent) : Scope(parent)
     /// </summary>
     public void DeclareLocal(LocalVariable local, DiagnosticBag diagnostics)
     {
-        if(!locals.TryAdd(local.Name, local))
+        if(functions.ContainsKey(local.Name) || !locals.TryAdd(local.Name, local))
         {
             diagnostics.Add(new Diagnostic(
                 ProgramModelDiagnostics.DuplicateLocalVariable.Id,
@@ -67,6 +85,16 @@ internal sealed class BodyScope(Scope parent) : Scope(parent)
                 Location: default,
                 CompilationUnitPath: "<unknown>",
                 AnalyzerName: null));
+        }
+    }
+
+    public void DeclareLocalFunction(LocalFunctionDeclarationNode node, Method function, DiagnosticBag diagnostics)
+    {
+        functionsByNode[node] = function;
+
+        if(locals.ContainsKey(function.Name) || !functions.TryAdd(function.Name, function))
+        {
+            diagnostics.ReportAtNode(ProgramModelDiagnostics.DuplicateLocalFunction, node, null, function.Name);
         }
     }
 }

@@ -288,6 +288,7 @@ internal static class BodyBinder
         BuilderContext context)
     {
         var statements = new List<Statement>(nodes.Count);
+        LocalFunctionBinder.Declare(nodes, bindingCtx, context);
 
         for(var i = 0; i < nodes.Count; i++)
         {
@@ -304,7 +305,7 @@ internal static class BodyBinder
         return statements;
     }
 
-    private static LocalVariable ParameterLocal(Parameter parameter)
+    internal static LocalVariable ParameterLocal(Parameter parameter)
     {
         return new LocalVariable(parameter.Name, parameter.Type)
         {

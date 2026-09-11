@@ -77,22 +77,7 @@ internal static class MethodEmitter
     /// </summary>
     internal static string EmitSignature(Method method, DiagnosticBag diagnostics)
     {
-        // The one deliberate exception to Void emitting as Standard.Void: a return type takes
-        // the native C# form, and the call-site lowering in BodyEmitter reconstructs the unit
-        // value wherever a caller consumes it -- exact, because the type has one inhabitant.
-        // Only the bare ref, never `ref readonly`: on a method `readonly` is ALREADY the struct
-        // modifier that MemberModifierEmitter writes, so the pair has two readings and
-        // ReadonlyRefReturn refuses it rather than either being picked here.
-        // A promoted method's emitted return type is a task the MODEL never mentions: Mist declared it
-        // sync, and this is only how C# is made to wait. See AsyncPromotion.
-        var emitted = AsyncPromotion.IsPromoted(method)
-            ? AsyncPromotion.WrapReturn(method.ReturnType)
-            : method.ReturnType
-            ;
-
-        var returnType = OptionalUnion.IsVoid(emitted)
-            ? "void"
-            : $"{RefKeywords.For(method.Modifiers.IsRef, isReadonly: false)}{TypeNameEmitter.Emit(emitted)}";
+        var returnType = EmitReturnType(method);
         // A specialization declares the pack's expansion in the pack's place and carries the width
         // in its name, exactly as a specialized TYPE does -- and for the same reason: the widths
         // differ in what they declare, so they cannot be one C# method.
@@ -118,5 +103,28 @@ internal static class MethodEmitter
         }
 
         return $"{returnType} {name}{typeParams}({string.Join(", ", parts)})";
+    }
+
+    /// <summary>
+    /// The one deliberate exception to Void emitting as Standard.Void: a return type takes the native
+    /// C# form, and the call-site lowering in BodyEmitter reconstructs the unit value wherever a caller
+    /// consumes it -- exact, because the type has one inhabitant. Only the bare ref, never
+    /// <c>ref readonly</c>: on a method <c>readonly</c> is ALREADY the struct modifier that
+    /// MemberModifierEmitter writes, so the pair has two readings and ReadonlyRefReturn refuses it
+    /// rather than either being picked here. A promoted method's emitted return type is a task the MODEL
+    /// never mentions: Mist declared it sync, and this is only how C# is made to wait. See
+    /// <see cref="AsyncPromotion"/>. Shared with the local function path, which spells its return the
+    /// same way for the same reasons.
+    /// </summary>
+    internal static string EmitReturnType(Method method)
+    {
+        var emitted = AsyncPromotion.IsPromoted(method)
+            ? AsyncPromotion.WrapReturn(method.ReturnType)
+            : method.ReturnType
+            ;
+
+        return OptionalUnion.IsVoid(emitted)
+            ? "void"
+            : $"{RefKeywords.For(method.Modifiers.IsRef, isReadonly: false)}{TypeNameEmitter.Emit(emitted)}";
     }
 }

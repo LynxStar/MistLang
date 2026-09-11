@@ -120,6 +120,7 @@ internal static class BodyWalker
         add<ForStatement>(s => [s.Initializer, s.Condition, s.Iterator, s.Body]);
         add<IfStatement>(s => [s.Condition, s.ThenBranch, s.ElseBranch]);
         add<LocalDeclarationStatement>(s => [s.Initializer]);
+        add<LocalFunctionStatement>(s => [s.Body]);
         add<ReturnStatement>(s => [s.Value]);
         add<TupleDeconstructionStatement>(s => [s.Initializer]);
         add<UnsupportedStatement>(_ => []);

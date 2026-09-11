@@ -1,0 +1,17 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PM_LOCAL_FUNCTION_GENERIC
+        int Twice<T>(int x)
+        {
+            return x * 2;
+        }
+
+        Console.WriteLine(Twice(2));
+    }
+}

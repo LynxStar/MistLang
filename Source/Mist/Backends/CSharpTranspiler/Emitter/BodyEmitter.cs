@@ -49,11 +49,33 @@ internal static class BodyEmitter
     /// get, for the same reason.
     /// </summary>
     public static void EmitMethodBody(
-        Method method, Block body, CSharpWriter writer, DiagnosticBag diagnostics)
+        Method method, Block body, CSharpWriter writer, DiagnosticBag diagnostics, Func<Parameter, string>? spell = null)
     {
         using var names = LocalNames.Enter(body, method.ParametersList.Select(parameter => parameter.Name));
         EmitContextBindings(method, writer);
-        EmitParameterDrops(DropInsertion.DroppedParameters(method, body), 0, body, writer, diagnostics);
+        EmitParameterDrops(DropInsertion.DroppedParameters(method, body), 0, body, spell, writer, diagnostics);
+    }
+
+    /// <summary>
+    /// A local function's body, emitted where the function is declared. An await inside it is a real
+    /// one whatever encloses it -- a sync lambda included -- because the function can be made async on
+    /// its own, which <see cref="AsyncPromotion"/> does; so the blocking mode is off for its duration
+    /// and restored after.
+    /// </summary>
+    public static void EmitLocalFunctionBody(
+        LocalFunctionStatement function, Func<Parameter, string> spell, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        var enclosing = blockingAwaits;
+        blockingAwaits = false;
+
+        try
+        {
+            EmitMethodBody(function.Function, function.Body, writer, diagnostics, spell);
+        }
+        finally
+        {
+            blockingAwaits = enclosing;
+        }
     }
 
     /// <summary>
@@ -80,6 +102,7 @@ internal static class BodyEmitter
         IReadOnlyList<Parameter> dropped,
         int index,
         Block body,
+        Func<Parameter, string>? spell,
         CSharpWriter writer,
         DiagnosticBag diagnostics)
     {
@@ -95,14 +118,14 @@ internal static class BodyEmitter
 
         using(writer.Block())
         {
-            EmitParameterDrops(dropped, index + 1, body, writer, diagnostics);
+            EmitParameterDrops(dropped, index + 1, body, spell, writer, diagnostics);
         }
 
         writer.WriteLine("finally");
 
         using(writer.Block())
         {
-            EmitRelease(parameter.Name, parameter.Type, writer);
+            EmitRelease(spell?.Invoke(parameter) ?? parameter.Name, parameter.Type, writer);
         }
     }
 
@@ -292,6 +315,10 @@ internal static class BodyEmitter
 
             case WithBlockStatement withBlock:
                 EmitWithBlock(withBlock, writer, diagnostics);
+                break;
+
+            case LocalFunctionStatement localFunction:
+                LocalFunctionEmitter.Emit(localFunction, writer, diagnostics);
                 break;
 
             case Block nestedBlock:
@@ -904,7 +931,7 @@ internal static class BodyEmitter
 
             case MethodReferenceExpression methodRef:
                 writer.Append(
-                    CalleeName(methodRef.Method.Name, methodRef.TypeArguments, methodRef.Method.TypeParametersList)
+                    CalleeName(LocalNames.Of(methodRef.Method), methodRef.TypeArguments, methodRef.Method.TypeParametersList)
                     + EmitTypeArguments(methodRef.TypeArguments, methodRef.Method.TypeParametersList));
                 break;
 
@@ -915,7 +942,7 @@ internal static class BodyEmitter
                     writer.Append(".");
                 }
 
-                writer.Append(functionRef.Method.Name);
+                writer.Append(LocalNames.Of(functionRef.Method));
                 break;
 
             case MethodGroupExpression methodGroup:

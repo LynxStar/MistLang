@@ -1,16 +1,10 @@
 using Standard;
 
-public class Program
+public static void DoNothing()
 {
-    public static void DoNothing()
-    {
-        return void;
-    }
-
-    public static void Main(string[] args)
-    {
-        // Return value is captured — triggers MistVoid emission:
-        var result = DoNothing();
-        Console.WriteLine($"DoNothing() returned: {result}");
-    }
+    return void;
 }
+
+// Return value is captured — triggers MistVoid emission:
+var result = DoNothing();
+Console.WriteLine($"DoNothing() returned: {result}");

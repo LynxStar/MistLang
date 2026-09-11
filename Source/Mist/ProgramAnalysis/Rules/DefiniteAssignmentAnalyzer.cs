@@ -46,7 +46,7 @@ internal sealed class DefiniteAssignmentAnalyzer : IProgramAnalyzer
                 .Select(declaration => (object)declaration.Local)
                 .ToHashSet(ReferenceEqualityComparer.Instance);
 
-            var flow = new DefiniteAssignment(context, tracked, storage, constructor);
+            var flow = new DefiniteAssignment(context, tracked, storage, constructor, LocalFunctionReads.Of(root.Root));
             var solution = flow.Judge(FlowGraphBuilder.Build(root.Root), DefiniteAssignment.Nothing);
 
             if(constructor is null || !solution.ReachesExit)
@@ -118,7 +118,8 @@ internal sealed class DefiniteAssignmentAnalyzer : IProgramAnalyzer
         AnalysisContext context,
         IReadOnlySet<object> tracked,
         IReadOnlyList<object> storage,
-        Constructor? constructor) : IFlowLattice<ImmutableHashSet<object>>
+        Constructor? constructor,
+        IReadOnlyDictionary<Method, IReadOnlySet<LocalVariable>> functionReads) : IFlowLattice<ImmutableHashSet<object>>
     {
         public static readonly ImmutableHashSet<object> Nothing = ImmutableHashSet.Create<object>(ReferenceEqualityComparer.Instance);
 
@@ -143,8 +144,17 @@ internal sealed class DefiniteAssignmentAnalyzer : IProgramAnalyzer
                     when Written(assignment.Target) is { } written => state.Add(written),
                 { Kind: FlowStepKind.Evaluate, Node: LocalReferenceExpression read } when tracked.Contains(read.Local)
                     => state.Add(read.Local),
+                { Kind: FlowStepKind.Evaluate } when Entered(step.Node) is { } reads
+                    => state.Union(reads.Where(tracked.Contains)),
                 _ => state,
             };
+        }
+
+        private IReadOnlySet<LocalVariable>? Entered(object node)
+        {
+            return LocalFunctionReads.Entered(node) is { } function && functionReads.TryGetValue(function, out var reads)
+                ? reads
+                : null;
         }
 
         public FlowSolution<ImmutableHashSet<object>> Judge(FlowGraph graph, ImmutableHashSet<object> entry)
@@ -175,7 +185,25 @@ internal sealed class DefiniteAssignmentAnalyzer : IProgramAnalyzer
                     break;
 
                 case LambdaExpression or AsyncBlockExpression when graph.Nested.TryGetValue(step.Node, out var nested):
-                    _ = new DefiniteAssignment(context, tracked, [], constructor: null).Judge(nested, state);
+                    _ = new DefiniteAssignment(context, tracked, [], constructor: null, functionReads).Judge(nested, state);
+                    break;
+
+                // Entered with every tracked local taken as assigned, because a captured read is judged
+                // at each entry into the function rather than inside it -- see LocalFunctionReads -- and
+                // the body's own declarations remove their locals again as they are reached.
+                case LocalFunctionStatement when graph.Nested.TryGetValue(step.Node, out var nested):
+                    _ = new DefiniteAssignment(context, tracked, [], constructor: null, functionReads).Judge(nested, state.Union(tracked));
+                    break;
+
+                case InvocationExpression or FunctionReferenceExpression
+                    when LocalFunctionReads.Entered(step.Node) is { } function && functionReads.TryGetValue(function, out var reads):
+                    foreach(var local in reads.Where(local => tracked.Contains(local) && !state.Contains(local)))
+                    {
+                        context.Report(
+                            ProgramAnalysisDiagnostics.LocalFunctionReadsUnassigned, ((Expression)step.Node).Node,
+                            [(Expression)step.Node], function.Name, local.Name);
+                    }
+
                     break;
             }
         }

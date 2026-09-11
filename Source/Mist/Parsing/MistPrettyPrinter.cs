@@ -1204,7 +1204,31 @@ public sealed class MistPrettyPrinter
             case ExpressionStatementStatementNode exprStmt:
                 AppendLine($"{EmitExpression(exprStmt.ExpressionStatement.Expression)};");
                 break;
+            case LocalFunctionDeclarationStatementStatementNode localFunctionStmt:
+                EmitLocalFunctionDeclaration(localFunctionStmt.LocalFunction);
+                break;
         }
+    }
+
+    private void EmitLocalFunctionDeclaration(LocalFunctionDeclarationNode localFunction)
+    {
+        var modifiers = EmitModifiers(localFunction.Modifiers);
+        var returnType = EmitTypeReference(localFunction.ReturnType);
+        var name = localFunction.Name.Lexeme;
+        var typeParams = EmitTypeParameterList(localFunction.TypeParams);
+        var parameters = EmitParameterList(localFunction.Parameters);
+        var constraints = EmitConstraintClauses(localFunction.Constraints);
+
+        AppendLine($"{modifiers}{returnType} {name}{typeParams}({parameters}){constraints} {{");
+        indentLevel++;
+
+        foreach(var stmt in localFunction.Body.Statements)
+        {
+            EmitStatement(stmt);
+        }
+
+        indentLevel--;
+        AppendLine("}");
     }
 
     // ─── Context Statement Declarations ─────────────────────────────────

@@ -8238,6 +8238,56 @@ capabilities:
       Mist body. Used throughout Source/Standard/Bootstrap and by nothing in samples.
     unlocks: [stdlib]
 
+  # ===================================================================
+  # Layer AK -- a function declared as a statement.
+  # ===================================================================
+
+  - id: local-functions
+    name: A function declared as a statement, at file top or in any block
+    order: 187
+    layer: core-language
+    requires: [control-flow-basic, lambda-closure-capture, static-lambdas, delegate-func-conversion,
+               adhoc-refinement-where-clauses, sync-async-context-classification]
+    v2_status: done
+    verified_by: v2-semantics
+    evidence: >
+      LANDED 2026-09-11, from .kiro/specs/local-functions. Ten book snippets were written with a bare
+      or `public static` function at file top, which no pipeline had ever parsed, and the language's
+      owner wanted that shape valid; this is the construct that makes it so, in any block as well.
+
+      The grammar's Statement rule gained LocalFunctionDeclaration as its FIRST alternative -- no other
+      statement has the shape `Modifier* TypeReference IDENTIFIER (` -- and a top-level file holding
+      only local functions is a top-level statement file. In the model a local function is a Method
+      with no declaring type, held by LocalFunctionStatement beside the body scope's locals for its
+      parameters, and found through BodyScope as a method group of one candidate: a call binds,
+      selects, settles `ref`, `params` and `owned` arguments, records itself for async promotion and
+      auto-awaits exactly as a call to a method does, and the name converts to a func value under the
+      method-group rules. The alternative -- a local of func type -- would have carried no Parameter
+      and no Method, so neither ownership nor refinements nor promotion could have read the call.
+      LocalFunctionBinder declares every function of a statement list BEFORE the list is bound, so a
+      call may precede the declaration and two functions may call each other; the body binds where the
+      statement is reached, in a scope of its own, as an async context iff the function is `async`,
+      with EnclosingMethod set to the function so AwaitUses records its own awaits. An accessibility
+      modifier is admitted and means nothing; `static` and `async` mean what they mean on a lambda and
+      a method; every other modifier, and type parameters, are refused (MIST_PM_LOCAL_FUNCTION_MODIFIER,
+      MIST_PM_LOCAL_FUNCTION_GENERIC). A parameter `where` is the parameter's type as it is on a method.
+
+      EMITTED as a C# local function where it was declared: `static` iff written, `async` iff declared
+      or promoted -- AsyncPromotion's retroactive scan now walks local functions under every method and
+      the top-level body -- with the return type spelled by MethodEmitter.EmitReturnType, shared with
+      the method path. LocalNames renames a shadowing parameter, local or function name apart and
+      spells every reference through the map, including a MethodReferenceExpression and a
+      FunctionReferenceExpression, since C# refuses the shadowing (CS0136). Classic shares the parser
+      and refuses the programs with MIST_UNDEFINED_IDENTIFIER, without crashing.
+
+      MEASURED: samples/LocalFunctions banked in AllFeaturesV2 -- the first v2-only sample, since
+      classic cannot parse it, so its fourteen baseline lines were captured from v2 and read against
+      the program by hand -- with both suites otherwise identical to baseline; the ten snippets
+      restored from 3f24c741 and regenerated with zero failures; LocalFunctionEmissionTests on the
+      emitted text; LocalFunctionDecisionTests on what binds and what is admitted; thirteen corpus
+      cases for the refusals, recorded on orders 9, 10 and 11 of the analysis register.
+    unlocks: [LocalFunctions]
+
 # =====================================================================
 # SAMPLES
 #
@@ -9632,6 +9682,31 @@ samples:
 #
 # The stdlib is transpiled by v2 on EVERY compile, and it exercises constructs no
 # sample touches. Tracking samples alone structurally cannot see these.
+  - name: LocalFunctions
+    intro_order: 88
+    threshold: local-functions
+    requires: [class-declaration, methods-static-and-instance, statements-core,
+               namespace-file-scoped, standard-library-binding, literals-primitive,
+               string-interpolation, var-type-inference,
+               operators-arithmetic-comparison-logical, control-flow-basic,
+               lambda-expressions, lambda-closure-capture, static-lambdas,
+               delegate-func-conversion, adhoc-refinement-where-clauses,
+               async-return-type-transform, sync-async-context-classification,
+               local-functions]
+    untested:
+      - V2-ONLY. Classic cannot parse a local function, so this sample is referenced from
+        AllFeaturesV2 and not from AllFeatures, and its baseline lines were captured from v2 rather
+        than from classic. The stdout was read against the program by hand; nothing independent of
+        the emitter produced it.
+      - A `public static` and a `static` function print the same as one with no modifier, so the
+        modifier emission is witnessed only by LocalFunctionEmissionTests.
+      - Doubled prints the same whether it was promoted to async or blocked; only the emitted text
+        shows the promotion.
+      - Half's parameter `where` is met by a literal that satisfies it, so a where that was never
+        proven passes identically; the refusal half lives in refusals/refinement-proving.
+      - The capture is written and read once, so a capture by copy that happened to print 2 is not
+        distinguished from a capture by reference.
+
 # =====================================================================
 
 non_sample_targets:

@@ -251,7 +251,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                     NeedArguments(state, construction.Arguments, construction.ParameterTypes, construction.Constructor?.ParametersList);
                     break;
 
-                case { Kind: FlowStepKind.Evaluate, Node: LambdaExpression or AsyncBlockExpression } when graph.Nested.TryGetValue(step.Node, out var nested):
+                case { Kind: FlowStepKind.Evaluate, Node: LambdaExpression or AsyncBlockExpression or LocalFunctionStatement } when graph.Nested.TryGetValue(step.Node, out var nested):
                     new Proving(context).Judge(nested, Nothing);
                     break;
             }

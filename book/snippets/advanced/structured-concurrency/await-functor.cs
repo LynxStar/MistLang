@@ -1,34 +1,19 @@
 using System;
 
-namespace Snippet;
-
-public class Program
+async System.Threading.Tasks.Task<int> ComputeValue()
 {
-    public static async System.Threading.Tasks.Task<int> ComputeValue()
+    return 42;
+}
+async System.Threading.Tasks.Task Main()
+{
+    System.Threading.Tasks.Task<int> task = ComputeValue();
+    try
     {
-        return 42;
+        int result = await task;
+        Console.WriteLine(result);
     }
-
-    public static async System.Threading.Tasks.Task Main(string[] args)
+    finally
     {
-        System.Threading.Tasks.Task<int> task = ComputeValue();
-        try
-        {
-            int result = await task;
-            Console.WriteLine(result);
-        }
-        finally
-        {
-            await task;
-        }
-    }
-
-    public Program()
-    {
-    }
-
-    public static Program __CreateDefault()
-    {
-        return new Program();
+        await task;
     }
 }

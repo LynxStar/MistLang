@@ -43,6 +43,8 @@ internal static class StatementBinder
                 withBlock.WithBlockStatement, ctx, context),
             ReadonlyBlockStatementStatementNode readonlyBlock => BindNestedBlock(
                 readonlyBlock.ReadonlyBlock.Body, ctx, context, isReadonly: true),
+            LocalFunctionDeclarationStatementStatementNode localFunction => LocalFunctionBinder.BindBody(
+                localFunction.LocalFunction, ctx, context),
             _ => new UnsupportedStatement(statement),
         };
     }
@@ -63,6 +65,14 @@ internal static class StatementBinder
 
         ctx.Scope.DeclareLocal(local, context.Diagnostics);
         return new LocalDeclarationStatement(local, initializer: null);
+    }
+
+    internal static bool ScopesTheTail(StatementNode node)
+    {
+        return node is WithVarDeclarationStatementStatementNode
+            or WithTypedDeclarationStatementStatementNode
+            or WithDiscardDeclarationStatementStatementNode
+            or WithPushStatementStatementNode;
     }
 
     /// <summary>

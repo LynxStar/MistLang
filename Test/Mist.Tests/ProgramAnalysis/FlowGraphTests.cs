@@ -39,6 +39,7 @@ public sealed class FlowGraphTests : ProgramModelProbe
     [InlineData("while(flag) { foreach(var item in items) { if(item > 1) { break; } } flag = false; }")]
     [InlineData("for(var i = 0; i < 2; i = i + 1) { Console.WriteLine(i); }")]
     [InlineData("func<int, int> f = y => { int z = y + 1; return z; }; Console.WriteLine(f(1));")]
+    [InlineData("int Twice(int x) { int z = x * 2; return z; } Console.WriteLine(Twice(1));")]
     public void EveryNodeIsEvaluatedOnceOnAnyPathThroughIt(string statement)
     {
         var body = BodyIn(statement);
@@ -73,6 +74,21 @@ public sealed class FlowGraphTests : ProgramModelProbe
         var header = graph.Blocks.Single(block => block.Steps.Any(step => ReferenceEquals(step.Node, condition)));
 
         _ = Assert.Single(header.Successors);
+    }
+
+    [Fact]
+    public void ALocalFunctionBodyIsAGraphOfItsOwn()
+    {
+        var body = BodyIn("int Twice(int x) { int z = x * 2; return z; } Console.WriteLine(Twice(1));");
+        var graph = FlowGraphBuilder.Build(body);
+        var function = body.Statements.OfType<LocalFunctionStatement>().Single();
+        var inner = BodyWalker.DescendantsAndSelf(function.Body).ToHashSet(ReferenceEqualityComparer.Instance);
+
+        Assert.DoesNotContain(graph.Blocks.SelectMany(block => block.Steps), step => inner.Contains(step.Node));
+        Assert.Contains(graph.Blocks.SelectMany(block => block.Steps), step => step.Kind == FlowStepKind.Evaluate && ReferenceEquals(step.Node, function));
+        var nested = graph.Nested[function];
+        Assert.Contains(nested.Blocks.SelectMany(block => block.Steps), step => step.Kind == FlowStepKind.Introduce && step.Variable == function.Parameters[0]);
+        Assert.Contains(nested.Blocks.SelectMany(block => block.Steps), step => inner.Contains(step.Node));
     }
 
     [Fact]

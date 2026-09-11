@@ -1,28 +1,23 @@
 using Standard;
 
-public class Program
+int ComputeSync()
 {
-    public static int ComputeSync()
-    {
-        return 2 + 2;
-    }
+    return 2 + 2;
+}
 
-    public static async int ComputeAsync()
-    {
-        return 3 + 3;
-    }
+async int ComputeAsync()
+{
+    return 3 + 3;
+}
 
-    public static void Main(string[] args)
-    {
-        // Lift a sync method into a task
-        var task1 = async ComputeSync();    // task1: Task<int>
+void Main()
+{
+    // Lift a sync method into a task
+    var task1 = async ComputeSync();    // task1: Task<int>
 
-        // In a sync context, async functor cancels auto-unwrap
-        var task2 = async ComputeAsync();   // task2: Task<int>
+    // In a sync context, async functor cancels auto-unwrap
+    var task2 = async ComputeAsync();   // task2: Task<int>
 
-        // Without async functor, sync context auto-unwraps
-        var value = ComputeAsync();         // value: int (auto-awaited)
-
-        Console.WriteLine(value);
-    }
+    // Without async functor, sync context auto-unwraps
+    var value = ComputeAsync();         // value: int (auto-awaited)
 }

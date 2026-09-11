@@ -9,7 +9,13 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// </summary>
 internal static class ParameterEmitter
 {
-    public static string Emit(IReadOnlyList<Parameter> parameters, DiagnosticBag diagnostics)
+    /// <param name="spell">
+    /// The name each parameter is declared under, where it is not its own: a local function's
+    /// parameter may have been renamed apart from an enclosing local, and the body's references were
+    /// renamed with it. A method's parameters are spelled as written.
+    /// </param>
+    public static string Emit(
+        IReadOnlyList<Parameter> parameters, DiagnosticBag diagnostics, Func<Parameter, string>? spell = null)
     {
         if(parameters.Count == 0)
         {
@@ -23,7 +29,7 @@ internal static class ParameterEmitter
                 AttributeEmitter.Inline(parameter.DeclaredAttributesList, diagnostics)
                 + $"{RefKeywords.For(parameter.Modifier.IsRef, parameter.Modifier.IsReadonly)}"
                 + Collects(parameter)
-                + $"{TypeNameEmitter.Emit(parameter.Type)} {parameter.Name}");
+                + $"{TypeNameEmitter.Emit(parameter.Type)} {spell?.Invoke(parameter) ?? parameter.Name}");
         }
 
         return string.Join(", ", parts);

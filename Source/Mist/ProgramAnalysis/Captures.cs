@@ -5,7 +5,11 @@ using Mist.ProgramModel.Model.Statements;
 
 namespace Mist.ProgramAnalysis;
 
-internal static class LambdaCaptures
+/// <summary>
+/// What a closure -- a lambda or a local function -- declares for itself, so that every other local
+/// it references is a capture of the enclosing body's.
+/// </summary>
+internal static class Captures
 {
     public static IReadOnlyList<object> Inside(LambdaExpression lambda)
     {
@@ -14,9 +18,14 @@ internal static class LambdaCaptures
         return body is null ? [] : BodyWalker.DescendantsAndSelf(body).ToList();
     }
 
-    public static HashSet<LocalVariable> OwnNames(LambdaExpression lambda, IReadOnlyList<object> inside)
+    public static IReadOnlyList<object> Inside(LocalFunctionStatement function)
     {
-        var own = new HashSet<LocalVariable>(lambda.Parameters, ReferenceEqualityComparer.Instance);
+        return BodyWalker.DescendantsAndSelf(function.Body).ToList();
+    }
+
+    public static HashSet<LocalVariable> OwnNames(IEnumerable<LocalVariable> parameters, IReadOnlyList<object> inside)
+    {
+        var own = new HashSet<LocalVariable>(parameters, ReferenceEqualityComparer.Instance);
 
         foreach(var node in inside)
         {
@@ -32,6 +41,9 @@ internal static class LambdaCaptures
                     own.UnionWith(deconstruction.Targets);
                     break;
                 case LambdaExpression nested:
+                    own.UnionWith(nested.Parameters);
+                    break;
+                case LocalFunctionStatement nested:
                     own.UnionWith(nested.Parameters);
                     break;
                 case WithBlockStatement { Binding: { } binding }:

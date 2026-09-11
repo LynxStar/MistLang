@@ -337,4 +337,6 @@ defects since fixed: nested local shadowing, union-into-union widening, span sli
 as a lambda's target, the element type of a projected `List<int>`, a method generic over a
 slot-bearing abstract with `T.Output`, narrowing after `??=`, a union alias over a type parameter,
 and a static member reached through a type alias, `Task.Yield()`, in both binder and emitter.
-Nothing under `book/snippets/` is outside the tool.
+Nothing under `book/snippets/` is outside the tool. Later the same day local functions landed
+(`.kiro/specs/local-functions`, emitter order 187), and the ten fragments went back to the shape they
+were written in -- a bare or `public static` function at file top -- and regenerate as such.

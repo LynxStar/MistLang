@@ -1,7 +1,9 @@
+using Mist.ProgramAnalysis;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 
@@ -126,21 +128,46 @@ internal sealed class AsyncPromotion
         return promoted;
     }
 
+    /// <summary>
+    /// Every body that can owe an await: a type's methods, the top-level statements, and every local
+    /// function declared inside any of them, since a local function is emitted as a C# function of its
+    /// own and can be made async on its own.
+    /// </summary>
     private static IEnumerable<Method> Methods(ProgramModelClass programModel)
     {
         foreach(var assembly in programModel.Assemblies)
         {
             foreach(var unit in assembly.CompilationUnits)
             {
+                if(unit.TopLevelMethod is { } topLevel)
+                {
+                    foreach(var function in LocalFunctionsOf(topLevel))
+                    {
+                        yield return function;
+                    }
+                }
+
                 foreach(var type in unit.Types.OfType<MemberType>())
                 {
                     foreach(var method in type.MethodsList)
                     {
                         yield return method;
+
+                        foreach(var function in LocalFunctionsOf(method))
+                        {
+                            yield return function;
+                        }
                     }
                 }
             }
         }
+    }
+
+    private static IEnumerable<Method> LocalFunctionsOf(Method method)
+    {
+        return method.Body is { } body
+            ? BodyWalker.DescendantsAndSelf(body).OfType<LocalFunctionStatement>().Select(statement => statement.Function)
+            : [];
     }
 
     private sealed class Scope : IDisposable

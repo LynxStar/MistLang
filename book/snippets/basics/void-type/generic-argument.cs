@@ -1,43 +1,30 @@
 using System;
 
-namespace Snippet;
+using Snippet;
 
-public class Result<T>
+static Snippet.Result<Standard.Void> SuccessResult()
 {
-    private T value;
-    private bool success;
-
-    public Result(T value, bool success)
-    {
-        this.value = value;
-        this.success = success;
-    }
-
-    public bool IsSuccess()
-    {
-        return success;
-    }
+    return new Snippet.Result<Standard.Void>(Standard.Void.Instance, true);
 }
+Snippet.Result<Standard.Void> success = SuccessResult();
+Console.WriteLine($"IsSuccess: {success.IsSuccess()}");
 
-public class Program
+namespace Snippet
 {
-    public static Snippet.Result<Standard.Void> SuccessResult()
+    public class Result<T>
     {
-        return new Snippet.Result<Standard.Void>(Standard.Void.Instance, true);
-    }
+        private T value;
+        private bool success;
 
-    public static void Main(string[] args)
-    {
-        Snippet.Result<Standard.Void> success = SuccessResult();
-        Console.WriteLine($"IsSuccess: {success.IsSuccess()}");
-    }
+        public Result(T value, bool success)
+        {
+            this.value = value;
+            this.success = success;
+        }
 
-    public Program()
-    {
-    }
-
-    public static Program __CreateDefault()
-    {
-        return new Program();
+        public bool IsSuccess()
+        {
+            return success;
+        }
     }
 }

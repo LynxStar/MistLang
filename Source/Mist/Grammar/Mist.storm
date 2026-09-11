@@ -431,7 +431,8 @@ rule Block = LEFT_BRACE statements:Statement* RIGHT_BRACE;
 
 @memo
 rule Statement
-    = variableDeclaration:VariableDeclarationStatement   as VariableDeclarationStatement
+    = localFunction:LocalFunctionDeclaration              as LocalFunctionDeclarationStatement
+    | variableDeclaration:VariableDeclarationStatement   as VariableDeclarationStatement
     | returnStatement:ReturnStatement                     as ReturnStatement
     | ifStatement:IfStatement                             as IfStatement
     | whileStatement:WhileStatement                       as WhileStatement
@@ -448,6 +449,18 @@ rule Statement
     | blockStatement:Block                                   as BlockStatement
     | expressionStatement:ExpressionStatement             as ExpressionStatement
     | uninitializedVariable:UninitializedVariableDeclaration as UninitializedVariableStatement
+    ;
+
+// A local function is tried FIRST because no other statement has the shape
+// `Modifier* TypeReference IDENTIFIER (`: a declaration puts `=` or `;` after its name, an
+// expression statement never follows a type-shaped prefix with an identifier, and every other
+// statement opens with a keyword that is not a modifier. Ordered choice therefore takes this
+// alternative for a local function alone and backtracks for everything else.
+rule LocalFunctionDeclaration : HasModifiers
+    = modifiers:Modifier* returnType:TypeReference name:IDENTIFIER typeParams:TypeParameterList?
+      LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
+      constraints:WhereClause*
+      body:Block
     ;
 
 // Uninitialized variable declaration: `type name;` (no initializer).

@@ -1,29 +1,21 @@
 using Standard;
 
-public class Program
+async string FetchData()
 {
-    public static async string FetchData()
-    {
-        return "data";
-    }
+    return "data";
+}
 
-    public static async void SendNotification()
-    {
-        Console.WriteLine("Notification sent");
-    }
+async void SendNotification()
+{
+    Console.WriteLine("Notification sent");
+}
 
-    // This is an async context — tasks are not auto-awaited
-    public static async void ProcessAll()
-    {
-        FetchData();          // discarded task — awaited at scope exit
-        SendNotification();   // discarded task — awaited at scope exit
+// This is an async context — tasks are not auto-awaited
+async void ProcessAll()
+{
+    FetchData();          // discarded task — awaited at scope exit
+    SendNotification();   // discarded task — awaited at scope exit
 
-        Console.WriteLine("Processing...");
-        // Both tasks are implicitly awaited here when the scope exits
-    }
-
-    public static void Main(string[] args)
-    {
-        ProcessAll();
-    }
+    Console.WriteLine("Processing...");
+    // Both tasks are implicitly awaited here when the scope exits
 }

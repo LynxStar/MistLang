@@ -9,9 +9,9 @@ namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
 /// What may not leave where it lives: a span over stack memory returned from the frame that
-/// allocated it, and a binding a lambda would carry onto the heap -- a ref struct, an owned value
-/// whose transfer a closure cannot honour, or a lease bounded to the scope it was taken in, which
-/// for a readonly ref is also Roslyn's refusal of an `in` parameter inside a lambda.
+/// allocated it, and a binding a lambda or a local function would carry onto the heap -- a ref struct,
+/// an owned value whose transfer a closure cannot honour, or a lease bounded to the scope it was taken
+/// in, which for a readonly ref is also Roslyn's refusal of an `in` parameter inside a lambda.
 /// </summary>
 internal sealed class EscapeAnalyzer : IProgramAnalyzer
 {
@@ -26,9 +26,15 @@ internal sealed class EscapeAnalyzer : IProgramAnalyzer
 
         foreach(var node in context.Nodes)
         {
-            if(node is LambdaExpression { IsStatic: false } lambda)
+            switch(node)
             {
-                JudgeCaptures(context, lambda);
+                case LambdaExpression { IsStatic: false } lambda:
+                    JudgeCaptures(context, "lambda", Captures.OwnNames(lambda.Parameters, Captures.Inside(lambda)), Captures.Inside(lambda));
+                    break;
+
+                case LocalFunctionStatement { Function.Modifiers.IsStatic: false } function:
+                    JudgeCaptures(context, "local function", Captures.OwnNames(function.Parameters, Captures.Inside(function)), Captures.Inside(function));
+                    break;
             }
         }
     }
@@ -66,11 +72,9 @@ internal sealed class EscapeAnalyzer : IProgramAnalyzer
         };
     }
 
-    private static void JudgeCaptures(AnalysisContext context, LambdaExpression lambda)
+    private static void JudgeCaptures(
+        AnalysisContext context, string closure, HashSet<LocalVariable> own, IReadOnlyList<object> inside)
     {
-        var inside = LambdaCaptures.Inside(lambda);
-        var own = LambdaCaptures.OwnNames(lambda, inside);
-
         foreach(var reference in inside.OfType<LocalReferenceExpression>())
         {
             if(own.Contains(reference.Local))
@@ -82,7 +86,7 @@ internal sealed class EscapeAnalyzer : IProgramAnalyzer
 
             if(kind is not null)
             {
-                context.Report(ProgramAnalysisDiagnostics.CapturedBinding, reference.Node, [reference], kind, reference.Local.Name, reason);
+                context.Report(ProgramAnalysisDiagnostics.CapturedBinding, reference.Node, [reference], kind, reference.Local.Name, closure, reason);
             }
         }
     }

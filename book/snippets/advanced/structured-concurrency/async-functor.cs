@@ -1,47 +1,30 @@
 using System;
 
-namespace Snippet;
-
-public class Program
+int ComputeSync()
 {
-    public static int ComputeSync()
+    return 2 + 2;
+}
+async System.Threading.Tasks.Task<int> ComputeAsync()
+{
+    return 3 + 3;
+}
+async System.Threading.Tasks.Task Main()
+{
+    System.Threading.Tasks.Task<int> task1 = System.Threading.Tasks.Task.Run(() => ComputeSync());
+    try
     {
-        return 2 + 2;
-    }
-
-    public static async System.Threading.Tasks.Task<int> ComputeAsync()
-    {
-        return 3 + 3;
-    }
-
-    public static async System.Threading.Tasks.Task Main(string[] args)
-    {
-        System.Threading.Tasks.Task<int> task1 = System.Threading.Tasks.Task.Run(() => ComputeSync());
+        System.Threading.Tasks.Task<int> task2 = ComputeAsync();
         try
         {
-            System.Threading.Tasks.Task<int> task2 = ComputeAsync();
-            try
-            {
-                int value = await ComputeAsync();
-                Console.WriteLine(value);
-            }
-            finally
-            {
-                await task2;
-            }
+            int value = await ComputeAsync();
         }
         finally
         {
-            await task1;
+            await task2;
         }
     }
-
-    public Program()
+    finally
     {
-    }
-
-    public static Program __CreateDefault()
-    {
-        return new Program();
+        await task1;
     }
 }

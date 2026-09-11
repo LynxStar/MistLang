@@ -1,0 +1,28 @@
+using Standard;
+
+namespace Refusal;
+
+public class Holder
+{
+    public int f = 1;
+
+    public int Read()
+    {
+        static int Snapshot()
+        {
+            // REFUSE: MIST_PA_STATIC_LOCAL_FUNCTION_CAPTURE
+            return f;
+        }
+
+        return Snapshot();
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var h = new Holder();
+        Console.WriteLine(h.Read());
+    }
+}

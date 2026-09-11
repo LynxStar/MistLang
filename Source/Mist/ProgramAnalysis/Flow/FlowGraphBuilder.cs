@@ -165,6 +165,11 @@ internal sealed class FlowGraphBuilder
 
                 return Statement(withBlock.Body, current);
 
+            case LocalFunctionStatement function:
+                nested[function] = Build(function.Body, function, function.Parameters);
+                current.Steps.Add(Evaluate(function));
+                return current;
+
             case UnsupportedStatement unsupported:
                 current.Steps.Add(Evaluate(unsupported));
                 return current;

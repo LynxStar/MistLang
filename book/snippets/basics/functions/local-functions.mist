@@ -1,0 +1,44 @@
+using Standard;
+
+namespace Snippet;
+
+public class Program
+{
+    public static void Main()
+    {
+        // Declared after its first call: the name belongs to the whole block
+        Console.WriteLine(Describe(3));
+
+        string Describe(int n)
+        {
+            if(IsEven(n))
+            {
+                return $"{n} is even";
+            }
+
+            return $"{n} is odd";
+        }
+
+        bool IsEven(int n)
+        {
+            return n % 2 == 0;
+        }
+
+        var calls = 0;
+        void Count()
+        {
+            calls = calls + 1;
+        }
+
+        Count();
+        Count();
+        Console.WriteLine($"calls={calls}");
+
+        static int Square(int x)
+        {
+            return x * x;
+        }
+
+        Console.WriteLine(Square(7));
+    }
+}

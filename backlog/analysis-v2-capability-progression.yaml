@@ -756,6 +756,12 @@ rules:
       Two of those first survived: unknown and a union were refused by the numeric rules anyway, and
       only concatenation admits any operand -- so `u + "x"` and `m + "x"` are the two cases that
       pin the guard.
+
+      LOCAL FUNCTIONS, 2026-09-11 (.kiro/specs/local-functions). A `static` local function is judged as a
+      static lambda is, by the same walk over the same own-names, reporting
+      MIST_PA_STATIC_LOCAL_FUNCTION_CAPTURE for an outer variable, `this`, an instance field or an instance
+      property. Two corpus cases, a local and a field; the lambda rows of the decision tests pin the shape
+      and LocalFunctionDecisionTests pins that a static function capturing nothing is admitted.
     tasks:
       - >
         `numbers[^1]` is admitted, order 123's task notwithstanding: Array's indexer takes a refinement
@@ -858,6 +864,25 @@ rules:
       rule silenced, struct fields unexamined, an enum, a class, a type parameter or an alias admitted,
       and unreached blocks judged -- the last one survived until a row pinned that a read in
       unreachable code is not judged, which is Roslyn's verdict too.
+
+      LOCAL FUNCTIONS, 2026-09-11 (.kiro/specs/local-functions). A local function's body is a nested graph
+      under the statement that declares it, with an Introduce step per parameter, as a lambda's is under
+      the expression that creates it. But its name is HOISTED -- a call may precede the declaration -- so a
+      captured read cannot be judged against the state at the declaration as a lambda's is. It is judged at
+      every ENTRY instead: LocalFunctionReads computes, per body root, the enclosing locals each function
+      reads without declaring -- a write target is not a read, as the rule's own Written has it -- unioned
+      with the sets of every local function it calls or names, to a fixpoint; at each invocation of the
+      function through its name, and at each conversion of the name to a func value, every tracked local
+      in the set that the state does not hold reports MIST_PA_LOCAL_FUNCTION_READS_UNASSIGNED, and the
+      transfer adds the set so one unassigned local is one complaint per path. The body itself is judged
+      with every tracked local taken as assigned, since the entries cover the captures, and its own `int y;`
+      is removed by its Declare step as anywhere. An assignment inside the function does not count at the
+      call, as one inside a lambda does not. The set is flow-insensitive within a body: a function that
+      assigns a captured local before reading it still reads it, which is conservative and recorded on the
+      spec. Four corpus cases -- a call, a call through another function, a name taken as a value, and the
+      body's own local -- and seven decision rows for the admits: assigned before the call with the
+      declaration first or last, assigned on both branches, a write inside then a read after the second
+      assignment, recursion, a func value after assignment.
     tasks:
       - >
         The definite-assignment spec is stricter than classic: Req 1.1 refuses any read of an
@@ -974,6 +999,13 @@ rules:
       captures admitted; and a break leaving no scope. Two first survived -- the join, until an
       else-branch move pinned the order paths arrive in, and the break, until a lease taken inside a
       loop and left by break pinned its release.
+
+      LOCAL FUNCTIONS, 2026-09-11 (.kiro/specs/local-functions). A non-static local function's captures are
+      judged as a lambda's: a ref struct, an owned, borrowed or frozen binding, or a readonly ref binding
+      reports MIST_PA_CAPTURED_BINDING, whose message now names the closure -- lambda or local function.
+      The moves and leases inside the body are judged on its nested graph from the state at the
+      declaration, exactly as a lambda's are, which shares the lambda's gap: a call before the declaration
+      sees the declaration's state. Two corpus cases, an owned binding and a borrowed parameter.
     tasks:
       - >
         The ownership-v2 spec is stricter than classic in five places v2 follows classic on: mutable

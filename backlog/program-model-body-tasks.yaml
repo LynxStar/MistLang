@@ -445,6 +445,14 @@ expressions:
     - [x] ParenthesizedExpression -> inner type -- the parens are erased and the inner type flows through
     - [ ] DefaultExpression (`default(T)`) -> T -- no case in BindPrimary
     - [ ] DefaultLiteralExpression (`default`) -> type from target context -- no case in BindPrimary
+  local_functions:
+    # NET-NEW on 2026-09-11, from .kiro/specs/local-functions: a function declared as a statement,
+    # at file top or in any block.
+    - [x] LocalFunctionDeclaration (statement) -- LocalFunctionBinder, emitter order 187. Declared for a whole statement list before the list is bound (BodyBinder.BindList), so the name is hoisted; the body binds where the statement is reached, in a BodyScope of its own, as an async context iff `async`, with EnclosingMethod set to the function. The model holds a Method with no declaring type on Model/Statements/LocalFunctionStatement.cs beside the parameter locals
+    - [x] calls -> BodyScope answers a MethodGroupResult of one candidate, so PostfixBinder.BindInvocation selects, settles and auto-awaits as for a method; a bare name converts to a func value through MethodGroupConversion
+    - [x] modifiers -> ModifierBuilder; accessibility admitted and meaningless, `static` and `async` kept, every other refused (MIST_PM_LOCAL_FUNCTION_MODIFIER); type parameters refused (MIST_PM_LOCAL_FUNCTION_GENERIC); a parameter `where` resolved by ConstraintResolver as on a method
+    - [x] duplicates -> two functions of one name in a scope (MIST_PM_DUPLICATE_LOCAL_FUNCTION); a local declared after a function of its name (MIST_PM_DUPLICATE_LOCAL, since the function was hoisted first)
+    - [ ] a return ownership specifier, `with` clauses and attributes are not in the rule and fail to parse at the enclosing member (MIST_PARSE_INCOMPLETE), as the spec records
   lambdas:
     # NET-NEW: no prior body binding to lean on. Specify from the first-class-functions
     # / delegate-func-conversion / func-async-auto-await-fix specs.

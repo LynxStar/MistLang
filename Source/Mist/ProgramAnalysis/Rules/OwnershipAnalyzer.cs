@@ -291,7 +291,7 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
                     JudgeArguments(state, creation.Arguments, creation.Constructor?.ParametersList);
                     break;
 
-                case { Kind: FlowStepKind.Evaluate, Node: LambdaExpression or AsyncBlockExpression } when graph.Nested.TryGetValue(step.Node, out var nested):
+                case { Kind: FlowStepKind.Evaluate, Node: LambdaExpression or AsyncBlockExpression or LocalFunctionStatement } when graph.Nested.TryGetValue(step.Node, out var nested):
                     new Ownership(context, tiers, declaringBlocks).Judge(nested, state);
                     break;
             }

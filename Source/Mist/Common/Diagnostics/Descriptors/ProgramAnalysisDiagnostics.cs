@@ -220,6 +220,12 @@ public static class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "A static lambda cannot reference {0} '{1}'.");
 
+    public static readonly DiagnosticDescriptor StaticLocalFunctionCapture = new(
+        new DiagnosticId("MIST_PA_STATIC_LOCAL_FUNCTION_CAPTURE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "A static local function cannot reference {0} '{1}'.");
+
     public static readonly DiagnosticDescriptor OptionalOfOptional = new(
         new DiagnosticId("MIST_PA_OPTIONAL_OF_OPTIONAL"),
         DiagnosticSeverity.Error,
@@ -231,6 +237,12 @@ public static class ProgramAnalysisDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.Analysis,
         "Local variable '{0}' is read before being definitely assigned.");
+
+    public static readonly DiagnosticDescriptor LocalFunctionReadsUnassigned = new(
+        new DiagnosticId("MIST_PA_LOCAL_FUNCTION_READS_UNASSIGNED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Local function '{0}' reads '{1}', which is not definitely assigned at this call.");
 
     public static readonly DiagnosticDescriptor FieldReadBeforeAssignment = new(
         new DiagnosticId("MIST_PA_FIELD_READ_BEFORE_ASSIGNMENT"),
@@ -374,7 +386,7 @@ public static class ProgramAnalysisDiagnostics
         new DiagnosticId("MIST_PA_CAPTURED_BINDING"),
         DiagnosticSeverity.Error,
         PipelineStage.Analysis,
-        "Cannot capture {0} variable '{1}' in a lambda: {2}.");
+        "Cannot capture {0} variable '{1}' in a {2}: {3}.");
 
     public static readonly DiagnosticDescriptor RefinementViolated = new(
         new DiagnosticId("MIST_PA_REFINEMENT_VIOLATED"),

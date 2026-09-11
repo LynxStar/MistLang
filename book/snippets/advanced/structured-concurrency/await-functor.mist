@@ -1,19 +1,16 @@
 using Standard;
 
-public class Program
+async int ComputeValue()
 {
-    public static async int ComputeValue()
-    {
-        return 42;
-    }
+    return 42;
+}
 
-    public static async void Main(string[] args)
-    {
-        var task = ComputeValue();   // task: Task<int>
+async void Main()
+{
+    var task = ComputeValue();   // task: Task<int>
 
-        // Suspend until the task completes, unwrap to int
-        var result = await task;     // result: int
+    // Suspend until the task completes, unwrap to int
+    var result = await task;     // result: int
 
-        Console.WriteLine(result);   // 42
-    }
+    Console.WriteLine(result);   // 42
 }

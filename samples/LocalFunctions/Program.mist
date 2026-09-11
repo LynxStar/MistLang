@@ -1,0 +1,159 @@
+// LocalFunctions -- A function declared as a statement, callable from the block that declares it.
+//
+// This sample showcases:
+//   1. A call before the declaration (the name is hoisted to the block)
+//   2. Recursion and mutual recursion
+//   3. A capture written by the function and read after
+//   4. static, which refuses capture, and public static, which the book writes at file top
+//   5. An async local function called from a sync context (auto-await) and an async one (await)
+//   6. A sync local function promoted to async by the await inside it
+//   7. A local function inside a local function, and inside a lambda
+//   8. A local function converted to a function value
+//   9. A parameter `where` on a local function, proven at the call
+//
+// Runs on the experimental pipeline only: classic shares the parser and never binds a local
+// function, so this sample is referenced from AllFeaturesV2 and not from AllFeatures.
+
+using Standard;
+
+namespace LocalFunctions;
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Local Functions Sample ===");
+
+        Console.WriteLine("--- Call before declaration ---");
+        Console.WriteLine($"Twice(4)={Twice(4)}");
+
+        int Twice(int x)
+        {
+            return x * 2;
+        }
+
+        Console.WriteLine("--- Recursion ---");
+        int Factorial(int n)
+        {
+            if(n <= 1)
+            {
+                return 1;
+            }
+
+            return n * Factorial(n - 1);
+        }
+
+        bool IsEven(int n)
+        {
+            if(n == 0)
+            {
+                return true;
+            }
+
+            return IsOdd(n - 1);
+        }
+
+        bool IsOdd(int n)
+        {
+            if(n == 0)
+            {
+                return false;
+            }
+
+            return IsEven(n - 1);
+        }
+
+        Console.WriteLine($"Factorial(5)={Factorial(5)} IsEven(10)={IsEven(10)} IsOdd(7)={IsOdd(7)}");
+
+        Console.WriteLine("--- Capture ---");
+        var counter = 0;
+        void Bump()
+        {
+            counter = counter + 1;
+        }
+
+        Bump();
+        Bump();
+        Console.WriteLine($"counter={counter}");
+
+        Console.WriteLine("--- Modifiers ---");
+        static int Square(int x)
+        {
+            return x * x;
+        }
+
+        public static string Shout(string s)
+        {
+            return s + "!";
+        }
+
+        Console.WriteLine($"Square(6)={Square(6)} Shout(hi)={Shout("hi")}");
+
+        Console.WriteLine("--- Async ---");
+        async int Fetch(int value)
+        {
+            return value + 40;
+        }
+
+        var fetched = Fetch(2);
+        Console.WriteLine($"fetched={fetched}");
+
+        async int Sum()
+        {
+            var a = Fetch(1);
+            var b = Fetch(2);
+            return await a + await b;
+        }
+
+        Console.WriteLine($"Sum()={Sum()}");
+
+        Console.WriteLine("--- Promoted ---");
+        int Doubled()
+        {
+            var value = Fetch(3);
+            return value * 2;
+        }
+
+        Console.WriteLine($"Doubled()={Doubled()}");
+
+        Console.WriteLine("--- Nesting ---");
+        int Outer(int x)
+        {
+            int Inner(int y)
+            {
+                return y + x;
+            }
+
+            return Inner(1);
+        }
+
+        func<int, int> tripler = v =>
+        {
+            int Local(int w)
+            {
+                return w * 3;
+            }
+
+            return Local(v);
+        };
+
+        Console.WriteLine($"Outer(9)={Outer(9)} tripler(3)={tripler(3)}");
+
+        Console.WriteLine("--- Function value ---");
+        func<int, int> f = Twice;
+        Console.WriteLine($"f(21)={f(21)}");
+
+        Console.WriteLine("--- Parameter where ---");
+        int Half(int x) where x > 0
+        {
+            return x / 2;
+        }
+
+        Console.WriteLine($"Half(8)={Half(8)}");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

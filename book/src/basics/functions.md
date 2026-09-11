@@ -117,3 +117,27 @@ A method can call itself to solve problems that decompose into smaller subproble
 {{#endtabs }}
 
 Mist doesn't impose any special syntax for recursion — a method simply references its own name in the body. The compiler emits a standard recursive C# method call.
+
+## Local Functions
+
+A function can be declared as a statement, inside a block or at the top of a file beside
+top-level statements. Its name belongs to the block that declares it, so it can be called before
+its declaration and can call itself. It sees the locals declared before it and captures them by
+reference, as a lambda does; `static` refuses capture, as it does on a lambda. An accessibility
+modifier is accepted and means nothing: a local function is visible exactly where it is declared.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/basics/functions/local-functions.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/basics/functions/local-functions.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+A local function may be `async`, with the same meaning the modifier has on a method. It cannot
+declare type parameters, and it takes no modifier but an accessibility one, `static` or `async`.

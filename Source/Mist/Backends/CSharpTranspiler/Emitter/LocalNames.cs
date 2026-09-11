@@ -1,6 +1,7 @@
 using Mist.ProgramAnalysis;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Statements;
 
@@ -11,11 +12,15 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// enclosing block or the parameter list holds; C# refuses that (CS0136) whichever of the two comes
 /// first in the text, so the inner local is renamed apart once per body and every site that spells a
 /// local reads the map. Siblings keep their names, since C# allows one name in two blocks that do not
-/// contain each other, and a body emitted with no map active is spelled as written.
+/// contain each other, and a body emitted with no map active is spelled as written. A local function's
+/// name is a local of the block that declares it and is renamed by the same rule; a type's method is
+/// never in the map.
 /// </summary>
 internal static class LocalNames
 {
     private static Dictionary<LocalVariable, string>? active;
+
+    private static Dictionary<Method, string>? activeFunctions;
 
     public static Body? Enter(Block body, IEnumerable<string> parameterNames)
     {
@@ -24,7 +29,7 @@ internal static class LocalNames
             return null;
         }
 
-        active = Build(body, parameterNames);
+        (active, activeFunctions) = Build(body, parameterNames);
         return new Body();
     }
 
@@ -33,11 +38,17 @@ internal static class LocalNames
         return active is { } map && map.TryGetValue(local, out var name) ? name : local.Name;
     }
 
+    public static string Of(Method function)
+    {
+        return activeFunctions is { } map && map.TryGetValue(function, out var name) ? name : function.Name;
+    }
+
     internal sealed class Body : IDisposable
     {
         public void Dispose()
         {
             active = null;
+            activeFunctions = null;
         }
     }
 
@@ -48,39 +59,60 @@ internal static class LocalNames
         public HashSet<string> Names { get; } = new(StringComparer.Ordinal);
     }
 
-    private static Dictionary<LocalVariable, string> Build(Block body, IEnumerable<string> parameterNames)
+    private sealed class Declared
+    {
+        public List<(LocalVariable Local, Scope Scope)> Locals { get; } = [];
+
+        public List<(Method Function, Scope Scope)> Functions { get; } = [];
+    }
+
+    private static (Dictionary<LocalVariable, string>, Dictionary<Method, string>) Build(
+        Block body, IEnumerable<string> parameterNames)
     {
         var parameters = new Scope(null);
         parameters.Names.UnionWith(parameterNames);
 
-        var declared = new List<(LocalVariable Local, Scope Scope)>();
+        var declared = new Declared();
         Walk(body, new Scope(parameters), declared);
 
         var taken = new HashSet<string>(parameters.Names, StringComparer.Ordinal);
-        taken.UnionWith(declared.Select(entry => entry.Local.Name));
+        taken.UnionWith(declared.Locals.Select(entry => entry.Local.Name));
+        taken.UnionWith(declared.Functions.Select(entry => entry.Function.Name));
 
-        var map = new Dictionary<LocalVariable, string>(ReferenceEqualityComparer.Instance);
+        var locals = new Dictionary<LocalVariable, string>(ReferenceEqualityComparer.Instance);
+        var functions = new Dictionary<Method, string>(ReferenceEqualityComparer.Instance);
 
-        foreach(var (local, scope) in declared)
+        foreach(var (local, scope) in declared.Locals)
         {
-            if(local.Name == "_" || !Shadows(local.Name, scope))
+            if(local.Name != "_" && Shadows(local.Name, scope))
             {
-                continue;
+                locals[local] = Apart(local.Name, taken);
             }
-
-            var suffix = 1;
-            string candidate;
-
-            do
-            {
-                candidate = $"{local.Name}_{suffix++}";
-            }
-            while(!taken.Add(candidate));
-
-            map[local] = candidate;
         }
 
-        return map;
+        foreach(var (function, scope) in declared.Functions)
+        {
+            if(Shadows(function.Name, scope))
+            {
+                functions[function] = Apart(function.Name, taken);
+            }
+        }
+
+        return (locals, functions);
+    }
+
+    private static string Apart(string name, HashSet<string> taken)
+    {
+        var suffix = 1;
+        string candidate;
+
+        do
+        {
+            candidate = $"{name}_{suffix++}";
+        }
+        while(!taken.Add(candidate));
+
+        return candidate;
     }
 
     private static bool Shadows(string name, Scope scope)
@@ -96,13 +128,13 @@ internal static class LocalNames
         return false;
     }
 
-    private static void Declare(LocalVariable local, Scope scope, List<(LocalVariable, Scope)> declared)
+    private static void Declare(LocalVariable local, Scope scope, Declared declared)
     {
         _ = scope.Names.Add(local.Name);
-        declared.Add((local, scope));
+        declared.Locals.Add((local, scope));
     }
 
-    private static void Walk(Block block, Scope scope, List<(LocalVariable, Scope)> declared)
+    private static void Walk(Block block, Scope scope, Declared declared)
     {
         foreach(var statement in block.Statements)
         {
@@ -110,7 +142,7 @@ internal static class LocalNames
         }
     }
 
-    private static void Walk(Statement statement, Scope scope, List<(LocalVariable, Scope)> declared)
+    private static void Walk(Statement statement, Scope scope, Declared declared)
     {
         switch(statement)
         {
@@ -197,10 +229,25 @@ internal static class LocalNames
             case Block nested:
                 Walk(nested, new Scope(scope), declared);
                 break;
+
+            case LocalFunctionStatement function:
+                {
+                    _ = scope.Names.Add(function.Function.Name);
+                    declared.Functions.Add((function.Function, scope));
+                    var header = new Scope(scope);
+
+                    foreach(var parameter in function.Parameters)
+                    {
+                        Declare(parameter, header, declared);
+                    }
+
+                    Walk(function.Body, new Scope(header), declared);
+                    break;
+                }
         }
     }
 
-    private static void Walk(Expression? expression, Scope scope, List<(LocalVariable, Scope)> declared)
+    private static void Walk(Expression? expression, Scope scope, Declared declared)
     {
         switch(expression)
         {
@@ -267,7 +314,7 @@ internal static class LocalNames
         }
     }
 
-    private static void Walk(Pattern pattern, Scope scope, List<(LocalVariable, Scope)> declared)
+    private static void Walk(Pattern pattern, Scope scope, Declared declared)
     {
         if(pattern.Binding is { } binding)
         {

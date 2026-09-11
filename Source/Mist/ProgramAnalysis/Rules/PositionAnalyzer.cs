@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
@@ -8,7 +9,7 @@ namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
 /// The positions with one rule each: <c>??=</c> anywhere but statement position, a readonly local
-/// reassigned, a static lambda reaching outside itself, and <c>?</c> applied to a type that already
+/// reassigned, a static lambda or local function reaching outside itself, and <c>?</c> applied to a type that already
 /// holds void. Order 9 of the analysis register, the half whose subject is where something was
 /// written rather than what it is. A static lambda's own names are its parameters and whatever its
 /// body declares -- a local, a loop or deconstruction variable, a pattern binding, a nested lambda's
@@ -43,7 +44,15 @@ internal sealed class PositionAnalyzer : IProgramAnalyzer
                     break;
 
                 case LambdaExpression { IsStatic: true } lambda:
-                    JudgeCaptures(context, lambda);
+                    JudgeCaptures(
+                        context, ProgramAnalysisDiagnostics.StaticLambdaCapture,
+                        Captures.OwnNames(lambda.Parameters, Captures.Inside(lambda)), Captures.Inside(lambda));
+                    break;
+
+                case LocalFunctionStatement { Function.Modifiers.IsStatic: true } function:
+                    JudgeCaptures(
+                        context, ProgramAnalysisDiagnostics.StaticLocalFunctionCapture,
+                        Captures.OwnNames(function.Parameters, Captures.Inside(function)), Captures.Inside(function));
                     break;
             }
         }
@@ -58,26 +67,24 @@ internal sealed class PositionAnalyzer : IProgramAnalyzer
         }
     }
 
-    private static void JudgeCaptures(AnalysisContext context, LambdaExpression lambda)
+    private static void JudgeCaptures(
+        AnalysisContext context, DiagnosticDescriptor descriptor, HashSet<LocalVariable> own, IReadOnlyList<object> inside)
     {
-        var inside = LambdaCaptures.Inside(lambda);
-        var own = LambdaCaptures.OwnNames(lambda, inside);
-
         foreach(var node in inside)
         {
             switch(node)
             {
                 case LocalReferenceExpression reference when !own.Contains(reference.Local):
-                    context.Report(ProgramAnalysisDiagnostics.StaticLambdaCapture, reference.Node, [reference], "outer variable", reference.Local.Name);
+                    context.Report(descriptor, reference.Node, [reference], "outer variable", reference.Local.Name);
                     break;
                 case ThisExpression self:
-                    context.Report(ProgramAnalysisDiagnostics.StaticLambdaCapture, self.Node, [self], "instance member", "this");
+                    context.Report(descriptor, self.Node, [self], "instance member", "this");
                     break;
                 case FieldReferenceExpression { Field.Modifiers.IsStatic: false } field:
-                    context.Report(ProgramAnalysisDiagnostics.StaticLambdaCapture, field.Node, [field], "instance field", field.Field.Name);
+                    context.Report(descriptor, field.Node, [field], "instance field", field.Field.Name);
                     break;
                 case PropertyReferenceExpression { Property.Modifiers.IsStatic: false } property:
-                    context.Report(ProgramAnalysisDiagnostics.StaticLambdaCapture, property.Node, [property], "instance property", property.Property.Name);
+                    context.Report(descriptor, property.Node, [property], "instance property", property.Property.Name);
                     break;
             }
         }

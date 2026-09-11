@@ -2,7 +2,34 @@ using System;
 
 namespace Snippet;
 
-public class Dog : Animal
+public class Animal
+{
+    private string name;
+    private int age;
+
+    public Animal(string name, int age)
+    {
+        this.name = name;
+        this.age = age;
+    }
+
+    public string GetName()
+    {
+        return name;
+    }
+
+    public int GetAge()
+    {
+        return age;
+    }
+
+    public string Describe()
+    {
+        return $"{name} (age {age})";
+    }
+}
+
+public class Dog : Snippet.Animal
 {
     private string breed;
 
@@ -11,12 +38,18 @@ public class Dog : Animal
         this.breed = breed;
     }
 
+    public string GetBreed()
+    {
+        return breed;
+    }
+
     public string DescribeDog()
     {
         return $"{GetName()} is a {breed}, age {GetAge()}";
     }
 }
-public class GuideDog : Dog
+
+public class GuideDog : Snippet.Dog
 {
     private string handler;
 

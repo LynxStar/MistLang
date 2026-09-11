@@ -1,5 +1,7 @@
 using Standard;
 
+type UserId = new int;
+
 public class Program
 {
     public static void Main(string[] args)

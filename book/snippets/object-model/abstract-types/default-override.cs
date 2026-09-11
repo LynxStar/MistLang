@@ -2,7 +2,17 @@ using System;
 
 namespace Snippet;
 
-public class FormalCat : IGreetable
+public interface IGreetable
+{
+    string Name();
+
+    string Greet()
+    {
+        return $"Hello, I am {this.Name()}";
+    }
+}
+
+public class FormalCat : Snippet.IGreetable
 {
     private string catName;
 

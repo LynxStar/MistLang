@@ -13,7 +13,6 @@ public class Program
             (< 0, < 0) => "quadrant III",
             (> 0, < 0) => "quadrant IV",
             (0, _) => "on y-axis",
-            (_, 0) => "on x-axis",
             (var _, var _) => "unknown",
         };
         Console.WriteLine($"({coord.Item1}, {coord.Item2}) => {quadrant}");

@@ -97,6 +97,41 @@ string? EmitSnippet(string mistPath)
         var tempMistPath = Path.Combine(scratchDir, fileName);
         File.WriteAllText(tempMistPath, source);
 
+        // A snippet that needs a package or a framework reference says so in a project file beside
+        // it, named as the snippet is, which becomes the scratch project's mist.toml.
+        var sidecarToml = Path.ChangeExtension(mistPath, ".toml");
+        ProjectConfiguration? config = null;
+        if (File.Exists(sidecarToml))
+        {
+            File.Copy(sidecarToml, Path.Combine(scratchDir, "mist.toml"));
+            var tomlDiagnostics = new DiagnosticBag();
+            config = ProjectFileParser.Parse(scratchDir, tomlDiagnostics);
+            if (config is null)
+            {
+                Console.Error.WriteLine($"  FAILED (project file): {relativeMist}");
+                foreach (var d in tomlDiagnostics.ToImmutableArray().Take(3))
+                    Console.Error.WriteLine($"    {d.Id.Value}: {d.Message}");
+                return null;
+            }
+        }
+
+        // A snippet that only makes sense across files -- a namespace inferred from a folder, say --
+        // keeps the other files in a folder beside it, named as the snippet is, which is copied into
+        // the scratch project with its layout; the book shows only the snippet.
+        var sources = new List<string> { tempMistPath };
+        var supportDir = Path.Combine(Path.GetDirectoryName(mistPath)!, Path.GetFileNameWithoutExtension(mistPath) + ".support");
+        if (Directory.Exists(supportDir))
+        {
+            foreach (var supportFile in Directory.GetFiles(supportDir, "*.mist", SearchOption.AllDirectories))
+            {
+                var relative = Path.GetRelativePath(supportDir, supportFile);
+                var copied = Path.Combine(scratchDir, relative);
+                Directory.CreateDirectory(Path.GetDirectoryName(copied)!);
+                File.Copy(supportFile, copied);
+                sources.Add(copied);
+            }
+        }
+
         var outputDir = Path.Combine(scratchDir, "output");
         var driver = new CompilerDriver(
             new Mist.Lexing.MistLexer(),
@@ -107,13 +142,19 @@ string? EmitSnippet(string mistPath)
 
         var options = new CompilerOptions(
             ProjectFolder: scratchDir,
-            SourcePaths: ImmutableArray.Create(tempMistPath),
+            SourcePaths: [.. sources],
             Backend: new BackendId("csharp"),
             OutputDirectory: outputDir,
             BinDirectory: Path.Combine(scratchDir, "bin"),
-            ProjectName: "Snippet",
-            NamespaceRoot: "Snippet",
+            ProjectName: config?.Name ?? "Snippet",
+            NamespaceRoot: config?.NamespaceRoot ?? "Snippet",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,
+            EntryPoint: config?.EntryPoint,
+            GlobalUsings: config?.GlobalUsings ?? default,
+            Packages: config?.Packages ?? default,
+            FrameworkReferences: config?.FrameworkReferences ?? default,
+            TargetFramework: config?.TargetFramework ?? "net10.0",
+            OutputType: config?.OutputType ?? ProjectOutputType.Executable,
             Pipeline: PipelineMode.Experimental);
 
         var result = driver.Compile(options);

@@ -1,5 +1,54 @@
 using Standard;
 
+abstract IFullyDescribable : IDescribable
+{
+    string DetailedDescribe();
+}
+
+public class Robot : IFullyDescribable
+{
+    private string model;
+    private int version;
+
+    public Robot(string model, int version)
+    {
+        this.model = model;
+        this.version = version;
+    }
+
+    public string Describe()
+    {
+        return $"Robot: {model} v{version}";
+    }
+
+    public string DetailedDescribe()
+    {
+        return $"Robot model {model}, version {version}, fully operational";
+    }
+}
+
+abstract IDescribable
+{
+    string Describe();
+}
+
+public class Person : IDescribable
+{
+    private string name;
+    private int age;
+
+    public Person(string name, int age)
+    {
+        this.name = name;
+        this.age = age;
+    }
+
+    public string Describe()
+    {
+        return $"Person: {name}, age {age}";
+    }
+}
+
 public class Program
 {
     private static void PrintDescription(IDescribable item)

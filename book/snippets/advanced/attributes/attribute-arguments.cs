@@ -3,43 +3,45 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Snippet;
 
-internal class Validator
+class Validator
 {
-    [Range(1, 100)]
+    [System.ComponentModel.DataAnnotations.RangeAttribute(1, 100)]
     public int Score;
+    [System.ComponentModel.DataAnnotations.DisplayAttribute(Name = "User Score")]
+    public int DisplayScore;
 
-    [Obsolete("use ValidateV2", true)]
+    [System.ObsoleteAttribute("use ValidateV2", true)]
     public void Validate()
     {
         Console.WriteLine("Validating");
     }
 
-    [Display(Name = "User Score")]
-    public int DisplayScore;
-
     public Validator()
     {
-        this.Score = 0;
-        this.DisplayScore = 0;
+        this.Score = default(int);
+        this.DisplayScore = default(int);
     }
 
     public static Validator __CreateDefault()
     {
-        var inst = new Validator();
-        return inst;
+        return new Validator();
     }
 }
+
 public class Program
 {
     public static void Main(string[] args)
     {
-        var v = new Validator();
+        Snippet.Validator v = new Snippet.Validator();
         Console.WriteLine($"Score field exists: true");
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

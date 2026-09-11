@@ -1,5 +1,64 @@
 using Standard;
 
+public class Kelvin
+{
+    private double degrees;
+
+    public Kelvin(double degrees)
+    {
+        this.degrees = degrees;
+    }
+
+    public string Describe()
+    {
+        return $"{degrees} K";
+    }
+}
+
+public class Celsius
+{
+    private double degrees;
+
+    public Celsius(double degrees)
+    {
+        this.degrees = degrees;
+    }
+
+    public double GetDegrees()
+    {
+        return degrees;
+    }
+
+    // Implicit cast: Celsius -> Fahrenheit
+    // Applied automatically at assignment and argument sites.
+    public static implicit operator Fahrenheit(Celsius c)
+    {
+        return new Fahrenheit(c.GetDegrees() * 1.8 + 32.0);
+    }
+
+    // Explicit cast: Celsius → Kelvin
+    // Requires the programmer to write (Kelvin)expr.
+    public static explicit operator Kelvin(Celsius c)
+    {
+        return new Kelvin(c.GetDegrees() + 273.15);
+    }
+}
+
+public class Fahrenheit
+{
+    private double degrees;
+
+    public Fahrenheit(double degrees)
+    {
+        this.degrees = degrees;
+    }
+
+    public string Describe()
+    {
+        return $"{degrees} F";
+    }
+}
+
 public class Program
 {
     public static void Main(string[] args)

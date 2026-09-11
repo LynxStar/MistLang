@@ -1,4 +1,6 @@
 using Standard;
+using System.Collections.Generic;
+using System;
 
 using System.Diagnostics;
 
@@ -7,7 +9,11 @@ class CustomList
 {
 }
 
-[JsonConverter<int>]
+public class TaggedAttribute<T> : Attribute
+{
+}
+
+[Tagged<int>]
 class TypedConfig
 {
 }
@@ -17,6 +23,6 @@ public class Program
     public static void Main(string[] args)
     {
         Console.WriteLine("Type literal arg: [DebuggerTypeProxy(List<int>)]");
-        Console.WriteLine("Generic type arg: [JsonConverter<int>]");
+        Console.WriteLine("Generic type arg: [Tagged<int>]");
     }
 }

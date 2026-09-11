@@ -98,11 +98,13 @@ This emits `[DebuggerTypeProxy(typeof(List<int>))]` in C#. Generic types work to
 C# 11 introduced generic attributes — attribute classes with type parameters. In Mist, you write these with angle brackets on the attribute name:
 
 ```mist
-[JsonConverter<int>]
+public class TaggedAttribute<T> : Attribute { }
+
+[Tagged<int>]
 class TypedConfig { }
 ```
 
-This emits `[JsonConverter<int>]` in C# — no `typeof` wrapping, because the type is a generic parameter of the attribute itself, not a constructor argument.
+This emits `[Tagged<int>]` in C# — no `typeof` wrapping, because the type is a generic parameter of the attribute itself, not a constructor argument. The attribute class is an ordinary generic class deriving from `System.Attribute`; the `Attribute` suffix is dropped at the use site, as in C#.
 
 {{#tabs }}
 {{#tab name="Mist" }}

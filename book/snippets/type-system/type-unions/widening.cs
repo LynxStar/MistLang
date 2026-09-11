@@ -8,15 +8,20 @@ public class Program
     {
         Union_Int32_String value = 42;
         Union_Boolean_Int32_String widened = value;
-        if (widened is int n)
         {
-            Console.WriteLine($"widened int: {n}");
+            if (widened.AsInt32OrNull is int n)
+            {
+                Console.WriteLine($"widened int: {n}");
+            }
         }
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

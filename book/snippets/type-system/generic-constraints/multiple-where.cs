@@ -2,11 +2,16 @@ using System;
 
 namespace Snippet;
 
-internal class Pair<K, V>
+interface IOrderable
+{
+    int GetOrder();
+}
+
+class Pair<K, V>
+    where K : Snippet.IOrderable
     where V : new()
 {
     public K Key;
-
     public V Value;
 
     public Pair(K key)

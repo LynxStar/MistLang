@@ -1,5 +1,11 @@
 using Standard;
 
+public class FixedBuffer<Size:int>
+{
+    public int GetSize() { return Size; }
+    public string Describe() { return $"FixedBuffer<{Size}>"; }
+}
+
 public class DependentMethods
 {
     public static void Repeat<N:int>(string text)

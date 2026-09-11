@@ -6,7 +6,7 @@ namespace Snippets;
 // instead of Dispose(), even if the type also implements IDisposable
 public class Resource
 {
-    string Name;
+    public string Name;
 
     public Resource(string name)
     {

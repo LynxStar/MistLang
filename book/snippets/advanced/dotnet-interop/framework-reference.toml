@@ -1,0 +1,4 @@
+name = "FrameworkReference"
+
+[framework_references]
+"Microsoft.AspNetCore.App" = true

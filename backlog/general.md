@@ -323,89 +323,23 @@ whole subpattern to the runtime binder.
 
 ---
 
-## 🟡 58 book snippets do not compile on the experimental pipeline
+## 🟡 5 book snippets do not compile on the experimental pipeline
 
-**Found 2026-09-11**, the day `tools/SnippetEmitter` moved from classic to `--pipeline experimental`. Of 368 snippet
-pairs, 295 regenerated and 15 were already identical; these 58 kept the `.cs` classic produced, so their
-"Emitted C#" tabs are stale until each is fixed. Classic's tool emitted even when binding failed, which is
-how the first two groups ever had a `.cs` at all. Grouped by cause, with the first diagnostic each reports:
+**Found 2026-09-11**, the day `tools/SnippetEmitter` moved from classic to `--pipeline experimental`; 58
+failed that morning. By evening 30 had their sibling declarations inlined so each is a program of its
+own, 5 imported the CLR namespaces they used or declared the attribute they applied, 2 were content
+bugs classic's tool never caught because it skipped Roslyn, and 6 were v2 defects since fixed: nested
+local shadowing, union-into-union widening, span slicing, a CLR delegate as a lambda's target, and
+the element type of a projected `List<int>`. Ten fragments that do not parse on either pipeline
+(`advanced/structured-concurrency/*`, `basics/void-type/*`: a bare or `public static` function at
+file top) are left as they are by decision. These five keep the `.cs` classic produced:
 
-**Reference a type or member declared in a sibling snippet file, so the snippet is not a program on its own** (30):
-
-- `advanced/ownership/borrowed.mist`
-- `advanced/ownership/frozen.mist`
-- `advanced/ownership/readonly-ref.mist`
-- `basics/namespaces/using-declarations.mist`
-- `basics/variables/type-inference.mist`
-- `object-model/abstract-types/child-implementation.mist`
-- `object-model/abstract-types/default-dispatch.mist`
-- `object-model/abstract-types/default-override.mist`
-- `object-model/abstract-types/polymorphic-usage.mist`
-- `object-model/enums/implicit-conversion.mist`
-- `object-model/enums/pattern-matching.mist`
-- `object-model/extension-methods/calling.mist`
-- `object-model/extension-methods/with-params.mist`
-- `object-model/inheritance/base-constructor.mist`
-- `object-model/inheritance/method-overriding.mist`
-- `object-model/structs/value-semantics.mist`
-- `type-system/associated-types/generic-context.mist`
-- `type-system/cast-operators/argument-conversion.mist`
-- `type-system/cast-operators/assignment-conversion.mist`
-- `type-system/cast-operators/cast-expression.mist`
-- `type-system/cast-operators/compile-time-resolution.mist`
-- `type-system/dependent-types/methods.mist`
-- `type-system/dependent-types/type-identity.mist`
-- `type-system/generic-constraints/abstract-struct-constraints.mist`
-- `type-system/generic-constraints/multiple-where.mist`
-- `type-system/generics/implementing.mist`
-- `type-system/generics/multi-param-demo.mist`
-- `type-system/generics/type-arguments.mist`
-- `type-system/newtypes/explicit-casting.mist`
-- `type-system/newtypes/member-access.mist`
-
-**Do not parse on the shared parser (a `public static` or bare function at file top), so classic could never have emitted them either** (10):
-
-- `advanced/structured-concurrency/async-functor.mist` -- Parser did not consume all input. Unparseable content begins at line 3.
-- `advanced/structured-concurrency/auto-unwrap.mist` -- Parser did not consume all input. Unparseable content begins at line 3.
-- `advanced/structured-concurrency/await-functor.mist` -- Parser did not consume all input. Unparseable content begins at line 3.
-- `advanced/structured-concurrency/multi-await.mist` -- Parser did not consume all input. Unparseable content begins at line 3.
-- `advanced/structured-concurrency/scope-exit-await.mist` -- Parser did not consume all input. Unparseable content begins at line 3.
-- `advanced/structured-concurrency/yield-points.mist` -- Parser did not consume all input. Unparseable content begins at line 3.
-- `basics/void-type/fire-and-forget.mist` -- Parser did not consume all input. Unparseable content begins at line 3.
-- `basics/void-type/generic-argument.mist` -- Parser did not consume all input. Unparseable content begins at line 21.
-- `basics/void-type/parameter-type.mist` -- Parser did not consume all input. Unparseable content begins at line 3.
-- `basics/void-type/value-returning.mist` -- Parser did not consume all input. Unparseable content begins at line 3.
-
-**Use a CLR type without importing its namespace (`Obsolete`, `Serializable`, `List<>`, `JsonConverter<>`, `QueryString`)** (5):
-
-- `advanced/attributes/attribute-arguments.mist` -- The type 'Obsolete' could not be found.
-- `advanced/attributes/basic-attributes.mist` -- The type 'Serializable' could not be found.
-- `advanced/attributes/multiple-attributes.mist` -- The type 'Serializable' could not be found.
-- `advanced/attributes/type-arguments.mist` -- The type 'List<>' could not be found.
-- `advanced/dotnet-interop/framework-reference.mist` -- The type 'Microsoft.AspNetCore.Http.QueryString' could not be found.
-
-**Bind on v2 but emit C# that Roslyn refuses -- v2 emission defects** (6):
-
-- `advanced/nested-scoping/context-scopes.mist` -- A local or parameter named 'prefix' cannot be declared in this scope because that name is used in an enclosing local scope to define a local or parameter
-- `advanced/nested-scoping/deep-shadowing.mist` -- A local or parameter named 'name' cannot be declared in this scope because that name is used in an enclosing local scope to define a local or parameter
-- `advanced/nested-scoping/shadowing.mist` -- A local or parameter named 'x' cannot be declared in this scope because that name is used in an enclosing local scope to define a local or parameter
-- `type-system/switch-expressions/tuple-positional.mist` -- The pattern is unreachable. It has already been handled by a previous arm of the switch expression or it is impossible to match.
-- `type-system/type-unions/generics.mist` -- The type or namespace name 'TError' could not be found (are you missing a using directive or an assembly reference?)
-- `type-system/type-unions/widening.mist` -- Cannot implicitly convert type 'Union_Int32_String' to 'Union_Boolean_Int32_String'
-
-**Refused by a v2 rule or binder gap** (5):
-
-- `advanced/dotnet-interop/collection-usage.mist` -- Cannot implicitly convert type 'T' to 'int'.
-- `advanced/dotnet-interop/delegate-system-delegate.mist` -- The type of lambda parameter 'x' cannot be inferred. Annotate it, or assign the lambda to a function type.
-- `advanced/drop-semantics/idisposable-explicit-drop.mist` -- 'Name' is inaccessible due to its protection level: private members are accessible only within the declaring type.
-- `basics/indexes-and-ranges/span-slice.mist` -- 'Span<Int32, unknown>' cannot be sliced by a range. Only an array or a string yields a sub-sequence.
-- `type-system/optional-types/void-coalescing-assignment.mist` -- Cannot implicitly convert type 'int | void' to 'int'.
-
-**Declare only variadic types, which v2 emits as monomorphs in `__Variadics.g.cs`, so there is no per-file output for the tab** (2):
-
-- `type-system/variadics/declaration-kinds.mist` -- no emitted output
-- `type-system/variadics/declaration-syntax.mist` -- no emitted output
-
-**Fix:** the first three groups are book content -- make each snippet self-contained and import what it
-uses; the fourth is the emitter register's; the fifth is a binder or rule gap per line; the last needs the
-tool to pick the monomorph file when a snippet declares nothing else.
+- `type-system/associated-types/generic-context.mist` -- `T.Output`, an associated type reached
+  through a type parameter, does not resolve (emitter order 74's slots resolve on a concrete type).
+- `type-system/optional-types/void-coalescing-assignment.mist` -- `x ??= v` does not narrow `x` to
+  the non-void constituent afterwards (optional-types Req 5.4); the analyzer refuses `int n = x`.
+- `type-system/type-unions/generics.mist` -- `type Result<TError> = int | TError` emits a carrier
+  naming `TError` unbound; a union over a type parameter needs a generic carrier.
+- `type-system/variadics/declaration-kinds.mist`, `declaration-syntax.mist` -- declare variadic types
+  and use none, and a monomorph is emitted only per arity used, so there is nothing to show; the old
+  `.cs` was hand-written.

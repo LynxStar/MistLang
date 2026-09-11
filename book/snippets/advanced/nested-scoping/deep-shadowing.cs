@@ -6,21 +6,24 @@ public class DeepShadowing
 {
     public static void Main(string[] args)
     {
-        var name = "first";
+        string name = "first";
         {
-            var name = "second";
+            string name_1 = "second";
             {
-                var name = "third";
-                Console.WriteLine(name);
+                string name_2 = "third";
+                Console.WriteLine(name_2);
             }
-            Console.WriteLine(name);
+            Console.WriteLine(name_1);
         }
         Console.WriteLine(name);
     }
 
+    public DeepShadowing()
+    {
+    }
+
     public static DeepShadowing __CreateDefault()
     {
-        var inst = new DeepShadowing();
-        return inst;
+        return new DeepShadowing();
     }
 }

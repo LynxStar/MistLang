@@ -2,25 +2,50 @@ using System;
 
 namespace Snippet;
 
+public class Pair
+{
+    public int X;
+    public int Y;
+
+    public Pair(int x, int y)
+    {
+        this.X = x;
+        this.Y = y;
+    }
+
+    public void SetX(int x)
+    {
+        this.X = x;
+    }
+
+    public string Describe()
+    {
+        return $"Pair({X}, {Y})";
+    }
+}
+
 public class ReadonlyRefDemo
 {
-    public static void ReadPair(ref readonly Pair p)
+    public static void ReadPair(ref readonly Snippet.Pair p)
     {
-        var sum = p.X + p.Y;
+        int sum = p.X + p.Y;
         Console.WriteLine($"readonly ref sum={sum}");
     }
 
     public static void Run()
     {
-        Pair p = new Pair(3, 7);
-        ReadPair(p);
+        Snippet.Pair p = new Snippet.Pair(3, 7);
+        ReadPair(in p);
         p.SetX(100);
         Console.WriteLine($"after readonly ref={p.Describe()}");
     }
 
+    public ReadonlyRefDemo()
+    {
+    }
+
     public static ReadonlyRefDemo __CreateDefault()
     {
-        var inst = new ReadonlyRefDemo();
-        return inst;
+        return new ReadonlyRefDemo();
     }
 }

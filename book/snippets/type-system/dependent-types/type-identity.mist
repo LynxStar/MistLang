@@ -1,5 +1,11 @@
 using Standard;
 
+public class FixedBuffer<Size:int>
+{
+    public int GetSize() { return Size; }
+    public string Describe() { return $"FixedBuffer<{Size}>"; }
+}
+
 public class TypeIdentity
 {
     public static string AcceptFive(FixedBuffer<5> buf)

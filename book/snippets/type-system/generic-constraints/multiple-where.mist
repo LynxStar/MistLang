@@ -1,5 +1,10 @@
 using Standard;
 
+abstract IOrderable
+{
+    int GetOrder();
+}
+
 class Pair<K, V> where K : IOrderable where V : new()
 {
     public K Key;

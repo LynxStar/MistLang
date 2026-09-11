@@ -10,44 +10,55 @@ public class Logger
         Console.WriteLine($"[{prefix}] {msg}");
     }
 
+    public Logger()
+    {
+    }
+
     public static Logger __CreateDefault()
     {
-        var inst = new Logger();
-        return inst;
+        return new Logger();
     }
 }
+
 public class ContextScopeDemo
 {
     public static void Main(string[] args)
     {
-        var prefix = "OUTER";
-        MistContext.Push<string>(prefix);
-        try
         {
-            Logger.Log("message 1");
+            var prefix = "OUTER";
+            MistContext.Push<string>(prefix);
+            try
             {
-                var prefix = "INNER";
-                MistContext.Push<string>(prefix);
-                try
+                Snippet.Logger.Log("message 1");
                 {
-                    Logger.Log("message 2");
+                    {
+                        var prefix_1 = "INNER";
+                        MistContext.Push<string>(prefix_1);
+                        try
+                        {
+                            Snippet.Logger.Log("message 2");
+                        }
+                        finally
+                        {
+                            MistContext.Pop<string>();
+                        }
+                    }
                 }
-                finally
-                {
-                    MistContext.Pop<string>();
-                }
+                Snippet.Logger.Log("message 3");
             }
-            Logger.Log("message 3");
+            finally
+            {
+                MistContext.Pop<string>();
+            }
         }
-        finally
-        {
-            MistContext.Pop<string>();
-        }
+    }
+
+    public ContextScopeDemo()
+    {
     }
 
     public static ContextScopeDemo __CreateDefault()
     {
-        var inst = new ContextScopeDemo();
-        return inst;
+        return new ContextScopeDemo();
     }
 }

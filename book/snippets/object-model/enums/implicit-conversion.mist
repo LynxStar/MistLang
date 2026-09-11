@@ -1,5 +1,54 @@
 using Standard;
 
+public enum CardinalDir : Vec2
+{
+    Up = new Vec2(0, 1),
+    Down = new Vec2(0, -1),
+    Left = new Vec2(-1, 0),
+    Right = new Vec2(1, 0)
+}
+
+public readonly struct Vec2
+{
+    public int x;
+    public int y;
+
+    public Vec2(int x, int y)
+    {
+        this.x = x;
+        this.y = y;
+    }
+
+    public string Describe()
+    {
+        return $"({this.x}, {this.y})";
+    }
+}
+
+public enum HttpStatus : int
+{
+    Ok = 200,
+    Created = 201,
+    BadRequest = 400,
+    NotFound,
+    InternalError = 500
+}
+
+public enum Direction : string
+{
+    North = "N",
+    South = "S",
+    East = "E",
+    West = "W"
+}
+
+public enum Color
+{
+    Red,
+    Green,
+    Blue
+}
+
 public class Program
 {
     public static void Main(string[] args)

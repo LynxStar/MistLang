@@ -2,25 +2,50 @@ using System;
 
 namespace Snippet;
 
+public class Pair
+{
+    public int X;
+    public int Y;
+
+    public Pair(int x, int y)
+    {
+        this.X = x;
+        this.Y = y;
+    }
+
+    public void SetX(int x)
+    {
+        this.X = x;
+    }
+
+    public string Describe()
+    {
+        return $"Pair({X}, {Y})";
+    }
+}
+
 public class FrozenDemo
 {
-    public static void FreezeAndRead(Pair p)
+    public static void FreezeAndRead(Snippet.Pair p)
     {
-        var sum = p.X + p.Y;
+        int sum = p.X + p.Y;
         Console.WriteLine($"frozen sum={sum}");
     }
 
     public static void Run()
     {
-        Pair p = new Pair(5, 10);
+        Snippet.Pair p = new Snippet.Pair(5, 10);
         FreezeAndRead(p);
         p.SetX(50);
         Console.WriteLine($"after thaw={p.Describe()}");
     }
 
+    public FrozenDemo()
+    {
+    }
+
     public static FrozenDemo __CreateDefault()
     {
-        var inst = new FrozenDemo();
-        return inst;
+        return new FrozenDemo();
     }
 }

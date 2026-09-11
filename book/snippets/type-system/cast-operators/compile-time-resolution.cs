@@ -2,6 +2,21 @@ using System;
 
 namespace Snippet;
 
+public class Kelvin
+{
+    private double degrees;
+
+    public Kelvin(double degrees)
+    {
+        this.degrees = degrees;
+    }
+
+    public string Describe()
+    {
+        return $"{degrees} K";
+    }
+}
+
 public class Measurement
 {
     private string unit;
@@ -11,7 +26,8 @@ public class Measurement
         this.unit = unit;
     }
 }
-public class Weight : Measurement
+
+public class Weight : Snippet.Measurement
 {
     private double value;
 
@@ -25,8 +41,8 @@ public class Weight : Measurement
         return value;
     }
 
-    public static explicit operator Kelvin(Weight w)
+    public static explicit operator Snippet.Kelvin(Snippet.Weight w)
     {
-        return new Kelvin(w.GetValue());
+        return new Snippet.Kelvin(w.GetValue());
     }
 }

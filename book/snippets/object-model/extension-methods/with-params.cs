@@ -1,11 +1,36 @@
 using System;
 
-public static class GreetingExtensions_with_params_L1
+namespace Snippet;
+
+public class Greeting
 {
-    public static Greeting Repeat(this Greeting self, int times)
+    public string Message;
+
+    public Greeting(string message)
     {
-        var repeated = "";
-        for (var i = 0; i < times; i = i + 1)
+        Message = message;
+    }
+}
+
+public static class GreetingExtensions_withparams_0
+{
+    public static int WordCount(this Snippet.Greeting self)
+    {
+        return self.Message.Length;
+    }
+
+    public static string Uppercase(this Snippet.Greeting self)
+    {
+        return self.Message;
+    }
+}
+
+public static class GreetingExtensions_withparams_1
+{
+    public static Snippet.Greeting Repeat(this Snippet.Greeting self, int times)
+    {
+        string repeated = "";
+        for (int i = 0; i < times; i = i + 1)
         {
             if (i > 0)
             {
@@ -13,6 +38,6 @@ public static class GreetingExtensions_with_params_L1
             }
             repeated = repeated + self.Message;
         }
-        return new Greeting(repeated);
+        return new Snippet.Greeting(repeated);
     }
 }

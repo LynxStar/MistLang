@@ -1,39 +1,61 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 
 namespace Snippet;
 
-[DebuggerTypeProxy(typeof(List<int>))]
-internal class CustomList
+[System.Diagnostics.DebuggerTypeProxyAttribute(typeof(System.Collections.Generic.List<int>))]
+class CustomList
 {
+    public CustomList()
+    {
+    }
 
     public static CustomList __CreateDefault()
     {
-        var inst = new CustomList();
-        return inst;
+        return new CustomList();
     }
 }
-[JsonConverter<int>]
-internal class TypedConfig
+
+public class TaggedAttribute<T> : System.Attribute
 {
+    public TaggedAttribute()
+    {
+    }
+
+    public static TaggedAttribute<T> __CreateDefault()
+    {
+        return new TaggedAttribute<T>();
+    }
+}
+
+[Snippet.TaggedAttribute<int>]
+class TypedConfig
+{
+    public TypedConfig()
+    {
+    }
 
     public static TypedConfig __CreateDefault()
     {
-        var inst = new TypedConfig();
-        return inst;
+        return new TypedConfig();
     }
 }
+
 public class Program
 {
     public static void Main(string[] args)
     {
         Console.WriteLine("Type literal arg: [DebuggerTypeProxy(List<int>)]");
-        Console.WriteLine("Generic type arg: [JsonConverter<int>]");
+        Console.WriteLine("Generic type arg: [Tagged<int>]");
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

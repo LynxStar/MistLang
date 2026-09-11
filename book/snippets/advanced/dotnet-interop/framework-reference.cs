@@ -1,19 +1,22 @@
 using System;
 
-namespace Snippet;
+namespace FrameworkReference;
 
 public class Program
 {
     public static void Main(string[] args)
     {
-        var qs = new Microsoft.AspNetCore.Http.QueryString("?page=1");
-        System.Console.WriteLine($"query={qs.Value}");
-        System.Console.WriteLine($"hasValue={qs.HasValue}");
+        Microsoft.AspNetCore.Http.QueryString qs = new Microsoft.AspNetCore.Http.QueryString("?page=1");
+        Console.WriteLine($"query={(object?)qs.Value ?? "Void"}");
+        Console.WriteLine($"hasValue={qs.HasValue}");
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

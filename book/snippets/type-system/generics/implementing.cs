@@ -2,7 +2,12 @@ using System;
 
 namespace Snippet;
 
-public class GenericBox<T> : IGenericContainer<T>
+interface IGenericContainer<T>
+{
+    T GetItem();
+}
+
+public class GenericBox<T> : Snippet.IGenericContainer<T>
 {
     private T item;
 

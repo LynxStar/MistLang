@@ -1,5 +1,15 @@
 using Standard;
 
+public abstract IGreetable
+{
+    string Name();
+
+    string Greet()
+    {
+        return $"Hello, I am {this.Name()}";
+    }
+}
+
 public class FormalCat : IGreetable
 {
     private string catName;

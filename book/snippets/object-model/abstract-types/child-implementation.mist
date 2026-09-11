@@ -1,5 +1,15 @@
 using Standard;
 
+public abstract IDescribable
+{
+    string Describe();
+}
+
+abstract IFullyDescribable : IDescribable
+{
+    string DetailedDescribe();
+}
+
 public class Robot : IFullyDescribable
 {
     private string model;

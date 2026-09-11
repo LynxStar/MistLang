@@ -1,5 +1,10 @@
 using Standard;
 
+abstract IGenericContainer<T>
+{
+    T GetItem();
+}
+
 public class GenericBox<T> : IGenericContainer<T>
 {
     private T item;

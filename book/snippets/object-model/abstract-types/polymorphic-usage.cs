@@ -2,25 +2,77 @@ using System;
 
 namespace Snippet;
 
+interface IFullyDescribable : Snippet.IDescribable
+{
+    string DetailedDescribe();
+}
+
+public class Robot : Snippet.IFullyDescribable
+{
+    private string model;
+    private int version;
+
+    public Robot(string model, int version)
+    {
+        this.model = model;
+        this.version = version;
+    }
+
+    public string Describe()
+    {
+        return $"Robot: {model} v{version}";
+    }
+
+    public string DetailedDescribe()
+    {
+        return $"Robot model {model}, version {version}, fully operational";
+    }
+}
+
+interface IDescribable
+{
+    string Describe();
+}
+
+public class Person : Snippet.IDescribable
+{
+    private string name;
+    private int age;
+
+    public Person(string name, int age)
+    {
+        this.name = name;
+        this.age = age;
+    }
+
+    public string Describe()
+    {
+        return $"Person: {name}, age {age}";
+    }
+}
+
 public class Program
 {
-    private static void PrintDescription(IDescribable item)
+    private static void PrintDescription(Snippet.IDescribable item)
     {
         Console.WriteLine(item.Describe());
     }
 
     public static void Main(string[] args)
     {
-        var person = new Person("Alice", 30);
-        var robot = new Robot("T-800", 2);
-        IDescribable describable = person;
+        Snippet.Person person = new Snippet.Person("Alice", 30);
+        Snippet.Robot robot = new Snippet.Robot("T-800", 2);
+        Snippet.IDescribable describable = person;
         PrintDescription(person);
         PrintDescription(robot);
     }
 
+    public Program()
+    {
+    }
+
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

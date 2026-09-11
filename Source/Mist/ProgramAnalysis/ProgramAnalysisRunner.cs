@@ -6,7 +6,7 @@ namespace Mist.ProgramAnalysis;
 
 internal static class ProgramAnalysisRunner
 {
-    private static readonly IProgramAnalyzer[] Analyzers = [new ExhaustivenessAnalyzer()];
+    private static readonly IProgramAnalyzer[] Analyzers = [new ExhaustivenessAnalyzer(), new CastAnalyzer()];
 
     public static void Run(ProgramModelClass model, DiagnosticBag diagnostics)
     {

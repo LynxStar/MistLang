@@ -252,7 +252,7 @@ rules:
     order: 4
     subsystem: typechecker
     requires: [analyzer-contract]
-    status: missing
+    status: done
     from: the conversion-relation-cannot-refuse invariant; order 46 is its first named customer
     evidence: >
       THE ONE BLOCKER UNDER ROUGHLY 61 OF THE 91 TASKS. Every assignability rule -- assignment,
@@ -265,16 +265,61 @@ rules:
       open type parameters. Each is a decision about what Mist's conversion rules ARE, not a gap to fill
       by copying -- WidensToUnknownArguments already records one such decision, that covariance is keyed
       on the top type and nothing else because Mist has no variance annotation.
+      
+      CLASSIC'S VERDICTS ARE THE CONTRACT, measured on 28 casts across three probes rather than read off
+      its code. A cast is admitted when the value is already assignable to the target or a declared
+      operator reaches it -- cast-operators Requirement 8 -- and refused otherwise: every numeric
+      narrowing, every downcast, a union narrowed to one constituent, `unknown` narrowed to anything. v2
+      refused none of the eight such casts on the first probe; two failed later in Roslyn and six
+      COMPILED AND RAN. The spec's own motivating case -- a cast through a base-typed variable to an
+      operator only the derived type declares, commented out in samples/CastOperators -- is now refused
+      and is a corpus case.
+      
+      CONVERSIONCLASSIFIER, beside ConversionRelation and not in place of it, answers identity, implicit,
+      explicit or none for every pair, and states the rules the partial relation declines. A constructed
+      type reaches its definition's bases with its own arguments substituted, and there is no variance
+      beyond the covariance to unknown already stated. A type parameter is within its type constraints
+      and nothing below them. A refinement is within its base, and the base reaches it only explicitly --
+      the predicate is order 12's to discharge. A dependent value classifies as its domain. An enum is
+      within its underlying type, and a newtype and its source reach each other only explicitly: the
+      conversions the emitter spells as operators, stated because the model declares none. A fifth
+      answer, UNCLASSIFIED, is for a sentinel -- an error type, a skipped CLR type -- where there is no
+      type to classify and a refusal would blame the program for the compiler.
+      
+      THE CONSTRUCTED-GENERICS GAP WAS REAL. `(IEnumerable<int>)list` is admitted by classic, and the
+      partial relation answered false for it: Inherits walks only MemberType and a List<int> is a
+      ConstructedType. A cast rule built on the relation would have refused a working program.
+      
+      THE ENUM RULE WAS FOUND TWICE, BOTH BY MEASUREMENT. The false-positive sweep caught `(Color)0` in
+      samples/Enums -- an int literal into a byte-backed enum, which classic admits. An integral-source
+      rule fixed it; the next probe showed classic also admits `(Color)measured` from a double. So any
+      numeric source reaches a numeric-backed enum, which is C#'s own rule for an explicit numeric step
+      into an explicit operator, and the emitted `explicit operator Color?(byte)` compiles for all of
+      them. It is NOT a constant rule: classic refuses `(byte)5`.
+      
+      THREE DELIBERATE DIVERGENCES, all more permissive than classic and all compiling in C#. `(Animal)t`
+      with `T : Animal` is admitted, as Requirement 8.8 says an already-assignable cast is -- classic
+      refuses it, contradicting its own spec. `(int)Color.Red` from a byte-backed enum is admitted by
+      chaining the enum's implicit conversion with a widening, as FindOperator already chains around every
+      user operator; classic refuses it. And Requirement 8.7 -- operators on base types not searched -- is
+      not followed, because FindOperator walks base chains and overload ranking depends on it.
+      
+      MEASURED: zero findings across every banked sample and the three unbanked standalone ones. Ten
+      corpus cases, one per refused shape. A 25-row classification table plus type-parameter and sentinel
+      facts. Six mutations, each on a confirmed build -- cast rule silenced, constructed types given no
+      bases, substitution ignored, type parameters given no constraint, numeric sources barred from enums,
+      sentinels refused -- and each fails at least one test.
     tasks:
       - >
-        Classify rather than answer yes-or-no: identity, implicit, explicit-only, and none. The existing
-        IsWithin / IsImplicit / FindOperator split is most of the first three already.
+        Order 5 is where the classification gets its other customers: assignment, argument, return, arm
+        result and initializer value all ask it the question the cast rule asks now.
       - >
-        Settle variance, constructed generics and open type parameters, each as a stated rule.
+        ConversionRelation's own Inherits still cannot see a constructed base, so overload RANKING does
+        not know List<int> is within IEnumerable<int>. Adopting the classifier's base walk there is a
+        ranking change and belongs with a test that shows a call it fixes.
       - >
-        Refuse a cast for which no conversion exists, which is order 46's task and the first customer:
-        `(Kelvin)m` where m is typed Measurement must fail even though the runtime value is a Kelvin.
-        samples/CastOperators has the case commented out waiting for it.
+        char into a numeric-backed enum follows from the C# rule and is admitted, but no probe has asked
+        classic about it.
 
   - id: assignability-core
     name: Assignability at every position that has a target type

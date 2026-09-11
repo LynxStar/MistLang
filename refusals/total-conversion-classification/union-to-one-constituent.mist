@@ -1,0 +1,14 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static void Main()
+    {
+        int | string mixed = 3;
+        // REFUSE: MIST_PA_CAST_HAS_NO_CONVERSION
+        var number = (int)mixed;
+        Console.WriteLine("unreachable");
+    }
+}

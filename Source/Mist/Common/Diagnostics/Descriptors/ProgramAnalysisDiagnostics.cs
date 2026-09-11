@@ -15,4 +15,10 @@ public static class ProgramAnalysisDiagnostics
         DiagnosticSeverity.Warning,
         PipelineStage.Analysis,
         "Switch expression is not exhaustive. Missing cases: {0}");
+
+    public static readonly DiagnosticDescriptor CastHasNoConversion = new(
+        new DiagnosticId("MIST_PA_CAST_HAS_NO_CONVERSION"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "No conversion is defined from '{0}' to '{1}'. A cast reaches only a type the value already is, or one a declared cast operator reaches; to narrow a value, test it with an 'is' pattern instead.");
 }

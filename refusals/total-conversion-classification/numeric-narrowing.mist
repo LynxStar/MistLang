@@ -1,0 +1,14 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static void Main()
+    {
+        double measured = 3.7;
+        // REFUSE: MIST_PA_CAST_HAS_NO_CONVERSION
+        var whole = (int)measured;
+        Console.WriteLine("unreachable");
+    }
+}

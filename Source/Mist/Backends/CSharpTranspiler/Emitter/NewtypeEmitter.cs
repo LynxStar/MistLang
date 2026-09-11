@@ -1,5 +1,4 @@
 using Mist.Common.Diagnostics;
-using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
@@ -110,6 +109,6 @@ internal static class NewtypeEmitter
 
     private static string AccessibilityKeyword(Newtype type)
     {
-        return type.Modifiers.Accessibility == Accessibility.Public ? "public " : "";
+        return MemberModifierEmitter.Spell(type.Modifiers.Accessibility);
     }
 }

@@ -21,16 +21,7 @@ internal static class MemberModifierEmitter
     {
         var parts = new List<string>();
 
-        var accessibility = modifiers.Accessibility switch
-        {
-            Accessibility.Public => "public",
-            Accessibility.Private => "private",
-            Accessibility.Protected => "protected",
-            Accessibility.Internal => "internal",
-            _ => null,
-        };
-
-        if(accessibility is not null)
+        if(Keyword(modifiers.Accessibility) is { } accessibility)
         {
             parts.Add(accessibility);
         }
@@ -46,5 +37,22 @@ internal static class MemberModifierEmitter
         }
 
         return parts.Count > 0 ? string.Join(" ", parts) + " " : "";
+    }
+
+    public static string Spell(Accessibility accessibility)
+    {
+        return Keyword(accessibility) is { } keyword ? keyword + " " : "";
+    }
+
+    private static string? Keyword(Accessibility accessibility)
+    {
+        return accessibility switch
+        {
+            Accessibility.Public => "public",
+            Accessibility.Private => "private",
+            Accessibility.Protected => "protected",
+            Accessibility.Internal => "internal",
+            _ => null,
+        };
     }
 }

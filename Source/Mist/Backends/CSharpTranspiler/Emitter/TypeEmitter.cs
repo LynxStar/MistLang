@@ -2,7 +2,6 @@ using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
-using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
@@ -93,7 +92,8 @@ internal static class TypeEmitter
             ClassType => "class",
             _ => throw new InvalidOperationException($"ICE: unexpected MemberType kind '{type.GetType().Name}' in TypeEmitter"),
         };
-        var accessibility = type.Modifiers.Accessibility == Accessibility.Public ? "public " : "";
+        var accessibility = MemberModifierEmitter.Spell(type.Modifiers.Accessibility);
+        var sealedModifier = type is ClassType && type.Modifiers.IsSealed ? "sealed " : "";
         var readonlyModifier = type.IsReadonly && type is StructType ? "readonly " : "";
 
         // C# fixes this pair's order, and a dropped `ref` is invisible downstream: the type still
@@ -124,7 +124,7 @@ internal static class TypeEmitter
         SlotLift.ReportUnboundedParameterized(type, diagnostics);
 
         writer.WriteLine(
-            $"{accessibility}{readonlyModifier}{refModifier}{typeKeyword} {typeName}{EmitBaseList(type, closedConstraints)}");
+            $"{accessibility}{sealedModifier}{readonlyModifier}{refModifier}{typeKeyword} {typeName}{EmitBaseList(type, closedConstraints)}");
         ConstraintEmitter.Emit(Parameters(type), writer);
         using(writer.Block())
         {

@@ -1,6 +1,5 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
-using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
@@ -25,7 +24,7 @@ internal static class EnumEmitter
 {
     public static void Emit(EnumType type, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        var accessibility = type.Modifiers.Accessibility == Accessibility.Public ? "public " : "";
+        var accessibility = MemberModifierEmitter.Spell(type.Modifiers.Accessibility);
         var underlying = TypeNameEmitter.Emit(type.UnderlyingType!);
 
         // Sealed because the variants ARE the type's population: a C#-side subclass could mint

@@ -1845,3 +1845,26 @@ Outer(9)=10 tripler(3)=9
 f(21)=42
 --- Parameter where ---
 Half(8)=4
+--- C# Interop V2 ---
+json=[1,2,3]
+query=?id=42
+hasValue=True
+streamLength=2
+canRead=True
+encodedLength=2
+decoded=Hi
+fileName=mist.exe
+fileExt=.exe
+efConfigured=True
+--- C# Interop V2 Done ---
+=== DelegateFuncConversion Sample ===
+positives.Count=3
+alsoPositives.Count=3
+sortedFirst=5
+evens.Count=3
+funcFromDelegate(4)=True
+baseDelegateType=Func`2
+predicate(6)=True
+predicate(7)=False
+mapGetRegistered=true
+=== DelegateFuncConversion Done ===

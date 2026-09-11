@@ -92,5 +92,7 @@ public class Program
         Ownership.Program.RunDemo();
         AnonymousTypes.Program.RunDemo();
         LocalFunctions.Program.RunDemo();
+        CSharpInteropV2.Program.RunDemo();
+        DelegateFuncConversion.Program.RunDemo();
     }
 }

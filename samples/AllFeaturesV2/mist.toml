@@ -74,3 +74,5 @@ StructuredContext = { path = "../StructuredContext" }
 Ownership = { path = "../Ownership" }
 AnonymousTypes = { path = "../AnonymousTypes" }
 LocalFunctions = { path = "../LocalFunctions" }
+CSharpInteropV2 = { path = "../CSharpInteropV2" }
+DelegateFuncConversion = { path = "../DelegateFuncConversion" }

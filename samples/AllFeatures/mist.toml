@@ -71,3 +71,4 @@ Variadics = { path = "../Variadics" }
 RangesAndIndices = { path = "../RangesAndIndices" }
 StormAnonymousGroups = { path = "../StormAnonymousGroups" }
 AbstractTypes = { path = "../AbstractTypes" }
+CSharpInteropV2 = { path = "../CSharpInteropV2" }

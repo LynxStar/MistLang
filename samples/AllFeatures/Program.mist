@@ -81,6 +81,7 @@ public class Program
         RangesAndIndices.Program.RunDemo();
         StormAnonymousGroups.Program.RunDemo();
         AbstractTypes.Program.RunDemo();
+        CSharpInteropV2.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

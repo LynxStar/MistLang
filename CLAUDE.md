@@ -68,7 +68,7 @@ that walk a finished model and judge it belong to Stage 5 and are recorded as
 once cost an implementation that was written and reverted.
 
 **Stage 5 is now open** and has its own register. The two arcs measure opposite things: the
-emitter arc's ledger is `samples/AllFeaturesV2`, a stdout baseline over 72 valid programs,
+emitter arc's ledger is `samples/AllFeaturesV2`, a stdout baseline over 75 valid programs,
 which is structurally blind to a refusal. An analyzer that reports nothing passes every test
 in the repo, so Stage 5's first order is a ledger of its own.
 

@@ -70,6 +70,7 @@ public sealed class CompilerDriver : ICompilerDriver
 
         var compilation = loadResult.Compilation;
         var directReferencePaths = loadResult.DirectReferencePaths;
+        options = ProjectDependencyUnion.Apply(options, loadResult.ReferencedConfigurations);
 
         // Stage 1.5: Package Resolution (runs only when deps are declared)
         var resolvedAssemblyPaths = ResolvePackages(options, allDiagnostics);
@@ -106,7 +107,8 @@ public sealed class CompilerDriver : ICompilerDriver
     /// </summary>
     private sealed record LoadResult(
         MistCompilation Compilation,
-        ImmutableHashSet<string>? DirectReferencePaths);
+        ImmutableHashSet<string>? DirectReferencePaths,
+        ImmutableArray<ProjectConfiguration> ReferencedConfigurations);
 
     /// <summary>
     /// Stage 1 – Loading: reads user source files, stdlib, and project
@@ -164,6 +166,7 @@ public sealed class CompilerDriver : ICompilerDriver
         // step entirely.
         var refUnits = ImmutableArray<CompilationUnit>.Empty;
         var refProjects = ImmutableArray<MistProject>.Empty;
+        var refConfigurations = ImmutableArray<ProjectConfiguration>.Empty;
         ImmutableHashSet<string>? directReferencePaths = null;
 
         // Track the root project's global usings. When a mist.toml is parsed,
@@ -217,8 +220,11 @@ public sealed class CompilerDriver : ICompilerDriver
                     {
                         var refUnitBuilder = ImmutableArray.CreateBuilder<CompilationUnit>();
                         var refProjectBuilder = ImmutableArray.CreateBuilder<MistProject>(resolved.Length);
+                        var refConfigurationBuilder = ImmutableArray.CreateBuilder<ProjectConfiguration>(resolved.Length);
                         foreach(var proj in resolved)
                         {
+                            refConfigurationBuilder.Add(proj.Configuration);
+
                             // Record the project itself alongside its files, so later
                             // stages can group units by project without inferring the
                             // grouping back out of per-unit fields.
@@ -256,6 +262,7 @@ public sealed class CompilerDriver : ICompilerDriver
 
                         refUnits = refUnitBuilder.ToImmutable();
                         refProjects = refProjectBuilder.ToImmutable();
+                        refConfigurations = refConfigurationBuilder.ToImmutable();
                     }
                     else
                     {
@@ -295,7 +302,7 @@ public sealed class CompilerDriver : ICompilerDriver
             $"{userFileCount} user files",
         });
 
-        return new LoadResult(compilation, directReferencePaths);
+        return new LoadResult(compilation, directReferencePaths, refConfigurations);
     }
 
     /// <summary>

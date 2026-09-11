@@ -38,4 +38,4 @@ diagnostic ids and messages are observable behaviour and may be matched; its cod
 
 A rule is not done until `refusals/<rule-id>/` holds a case for each thing it reports (see
 `refusals/README.md`), and each thing it deliberately does **not** report is pinned by a Tier 3 test.
-The 72 banked samples are the false-positive half: a rule that fires on a working program is wrong.
+The 75 banked samples are the false-positive half: a rule that fires on a working program is wrong.

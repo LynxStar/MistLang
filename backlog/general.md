@@ -323,24 +323,19 @@ whole subpattern to the runtime binder.
 
 ---
 
-## 🟡 5 book snippets do not compile on the experimental pipeline
+## 🟡 2 book snippets have nothing to show on the experimental pipeline
 
 **Found 2026-09-11**, the day `tools/SnippetEmitter` moved from classic to `--pipeline experimental`; 58
 failed that morning. By evening 30 named the sibling snippets they build on with a `// with:` line,
 which the tool compiles alongside them (four keep a declaration inline where their own chapter's
-pages overlap), 5 imported the CLR namespaces they used or declared the attribute they applied, 2 were content
-bugs classic's tool never caught because it skipped Roslyn, and 6 were v2 defects since fixed: nested
-local shadowing, union-into-union widening, span slicing, a CLR delegate as a lambda's target, and
-the element type of a projected `List<int>`. Ten fragments that do not parse on either pipeline
-(`advanced/structured-concurrency/*`, `basics/void-type/*`: a bare or `public static` function at
-file top) are left as they are by decision. These five keep the `.cs` classic produced:
+pages overlap), 5 imported the CLR namespaces they used or declared the attribute they applied, 2 were
+content bugs classic's tool never caught because it skipped Roslyn, and 9 were v2 defects since fixed:
+nested local shadowing, union-into-union widening, span slicing, a CLR delegate as a lambda's target,
+the element type of a projected `List<int>`, a method generic over a slot-bearing abstract with
+`T.Output`, narrowing after `??=`, and a union alias over a type parameter. Ten fragments that do not
+parse on either pipeline (`advanced/structured-concurrency/*`, `basics/void-type/*`: a bare or
+`public static` function at file top) are left as they are by decision. Two keep a hand-written `.cs`:
 
-- `type-system/associated-types/generic-context.mist` -- `T.Output`, an associated type reached
-  through a type parameter, does not resolve (emitter order 74's slots resolve on a concrete type).
-- `type-system/optional-types/void-coalescing-assignment.mist` -- `x ??= v` does not narrow `x` to
-  the non-void constituent afterwards (optional-types Req 5.4); the analyzer refuses `int n = x`.
-- `type-system/type-unions/generics.mist` -- `type Result<TError> = int | TError` emits a carrier
-  naming `TError` unbound; a union over a type parameter needs a generic carrier.
 - `type-system/variadics/declaration-kinds.mist`, `declaration-syntax.mist` -- declare variadic types
-  and use none, and a monomorph is emitted only per arity used, so there is nothing to show; the old
-  `.cs` was hand-written.
+  and use none, and a monomorph is emitted only per arity used, so there is nothing to show. Either
+  the snippets gain a use at one arity, or the pages keep an explanatory block instead of a tab.

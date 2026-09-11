@@ -22,13 +22,17 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// </summary>
 internal static class ConstraintEmitter
 {
-    public static void Emit(IReadOnlyList<TypeParameter> typeParameters, CSharpWriter writer)
+    public static void Emit(IReadOnlyList<TypeParameter> typeParameters, CSharpWriter writer, bool liftSlots = false)
     {
         writer.Indent();
 
-        foreach(var parameter in typeParameters)
+        var constrained = liftSlots
+            ? typeParameters.Concat(SlotLift.Synthesized(typeParameters))
+            : typeParameters;
+
+        foreach(var parameter in constrained)
         {
-            var parts = Parts(parameter);
+            var parts = Parts(parameter, liftSlots);
 
             // The witness is what makes a dependent parameter carry a value at all, so it is added
             // here rather than declared in Mist -- there is no Mist constraint that spells it.
@@ -50,7 +54,7 @@ internal static class ConstraintEmitter
         writer.Dedent();
     }
 
-    private static List<string> Parts(TypeParameter parameter)
+    private static List<string> Parts(TypeParameter parameter, bool liftSlots)
     {
         var kinds = new List<string>();
         var types = new List<string>();
@@ -69,7 +73,8 @@ internal static class ConstraintEmitter
                     break;
 
                 case TypeConstraint typeConstraint:
-                    types.Add(TypeNameEmitter.Emit(typeConstraint.ConstraintType));
+                    types.Add(TypeNameEmitter.Emit(
+                        liftSlots ? SlotLift.Constraint(typeConstraint.ConstraintType) : typeConstraint.ConstraintType));
                     break;
 
                 case ConstructorConstraint { ParameterTypes.Count: 0 }:

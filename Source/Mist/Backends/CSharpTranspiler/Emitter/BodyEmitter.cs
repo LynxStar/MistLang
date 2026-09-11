@@ -779,7 +779,15 @@ internal static class BodyEmitter
                 break;
 
             case AssignmentExpression assignment:
-                EmitExpression(assignment.Target, writer, diagnostics);
+                if(assignment.Target is LocalReferenceExpression assigned)
+                {
+                    writer.Append(LocalNames.Of(assigned.Local));
+                }
+                else
+                {
+                    EmitExpression(assignment.Target, writer, diagnostics);
+                }
+
                 writer.Append(assignment.IsCoalescing ? " ??= " : " = ");
                 EmitExpression(assignment.Value, writer, diagnostics);
                 break;
@@ -918,6 +926,12 @@ internal static class BodyEmitter
 
             case LocalReferenceExpression localRef:
                 writer.Append(LocalNames.Of(localRef.Local));
+
+                if(localRef.IsNarrowed && OptionalUnion.IsOptional(localRef.Local.Type) && TypeNameEmitter.IsValueKind(localRef.Type))
+                {
+                    writer.Append(".Value");
+                }
+
                 break;
 
             case ThisExpression:
@@ -2124,7 +2138,11 @@ internal static class BodyEmitter
                     ? carrier
                     : TypeNameEmitter.Emit(argument));
 
-        return $"<{string.Join(", ", spelled)}>";
+        var fillers = parameters is null
+            ? []
+            : SlotLift.Fillers(typeArguments, parameters).Select(TypeNameEmitter.Emit);
+
+        return $"<{string.Join(", ", spelled.Concat(fillers))}>";
     }
 
     internal static string EmitLiteral(LiteralExpression literal)

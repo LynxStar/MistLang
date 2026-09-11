@@ -2,7 +2,7 @@ using System;
 
 namespace Snippet;
 
-internal class Box<T>
+class Box<T>
 {
     public T Value;
 
@@ -11,28 +11,34 @@ internal class Box<T>
         this.Value = value;
     }
 }
+
 public class Program
 {
     public static void Main(string[] args)
     {
-        var box = new Box<Union_Int32_String>(42);
-        Union_Int32_TError ok = 100;
-        Union_Int32_TError err = "not found";
-        if (ok.IsInt32)
+        Snippet.Box<Union_Int32_String> box = new Snippet.Box<Union_Int32_String>(42);
+        Union_Int32_String ok = 100;
+        Union_Int32_String err = "not found";
         {
-            int n = ok.AsInt32;
-            Console.WriteLine($"ok: {n}");
+            if (ok.AsInt32OrNull is int n)
+            {
+                Console.WriteLine($"ok: {n}");
+            }
         }
-        if (err.IsString)
         {
-            string s = err.AsString;
-            Console.WriteLine($"err: {s}");
+            if (err.AsStringOrNull is string s)
+            {
+                Console.WriteLine($"err: {s}");
+            }
         }
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

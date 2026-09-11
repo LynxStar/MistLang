@@ -8,14 +8,17 @@ public class Program
     {
         int? x = null;
         x ??= 100;
-        int narrowed = x;
-        Console.WriteLine($"x={(object?)x ?? "Void"}");
+        int narrowed = x.Value;
+        Console.WriteLine($"x={x.Value}");
         Console.WriteLine($"narrowed={narrowed}");
+    }
+
+    public Program()
+    {
     }
 
     public static Program __CreateDefault()
     {
-        var inst = new Program();
-        return inst;
+        return new Program();
     }
 }

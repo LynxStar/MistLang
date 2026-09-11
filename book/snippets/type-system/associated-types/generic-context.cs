@@ -2,28 +2,33 @@ using System;
 
 namespace Snippet;
 
-public interface IStringable
+interface IStringable
 {
     string Stringify();
 }
-public interface IProducer<TOutput>
-    where TOutput : IStringable
+
+interface IProducer<Output>
+    where Output : Snippet.IStringable
 {
-    TOutput CreateOutput(string msg);
+    Output CreateOutput(string msg);
 }
-internal class Helpers
+
+class Helpers
 {
-    public static string Describe<T, TOutput>(T producer)
-        where T : IProducer<TOutput>
-        where TOutput : IStringable
+    public static string Describe<T, Output>(T producer)
+        where T : Snippet.IProducer<Output>
+        where Output : Snippet.IStringable
     {
-        T.Output output = producer.CreateOutput("test");
+        Output output = producer.CreateOutput("test");
         return output.Stringify();
+    }
+
+    public Helpers()
+    {
     }
 
     public static Helpers __CreateDefault()
     {
-        var inst = new Helpers();
-        return inst;
+        return new Helpers();
     }
 }

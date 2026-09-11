@@ -39,6 +39,13 @@ internal static class ExpressionBinder
             {
                 var target = OperatorBinder.BindVoidCoalescing(assignment.Target, ctx, context);
 
+                // A target takes what the local was declared to hold, whatever a `??=` narrowed its
+                // reads to; the narrowing is of the value read back, not of the slot written.
+                if(target is LocalReferenceExpression { IsNarrowed: true } narrowedTarget)
+                {
+                    target = new LocalReferenceExpression(narrowedTarget.Node, narrowedTarget.Local);
+                }
+
                 // A coalescing assignment's value fills the target's ABSENCE, so it binds
                 // against the non-void portion rather than the optional itself.
                 var valueTarget = isCoalescing

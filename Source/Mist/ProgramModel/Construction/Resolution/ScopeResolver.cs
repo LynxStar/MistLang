@@ -290,6 +290,13 @@ internal sealed class ScopeResolver
             : namedRef.Name.IDENTIFIER.Lexeme;
 
         var arity = GetTypeArgumentArity(namedRef.TypeArgs);
+
+        if(arity == 0 && stem.Split('.') is [var parameterName, var slotName]
+            && SlotThrough(parameterName, slotName, scope) is { } slot)
+        {
+            return slot;
+        }
+
         var baseType = ResolveGenericDefinition(stem, arity, scope, namedRef);
 
         if(baseType is ErrorType)
@@ -330,6 +337,43 @@ internal sealed class ScopeResolver
     /// count or is absorbed by a pack. Shared so that every place naming a generic type agrees --
     /// a type reference, an alias expansion and a `new` all reach a variadic family the same way.
     /// </summary>
+    /// <summary>
+    /// <c>T.Output</c>: the associated type slot named on an abstract that constrains the type
+    /// parameter <c>T</c>. Resolved to the slot itself, which is what the abstract's own members are
+    /// typed with, so a value one of them returns and a local declared <c>T.Output</c> agree without a
+    /// substitution. Two parameters constrained by the same abstract therefore share the slot type,
+    /// which is the one distinction this reading cannot draw.
+    /// </summary>
+    private static IMistType? SlotThrough(string parameterName, string slotName, Scope scope)
+    {
+        if(TryLookupType(parameterName, scope) is not TypeParameter parameter || parameter is TypeSlot)
+        {
+            return null;
+        }
+
+        foreach(var constraint in parameter.ConstraintsList.OfType<TypeConstraint>())
+        {
+            var definition = constraint.ConstraintType is ConstructedType constructed
+                ? constructed.Definition
+                : constraint.ConstraintType;
+
+            if(definition is not AbstractType abstractType)
+            {
+                continue;
+            }
+
+            foreach(var slot in abstractType.TypeSlotsList)
+            {
+                if(MistType.StripArity(slot.Name) == slotName && slot.TypeParametersList.Count == 0)
+                {
+                    return slot;
+                }
+            }
+        }
+
+        return null;
+    }
+
     public IMistType ResolveGenericDefinition(
         string stem, int arity, Scope scope, Storm.Runtime.SyntaxNode locationNode)
     {

@@ -3462,6 +3462,17 @@ capabilities:
       parameterized slot in a parameter position is refused outright. Classic covers none of these
       three either, and its generic-method lift (a method type parameter constrained by a slot-bearing
       abstract, `T.Enumerator`) has no v2 counterpart yet -- that is Iterators' remaining ground.
+
+      THROUGH A TYPE PARAMETER, 2026-09-11. A method generic over a lifting abstract, `Describe<T>(T p)
+      where T : IProducer`, emitted `where T : IProducer` against an interface that had lifted its slot
+      to `IProducer<Output>`, so the constraint, every member call through T and every call of the
+      method failed under Roslyn. The method now synthesizes one type parameter per slot its constraints
+      reach, named for the slot as the interface's is, so a slot-typed member inside the body spells it
+      untouched; the constraint reads `IProducer<Output>` with `where Output : IStringable`; and a call
+      supplies the concrete argument's filler, or the caller's own synthesized parameter when the
+      argument is itself a type parameter. `T.Output` resolves to the slot through T's constraint. The
+      one distinction this cannot draw is two parameters constrained by the same abstract, which share
+      the slot; class-level type parameters are not lifted. Verified by the generic-context snippet.
     analysis_phase_tasks:
       - >
         Check that a filler SATISFIES the slot's constraints, which may be a kind (class or struct),
@@ -3540,6 +3551,12 @@ capabilities:
       collapse, the C# spelling split) and a scratch probe running byte-identical to classic.
       NO BANKED SAMPLE declares a general union yet -- TypeUnions waits on pattern narrowing
       at order 98 -- so the carrier generator is absent from AllFeaturesV2's own output.
+
+      AN OPEN UNION HAS NO CARRIER, 2026-09-11. `type Result<TError> = int | TError` interned the open
+      union and the carrier file declared a struct naming `TError` unbound. Only closed substitutions
+      are runtime types, and each is interned and carried on its own, so a union with a type parameter
+      anywhere in it is skipped. A union over an open parameter inside a generic body has no carrier
+      either and is a gap. Verified by the type-unions generics snippet.
     unlocks: []
 
   - id: union-widening-at-use-sites
@@ -3596,13 +3613,6 @@ capabilities:
       shared with classic. A double optional flattens to one level in the interner where
       classic reports MIST_TC_0045; construction stays coherent and the diagnostic is
       recorded below. OptionalTypes is banked in AllFeaturesV2, line-identical to classic.
-    analysis_phase_tasks:
-      - >
-        Report applying '?' to a type that already contains void (classic MIST_TC_0045,
-        error) and to void itself (classic MIST_TC_0046, warning). Normalization flattens
-        both into a coherent model, so nothing stops construction; the judgement is an
-        analyzer's.
-    unlocks: []
 
   - id: optional-operators
     name: Conditional access, coalescing and coalescing assignment
@@ -3625,6 +3635,21 @@ capabilities:
       the symbol's declared type in its checker. The divergence is invisible in every banked
       sample -- a present value prints identically wrapped or not -- but it is a residue
       with teeth, recorded as the task below.
+
+      NARROWING AFTER `??=`, 2026-09-11 (Req 5.4). `x ??= v` narrows `x` to the non-void constituent
+      for the statements after it in the same scope and its nested scopes: BodyScope records it, the
+      identifier binder types each later reference with it, and a later assignment that could make the
+      local void again clears it. The emitter reads a narrowed local of a value kind as `x.Value` and
+      leaves an assignment target alone. Lexical rather than flow-sensitive, as the spec words it.
+      Classic emitted `int narrowed = x` over an `int?`, which never compiled. Verified by the
+      void-coalescing-assignment snippet; the banked sample cannot bank it, since classic could not run it.
+    analysis_phase_tasks:
+      - >
+        Report applying '?' to a type that already contains void (classic MIST_TC_0045,
+        error) and to void itself (classic MIST_TC_0046, warning). Normalization flattens
+        both into a coherent model, so nothing stops construction; the judgement is an
+        analyzer's.
+    unlocks: []
     tasks:
       - >
         Narrow a coalescing-assigned local to its non-void portion for subsequent reads.

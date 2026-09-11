@@ -26,7 +26,7 @@ internal static class MethodEmitter
 
         AttributeEmitter.EmitLines(method.DeclaredAttributesList, writer, diagnostics);
         writer.WriteLine($"{modifiers}{EmitSignature(method, diagnostics)}");
-        ConstraintEmitter.Emit(method.TypeParametersList, writer);
+        ConstraintEmitter.Emit(method.TypeParametersList, writer, liftSlots: true);
         using(writer.Block())
         {
             if(method.Body is not null)
@@ -105,9 +105,10 @@ internal static class MethodEmitter
             name = MonomorphSet.SpecializedName(method.Name, monomorph.Widths);
         }
 
-        var typeParams = declared.Count > 0
-            ? $"<{string.Join(", ", declared.Select(DependentCarrierNames.Parameter))}>"
-            : "";
+        var spelled = declared.Select(DependentCarrierNames.Parameter)
+            .Concat(SlotLift.Synthesized(declared).Select(slot => slot.Name))
+            .ToList();
+        var typeParams = spelled.Count > 0 ? $"<{string.Join(", ", spelled)}>" : "";
         var parts = DefaultConstraintWitness.Parameters(declared);
         var parameters = ParameterEmitter.Emit(method.ParametersList, diagnostics);
 

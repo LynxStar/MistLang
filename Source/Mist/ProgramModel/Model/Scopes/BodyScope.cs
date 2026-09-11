@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Contracts.Types;
 
 namespace Mist.ProgramModel.Model.Scopes;
 
@@ -14,7 +15,32 @@ internal sealed class BodyScope(Scope parent) : Scope(parent)
 {
     private readonly Dictionary<string, LocalVariable> locals = [];
 
+    private readonly Dictionary<LocalVariable, IMistType?> narrowed = new(ReferenceEqualityComparer.Instance);
+
     public IReadOnlyDictionary<string, LocalVariable> Locals => locals;
+
+    /// <summary>
+    /// What a `??=` established about a local for the statements after it in this scope and its
+    /// nested scopes: the non-void type it now holds, or null once a later assignment could have
+    /// made it void again. Lexical rather than flow-sensitive, as the optional-types spec words it.
+    /// </summary>
+    public void Narrow(LocalVariable local, IMistType? type)
+    {
+        narrowed[local] = type;
+    }
+
+    public static IMistType? NarrowedIn(Scope scope, LocalVariable local)
+    {
+        for(var current = scope; current is not null; current = current.Parent)
+        {
+            if(current is BodyScope body && body.narrowed.TryGetValue(local, out var type))
+            {
+                return type;
+            }
+        }
+
+        return null;
+    }
 
     protected override LookupResult LookupSelf(LookupRequest request)
     {

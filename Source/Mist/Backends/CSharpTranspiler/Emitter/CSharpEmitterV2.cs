@@ -274,9 +274,11 @@ internal sealed class CSharpEmitterV2
         var interner = ((ProgramModel.Model.ProgramModel)programModel).TypeInterner;
         var carriers = new SortedDictionary<string, UnionType>(StringComparer.Ordinal);
 
+        // A union over a type parameter is never a runtime type: only its closed substitutions are,
+        // and each of those is interned and carried on its own.
         foreach(var union in interner.UnionTypes)
         {
-            if(!OptionalUnion.IsOptional(union))
+            if(!OptionalUnion.IsOptional(union) && !IsOpen(union))
             {
                 carriers[UnionCarrierNames.CarrierName(union)] = union;
             }
@@ -657,6 +659,17 @@ internal sealed class CSharpEmitterV2
                 writer.WriteLine($"    => {string.Join(" : ", arms)};");
             }
         }
+    }
+
+    private static bool IsOpen(IMistType type)
+    {
+        return type switch
+        {
+            TypeParameter => true,
+            ConstructedType constructed => constructed.TypeArguments.Any(IsOpen),
+            UnionType union => union.Constituents.Any(IsOpen),
+            _ => false,
+        };
     }
 
     private static bool IsNarrower(UnionType narrow, UnionType wide)

@@ -111,6 +111,9 @@ public sealed class AssignabilityDecisionTests : ProgramModelProbe
     [InlineData("int c1 = opt ?? 0;")]
     [InlineData("int c2 = opt ?? o3 ?? 0;")]
     [InlineData("o3 ??= 1;")]
+    [InlineData("o3 ??= 1; int n = o3;")]
+    [InlineData("o3 ??= 1; { int n = o3; }")]
+    [InlineData("o3 ??= 1; o3 = 5; int n = o3;")]
     public void AValueIntoAUnionOrOutOfAnOptional_IsAdmitted(string statement)
     {
         AssertSilent(statement);

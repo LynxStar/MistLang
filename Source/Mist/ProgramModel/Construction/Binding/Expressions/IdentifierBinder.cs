@@ -23,7 +23,7 @@ internal static class IdentifierBinder
 
         return result switch
         {
-            VariableResult variable => new LocalReferenceExpression(node, variable.Variable),
+            VariableResult variable => new LocalReferenceExpression(node, variable.Variable, BodyScope.NarrowedIn(ctx.Scope, variable.Variable)),
             FieldResult field => new FieldReferenceExpression(node, field.Field),
             PropertyResult property => new PropertyReferenceExpression(node, property.Property),
             TypeResult type => new TypeReferenceExpression(node, type.Type),

@@ -53,6 +53,80 @@ internal static class SlotLift
     }
 
     /// <summary>
+    /// The slots a method's type parameters reach through their constraints, each once, in the
+    /// order the parameters and their constraints declare them. A method generic over a lifting
+    /// abstract declares one extra type parameter per slot, named for the slot as the interface's
+    /// is, so a member typed with the slot inside the body spells the parameter untouched; the
+    /// constraint names it, <c>where T : IProducer&lt;Output&gt;</c>, and a call supplies the filler.
+    /// </summary>
+    public static IReadOnlyList<TypeSlot> Synthesized(IReadOnlyList<TypeParameter> typeParameters)
+    {
+        return Through(typeParameters).Select(pair => pair.Slot).ToList();
+    }
+
+    public static IMistType Constraint(IMistType constraintType)
+    {
+        var lifted = Lifted(constraintType);
+
+        if(lifted.Count == 0)
+        {
+            return constraintType;
+        }
+
+        var arguments = new List<IMistType>();
+
+        if(constraintType is ConstructedType constructed)
+        {
+            arguments.AddRange(constructed.TypeArguments);
+        }
+
+        arguments.AddRange(lifted);
+        return new ConstructedType(Definition(constraintType), arguments);
+    }
+
+    /// <summary>
+    /// The type arguments a call adds for the slots its callee synthesized: the filler declared on
+    /// the concrete argument, or the slot itself when the argument is a type parameter, since the
+    /// caller then synthesized the same parameter under the same name.
+    /// </summary>
+    public static IReadOnlyList<IMistType> Fillers(
+        IReadOnlyList<IMistType> typeArguments, IReadOnlyList<TypeParameter> typeParameters)
+    {
+        var fillers = new List<IMistType>();
+
+        foreach(var (ordinal, slot) in Through(typeParameters))
+        {
+            var argument = ordinal < typeArguments.Count ? typeArguments[ordinal] : null;
+            var conformer = argument is ConstructedType constructed ? constructed.Definition : argument;
+
+            fillers.Add(conformer is MemberType member && argument is not TypeParameter
+                ? Filler(slot, member) ?? slot
+                : slot);
+        }
+
+        return fillers;
+    }
+
+    private static IEnumerable<(int Ordinal, TypeSlot Slot)> Through(IReadOnlyList<TypeParameter> typeParameters)
+    {
+        var seen = new HashSet<TypeSlot>(ReferenceEqualityComparer.Instance);
+
+        for(var ordinal = 0; ordinal < typeParameters.Count; ordinal++)
+        {
+            foreach(var constraint in typeParameters[ordinal].ConstraintsList.OfType<TypeConstraint>())
+            {
+                foreach(var slot in Lifted(constraint.ConstraintType))
+                {
+                    if(seen.Add(slot))
+                    {
+                        yield return (ordinal, slot);
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
     /// The base-list entry for <paramref name="abstractRef"/> as reached from
     /// <paramref name="conformer"/>, with the filler for each lifted slot appended to whatever type
     /// arguments were already written. Null when the abstract lifts nothing, or when a filler is

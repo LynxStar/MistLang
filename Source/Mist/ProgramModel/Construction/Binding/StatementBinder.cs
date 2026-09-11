@@ -172,6 +172,19 @@ internal static class StatementBinder
     private static ExpressionStatement BindExpressionStatement(ExpressionStatementStatementNode statement, BindingContext ctx, BuilderContext context)
     {
         var expression = ExpressionBinder.BindExpression(statement.ExpressionStatement.Expression, ctx, context);
+
+        if(expression is AssignmentExpression { Target: LocalReferenceExpression { Local: var local } } assignment && ctx.Scope is BodyScope body)
+        {
+            if(assignment.IsCoalescing && OptionalUnion.InnerType(local.Type) is { } inner && !OptionalUnion.ContainsVoid(assignment.Value.Type))
+            {
+                body.Narrow(local, inner);
+            }
+            else if(!assignment.IsCoalescing && (OptionalUnion.ContainsVoid(assignment.Value.Type) || OptionalUnion.IsVoid(assignment.Value.Type)))
+            {
+                body.Narrow(local, null);
+            }
+        }
+
         return new ExpressionStatement(expression);
     }
 

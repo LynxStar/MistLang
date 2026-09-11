@@ -115,8 +115,8 @@ rules:
       that mis-fires on a CLR type passing anyway.
     tasks:
       - >
-        Keep the 72 banked samples as the FALSE-POSITIVE half. A new analyzer that refuses a working
-        program fails AllFeaturesV2 on both pipelines, which is already wired and already enforced.
+        Keep the 72 banked samples as the FALSE-POSITIVE half. A new analyzer that refuses OR WARNS on a
+        working program fails AllFeaturesV2 -- the warning half enforced since order 2.
       - >
         Re-measure the per-case cost around 30 cases, and decide then rather than now whether the
         corpus needs a cheaper provider.
@@ -126,7 +126,7 @@ rules:
     order: 2
     subsystem: infrastructure
     requires: [rejection-ledger]
-    status: missing
+    status: done
     from: order 97 (exhaustiveness-checking), which states the instruction this order carries out
     evidence: >
       ORDER 97 ALREADY GAVE THE INSTRUCTION: "Design the v2 analyzer contract first, with this rule as
@@ -151,40 +151,101 @@ rules:
       
       WHERE THE CODE LIVES. Not under ProgramModel/, whose CLAUDE.md excludes analysis; not under
       Mist.Analysis, which is classic's. A sibling namespace, and naming it is part of this order.
+      
+      THE THREE QUESTIONS WERE ANSWERED BY THE CODE, not chosen between.
+      
+      LOCATION: the model already carries its syntax. Every Expression and Pattern holds its Node, every
+      declared type its DeclarationNode, and the emitter already reports through them. The SourceOrigin
+      type ProgramModel/CLAUDE.md describes does not exist in code. So a rule reports at the node the
+      model carries, and the contract hands rules the INTERNAL model rather than IProgramModel, exactly as
+      the emitter consumes it. Order 69's blocker -- DeclarationNode absent from IMemberType -- only blocks
+      a consumer confined to the public contracts, which neither consumer is. Method, Field, Property,
+      Statement and LocalVariable carry no node yet, and get one when a rule first has to point at one.
+      
+      FACTS: decided, not built. A runner-owned store keyed by model entity, producers declared ahead of
+      consumers. Built when order 10's first producer arrives; a store with no producer and no consumer is
+      speculation, and ProgramModel/CLAUDE.md already rules out putting results on the model.
+      
+      CODE: Source/Mist/ProgramAnalysis/, namespace Mist.ProgramAnalysis -- beside Mist.ProgramModel,
+      outside ProgramModel/ (whose CLAUDE.md scopes it to construction) and outside Mist.Analysis
+      (classic's, and named in the clean-room rule). Renames cleanly to Mist.Analysis once classic is
+      deleted, as ProgramModel is already slated to become Semantics. Its own CLAUDE.md states the contract.
+      
+      THE WALKER IS A TABLE BECAUSE THE CLI PUBLISHES TRIMMED. A reflection walker would raise IL2075 at
+      publish and, worse, the trimmer could strip the very properties it reads -- a shipped compiler that
+      silently skips subtrees while every untrimmed test passes. A table can be enumerated, so
+      BodyWalkerCoverageTest holds its keys equal to every concrete node type in the model, and a node with
+      no row is an internal error rather than a skip. A refined type test's predicate is deliberately NOT a
+      child: it is written once in its alias and would otherwise be visited, and reported in, once per use.
+      
+      SUPPRESSION LIVES IN THE CONTRACT, and mutation-checking found it UNTESTED at first. AnalysisContext
+      .Report takes what a finding is ABOUT and says nothing when any of it is ErrorType, so no rule has to
+      remember the peer-stage invariant. Stripping that check failed nothing: a constant arm narrows to the
+      SCRUTINEE's type, so over a failed scrutinee the arm itself reads as ErrorType and the analyzer's own
+      arm guard bailed before Report was reached. Pinned by a guarded type test, whose arm narrows to a
+      real type and so reaches Report -- now the one test that fails when the suppression goes.
+      
+      THE FALSE-POSITIVE HALF IS NOW REAL FOR WARNINGS. The Tier 6 test compared stdout and the exit code,
+      and a Stage 5 rule that only warns touches neither -- so a rule warning on every banked sample would
+      have passed. AllFeaturesV2 now fails on any `: warning ` line in stderr, which enforces
+      samples/CLAUDE.md's zero-warnings rule where it had only been stated. Measured at zero lines before
+      the change, so it was green on arrival.
     tasks:
       - >
-        Define the contract, the runner, and the wiring into ExperimentalPipeline.RunAnalyzers, which is
-        a stub with a TODO today.
+        Honour CompilerOptions.EnabledAnalyzerIds, which the runner ignores. Decide first whether classic's
+        ids and v2's share one namespace: a caller passing classic's today would switch every v2 rule off.
       - >
-        Decide how a rule reaches a source location, and whether the answer is a SourceOrigin on every
-        refusable entity or an AST walk beside the model. Record the cost of the one not chosen.
-      - >
-        Decide where cross-rule facts live, with definite assignment feeding the borrow checker as the
-        case that proves it.
-      - >
-        Honour the peer-stage invariant in the runner rather than in each rule: a rule must not have to
-        remember that ErrorType may already be present.
+        Decide whether ProgramModel/CLAUDE.md's SourceOrigin and "nothing that requires SyntaxNode" text
+        should be amended to match the code. It states a design principle, so it is flagged here rather
+        than rewritten.
 
   - id: exhaustiveness-checking
     name: Exhaustiveness over a finite scrutinee
     order: 3
     subsystem: typechecker
     requires: [analyzer-contract]
-    status: missing
+    status: done
     from: order 97 (exhaustiveness-checking), 4 tasks
     evidence: >
       THE CONTRACT'S FIRST CUSTOMER, and the reason it is third rather than among the pattern rules at
       order 20: it needs no conversion classification. Unguarded catch-all, bool true-and-false, and
       union-constituent coverage are decidable from the model alone.
+      
+      IT REPORTS ONLY WHAT THE MODEL PROVES, and the false-positive half is what forced it.
+      samples/TuplePatternMatching switches over (int, int) with nine relational arms and no catch-all,
+      and is exhaustive; a rule assuming tuples need a catch-all would have refused a working program.
+      Deciding that shape needs range reasoning, which is order 12's.
+      
+      THE DECISIONS, as built. A catch-all, or an unguarded type test identical to the scrutinee's type,
+      covers everything. bool needs both values. An ENUM needs every variant -- MORE PERMISSIVE THAN
+      CLASSIC, which has no enum rule and tells every enum switch to add a catch-all; the variants are a
+      closed set, so naming all of them covers it. A union constituent is reported only when NO arm could
+      match it; one reached through a guard or only partly is left alone. Anything unbounded, a TUPLE
+      included, is reported only when every arm is guarded or a constant, since finitely many constants
+      cannot cover it. Guards are never evaluated. An earlier explicit tuple arm was removed: it made a
+      guarded-only tuple switch silent though that switch is provably incomplete.
+      
+      SEVERITY IS A WARNING, which is classic's for MIST_TC_0090 -- confirmed by running classic, which
+      prints the warning and runs the program. Minted as MIST_PA_SWITCH_NOT_EXHAUSTIVE rather than reusing
+      classic's id, as the binder minted MIST_PM_*.
+      
+      MEASURED: zero findings across AllFeaturesV2, AllFeatures and the three unbanked standalone samples.
+      Five corpus cases, one per shape it reports; the silences pinned in ExhaustivenessDecisionTests.
+      Mutation-checked five ways with every build confirmed -- analyzer silenced, guards ignored, contract
+      suppression stripped, the walker's lambda row dropped, enum variants never matching -- and each fails
+      at least one test. No sample matches an enum variant in a switch at all, so the enum case is exercised
+      only by the corpus and its Tier 3 decision.
     tasks:
       - >
-        Implement unguarded-catch-all, bool true-and-false, and union-constituent coverage.
+        DECIDE THE SEVERITY. Keeping classic's warning is what is built; making a non-exhaustive switch an
+        error is stricter than classic and changes what compiles, which makes it a language decision rather
+        than this rule's.
       - >
-        Decide deliberately what a TUPLE scrutinee gets. See order 103's sibling task.
+        Tuple product coverage, once order 12's range reasoning exists: the sample's shape becomes provable
+        then rather than merely unrefused.
       - >
-        Decide deliberately what an ENUM scrutinee gets, and note that classic has NO enum rule -- an
-        enum falls to its unbounded-type rule and is told it needs a catch-all, so matching classic here
-        means reproducing something nobody designed.
+        An optional scrutinee covered by value arms -- `bool?` with true and false and no void -- is silent:
+        a value arm counts as possibly matching every constituent. Sound, and a missed finding.
 
   - id: total-conversion-classification
     name: A conversion classification that can refuse

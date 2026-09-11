@@ -152,6 +152,7 @@ These load when you work in the directory:
 
 - `Source/CLAUDE.md` — C# coding style
 - `Source/Mist/ProgramModel/CLAUDE.md` — v2 isolation rule and verification policy
+- `Source/Mist/ProgramAnalysis/CLAUDE.md` — Stage 5: the analyzer contract, and how a rule proves itself
 - `samples/CLAUDE.md` — sample integrity, and how to bank a sample on v2
 - `Test/CLAUDE.md` — test tiers, process spawning, encoding, failure triage
 - `book/CLAUDE.md` — book snippet policy

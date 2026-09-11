@@ -10,8 +10,13 @@ Walked by one test, `RefusalCorpusTest`, which compiles each program in-process 
 pipeline and holds it to two claims:
 
 - **Every expectation is met.** A marked diagnostic that is not reported fails the case.
-- **Nothing else is reported.** Any *error* the markers did not predict fails the case, which is what
-  holds the no-cascade invariant: one mistake, one complaint.
+- **Nothing else is reported.** Any error *or warning* the markers did not predict fails the case,
+  which is what holds the no-cascade invariant: one mistake, one complaint.
+
+A marker names a diagnostic id, and the id carries its severity. Most rules here refuse; a few owe a
+**warning** instead, where that is the severity the finding has — `MIST_PA_SWITCH_NOT_EXHAUSTIVE` is
+one, because classic warns for it too. Those cases compile, so they pay for emission and a Roslyn
+compile where a refused case stops at the gate; that is the only difference.
 
 ## The markers
 

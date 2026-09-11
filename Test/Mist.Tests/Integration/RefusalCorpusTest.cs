@@ -103,7 +103,9 @@ public sealed class RefusalCorpusTest : IDisposable
     private static IEnumerable<string> Check(
         string name, List<Expectation> expectations, ImmutableArray<Diagnostic> diagnostics)
     {
-        var errors = diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
+        var errors = diagnostics
+            .Where(d => d.Severity is DiagnosticSeverity.Error or DiagnosticSeverity.Warning)
+            .ToList();
         var claimed = new HashSet<Diagnostic>();
 
         foreach(var expectation in expectations)

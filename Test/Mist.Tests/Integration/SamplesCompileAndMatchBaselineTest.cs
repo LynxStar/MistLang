@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 using Mist.Analysis.Builtin;
 using Mist.Backends.Contracts;
 using Mist.Backends.CSharpTranspiler;
@@ -85,6 +86,15 @@ public sealed class SamplesCompileAndMatchBaselineTest
         Assert.True(
             exitCode == 0,
             $"AllFeaturesV2 failed to compile/run on the experimental pipeline (exit code {exitCode}).\nStderr:\n{stderr}");
+
+        // THE FALSE-POSITIVE HALF OF THE ANALYSIS LEDGER. A Stage 5 rule that fires on a working program
+        // may only WARN, which leaves the exit code clean and stdout untouched -- so without this, a rule
+        // warning on every banked sample would pass. samples/CLAUDE.md already holds every sample to zero
+        // warnings; this is where that is enforced.
+        var warnings = stderr.Split('\n').Where(line => Regex.IsMatch(line, @": warning [A-Z0-9_]+:")).ToList();
+        Assert.True(
+            warnings.Count == 0,
+            $"AllFeaturesV2 compiled with warnings on the experimental pipeline:\n{string.Join("\n", warnings)}");
 
         var expected = NormalizeLineEndings(await File.ReadAllTextAsync(baselineFile));
         var actual = NormalizeLineEndings(stdout);

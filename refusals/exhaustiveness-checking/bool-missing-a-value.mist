@@ -1,0 +1,14 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static void Main()
+    {
+        bool flag = true;
+        // REFUSE: MIST_PA_SWITCH_NOT_EXHAUSTIVE
+        var label = flag switch { true => "yes" };
+        Console.WriteLine(label);
+    }
+}

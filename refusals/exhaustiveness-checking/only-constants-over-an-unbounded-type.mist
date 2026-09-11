@@ -1,0 +1,14 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static void Main()
+    {
+        string word = "a";
+        // REFUSE: MIST_PA_SWITCH_NOT_EXHAUSTIVE
+        var rank = word switch { "a" => 1, "b" => 2 };
+        Console.WriteLine($"{rank}");
+    }
+}

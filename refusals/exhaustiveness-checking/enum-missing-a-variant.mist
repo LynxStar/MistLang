@@ -1,0 +1,20 @@
+using Standard;
+
+namespace Refusal;
+
+public enum Color {
+    Red,
+    Green,
+    Blue
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        Color chosen = Color.Red;
+        // REFUSE: MIST_PA_SWITCH_NOT_EXHAUSTIVE
+        var code = chosen switch { Color.Red => 1, Color.Green => 2 };
+        Console.WriteLine($"{code}");
+    }
+}

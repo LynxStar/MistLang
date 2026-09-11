@@ -2,8 +2,10 @@ using Mist.Backends.CSharpTranspiler.AmbientProvider;
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Common.Diagnostics;
 using Mist.Driver.Contracts;
+using Mist.ProgramAnalysis;
 using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Contracts;
+using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 
 namespace Mist.Driver;
 
@@ -65,7 +67,7 @@ public sealed class ExperimentalPipeline : ICompilationPipeline
         //
         // The cost is that analyzers see a model containing ErrorType and unresolved
         // sentinels, so they must tolerate one rather than assume every type resolved.
-        RunAnalyzers(programModel, input, diagnostics);
+        RunAnalyzers(programModel, diagnostics);
 
         // The combined gate for Stages 4 and 5, and for the lexing and parsing before them --
         // the driver does not stop for those either, and the same reasoning applies. Emission
@@ -88,12 +90,9 @@ public sealed class ExperimentalPipeline : ICompilationPipeline
     /// give, because the caller gates on Stage 4 and Stage 5 together and reads that off the bag.
     /// </para>
     /// </summary>
-    private static void RunAnalyzers(IProgramModel programModel, PipelineInput input, DiagnosticBag diagnostics)
+    private static void RunAnalyzers(IProgramModel programModel, DiagnosticBag diagnostics)
     {
-        // TODO: Run new analyzers that consume IProgramModel
-        _ = programModel;
-        _ = input;
-        _ = diagnostics;
+        ProgramAnalysisRunner.Run((ProgramModelClass)programModel, diagnostics);
     }
 
     /// <summary>

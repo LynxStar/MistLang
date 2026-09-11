@@ -1,21 +1,24 @@
 using Standard;
 
-async int FetchData()
+public class Program
 {
-    return 100;
-}
+    public static async int FetchData()
+    {
+        return 100;
+    }
 
-async string FormatData(int value)
-{
-    return "Value: " + value.ToString();
-}
+    public static async string FormatData(int value)
+    {
+        return "Value: " + value.ToString();
+    }
 
-// This is a sync context — no async modifier
-void Main()
-{
-    // Async calls are auto-awaited; result types are unwrapped
-    var result = FetchData();           // result: int (not Task<int>)
-    var formatted = FormatData(result); // formatted: string
+    // This is a sync context — no async modifier
+    public static void Main(string[] args)
+    {
+        // Async calls are auto-awaited; result types are unwrapped
+        var result = FetchData();           // result: int (not Task<int>)
+        var formatted = FormatData(result); // formatted: string
 
-    Console.WriteLine(formatted);  // "Value: 100"
+        Console.WriteLine(formatted);  // "Value: 100"
+    }
 }

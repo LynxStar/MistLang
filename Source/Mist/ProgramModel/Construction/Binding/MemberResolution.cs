@@ -39,8 +39,10 @@ internal static class MemberResolution
         bool allowExtensionProperties = false)
     {
         // A refinement is a nominal SUBTYPE of what it refines, so its members are that type's. The
-        // predicate says which VALUES the type admits, never which members they answer to.
-        var receiver = type is RefinedType refined ? refined.BaseType : type;
+        // predicate says which VALUES the type admits, never which members they answer to. An alias
+        // named in expression position, `Task.Yield()`, is likewise its aliased type's.
+        var unaliased = type is TypeAlias { AliasedType: { } aliased } ? aliased : type;
+        var receiver = unaliased is RefinedType refined ? refined.BaseType : unaliased;
         var constructed = receiver as ConstructedType;
 
         if((constructed?.Definition ?? receiver) is not MistType declaring)

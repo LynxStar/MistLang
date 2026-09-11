@@ -1,10 +1,16 @@
 using Standard;
 
-public static string DescribeVoid(void v)
+public class Program
 {
-    return "received void";
-}
+    public static string DescribeVoid(void v)
+    {
+        return "received void";
+    }
 
-// Calling the method:
-string desc = DescribeVoid(void);
-Console.WriteLine($"DescribeVoid: {desc}");
+    public static void Main(string[] args)
+    {
+        // Calling the method:
+        string desc = DescribeVoid(void);
+        Console.WriteLine($"DescribeVoid: {desc}");
+    }
+}

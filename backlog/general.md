@@ -323,18 +323,18 @@ whole subpattern to the runtime binder.
 
 ---
 
-## 🟡 10 book snippets do not parse on either pipeline
+## 🟢 Every book snippet regenerates on the experimental pipeline
 
-**Found 2026-09-11**, the day `tools/SnippetEmitter` moved from classic to `--pipeline experimental`; 58
-failed that morning. By evening 30 named the sibling snippets they build on with a `// with:` line,
+**As of 2026-09-11**, the day `tools/SnippetEmitter` moved from classic to `--pipeline experimental`; 58 of
+368 failed that morning. By evening 30 named the sibling snippets they build on with a `// with:` line,
 which the tool compiles alongside them (four keep a declaration inline where their own chapter's
-pages overlap), 5 imported the CLR namespaces they used or declared the attribute they applied, 2 were
-content bugs classic's tool never caught because it skipped Roslyn, 9 were v2 defects since fixed --
-nested local shadowing, union-into-union widening, span slicing, a CLR delegate as a lambda's target,
-the element type of a projected `List<int>`, a method generic over a slot-bearing abstract with
-`T.Output`, narrowing after `??=`, and a union alias over a type parameter -- and 2 variadic
-declaration snippets keep a hand-written C# tab marked as an illustration, by decision, since a
-monomorph is emitted only per arity used and they use none. What remains, left as it is by decision
-for now: `advanced/structured-concurrency/*` (6) and `basics/void-type/*` (4) place a bare or
-`public static` function at file top, which the shared parser refuses, so neither pipeline ever
-compiled them and their `.cs` tabs are not compiler output.
+pages overlap); 5 imported the CLR namespaces they used or declared the attribute they applied; 2 were
+content bugs classic's tool never caught because it skipped Roslyn; 10 placed a bare or `public
+static` function at file top, which the grammar has never accepted -- Mist has no local functions --
+and are now classes with a `Main`; 2 variadic declaration snippets keep a hand-written C# tab marked
+as an illustration, by decision, since a monomorph is emitted only per arity used; and 10 were v2
+defects since fixed: nested local shadowing, union-into-union widening, span slicing, a CLR delegate
+as a lambda's target, the element type of a projected `List<int>`, a method generic over a
+slot-bearing abstract with `T.Output`, narrowing after `??=`, a union alias over a type parameter,
+and a static member reached through a type alias, `Task.Yield()`, in both binder and emitter.
+Nothing under `book/snippets/` is outside the tool.

@@ -1,20 +1,23 @@
 using Standard;
 
-async int SlowCompute()
+public class Program
 {
-    Task.Yield();  // explicit yield point
-    return 42;
-}
+    public static async int SlowCompute()
+    {
+        Task.Yield();  // explicit yield point
+        return 42;
+    }
 
-async void Main()
-{
-    // Each async method invocation is a yield point — the scheduler
-    // may run other tasks before resuming here
-    var task = SlowCompute();
+    public static async void Main(string[] args)
+    {
+        // Each async method invocation is a yield point — the scheduler
+        // may run other tasks before resuming here
+        var task = SlowCompute();
 
-    // Explicit yield: give other tasks a chance to run
-    Task.Yield();
+        // Explicit yield: give other tasks a chance to run
+        Task.Yield();
 
-    var result = await task;
-    Console.WriteLine(result);
+        var result = await task;
+        Console.WriteLine(result);
+    }
 }

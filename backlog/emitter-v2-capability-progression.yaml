@@ -4014,6 +4014,12 @@ capabilities:
       the same ExpandAlias, substituting call-site type arguments for generic aliases -- and
       constructor selection then runs against the real target. No emitter fallback exists or
       is needed; the expansion is in the model before emission ever looks.
+
+      AN ALIAS IN EXPRESSION POSITION, 2026-09-11. `Task.Yield()` reported that `Task` had no such
+      member: MemberResolution looked on the alias rather than on `Task<void>`, and TypeNameEmitter spelled
+      an alias by its bare name, so even a resolved call would have named a type C# does not have. Both
+      now look through the alias to what it names. No banked sample calls a static through an alias;
+      verified by the yield-points snippet, which the spec's intrinsic `Task.Yield` is written for.
     analysis_phase_tasks:
       - >
         Report a duplicate alias name in the same scope at the declaration (classic

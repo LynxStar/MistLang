@@ -1,9 +1,15 @@
 using Standard;
 
-public static void PrintMessage(string msg)
+public class Program
 {
-    Console.WriteLine(msg);
-}
+    public static void PrintMessage(string msg)
+    {
+        Console.WriteLine(msg);
+    }
 
-// Called as a statement — return value not captured:
-PrintMessage("fire-and-forget call");
+    public static void Main(string[] args)
+    {
+        // Called as a statement — return value not captured:
+        PrintMessage("fire-and-forget call");
+    }
+}

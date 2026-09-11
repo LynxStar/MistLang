@@ -50,6 +50,7 @@ internal static class TypeNameEmitter
                 Monomorph.InScope()?.Element(element.Pack, element.Index) ?? element.Pack),
             TypeParameter typeParameter => DependentCarrierNames.Parameter(typeParameter),
             RefinedType refined => Emit(refined.BaseType),
+            TypeAlias { AliasedType: { } aliased } => Emit(aliased),
             ErrorType => "/* error */",
             AnonymousType => "/* anonymous */",
             UnknownType => "object",

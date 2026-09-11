@@ -1175,20 +1175,19 @@ rules:
       proof code following the samples. Then zero findings and identical stdout on AllFeaturesV2 and
       AllFeatures.
 
-      FOUND ON THE WAY AND LEFT AS A TASK: an index in assignment-target position is never judged,
-      on any array, because the flow graph gives the target IndexExpression no Evaluate step. `var
-      a = new int[3]; a[7] = 10;` compiles and throws, on both pipelines.
+      AND THE WRITE SIDE, the same day: an index in assignment-target position was never judged,
+      on any array, because the flow graph gives the target IndexExpression no Evaluate step, so
+      `var a = new int[3]; a[7] = 10;` compiled and threw -- general.md's own example. Judge now
+      asks NeedIndex of an assignment's target as it asks Need of its value; a coalescing write
+      already evaluated its target as a read. Two corpus cases and six decision rows, over a
+      local and a field holder. The sweep found one more site, Attributes' indexer SETTER, guarded
+      now as its getter is, with the spec proof code following.
     tasks:
       - >
         A method group over a `where` parameter converted to a func over the base -- `func<int, string>
         f = Process` -- needs contravariance judged, since the func promises any int. Moot until v2
         converts method groups to function types at all (MIST_PM_METHOD_GROUP_NOT_CONVERTED); when it
         does, MethodGroupConversion's identity test already refuses it, and the message should say why.
-      - >
-        An index WRITE is not judged: `a[7] = 10` into a known-length array, or into any array with
-        an unproven index, compiles and throws, because the assignment target's IndexExpression gets
-        no Evaluate step and NeedIndex never sees it. Reads are proven on every holder; the write is
-        the same question one step earlier, and general.md's first critical uses it as its example.
       - >
         A union with refined constituents is judged per constituent by the value's base type, or for
         a constant by any integral constituent it fits; a runtime `is` against a union of refinements

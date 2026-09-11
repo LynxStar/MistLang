@@ -4,7 +4,7 @@ Tracked issues and improvements that don't belong to an active spec but should b
 
 ---
 
-## 🔴 CRITICAL: Array (and Span) indexer upper bound is deferred to runtime for unknown-length types
+## 🟡 Classic only: Array (and Span) indexer upper bound is deferred to runtime for unknown-length types
 
 **Severity: critical** — Mist advertises static bounds safety via the `ArrayBounds` refinement (`>= 0 and < Length`), but that guarantee silently degrades to a runtime check whenever the length is not a compile-time constant. A program can compile with zero errors and throw `System.IndexOutOfRangeException` at runtime.
 
@@ -19,7 +19,7 @@ numbers[7] = 10;   // compiles; throws System.IndexOutOfRangeException at runtim
 
 **Why this matters now:** The `stack-only-types` spec deliberately mirrors `Array` for `Span<T, Length>` (Option 1), so spans inherit this exact hole. Closing the array gap closes it for spans too, since spans reuse the same bounds machinery.
 
-**Where v2 stands (2026-09-11):** analysis order 12 refuses an unproven index READ into any array or span of unknown length, whether a local or a field of `this` holds it. A field-held array carries the same symbolic bound `i < items.Length` a local does, forgotten on any assignment to the field and, unless the field is `readonly`, at any call, object creation or `await`. Two samples indexed a field-held array without a bound and were changed to prove it (`Iterators`'s enumerator and `Attributes`'s indexer; the spec proof code follows them). What remains open on v2 is the WRITE side, which is this entry's own example: `numbers[7] = 10` is not judged at all, because an index in assignment-target position never reaches the prover. Classic is unchanged on both.
+**Closed on v2 (2026-09-11):** analysis order 12 refuses an unproven index, read or written, into any array or span of unknown length, whether a local or a field of `this` holds it; the example above is `MIST_PA_INDEX_OUT_OF_BOUNDS` there. A field-held array carries the same symbolic bound `i < items.Length` a local does, forgotten on any assignment to the field and, unless the field is `readonly`, at any call, object creation or `await`. Two samples indexed a field-held array without a bound and were changed to prove it (`Iterators`'s enumerator and `Attributes`'s indexer, getter and setter; the spec proof code follows them). Everything above this paragraph now describes classic alone.
 
 **Action (to scope into its own spec):**
 1. Decide the intended guarantee: should unknown-length indexing be a hard compile error (no runtime fallback), or should it require an explicit opt-in / pattern-match to index?
@@ -46,6 +46,16 @@ The same root without the second project compiles and runs, as it does when the 
 **Consequence:** `DelegateFuncConversion` is banked on `AllFeaturesV2` but not on `AllFeatures`, and classic cannot compile `AllFeaturesV2` at all, so that baseline's last 11 lines are assembled from classic's standalone run (see the sample's entry in `backlog/emitter-v2-capability-progression.yaml`).
 
 **Action:** none in classic, which the v2 rewrite replaces. Cite this entry if `AllFeatures` is ever expected to be the complete sample list.
+
+---
+
+## 🟡 Classic's `mist test` fails on any test project without a `Main`
+
+**Severity: medium** -- `mist test samples/Testing` on classic ends in `CSC : error CS5001: Program does not contain a static 'Main' method`, and has since 12341680 (2026-06-28) added `<GenerateProgramFile>false</GenerateProgramFile>` to every library project. That is right when the library composes an executable (two entry points are CS0017) and wrong when nothing carries a `Main`: `Microsoft.NET.Test.Sdk` still makes the output an executable, and there is then no entry point at all. Nothing tested the command, so nothing noticed.
+
+**Where v2 stands:** `ProjectFileEmitter` emits the suppression only when an assembly in the program carries an entry point (emitter order 120), and `Testing_RunsUnderTheTestCommandOnTheExperimentalPipeline` holds `mist test` on v2 to the runner's tally. Classic's `CSharpEmitter.EmitCsproj` still writes it unconditionally and knows nothing about entry points at that point.
+
+**Action:** none in classic, which the v2 rewrite replaces; run `mist test` with `--pipeline experimental`.
 
 ---
 

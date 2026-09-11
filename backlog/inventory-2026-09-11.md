@@ -7,11 +7,11 @@ has something to diff against. Counts come from the registers named; the method 
 
 | Ledger | State | Counted by |
 |---|---|---|
-| `emitter-v2-capability-progression.yaml`, 186 capabilities | 152 done, 29 partial, 5 missing (was 150 / 29 / 7; orders 40 and 41 re-measured and delivered) | `v2_status` per capability |
-| `samples/` (76 on disk, 75 in the register) | 74 banked on v2, 2 unbanked (was 72 / 4; the composition wall fell) | `samples/AllFeaturesV2/mist.toml` references |
+| `emitter-v2-capability-progression.yaml`, 186 capabilities | 154 done, 29 partial, 3 missing (was 150 / 29 / 7; orders 40, 41, 120 and 122 delivered the same day) | `v2_status` per capability |
+| `samples/` (76 on disk, 75 in the register) | 75 in AllFeaturesV2, plus Testing under its own Tier 5 test (was 72 / 4) | `samples/AllFeaturesV2/mist.toml` references, and `Testing_RunsUnderTheTestCommandOnTheExperimentalPipeline` |
 | `analysis-v2-capability-progression.yaml`, 12 orders | all done; 54 recorded tasks | `status` and `tasks:` per order |
 | `program-model-body-tasks.yaml` | 79 done, 64 partial, 113 open | `[x]`, `[~]`, `[ ]` markers |
-| `general.md` | 12 sections, 3 marked critical | section headings |
+| `general.md` | 15 sections, 2 marked critical (the array-bounds critical is closed on v2 and kept for classic) | section headings |
 | Emitter register `uncovered_constructs` | 25, of which 21 need a sample | `disposition` |
 
 ## What is needed
@@ -23,20 +23,24 @@ has something to diff against. Counts come from the registers named; the method 
    the call; the decision is order 12's first task.
 
 2. **The seven missing emitter capabilities.** Library output type (120) and the `mist test` command
-   (122) block the `Testing` sample. Per-member readonly inference (135) blocks the readonly-context
+   (122) blocked the `Testing` sample until the same day: the command was never pipeline-specific,
+   and what failed was the test-SDK entry-point suppression on every library, on classic too.
+   Per-member readonly inference (135) blocks the readonly-context
    rules deferred on analysis order 11. Operator overload declarations (185) and the `intrinsic`
    modifier (186) are stdlib-only. Non-public type accessibility (40) and `sealed` (41) were marked
    orphaned because no sample can observe them; re-measured the same day, both were live gaps -- a
    nested `internal` or `protected` type collapsed to C# private and failed Roslyn, and `sealed` was
-   dropped -- and both are now emitted, pinned by `TypeModifierEmissionTests`. Five remain.
+   dropped -- and both are now emitted, pinned by `TypeModifierEmissionTests`. Three remain: 135,
+   185 and 186.
 
 3. **The two unbanked samples.** `CSharpInteropV2` and `DelegateFuncConversion` were blocked by
    one composition wall -- a sample referenced from `AllFeaturesV2` could not see its own
    `[packages]` and `[framework_references]` -- which fell the same day (emitter order 129), and
    both are banked. A second wall showed behind it, classic's alone: classic cannot compose
    `DelegateFuncConversion` beside any project declaring a Mist class that implements a CLR
-   interface, so `AllFeatures` carries only `CSharpInteropV2` (see `general.md`). `Testing` waits
-   on item 2. `ProjectReferences` is not in the register at all.
+   interface, so `AllFeatures` carries only `CSharpInteropV2` (see `general.md`). `Testing` is
+   banked under its own Tier 5 test, since a library with no entry point has nothing for the
+   orchestrator to call. `ProjectReferences` is not in the register at all.
 
 4. **The 29 partial emitter capabilities.** The heavier ones: overload and constructor resolution
    (26, 27), type-argument inference and substitution (53, 55), CLR projection (126, 127),
@@ -62,8 +66,7 @@ has something to diff against. Counts come from the registers named; the method 
    tasks, not by that catalogue.
 
 8. **`general.md`'s three criticals.** Array upper bounds deferred to runtime for unknown-length
-   types -- order 12 now discharges every index read, into a known-length array or one a local or a
-   field holds, and only the write side (`numbers[7] = 10`) still falls to the runtime, on both
-   pipelines; expression-lambda return types not
+   types -- closed on v2 the same day, every index read or written, into a known-length array or
+   one a local or a field holds, and kept as a classic-only entry; expression-lambda return types not
    validated against the target delegate; and the driver's AST and compilation-unit arrays able to
    go out of sync.

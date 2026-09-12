@@ -2324,6 +2324,20 @@ capabilities:
         MEASURED STALE 2026-09-12: a bare `Identity<string>("x")` binds and runs on v2;
         ExpressionBinder.BindPrimary dispatches GenericInvocationExpressionPrimaryNode to
         PostfixBinder.BindGenericInvocation.
+      - >
+        DONE 2026-09-12. STATED TYPE ARGUMENTS NEVER REACHED AN ARGUMENT'S TARGET, only the selection:
+        ArgumentBinder.Bind substituted the sole candidate's parameters through the receiver and
+        nothing else, so `Apply<int, string>(1, v => v.ToString())` bound its lambda against
+        `func<TIn, TOut>` -- `v` typed TIn -- and Stage 5 then refused the call twice, 'func' to
+        'func' and 'string' to 'TOut'. Classic prints 1. Measured on both the bare and the suffix
+        spelling, and with `(int v)` stated, which fixed the parameter and not the return. The call's
+        type arguments now extend that substitution and narrow the sole candidate by type arity as
+        selection does, so an argument's target is the parameter type the call records.
+        ExplicitGenericInvocationTests pins the lambda's type as `func<int, string>`; TypeDisplay
+        gained a function arm, having cut every function type at its `<` to a bare 'func'. Still
+        open and separate: a lambda argument to an INFERRING call, `Apply(1, v => ...)`, which is the
+        body-task register's "lambda arguments deferred during applicability" and which classic
+        refuses as well.
       - Replace the pairwise Wider fold with a bound set per type parameter and a fixing step, which
         is C#'s shape and the right one. The fixing RULE is DECIDED and differs from C#'s, in two
         ordered steps. One, if some bound dominates -- every other bound implicitly converts to it --

@@ -234,7 +234,7 @@
 #                         progression from implying the sample suite is complete.
 #                         The census behind this list was taken once, by diffing the
 #                         generated AST node classes against the node kinds present across
-#                         all 76 samples. Re-taking it means re-doing that diff by hand.
+#                         all 77 samples. Re-taking it means re-doing that diff by hand.
 #
 #   measured_defects      v2 code paths that EXIST and emit output that does not compile.
 #                         The ordering model has no home for these -- it orders capabilities,
@@ -249,10 +249,10 @@
 #
 # SCOPE
 #
-#   All 76 samples (AllFeatures and AllFeaturesV2 excluded as orchestrators), plus the
+#   All 77 samples (AllFeatures and AllFeaturesV2 excluded as orchestrators), plus the
 #   stdlib as a non-sample target, plus the 24 constructs no sample covers.
 #
-#   Grounded in reading every .mist file and mist.toml in all 76 samples, the committed
+#   Grounded in reading every .mist file and mist.toml in all 77 samples, the committed
 #   out/*.cs where present, and the relevant compiler source: the v2 emitter and binder in
 #   full; and in the classic pipeline CSharpEmitter, CSharpTypeMap, UnionType, UnknownType,
 #   ArrayType, DependentTypeParameterType, AssociatedTypeSlotType, ConformanceMap,
@@ -2205,7 +2205,8 @@ capabilities:
         `Renamed<U> : Container<U>` answers string; a bare `Get()` inside Renamed answers U. Classic
         binds the same calls and answers T unsubstituted (MIST_TC_0001 "Cannot implicitly convert type
         'T' to 'Int32'"), so this is beyond its contract. samples/InheritedGenericMembers is the sample,
-        InheritedGenericMemberTests the model-level pin.
+        InheritedGenericMethodTests the model-level pin, beside the field tests
+        InheritedGenericMemberTests already held.
       - >
         DONE 2026-09-12. StructFlattener records the path per inherited method, property and absorbed
         ancestor, and TypeNameEmitter spells every bound type parameter as its argument for the duration
@@ -2288,10 +2289,13 @@ capabilities:
       out of scope and emits that parameter where a type belongs, which Roslyn then reports against
       a generated file naming neither the call nor the parameter.
     tasks:
-      - Unify an argument against a BASE of the declared parameter type, so
-        `F<T>(IEnumerable<T>)` can be called with a `List<int>`. Matching requires the same
-        definition today, and answers nothing otherwise. Gated on the same base chain walk that
-        order 53 needs, and unreachable until abstract types can be reached generically.
+      - >
+        DONE 2026-09-12. Inference matches a parameter's construction against the argument's own type
+        or against the first construction of that definition its base chain reaches, walking
+        ConversionClassifier.Bases with each level's substitution applied: `First<T>(Holder<T>)` called
+        with an IntHolder conforming to Holder<int> answers int, and with a Wrapper<string> conforming
+        to Holder<T> answers string. Measured first: classic ran both and v2 refused with
+        MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED, so this was the contract restored.
       - >
         MEASURED STALE 2026-09-12: a bare `Identity<string>("x")` binds and runs on v2;
         ExpressionBinder.BindPrimary dispatches GenericInvocationExpressionPrimaryNode to
@@ -3174,7 +3178,7 @@ capabilities:
     order: 72
     layer: abstract-types
     requires: [abstract-type-default-members, nominal-conformance-and-slot-checking]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
       Rust-style semantics. A C# default interface method is callable only through an
@@ -3271,12 +3275,12 @@ capabilities:
       chain, which is order 53's remaining task.
     tasks:
       - >
-        Substitute a generic abstract's type arguments into a restated default, in the BODY as well
-        as the signature, and drop the skip in DefaultMemberDuplication.NamesATypeParameter.
-        Order 53's first task landed 2026-09-12, so the member is reachable and this is now
-        observable rather than blocked. LIVE DEFECT IN CLASSIC to not copy: classic substitutes the
-        signature and NOT the body, emitting `T held = this.Item();` into a conformer where no T is
-        in scope, so the generated file does not compile.
+        DONE 2026-09-12. A restated default carries the constructed abstracts it was reached through,
+        and the emitter spells it under that substitution (TypeNameEmitter.Substituting), signature and
+        body alike, so IntHolder emits `public int Same()` over `int held = Item();` and a generic
+        conformer restates under its own parameter. The skip on a default naming a type parameter is
+        gone. Classic's live defect stands: it emits `T held` and Roslyn refuses the generated file,
+        which is why samples/GenericAbstractMembers is banked on AllFeaturesV2 alone.
     unlocks: []
 
   - id: retroactive-conformance-with-blocks
@@ -3548,10 +3552,11 @@ capabilities:
       `Outer.Inner`; v2 fails earlier, never binding the nested path at all.
     tasks:
       - >
-        Bind and emit a block namespace nested inside a block namespace. v2 currently refuses it, which
-        is the safe half, but the DIAGNOSTIC IS MISLEADING: a call whose receiver walks the nested path
-        reports MIST_PM_UNRESOLVABLE_OVERLOAD against the enclosing call rather than naming the
-        namespace segment that did not resolve, so the message sends the reader to the wrong construct.
+        Bind and emit a block namespace nested inside a block namespace. Both pipelines refuse
+        `Outer.Inner.Deep.Value()` (measured 2026-09-12): classic twice as MIST_UNDEFINED_IDENTIFIER, v2
+        once as MIST_PM_UNRESOLVED_IDENTIFIER at the first segment, which is the right place for the
+        complaint now that a failed receiver no longer cascades into the enclosing call. Still unbound
+        on both; the diagnostic is no longer misleading.
     unlocks: []
 
   # ===================================================================
@@ -3656,7 +3661,7 @@ capabilities:
     order: 79
     layer: unions-and-unknown
     requires: [optional-union-representation]
-    v2_status: partial
+    v2_status: done
     verified_by: sample
     evidence: >
       All three operators bind and emit as C#'s own ?. / ?? / ??=, legal for both optional
@@ -3689,11 +3694,9 @@ capabilities:
     unlocks: []
     tasks:
       - >
-        Narrow a coalescing-assigned local to its non-void portion for subsequent reads.
-        Without it, assigning the variable to the bare type after coalescing binds but emits
-        a Nullable where C# wants the bare type. Classic narrows by mutating the symbol; v2
-        wants flow typing that leaves the model alone, which pattern narrowing at order 90
-        will need anyway.
+        MEASURED STALE 2026-09-12: `int | void maybe = void; maybe ??= 3; int sure = maybe;` binds,
+        emits and prints 3 on v2. Classic fails the same program in Roslyn, naming a union carrier
+        it never emitted.
     analysis_phase_tasks:
       - >
         Report conditional access on a receiver that is not optional (classic MIST_TC_0111).
@@ -10112,6 +10115,22 @@ samples:
         sample; InheritedGenericEmissionTests holds it on the emitted text.
       - An inherited PROPERTY of a generic base is carried on the same path but no sample reads one.
 
+  - name: GenericAbstractMembers
+    intro_order: 92
+    threshold: type-argument-inference
+    requires: [class-declaration, constructors, methods-static-and-instance, statements-core,
+               namespace-file-scoped, standard-library-binding, literals-primitive, string-interpolation,
+               var-type-inference, type-parameters-and-constructed-types, generic-arity-keyed-lookup, type-argument-substitution,
+               generic-methods, abstract-type-declaration, default-member-forwarding-stubs, type-argument-inference]
+    untested:
+      - >
+        V2-ONLY. Classic infers `First(new IntHolder())` but restates `Same()` into IntHolder with
+        `T held` where no T is in scope, so Roslyn refuses its generated file; this sample is referenced
+        from AllFeaturesV2 alone and its lines were captured from v2 and read against the program by hand.
+      - >
+        A default inherited through a chain of generic abstracts, `Holder<T> : Base<T>`, is not in the
+        sample; the path composes exactly as an inherited struct member's does (order 53).
+
 # =====================================================================
 
 non_sample_targets:
@@ -10402,7 +10421,7 @@ uncovered_constructs:
 # =====================================================================
 #
 # DEFERRABLE INDEFINITELY: compound assignment and increment/decrement. Neither appears in
-# ANY of the 76 samples -- verified by search. Every loop iterator is written longhand and
+# ANY of the 77 samples -- verified by search. Every loop iterator is written longhand and
 # every accumulator re-assigns. BodyEmitter's AssignmentExpression emits a plain assignment
 # only and MapUnaryOperator handles only negate and logical-not, and that is sufficient for
 # the entire suite. TopLevelStatements advertises a control-flow survey and still writes the

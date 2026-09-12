@@ -1,13 +1,10 @@
-// Tier 3 (Component): what a call to a method inherited from a GENERIC base binds to, asserted on the
-// model because emission re-writes the call as spelled and lets Roslyn substitute again. The base's T
-// is bound by the derived declaration's base clause and only then by the receiver, so a closed base and
-// a renamed one are the two shapes that tell composition from a receiver-only substitution. See
-// ProgramModelProbe for the harness.
+// What an inherited member of a GENERIC base resolves to. Asserted on the model because the answer is a
+// type, and a sample can only show it indirectly: printing the right value proves the field was found
+// and initialized, not that Mist typed it by the receiver's argument rather than leaving it an open
+// parameter. A method's half of the same question is InheritedGenericMethodTests. Orders 16 and 53 of
+// backlog/emitter-v2-capability-progression.yaml rest on this file.
 
 using Mist.Common.Diagnostics;
-using Mist.ProgramModel.Model.Expressions;
-using Mist.ProgramModel.Model.Statements;
-using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Semantics;
@@ -20,104 +17,154 @@ public sealed class InheritedGenericMemberTests : ProgramModelProbe
     }
 
     protected override string Fixtures { get; } = """
-        public struct Container<T>
+        public class Holder<T>
         {
             public T Value;
 
-            public Container(T value)
+            public int Count;
+
+            public Holder(T value)
             {
                 Value = value;
+                Count = 1;
             }
 
-            public T Get()
+            public T Echo(T given)
+            {
+                return given;
+            }
+
+            public T ReadOwn()
             {
                 return Value;
             }
+        }
 
-            public Container<T> With(T replacement)
+        public class SameName<T> : Holder<T>
+        {
+            public SameName(T value) : base(value)
             {
-                return new Container<T>(replacement);
             }
         }
 
-        public struct IntBox : Container<int>
+        public class Renamed<U> : Holder<U>
         {
-            public int Extra;
-
-            public IntBox(int value, int extra) : base(value)
+            public Renamed(U value) : base(value)
             {
-                Extra = extra;
             }
         }
 
-        public struct Renamed<U> : Container<U>
+        public class TwoLevel<W> : Renamed<W>
         {
-            public int Tag;
-
-            public Renamed(U value, int tag) : base(value)
+            public TwoLevel(W value) : base(value)
             {
-                Tag = tag;
-            }
-
-            public U Twice()
-            {
-                return Get();
             }
         }
 
-        public abstract Transformable<T>
+        public class Pair<A, B>
         {
-            T Transform(T input);
+            public A First;
+
+            public B Second;
+
+            public Pair(A first, B second)
+            {
+                First = first;
+                Second = second;
+            }
         }
 
-        public class Doubler : Transformable<int>
+        public class Swapped<X, Y> : Pair<Y, X>
         {
-            public int Transform(int input)
+            public Swapped(Y first, X second) : base(first, second)
             {
-                return input * 2;
+            }
+        }
+
+        public class HoldsAnArray<T> : Holder<T[]>
+        {
+            public HoldsAnArray(T[] value) : base(value)
+            {
             }
         }
         """;
 
     protected override string Preamble { get; } = """
-        var box = new IntBox(42, 7);
-        var renamed = new Renamed<string>("r", 1);
+        var same = new SameName<int>(1);
+        var renamed = new Renamed<string>("a");
+        var twoLevel = new TwoLevel<bool>(true);
+        var swapped = new Swapped<int, string>("a", 1);
+        var holdsArray = new HoldsAnArray<int>([1, 2]);
         """;
 
+    [Fact]
+    public void AnInheritedGenericFieldTakesTheReceiversArgument()
+    {
+        Assert.Equal("Standard.Int32", TypeOf("var probe = same.Value;"));
+    }
+
+    /// <summary>
+    /// The case a name-and-ordinal match answers wrongly: <c>Holder</c>'s parameter is <c>T</c> and
+    /// <c>Renamed</c>'s is <c>U</c>, so matching by name leaves the field an open <c>T</c>. Composing the
+    /// base construction's own mapping is what makes the spelling irrelevant.
+    /// </summary>
+    [Fact]
+    public void ABaseParameterRenamedByTheDeriverStillTakesTheReceiversArgument()
+    {
+        Assert.Equal("Standard.String", TypeOf("var probe = renamed.Value;"));
+    }
+
+    [Fact]
+    public void ARenamedInheritedFieldIsUsableAsItsSubstitutedType()
+    {
+        BindsCleanly("var probe = renamed.Value.Length;");
+    }
+
+    [Fact]
+    public void TwoLevelsOfGenericBaseCompose()
+    {
+        Assert.Equal("Standard.Boolean", TypeOf("var probe = twoLevel.Value;"));
+    }
+
+    /// <summary>
+    /// The base's arguments are REORDERED, so an ordinal match answers the other parameter. Asserted in
+    /// both positions, since swapping them twice would leave one of the two right by accident.
+    /// </summary>
+    [Fact]
+    public void ReorderedBaseArgumentsAreNotMatchedByOrdinal()
+    {
+        Assert.Equal("Standard.String", TypeOf("var probe = swapped.First;"));
+        Assert.Equal("Standard.Int32", TypeOf("var probe = swapped.Second;"));
+    }
+
+    [Fact]
+    public void ABaseArgumentThatIsItselfConstructedSubstitutesThrough()
+    {
+        Assert.Equal("Standard.Array<Int32, unknown>", TypeOf("var probe = holdsArray.Value;"));
+    }
+
+    [Fact]
+    public void AnInheritedMemberNamingNoParameterIsUnaffected()
+    {
+        Assert.Equal("Standard.Int32", TypeOf("var probe = same.Count;"));
+    }
+
     [Theory]
-    [InlineData("var got = box.Get();", "int")]
-    [InlineData("var inner = renamed.Get();", "string")]
-    [InlineData("var swapped = box.With(9);", "Container<int>")]
-    [InlineData("var replaced = renamed.With(\"s\");", "Container<string>")]
-    public void AnInheritedMethodAnswersThroughTheBaseClauseAndTheReceiver(string statement, string expected)
+    [InlineData("var probe = same.Echo(1);", "Standard.Int32")]
+    [InlineData("var probe = renamed.Echo(\"b\");", "Standard.String")]
+    [InlineData("var probe = twoLevel.ReadOwn();", "Standard.Boolean")]
+    public void AnInheritedGenericMethodTakesTheReceiversArgument(string statement, string expected)
     {
-        var call = InitializerOf<InvocationExpression>(statement);
-
-        Assert.NotNull(call.Method);
-        Assert.Equal(expected, TypeDisplay.Mist(call.Type));
+        Assert.Equal(expected, TypeOf(statement));
     }
 
-    [Fact]
-    public void AConformerDeclarationHidesTheSlotItImplements()
+    private string TypeOf(string statement)
     {
-        const string statement = "var doubled = new Doubler().Transform(21);";
-        var call = InitializerOf<InvocationExpression>(statement);
-
-        Assert.Equal("Doubler", call.Method?.DeclaringType?.Name);
-        Assert.Empty(Errors(BuildRun(statement), "MIST_PM_AMBIGUOUS_OVERLOAD"));
+        return SingleLocal(statement).Type.FullyQualifiedName;
     }
 
-    [Fact]
-    public void ABareNameInsideTheDerivedTypeReachesTheInheritedMethod()
+    private void BindsCleanly(string statement)
     {
-        var model = BuildModel("var twice = renamed.Twice();", extraTypes: "", extraPreamble: "", out var diagnostics);
-        var renamed = Assert.IsType<StructType>(model.TypesByFQN["Probe.Renamed<>"]);
-        var twice = renamed.MethodsList.Single(m => m.Name == "Twice");
-        var returned = Assert.IsType<ReturnStatement>(twice.Body!.Statements.Single());
-        var call = Assert.IsType<InvocationExpression>(returned.Value);
-
-        Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
-        Assert.Equal("Get", call.Method?.Name);
-        Assert.Equal("U", TypeDisplay.Mist(call.Type));
+        Assert.Empty(BuildRun(statement).Where(d => d.Severity == DiagnosticSeverity.Error));
     }
 }

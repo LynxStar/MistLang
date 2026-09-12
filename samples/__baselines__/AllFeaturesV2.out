@@ -1923,3 +1923,7 @@ WhenAll<int>=10 WhenAny<int>=5
 IntBox.Get()=42 Extra=7 With(9).Value=9
 Renamed<string>.Get()=r Twice()=r Tag=1 With(s).Value=s
 === Inherited Generic Members Done ===
+=== Generic Abstract Members ===
+First(IntHolder)=5 First(Wrapper<string>)=w
+IntHolder.Same()=5 Wrapper<string>.Same()=w
+=== Generic Abstract Members Done ===

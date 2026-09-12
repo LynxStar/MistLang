@@ -79,3 +79,4 @@ DelegateFuncConversion = { path = "../DelegateFuncConversion" }
 OperatorOverloads = { path = "../OperatorOverloads" }
 StandardSurface = { path = "../StandardSurface" }
 InheritedGenericMembers = { path = "../InheritedGenericMembers" }
+GenericAbstractMembers = { path = "../GenericAbstractMembers" }

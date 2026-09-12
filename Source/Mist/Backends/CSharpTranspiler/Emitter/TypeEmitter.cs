@@ -286,8 +286,9 @@ internal static class TypeEmitter
 
             foreach(var inherited in concrete is null ? [] : DefaultMemberDuplication.For(concrete, methods))
             {
+                using var through = Substituting(inherited.Path);
                 SeparateMember(writer, ref anyEmitted);
-                EmitRestatedDefault(inherited, writer, diagnostics);
+                EmitRestatedDefault(inherited.Method, writer, diagnostics);
             }
 
             if(concrete is not null)

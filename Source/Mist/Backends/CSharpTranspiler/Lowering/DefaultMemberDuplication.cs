@@ -31,51 +31,27 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// </summary>
 internal static class DefaultMemberDuplication
 {
-    public static List<Method> For(ConcreteType type, IReadOnlyList<Method> declared)
+    public static List<RestatedDefault> For(ConcreteType type, IReadOnlyList<Method> declared)
     {
-        var restated = new List<Method>();
+        var restated = new List<RestatedDefault>();
 
-        foreach(var abstractType in Conformances(type))
+        foreach(var (abstractType, path) in Conformances(type))
         {
             foreach(var method in abstractType.MethodsList)
             {
-                if(method.Body is null || NamesATypeParameter(method))
+                if(method.Body is null)
                 {
                     continue;
                 }
 
-                if(!Claims(declared, method) && !Claims(restated, method))
+                if(!Claims(declared, method) && !Claims(restated.ConvertAll(entry => entry.Method), method))
                 {
-                    restated.Add(method);
+                    restated.Add(new RestatedDefault(method, path));
                 }
             }
         }
 
         return restated;
-    }
-
-    /// <summary>
-    /// A signature mentioning one of its abstract's type parameters is skipped, because restating it
-    /// verbatim would put that parameter where the conformer has nothing to bind it to. Closing it
-    /// needs the type arguments applied to the BODY as well, which nothing here can do -- so the
-    /// member is left out rather than emitted as C# that names an unresolvable type.
-    /// </summary>
-    private static bool NamesATypeParameter(Method method)
-    {
-        if(method.ReturnType is TypeParameter)
-        {
-            return true;
-        }
-
-        foreach(var parameter in method.ParametersList)
-        {
-            if(parameter.Type is TypeParameter)
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private static bool Claims(IReadOnlyList<Method> methods, Method method)
@@ -92,35 +68,44 @@ internal static class DefaultMemberDuplication
         return false;
     }
 
-    private static List<AbstractType> Conformances(ConcreteType type)
+    private static List<(AbstractType Type, IReadOnlyList<ConstructedType> Path)> Conformances(ConcreteType type)
     {
-        var found = new List<AbstractType>();
+        var found = new List<(AbstractType, IReadOnlyList<ConstructedType>)>();
         var seen = new HashSet<AbstractType>();
-        var queue = new Queue<MistType>();
+        var queue = new Queue<(MistType Type, IReadOnlyList<ConstructedType> Path)>();
 
         foreach(var declared in type.BaseAbstractTypes)
         {
-            queue.Enqueue(declared);
+            queue.Enqueue((declared, []));
         }
 
         while(queue.Count > 0)
         {
-            var current = queue.Dequeue();
-            var definition = current is ConstructedType constructed ? constructed.Definition : current;
+            var (current, path) = queue.Dequeue();
+            var constructed = current as ConstructedType;
+            var definition = constructed?.Definition ?? current;
+            var reached = constructed is null ? path : [.. path, constructed];
 
             if(definition is not AbstractType abstractType || !seen.Add(abstractType))
             {
                 continue;
             }
 
-            found.Add(abstractType);
+            found.Add((abstractType, reached));
 
             foreach(var inherited in abstractType.BaseAbstractTypes)
             {
-                queue.Enqueue(inherited);
+                queue.Enqueue((inherited, reached));
             }
         }
 
         return found;
     }
 }
+
+/// <summary>
+/// A default restated into a conformer, with the constructed abstracts it was reached through --
+/// the substitution its signature and body are spelled under, since the abstract's own parameters
+/// are not in scope in the conformer and its arguments are.
+/// </summary>
+internal sealed record RestatedDefault(Method Method, IReadOnlyList<ConstructedType> Path);

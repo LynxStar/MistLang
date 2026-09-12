@@ -97,5 +97,6 @@ public class Program
         OperatorOverloads.Program.RunDemo();
         StandardSurface.Program.RunDemo();
         InheritedGenericMembers.Program.RunDemo();
+        GenericAbstractMembers.Program.RunDemo();
     }
 }

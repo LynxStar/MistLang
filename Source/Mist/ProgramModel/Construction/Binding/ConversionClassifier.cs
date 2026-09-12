@@ -170,7 +170,7 @@ internal static class ConversionClassifier
             && DelegateShape.SameShape(source, target);
     }
 
-    private static IEnumerable<IMistType> Bases(IMistType type)
+    internal static IEnumerable<IMistType> Bases(IMistType type)
     {
         var (declaring, substitution) = type switch
         {

@@ -1,0 +1,66 @@
+using Standard;
+
+namespace GenericAbstractMembers;
+
+// A generic abstract's members reached through a conformer. Type-argument inference reads T off the
+// base an argument conforms to, and a default with a body is restated into the conformer with T
+// substituted in its signature and its body alike. Classic infers the first and emits the second with
+// `T held` where no T is in scope, so this sample is banked on AllFeaturesV2 alone.
+public abstract Holder<T>
+{
+    T Item();
+
+    T Same()
+    {
+        T held = Item();
+        return held;
+    }
+}
+
+public class IntHolder : Holder<int>
+{
+    public int Item()
+    {
+        return 5;
+    }
+}
+
+public class Wrapper<T> : Holder<T>
+{
+    private T held;
+
+    public Wrapper(T held)
+    {
+        this.held = held;
+    }
+
+    public T Item()
+    {
+        return held;
+    }
+}
+
+public class Program
+{
+    public static T First<T>(Holder<T> holder)
+    {
+        return holder.Item();
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Generic Abstract Members ===");
+
+        var ints = new IntHolder();
+        var words = new Wrapper<string>("w");
+        Console.WriteLine($"First(IntHolder)={First(ints)} First(Wrapper<string>)={First(words)}");
+        Console.WriteLine($"IntHolder.Same()={ints.Same()} Wrapper<string>.Same()={words.Same()}");
+
+        Console.WriteLine("=== Generic Abstract Members Done ===");
+    }
+}

@@ -149,17 +149,15 @@ internal static class TypeArgumentInference
             return;
         }
 
-        if(declared is not ConstructedType declaredConstructed || actual is not ConstructedType actualConstructed)
+        if(declared is not ConstructedType declaredConstructed)
         {
             return;
         }
 
-        var sameDefinition = string.Equals(
-            declaredConstructed.Definition.FullyQualifiedName,
-            actualConstructed.Definition.FullyQualifiedName,
-            StringComparison.Ordinal);
-
-        if(!sameDefinition || declaredConstructed.TypeArguments.Count != actualConstructed.TypeArguments.Count)
+        // The argument's own construction, or the one its base chain reaches: `F<T>(Holder<T>)`
+        // called with an IntHolder that conforms to Holder<int> learns T from that base.
+        if(Construction(actual, declaredConstructed.Definition) is not { } actualConstructed
+            || declaredConstructed.TypeArguments.Count != actualConstructed.TypeArguments.Count)
         {
             return;
         }
@@ -175,6 +173,31 @@ internal static class TypeArgumentInference
     /// passed over rather than refused -- including where the receiver was not constructed and so left
     /// it open.
     /// </summary>
+    private static ConstructedType? Construction(IMistType actual, IMistType definition)
+    {
+        var pending = new Queue<IMistType>();
+        pending.Enqueue(actual);
+
+        while(pending.Count > 0)
+        {
+            var current = pending.Dequeue();
+
+            if(current is ConstructedType constructed
+                && string.Equals(
+                    constructed.Definition.FullyQualifiedName, definition.FullyQualifiedName, StringComparison.Ordinal))
+            {
+                return constructed;
+            }
+
+            foreach(var baseType in ConversionClassifier.Bases(current))
+            {
+                pending.Enqueue(baseType);
+            }
+        }
+
+        return null;
+    }
+
     private static void Record(
         TypeParameter parameter, IMistType actual, IReadOnlyList<TypeParameter> parameters, IMistType?[] inferred)
     {

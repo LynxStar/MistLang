@@ -652,6 +652,10 @@ rule Primary
     | DEFAULT                                                                      as DefaultLiteralExpression
     | LEFT_BRACKET elements:ArrayElementList? RIGHT_BRACKET                         as ArrayLiteralExpression
     | name:IDENTIFIER typeArgs:TypeArgumentList LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS as GenericInvocationExpression
+    // A member named through a constructed generic, `Task<int>.WhenAll(...)`. Committed to only when
+    // `>` is followed by `.name`, which no comparison chain can be, so `a < b > .c` is never read as
+    // one -- the same token that disambiguates the two readings in C#.
+    | type:QualifiedIdentifier typeArgs:TypeArgumentList DOT member:IDENTIFIER   as GenericTypeMemberAccessExpression
     | name:IDENTIFIER                                                              as IdentifierExpression
     | typeRef:TypeReference                                                        as TypeLiteralExpression
     ;

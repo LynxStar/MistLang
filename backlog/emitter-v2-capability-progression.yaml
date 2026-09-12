@@ -8513,6 +8513,31 @@ capabilities:
       spelled `.GetAwaiter().GetResult()` exactly as the emitter spells an await that cannot be real: a
       Drop call registers no await use, so nothing makes its caller async, and `await` would not
       compile in one that is not. samples/StandardSurface now calls it (Drop=joined).
+
+      THE GENERIC COMBINATORS ARE NOW REACHABLE (2026-09-12), because the grammar names a member
+      through an instantiation: `Task<int>.WhenAll(pending)`. One Primary alternative,
+      GenericTypeMemberAccessExpression, committed to only when `>` is followed by `.name`, which no
+      comparison chain can be -- the same token that disambiguates the two readings in C# -- so it
+      needs no predicate the PEG does not have, and the reachability pass stays quiet because the
+      qualified form is not a prefix of the generic-call alternative before it. The binder reads it as
+      the member access it is on a reference to the constructed type, so a static resolves with the
+      instantiation's substitution (`Box<int>.Make(3)` is an int) and the existing invocation path
+      takes over. Classic parses the form too, the grammar being shared, and types it unknown, which
+      is a diagnostic rather than a crash. samples/StandardSurface calls WhenAll and WhenAny at
+      TResult = int (WhenAll<int>=10 WhenAny<int>=5), which exercises the generic wrappers that were
+      emitted and unreached until now. THE WRAPPERS ARE TIGHTENED: only the void WhenAll is async,
+      since it has a Void[] to build; the generic WhenAll is a pass-through and both WhenAnys are
+      TaskExtensions.Unwrap. And a combinator whose result is DISCARDED -- `await Task.WhenAll(pending);`
+      in statement position -- calls the CLR directly, since nothing observes the declared shape the
+      wrapper exists to supply, and __Tasks.g.cs is not emitted for such a program at all.
+
+      THE NESTED HALF IS REFUSED, NOT SUPPLIED. `Box<int>.Wrapper.Info()` parses now, binds the member
+      access, and the nested type resolves to its DEFINITION, because the model holds no nested type of
+      an instantiation -- so the access would emit `Box<T>.Wrapper` and fail in Roslyn with T not in
+      scope. It is refused at binding with MIST_PM_NESTED_TYPE_THROUGH_INSTANTIATION, naming the type
+      to reach it from inside. Carrying the enclosing type arguments on a nested type is order 66's
+      unfinished half, and samples/NestedScoping's note about `Box<int>.DemoWrapper()` describes a
+      shape that now works for a STATIC and is still refused for the nested type.
     tasks:
       - >
         AN INTRINSIC ENUMERATOR CANNOT BE NAMED. `var e = xs.GetEnumerator(); e.MoveNext();
@@ -8532,12 +8557,12 @@ capabilities:
         completes the task on the calling thread, safe here only because nothing installs a
         synchronization context -- the reasoning BodyEmitter records for a sync lambda.
       - >
-        A static on a generic type is reachable only at the instantiation a name gives, so
-        Task.WhenAll can be called only at TResult = void -- `Task` being an alias for Task<void> -- and
-        `Task<int>.WhenAll` does not parse. Closing it is the grammar's work (the constructed-generic
-        member access already under uncovered_constructs), or the binder's if a static is to be found
-        across the whole generic family. Nothing here is the stdlib's to change; the emitter's half is
-        delivered.
+        A nested type cannot be named through an instantiation of its enclosing generic:
+        `Box<int>.Wrapper` is refused (MIST_PM_NESTED_TYPE_THROUGH_INSTANTIATION) because the model has
+        no type that IS Wrapper under Box<int> -- a ConstructedType's arguments belong to its own
+        definition's parameters, and Wrapper declares none. Carrying the enclosing instantiation on a
+        nested type, substituting it into the nested type's members, and spelling it as `Box<int>.Wrapper`
+        is one piece of work across the interner, substitution and TypeNameEmitter.
       - An intrinsic type's ORDINARY members are dropped with the type. The standard-library spec's
         Req 5.12 admits them -- Mist-bodied members composing the intrinsics on a backend-backed type,
         `Int32.Abs()` over the intrinsic `+` and `<` being the shape -- and none exists in Standard
@@ -10177,15 +10202,15 @@ uncovered_constructs:
 
   - construct: A nested type reached through a CONSTRUCTED generic
     what: >
-      `Box<int>.Wrapper.Info()` -- naming a nested type through an instantiation of its generic
-      enclosing type. MIST_PARSE_INCOMPLETE on BOTH pipelines, measured while landing order 66, so it
-      is a gap in the SHARED grammar rather than in either backend. Not a node kind the census counted;
-      recorded here because it is the one nested-type shape order 66 cannot reach, and because a reader
-      of that order would otherwise expect it to work.
-      NestedScoping dodges it by naming `Wrapper` only from inside `Box<T>`, where the simple name
-      suffices. That is also the only position from which a definition CAN be named, so the parse gap and
-      the emitter's respell-with-parameter-names rule are two views of the same limit.
-    disposition: needs-sample
+      A member named through an instantiation of a generic type: `Task<int>.WhenAll(...)`,
+      `Box<int>.Wrapper.Info()`. Was MIST_PARSE_INCOMPLETE on BOTH pipelines until 2026-09-12, when the
+      grammar gained GenericTypeMemberAccessExpression (order 186's evidence has the disambiguation).
+      A STATIC through an instantiation now binds and runs, and samples/StandardSurface covers it with
+      the generic combinators. A NESTED TYPE through one is refused at binding
+      (MIST_PM_NESTED_TYPE_THROUGH_INSTANTIATION), because the model holds no nested type of an
+      instantiation; that is the piece order 66 still owes, recorded as a task on order 186.
+      NestedScoping names `Wrapper` only from inside `Box<T>`, where the simple name suffices.
+    disposition: covered
 
   - construct: OperatorMemberMemberDeclarationNode
     what: User-declared operator overloads

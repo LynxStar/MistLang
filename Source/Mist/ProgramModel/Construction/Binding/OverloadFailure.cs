@@ -37,8 +37,9 @@ internal static class OverloadFailure
         // Keyed on ErrorExpression rather than on ErrorType because the two sentinels mean opposite
         // things here -- IdentifierBinder.ReportUnresolved records the distinction, and an
         // UnresolvedExpression is the compiler being unfinished with nothing yet reported, which must
-        // still reach the message it has not had.
-        if(arguments.Any(argument => argument is ErrorExpression))
+        // still reach the message it has not had. A call or an access ON a failed receiver is the same
+        // one mistake, and stays in the model as what it is so that its arguments are still analysed.
+        if(arguments.Any(Failed))
         {
             return;
         }
@@ -138,5 +139,16 @@ internal static class OverloadFailure
         var names = candidates[0].TypeParametersList.Select(parameter => $"'{parameter.Name}'");
 
         return string.Join(", ", names);
+    }
+
+    private static bool Failed(Expression argument)
+    {
+        return argument switch
+        {
+            ErrorExpression => true,
+            InvocationExpression call => Failed(call.Receiver),
+            MemberAccessExpression access => Failed(access.Receiver),
+            _ => false,
+        };
     }
 }

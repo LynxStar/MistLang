@@ -1917,4 +1917,5 @@ IsMatch=True IsFullMatch=True Pattern=^h.*o$
 Delay=3 Yield=4
 WhenAll=2 WhenAny=1
 Drop=joined
+WhenAll<int>=10 WhenAny<int>=5
 === Standard Surface Done ===

@@ -1021,4 +1021,9 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "This anonymous type member has no name. Write one with 'Name = ', or project something that ends in a name.");
 
+    public static readonly DiagnosticDescriptor NestedTypeThroughInstantiation = new(
+        new DiagnosticId("MIST_PM_NESTED_TYPE_THROUGH_INSTANTIATION"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "Nested type '{0}' cannot be named through an instantiation of '{1}'. Name it from inside '{1}', where the enclosing type parameters are in scope.");
 }

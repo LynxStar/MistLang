@@ -247,7 +247,16 @@ internal static class BodyEmitter
         {
             case ExpressionStatement exprStmt:
                 writer.Write("");
-                EmitExpression(exprStmt.Expression, writer, diagnostics);
+
+                if(DiscardedCombinator(exprStmt.Expression, diagnostics) is { } direct)
+                {
+                    writer.Append(blockingAwaits ? $"{direct}.GetAwaiter().GetResult()" : $"await {direct}");
+                }
+                else
+                {
+                    EmitExpression(exprStmt.Expression, writer, diagnostics);
+                }
+
                 writer.Append(";");
                 writer.AppendLine();
                 break;
@@ -1504,6 +1513,14 @@ internal static class BodyEmitter
         var scratch = new CSharpWriter();
         EmitExpression(expression, scratch, diagnostics);
         return scratch.ToString();
+    }
+
+    private static string? DiscardedCombinator(Expression statement, DiagnosticBag diagnostics)
+    {
+        return statement is AwaitExpression { Operand: InvocationExpression { Method: { } callee, Arguments: [{ } tasks] } }
+            && TaskCombinators.Combines(callee)
+            ? TaskCombinators.Discarded(callee, Render(tasks, diagnostics))
+            : null;
     }
 
     private static string RenderAt(Expression expression, int operatorPrecedence, DiagnosticBag diagnostics)

@@ -45,6 +45,25 @@ public class Program
         return "joined";
     }
 
+    private static async int Compute()
+    {
+        await Task.Delay(0);
+        return 5;
+    }
+
+    private static async int GatheredValues()
+    {
+        Task<int>[] pending = [Compute(), Compute()];
+        var values = await Task<int>.WhenAll(pending);
+        return values[0] + values[1];
+    }
+
+    private static async int RacedValue()
+    {
+        Task<int>[] pending = [Compute(), Compute()];
+        return await Task<int>.WhenAny(pending);
+    }
+
     public static void Main(string[] args)
     {
         RunDemo();
@@ -132,6 +151,7 @@ public class Program
         Console.WriteLine($"Delay={Delayed()} Yield={Yielded()}");
         Console.WriteLine($"WhenAll={Gathered()} WhenAny={Raced()}");
         Console.WriteLine($"Drop={Joined()}");
+        Console.WriteLine($"WhenAll<int>={GatheredValues()} WhenAny<int>={RacedValue()}");
 
         Console.WriteLine("=== Standard Surface Done ===");
     }

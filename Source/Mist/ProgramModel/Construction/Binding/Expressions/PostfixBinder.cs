@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Scopes;
@@ -73,6 +74,27 @@ internal static class PostfixBinder
             context.Resolver.ResolveTypeArguments(node.TypeArgs, ctx.Scope),
             ctx,
             context);
+    }
+
+    internal static Expression BindGenericTypeMemberAccess(
+        GenericTypeMemberAccessExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
+    {
+        var typeName = QualifiedNameHelper.Build(node.Type);
+        var arity = 1 + node.TypeArgs.TypeArguments.Length;
+        var definition = context.Resolver.ResolveGenericDefinition(typeName, arity, ctx.Scope, node);
+
+        if(definition is ErrorType)
+        {
+            return new ErrorExpression(node);
+        }
+
+        var typeArgs = context.Resolver.BindPack(
+            definition, context.Resolver.ResolveTypeArguments(node.TypeArgs, ctx.Scope), node);
+        var type = definition is TypeAlias alias
+            ? context.Resolver.ExpandAlias(alias, typeArgs)
+            : context.ProgramModel.TypeInterner.GetOrCreateConstructedType(definition, typeArgs);
+
+        return BindMemberAccess(node, new TypeReferenceExpression(node, type), node.Member.Lexeme, ctx, context);
     }
 
     private static Expression BindPostfixSuffix(PostfixSuffixNode suffix, Expression receiver, BindingContext ctx, BuilderContext context)
@@ -440,6 +462,14 @@ internal static class PostfixBinder
         // reaches C# only as a member access emitting `arr.Length` -- a type reference drops the receiver.
         if(found is TypeResult { Type: DeclaredType nested })
         {
+            if(receiver is TypeReferenceExpression { ReferencedType: ConstructedType instantiation })
+            {
+                context.Diagnostics.ReportAtNode(
+                    ProgramModelDiagnostics.NestedTypeThroughInstantiation, node, null,
+                    nested.Name, TypeDisplay.Mist(instantiation));
+                return new ErrorExpression(node);
+            }
+
             return new TypeReferenceExpression(node, nested);
         }
 

@@ -89,6 +89,8 @@ internal static class ExpressionBinder
             IdentifierExpressionPrimaryNode identifier => IdentifierBinder.BindIdentifier(identifier, ctx, context),
             GenericInvocationExpressionPrimaryNode genericInvocation => PostfixBinder.BindGenericInvocation(
                 genericInvocation, ctx, context),
+            GenericTypeMemberAccessExpressionPrimaryNode constructedAccess => PostfixBinder.BindGenericTypeMemberAccess(
+                constructedAccess, ctx, context),
 
             ParenthesizedExpressionPrimaryNode paren => BindExpression(paren.Inner, ctx, context),
             ArrayCreationExpressionPrimaryNode arrayCreation => BindArrayCreation(arrayCreation, ctx, context),

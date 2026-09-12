@@ -41,6 +41,15 @@ internal static class TaskCombinators
         return $"MistTasks.{callee.Name}({arguments[0]})";
     }
 
+    /// <summary>
+    /// The CLR call itself, for a result nothing reads: the wrapper exists only to supply the declared
+    /// shape, and a value that is discarded never observes one.
+    /// </summary>
+    public static string Discarded(Method callee, string argument)
+    {
+        return $"System.Threading.Tasks.Task.{callee.Name}({argument})";
+    }
+
     private static bool IsTask(MemberType? declaring)
     {
         return declaring is not null
@@ -65,26 +74,28 @@ internal static class TaskCombinators
 
             writer.WriteBlankLine();
             writer.WriteLine(
-                "public static async System.Threading.Tasks.Task<T[]> WhenAll<T>(System.Threading.Tasks.Task<T>[] tasks)");
+                "public static System.Threading.Tasks.Task<T[]> WhenAll<T>(System.Threading.Tasks.Task<T>[] tasks)");
             using(writer.Block())
             {
-                writer.WriteLine("return await System.Threading.Tasks.Task.WhenAll(tasks);");
+                writer.WriteLine("return System.Threading.Tasks.Task.WhenAll(tasks);");
             }
 
             writer.WriteBlankLine();
             writer.WriteLine(
-                "public static async System.Threading.Tasks.Task WhenAny(System.Threading.Tasks.Task[] tasks)");
+                "public static System.Threading.Tasks.Task WhenAny(System.Threading.Tasks.Task[] tasks)");
             using(writer.Block())
             {
-                writer.WriteLine("await await System.Threading.Tasks.Task.WhenAny(tasks);");
+                writer.WriteLine(
+                    "return System.Threading.Tasks.TaskExtensions.Unwrap(System.Threading.Tasks.Task.WhenAny(tasks));");
             }
 
             writer.WriteBlankLine();
             writer.WriteLine(
-                "public static async System.Threading.Tasks.Task<T> WhenAny<T>(System.Threading.Tasks.Task<T>[] tasks)");
+                "public static System.Threading.Tasks.Task<T> WhenAny<T>(System.Threading.Tasks.Task<T>[] tasks)");
             using(writer.Block())
             {
-                writer.WriteLine("return await await System.Threading.Tasks.Task.WhenAny(tasks);");
+                writer.WriteLine(
+                    "return System.Threading.Tasks.TaskExtensions.Unwrap(System.Threading.Tasks.Task.WhenAny(tasks));");
             }
         }
     }

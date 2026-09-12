@@ -327,6 +327,22 @@ capabilities:
     evidence: >
       TypeEmitter unconditionally emits a System import. Console, Convert and String
       intrinsics from Source/Standard/Bootstrap bind and map onto CLR types.
+
+      THE IMPORT IS GONE (2026-09-12), and with it the bare names it existed for. An intrinsic
+      Standard type is one the backend SUBSTITUTES a CLR type for, and a substituted name is the
+      emitter's to spell, not the source's using directives to cover: TypeNameEmitter had written
+      `Console`, `Math`, `Span` and every other non-keyword intrinsic by its bare Standard name and
+      relied on a `using System;` slammed onto every file, while dropping the file's own `using
+      Standard;` on the claim that Standard has no C# counterpart -- false, since Standard is
+      emitted like any Mist source (out/Standard/IClonable.cs, __Void.g.cs). Now ClrSpelling holds
+      the one table from an intrinsic Standard type to its CLR name and metadata name; MapMemberType,
+      LengthErasure, TaskProjection, ClrProjection, RegexLowering and IntrinsicSupply's audit all
+      read it, and MapMemberType has no bare-name fallback left. EmitUsings writes exactly the Mist
+      file's directives plus the manifest's globals, Standard included and nothing added. Measured
+      on AllFeaturesV2: 1842 `System.Console.` and no bare `Console.`, every file's usings equal to
+      its source's, stdout byte-identical. ClrSpellingTests (Tier 3) holds the table against the
+      real Standard in both directions, so an intrinsic type with no spelling fails a test rather than
+      a user's build. The 367 book snippets regenerated once for the full names.
     unlocks: [Simpliest]
 
   - id: literals-primitive

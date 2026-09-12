@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -15,12 +15,12 @@ public class Point
 
     public int DistanceFromOrigin()
     {
-        return Math.Abs(this.x) + Math.Abs(this.y);
+        return System.Math.Abs(this.x) + System.Math.Abs(this.y);
     }
 
     public static void Main(string[] args)
     {
         Snippet.Point p = new Snippet.Point(3, 4);
-        Console.WriteLine($"Distance: {p.DistanceFromOrigin()}");
+        System.Console.WriteLine($"Distance: {p.DistanceFromOrigin()}");
     }
 }

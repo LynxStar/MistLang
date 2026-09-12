@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -10,8 +10,8 @@ public class Program
         int wc = greeting.WordCount();
         string upper = greeting.Uppercase();
         Snippet.Greeting repeated = greeting.Repeat(2);
-        Console.WriteLine(wc);
-        Console.WriteLine(upper);
+        System.Console.WriteLine(wc);
+        System.Console.WriteLine(upper);
     }
 
     public Program()

@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -28,7 +28,7 @@ public class IClonableDemo
     {
         Snippet.Tag shared = new Snippet.Tag(7);
         Snippet.Tag fresh = shared.Clone();
-        Console.WriteLine($"source={shared.Describe()}, owned clone={fresh.Describe()}");
+        System.Console.WriteLine($"source={shared.Describe()}, owned clone={fresh.Describe()}");
     }
 
     public IClonableDemo()

@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -8,13 +8,13 @@ public class Program
     {
         int day = 3;
         string dayName = day switch { 1 => "Monday", 2 => "Tuesday", 3 => "Wednesday", 4 => "Thursday", 5 => "Friday", var _ => "Weekend" };
-        Console.WriteLine($"Day {day} is {dayName}");
+        System.Console.WriteLine($"Day {day} is {dayName}");
         string command = "quit";
         string response = command switch { "start" => "Starting...", "stop" => "Stopping...", "quit" => "Goodbye!", var _ => "Unknown command" };
-        Console.WriteLine($"Command '{command}' => {response}");
+        System.Console.WriteLine($"Command '{command}' => {response}");
         bool isActive = true;
         string status = isActive switch { true => "Active", false => "Inactive" };
-        Console.WriteLine($"isActive={isActive} => {status}");
+        System.Console.WriteLine($"isActive={isActive} => {status}");
     }
 
     public Program()

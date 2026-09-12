@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -31,11 +31,11 @@ public class Program
         {
             if (maybeDog is Snippet.Dog d)
             {
-                Console.WriteLine($"Got a dog: {d.Breed}");
+                System.Console.WriteLine($"Got a dog: {d.Breed}");
             }
             else
             {
-                Console.WriteLine("Not a dog");
+                System.Console.WriteLine("Not a dog");
             }
         }
     }

@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -30,7 +30,7 @@ public class OwnedDemo
     {
         Snippet.Pair p = new Snippet.Pair(3, 7);
         p.SetX(100);
-        Console.WriteLine($"owned pair={p.Describe()}");
+        System.Console.WriteLine($"owned pair={p.Describe()}");
     }
 
     public OwnedDemo()

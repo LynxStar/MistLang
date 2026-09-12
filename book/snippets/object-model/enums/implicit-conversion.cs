@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -10,10 +10,10 @@ public class Program
         string dirValue = Direction.North;
         byte colorValue = Color.Red;
         Snippet.Vec2 upVec = CardinalDir.Up;
-        Console.WriteLine($"HttpStatus.Ok as int = {statusValue}");
-        Console.WriteLine($"Direction.North as string = {dirValue}");
-        Console.WriteLine($"Color.Red as byte = {colorValue}");
-        Console.WriteLine($"CardinalDir.Up as Vec2 = {upVec.Describe()}");
+        System.Console.WriteLine($"HttpStatus.Ok as int = {statusValue}");
+        System.Console.WriteLine($"Direction.North as string = {dirValue}");
+        System.Console.WriteLine($"Color.Red as byte = {colorValue}");
+        System.Console.WriteLine($"CardinalDir.Up as Vec2 = {upVec.Describe()}");
     }
 
     public Program()

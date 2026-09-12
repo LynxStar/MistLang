@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -9,7 +9,7 @@ public class Program
         int i = default(int);
         bool b = default(bool);
         string s = "";
-        Console.WriteLine($"int={i} bool={b} string={s}");
+        System.Console.WriteLine($"int={i} bool={b} string={s}");
     }
 
     public Program()

@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippets;
 
@@ -13,7 +13,7 @@ public class Connection
 
     public void Drop()
     {
-        Console.WriteLine($"Connection({Host}) closed");
+        System.Console.WriteLine($"Connection({Host}) closed");
     }
 
     public string GetHost()
@@ -28,7 +28,7 @@ public class Program
     {
         try
         {
-            Console.WriteLine($"Sending on {conn.GetHost()}");
+            System.Console.WriteLine($"Sending on {conn.GetHost()}");
         }
         finally
         {
@@ -38,7 +38,7 @@ public class Program
 
     public static Snippets.Connection Upgrade(Snippets.Connection conn)
     {
-        Console.WriteLine($"Upgrading {conn.GetHost()}");
+        System.Console.WriteLine($"Upgrading {conn.GetHost()}");
         return conn;
     }
 

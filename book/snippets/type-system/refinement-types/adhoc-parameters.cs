@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -29,9 +29,9 @@ public class Program
     public static void Main(string[] args)
     {
         string result = Snippet.Validator.Process(42);
-        Console.WriteLine(result);
+        System.Console.WriteLine(result);
         string range = Snippet.Validator.Range(5, 500);
-        Console.WriteLine(range);
+        System.Console.WriteLine(range);
     }
 
     public Program()

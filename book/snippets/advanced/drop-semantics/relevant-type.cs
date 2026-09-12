@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippets;
 
@@ -20,12 +20,12 @@ public class Logger
             return;
         }
         this.Flushed = true;
-        Console.WriteLine($"Logger({Name}) flushed");
+        System.Console.WriteLine($"Logger({Name}) flushed");
     }
 
     public void Log(string msg)
     {
-        Console.WriteLine($"[{Name}] {msg}");
+        System.Console.WriteLine($"[{Name}] {msg}");
     }
 }
 

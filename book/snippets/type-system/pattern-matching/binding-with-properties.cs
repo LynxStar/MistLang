@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -30,10 +30,10 @@ public class Program
         {
             if (shape is Snippet.Circle c)
             {
-                Console.WriteLine($"Narrowed to Circle, radius = {c.Radius}");
+                System.Console.WriteLine($"Narrowed to Circle, radius = {c.Radius}");
                 if (c is { Radius: > 5 })
                 {
-                    Console.WriteLine("It's a big circle");
+                    System.Console.WriteLine("It's a big circle");
                 }
             }
         }

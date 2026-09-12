@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Enums;
 
@@ -57,9 +57,9 @@ public class Program
     public static void Main()
     {
         string perm = Permission.Read;
-        Console.WriteLine(perm);
+        System.Console.WriteLine(perm);
         string env = Environment.Staging;
-        Console.WriteLine(env);
+        System.Console.WriteLine(env);
     }
 
     public Program()

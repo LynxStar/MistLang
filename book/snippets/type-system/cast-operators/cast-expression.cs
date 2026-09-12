@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -8,7 +8,7 @@ public class Program
     {
         Snippet.Celsius body = new Snippet.Celsius(37.0);
         Snippet.Kelvin bodyK = ((Snippet.Kelvin)body);
-        Console.WriteLine(bodyK.Describe());
+        System.Console.WriteLine(bodyK.Describe());
     }
 
     public Program()

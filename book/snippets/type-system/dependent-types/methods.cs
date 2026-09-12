@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -7,7 +7,7 @@ public class DependentMethods
     public static void Repeat<TN>(string text)
         where TN : IConstInt
     {
-        Console.WriteLine($"  Repeat<{TN.Value}>: {text}");
+        System.Console.WriteLine($"  Repeat<{TN.Value}>: {text}");
     }
 
     public static string Process<TN>(Snippet.FixedBuffer<TN> buf)

@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -9,19 +9,19 @@ public class Program
         {
             if (value.AsInt32OrNull is int n)
             {
-                Console.WriteLine($"  int: {n}");
+                System.Console.WriteLine($"  int: {n}");
             }
         }
         {
             if (value.AsStringOrNull is string s)
             {
-                Console.WriteLine($"  string: {s}");
+                System.Console.WriteLine($"  string: {s}");
             }
         }
         {
             if (value.AsBooleanOrNull is bool b)
             {
-                Console.WriteLine($"  bool: {b}");
+                System.Console.WriteLine($"  bool: {b}");
             }
         }
     }

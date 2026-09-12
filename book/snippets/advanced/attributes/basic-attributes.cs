@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace Snippet;
@@ -18,7 +19,7 @@ internal class Service
     [System.ObsoleteAttribute("use RunV2")]
     public void Run()
     {
-        Console.WriteLine("Service.Run called");
+        System.Console.WriteLine("Service.Run called");
     }
 
     public Service()

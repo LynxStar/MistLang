@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -39,9 +39,9 @@ public class Program
             MistContext.Push<Snippet.Config>(cfg);
             try
             {
-                Console.WriteLine(cfg.Value);
+                System.Console.WriteLine(cfg.Value);
                 string result = Snippet.Consumers.GetConfig();
-                Console.WriteLine(result);
+                System.Console.WriteLine(result);
             }
             finally
             {

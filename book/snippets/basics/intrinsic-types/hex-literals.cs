@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 int hex = 255;
-Console.WriteLine($"hex={hex}");
+System.Console.WriteLine($"hex={hex}");

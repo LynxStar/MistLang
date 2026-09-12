@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -29,11 +29,11 @@ public class ThisTierInferenceDemo
     public static void Run()
     {
         Snippet.Account acct = new Snippet.Account("Alice", 100);
-        Console.WriteLine($"summary={acct.Summary()}");
+        System.Console.WriteLine($"summary={acct.Summary()}");
         acct.Deposit(50);
-        Console.WriteLine($"after deposit={acct.Summary()}");
+        System.Console.WriteLine($"after deposit={acct.Summary()}");
         Snippet.Account shared = new Snippet.Account("Bob", 200);
-        Console.WriteLine($"shared summary={shared.Summary()}");
+        System.Console.WriteLine($"shared summary={shared.Summary()}");
     }
 
     public ThisTierInferenceDemo()

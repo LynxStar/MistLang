@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 (int, string) pair = (42, "forty-two");
-Console.WriteLine($"pair.Item1={pair.Item1} pair.Item2={pair.Item2}");
+System.Console.WriteLine($"pair.Item1={pair.Item1} pair.Item2={pair.Item2}");

@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -29,9 +29,9 @@ public class Program
             MistContext.Push<string>(greeting);
             try
             {
-                Console.WriteLine(greeting);
+                System.Console.WriteLine(greeting);
                 string result = Snippet.Greeter.GetGreeting();
-                Console.WriteLine(result);
+                System.Console.WriteLine(result);
             }
             finally
             {

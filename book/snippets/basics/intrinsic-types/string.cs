@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 string greeting = "Hello, Mist!";
-Console.WriteLine(greeting);
+System.Console.WriteLine(greeting);

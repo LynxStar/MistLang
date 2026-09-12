@@ -1,3 +1,4 @@
+using Standard;
 using System;
 using System.ComponentModel.DataAnnotations;
 
@@ -13,7 +14,7 @@ internal class Validator
     [System.ObsoleteAttribute("use ValidateV2", true)]
     public void Validate()
     {
-        Console.WriteLine("Validating");
+        System.Console.WriteLine("Validating");
     }
 
     public Validator()
@@ -33,7 +34,7 @@ public class Program
     public static void Main(string[] args)
     {
         Snippet.Validator v = new Snippet.Validator();
-        Console.WriteLine($"Score field exists: true");
+        System.Console.WriteLine($"Score field exists: true");
     }
 
     public Program()

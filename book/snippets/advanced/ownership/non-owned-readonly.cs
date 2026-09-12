@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -27,7 +27,7 @@ public class NonOwnedReadonlyDemo
     public static void Run()
     {
         Snippet.Counter c = new Snippet.Counter(10);
-        Console.WriteLine($"readonly view={c.Describe()}");
+        System.Console.WriteLine($"readonly view={c.Describe()}");
     }
 
     public NonOwnedReadonlyDemo()

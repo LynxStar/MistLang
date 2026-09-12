@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -52,7 +52,7 @@ public class Program
     {
         Snippet.RangeIterator iter = new Snippet.RangeIterator();
         Snippet.RangeIterator.Cursor cursor = iter.CreateCursor(42);
-        Console.WriteLine($"cursor.Position={cursor.Position}");
+        System.Console.WriteLine($"cursor.Position={cursor.Position}");
     }
 
     public Program()

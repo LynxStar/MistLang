@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -8,9 +8,9 @@ public class Program
     {
         System.Func<int, bool> isEven = (int x) => x % 2 == 0;
         System.Func<int, string> toStr = (int x) => $"val={x}";
-        Console.WriteLine($"isEven(4)={isEven(4)}");
-        Console.WriteLine($"isEven(7)={isEven(7)}");
-        Console.WriteLine($"toStr(99)={toStr(99)}");
+        System.Console.WriteLine($"isEven(4)={isEven(4)}");
+        System.Console.WriteLine($"isEven(7)={isEven(7)}");
+        System.Console.WriteLine($"toStr(99)={toStr(99)}");
     }
 
     public Program()

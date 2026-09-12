@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -7,11 +7,11 @@ public class Program
     public static void Main(string[] args)
     {
         object u = 42;
-        Console.WriteLine(u);
+        System.Console.WriteLine(u);
         u = "hello";
-        Console.WriteLine(u);
+        System.Console.WriteLine(u);
         u = true;
-        Console.WriteLine(u);
+        System.Console.WriteLine(u);
     }
 
     public Program()

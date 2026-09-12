@@ -1,4 +1,4 @@
-using System;
+using Standard;
 using System.Text;
 
 namespace Snippet;
@@ -8,9 +8,9 @@ public class Program
     public static void Main(string[] args)
     {
         byte[] bytes = System.Text.Encoding.UTF8.GetBytes("Hello");
-        Console.WriteLine($"length={bytes.Length}");
+        System.Console.WriteLine($"length={bytes.Length}");
         string text = System.Text.Encoding.UTF8.GetString(bytes);
-        Console.WriteLine($"text={text}");
+        System.Console.WriteLine($"text={text}");
     }
 
     public Program()

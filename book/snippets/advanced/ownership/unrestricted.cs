@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -29,7 +29,7 @@ public class UnrestrictedDemo
         Snippet.Counter c1 = new Snippet.Counter(10);
         Snippet.Counter c2 = c1;
         c2.Increment();
-        Console.WriteLine($"c1={c1.Describe()}, c2={c2.Describe()}");
+        System.Console.WriteLine($"c1={c1.Describe()}, c2={c2.Describe()}");
     }
 
     public UnrestrictedDemo()

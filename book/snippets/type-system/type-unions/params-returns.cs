@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -9,13 +9,13 @@ public class Program
         {
             if (value.AsInt32OrNull is int n)
             {
-                Console.WriteLine($"  int: {n}");
+                System.Console.WriteLine($"  int: {n}");
             }
         }
         {
             if (value.AsStringOrNull is string s)
             {
-                Console.WriteLine($"  string: {s}");
+                System.Console.WriteLine($"  string: {s}");
             }
         }
     }
@@ -34,7 +34,7 @@ public class Program
         Snippet.Program.Describe(7);
         Snippet.Program.Describe("Mist");
         Union_Int32_String result = Snippet.Program.GetValue(true);
-        Console.WriteLine($"GetValue(true) returned a value");
+        System.Console.WriteLine($"GetValue(true) returned a value");
     }
 
     public Program()

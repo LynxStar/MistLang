@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -22,6 +22,6 @@ public class Counter
     {
         Snippet.Counter a = new Snippet.Counter("Alpha");
         Snippet.Counter b = new Snippet.Counter("Beta");
-        Console.WriteLine($"Total created: {Snippet.Counter.GetTotalCreated()}");
+        System.Console.WriteLine($"Total created: {Snippet.Counter.GetTotalCreated()}");
     }
 }

@@ -1,4 +1,4 @@
-using System;
+using Standard;
 using System.Collections.Generic;
 
 namespace Snippet;
@@ -11,11 +11,11 @@ public class Program
         list.Add(10);
         list.Add(20);
         list.Add(30);
-        Console.WriteLine($"Count={list.Count}");
-        Console.WriteLine($"First={list[0]}");
+        System.Console.WriteLine($"Count={list.Count}");
+        System.Console.WriteLine($"First={list[0]}");
         foreach (int item in list)
         {
-            Console.WriteLine($"Item={item}");
+            System.Console.WriteLine($"Item={item}");
         }
     }
 

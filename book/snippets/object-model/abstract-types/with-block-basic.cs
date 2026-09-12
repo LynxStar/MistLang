@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -32,7 +32,7 @@ public class Program
     {
         Snippet.Logger logger = new Snippet.Logger();
         Snippet.INamed named = logger;
-        Console.WriteLine(named.Name());
+        System.Console.WriteLine(named.Name());
     }
 
     public Program()

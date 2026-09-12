@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -22,11 +22,11 @@ public class Program
     public static void Main(string[] args)
     {
         (int tag, object payload) envelope = (tag: 1, payload: new Snippet.Greeter("Mist"));
-        Console.WriteLine($"tag={envelope.tag}");
+        System.Console.WriteLine($"tag={envelope.tag}");
         {
             if (envelope.payload is Snippet.Greeter g)
             {
-                Console.WriteLine($"payload: {g.Greet()}");
+                System.Console.WriteLine($"payload: {g.Greet()}");
             }
         }
     }

@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -21,17 +21,17 @@ public class MoveDemo
 {
     public static void Consume(Snippet.Handle h)
     {
-        Console.WriteLine($"consumed={h.Describe()}");
+        System.Console.WriteLine($"consumed={h.Describe()}");
     }
 
     public static void Run()
     {
         Snippet.Handle h1 = new Snippet.Handle(10);
-        Console.WriteLine($"before move={h1.Describe()}");
+        System.Console.WriteLine($"before move={h1.Describe()}");
         Snippet.Handle h2 = h1;
-        Console.WriteLine($"after move to h2={h2.Describe()}");
+        System.Console.WriteLine($"after move to h2={h2.Describe()}");
         Consume(h2);
-        Console.WriteLine($"transfer complete");
+        System.Console.WriteLine($"transfer complete");
     }
 
     public MoveDemo()

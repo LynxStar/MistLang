@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 Standard.Void unit = Standard.Void.Instance;
-Console.WriteLine($"typed void variable: {unit}");
+System.Console.WriteLine($"typed void variable: {unit}");

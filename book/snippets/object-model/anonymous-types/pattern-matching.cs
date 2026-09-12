@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -10,13 +10,13 @@ internal class Program
         {
             if (point is { X: var x, Y: var y })
             {
-                Console.WriteLine($"Matched: X={x} Y={y}");
+                System.Console.WriteLine($"Matched: X={x} Y={y}");
             }
         }
         var status = new { Code = 200, Message = "OK" };
         if (status is { Code: 200 })
         {
-            Console.WriteLine($"Success: {status.Message}");
+            System.Console.WriteLine($"Success: {status.Message}");
         }
     }
 

@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -19,9 +19,9 @@ public class Program
             return "zero";
         }
 ;
-        Console.WriteLine($"classify(5)={classify(5)}");
-        Console.WriteLine($"classify(-1)={classify(-1)}");
-        Console.WriteLine($"classify(0)={classify(0)}");
+        System.Console.WriteLine($"classify(5)={classify(5)}");
+        System.Console.WriteLine($"classify(-1)={classify(-1)}");
+        System.Console.WriteLine($"classify(0)={classify(0)}");
     }
 
     public Program()

@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -24,9 +24,9 @@ public class OwnedFieldDeclarationDemo
     public static void Run()
     {
         Snippet.Document doc = new Snippet.Document("Hello", 1);
-        Console.WriteLine($"initial={doc.Describe()}");
+        System.Console.WriteLine($"initial={doc.Describe()}");
         doc.Content = "Updated";
-        Console.WriteLine($"updated={doc.Describe()}");
+        System.Console.WriteLine($"updated={doc.Describe()}");
     }
 
     public OwnedFieldDeclarationDemo()

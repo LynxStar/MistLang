@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippets;
 
@@ -13,7 +13,7 @@ public class Resource
 
     public void Drop()
     {
-        Console.WriteLine($"Resource({Id}).Drop()");
+        System.Console.WriteLine($"Resource({Id}).Drop()");
     }
 }
 
@@ -28,7 +28,7 @@ public class Token
 
     public void Drop()
     {
-        Console.WriteLine($"Token({Id}).Drop()");
+        System.Console.WriteLine($"Token({Id}).Drop()");
     }
 }
 
@@ -50,7 +50,7 @@ public class Subscription
             return;
         }
         this.Dropped = true;
-        Console.WriteLine($"Subscription({Id}).Drop()");
+        System.Console.WriteLine($"Subscription({Id}).Drop()");
     }
 }
 
@@ -81,7 +81,7 @@ public class LinearHolder
 
     public void Drop()
     {
-        Console.WriteLine("LinearHolder.Drop()");
+        System.Console.WriteLine("LinearHolder.Drop()");
         this.Lin.Drop();
         this.Aff.Drop();
         this.Rel.Drop();
@@ -95,7 +95,7 @@ public class Program
         Snippets.LinearHolder holder = new Snippets.LinearHolder();
         try
         {
-            Console.WriteLine("Linear container holds all four disciplines:");
+            System.Console.WriteLine("Linear container holds all four disciplines:");
         }
         finally
         {

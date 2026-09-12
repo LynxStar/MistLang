@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -8,10 +8,10 @@ public class Program
     {
         int temp = 75;
         string comfort = temp switch { < 32 => "Freezing", < 60 => "Cold", <= 80 => "Comfortable", var _ => "Hot" };
-        Console.WriteLine($"Temperature {temp} => {comfort}");
+        System.Console.WriteLine($"Temperature {temp} => {comfort}");
         int score = 85;
         string grade = score switch { >= 90 and <= 100 => "A", >= 80 and < 90 => "B", >= 70 and < 80 => "C", >= 60 and < 70 => "D", var _ => "F" };
-        Console.WriteLine($"Score {score} => Grade {grade}");
+        System.Console.WriteLine($"Score {score} => Grade {grade}");
     }
 
     public Program()

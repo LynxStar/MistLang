@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -26,7 +26,7 @@ public class Program
     public static void Main(string[] args)
     {
         Snippet.Config inferred = Snippet.Config.__CreateDefault();
-        Console.WriteLine($"MaxRetries={inferred.MaxRetries} Verbose={inferred.Verbose} Label={inferred.Label}");
+        System.Console.WriteLine($"MaxRetries={inferred.MaxRetries} Verbose={inferred.Verbose} Label={inferred.Label}");
     }
 
     public Program()

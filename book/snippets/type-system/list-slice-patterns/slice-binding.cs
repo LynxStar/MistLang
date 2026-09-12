@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -10,10 +10,10 @@ public class Program
         {
             if (numbers is [var first, .. var middle, var last])
             {
-                Console.WriteLine($"first={first}");
-                Console.WriteLine($"last={last}");
-                Console.WriteLine($"middleLength={middle.Length}");
-                Console.WriteLine($"middleFirst={middle[0]}");
+                System.Console.WriteLine($"first={first}");
+                System.Console.WriteLine($"last={last}");
+                System.Console.WriteLine($"middleLength={middle.Length}");
+                System.Console.WriteLine($"middleFirst={middle[0]}");
             }
         }
     }

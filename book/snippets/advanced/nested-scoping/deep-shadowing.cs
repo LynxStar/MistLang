@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -11,11 +11,11 @@ public class DeepShadowing
             string name_1 = "second";
             {
                 string name_2 = "third";
-                Console.WriteLine(name_2);
+                System.Console.WriteLine(name_2);
             }
-            Console.WriteLine(name_1);
+            System.Console.WriteLine(name_1);
         }
-        Console.WriteLine(name);
+        System.Console.WriteLine(name);
     }
 
     public DeepShadowing()

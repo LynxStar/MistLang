@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -24,7 +24,7 @@ internal class Program
     public static void Main(string[] args)
     {
         Snippet.Point p = new Snippet.Point(3, 4);
-        Console.WriteLine(p.Describe());
+        System.Console.WriteLine(p.Describe());
     }
 
     public Program()

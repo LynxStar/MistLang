@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -22,13 +22,13 @@ public class Program
         {
             if (value is int n)
             {
-                Console.WriteLine($"matched int: {n}");
+                System.Console.WriteLine($"matched int: {n}");
             }
         }
         {
             if (value is UserId id)
             {
-                Console.WriteLine($"matched UserId");
+                System.Console.WriteLine($"matched UserId");
             }
         }
     }

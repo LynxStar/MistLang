@@ -1,4 +1,4 @@
-using System;
+using Standard;
 using System.Linq;
 
 namespace Snippet;
@@ -10,8 +10,8 @@ public class Program
         int[] numbers = new int[] { 1, 2, 3, 4, 5 };
         int count = numbers.Count();
         int first = numbers.First();
-        Console.WriteLine($"Count: {count}");
-        Console.WriteLine($"First: {first}");
+        System.Console.WriteLine($"Count: {count}");
+        System.Console.WriteLine($"First: {first}");
     }
 
     public Program()

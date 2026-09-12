@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -8,10 +8,10 @@ public class Program
     {
         Snippet.FriendlyDog dog = new Snippet.FriendlyDog("Rex");
         Snippet.FormalCat cat = new Snippet.FormalCat("Whiskers");
-        Console.WriteLine(dog.Greet());
-        Console.WriteLine(cat.Greet());
+        System.Console.WriteLine(dog.Greet());
+        System.Console.WriteLine(cat.Greet());
         Snippet.IGreetable greeter = dog;
-        Console.WriteLine(greeter.Greet());
+        System.Console.WriteLine(greeter.Greet());
     }
 
     public Program()

@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -8,10 +8,10 @@ public class Program
     {
         Union_Int32_String mixed = 123;
         string result = mixed switch { { AsInt32OrNull: int n } => $"integer: {n}", { AsStringOrNull: string s } => $"string: {s}" };
-        Console.WriteLine(result);
+        System.Console.WriteLine(result);
         Union_Int32_String mixed2 = "hello";
         string result2 = mixed2 switch { { AsInt32OrNull: int n } => $"integer: {n}", { AsStringOrNull: string s } => $"string: {s}" };
-        Console.WriteLine(result2);
+        System.Console.WriteLine(result2);
     }
 
     public Program()

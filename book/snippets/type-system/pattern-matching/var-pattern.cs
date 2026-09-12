@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -14,7 +14,7 @@ public class Program
         {
             if (Snippet.Program.ComputeScore() is var score and > 0)
             {
-                Console.WriteLine($"Positive score: {score}");
+                System.Console.WriteLine($"Positive score: {score}");
             }
         }
     }

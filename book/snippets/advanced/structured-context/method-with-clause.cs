@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -36,7 +36,7 @@ public class Program
                     try
                     {
                         string result = Snippet.Service.Describe();
-                        Console.WriteLine(result);
+                        System.Console.WriteLine(result);
                     }
                     finally
                     {

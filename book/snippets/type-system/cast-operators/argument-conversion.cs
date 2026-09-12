@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -6,7 +6,7 @@ public class Program
 {
     private static void PrintTemperature(Snippet.Fahrenheit f)
     {
-        Console.WriteLine($"Temperature: {f.Describe()}");
+        System.Console.WriteLine($"Temperature: {f.Describe()}");
     }
 
     public static void Main(string[] args)

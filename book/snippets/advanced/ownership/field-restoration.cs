@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -20,10 +20,10 @@ public class FieldRestorationDemo
     {
         Snippet.Pair p = new Snippet.Pair("alpha", "beta");
         string extracted = p.Left;
-        Console.WriteLine($"extracted={extracted}");
+        System.Console.WriteLine($"extracted={extracted}");
         p.Left = "restored";
-        Console.WriteLine($"left after restore={p.Left}");
-        Console.WriteLine($"right={p.Right}");
+        System.Console.WriteLine($"left after restore={p.Left}");
+        System.Console.WriteLine($"right={p.Right}");
     }
 
     public FieldRestorationDemo()

@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -31,7 +31,7 @@ public class Program
         {
             if (breed is string b)
             {
-                Console.WriteLine($"Breed: {b}");
+                System.Console.WriteLine($"Breed: {b}");
             }
         }
     }

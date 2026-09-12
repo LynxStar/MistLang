@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -38,7 +38,7 @@ public class Program
     {
         Snippet.Animal animal = new Snippet.Cat("Luna", 7);
         Snippet.Dog dog = (animal as Snippet.Dog) ?? new Snippet.Dog("Default", "Unknown");
-        Console.WriteLine($"{dog.Name}, {dog.Breed}");
+        System.Console.WriteLine($"{dog.Name}, {dog.Breed}");
     }
 
     public Program()

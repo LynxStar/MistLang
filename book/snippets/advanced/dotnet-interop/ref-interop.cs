@@ -1,4 +1,4 @@
-using System;
+using Standard;
 using System.Threading;
 
 namespace Snippet;
@@ -9,7 +9,7 @@ public class Program
     {
         int value = 42;
         int old = System.Threading.Interlocked.Exchange(ref value, 100);
-        Console.WriteLine($"old={old}, new={value}");
+        System.Console.WriteLine($"old={old}, new={value}");
     }
 
     public Program()

@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 static void DoNothing()
 {
@@ -6,4 +6,4 @@ static void DoNothing()
 }
 DoNothing();
 Standard.Void result = Standard.Void.Instance;
-Console.WriteLine($"DoNothing() returned: {result}");
+System.Console.WriteLine($"DoNothing() returned: {result}");

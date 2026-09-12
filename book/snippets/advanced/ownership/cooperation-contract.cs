@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -47,7 +47,7 @@ public class CooperationContractDemo
         Snippet.Payload body = new Snippet.Payload(256);
         Snippet.Envelope e = new Snippet.Envelope(body);
         e.Reseal();
-        Console.WriteLine($"contract={e.Describe()}");
+        System.Console.WriteLine($"contract={e.Describe()}");
     }
 
     public CooperationContractDemo()

@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -12,7 +12,7 @@ public class Program
     public static void Main(string[] args)
     {
         System.Func<int, int> fn = Negate;
-        Console.WriteLine($"fn(42)={fn(42)}");
+        System.Console.WriteLine($"fn(42)={fn(42)}");
     }
 
     public Program()

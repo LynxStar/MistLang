@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -35,7 +35,7 @@ public class OwnedTypeDemo
     {
         Snippet.UniqueHandle h = new Snippet.UniqueHandle(42);
         h.Touch();
-        Console.WriteLine($"handle={h.Describe()}");
+        System.Console.WriteLine($"handle={h.Describe()}");
     }
 
     public OwnedTypeDemo()

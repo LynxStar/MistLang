@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -7,7 +7,7 @@ public class Logger
     public static void Log(string msg)
     {
         var prefix = (string)MistContext.Peek<string>();
-        Console.WriteLine($"[{prefix}] {msg}");
+        System.Console.WriteLine($"[{prefix}] {msg}");
     }
 
     public Logger()

@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -13,9 +13,9 @@ public class Program
             return counter;
         }
 ;
-        Console.WriteLine($"increment()={increment()}");
-        Console.WriteLine($"increment()={increment()}");
-        Console.WriteLine($"counter={counter}");
+        System.Console.WriteLine($"increment()={increment()}");
+        System.Console.WriteLine($"increment()={increment()}");
+        System.Console.WriteLine($"counter={counter}");
     }
 
     public Program()

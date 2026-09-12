@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -11,7 +11,7 @@ public class Program
         pair[1] = 2;
         if (pair is [> 0, > 0])
         {
-            Console.WriteLine("Array has two positive elements");
+            System.Console.WriteLine("Array has two positive elements");
         }
         int[] triple = new int[3];
         triple[0] = 10;
@@ -19,7 +19,7 @@ public class Program
         triple[2] = 30;
         if (triple is [> 0, ..])
         {
-            Console.WriteLine("Array starts with a positive number");
+            System.Console.WriteLine("Array starts with a positive number");
         }
     }
 

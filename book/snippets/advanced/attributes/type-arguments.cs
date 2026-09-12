@@ -1,3 +1,4 @@
+using Standard;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -46,8 +47,8 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        Console.WriteLine("Type literal arg: [DebuggerTypeProxy(List<int>)]");
-        Console.WriteLine("Generic type arg: [Tagged<int>]");
+        System.Console.WriteLine("Type literal arg: [DebuggerTypeProxy(List<int>)]");
+        System.Console.WriteLine("Generic type arg: [Tagged<int>]");
     }
 
     public Program()

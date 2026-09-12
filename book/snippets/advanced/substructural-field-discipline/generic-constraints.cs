@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippets;
 
@@ -18,7 +18,7 @@ public class FileHandle
 
     public void Drop()
     {
-        Console.WriteLine($"FileHandle({Fd}).Drop()");
+        System.Console.WriteLine($"FileHandle({Fd}).Drop()");
     }
 }
 
@@ -33,7 +33,7 @@ public class LinearBox<T>
 
     public T Drop()
     {
-        Console.WriteLine("LinearBox<T>.Drop()");
+        System.Console.WriteLine("LinearBox<T>.Drop()");
         return Value;
     }
 }
@@ -45,7 +45,7 @@ public class Program
         Snippets.LinearBox<Snippets.FileHandle> box = new Snippets.LinearBox<Snippets.FileHandle>(new Snippets.FileHandle(42));
         try
         {
-            Console.WriteLine("Boxed resource created");
+            System.Console.WriteLine("Boxed resource created");
         }
         finally
         {

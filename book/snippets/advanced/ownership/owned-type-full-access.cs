@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -29,7 +29,7 @@ public class OwnedTypeFullAccessDemo
         Snippet.Accumulator a = new Snippet.Accumulator(100);
         a.Add(5);
         a.Add(20);
-        Console.WriteLine($"owned type={a.Describe()}");
+        System.Console.WriteLine($"owned type={a.Describe()}");
     }
 
     public OwnedTypeFullAccessDemo()

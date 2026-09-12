@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -7,7 +7,7 @@ public class FrozenDemo
     public static void FreezeAndRead(Snippet.Pair p)
     {
         int sum = p.X + p.Y;
-        Console.WriteLine($"frozen sum={sum}");
+        System.Console.WriteLine($"frozen sum={sum}");
     }
 
     public static void Run()
@@ -15,7 +15,7 @@ public class FrozenDemo
         Snippet.Pair p = new Snippet.Pair(5, 10);
         FreezeAndRead(p);
         p.SetX(50);
-        Console.WriteLine($"after thaw={p.Describe()}");
+        System.Console.WriteLine($"after thaw={p.Describe()}");
     }
 
     public FrozenDemo()

@@ -1,4 +1,4 @@
-using System;
+using Standard;
 using System.IO;
 
 namespace Snippets;
@@ -13,7 +13,7 @@ public class Program
             try
             {
                 ms.WriteByte(42);
-                Console.WriteLine($"length={ms.Length}");
+                System.Console.WriteLine($"length={ms.Length}");
             }
             finally
             {

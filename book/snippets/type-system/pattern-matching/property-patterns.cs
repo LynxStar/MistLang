@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -19,7 +19,7 @@ public class Program
         Snippet.Circle bigCircle = new Snippet.Circle(10);
         if (bigCircle is { Radius: > 5 })
         {
-            Console.WriteLine("Found a circle with radius > 5");
+            System.Console.WriteLine("Found a circle with radius > 5");
         }
     }
 

@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -6,7 +6,7 @@ public class Program
 {
     public static void Main()
     {
-        Console.WriteLine(Describe(3));
+        System.Console.WriteLine(Describe(3));
         string Describe(int n)
         {
             if (IsEven(n))
@@ -26,12 +26,12 @@ public class Program
         }
         Count();
         Count();
-        Console.WriteLine($"calls={calls}");
+        System.Console.WriteLine($"calls={calls}");
         static int Square(int x)
         {
             return x * x;
         }
-        Console.WriteLine(Square(7));
+        System.Console.WriteLine(Square(7));
     }
 
     public Program()

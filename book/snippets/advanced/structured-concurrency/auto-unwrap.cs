@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 async System.Threading.Tasks.Task<int> FetchData()
 {
@@ -12,5 +12,5 @@ async System.Threading.Tasks.Task Main()
 {
     int result = await FetchData();
     string formatted = await FormatData(result);
-    Console.WriteLine(formatted);
+    System.Console.WriteLine(formatted);
 }

@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -11,11 +11,11 @@ public class Program
         {
             if (maybeInt is int n)
             {
-                Console.WriteLine($"Got int: {n}");
+                System.Console.WriteLine($"Got int: {n}");
             }
             else
             {
-                Console.WriteLine("Not an int");
+                System.Console.WriteLine("Not an int");
             }
         }
     }

@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 char ch = 'Z';
-Console.WriteLine($"char={ch}");
+System.Console.WriteLine($"char={ch}");

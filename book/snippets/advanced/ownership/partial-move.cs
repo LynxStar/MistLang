@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -20,8 +20,8 @@ public class PartialMoveDemo
     {
         Snippet.Pair p = new Snippet.Pair("alpha", "beta");
         string extracted = p.Left;
-        Console.WriteLine($"extracted={extracted}");
-        Console.WriteLine($"right still live={p.Right}");
+        System.Console.WriteLine($"extracted={extracted}");
+        System.Console.WriteLine($"right still live={p.Right}");
     }
 
     public PartialMoveDemo()

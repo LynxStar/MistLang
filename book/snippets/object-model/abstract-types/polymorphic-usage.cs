@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -23,7 +23,7 @@ public class Program
 {
     private static void PrintDescription(Snippet.IDescribable item)
     {
-        Console.WriteLine(item.Describe());
+        System.Console.WriteLine(item.Describe());
     }
 
     public static void Main(string[] args)

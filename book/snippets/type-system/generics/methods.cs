@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -11,7 +11,7 @@ public class Utilities
 
     public static void PrintItem<T>(T item)
     {
-        Console.WriteLine($"Item: {item}");
+        System.Console.WriteLine($"Item: {item}");
     }
 
     public Utilities()

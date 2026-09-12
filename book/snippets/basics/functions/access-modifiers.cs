@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -30,6 +30,6 @@ public class Account
     {
         Snippet.Account acct = new Snippet.Account(100);
         acct.Deposit(50);
-        Console.WriteLine($"Balance: {acct.GetBalance()}");
+        System.Console.WriteLine($"Balance: {acct.GetBalance()}");
     }
 }

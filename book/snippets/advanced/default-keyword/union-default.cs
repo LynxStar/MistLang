@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -7,7 +7,7 @@ public class Program
     public static void Main(string[] args)
     {
         int? maybeInt = null;
-        Console.WriteLine($"maybeInt={(object?)maybeInt ?? "Void"}");
+        System.Console.WriteLine($"maybeInt={(object?)maybeInt ?? "Void"}");
     }
 
     public Program()

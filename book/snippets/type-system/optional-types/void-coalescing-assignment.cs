@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -9,8 +9,8 @@ public class Program
         int? x = null;
         x ??= 100;
         int narrowed = x.Value;
-        Console.WriteLine($"x={x.Value}");
-        Console.WriteLine($"narrowed={narrowed}");
+        System.Console.WriteLine($"x={x.Value}");
+        System.Console.WriteLine($"narrowed={narrowed}");
     }
 
     public Program()

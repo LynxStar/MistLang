@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -11,7 +11,7 @@ public class DataService
 
     private async System.Threading.Tasks.Task LogMessage(string message)
     {
-        Console.WriteLine(message);
+        System.Console.WriteLine(message);
     }
 
     public static async System.Threading.Tasks.Task<string> GetName()

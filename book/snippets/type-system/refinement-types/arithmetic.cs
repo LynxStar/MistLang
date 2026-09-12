@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -13,7 +13,7 @@ public class Program
         {
             if (computed is int and >= 18 and var verified)
             {
-                Console.WriteLine($"Still adult: {verified}");
+                System.Console.WriteLine($"Still adult: {verified}");
             }
         }
     }

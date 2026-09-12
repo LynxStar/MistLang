@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -37,8 +37,8 @@ public class Program
     {
         Snippet.Widget widget = new Snippet.Widget();
         Snippet.ITaggable taggable = widget;
-        Console.WriteLine(taggable.Tag());
-        Console.WriteLine(taggable.DisplayTag());
+        System.Console.WriteLine(taggable.Tag());
+        System.Console.WriteLine(taggable.DisplayTag());
     }
 
     public Program()

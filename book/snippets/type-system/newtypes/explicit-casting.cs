@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -9,9 +9,9 @@ public class Program
         int raw = 99;
         UserId uid = ((UserId)raw);
         int back = ((int)uid);
-        Console.WriteLine($"raw={raw}");
-        Console.WriteLine($"uid={uid.Value}");
-        Console.WriteLine($"back={back}");
+        System.Console.WriteLine($"raw={raw}");
+        System.Console.WriteLine($"uid={uid.Value}");
+        System.Console.WriteLine($"back={back}");
     }
 
     public Program()

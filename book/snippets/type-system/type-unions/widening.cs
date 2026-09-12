@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -11,7 +11,7 @@ public class Program
         {
             if (widened.AsInt32OrNull is int n)
             {
-                Console.WriteLine($"widened int: {n}");
+                System.Console.WriteLine($"widened int: {n}");
             }
         }
     }

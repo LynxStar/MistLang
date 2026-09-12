@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -30,7 +30,7 @@ public class Program
         {
             if (shape is Snippet.Circle c)
             {
-                Console.WriteLine($"Circle with radius {c.Radius}");
+                System.Console.WriteLine($"Circle with radius {c.Radius}");
             }
         }
     }

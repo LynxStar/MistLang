@@ -1,4 +1,4 @@
-using System;
+using Standard;
 using System.IO;
 
 namespace Snippet;
@@ -11,8 +11,8 @@ public class Program
         memory.WriteByte(65);
         memory.WriteByte(66);
         System.IO.Stream stream = memory;
-        Console.WriteLine($"length={stream.Length}");
-        Console.WriteLine($"canRead={stream.CanRead}");
+        System.Console.WriteLine($"length={stream.Length}");
+        System.Console.WriteLine($"canRead={stream.CanRead}");
     }
 
     public Program()

@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -41,7 +41,7 @@ public class FieldProvenanceDemo
         Snippet.Slot s = new Snippet.Slot(new Snippet.Node(1));
         s.Current = new Snippet.Node(2);
         s.Count = 2;
-        Console.WriteLine($"provenance={s.Describe()}");
+        System.Console.WriteLine($"provenance={s.Describe()}");
     }
 
     public FieldProvenanceDemo()

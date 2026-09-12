@@ -15,12 +15,6 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// </summary>
 internal static class TaskProjection
 {
-    private static readonly Dictionary<string, string> ByDefinition = new(StringComparer.Ordinal)
-    {
-        [WellKnownTypes.TaskGeneric.FullyQualifiedName] = "System.Threading.Tasks.Task",
-        [WellKnownTypes.ValueTaskGeneric.FullyQualifiedName] = "System.Threading.Tasks.ValueTask",
-    };
-
     /// <summary>
     /// The C# spelling of a task construction, or null when the definition is not one. The result type
     /// is emitted through the caller's own <paramref name="emit"/> so a nested construction takes the
@@ -28,8 +22,7 @@ internal static class TaskProjection
     /// </summary>
     public static string? Emit(ConstructedType constructed, Func<IMistType, string> emit)
     {
-        if(!ByDefinition.TryGetValue(constructed.Definition.FullyQualifiedName, out var clrName)
-            || constructed.TypeArguments.Count != 1)
+        if(!TaskResult.IsTask(constructed) || ClrSpelling.Spelling(constructed.Definition) is not { } clrName)
         {
             return null;
         }

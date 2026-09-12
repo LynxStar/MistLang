@@ -1,5 +1,4 @@
 using System.Reflection;
-using Mist.Backends.CSharpTranspiler.AmbientProvider;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
@@ -16,12 +15,10 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// (standard-library spec Req 5.9) instead of reaching Roslyn as a call that does not exist, which is
 /// how Type.Of, Clone and Task.Drop were each found.
 /// <para>
-/// The projection is the one the emitter writes: a Standard type is spelled by its own name and reached
-/// through the unconditional `using System` (TypeNameEmitter, CSharpEmitterV2.EmitUsings), except where
-/// <see cref="WellKnownTypeMap"/> or <see cref="RegexLowering"/> already names the CLR type. A nested
-/// intrinsic type is the CLR nesting of the same name, or failing that whatever the CLR returns where
-/// Mist returns it; an array's Enumerator is neither, being a struct the backend generates, so its
-/// members are checked against that struct's surface (<see cref="ArrayEnumeration"/>).
+/// The type is the one the emitter writes, read from <see cref="ClrSpelling"/> by its metadata name. A
+/// nested intrinsic type is the CLR nesting of the same name, or failing that whatever the CLR returns
+/// where Mist returns it; an array's Enumerator is neither, being a struct the backend generates, so
+/// its members are checked against that struct's surface (<see cref="ArrayEnumeration"/>).
 /// </para>
 /// </summary>
 internal sealed class IntrinsicSupply
@@ -235,36 +232,25 @@ internal sealed class IntrinsicSupply
                 : null;
         }
 
-        foreach(var candidate in Candidates(type))
+        if(ClrSpelling.MetadataName(type) is not { } metadataName)
         {
-            for(var arity = 0; arity <= type.TypeParametersList.Count; arity++)
+            return null;
+        }
+
+        if(metadataName.Contains('`'))
+        {
+            return clrType(metadataName);
+        }
+
+        for(var arity = 0; arity <= type.TypeParametersList.Count; arity++)
+        {
+            if(clrType(arity == 0 ? metadataName : $"{metadataName}`{arity}") is { } found)
             {
-                if(clrType(arity == 0 ? candidate : $"{candidate}`{arity}") is { } found)
-                {
-                    return found;
-                }
+                return found;
             }
         }
 
         return null;
-    }
-
-    private static IEnumerable<string> Candidates(MemberType type)
-    {
-        if(RegexLowering.Is(type))
-        {
-            yield return RegexLowering.ClrType;
-        }
-
-        yield return $"System.{MistType.StripArity(type.Name)}";
-
-        foreach(var (clr, mist) in WellKnownTypeMap.Entries)
-        {
-            if($"{mist.MistNamespace}.{mist.MistTypeName}" == type.FullyQualifiedName)
-            {
-                yield return $"{clr.Namespace}.{clr.TypeName}";
-            }
-        }
     }
 
     private static Type? ReturnedWhere(MemberType outer, MemberType nested, Type outerClr)

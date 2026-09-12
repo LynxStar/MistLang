@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -7,7 +7,7 @@ public class ReadonlyRefDemo
     public static void ReadPair(ref readonly Snippet.Pair p)
     {
         int sum = p.X + p.Y;
-        Console.WriteLine($"readonly ref sum={sum}");
+        System.Console.WriteLine($"readonly ref sum={sum}");
     }
 
     public static void Run()
@@ -15,7 +15,7 @@ public class ReadonlyRefDemo
         Snippet.Pair p = new Snippet.Pair(3, 7);
         ReadPair(in p);
         p.SetX(100);
-        Console.WriteLine($"after readonly ref={p.Describe()}");
+        System.Console.WriteLine($"after readonly ref={p.Describe()}");
     }
 
     public ReadonlyRefDemo()

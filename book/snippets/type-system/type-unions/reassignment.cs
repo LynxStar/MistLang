@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -7,12 +7,12 @@ public class Program
     public static void Main(string[] args)
     {
         Union_Int32_String value = 1;
-        Console.WriteLine($"before: assigned int");
+        System.Console.WriteLine($"before: assigned int");
         value = "switched";
         {
             if (value.AsStringOrNull is string s)
             {
-                Console.WriteLine($"after: {s}");
+                System.Console.WriteLine($"after: {s}");
             }
         }
     }

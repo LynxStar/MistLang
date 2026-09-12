@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -30,6 +30,6 @@ public class Counter
         Snippet.Counter c = new Snippet.Counter("Alpha");
         c.Increment();
         c.Increment();
-        Console.WriteLine(c.Describe());
+        System.Console.WriteLine(c.Describe());
     }
 }

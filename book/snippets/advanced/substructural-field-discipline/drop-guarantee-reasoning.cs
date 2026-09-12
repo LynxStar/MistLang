@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippets;
 
@@ -13,7 +13,7 @@ public class AffineToken
 
     public void Drop()
     {
-        Console.WriteLine($"AffineToken({Id}).Drop()");
+        System.Console.WriteLine($"AffineToken({Id}).Drop()");
     }
 }
 
@@ -40,7 +40,7 @@ public class AffineContainer
 
     public void Drop()
     {
-        Console.WriteLine("AffineContainer.Drop()");
+        System.Console.WriteLine("AffineContainer.Drop()");
         this.Inner.Drop();
     }
 }
@@ -54,7 +54,7 @@ public class Program
             MistContext.Push<Snippets.AffineContainer>(__e1);
             try
             {
-                Console.WriteLine("Inside with block — container will be dropped");
+                System.Console.WriteLine("Inside with block — container will be dropped");
             }
             finally
             {
@@ -62,7 +62,7 @@ public class Program
                 __e1.Drop();
             }
         }
-        Console.WriteLine("Done");
+        System.Console.WriteLine("Done");
     }
 
     public Program()

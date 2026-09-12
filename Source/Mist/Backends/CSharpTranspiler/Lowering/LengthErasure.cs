@@ -18,11 +18,11 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// </summary>
 internal static class LengthErasure
 {
-    private static readonly Dictionary<string, string?> ByDefinition = new(StringComparer.Ordinal)
+    private static readonly HashSet<string> LengthIndexed = new(StringComparer.Ordinal)
     {
-        [WellKnownTypes.Array.FullyQualifiedName] = null,
-        [WellKnownTypes.Span.FullyQualifiedName] = "System.Span",
-        [WellKnownTypes.ReadOnlySpan.FullyQualifiedName] = "System.ReadOnlySpan",
+        WellKnownTypes.Array.FullyQualifiedName,
+        WellKnownTypes.Span.FullyQualifiedName,
+        WellKnownTypes.ReadOnlySpan.FullyQualifiedName,
     };
 
     /// <summary>
@@ -32,7 +32,7 @@ internal static class LengthErasure
     /// </summary>
     public static string? Emit(ConstructedType constructed, Func<IMistType, string> emit)
     {
-        if(!ByDefinition.TryGetValue(constructed.Definition.FullyQualifiedName, out var clrName)
+        if(!LengthIndexed.Contains(constructed.Definition.FullyQualifiedName)
             || constructed.TypeArguments.Count == 0)
         {
             return null;
@@ -42,14 +42,17 @@ internal static class LengthErasure
 
         // An array has no generic spelling at all: C# writes the element type and brackets, where a
         // span is an ordinary one-argument generic.
-        return clrName is null ? $"{element}[]" : $"{clrName}<{element}>";
+        return ClrSpelling.Spelling(constructed.Definition) is { } clrName
+            ? $"{clrName}<{element}>"
+            : $"{element}[]"
+            ;
     }
 
     public static bool IsSpan(IMistType type)
     {
         return type is ConstructedType constructed
-            && ByDefinition.TryGetValue(constructed.Definition.FullyQualifiedName, out var clrName)
-            && clrName is not null
+            && LengthIndexed.Contains(constructed.Definition.FullyQualifiedName)
+            && constructed.Definition.FullyQualifiedName != WellKnownTypes.Array.FullyQualifiedName
             ;
     }
 }

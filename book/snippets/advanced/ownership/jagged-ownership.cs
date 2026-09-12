@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -29,7 +29,7 @@ public class JaggedOwnershipDemo
         conn.Label = "renamed";
         conn.RetryCount = 3;
         conn.Handle = "socket-2";
-        Console.WriteLine($"jagged={conn.Describe()}");
+        System.Console.WriteLine($"jagged={conn.Describe()}");
     }
 
     public JaggedOwnershipDemo()

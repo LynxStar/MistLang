@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -8,7 +8,7 @@ public class Program
     {
         foreach (int item in items)
         {
-            Console.WriteLine(item);
+            System.Console.WriteLine(item);
         }
     }
 

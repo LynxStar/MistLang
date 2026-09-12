@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -17,8 +17,8 @@ public class Program
     public static void Main(string[] args)
     {
         Snippet.Color[] colors = new Snippet.Color[] { new Snippet.Color("red"), new Snippet.Color("green"), new Snippet.Color("blue") };
-        Console.WriteLine(colors[0].Name);
-        Console.WriteLine(colors[2].Name);
+        System.Console.WriteLine(colors[0].Name);
+        System.Console.WriteLine(colors[2].Name);
     }
 
     public Program()

@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -13,7 +13,7 @@ public class Program
     {
         int a = Describe_3<int, string, bool>((1, "x", true));
         int b = Describe_3<int, string, bool>((1, "x", true));
-        Console.WriteLine($"{a} {b}");
+        System.Console.WriteLine($"{a} {b}");
     }
 
     public Program()

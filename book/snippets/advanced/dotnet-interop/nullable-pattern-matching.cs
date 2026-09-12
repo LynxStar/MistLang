@@ -1,4 +1,4 @@
-using System;
+using Standard;
 using System.Collections.Generic;
 
 namespace Snippet;
@@ -12,24 +12,24 @@ public class Program
         if (dict.ContainsKey("hello"))
         {
             int value = dict["hello"];
-            Console.WriteLine($"Found={value}");
+            System.Console.WriteLine($"Found={value}");
         }
         string name = "Mist";
         {
             if (name is string s)
             {
-                Console.WriteLine($"Name={s}");
+                System.Console.WriteLine($"Name={s}");
             }
         }
         string empty = null;
         {
             if (empty is string e)
             {
-                Console.WriteLine($"Unreachable={e}");
+                System.Console.WriteLine($"Unreachable={e}");
             }
             else
             {
-                Console.WriteLine("Value=void");
+                System.Console.WriteLine("Value=void");
             }
         }
     }

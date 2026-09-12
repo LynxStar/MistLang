@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -11,18 +11,18 @@ public class Program
         {
             if (userInput is int and >= 18 and var validAge)
             {
-                Console.WriteLine($"Valid adult age: {validAge}");
+                System.Console.WriteLine($"Valid adult age: {validAge}");
             }
         }
         int childInput = 10;
         {
             if (childInput is int and >= 18 and var childAge)
             {
-                Console.WriteLine("This won't print");
+                System.Console.WriteLine("This won't print");
             }
             else
             {
-                Console.WriteLine("Not an adult age");
+                System.Console.WriteLine("Not an adult age");
             }
         }
     }

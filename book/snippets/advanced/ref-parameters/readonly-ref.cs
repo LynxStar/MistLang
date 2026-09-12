@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -21,7 +21,7 @@ public class Program
 {
     public static void ReadSensor(ref readonly Snippet.Sensor s)
     {
-        Console.WriteLine($"reading={s.Describe()}");
+        System.Console.WriteLine($"reading={s.Describe()}");
     }
 
     public static void Main()
@@ -29,7 +29,7 @@ public class Program
         Snippet.Sensor s = new Snippet.Sensor(42);
         ReadSensor(in s);
         s.Reading = 100;
-        Console.WriteLine($"after={s.Describe()}");
+        System.Console.WriteLine($"after={s.Describe()}");
     }
 
     public Program()

@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -22,7 +22,7 @@ public class Program
         Snippet.Rectangle rect = new Snippet.Rectangle(4, 4);
         if (rect is { Width: >= 1 and <= 10, Height: >= 1 and <= 10 })
         {
-            Console.WriteLine("Small rectangle (both sides 1-10)");
+            System.Console.WriteLine("Small rectangle (both sides 1-10)");
         }
     }
 

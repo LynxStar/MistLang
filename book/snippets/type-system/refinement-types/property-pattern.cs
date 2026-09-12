@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -22,7 +22,7 @@ public class Program
         {
             if (r is Snippet.Interval and { Start: >= 0 } and var valid)
             {
-                Console.WriteLine($"Valid: Start={valid.Start}");
+                System.Console.WriteLine($"Valid: Start={valid.Start}");
             }
         }
     }

@@ -1,6 +1,6 @@
 using Namespaces.Models;
 using Namespaces.Models.Game;
-using System;
+using Standard;
 
 namespace Namespaces;
 
@@ -9,9 +9,9 @@ public class Program
     public static void Main(string[] args)
     {
         Namespaces.Models.Player player = new Namespaces.Models.Player("Alice", 100);
-        Console.WriteLine(player.Describe());
+        System.Console.WriteLine(player.Describe());
         Namespaces.Models.Game.GameState state = new Namespaces.Models.Game.GameState(1, true);
-        Console.WriteLine(state.Summary());
+        System.Console.WriteLine(state.Summary());
     }
 
     public Program()

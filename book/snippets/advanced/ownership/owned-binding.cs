@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -24,7 +24,7 @@ public class OwnedBindingDemo
     public static void Run()
     {
         Snippet.Point p = new Snippet.Point(3, 7);
-        Console.WriteLine($"owned binding={p.Describe()}");
+        System.Console.WriteLine($"owned binding={p.Describe()}");
     }
 
     public OwnedBindingDemo()

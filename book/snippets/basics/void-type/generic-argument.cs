@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 using Snippet;
 
@@ -7,7 +7,7 @@ static Snippet.Result<Standard.Void> SuccessResult()
     return new Snippet.Result<Standard.Void>(Standard.Void.Instance, true);
 }
 Snippet.Result<Standard.Void> success = SuccessResult();
-Console.WriteLine($"IsSuccess: {success.IsSuccess()}");
+System.Console.WriteLine($"IsSuccess: {success.IsSuccess()}");
 
 namespace Snippet
 {

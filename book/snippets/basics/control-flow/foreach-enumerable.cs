@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -66,9 +66,9 @@ public class Program
         Snippet.Countdown countdown = new Snippet.Countdown(3);
         foreach (int n in countdown)
         {
-            Console.WriteLine($"T-{n}");
+            System.Console.WriteLine($"T-{n}");
         }
-        Console.WriteLine("Liftoff!");
+        System.Console.WriteLine("Liftoff!");
     }
 
     public Program()

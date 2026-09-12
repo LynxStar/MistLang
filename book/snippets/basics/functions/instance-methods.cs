@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -26,8 +26,8 @@ public class Point
     public static void Main(string[] args)
     {
         Snippet.Point p = new Snippet.Point(3, 4);
-        Console.WriteLine(p.Describe());
+        System.Console.WriteLine(p.Describe());
         Snippet.Point moved = p.Translate(10, 20);
-        Console.WriteLine(moved.Describe());
+        System.Console.WriteLine(moved.Describe());
     }
 }

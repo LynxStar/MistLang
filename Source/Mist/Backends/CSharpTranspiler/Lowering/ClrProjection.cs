@@ -1,5 +1,5 @@
-using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Lowering;
 
@@ -17,19 +17,13 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// </summary>
 internal static class ClrProjection
 {
-    private static readonly Dictionary<string, string> ByFullyQualifiedName = new(StringComparer.Ordinal)
-    {
-        [WellKnownTypes.IEnumerable.FullyQualifiedName] = "System.Collections.Generic.IEnumerable",
-        [WellKnownTypes.IEnumerator.FullyQualifiedName] = "System.Collections.Generic.IEnumerator",
-    };
-
     /// <summary>
     /// The CLR interface a definition projects onto, without its type arguments, or null when it
     /// projects onto nothing and is emitted as Mist declared it.
     /// </summary>
     public static string? Name(IMistType definition)
     {
-        return ByFullyQualifiedName.GetValueOrDefault(definition.FullyQualifiedName);
+        return definition is AbstractType ? ClrSpelling.Spelling(definition) : null;
     }
 
     public static bool Projects(IMistType type)

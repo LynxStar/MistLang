@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -8,8 +8,8 @@ public class Program
     {
         int? opt = 42;
         int? shorthand = opt;
-        Console.WriteLine($"opt={(object?)opt ?? "Void"}");
-        Console.WriteLine($"shorthand={(object?)shorthand ?? "Void"}");
+        System.Console.WriteLine($"opt={(object?)opt ?? "Void"}");
+        System.Console.WriteLine($"shorthand={(object?)shorthand ?? "Void"}");
     }
 
     public Program()

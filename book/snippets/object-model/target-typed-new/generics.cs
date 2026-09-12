@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -25,8 +25,8 @@ internal class Program
     {
         Snippet.Pair<int> intPair = new Snippet.Pair<int>(1, 2);
         Snippet.Pair<string> strPair = new Snippet.Pair<string>("hello", "world");
-        Console.WriteLine(intPair.Describe());
-        Console.WriteLine(strPair.Describe());
+        System.Console.WriteLine(intPair.Describe());
+        System.Console.WriteLine(strPair.Describe());
     }
 
     public Program()

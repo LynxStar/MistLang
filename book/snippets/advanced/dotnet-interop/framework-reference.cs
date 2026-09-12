@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace FrameworkReference;
 
@@ -7,8 +7,8 @@ public class Program
     public static void Main(string[] args)
     {
         Microsoft.AspNetCore.Http.QueryString qs = new Microsoft.AspNetCore.Http.QueryString("?page=1");
-        Console.WriteLine($"query={(object?)qs.Value ?? "Void"}");
-        Console.WriteLine($"hasValue={qs.HasValue}");
+        System.Console.WriteLine($"query={(object?)qs.Value ?? "Void"}");
+        System.Console.WriteLine($"hasValue={qs.HasValue}");
     }
 
     public Program()

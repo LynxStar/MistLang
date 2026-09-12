@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -9,10 +9,10 @@ public class Program
         string outer = "visible everywhere";
         {
             string inner = "only visible in this block";
-            Console.WriteLine(inner);
-            Console.WriteLine(outer);
+            System.Console.WriteLine(inner);
+            System.Console.WriteLine(outer);
         }
-        Console.WriteLine(outer);
+        System.Console.WriteLine(outer);
     }
 
     public Program()

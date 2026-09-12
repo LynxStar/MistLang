@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippets;
 
@@ -13,7 +13,7 @@ public class FileHandle
 
     public void Drop()
     {
-        Console.WriteLine($"FileHandle({Fd}) closed");
+        System.Console.WriteLine($"FileHandle({Fd}) closed");
     }
 
     public int GetFd()
@@ -29,7 +29,7 @@ public class Program
         Snippets.FileHandle f = new Snippets.FileHandle(42);
         try
         {
-            Console.WriteLine($"Using handle {f.GetFd()}");
+            System.Console.WriteLine($"Using handle {f.GetFd()}");
         }
         finally
         {

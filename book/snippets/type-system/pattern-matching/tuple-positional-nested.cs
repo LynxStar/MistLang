@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -9,7 +9,7 @@ public class Program
         ((int, int), string) nested = ((1, 2), "label");
         if (nested is ((> 0, > 0), "label"))
         {
-            Console.WriteLine("nested tuple: both positive with label");
+            System.Console.WriteLine("nested tuple: both positive with label");
         }
     }
 

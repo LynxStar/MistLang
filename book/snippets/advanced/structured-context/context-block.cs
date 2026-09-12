@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -29,20 +29,20 @@ public class Program
             MistContext.Push<int>(count);
             try
             {
-                Console.WriteLine(Snippet.Consumers.GetInt());
+                System.Console.WriteLine(Snippet.Consumers.GetInt());
                 {
                     var __e1 = 99;
                     MistContext.Push<int>(__e1);
                     try
                     {
-                        Console.WriteLine(Snippet.Consumers.GetInt());
+                        System.Console.WriteLine(Snippet.Consumers.GetInt());
                     }
                     finally
                     {
                         MistContext.Pop<int>();
                     }
                 }
-                Console.WriteLine(Snippet.Consumers.GetInt());
+                System.Console.WriteLine(Snippet.Consumers.GetInt());
             }
             finally
             {

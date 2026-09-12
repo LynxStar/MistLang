@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -12,7 +12,7 @@ public class Program
     public static void Main(string[] cmdArgs)
     {
         int arity = Describe_3<int, string, bool>((1, "x", true));
-        Console.WriteLine($"arity={arity}");
+        System.Console.WriteLine($"arity={arity}");
     }
 
     public Program()

@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -33,7 +33,7 @@ public class LentFrozenDemo
 {
     public static void WithFrozenRef(Snippet.Sensor s)
     {
-        Console.WriteLine($"frozen view={s.GetReading()}");
+        System.Console.WriteLine($"frozen view={s.GetReading()}");
     }
 
     public static void Main(string[] args)
@@ -41,7 +41,7 @@ public class LentFrozenDemo
         Snippet.Sensor s = new Snippet.Sensor(1, 100);
         WithFrozenRef(s);
         s.SetReading(200);
-        Console.WriteLine($"after thaw={s.Describe()}");
+        System.Console.WriteLine($"after thaw={s.Describe()}");
     }
 
     public LentFrozenDemo()

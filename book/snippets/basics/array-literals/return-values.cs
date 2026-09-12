@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -12,7 +12,7 @@ public class Program
     public static void Main(string[] args)
     {
         int[] values = GetDefaults();
-        Console.WriteLine($"Count: {values.Length}");
+        System.Console.WriteLine($"Count: {values.Length}");
     }
 
     public Program()

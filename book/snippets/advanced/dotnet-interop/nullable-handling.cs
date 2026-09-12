@@ -1,4 +1,4 @@
-using System;
+using Standard;
 using System.Collections.Generic;
 
 namespace DotnetInteropSnippets;
@@ -12,7 +12,7 @@ public class Program
         if (dict.ContainsKey("answer"))
         {
             int value = dict["answer"];
-            Console.WriteLine($"Found={value}");
+            System.Console.WriteLine($"Found={value}");
         }
     }
 

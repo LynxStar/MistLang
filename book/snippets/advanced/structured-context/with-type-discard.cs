@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -40,7 +40,7 @@ public class Program
             try
             {
                 string result = Snippet.Consumers.GetConfig();
-                Console.WriteLine(result);
+                System.Console.WriteLine(result);
             }
             finally
             {

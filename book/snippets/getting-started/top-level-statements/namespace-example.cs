@@ -1,9 +1,9 @@
-using System;
+using Standard;
 
 using MyApp;
 
 MyApp.Helper helper = new MyApp.Helper("world");
-Console.WriteLine(helper.Greet());
+System.Console.WriteLine(helper.Greet());
 return 0;
 
 namespace MyApp

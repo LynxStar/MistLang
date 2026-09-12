@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -51,7 +51,7 @@ public class Program
             try
             {
                 string result = Snippet.Consumers.GetLocale();
-                Console.WriteLine(result);
+                System.Console.WriteLine(result);
             }
             finally
             {

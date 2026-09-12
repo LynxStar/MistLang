@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -12,7 +12,7 @@ public class Program
             {
                 break;
             }
-            Console.WriteLine($"i = {i}");
+            System.Console.WriteLine($"i = {i}");
         }
     }
 

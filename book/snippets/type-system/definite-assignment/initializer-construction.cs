@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -17,8 +17,8 @@ public class Program
     public static void Main(string[] args)
     {
         Snippet.Item[] items = MistArray.Generate<Snippet.Item>(5, (int i) => new Snippet.Item($"item-{i}"));
-        Console.WriteLine(items[0].Name);
-        Console.WriteLine(items[4].Name);
+        System.Console.WriteLine(items[0].Name);
+        System.Console.WriteLine(items[4].Name);
     }
 
     public Program()

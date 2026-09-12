@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -55,7 +55,7 @@ public class Program
     {
         Snippet.Celsius boiling = new Snippet.Celsius(100.0);
         Snippet.Fahrenheit f = ((Snippet.Fahrenheit)boiling);
-        Console.WriteLine($"{f.Degrees} F");
+        System.Console.WriteLine($"{f.Degrees} F");
     }
 
     public Program()

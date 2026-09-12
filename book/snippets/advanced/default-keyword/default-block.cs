@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -26,7 +26,7 @@ public class Program
     public static void Main(string[] args)
     {
         Snippet.AppState state = Snippet.AppState.__CreateDefault();
-        Console.WriteLine($"ErrorCount={state.ErrorCount} Ready={state.Ready} Status={state.Status}");
+        System.Console.WriteLine($"ErrorCount={state.ErrorCount} Ready={state.Ready} Status={state.Status}");
     }
 
     public Program()

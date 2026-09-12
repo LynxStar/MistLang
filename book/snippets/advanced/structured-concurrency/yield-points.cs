@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 async System.Threading.Tasks.Task<int> SlowCompute()
 {
@@ -19,7 +19,7 @@ async System.Threading.Tasks.Task Main()
     try
     {
         int result = await task;
-        Console.WriteLine(result);
+        System.Console.WriteLine(result);
     }
     finally
     {

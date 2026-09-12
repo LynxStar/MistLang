@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -66,7 +66,7 @@ public class Program
     public static void Main(string[] cmdArgs)
     {
         ShapePair_2<Snippet.Circle, Snippet.Square> pair = new ShapePair_2<Snippet.Circle, Snippet.Square>((new Snippet.Circle(), new Snippet.Square()));
-        Console.WriteLine($"area={pair.TotalArea()}");
+        System.Console.WriteLine($"area={pair.TotalArea()}");
     }
 
     public Program()

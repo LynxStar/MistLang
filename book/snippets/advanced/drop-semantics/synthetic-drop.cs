@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippets;
 
@@ -13,7 +13,7 @@ public class Handle
 
     public void Drop()
     {
-        Console.WriteLine($"Handle({Id}) released");
+        System.Console.WriteLine($"Handle({Id}) released");
     }
 }
 
@@ -42,7 +42,7 @@ public class Program
         Snippets.Session session = new Snippets.Session(1, 2);
         try
         {
-            Console.WriteLine("Session active");
+            System.Console.WriteLine("Session active");
         }
         finally
         {

@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -9,13 +9,13 @@ public class Program
         Direction d = Direction.North;
         bool isNorth = (d == Direction.North);
         bool isSouth = (d == Direction.South);
-        Console.WriteLine($"d is Direction.North = {isNorth}");
-        Console.WriteLine($"d is Direction.South = {isSouth}");
+        System.Console.WriteLine($"d is Direction.North = {isNorth}");
+        System.Console.WriteLine($"d is Direction.South = {isSouth}");
         Color c = Color.Green;
         bool isGreen = (c == Color.Green);
         bool isRed = (c == Color.Red);
-        Console.WriteLine($"c is Color.Green = {isGreen}");
-        Console.WriteLine($"c is Color.Red = {isRed}");
+        System.Console.WriteLine($"c is Color.Green = {isGreen}");
+        System.Console.WriteLine($"c is Color.Red = {isRed}");
     }
 
     public Program()

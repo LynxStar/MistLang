@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -20,7 +20,7 @@ public class Program
                 sum = sum + v;
             }
         }
-        Console.WriteLine($"Sum of values > 5: {sum}");
+        System.Console.WriteLine($"Sum of values > 5: {sum}");
     }
 
     public Program()

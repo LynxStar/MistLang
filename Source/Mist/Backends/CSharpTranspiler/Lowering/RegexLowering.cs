@@ -15,7 +15,7 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// </summary>
 internal static class RegexLowering
 {
-    public const string ClrType = "System.Text.RegularExpressions.Regex";
+    public static readonly string ClrType = ClrSpelling.Spelling(WellKnownTypes.Regex)!;
 
     public static bool Is(IMistType? type)
     {

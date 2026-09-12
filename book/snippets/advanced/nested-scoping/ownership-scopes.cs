@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -26,7 +26,7 @@ public class OwnershipScopeDemo
 {
     public static void ReadOnly(Snippet.Resource r)
     {
-        Console.WriteLine($"frozen view: {r.Describe()}");
+        System.Console.WriteLine($"frozen view: {r.Describe()}");
     }
 
     public static void Main(string[] args)
@@ -36,7 +36,7 @@ public class OwnershipScopeDemo
             ReadOnly(res);
         }
         res.Update(2);
-        Console.WriteLine($"after update: {res.Describe()}");
+        System.Console.WriteLine($"after update: {res.Describe()}");
     }
 
     public OwnershipScopeDemo()

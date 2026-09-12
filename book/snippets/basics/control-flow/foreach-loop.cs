@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -12,7 +12,7 @@ public class Program
         numbers[2] = 30;
         foreach (int n in numbers)
         {
-            Console.WriteLine($"Element: {n}");
+            System.Console.WriteLine($"Element: {n}");
         }
     }
 

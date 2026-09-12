@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -46,9 +46,9 @@ public class Program
     public static void Main(string[] args)
     {
         Snippet.IStrictProcessor weaker = new Snippet.WeakerProcessor();
-        Console.WriteLine(weaker.Process(50));
+        System.Console.WriteLine(weaker.Process(50));
         Snippet.IStrictProcessor lenient = new Snippet.LenientProcessor();
-        Console.WriteLine(lenient.Process(50));
+        System.Console.WriteLine(lenient.Process(50));
     }
 
     public Program()

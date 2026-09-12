@@ -76,6 +76,6 @@ public sealed class MissingIntrinsicRefusalTests : IDisposable
         }
 
         Assert.DoesNotContain(diagnostics.ToImmutableArray(), d => d.Id == BackendDiagnostics.MissingIntrinsicEmissionTemplate.Id);
-        Assert.Contains("Math.Abs(-1)", writer.ToString());
+        Assert.Contains("System.Math.Abs(-1)", writer.ToString());
     }
 }

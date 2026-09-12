@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -10,13 +10,13 @@ public class Program
         {
             if (value.AsInt32OrNull is int n)
             {
-                Console.WriteLine($"It's an int: {n}");
+                System.Console.WriteLine($"It's an int: {n}");
             }
         }
         {
             if (value.AsStringOrNull is string s)
             {
-                Console.WriteLine($"It's a string: {s}");
+                System.Console.WriteLine($"It's a string: {s}");
             }
         }
     }

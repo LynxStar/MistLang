@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -29,7 +29,7 @@ public class Program
         Snippet.Shape shape = new Snippet.Circle(5);
         if (shape is Snippet.Circle)
         {
-            Console.WriteLine("It's a circle");
+            System.Console.WriteLine("It's a circle");
         }
     }
 

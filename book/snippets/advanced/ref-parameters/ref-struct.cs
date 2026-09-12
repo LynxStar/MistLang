@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -42,9 +42,9 @@ public class Program
     public static void Main()
     {
         Snippet.Point pt = new Snippet.Point(1, 2);
-        Console.WriteLine($"before: {pt.Describe()}");
+        System.Console.WriteLine($"before: {pt.Describe()}");
         MutatePoint(ref pt);
-        Console.WriteLine($"after: {pt.Describe()}");
+        System.Console.WriteLine($"after: {pt.Describe()}");
     }
 
     public Program()

@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 string escaped = "Line1\nLine2\tTabbed";
-Console.WriteLine(escaped);
+System.Console.WriteLine(escaped);

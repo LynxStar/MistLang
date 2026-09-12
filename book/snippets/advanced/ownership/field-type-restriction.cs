@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -30,9 +30,9 @@ public class FieldTypeRestrictionDemo
     public static void Run()
     {
         Snippet.Vault vault = new Snippet.Vault("top-secret");
-        Console.WriteLine($"initial={vault.Describe()}");
+        System.Console.WriteLine($"initial={vault.Describe()}");
         vault.RotateSecret("new-secret");
-        Console.WriteLine($"rotated={vault.Describe()}");
+        System.Console.WriteLine($"rotated={vault.Describe()}");
     }
 
     public FieldTypeRestrictionDemo()

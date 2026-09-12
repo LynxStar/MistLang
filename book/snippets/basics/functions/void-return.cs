@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -6,7 +6,7 @@ public class Logger
 {
     public static void Log(string message)
     {
-        Console.WriteLine($"[LOG] {message}");
+        System.Console.WriteLine($"[LOG] {message}");
     }
 
     public static void Main(string[] args)

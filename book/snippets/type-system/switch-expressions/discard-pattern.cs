@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -8,10 +8,10 @@ public class Program
     {
         int code = 99;
         string meaning = code switch { 0 => "Zero", 1 => "One", var _ => "Other" };
-        Console.WriteLine($"Code {code} => {meaning}");
+        System.Console.WriteLine($"Code {code} => {meaning}");
         int code2 = 50;
         string meaning2 = code2 switch { 0 => "Zero", 1 => "One", var _ => "Other" };
-        Console.WriteLine($"Code {code2} => {meaning2}");
+        System.Console.WriteLine($"Code {code2} => {meaning2}");
     }
 
     public Program()

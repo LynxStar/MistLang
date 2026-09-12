@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -6,8 +6,8 @@ public class Outer
 {
     public static void Demo()
     {
-        Console.WriteLine(Snippet.Outer.Inner.Hello());
-        Console.WriteLine($"Status.Active = {Status.Active}");
+        System.Console.WriteLine(Snippet.Outer.Inner.Hello());
+        System.Console.WriteLine($"Status.Active = {Status.Active}");
     }
 
     public Outer()
@@ -63,7 +63,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        Console.WriteLine(Snippet.Outer.Inner.Hello());
+        System.Console.WriteLine(Snippet.Outer.Inner.Hello());
         Snippet.Outer.Demo();
     }
 

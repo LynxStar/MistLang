@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -24,7 +24,7 @@ public class Program
     public static void Main(string[] args)
     {
         Snippet.Connection conn = new Snippet.Connection("localhost", 8080);
-        Console.WriteLine(conn.Describe());
+        System.Console.WriteLine(conn.Describe());
     }
 
     public Program()

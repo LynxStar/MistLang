@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -47,7 +47,7 @@ public class Program
             try
             {
                 string result = Snippet.Intermediary.Forward();
-                Console.WriteLine(result);
+                System.Console.WriteLine(result);
             }
             finally
             {

@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippets;
 
@@ -13,7 +13,7 @@ public class Transaction
 
     public void Drop()
     {
-        Console.WriteLine($"Transaction({Id}) committed");
+        System.Console.WriteLine($"Transaction({Id}) committed");
     }
 
     public string GetId()
@@ -31,7 +31,7 @@ public class Program
             MistContext.Push<Snippets.Transaction>(__e1);
             try
             {
-                Console.WriteLine("Inside transaction");
+                System.Console.WriteLine("Inside transaction");
             }
             finally
             {
@@ -40,7 +40,7 @@ public class Program
             }
         }
         Snippets.Transaction token = new Snippets.Transaction("tx-002");
-        Console.WriteLine($"Created {token.GetId()}, not dropping");
+        System.Console.WriteLine($"Created {token.GetId()}, not dropping");
     }
 
     public Program()

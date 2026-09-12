@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -8,7 +8,7 @@ public class Program
     {
         int[] numbers = new int[] { 10, 20, 30, 40, 50 };
         string label = numbers switch { [] => "empty", [var _] => "single", [var _, var _] => "pair", var _ => "many" };
-        Console.WriteLine($"label={label}");
+        System.Console.WriteLine($"label={label}");
     }
 
     public Program()

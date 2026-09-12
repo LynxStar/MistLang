@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace Snippet;
@@ -34,8 +35,8 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        Console.WriteLine("Multiple attributes in one list: [Serializable, Obsolete]");
-        Console.WriteLine("Multiple attribute lists: [Serializable] [Obsolete]");
+        System.Console.WriteLine("Multiple attributes in one list: [Serializable, Obsolete]");
+        System.Console.WriteLine("Multiple attribute lists: [Serializable] [Obsolete]");
     }
 
     public Program()

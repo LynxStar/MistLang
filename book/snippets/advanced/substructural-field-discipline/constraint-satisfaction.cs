@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippets;
 
@@ -18,7 +18,7 @@ public class Connection
 
     public void Drop()
     {
-        Console.WriteLine($"Connection({Id}).Drop()");
+        System.Console.WriteLine($"Connection({Id}).Drop()");
     }
 }
 
@@ -33,7 +33,7 @@ public class AffineHolder<T>
 
     public void Drop()
     {
-        Console.WriteLine("AffineHolder<T>.Drop()");
+        System.Console.WriteLine("AffineHolder<T>.Drop()");
         ((dynamic)this.Value).Drop();
     }
 }
@@ -56,7 +56,7 @@ public class RelevantHolder<T>
             return;
         }
         this.Dropped = true;
-        Console.WriteLine("RelevantHolder<T>.Drop()");
+        System.Console.WriteLine("RelevantHolder<T>.Drop()");
         ((dynamic)this.Value).Drop();
     }
 }
@@ -70,7 +70,7 @@ public class Program
             MistContext.Push<Snippets.AffineHolder<Snippets.Connection>>(__e1);
             try
             {
-                Console.WriteLine("Linear type in affine box");
+                System.Console.WriteLine("Linear type in affine box");
             }
             finally
             {
@@ -81,7 +81,7 @@ public class Program
         Snippets.RelevantHolder<Snippets.Connection> r = new Snippets.RelevantHolder<Snippets.Connection>(new Snippets.Connection(2));
         try
         {
-            Console.WriteLine("Linear type in relevant box");
+            System.Console.WriteLine("Linear type in relevant box");
         }
         finally
         {

@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -41,7 +41,7 @@ public class Program
     public static void Main(string[] args)
     {
         Snippet.Pair p = Snippet.Factory.Create<Snippet.Pair>(() => Snippet.Pair.__CreateDefault());
-        Console.WriteLine($"X={p.X} Y={p.Y}");
+        System.Console.WriteLine($"X={p.X} Y={p.Y}");
     }
 
     public Program()

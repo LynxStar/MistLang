@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -7,14 +7,14 @@ public class BorrowedDemo
     public static void MutatePair(Snippet.Pair p)
     {
         p.SetX(999);
-        Console.WriteLine($"borrowed mutated={p.Describe()}");
+        System.Console.WriteLine($"borrowed mutated={p.Describe()}");
     }
 
     public static void Run()
     {
         Snippet.Pair p = new Snippet.Pair(1, 2);
         MutatePair(p);
-        Console.WriteLine($"owner after return={p.Describe()}");
+        System.Console.WriteLine($"owner after return={p.Describe()}");
     }
 
     public BorrowedDemo()

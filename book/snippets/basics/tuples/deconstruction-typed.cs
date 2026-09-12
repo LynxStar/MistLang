@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 (int u, int v) = (100, 200);
-Console.WriteLine($"u={u} v={v}");
+System.Console.WriteLine($"u={u} v={v}");

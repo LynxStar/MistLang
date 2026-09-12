@@ -377,42 +377,12 @@ internal static class TypeNameEmitter
 
     private static string MapMemberType(MemberType memberType)
     {
-        // Map well-known Standard namespace types to C# keywords.
-        if(memberType.NamespaceName == "Standard")
+        if(ClrSpelling.Spelling(memberType) is { } substituted)
         {
-            return memberType.Name switch
-            {
-                "Int32" => "int",
-                "Int64" => "long",
-                "UInt32" => "uint",
-                "UInt64" => "ulong",
-                "Int16" => "short",
-                "UInt16" => "ushort",
-                "Byte" => "byte",
-                "SByte" => "sbyte",
-                "Single" => "float",
-                "Double" => "double",
-                "Decimal" => "decimal",
-                "Boolean" => "bool",
-                "Char" => "char",
-                "String" => "string",
-                "Regex" => RegexLowering.ClrType,
-
-                // Standard.Void is a real emitted struct (__Void.g.cs), because System.Void
-                // is unusable in every position a unit type needs. The one place the C#
-                // `void` keyword appears is a method's return type, and that exception is
-                // MethodEmitter.EmitSignature's, not this map's.
-                "Void" => "Standard.Void",
-                _ => memberType.Name,
-            };
+            return substituted;
         }
 
-        if(ShouldQualify(memberType))
-        {
-            return Qualified(memberType);
-        }
-
-        return memberType.Name;
+        return ShouldQualify(memberType) ? Qualified(memberType) : memberType.Name;
     }
 
     /// <summary>
@@ -444,10 +414,7 @@ internal static class TypeNameEmitter
     /// </summary>
     private static bool ShouldQualify(MemberType memberType)
     {
-        // The Standard namespace is handled above and maps onto C# keywords and
-        // System types reached through the emitted usings.
-        if(string.IsNullOrEmpty(memberType.NamespaceName)
-            || memberType.NamespaceName.StartsWith("Standard.", StringComparison.Ordinal))
+        if(string.IsNullOrEmpty(memberType.NamespaceName))
         {
             return false;
         }

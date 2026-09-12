@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -15,8 +15,8 @@ public class Program
 
     public static void Main(string[] args)
     {
-        Console.WriteLine($"5! = {Factorial(5)}");
-        Console.WriteLine($"10! = {Factorial(10)}");
+        System.Console.WriteLine($"5! = {Factorial(5)}");
+        System.Console.WriteLine($"10! = {Factorial(10)}");
     }
 
     public Program()

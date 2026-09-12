@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -8,7 +8,7 @@ public class Program
     {
         for (int i = 0; i < 5; i = i + 1)
         {
-            Console.WriteLine($"i = {i}");
+            System.Console.WriteLine($"i = {i}");
         }
     }
 

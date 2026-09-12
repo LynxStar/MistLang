@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -51,7 +51,7 @@ public class Program
     {
         Snippet.MessageProducer producer = new Snippet.MessageProducer();
         Snippet.MessageProducer.Output output = producer.CreateOutput("hello");
-        Console.WriteLine(output.Stringify());
+        System.Console.WriteLine(output.Stringify());
     }
 
     public Program()

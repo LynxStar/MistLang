@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippets;
 
@@ -13,7 +13,7 @@ public class SecretBox
 
     public string Drop()
     {
-        Console.WriteLine("SecretBox consumed");
+        System.Console.WriteLine("SecretBox consumed");
         return Secret;
     }
 }
@@ -24,7 +24,7 @@ public class Program
     {
         Snippets.SecretBox box = new Snippets.SecretBox("password123");
         string secret = box.Drop();
-        Console.WriteLine($"Got: {secret}");
+        System.Console.WriteLine($"Got: {secret}");
     }
 
     public Program()

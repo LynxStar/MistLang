@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 async System.Threading.Tasks.Task<string> FetchData()
 {
@@ -6,7 +6,7 @@ async System.Threading.Tasks.Task<string> FetchData()
 }
 async System.Threading.Tasks.Task SendNotification()
 {
-    Console.WriteLine("Notification sent");
+    System.Console.WriteLine("Notification sent");
 }
 async System.Threading.Tasks.Task ProcessAll()
 {
@@ -16,7 +16,7 @@ async System.Threading.Tasks.Task ProcessAll()
         var __e2 = SendNotification();
         try
         {
-            Console.WriteLine("Processing...");
+            System.Console.WriteLine("Processing...");
         }
         finally
         {

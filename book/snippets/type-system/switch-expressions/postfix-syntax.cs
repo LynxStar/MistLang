@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -8,7 +8,7 @@ public class Program
     {
         int num = 2;
         string parity = num switch { 1 => "odd", 2 => "even", 3 => "odd", var _ => "unknown" };
-        Console.WriteLine($"num={num} parity={parity}");
+        System.Console.WriteLine($"num={num} parity={parity}");
     }
 
     public Program()

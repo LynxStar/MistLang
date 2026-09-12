@@ -1,7 +1,7 @@
-using System;
+using Standard;
 
 static void PrintMessage(string msg)
 {
-    Console.WriteLine(msg);
+    System.Console.WriteLine(msg);
 }
 PrintMessage("fire-and-forget call");

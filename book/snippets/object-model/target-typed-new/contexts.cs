@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -43,7 +43,7 @@ internal class Program
 
     public static void PrintPoint(Snippet.Point p)
     {
-        Console.WriteLine(p.Describe());
+        System.Console.WriteLine(p.Describe());
     }
 
     public static void Main(string[] args)

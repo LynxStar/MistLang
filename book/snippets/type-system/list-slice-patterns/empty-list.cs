@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -10,15 +10,15 @@ public class Program
         int[] empty = numbers[0..0];
         if (empty is [])
         {
-            Console.WriteLine("empty matched");
+            System.Console.WriteLine("empty matched");
         }
         if (numbers is [])
         {
-            Console.WriteLine("unreachable");
+            System.Console.WriteLine("unreachable");
         }
         else
         {
-            Console.WriteLine("numbers is not empty");
+            System.Console.WriteLine("numbers is not empty");
         }
     }
 

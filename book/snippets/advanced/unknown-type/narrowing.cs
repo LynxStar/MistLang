@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -11,7 +11,7 @@ public class Program
             if (maybeInt is int narrowed)
             {
                 int doubled = narrowed + narrowed;
-                Console.WriteLine($"narrowed int doubled: {doubled}");
+                System.Console.WriteLine($"narrowed int doubled: {doubled}");
             }
         }
     }

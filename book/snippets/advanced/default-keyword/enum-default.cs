@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -37,7 +37,7 @@ public class Program
     public static void Main(string[] args)
     {
         Direction dir = Direction.__CreateDefault();
-        Console.WriteLine($"direction={dir}");
+        System.Console.WriteLine($"direction={dir}");
     }
 
     public Program()

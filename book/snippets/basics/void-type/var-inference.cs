@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
-Type inferred = typeof(Standard.Void);
-Console.WriteLine($"var inferred type name: {inferred.Name}");
+System.Type inferred = typeof(Standard.Void);
+System.Console.WriteLine($"var inferred type name: {inferred.Name}");

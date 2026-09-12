@@ -747,27 +747,15 @@ internal sealed class CSharpEmitterV2
     }
 
     /// <summary>
-    /// A MANIFEST GLOBAL USING HAS TO BE EMITTED, not just resolved through. The file never spells
-    /// it, and an ambient type reached through one emits unqualified -- TypeNameEmitter leaves every
-    /// CLR name bare on the assumption the usings cover its namespace -- so without this the name
-    /// arrives in C# with nothing to bind it to. Mist-declared types are unaffected either way,
-    /// being emitted fully qualified, which is why the gap stayed invisible while only they used it.
+    /// Exactly the directives the Mist source wrote, the manifest's global usings included, because
+    /// they are what an extension method or a bare ambient name in the body still binds through.
+    /// Nothing is added: every name the emitter substitutes for a Mist type is written in full
+    /// (<see cref="ClrSpelling"/>), so no directive exists for the emitter's own sake. And Standard
+    /// is not dropped, being a namespace the output always declares.
     /// </summary>
     private static void EmitUsings(CompilationUnit unit, IAssembly assembly, CSharpWriter writer)
     {
-        // Unconditional because TypeNameEmitter projects the Standard namespace onto C#
-        // keywords and System types, so a file can reach System without naming it.
-        var usings = new HashSet<string>(StringComparer.Ordinal) { "System" };
-
-        foreach(var ns in unit.Usings.Concat(assembly.GlobalUsings))
-        {
-            // Standard is Mist's stdlib namespace and has no C# counterpart to import --
-            // its types arrive through the System projection above.
-            if(ns != "Standard")
-            {
-                _ = usings.Add(ns);
-            }
-        }
+        var usings = new HashSet<string>(unit.Usings.Concat(assembly.GlobalUsings), StringComparer.Ordinal);
 
         foreach(var ns in usings.OrderBy(n => n, StringComparer.Ordinal))
         {

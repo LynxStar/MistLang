@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippets;
 
@@ -13,7 +13,7 @@ public class Resource
 
     public void Drop()
     {
-        Console.WriteLine($"Resource({Name}).Drop()");
+        System.Console.WriteLine($"Resource({Name}).Drop()");
     }
 }
 
@@ -26,7 +26,7 @@ public class Program
             MistContext.Push<Snippets.Resource>(r);
             try
             {
-                Console.WriteLine($"using {r.Name}");
+                System.Console.WriteLine($"using {r.Name}");
             }
             finally
             {

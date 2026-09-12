@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -43,8 +43,8 @@ public class Program
     {
         Snippet.Container c1 = new Snippet.Container();
         Snippet.Container c2 = Snippet.Container.__CreateDefault();
-        Console.WriteLine($"new Container() = Code={c1.Code}, Label={c1.Label}");
-        Console.WriteLine($"default(Container) = Code={c2.Code}, Label={c2.Label}");
+        System.Console.WriteLine($"new Container() = Code={c1.Code}, Label={c1.Label}");
+        System.Console.WriteLine($"default(Container) = Code={c2.Code}, Label={c2.Label}");
     }
 
     public Program()

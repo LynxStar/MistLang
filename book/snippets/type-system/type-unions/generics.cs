@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -22,13 +22,13 @@ public class Program
         {
             if (ok.AsInt32OrNull is int n)
             {
-                Console.WriteLine($"ok: {n}");
+                System.Console.WriteLine($"ok: {n}");
             }
         }
         {
             if (err.AsStringOrNull is string s)
             {
-                Console.WriteLine($"err: {s}");
+                System.Console.WriteLine($"err: {s}");
             }
         }
     }

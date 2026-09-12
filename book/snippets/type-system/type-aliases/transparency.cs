@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -6,7 +6,7 @@ public class Program
 {
     private static void PrintUserId(int id)
     {
-        Console.WriteLine(id);
+        System.Console.WriteLine(id);
     }
 
     public static void Main(string[] args)

@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -19,7 +19,7 @@ public class Program
     public static void Main(string[] args)
     {
         Snippet.DatabaseConnection db = new Snippet.DatabaseConnection("Server=localhost", 30);
-        Console.WriteLine($"conn={db.ConnectionString} timeout={db.Timeout}");
+        System.Console.WriteLine($"conn={db.ConnectionString} timeout={db.Timeout}");
     }
 
     public Program()

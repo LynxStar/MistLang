@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -10,7 +10,7 @@ public class Program
         {
             if (numbers is [> 0, var _, var third])
             {
-                Console.WriteLine($"third={third}");
+                System.Console.WriteLine($"third={third}");
             }
         }
     }

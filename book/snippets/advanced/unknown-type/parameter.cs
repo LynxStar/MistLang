@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -9,13 +9,13 @@ public class Program
         {
             if (value is int i)
             {
-                Console.WriteLine($"int: {i}");
+                System.Console.WriteLine($"int: {i}");
             }
         }
         {
             if (value is string s)
             {
-                Console.WriteLine($"string: {s}");
+                System.Console.WriteLine($"string: {s}");
             }
         }
     }

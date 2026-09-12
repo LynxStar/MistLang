@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -8,8 +8,8 @@ public class Program
     {
         int? maybeInt = 42;
         string maybeStr = "hello";
-        Console.WriteLine($"maybeInt={(object?)maybeInt ?? "Void"}");
-        Console.WriteLine($"maybeStr={(object?)maybeStr ?? "Void"}");
+        System.Console.WriteLine($"maybeInt={(object?)maybeInt ?? "Void"}");
+        System.Console.WriteLine($"maybeStr={(object?)maybeStr ?? "Void"}");
     }
 
     public Program()

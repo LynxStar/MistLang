@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -13,7 +13,7 @@ public class Program
     {
         (int, int) pair = (10, 20);
         int result = Add2(pair.Item1, pair.Item2);
-        Console.WriteLine($"result={result}");
+        System.Console.WriteLine($"result={result}");
     }
 
     public Program()

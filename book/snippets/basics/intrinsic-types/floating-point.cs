@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 float f = 2.5f;
 double d = 3.14;

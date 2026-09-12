@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -32,7 +32,7 @@ public class Program
     public static void Main(string[] args)
     {
         Snippet.Config cfg = new Snippet.Config() { Timeout = 60, Verbose = true, Name = "production" };
-        Console.WriteLine($"Timeout={cfg.Timeout}, Name={cfg.Name}");
+        System.Console.WriteLine($"Timeout={cfg.Timeout}, Name={cfg.Name}");
     }
 
     public Program()

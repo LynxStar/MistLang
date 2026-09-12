@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 namespace Snippet;
 
@@ -28,11 +28,11 @@ public class OwnershipInferenceDemo
     {
         Snippet.Counter counter = new Snippet.Counter(0);
         counter.Increment();
-        Console.WriteLine($"inferred owned={counter.Describe()}");
+        System.Console.WriteLine($"inferred owned={counter.Describe()}");
         string label = "hello";
         string alias = label;
-        Console.WriteLine($"label={label}");
-        Console.WriteLine($"alias={alias}");
+        System.Console.WriteLine($"label={label}");
+        System.Console.WriteLine($"alias={alias}");
     }
 
     public OwnershipInferenceDemo()

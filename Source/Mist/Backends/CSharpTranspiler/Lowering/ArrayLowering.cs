@@ -1,6 +1,7 @@
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Lowering;
@@ -51,6 +52,12 @@ internal static class ArrayLowering
 
         used = true;
         return (TypeNameEmitter.Emit(element), length);
+    }
+
+    public static bool Generates(Constructor constructor)
+    {
+        return constructor.ParametersList.Count == 1
+            && constructor.DeclaringType?.FullyQualifiedName == WellKnownTypes.Array.FullyQualifiedName;
     }
 
     public static void Emit(CSharpWriter writer)

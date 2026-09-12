@@ -8483,15 +8483,54 @@ capabilities:
       (MIST_PM_INTRINSIC_RESERVED). The member-level marker needs no separate check: the pairing rule
       (Req 5.15) already requires an intrinsic container. A corpus case under refusals/binding/ holds it,
       and Standard's own types are unaffected -- AllFeaturesV2 is byte-identical.
+
+      THE CONTRACT IS NOW CHECKABLE (2026-09-12). IntrinsicSupply classifies every intrinsic member
+      Standard declares -- 250 of them, 195 operators, 3 indexers and 52 named members and constructors;
+      the 279 above counted the type-level markers too -- as one of three things the backend supplies,
+      and refuses the rest at the call site with MIST_BE_0002 naming the declaring type and member
+      (standard-library spec Req 5.9), before any Roslyn compile and so with no artifact (Req 5.10; the
+      scratch C# under out/ is still written, holding a comment where the call would have been, which
+      is what this backend does for every refusal it makes mid-body). DERIVED, NOT TABULATED: an
+      operator, a cast and an indexer are C# syntax the backing type answers; a respelling is one of the
+      entries IntrinsicCalls lists, and the emitter and the audit read the same classification so the
+      list cannot drift from what is rewritten; everything else is looked up by name, static-ness and
+      arity in the CLR metadata the ambient provider already loads, on the type the emitter's own
+      projection reaches -- `System.` plus the Standard name through the unconditional `using System`,
+      or WellKnownTypeMap's entry, or RegexLowering's. A nested intrinsic type resolves to the CLR
+      nesting of the same name, or failing that to what the CLR returns where Mist returns it, which is
+      how Array's Enumerator is the IEnumerator that System.Array.GetEnumerator answers. Name matching
+      proves a member exists, not that the emitted call compiles, so samples/StandardSurface stays the
+      end-to-end proof. IntrinsicSupplyTests (Tier 4) walks the real Standard against the runtime's
+      metadata and fails on any member in no category, so a new intrinsic without emission fails a test
+      rather than a user's build; MissingIntrinsicRefusalTests (Tier 3) hands the emitter an oracle
+      that finds nothing and reads the refusal off Math.Abs.
+
+      MEASURING IT FOUND A FOURTH MEMBER OF THE CLASS. Task<TResult>.Drop() and ValueTask<TResult>.Drop()
+      are declared intrinsic and no CLR task has a Drop; an explicit `pending.Drop()` bound, emitted as
+      written, and failed as MIST_CS_ERROR "'Task' does not contain a definition for 'Drop'" -- the
+      shape of Type.Of, Clone and WhenAll before it (classic cannot reach it, being unable to type a
+      `Task` local at all). Supplied as the join the drop-semantics spec says Drop is (Req 7.2),
+      spelled `.GetAwaiter().GetResult()` exactly as the emitter spells an await that cannot be real: a
+      Drop call registers no await use, so nothing makes its caller async, and `await` would not
+      compile in one that is not. samples/StandardSurface now calls it (Drop=joined).
     tasks:
       - >
-        A MISSING INTRINSIC IS NOT REPORTED. The standard-library spec asks for a compiler error naming
-        the declaring type and member when the backend has no emission for an intrinsic, with no output
-        artifact produced (Req 5.9 and 5.10). v2 has no registry to ask, so an unsupplied intrinsic is
-        emitted as a plain call and fails against generated C# -- which is how Type.Of and Clone were
-        found. Deriving the check is possible without a hand-written table: resolve the declaring type
-        through the backing map and ask CLR metadata whether a matching member exists, leaving only the
-        deliberately-respelled ones as entries. samples/StandardSurface is the measurement until then.
+        AN INTRINSIC ENUMERATOR CANNOT BE NAMED. `var e = xs.GetEnumerator(); e.MoveNext();
+        e.Current` on an int[] or a Span<int> emits `Enumerator e = ...`, the nested intrinsic type
+        spelled by its bare name, which no C# resolves, and fails as MIST_CS_ERROR on v2. The MEMBERS
+        are supplied -- the audit finds MoveNext and Current on System.Span<T>.Enumerator and on the
+        IEnumerator an array's GetEnumerator returns -- so this is not a Req 5.9 case; it is the TYPE's
+        spelling, a nested type of a constructed intrinsic generic, which TypeNameEmitter renders as
+        `memberType.Name` for anything declared in Standard. Classic runs the array case and refuses
+        the span case at its type checker. foreach never names the type and is unaffected, which is why
+        no sample sees it. Probed 2026-09-12 with a four-line program.
+      - >
+        A Drop call on a task is a BLOCKING join, where the drop-semantics spec makes `await task`
+        sugar for `task.Drop()` (Req 7.5) and the two should be one bound form. Binding an explicit
+        Drop as the AwaitExpression it is would register the await use, promote the caller and let the
+        emitter write a real await; that is the binder's to do. Until it does, the backend's spelling
+        completes the task on the calling thread, safe here only because nothing installs a
+        synchronization context -- the reasoning BodyEmitter records for a sync lambda.
       - >
         A static on a generic type is reachable only at the instantiation a name gives, so
         Task.WhenAll can be called only at TResult = void -- `Task` being an alias for Task<void> -- and

@@ -1916,4 +1916,5 @@ IsMatch=True IsFullMatch=True Pattern=^h.*o$
 --- Task members ---
 Delay=3 Yield=4
 WhenAll=2 WhenAny=1
+Drop=joined
 === Standard Surface Done ===

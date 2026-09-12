@@ -79,7 +79,7 @@ public sealed class ExperimentalPipeline : ICompilationPipeline
         }
 
         // Stage 6: Emit
-        return Emit(programModel, input, diagnostics);
+        return Emit(programModel, input, diagnostics, ambientProvider.FindClrType);
     }
 
     /// <summary>
@@ -98,10 +98,11 @@ public sealed class ExperimentalPipeline : ICompilationPipeline
     /// <summary>
     /// Stage 6 – Emits output via the new emitter consuming the <see cref="IProgramModel"/>.
     /// </summary>
-    private static CompilerResult Emit(IProgramModel programModel, PipelineInput input, DiagnosticBag diagnostics)
+    private static CompilerResult Emit(
+        IProgramModel programModel, PipelineInput input, DiagnosticBag diagnostics, Func<string, Type?> clrType)
     {
         var emitter = new CSharpEmitterV2(
-            programModel, input.Options, input.ResolvedAssemblyPaths, diagnostics);
+            programModel, input.Options, input.ResolvedAssemblyPaths, diagnostics, clrType);
         return emitter.Emit();
     }
 }

@@ -29,15 +29,14 @@ internal static class TaskCombinators
         return used;
     }
 
-    public static string? Rewrite(Method callee, IReadOnlyList<string> arguments)
+    public static bool Combines(Method callee)
     {
-        if(arguments.Count != 1
-            || callee.Name is not ("WhenAll" or "WhenAny")
-            || !IsTask(callee.DeclaringType))
-        {
-            return null;
-        }
+        return callee is { Name: "WhenAll" or "WhenAny", ParametersList.Count: 1 }
+            && IsTask(callee.DeclaringType);
+    }
 
+    public static string Rewrite(Method callee, IReadOnlyList<string> arguments)
+    {
         used = true;
         return $"MistTasks.{callee.Name}({arguments[0]})";
     }

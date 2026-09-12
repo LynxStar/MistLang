@@ -25,17 +25,20 @@ internal sealed class CSharpEmitterV2
     private readonly CompilerOptions options;
     private readonly ImmutableArray<string> referencePaths;
     private readonly DiagnosticBag diagnostics;
+    private readonly Func<string, Type?> clrType;
 
     public CSharpEmitterV2(
         IProgramModel programModel,
         CompilerOptions options,
         ImmutableArray<string> referencePaths,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        Func<string, Type?> clrType)
     {
         this.programModel = programModel;
         this.options = options;
         this.referencePaths = referencePaths;
         this.diagnostics = diagnostics;
+        this.clrType = clrType;
     }
 
     /// <summary>
@@ -96,6 +99,7 @@ internal sealed class CSharpEmitterV2
         BodyEmitter.ResetTemporaries();
         var closures = ConstraintClosureMap.Build((ProgramModel.Model.ProgramModel)programModel, diagnostics);
         using var promotion = AsyncPromotion.Enter((ProgramModel.Model.ProgramModel)programModel);
+        using var supply = IntrinsicSupply.Enter((ProgramModel.Model.ProgramModel)programModel, clrType);
 
         ReportForeignConformances();
 

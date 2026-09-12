@@ -38,6 +38,13 @@ public class Program
         return 1;
     }
 
+    private static string Joined()
+    {
+        Task pending = Settle();
+        pending.Drop();
+        return "joined";
+    }
+
     public static void Main(string[] args)
     {
         RunDemo();
@@ -124,6 +131,7 @@ public class Program
         Console.WriteLine("--- Task members ---");
         Console.WriteLine($"Delay={Delayed()} Yield={Yielded()}");
         Console.WriteLine($"WhenAll={Gathered()} WhenAny={Raced()}");
+        Console.WriteLine($"Drop={Joined()}");
 
         Console.WriteLine("=== Standard Surface Done ===");
     }

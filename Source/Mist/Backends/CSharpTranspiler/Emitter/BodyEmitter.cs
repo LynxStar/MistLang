@@ -5,6 +5,7 @@ using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 
@@ -661,10 +662,6 @@ internal static class BodyEmitter
     {
         switch(expression)
         {
-            case InvocationExpression invocation when FullMatchCall(invocation) is { } fullMatch:
-                writer.Append(fullMatch);
-                break;
-
             // A lift needs a task built around a value C# has no other way to wrap; a suppression needs
             // nothing at all, the operand already being the task and this having only kept the sync
             // context from awaiting it.
@@ -718,12 +715,18 @@ internal static class BodyEmitter
                 EmitSubExpression(await.Operand, PrefixPrecedence, writer, diagnostics);
                 break;
 
-            case InvocationExpression intrinsic
-                when IntrinsicCalls.Rewrite(
-                    intrinsic.Method,
-                    intrinsic.Receiver is MemberAccessExpression access ? Render(access.Receiver, diagnostics) : null,
-                    [.. intrinsic.Arguments.Select(argument => Render(argument, diagnostics))]) is { } lowered:
-                writer.Append(lowered);
+            case InvocationExpression respelled when IntrinsicCalls.Respells(respelled.Method):
+                writer.Append(IntrinsicCalls.Rewrite(
+                    respelled.Method!,
+                    respelled.Receiver is MemberAccessExpression access
+                        ? RenderAt(access.Receiver, PostfixPrecedence, diagnostics)
+                        : null,
+                    [.. respelled.Arguments.Select(argument => RenderAt(argument, PostfixPrecedence, diagnostics))]));
+                break;
+
+            case InvocationExpression { Method: { Modifiers.IsIntrinsic: true } unsupplied } missing
+                when !IntrinsicSupply.Supplies(unsupplied):
+                ReportMissingIntrinsic(IntrinsicSupply.Describe(unsupplied), missing.Node, writer, diagnostics);
                 break;
 
             case InvocationExpression invocation:
@@ -1468,23 +1471,6 @@ internal static class BodyEmitter
     }
 
     /// <summary>
-    /// <c>r.IsFullMatch(x)</c>, which the CLR cannot be asked directly -- it matches partially, so a
-    /// full match is the same question put to an anchored copy of the pattern.
-    /// </summary>
-    private static string? FullMatchCall(InvocationExpression invocation)
-    {
-        return invocation is
-        {
-            Receiver: MemberAccessExpression { MemberName: "IsFullMatch" } callee,
-            Arguments: [{ } input],
-        }
-            && RegexLowering.Is(callee.Receiver.Type)
-                ? RegexLowering.IsFullMatch(
-                    Render(input, NoDiagnostics), RegexLowering.PatternOf(Render(callee.Receiver, NoDiagnostics)))
-                : null;
-    }
-
-    /// <summary>
     /// A regex where a string is expected. Mist declares the conversion implicit and the CLR type
     /// has none, so it is materialised at the sites the emitter already knows a target type for.
     /// </summary>
@@ -1513,13 +1499,25 @@ internal static class BodyEmitter
         EmitExpression(expression, writer, diagnostics);
     }
 
-    private static readonly DiagnosticBag NoDiagnostics = new();
-
     private static string Render(Expression expression, DiagnosticBag diagnostics)
     {
         var scratch = new CSharpWriter();
         EmitExpression(expression, scratch, diagnostics);
         return scratch.ToString();
+    }
+
+    private static string RenderAt(Expression expression, int operatorPrecedence, DiagnosticBag diagnostics)
+    {
+        var scratch = new CSharpWriter();
+        EmitSubExpression(expression, operatorPrecedence, scratch, diagnostics);
+        return scratch.ToString();
+    }
+
+    private static void ReportMissingIntrinsic(
+        string member, Storm.Runtime.SyntaxNode node, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        diagnostics.ReportAtNode(BackendDiagnostics.MissingIntrinsicEmissionTemplate, node, null, member);
+        writer.Append($"/* missing intrinsic: {member} */");
     }
 
     [ThreadStatic]
@@ -1938,6 +1936,13 @@ internal static class BodyEmitter
             return;
         }
 
+        if(newExpression.Constructor is { Modifiers.IsIntrinsic: true } constructor
+            && !IntrinsicSupply.Supplies(constructor))
+        {
+            ReportMissingIntrinsic(IntrinsicSupply.Describe(constructor), newExpression.Node, writer, diagnostics);
+            return;
+        }
+
         var target = newExpression.Type is TypeParameter && newExpression.Arguments.Count > 0
             ? $"{TypeNameEmitter.Emit(newExpression.Type)}.{ConstructorConstraintInterfaces.MemberName}("
             : $"new {TypeNameEmitter.Emit(newExpression.Type)}("
@@ -1990,9 +1995,16 @@ internal static class BodyEmitter
             return;
         }
 
-        if(memberAccess.MemberName == "Pattern" && RegexLowering.Is(memberAccess.Receiver.Type))
+        if(IntrinsicCalls.RespellsProperty(memberAccess.MemberName, memberAccess.Receiver.Type))
         {
-            writer.Append(RegexLowering.PatternOf(Render(memberAccess.Receiver, diagnostics)));
+            writer.Append(IntrinsicCalls.RewriteProperty(RenderAt(memberAccess.Receiver, PostfixPrecedence, diagnostics)));
+            return;
+        }
+
+        if(memberAccess.Member is PropertyResult { Property: { Modifiers.IsIntrinsic: true } property }
+            && !IntrinsicSupply.Supplies(property))
+        {
+            ReportMissingIntrinsic(IntrinsicSupply.Describe(property), memberAccess.Node, writer, diagnostics);
             return;
         }
 

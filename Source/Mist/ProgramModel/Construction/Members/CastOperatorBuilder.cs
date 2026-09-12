@@ -59,6 +59,8 @@ internal sealed class CastOperatorBuilder
         {
             Body = common.Body,
             Scope = castScope,
+            DeclaringType = typeDef,
+            DeclarationNode = castOpDecl,
         };
         typeDef.CastOperatorsList.Add(castOperator);
     }

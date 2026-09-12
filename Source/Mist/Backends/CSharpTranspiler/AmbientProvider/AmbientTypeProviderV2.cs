@@ -43,6 +43,19 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
     /// </summary>
     public ImmutableArray<LoadedAssemblyInfo> LoadedAssemblies { get; }
 
+    public Type? FindClrType(string fullName)
+    {
+        foreach(var assembly in LoadedAssemblies)
+        {
+            if(assembly.MetadataAssembly.GetType(fullName) is { } type)
+            {
+                return type;
+            }
+        }
+
+        return null;
+    }
+
     /// <inheritdoc />
     public void BuildAndRegister(ProgramModelType programModel)
     {

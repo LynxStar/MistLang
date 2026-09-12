@@ -371,3 +371,62 @@ and a static member reached through a type alias, `Task.Yield()`, in both binder
 Nothing under `book/snippets/` is outside the tool. Later the same day local functions landed
 (`.kiro/specs/local-functions`, emitter order 187), and the ten fragments went back to the shape they
 were written in -- a bare or `public static` function at file top -- and regenerate as such.
+
+---
+
+## 🟢 Representation choice: `Array<void, n>` is a number, and no layer of the compiler can say so
+
+**Severity: design note** -- no defect. Recorded from a 2026-09-11 design discussion so the analysis is not
+re-derived.
+
+**The observation.** An array's runtime content is `bits(T) * n`, plus `n` itself when the length is not in
+the type. Two corners of one rule:
+
+- `Array<bool, 32>` -- payload 32 bits, length static. That is what an `int` IS.
+- `Array<void, unknown>` -- payload 0 bits, length dynamic. The only datum is the count, so it is `ℕ`
+  (`List(1)` is the free monoid on one generator). Mist already names the target type: `ZeroOrPositiveInt`,
+  declared in Array.mist as the array's own `Length` parameter.
+
+**Where it bit.** Order 186's `MistTasks.WhenAll(Task[])` materializes `new Standard.Void[tasks.Length]` --
+a unary encoding of a number, N bytes plus an array header for a value that fits in four, whose elements are
+indistinguishable tally marks. The count it appends is information the CALLER already held, having passed the
+array. Rust ships this erasure (`[(); N]` is zero-sized, `Vec<()>` is a bare counter); C# cannot, the CLR
+forbidding zero-size instance types, so an empty struct is 1 byte. The erasure therefore cannot happen in the
+C# emitter at all -- it has to be a Mist-side representation decision that emits an `int` and never mentions
+an array to the backend.
+
+**The classification.** Two questions that look alike and are not:
+
+1. `Array<void, n>` is `ℕ` is a THEOREM of definitions already in the language, so lowering it is a compiler
+   implementation detail -- no spec, no language change, free to differ per backend (Rust: literally nothing;
+   C#: an int).
+2. `type int = Array<bool, 32>` is DEFINITIONAL, and so a language semantic: a program could then rely on
+   `int` having a `Length` of 32 and being indexable, forever.
+
+The test that separates them: CAN A MIST PROGRAM TELL? If no program can distinguish the representations it
+belongs to the compiler; if a program can say something new, it belongs to the language. Applied backwards,
+`Task<void>` to `Task`, optionals to nullable, struct flattening and `void` returns to C# `void` are all
+compiler; `void` being a real unit type with a writable value is language, which is why it has a spec.
+
+**Why an alias is the wrong mechanism, even for (1).** Representational equality is not type identity: same
+bits, different interface. The mechanism that fits is coercion over a shared representation -- Haskell's
+`Coercible`/`coerce`, Rust's `repr(transparent)` and safe transmute. Iteration shows why the two must stay
+distinct types: an array yields its ELEMENTS (19 meaningless `void`s) while a number yields its INDEX SET
+(`0..18`, meaningful -- the type Mist already names `ArrayBounds`). Unifying the representation deliberately
+does not unify the interface.
+
+**What is missing to express (2).** Not tighter refinements. A refinement CONSTRAINS a value (`int >= 0`);
+`struct Int<Length> : Bit[Length]` needs to COMPUTE a type from a value -- `Length - 1`, a conditional type,
+a slice type. Mist has dependent parameters (values in type position) but no functions from values to types.
+The floor of the model is two primitives, `void` and `bool` -- one inhabitant and one bit -- and everything
+above is constructible, which would shrink the bootstrap set from thirteen types to two.
+
+**Action, if taken up:**
+
+1. Name the representation layer that already exists implicitly, scattered through the emitter as the
+   ad-hoc decisions listed above.
+2. Move the void-array lowering there, so the void `WhenAll` returns the count rather than an array.
+3. Independent of all of the above, and cheap: the wrapper is unnecessary when the result is discarded
+   (`await Task.WhenAll(pending);` in statement position needs no array), and three of its four members
+   need not be `async` -- the generic `WhenAll` is a pass-through and both `WhenAny`s are
+   `TaskExtensions.Unwrap`.

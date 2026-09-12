@@ -2,8 +2,8 @@
 // instantiation's substitution, so `Box<int>.Make(3)` is an int, and Standard's combinators resolve at
 // the instantiation named rather than at the alias's void. A nested type is carried UNDER the
 // instantiation -- `Box<int>.Wrapper` is a construction of the nested definition enclosed by `Box<int>`,
-// distinct from `Box<string>.Wrapper`, with Box's T bound in its members. See ProgramModelProbe for the
-// harness.
+// distinct from `Box<string>.Wrapper`, with Box's T bound in its members -- and the same type whether
+// inferred from a member or written in a type position. See ProgramModelProbe for the harness.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
@@ -124,6 +124,48 @@ public sealed class ConstructedGenericMemberAccessTests : ProgramModelProbe
 
         Assert.Equal(WellKnownTypes.Int32.FullyQualifiedName, call.Type.FullyQualifiedName);
         Assert.Equal("Base<int>.Inner", TypeDisplay.Mist(ReceiverTypeOf(call)));
+    }
+
+    [Fact]
+    public void ANestedTypeWrittenInTypePositionIsTheCarriedType()
+    {
+        var declaration = DeclarationIn("Box<int>.Wrapper w = Box<int>.Wrapper.Make();", extraTypes: "");
+
+        Assert.Equal("Box<int>.Wrapper", TypeDisplay.Mist(declaration.Local.Type));
+        Assert.Same(declaration.Initializer!.Type, declaration.Local.Type);
+    }
+
+    [Fact]
+    public void ANestedTypeInTypePositionTargetsANew()
+    {
+        var creation = InitializerOf<NewExpression>("Box<string>.Wrapper w = new();");
+
+        Assert.Equal("Box<string>.Wrapper", TypeDisplay.Mist(creation.Type));
+    }
+
+    [Fact]
+    public void ANestedTypeOnAGenericBaseIsNamedThroughTheDeriverInTypePosition()
+    {
+        var declaration = DeclarationIn("Derived<int>.Inner i = new();", GenericBase);
+
+        Assert.Equal("Base<int>.Inner", TypeDisplay.Mist(declaration.Local.Type));
+        Assert.Same(declaration.Initializer!.Type, declaration.Local.Type);
+    }
+
+    [Theory]
+    [InlineData("Box<int>.Wrapper? maybe = Box<int>.Wrapper.Make();", "Box<int>.Wrapper | void")]
+    [InlineData("Box<int>.Wrapper[] many = [Box<int>.Wrapper.Make()];", "Box<int>.Wrapper[]")]
+    public void ANestedTypeTakesTheSuffixesANamedOneTakes(string statement, string display)
+    {
+        Assert.Equal(display, TypeDisplay.Mist(SingleLocal(statement).Type));
+    }
+
+    [Fact]
+    public void ANestedNameNothingDeclaresIsRefusedAsAType()
+    {
+        var diagnostics = BuildRun("Box<int>.Missing m = Box<int>.Wrapper.Make();");
+
+        _ = Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_TYPE"));
     }
 
     private static ConstructedType ReceiverTypeOf(InvocationExpression call)

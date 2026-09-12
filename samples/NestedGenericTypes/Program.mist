@@ -1,0 +1,90 @@
+using Standard;
+
+namespace NestedGenericTypes;
+
+// A nested type named through an instantiation of its enclosing generic, in each position the grammar
+// admits it: a local's type, the target of a `new()`, a static reached through it, a type pattern, and
+// a nested type declared on a generic base reached through the deriver. Classic parses the form, the
+// grammar being shared, but resolves none of it, so this sample is banked on AllFeaturesV2 alone.
+public class Box<T>
+{
+    public class Wrapper
+    {
+        private T held;
+
+        public Wrapper(T value)
+        {
+            held = value;
+        }
+
+        public T Unwrap()
+        {
+            return held;
+        }
+
+        public static string Info()
+        {
+            return "wrapper";
+        }
+
+        public static T Echo(T value)
+        {
+            return value;
+        }
+    }
+
+    public static Wrapper Wrap(T value)
+    {
+        return new Wrapper(value);
+    }
+}
+
+public class Base<T>
+{
+    public class Inner
+    {
+        public static T Pick(T value)
+        {
+            return value;
+        }
+    }
+}
+
+public class Derived<T> : Base<T>
+{
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Nested Generic Types ===");
+
+        Box<int>.Wrapper wrapped = Box<int>.Wrap(7);
+        Console.WriteLine($"Box<int>.Wrapper.Unwrap()={wrapped.Unwrap()}");
+
+        Box<string>.Wrapper made = new("boxed");
+        Console.WriteLine($"target-typed-new={made.Unwrap()}");
+
+        var info = Box<int>.Wrapper.Info();
+        var echoed = Box<int>.Wrapper.Echo(3);
+        Console.WriteLine($"Info={info} Echo={echoed}");
+
+        Derived<int>.Inner inner = new();
+        var picked = Derived<int>.Inner.Pick(9);
+        Console.WriteLine($"Derived<int>.Inner.Pick={picked}");
+
+        Box<int>.Wrapper? maybe = wrapped;
+        if(maybe is Box<int>.Wrapper present)
+        {
+            Console.WriteLine($"optional-present={present.Unwrap()}");
+        }
+
+        Console.WriteLine("=== Nested Generic Types Done ===");
+    }
+}

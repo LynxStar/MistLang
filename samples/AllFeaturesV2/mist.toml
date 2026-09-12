@@ -80,3 +80,4 @@ OperatorOverloads = { path = "../OperatorOverloads" }
 StandardSurface = { path = "../StandardSurface" }
 InheritedGenericMembers = { path = "../InheritedGenericMembers" }
 GenericAbstractMembers = { path = "../GenericAbstractMembers" }
+NestedGenericTypes = { path = "../NestedGenericTypes" }

@@ -37,6 +37,14 @@ public sealed class NestedIntrinsicTypeEmissionTests
     }
 
     [Fact]
+    public void ASpanEnumeratorNamedInTypePositionSpellsTheSame()
+    {
+        var emitted = Emit("Span<int> buffer = stackalloc int[2];\nSpan<int>.Enumerator e = buffer.GetEnumerator();");
+
+        Assert.Contains("System.Span<int>.Enumerator e = buffer.GetEnumerator();", emitted, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void AReadOnlySpanEnumeratorLocalIsSpelledThroughItsInstantiation()
     {
         var emitted = Emit("ReadOnlySpan<int> buffer = stackalloc int[2];\nvar e = buffer.GetEnumerator();");

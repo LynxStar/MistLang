@@ -1054,6 +1054,21 @@ public sealed class MistPrettyPrinter
                 // Variadics: a pack spread in type position, e.g. `TArgs...` in
                 // `Func<TArgs..., void>`, `public TArgs... Item;`, or `(TArgs...)`.
                 return $"{ExtractQualifiedName(spreadRef.Name)}...";
+            case NestedGenericSingleTypeRefSingleTypeRefNode nestedRef:
+                {
+                    var name = $"{ExtractQualifiedName(nestedRef.Outer)}{EmitTypeArgumentList(nestedRef.OuterArgs)}.{ExtractQualifiedName(nestedRef.Nested)}";
+                    var typeArgs = EmitTypeArgumentList(nestedRef.TypeArgs);
+                    if(nestedRef.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank)
+                    {
+                        return $"{name}{typeArgs}[{sizedRank.Size.Lexeme}]";
+                    }
+                    else if(nestedRef.ArrayRank is not null)
+                    {
+                        return $"{name}{typeArgs}[]";
+                    }
+
+                    return $"{name}{typeArgs}";
+                }
             case NamedSingleTypeRefSingleTypeRefNode namedRef:
                 {
                     var name = ExtractQualifiedName(namedRef.Name);

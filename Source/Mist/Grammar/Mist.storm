@@ -409,6 +409,10 @@ rule SingleTypeRef
     | VOID as VoidSingleTypeRef
     | UNKNOWN as UnknownSingleTypeRef
     | name:QualifiedIdentifier ELLIPSIS as SpreadSingleTypeRef
+    // A nested type through an instantiation, `Box<int>.Wrapper`. Ahead of the named form because
+    // that one takes the arguments and stops, leaving `.Wrapper` unread; this one commits only when
+    // `>` is followed by `.`, which no named reference can be, so it takes nothing from it.
+    | outer:QualifiedIdentifier outerArgs:TypeArgumentList DOT nested:QualifiedIdentifier typeArgs:TypeArgumentList? arrayRank:ArrayRankSuffix? optional:QUESTION? as NestedGenericSingleTypeRef
     | name:QualifiedIdentifier typeArgs:TypeArgumentList? arrayRank:ArrayRankSuffix? optional:QUESTION? as NamedSingleTypeRef
     | LEFT_PARENTHESIS inner:TypeReference RIGHT_PARENTHESIS arrayRank:ArrayRankSuffix? as ParenthesizedTypeRef
     | LEFT_PARENTHESIS first:TupleTypeElement COMMA rest:TupleTypeElement (COMMA additional:TupleTypeElement)* RIGHT_PARENTHESIS as TupleSingleTypeRef

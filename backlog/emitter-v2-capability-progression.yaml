@@ -2938,8 +2938,30 @@ capabilities:
 
       THE UNFINISHED HALF LANDED 2026-09-12, under order 186's third task: a nested type reached
       through an instantiation of its enclosing generic is a construction carrying that instantiation,
-      so `Box<int>.Wrapper` names a type, its members substitute, and it spells as C# spells it. The
-      grammar admits the form in expression position only.
+      so `Box<int>.Wrapper` names a type, its members substitute, and it spells as C# spells it.
+
+      AND THE TYPE POSITION, later the same day. NamedSingleTypeRef takes its arguments after the
+      last dotted segment, so `Box<int>.Wrapper w` stopped at `>` and the statement was
+      MIST_PARSE_INCOMPLETE at the enclosing member. One alternative now sits ahead of the named form,
+      NestedGenericSingleTypeRef, committing only when `>` is followed by `.`, which no named
+      reference can be -- so the existing node keeps its shape and the eighty-odd files reading it,
+      classic's included, are untouched.
+      ScopeResolver.ResolveNestedGeneric walks the segments: the outer instantiation as any generic
+      reference, then each nested segment looked up on the definition reached and carried under the
+      instantiation by the same substitution a member's type gets, so the written type and the
+      inferred one are one interned object; a generic last segment constructs over its own arguments
+      with the instantiation enclosing, and an alias segment substitutes its aliased type. Array rank
+      and `?` apply as to a named reference. One generic segment is admitted per reference:
+      `Outer<int>.Mid<string>.Inner` is still a parse failure. A `new Box<int>.Wrapper(...)` has NO
+      alternative, by measurement: the reachability pass compares FIRST-3 token sequences, and every
+      sequence such an alternative can start with -- `NEW IDENT <`, `NEW IDENT DOT` -- is already the
+      ordinary creation's, so it is STORM0006 wherever it is placed and no ordering distinguishes it;
+      folding it into ObjectCreationExpression changes that node's shape under some thirty readers,
+      and Storm's inline block, built for a shared prefix with tail-judged arms, is used nowhere in
+      this grammar yet. The constructor spelling is target-typed: `Box<string>.Wrapper made =
+      new("boxed")`. samples/NestedGenericTypes proves the local, the target-typed new, the type
+      pattern and the through-base form on v2 and is banked on AllFeaturesV2 alone: classic parses
+      the form, answers `unknown` for the node in every switch, and Roslyn refuses what it emits.
     analysis_phase_tasks:
       - >
         Report a nested newtype or type alias that something references. Both are ERASED at the C#
@@ -10227,6 +10249,27 @@ samples:
         sample; InheritedGenericEmissionTests holds it on the emitted text.
       - An inherited PROPERTY of a generic base is carried on the same path but no sample reads one.
 
+  - name: NestedGenericTypes
+    intro_order: 93
+    threshold: nested-type-declarations
+    requires: [class-declaration, constructors, methods-static-and-instance, statements-core,
+               namespace-file-scoped, standard-library-binding, literals-primitive, string-interpolation,
+               var-type-inference, type-parameters-and-constructed-types, generic-arity-keyed-lookup,
+               type-argument-substitution, base-type-list, base-member-lookup, nested-type-declarations,
+               optional-union-representation, pattern-matching-core]
+    untested:
+      - >
+        V2-ONLY. Classic parses `Box<int>.Wrapper w` since the grammar is shared, but every one of its
+        switches over a type reference answers `unknown` for a node it has no case for, so it emits
+        C# it cannot back and Roslyn refuses the generated file (MIST_CS_ERROR, measured 2026-09-12).
+        This sample is referenced from AllFeaturesV2 alone and its lines were captured from v2 and
+        read against the program by hand.
+      - >
+        A generic NESTED type through an instantiation, `Box<int>.Wrapper<string>`, parses and resolves
+        but no sample declares one; ConstructedGenericMemberAccessParseTests holds the parse and the
+        resolver's construction is read by ConstructedGenericMemberAccessTests through the non-generic
+        case only.
+
   - name: GenericAbstractMembers
     intro_order: 92
     threshold: type-argument-inference
@@ -10378,8 +10421,9 @@ uncovered_constructs:
       the instantiation (order 186's third task has the shape); StandardSurface reaches the intrinsic
       case through an explicit enumerator's type, and ConstructedGenericMemberAccessTests holds the
       user case, which no sample names -- NestedScoping names `Wrapper` only from inside `Box<T>`,
-      where the simple name suffices. In TYPE position the form is still MIST_PARSE_INCOMPLETE on
-      both pipelines.
+      where the simple name suffices. In TYPE position, `Box<int>.Wrapper w = new()`, the grammar
+      admits it since later the same day (order 66's evidence has the alternative, and why a `new
+      Box<int>.Wrapper()` has none), and samples/NestedGenericTypes covers it on v2.
     disposition: covered
 
   - construct: OperatorMemberMemberDeclarationNode

@@ -193,6 +193,8 @@ internal sealed class ScopeResolver
             UnknownSingleTypeRefSingleTypeRefNode => UnknownType.Instance,
             PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef => ResolveReservedAlias(primitiveRef),
             NamedSingleTypeRefSingleTypeRefNode namedRef => ResolveNamed(namedRef, scope),
+            NestedGenericSingleTypeRefSingleTypeRefNode nestedRef => ResolveNestedGeneric(
+                nestedRef.Outer, nestedRef.OuterArgs, nestedRef.Nested, nestedRef.TypeArgs, scope, nestedRef),
             ParenthesizedTypeRefSingleTypeRefNode parenRef => Resolve(parenRef.Inner, scope),
             TupleSingleTypeRefSingleTypeRefNode tupleRef => ResolveTuple(tupleRef, scope),
             FuncSingleTypeRefSingleTypeRefNode funcRef => ResolveFunction(funcRef, scope),
@@ -222,6 +224,7 @@ internal sealed class ScopeResolver
         {
             PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef => primitiveRef.Optional is not null,
             NamedSingleTypeRefSingleTypeRefNode namedRef => namedRef.Optional is not null,
+            NestedGenericSingleTypeRefSingleTypeRefNode nestedRef => nestedRef.Optional is not null,
             _ => false,
         };
     }
@@ -372,6 +375,77 @@ internal sealed class ScopeResolver
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// <c>Box&lt;int&gt;.Wrapper</c> in a type position: the outer instantiation resolved as any generic
+    /// reference is, then each further segment looked up as a nested type on the definition reached so
+    /// far and carried under the instantiation -- the same carrying a member's declared type gets, so a
+    /// local written this way and one inferred from <c>Box&lt;int&gt;.Wrapper.Make()</c> hold one type.
+    /// A generic last segment is constructed over its own arguments with the instantiation enclosing.
+    /// </summary>
+    internal IMistType ResolveNestedGeneric(
+        QualifiedIdentifierNode outer,
+        TypeArgumentListNode outerArgs,
+        QualifiedIdentifierNode nested,
+        TypeArgumentListNode? typeArgs,
+        Scope scope,
+        Storm.Runtime.SyntaxNode node)
+    {
+        var stem = outer.IDENTIFIERs.Length > 0 ? QualifiedNameHelper.Build(outer) : outer.IDENTIFIER.Lexeme;
+        var definition = ResolveGenericDefinition(stem, GetTypeArgumentArity(outerArgs), scope, node);
+
+        if(definition is ErrorType)
+        {
+            return ErrorType.Instance;
+        }
+
+        var interner = context.ProgramModel.TypeInterner;
+        var arguments = BindPack(definition, ResolveTypeArguments(outerArgs, scope), node);
+        IMistType current;
+
+        if(definition is TypeAlias alias)
+        {
+            current = ExpandAlias(alias, arguments);
+        }
+        else
+        {
+            context.ProgramModel.ConstructorConstraintClosures.RecordType(definition, arguments, node);
+            current = interner.GetOrCreateConstructedType(definition, arguments);
+        }
+
+        var segments = new List<Storm.Runtime.Token> { nested.IDENTIFIER };
+        segments.AddRange(nested.IDENTIFIERs);
+
+        for(var i = 0; i < segments.Count; i++)
+        {
+            var name = segments[i].Lexeme;
+
+            if(current is not ConstructedType instantiation || instantiation.Definition is not MistType declaring
+                || TypeMemberLookup.Find(declaring, LookupRequest.Member(name, MemberVisibility.None, node))
+                    is not TypeResult { Type: DeclaredType member } found)
+            {
+                context.Diagnostics.ReportAtNode(
+                    ProgramModelDiagnostics.UnresolvedType, node, null, $"{TypeDisplay.Mist(current)}.{name}");
+
+                return ErrorType.Instance;
+            }
+
+            var substitution = TypeSubstitution.ForPath(instantiation, found.BaseConstructions, interner);
+
+            if(i == segments.Count - 1 && typeArgs is not null)
+            {
+                var own = BindPack(member, ResolveTypeArguments(typeArgs, scope), node);
+                context.ProgramModel.ConstructorConstraintClosures.RecordType(member, own, node);
+                current = interner.GetOrCreateConstructedType(member, own, instantiation);
+            }
+            else
+            {
+                current = substitution.Apply(member is TypeAlias { AliasedType: { } aliased } ? aliased : member, interner);
+            }
+        }
+
+        return current;
     }
 
     public IMistType ResolveGenericDefinition(
@@ -764,6 +838,7 @@ internal sealed class ScopeResolver
         {
             PrimitiveSingleTypeRefSingleTypeRefNode p => p.ArrayRank,
             NamedSingleTypeRefSingleTypeRefNode n => n.ArrayRank,
+            NestedGenericSingleTypeRefSingleTypeRefNode nested => nested.ArrayRank,
             ParenthesizedTypeRefSingleTypeRefNode pr => pr.ArrayRank,
             _ => null,
         };

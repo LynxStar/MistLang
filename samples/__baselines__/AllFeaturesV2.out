@@ -1929,3 +1929,10 @@ Renamed<string>.Get()=r Twice()=r Tag=1 With(s).Value=s
 First(IntHolder)=5 First(Wrapper<string>)=w
 IntHolder.Same()=5 Wrapper<string>.Same()=w
 === Generic Abstract Members Done ===
+=== Nested Generic Types ===
+Box<int>.Wrapper.Unwrap()=7
+target-typed-new=boxed
+Info=wrapper Echo=3
+Derived<int>.Inner.Pick=9
+optional-present=7
+=== Nested Generic Types Done ===

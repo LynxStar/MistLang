@@ -98,5 +98,6 @@ public class Program
         StandardSurface.Program.RunDemo();
         InheritedGenericMembers.Program.RunDemo();
         GenericAbstractMembers.Program.RunDemo();
+        NestedGenericTypes.Program.RunDemo();
     }
 }

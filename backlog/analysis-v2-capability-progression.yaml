@@ -988,6 +988,31 @@ rules:
       and a lambda capturing a ref struct, an owned binding, a frozen or borrowed lease, or a readonly
       ref parameter, the last being Roslyn's refusal of an `in` parameter in a lambda.
 
+      THREE READONLY RESIDUES CLOSED (2026-09-12), each on a selection the model now records. A
+      BinaryExpression and a UnaryExpression carry the Operator they selected, and an IndexExpression
+      the user Indexer it resolved to -- never an intrinsic one, since an array's or a span's element
+      access has no accessor to judge, which is also what keeps `tmp[0] = 1` on a scratch array
+      admitted. With those in hand: a readonly context calling a user operator whose body writes, or
+      reading a user indexer whose getter writes, is MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE, and
+      setting a user indexer on a local or a parameter is MIST_PA_READONLY_CONTEXT_SETS_PROPERTY,
+      where before the write was judged by provenance alone and a local-rooted setter went unjudged;
+      a this- or field-rooted write keeps its WRITES_THROUGH_INDEX reading. The inference reads the
+      same recordings, so an operator or a getter that writes now unsettles its callers as a method
+      would, and an intrinsic operator is exempt as the target's own arithmetic. A READONLY PARAMETER
+      now constrains what the readonly-contexts spec says it does (Req 14.2 and 14.4): calling a
+      method on it that is not readonly, declared or inferred, is
+      MIST_PA_READONLY_PARAMETER_CALLS_MUTABLE, and calling a setter on it -- a property's or a user
+      indexer's -- is MIST_PA_READONLY_PARAMETER_SETS_PROPERTY. Measured on classic first: classic
+      ADMITS the mutable call (`counter.Bump()` on a readonly parameter runs), so this is the spec
+      adopted over classic on the register's own terms; classic REFUSES the property set as
+      MIST_RO_0007 "Cannot assign to field", reading an auto-property's setter as a field write, and
+      v2 admitted it, so that half is a contract gap closed. Getters on a readonly parameter stay
+      admitted, Req 14 naming none, and a readonly REF parameter is left to the tier rule, which
+      already refuses the same call as MIST_PA_THIS_TIER_MISMATCH -- judging it here too would be
+      two complaints about one mistake. Five corpus cases hold the refusals; ReadonlyContextDecisionTests
+      holds the admitted side, including a readonly method on a readonly parameter and an element
+      write into a readonly array parameter, which is not a setter.
+
       NOT ENFORCED, BECAUSE CLASSIC DOES NOT: the hiding of
       mutable methods on an owned binding of a non-owned type, field-assignment provenance on an owned
       binding, the cooperation contract of an owned type, an owned binding initialised from a
@@ -1063,22 +1088,10 @@ rules:
         (Req 1.6), and a borrow by call while a frozen lease stands (Req 9.8). Each is measured
         admitted by classic; adopting any is a decision.
       - >
-        What a readonly PARAMETER constrains is still only the field write through it
-        (MIST_PA_FIELD_ASSIGNED_ON_READONLY_PARAMETER). The readonly-contexts spec also refuses calling a
-        non-readonly method or setter ON one (Req 14.2 and 14.4), which the inference could now answer.
-      - >
-        An indexed WRITE is judged by provenance, not by what it resolves to: the model records no
-        indexer for an index access -- IndexExpression carries a receiver and an index, and there is no
-        IndexerResult beside FieldResult and PropertyResult -- so an element write through an array
-        cannot be told from one through a user indexer, and the rule refuses both when the receiver roots
-        at `this` or a field. The residue is a receiver rooted at a LOCAL or a PARAMETER, where a user
-        indexer's setter is still called unjudged, and an indexer GETTER is not judged by rule 8 at all.
-        Recording the selected indexer on the expression is the prerequisite for telling them apart.
-      - >
-        An operator call is not judged. A BinaryExpression records the operator's RESULT TYPE but not the
-        Operator it selected (OperatorAdmissibility answers the type), so a readonly context calling a
-        user operator whose body writes a static field is admitted. Recording the selected operator on
-        the expression is the prerequisite.
+        A readonly parameter's constraint reaches one member deep: `counter.Bump()` and
+        `counter.Count = 5` are judged, `counter.Inner.Bump()` is not, since the chain's tier is a
+        question for ThisTiers rather than for a syntactic root. A getter on a readonly parameter is
+        admitted, as Req 14 names none.
       - >
         Per-field jagged ownership (order 158): classic tracks only shared extraction. A move out of an
         owned field, a lease on one, and the composite state of the parent are unmeasured because

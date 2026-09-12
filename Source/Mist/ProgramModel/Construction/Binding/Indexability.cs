@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Binding;
@@ -70,17 +71,26 @@ internal static class Indexability
             : null;
     }
 
+    public static Indexer? Indexer(IMistType receiverType)
+    {
+        return Declared(receiverType) is { Modifiers.IsIntrinsic: false } user ? user : null;
+    }
+
+    private static Indexer? Declared(IMistType receiverType)
+    {
+        var lookupType = (receiverType as ConstructedType)?.Definition ?? receiverType;
+
+        return lookupType is MemberType { IndexersList.Count: > 0 } memberType ? memberType.IndexersList[0] : null;
+    }
+
     private static IMistType IndexerType(IMistType receiverType, BuilderContext context)
     {
-        var constructed = receiverType as ConstructedType;
-        var lookupType = constructed?.Definition ?? receiverType;
-
-        if(lookupType is not MemberType { IndexersList.Count: > 0 } memberType)
+        if(Declared(receiverType) is not { } indexer)
         {
             return ErrorType.Instance;
         }
 
-        var indexer = memberType.IndexersList[0];
+        var constructed = receiverType as ConstructedType;
 
         var substituted = TypeSubstitution
             .ForReceiver(constructed)

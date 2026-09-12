@@ -130,7 +130,33 @@ internal sealed class ReadonlyInference
 
                 case AssignmentExpression { Target: BackingFieldReferenceExpression or PropertyReferenceExpression }:
                 case AssignmentExpression { Target: MemberAccessExpression { Member: PropertyResult } }:
+                case AssignmentExpression { Target: IndexExpression { Indexer: not null } }:
                     return true;
+
+                case IndexExpression { Indexer: { } indexer }:
+                    if(UnprovenGetter(indexer.Modifiers.IsReadonly, indexer.Getter, callees))
+                    {
+                        return true;
+                    }
+
+                    break;
+
+                // An intrinsic operator is the target's own arithmetic, with no body that could write.
+                case BinaryExpression { Operator: { Modifiers.IsIntrinsic: false } binaryOperator }:
+                    if(Unproven(binaryOperator, callees))
+                    {
+                        return true;
+                    }
+
+                    break;
+
+                case UnaryExpression { Operator: { Modifiers.IsIntrinsic: false } unaryOperator }:
+                    if(Unproven(unaryOperator, callees))
+                    {
+                        return true;
+                    }
+
+                    break;
 
                 case InvocationExpression invocation:
                     if(Unproven(invocation.Method, callees))

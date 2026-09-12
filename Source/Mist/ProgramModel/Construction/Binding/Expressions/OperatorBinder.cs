@@ -300,7 +300,10 @@ internal static class OperatorBinder
                     var operand = BindUnary(negate.Operand, ctx, context);
                     return new UnaryExpression(
                         node, UnaryOperatorKind.Negate, operand,
-                        OperatorAdmissibility.UnaryResultType(UnaryOperatorKind.Negate, operand.Type));
+                        OperatorAdmissibility.UnaryResultType(UnaryOperatorKind.Negate, operand.Type))
+                    {
+                        Operator = OperatorAdmissibility.SelectedUnary(UnaryOperatorKind.Negate, operand.Type),
+                    };
                 }
 
             case LogicalNotUnaryNode logicalNot:
@@ -308,7 +311,10 @@ internal static class OperatorBinder
                     var operand = BindUnary(logicalNot.Operand, ctx, context);
                     return new UnaryExpression(
                         node, UnaryOperatorKind.LogicalNot, operand,
-                        OperatorAdmissibility.UnaryResultType(UnaryOperatorKind.LogicalNot, operand.Type));
+                        OperatorAdmissibility.UnaryResultType(UnaryOperatorKind.LogicalNot, operand.Type))
+                    {
+                        Operator = OperatorAdmissibility.SelectedUnary(UnaryOperatorKind.LogicalNot, operand.Type),
+                    };
                 }
 
             // Alone among the unary arms this does not answer with its operand's type. `^1` is an
@@ -445,7 +451,10 @@ internal static class OperatorBinder
     private static BinaryExpression MakeBinary(
         Storm.Runtime.SyntaxNode node, Expression left, BinaryOperatorKind op, Expression right, BuilderContext context)
     {
-        return new BinaryExpression(node, left, op, right, BinaryResultType(left, op, right, context));
+        return new BinaryExpression(node, left, op, right, BinaryResultType(left, op, right, context))
+        {
+            Operator = OperatorAdmissibility.Selected(op, left.Type, right.Type),
+        };
     }
 
     /// <summary>

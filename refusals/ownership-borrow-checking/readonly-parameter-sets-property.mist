@@ -1,0 +1,23 @@
+using Standard;
+
+namespace Refusal;
+
+public class Counter
+{
+    public int Count { get; set; }
+}
+
+public class Probe
+{
+    public static void Use(readonly Counter counter)
+    {
+        // REFUSE: MIST_PA_READONLY_PARAMETER_SETS_PROPERTY
+        counter.Count = 5;
+    }
+
+    public static void Main()
+    {
+        Use(new Counter());
+        Console.WriteLine("unreachable");
+    }
+}

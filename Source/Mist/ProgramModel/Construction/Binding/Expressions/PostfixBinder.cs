@@ -137,7 +137,10 @@ internal static class PostfixBinder
                 {
                     var index = ExpressionBinder.BindExpression(indexSuffix.Index, ctx, context);
                     var resultType = ResolveElementAccessType(receiver.Type, index.Type, indexSuffix, context);
-                    return new IndexExpression(suffix, receiver, index, resultType);
+                    return new IndexExpression(suffix, receiver, index, resultType)
+                    {
+                        Indexer = Indexability.IsRange(index.Type) ? null : Indexability.Indexer(receiver.Type),
+                    };
                 }
 
             case SpreadSuffixPostfixSuffixNode:

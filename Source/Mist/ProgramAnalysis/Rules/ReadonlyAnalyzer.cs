@@ -72,6 +72,37 @@ internal sealed class ReadonlyAnalyzer : IProgramAnalyzer
 
                 break;
 
+            case InvocationExpression { Receiver: MemberAccessExpression { Receiver: LocalReferenceExpression { Local.Parameter.Modifier: { IsReadonly: true, IsRef: false } } through } } call
+                when call.Method is { } reached && !inference.IsReadonly(reached):
+                context.Report(
+                    ProgramAnalysisDiagnostics.ReadonlyParameterCallsMutable, call.Node, [call],
+                    reached.Name, through.Local.Name);
+                break;
+
+            case IndexExpression { Indexer: { } indexer } read when frame.IsReadonly && !targets.Contains(node):
+                if(!inference.IsReadonlyGetter(indexer))
+                {
+                    context.Report(
+                        ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, read.Node, [read],
+                        "this[]", frame.Describe());
+                }
+
+                break;
+
+            case BinaryExpression { Operator: { Modifiers.IsIntrinsic: false } binaryOperator } binary
+                when frame.IsReadonly && !inference.IsReadonly(binaryOperator):
+                context.Report(
+                    ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, binary.Node, [binary],
+                    $"operator {binaryOperator.Symbol}", frame.Describe());
+                break;
+
+            case UnaryExpression { Operator: { Modifiers.IsIntrinsic: false } unaryOperator } unary
+                when frame.IsReadonly && !inference.IsReadonly(unaryOperator):
+                context.Report(
+                    ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, unary.Node, [unary],
+                    $"operator {unaryOperator.Symbol}", frame.Describe());
+                break;
+
             case NewExpression allocation when frame.IsReadonly:
                 if(allocation.Constructor is { Modifiers.IsReadonly: false } constructor && !inference.IsReadonly(constructor))
                 {
@@ -116,6 +147,15 @@ internal sealed class ReadonlyAnalyzer : IProgramAnalyzer
             return;
         }
 
+        if(assignment.Target is MemberAccessExpression { Receiver: LocalReferenceExpression { Local.Parameter.Modifier: { IsReadonly: true, IsRef: false } } setThrough }
+            && SetProperty(assignment.Target) is { Modifiers.IsReadonly: false } setOnParameter)
+        {
+            context.Report(
+                ProgramAnalysisDiagnostics.ReadonlyParameterSetsProperty, assignment.Target.Node,
+                [assignment.Target], setOnParameter.Name, setThrough.Local.Name);
+            return;
+        }
+
         if(ReadonlyInference.IndexedWriteTargetName(assignment.Target) is { } reached)
         {
             if(frame.IsReadonly)
@@ -123,6 +163,24 @@ internal sealed class ReadonlyAnalyzer : IProgramAnalyzer
                 context.Report(
                     ProgramAnalysisDiagnostics.ReadonlyContextWritesThroughIndex, assignment.Target.Node,
                     [assignment.Target], reached, frame.Describe());
+            }
+
+            return;
+        }
+
+        if(assignment.Target is IndexExpression { Indexer.Modifiers.IsReadonly: false } indexed)
+        {
+            if(indexed.Receiver is LocalReferenceExpression { Local.Parameter.Modifier: { IsReadonly: true, IsRef: false } } indexThrough)
+            {
+                context.Report(
+                    ProgramAnalysisDiagnostics.ReadonlyParameterSetsProperty, assignment.Target.Node,
+                    [assignment.Target], "this[]", indexThrough.Local.Name);
+            }
+            else if(frame.IsReadonly)
+            {
+                context.Report(
+                    ProgramAnalysisDiagnostics.ReadonlyContextSetsProperty, assignment.Target.Node,
+                    [assignment.Target], "this[]", frame.Describe());
             }
 
             return;

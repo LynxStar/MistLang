@@ -17,6 +17,8 @@ public sealed class ReadonlyContextDecisionTests : ProgramModelProbe
         "MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE", "MIST_PA_READONLY_CONTEXT_SETS_PROPERTY",
         "MIST_PA_READONLY_CONTEXT_ALLOCATES_MUTABLE", "MIST_PA_FIELD_ASSIGNED_IN_READONLY_BLOCK",
         "MIST_PA_FIELD_ASSIGNED_IN_READONLY_MEMBER", "MIST_PA_READONLY_FIELD_ASSIGNED",
+        "MIST_PA_READONLY_PARAMETER_CALLS_MUTABLE", "MIST_PA_READONLY_PARAMETER_SETS_PROPERTY",
+        "MIST_PA_READONLY_CONTEXT_WRITES_THROUGH_INDEX",
     ];
 
     public ReadonlyContextDecisionTests()
@@ -99,6 +101,70 @@ public sealed class ReadonlyContextDecisionTests : ProgramModelProbe
                 return tmp[0];
             }
         }
+
+        public class Ledger
+        {
+            public int cell;
+
+            public int this[int i]
+            {
+                get
+                {
+                    return cell;
+                }
+                set
+                {
+                    cell = value;
+                }
+            }
+
+            public readonly int First()
+            {
+                return this[0];
+            }
+        }
+
+        public struct Vec
+        {
+            public int x;
+
+            public Vec(int x)
+            {
+                this.x = x;
+            }
+
+            public static Vec operator +(Vec a, Vec b)
+            {
+                return new Vec(a.x + b.x);
+            }
+
+            public readonly int Doubled()
+            {
+                return (this + this).x;
+            }
+        }
+
+        public class Gauge
+        {
+            public int n;
+
+            public int Total { get; set; }
+
+            public readonly int Peek()
+            {
+                return n;
+            }
+
+            public static int Through(readonly Gauge gauge)
+            {
+                return gauge.Peek() + gauge.Total + gauge.n;
+            }
+
+            public static void Fill(readonly int[] slots)
+            {
+                slots[0] = 1;
+            }
+        }
         """;
 
     protected override string Preamble { get; } = "";
@@ -110,6 +176,10 @@ public sealed class ReadonlyContextDecisionTests : ProgramModelProbe
     [InlineData("var r = new Box(1).Reader();")]
     [InlineData("var c = new Box(1).Copy();")]
     [InlineData("var s2 = new Box(1).Scratch();")]
+    [InlineData("var l = new Ledger().First();")]
+    [InlineData("var d = new Vec(1).Doubled();")]
+    [InlineData("var t = Gauge.Through(new Gauge());")]
+    [InlineData("Gauge.Fill([0]);")]
     public void APrivilegedOrReadonlyUse_IsAdmitted(string statement)
     {
         Assert.Empty(Analyse(statement, extraTypes: ""));

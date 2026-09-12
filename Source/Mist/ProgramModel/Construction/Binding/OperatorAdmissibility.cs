@@ -36,7 +36,7 @@ internal static class OperatorAdmissibility
 
         if(Declared(op, left, right) is { } declared)
         {
-            return declared;
+            return declared.ReturnType;
         }
 
         var leftBase = Underlying(left);
@@ -75,6 +75,30 @@ internal static class OperatorAdmissibility
     /// </summary>
     public static IMistType UnaryResultType(UnaryOperatorKind op, IMistType operand)
     {
+        if(SelectedUnary(op, operand) is { } candidate)
+        {
+            return candidate.ReturnType.FullyQualifiedName == Underlying(operand).FullyQualifiedName
+                ? operand
+                : candidate.ReturnType;
+        }
+
+        return operand;
+    }
+
+    /// <summary>
+    /// The declared operator a binary expression selects, when it is one: null where the result comes
+    /// from promotion or from a rule about the operands, which no declaration answers for.
+    /// </summary>
+    public static Operator? Selected(BinaryOperatorKind op, IMistType left, IMistType right)
+    {
+        return IsIndeterminate(left) || IsIndeterminate(right)
+            || left is UnknownType || right is UnknownType || left is UnionType || right is UnionType
+            ? null
+            : Declared(op, left, right);
+    }
+
+    public static Operator? SelectedUnary(UnaryOperatorKind op, IMistType operand)
+    {
         var kind = op switch
         {
             UnaryOperatorKind.Negate => OperatorKind.Minus,
@@ -84,25 +108,16 @@ internal static class OperatorAdmissibility
 
         if(kind is null || IsIndeterminate(operand))
         {
-            return operand;
+            return null;
         }
 
-        foreach(var candidate in Operators(operand))
-        {
-            if(candidate.Kind == kind.Value
-                && candidate.ParametersList.Count == 1
-                && Accepts(candidate.ParametersList[0].Type, operand))
-            {
-                return candidate.ReturnType.FullyQualifiedName == Underlying(operand).FullyQualifiedName
-                    ? operand
-                    : candidate.ReturnType;
-            }
-        }
-
-        return operand;
+        return Operators(operand).FirstOrDefault(candidate =>
+            candidate.Kind == kind.Value
+            && candidate.ParametersList.Count == 1
+            && Accepts(candidate.ParametersList[0].Type, operand));
     }
 
-    private static IMistType? Declared(BinaryOperatorKind op, IMistType left, IMistType right)
+    private static Operator? Declared(BinaryOperatorKind op, IMistType left, IMistType right)
     {
         var kind = op switch
         {
@@ -132,7 +147,7 @@ internal static class OperatorAdmissibility
                 && Accepts(candidate.ParametersList[0].Type, left)
                 && Accepts(candidate.ParametersList[1].Type, right))
             {
-                return candidate.ReturnType;
+                return candidate;
             }
         }
 

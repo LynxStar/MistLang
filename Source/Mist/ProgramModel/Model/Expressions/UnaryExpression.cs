@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Members;
 using Storm.Runtime;
 
 namespace Mist.ProgramModel.Model.Expressions;
@@ -15,6 +16,8 @@ internal sealed class UnaryExpression(
     public UnaryOperatorKind OperatorKind { get; } = operatorKind;
 
     public Expression Operand { get; } = operand;
+
+    public Operator? Operator { get; init; }
 
     public override IMistType Type { get; } = type;
 }

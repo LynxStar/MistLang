@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
@@ -25,14 +26,22 @@ internal static class TaskResult
     }
 
     /// <summary>
-    /// The <c>Drop()</c> Standard declares on Task and ValueTask, which the drop-semantics spec makes
-    /// the meaning of <c>await</c> (Req 7.5): a call to it IS an await, and the binder reads it as one.
+    /// The <c>Drop()</c> Standard declares on Task and ValueTask, which <c>await</c> is sugar for
+    /// (drop-semantics Req 7.5): the binder binds an await to it, and a backend spells a call to it
+    /// however its target completes a task.
     /// </summary>
     public static bool IsDrop(Method method)
     {
         return method is { Name: "Drop", ParametersList.Count: 0, Modifiers.IsIntrinsic: true, DeclaringType: { } declaring }
             && (string.Equals(declaring.FullyQualifiedName, WellKnownTypes.TaskGeneric.FullyQualifiedName, StringComparison.Ordinal)
                 || string.Equals(declaring.FullyQualifiedName, WellKnownTypes.ValueTaskGeneric.FullyQualifiedName, StringComparison.Ordinal));
+    }
+
+    public static Expression? Dropped(Expression expression)
+    {
+        return expression is InvocationExpression { Method: { } method, Receiver: MemberAccessExpression access } && IsDrop(method)
+            ? access.Receiver
+            : null;
     }
 
     private static bool IsTaskDefinition(ConstructedType constructed)

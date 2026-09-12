@@ -72,7 +72,6 @@ internal static class BodyWalker
         add<AssignmentExpression>(e => [e.Target, e.Value]);
         add<AsyncBlockExpression>(e => [e.Body]);
         add<AsyncExpression>(e => [e.Operand]);
-        add<AwaitExpression>(e => [e.Operand]);
         add<BackingFieldReferenceExpression>(_ => []);
         add<BinaryExpression>(e => [e.Left, e.Right]);
         add<CastExpression>(e => [e.Operand]);

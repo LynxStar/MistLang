@@ -1,4 +1,6 @@
 using Mist.ProgramModel;
+using Mist.ProgramModel.Model.Enums;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
@@ -73,6 +75,25 @@ internal static class AmbientProviderTestHelper
             register(classKinds.Contains(wellKnown.Name)
                 ? new ClassType(wellKnown.Name, wellKnown.Namespace, scope, null, null!)
                 : new StructType(wellKnown.Name, wellKnown.Namespace, scope, null, null!));
+        }
+
+        // The task family carries what Task.mist declares and every await reaches: a TResult, an
+        // intrinsic Drop returning it, and the discipline that decides how many drops a scope owes.
+        foreach(var (name, discipline) in new[]
+        {
+            (WellKnownTypes.TaskGeneric.Name, SubstructuralDiscipline.Relevant),
+            (WellKnownTypes.ValueTaskGeneric.Name, SubstructuralDiscipline.Linear),
+        })
+        {
+            var task = (ClassType)programModel.TypesByFQN[$"Standard.{name}"];
+            var result = new TypeParameter("TResult", 0, task.Scope, task);
+            task.TypeParametersList.Add(result);
+            task.Modifiers = task.Modifiers with { Discipline = discipline };
+            task.MethodsList.Add(
+                new Method("Drop", result, [], new MemberModifiers { Accessibility = Accessibility.Public, IsIntrinsic = true })
+                {
+                    DeclaringType = task,
+                });
         }
 
         // Index/Range (ranges feature) are Standard shells needed by ambient projection

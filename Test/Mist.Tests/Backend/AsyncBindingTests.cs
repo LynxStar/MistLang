@@ -1,8 +1,12 @@
 // Tier 3 (Component): what `async` does to a signature, and what a call to a task-returning member
-// means in each kind of context. Built over the REAL Standard sources because every type here is
-// Standard's Task. No Roslyn and no process spawning.
+// means in each kind of context. `await task` is sugar for `task.Drop()` (drop-semantics Req 7.5), so
+// the three spellings -- written await, written Drop, and the drop a sync context inserts -- bind to
+// ONE node, the call to Standard's Drop, and the backend alone decides that the call is spelled
+// `await`. Built over the REAL Standard sources because every type here is Standard's Task. No Roslyn
+// and no process spawning.
 
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
@@ -55,13 +59,15 @@ public sealed class AsyncBindingTests
     /// context distinction.
     /// </summary>
     [Fact]
-    public void ACallInSyncContextIsAwaitedForYou()
+    public void ACallInSyncContextIsDroppedForYou()
     {
         var initializer = InitializerIn("var x = Helpers.ComputeAsync();", isAsync: false);
-        var await = Assert.IsType<AwaitExpression>(initializer);
+        var drop = Assert.IsType<InvocationExpression>(initializer);
 
-        Assert.True(await.IsImplicit);
-        Assert.Equal("Standard.Int32", await.Type.FullyQualifiedName);
+        Assert.True(drop.IsImplicit);
+        Assert.Equal("Drop", drop.Method?.Name);
+        Assert.Equal("ComputeAsync", Assert.IsType<InvocationExpression>(TaskResult.Dropped(drop)).Method?.Name);
+        Assert.Equal("Standard.Int32", drop.Type.FullyQualifiedName);
     }
 
     [Fact]
@@ -73,43 +79,53 @@ public sealed class AsyncBindingTests
     }
 
     /// <summary>
-    /// An explicit await asks for the task, so the one the sync context inserted is undone rather than
-    /// stacked. Without this the operand is already an int and there is nothing left to await.
+    /// An explicit await asks for the task, so the drop the sync context inserted is undone rather than
+    /// stacked. Without this the operand is already an int and there is nothing left to drop.
     /// </summary>
     [Fact]
     public void AnExplicitAwaitInSyncContextUndoesTheInsertedOne()
     {
         var initializer = InitializerIn("var x = await Helpers.ComputeAsync();", isAsync: false);
-        var await = Assert.IsType<AwaitExpression>(initializer);
+        var drop = Assert.IsType<InvocationExpression>(initializer);
 
-        Assert.False(await.IsImplicit);
-        _ = Assert.IsType<InvocationExpression>(await.Operand);
-        Assert.Equal("Standard.Int32", await.Type.FullyQualifiedName);
-    }
-
-    /// <summary>
-    /// `t.Drop()` is `await t` under its other name (drop-semantics Req 7.5), so it binds to the node a
-    /// written await does -- and takes the promotion, the use registry and the real await with it.
-    /// </summary>
-    [Fact]
-    public void ADropOnATaskBindsAsTheAwaitItIs()
-    {
-        var initializer = InitializerIn("Task<int> t = Helpers.ComputeAsync();\nvar x = t.Drop();", isAsync: false);
-        var await = Assert.IsType<AwaitExpression>(initializer);
-
-        Assert.False(await.IsImplicit);
-        _ = Assert.IsType<LocalReferenceExpression>(await.Operand);
-        Assert.Equal("Standard.Int32", await.Type.FullyQualifiedName);
+        Assert.False(drop.IsImplicit);
+        Assert.Equal("ComputeAsync", Assert.IsType<InvocationExpression>(TaskResult.Dropped(drop)).Method?.Name);
+        Assert.Equal("Standard.Int32", drop.Type.FullyQualifiedName);
     }
 
     [Fact]
-    public void ADropOnAValueTaskBindsAsTheAwaitItIs()
+    public void AnAwaitBindsToTheTasksDrop()
     {
-        var initializer = InitializerIn("ValueTask<int> v = async valuetask { return 1; };\nvar x = v.Drop();", isAsync: true);
-        var await = Assert.IsType<AwaitExpression>(initializer);
+        var initializer = InitializerIn("Task<int> t = Helpers.ComputeAsync();\nvar x = await t;", isAsync: false);
+        var drop = Assert.IsType<InvocationExpression>(initializer);
 
-        _ = Assert.IsType<LocalReferenceExpression>(await.Operand);
-        Assert.Equal("Standard.Int32", await.Type.FullyQualifiedName);
+        Assert.False(drop.IsImplicit);
+        Assert.True(TaskResult.IsDrop(drop.Method!));
+        _ = Assert.IsType<LocalReferenceExpression>(TaskResult.Dropped(drop));
+        Assert.Equal("Standard.Int32", drop.Type.FullyQualifiedName);
+    }
+
+    [Fact]
+    public void AWrittenDropBindsToTheSameMember()
+    {
+        var awaited = InitializerIn("Task<int> t = Helpers.ComputeAsync();\nvar x = await t;", isAsync: false);
+        var dropped = InitializerIn("Task<int> t = Helpers.ComputeAsync();\nvar x = t.Drop();", isAsync: false);
+
+        Assert.Equal(
+            Assert.IsType<InvocationExpression>(awaited).Method!.Name,
+            Assert.IsType<InvocationExpression>(dropped).Method!.Name);
+        Assert.Equal("Standard.Int32", dropped.Type.FullyQualifiedName);
+    }
+
+    [Fact]
+    public void AnAwaitOnAValueTaskBindsToItsDrop()
+    {
+        var initializer = InitializerIn("ValueTask<int> v = async valuetask { return 1; };\nvar x = await v;", isAsync: true);
+        var drop = Assert.IsType<InvocationExpression>(initializer);
+
+        Assert.True(TaskResult.IsDrop(drop.Method!));
+        Assert.Equal("Standard.ValueTask<>", drop.Method!.DeclaringType!.FullyQualifiedName);
+        Assert.Equal("Standard.Int32", drop.Type.FullyQualifiedName);
     }
 
     [Fact]

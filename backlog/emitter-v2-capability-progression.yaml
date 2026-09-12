@@ -8631,6 +8631,18 @@ capabilities:
         explicit Drop always did -- a linear ValueTask awaited and then awaited again at scope exit
         throws, so the written `await v` had been the unsafe spelling. AsyncCompletionTests holds both
         halves; StandardSurface's Drop=joined is unchanged.
+        INVERTED 2026-09-12. The lift ran the wrong way. With `Drop()` becoming an await, every rule
+        keyed on a Drop call -- OwnershipAnalyzer's use-after-drop, DropInsertion's consumption --
+        lost sight of it, and a linear ValueTask dropped twice went from refused (MIST_PA_USE_AFTER_MOVE
+        on 64cc36c4) to silent. Now `await task` binds to the same InvocationExpression `task.Drop()`
+        does (PostfixBinder.BindDrop), the sync-context insertion is that call marked IsImplicit,
+        AwaitExpression is deleted from the model, and the registry records bodies that drop a task.
+        The backend alone knows the call is spelled `await` (BodyEmitter.EmitTaskDrop), blocking inside
+        a sync lambda as before; a Rust or LLVM target would spell the same call its own way. The
+        Moves special case for an await is gone, an await being the Drop call it always was. The
+        corpus holds a linear ValueTask refused after `Drop()` and after `await` alike;
+        OwnershipDecisionTests holds the relevant Task admitted twice under both spellings, on shells
+        that now carry TResult, Drop and their disciplines as Task.mist declares them.
       - >
         A CONDITIONAL Drop on an optional task loses its `?.` (measured 2026-09-12). `Task<int>? maybe;
         var r = maybe?.Drop();` binds as a conditional call, which the binder leaves as a call, and the
@@ -8639,6 +8651,11 @@ capabilities:
         binder has no await to bind it to, C# having no conditional await; the shape is a lifted await
         (absent stays absent, present is awaited) that neither the model nor the emitter has a form
         for.
+        DONE 2026-09-12, by the inversion above: `maybe?.Drop()` is the ordinary conditional call to
+        Drop, and EmitTaskDrop narrows it -- `(maybe is { } __present ? await __present :
+        default(int?))`, or `if (maybe is { } __present) { await __present; }` in statement position.
+        `await maybe` on an optional stays MIST_PM_AWAIT_OF_NON_TASK, the author narrowing first being
+        what `?.` spells. AsyncCompletionTests holds both forms.
       - >
         A nested type cannot be named through an instantiation of its enclosing generic:
         `Box<int>.Wrapper` is refused (MIST_PM_NESTED_TYPE_THROUGH_INSTANTIATION) because the model has

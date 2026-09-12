@@ -143,11 +143,11 @@ public sealed class ConstructedGenericMemberAccessTests : ProgramModelProbe
 
         var run = Assert.IsType<ClassType>(model.TypesByFQN["Probe.Probe"]).MethodsList.Single(m => m.Name == "Run");
         var declaration = run.Body!.Statements.OfType<LocalDeclarationStatement>().Last();
-        var awaited = Assert.IsType<AwaitExpression>(declaration.Initializer);
-        var call = Assert.IsType<InvocationExpression>(awaited.Operand);
+        var dropped = Assert.IsType<InvocationExpression>(declaration.Initializer);
+        var call = Assert.IsType<InvocationExpression>(TaskResult.Dropped(dropped));
 
         Assert.Equal("WhenAll", call.Method?.Name);
         Assert.Equal("Task<int>[]", TypeDisplay.Mist(call.ParameterTypes![0]));
-        Assert.Equal("int[]", TypeDisplay.Mist(awaited.Type));
+        Assert.Equal("int[]", TypeDisplay.Mist(dropped.Type));
     }
 }

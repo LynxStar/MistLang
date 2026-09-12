@@ -245,6 +245,19 @@ internal static class BodyEmitter
     {
         switch(statement)
         {
+            case ExpressionStatement { Expression: InvocationExpression { Receiver: MemberAccessExpression { IsConditional: true } } drop }
+                when TaskResult.Dropped(drop) is { } task:
+                {
+                    var present = PresentName(drop);
+                    writer.WriteLine($"if ({RenderAt(task, PrefixPrecedence, diagnostics)} is {{ }} {present})");
+                    using(writer.Block())
+                    {
+                        writer.WriteLine($"{Awaited(present)};");
+                    }
+
+                    break;
+                }
+
             case ExpressionStatement exprStmt:
                 writer.Write("");
 
@@ -714,14 +727,8 @@ internal static class BodyEmitter
                 writer.Append(".Clone()");
                 break;
 
-            case AwaitExpression await when blockingAwaits:
-                EmitSubExpression(await.Operand, PrefixPrecedence, writer, diagnostics);
-                writer.Append(".GetAwaiter().GetResult()");
-                break;
-
-            case AwaitExpression await:
-                writer.Append("await ");
-                EmitSubExpression(await.Operand, PrefixPrecedence, writer, diagnostics);
+            case InvocationExpression drop when TaskResult.Dropped(drop) is { } task:
+                EmitTaskDrop(drop, task, writer, diagnostics);
                 break;
 
             case InvocationExpression respelled when IntrinsicCalls.Respells(respelled.Method):
@@ -1518,9 +1525,47 @@ internal static class BodyEmitter
         return scratch.ToString();
     }
 
+    /// <summary>
+    /// A task's Drop is the one call this backend does not write as a call: the CLR completes a task
+    /// by awaiting it, and no CLR task has a Drop. A conditional access narrows first, C# having no
+    /// await of a null -- absent answers the type's default, present is awaited -- and inside a sync
+    /// lambda the wait blocks, as every await there does.
+    /// </summary>
+    private static void EmitTaskDrop(InvocationExpression drop, Expression task, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        if(drop.Receiver is MemberAccessExpression { IsConditional: true })
+        {
+            var present = PresentName(drop);
+            writer.Append("(");
+            EmitSubExpression(task, PrefixPrecedence, writer, diagnostics);
+            writer.Append($" is {{ }} {present} ? {Awaited(present)} : default({TypeNameEmitter.Emit(drop.Type)}))");
+            return;
+        }
+
+        if(blockingAwaits)
+        {
+            EmitSubExpression(task, PostfixPrecedence, writer, diagnostics);
+            writer.Append(".GetAwaiter().GetResult()");
+            return;
+        }
+
+        writer.Append("await ");
+        EmitSubExpression(task, PrefixPrecedence, writer, diagnostics);
+    }
+
+    private static string PresentName(InvocationExpression drop)
+    {
+        return $"__present{drop.Node.Span.Start}";
+    }
+
+    private static string Awaited(string name)
+    {
+        return blockingAwaits ? $"{name}.GetAwaiter().GetResult()" : $"await {name}";
+    }
+
     private static string? DiscardedCombinator(Expression statement, DiagnosticBag diagnostics)
     {
-        return statement is AwaitExpression { Operand: InvocationExpression { Method: { } callee, Arguments: [{ } tasks] } }
+        return TaskResult.Dropped(statement) is InvocationExpression { Method: { } callee, Arguments: [{ } tasks] }
             && TaskCombinators.Combines(callee)
             ? TaskCombinators.Discarded(callee, Render(tasks, diagnostics))
             : null;
@@ -2305,6 +2350,7 @@ internal static class BodyEmitter
         {
             BinaryExpression binary => GetPrecedence(binary.OperatorKind),
             UnaryExpression => PrefixPrecedence,
+            InvocationExpression drop when TaskResult.Dropped(drop) is not null => PrefixPrecedence,
             IsPatternExpression => RelationalPrecedence,
             _ => int.MaxValue,
         };

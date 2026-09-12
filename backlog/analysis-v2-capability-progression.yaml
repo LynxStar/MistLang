@@ -1080,6 +1080,13 @@ rules:
       rule, rooted at `this` or a field. A write rooted at a LOCAL stays admitted deliberately: a readonly
       member filling a scratch array it just allocated reaches none of the value's storage, and a
       decision row pins it.
+
+      AN AWAIT IS A DROP (2026-09-12). `await v` binds to the same call `v.Drop()` does, so the
+      use-after-drop rule sees both spellings with no case of its own: a linear ValueTask awaited twice
+      is MIST_PA_USE_AFTER_MOVE at the second, as it is when dropped twice, and a relevant Task is
+      admitted either number of times. Both are in the corpus and in OwnershipDecisionTests. Measured
+      on the way: on 64cc36c4 the written `await v; await v;` was silent, the rule matching only the
+      spelled Drop, which is the gap the one-node reading closes.
     tasks:
       - >
         The ownership-v2 spec is stricter than classic in five places v2 follows classic on: mutable

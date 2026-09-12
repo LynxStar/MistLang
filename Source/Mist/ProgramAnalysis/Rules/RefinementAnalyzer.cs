@@ -209,7 +209,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                 case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { Target: var target } } when Assigned(target) is { } field:
                     return Forget(state, holder => ReferenceEquals(holder, field));
 
-                case { Kind: FlowStepKind.Evaluate, Node: InvocationExpression or NewExpression or AwaitExpression }:
+                case { Kind: FlowStepKind.Evaluate, Node: InvocationExpression or NewExpression }:
                     return Forget(state, holder => holder is Field { Modifiers.IsReadonly: false });
 
                 default:

@@ -45,5 +45,11 @@ internal sealed class InvocationExpression(
     /// </summary>
     public IReadOnlyList<IMistType>? ParameterTypes { get; } = parameterTypes;
 
+    /// <summary>
+    /// Whether the binder supplied this call rather than the author writing it: the Drop a sync
+    /// context inserts on a task-returning call, which an explicit <c>await</c> or <c>async</c> undoes.
+    /// </summary>
+    public bool IsImplicit { get; init; }
+
     public override IMistType Type { get; } = type;
 }

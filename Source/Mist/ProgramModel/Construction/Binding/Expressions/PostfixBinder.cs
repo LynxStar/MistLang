@@ -265,7 +265,8 @@ internal static class PostfixBinder
         ArgumentListNode? arguments,
         IReadOnlyList<IMistType>? typeArguments,
         BindingContext ctx,
-        BuilderContext context)
+        BuilderContext context,
+        bool isImplicit = false)
     {
         if(receiver is not MethodGroupExpression group)
         {
@@ -312,14 +313,9 @@ internal static class PostfixBinder
         context.ProgramModel.ConstructorConstraintClosures.RecordMethod(selected, methodTypeArguments, node);
         context.ProgramModel.VariadicUses.Record(selected, methodTypeArguments);
 
-        // `task.Drop()` and `await task` are one form, the second being sugar for the first (drop
-        // semantics Req 7.5), so the call binds to the await and takes everything an await gets: the
-        // use is recorded, the caller is promoted, and the emitter writes a real await.
-        if(TaskResult.IsDrop(selected) && group.Receiver is { } task && !group.IsConditional)
+        if(TaskResult.IsDrop(selected))
         {
-            context.ProgramModel.AwaitUses.RecordAwait(ctx.EnclosingMethod);
-
-            return new AwaitExpression(node, task, returnType);
+            context.ProgramModel.TaskDrops.RecordDrop(ctx.EnclosingMethod);
         }
 
         var callee = group.Receiver is null
@@ -327,28 +323,30 @@ internal static class PostfixBinder
             : (Expression)new MemberAccessExpression(
                 node, group.Receiver, group.MemberName, returnType, methodTypeArguments, group.IsConditional);
 
-        context.ProgramModel.AwaitUses.RecordCall(ctx.EnclosingMethod, selected);
+        context.ProgramModel.TaskDrops.RecordCall(ctx.EnclosingMethod, selected);
 
-        return AutoAwait(
-            new InvocationExpression(
-                node, callee, OwnedProvenance.AtParameters(bound, selected.ParametersList),
-                returnType, selected,
-                selected.ParametersList.ConvertAll(parameter => choice.Substitution.Apply(parameter.Type, interner))),
-            ctx,
-            context);
+        var invocation = new InvocationExpression(
+            node, callee, OwnedProvenance.AtParameters(bound, selected.ParametersList),
+            returnType, selected,
+            selected.ParametersList.ConvertAll(parameter => choice.Substitution.Apply(parameter.Type, interner)))
+        {
+            IsImplicit = isImplicit,
+        };
+
+        return TaskResult.IsDrop(selected) ? invocation : AutoDrop(invocation, ctx, context);
     }
 
     /// <summary>
-    /// A task-returning call in a SYNC context yields its result, with the await supplied here. The
-    /// same call in an async context yields the task and the author writes the await, which is the
-    /// whole of the difference between the two contexts.
+    /// A task-returning call in a SYNC context yields its result, with the drop supplied here. The
+    /// same call in an async context yields the task and the author drops it, which is the whole of
+    /// the difference between the two contexts.
     /// <para>
     /// Keyed on the call's TYPE rather than on the callee being declared async, so a method returning
     /// a task it built itself reads the same as one the transform wrapped -- there is no way to tell
     /// them apart at the call site, and no reason to.
     /// </para>
     /// </summary>
-    private static Expression AutoAwait(
+    private static Expression AutoDrop(
         InvocationExpression invocation, BindingContext ctx, BuilderContext context)
     {
         // A POSITION WANTING THE TASK suppresses the insertion as surely as an async context does:
@@ -356,14 +354,36 @@ internal static class PostfixBinder
         // type the position rejected.
         if(ctx.IsAsyncContext
             || (ctx.TargetType is { } target && TaskResult.IsTask(target))
-            || TaskResult.Of(invocation.Type) is not { } result)
+            || !TaskResult.IsTask(invocation.Type))
         {
             return invocation;
         }
 
-        context.ProgramModel.AwaitUses.RecordAwait(ctx.EnclosingMethod);
+        return BindDrop(invocation.Node, invocation, isImplicit: true, ctx, context);
+    }
 
-        return new AwaitExpression(invocation.Node, invocation, result) { IsImplicit = true };
+    /// <summary>
+    /// The Drop of a task, which <c>await</c> is sugar for (drop-semantics Req 7.5) and which a sync
+    /// context inserts on a task-returning call. Bound as the member call it is, so every rule that
+    /// reads a Drop -- the substructural counts, the scope-exit accounting -- sees one node for the
+    /// three spellings, and a backend alone decides how its target completes a task. A drop unwraps
+    /// exactly one level and is never itself auto-dropped: `await t` on a task of a task yields the
+    /// inner task, whichever spelling asked.
+    /// </summary>
+    internal static Expression BindDrop(
+        Storm.Runtime.SyntaxNode node, Expression task, bool isImplicit, BindingContext ctx, BuilderContext context)
+    {
+        var (found, constructed) = MemberResolution.Resolve(
+            task.Type, "Drop", MemberVisibility.InstanceOnly, node, context, ctx.Scope);
+
+        if(found is not MethodGroupResult { Methods.Count: > 0 } group)
+        {
+            return new ErrorExpression(node);
+        }
+
+        var callee = new MethodGroupExpression(node, task, "Drop", group.Methods, constructed) { Paths = group.Paths };
+
+        return BindInvocation(node, callee, arguments: null, typeArguments: null, ctx, context, isImplicit);
     }
 
     /// <summary>
@@ -396,10 +416,10 @@ internal static class PostfixBinder
             return new ErrorExpression(node);
         }
 
-        // Invoking a func VALUE takes the same auto-await as invoking a method: the rule is about what
+        // Invoking a func VALUE takes the same auto-drop as invoking a method: the rule is about what
         // the call produces and where it sits, and a delegate returning a task is a task-returning
         // call however it was reached.
-        return AutoAwait(
+        return AutoDrop(
             new InvocationExpression(node, receiver, bound, function.ReturnType, null, function.ParameterTypes), ctx, context);
     }
 

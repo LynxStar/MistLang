@@ -359,7 +359,7 @@ internal static class OperatorBinder
                 {
                     var operand = Suppressed(await.Operand, ctx, context);
 
-                    if(TaskResult.Of(operand.Type) is not { } result)
+                    if(!TaskResult.IsTask(operand.Type))
                     {
                         context.Diagnostics.ReportAtNode(
                             ProgramModelDiagnostics.AwaitOfNonTask, node, null, operand.Type.Name);
@@ -367,9 +367,7 @@ internal static class OperatorBinder
                         return new ErrorExpression(node);
                     }
 
-                    context.ProgramModel.AwaitUses.RecordAwait(ctx.EnclosingMethod);
-
-                    return new AwaitExpression(node, operand, result);
+                    return PostfixBinder.BindDrop(node, operand, isImplicit: false, ctx, context);
                 }
 
             case CastExpressionUnaryNode cast:
@@ -400,8 +398,8 @@ internal static class OperatorBinder
     /// what to do with a TASK and a position expecting the result would push that result down as the
     /// operand's own target, which is the one type it is not.
     /// <para>
-    /// An auto-await the sync context inserted is then UNDONE rather than stacked. Both operators ask
-    /// for the task, so `await f()` awaits what f produces rather than the value already unwrapped from
+    /// An auto-drop the sync context inserted is then UNDONE rather than stacked. Both operators ask
+    /// for the task, so `await f()` drops what f produces rather than the value already unwrapped from
     /// it, and `async f()` yields that task rather than lifting the unwrapped value back into a new one.
     /// </para>
     /// </summary>
@@ -445,7 +443,9 @@ internal static class OperatorBinder
             operand = BindUnary(operandNode, ctx, context);
         }
 
-        return operand is AwaitExpression { IsImplicit: true } inserted ? inserted.Operand : operand;
+        return operand is InvocationExpression { IsImplicit: true } inserted && TaskResult.Dropped(inserted) is { } task
+            ? task
+            : operand;
     }
 
     private static BinaryExpression MakeBinary(

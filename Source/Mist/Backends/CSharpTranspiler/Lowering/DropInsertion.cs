@@ -385,8 +385,7 @@ internal static class DropInsertion
     /// <summary>
     /// A reference in a moving POSITION anywhere in the expression. The receiver of a call is walked
     /// but not itself a move, except where the call is the value's own Drop -- an explicit drop
-    /// consumes the binding exactly as handing it away does, and an await of a task is that drop under
-    /// its other name (drop-semantics Req 7.5), so it consumes the same way.
+    /// consumes the binding exactly as handing it away does.
     /// </summary>
     private static bool Moves(Expression expression, Func<Expression, bool> isTarget)
     {
@@ -396,7 +395,6 @@ internal static class DropInsertion
                 || IsExplicitDrop(invocation, isTarget)
                 || invocation.Arguments.Any(argument => Moves(argument, isTarget))
                 || Moves(invocation.Receiver, isTarget),
-            AwaitExpression await => IsReference(await.Operand, isTarget) || Moves(await.Operand, isTarget),
             AsyncExpression lifted => Moves(lifted.Operand, isTarget),
             MemberAccessExpression access => Moves(access.Receiver, isTarget),
             NewExpression creation =>

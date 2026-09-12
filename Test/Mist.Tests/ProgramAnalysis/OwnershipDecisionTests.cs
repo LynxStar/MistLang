@@ -5,6 +5,8 @@
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
+using Mist.ProgramModel;
+using Mist.ProgramModel.Model.Statements;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
@@ -396,6 +398,37 @@ public sealed class OwnershipDecisionTests : ProgramModelProbe
     public void AValueThatAlreadyFailed_IsNotReportedAgain(string statement)
     {
         AssertSilent(statement);
+    }
+
+    /// <summary>
+    /// A relevant task may be dropped any number of times, and `await` is its Drop, so awaiting one
+    /// twice is admitted where a linear ValueTask's second drop is refused (the corpus holds that).
+    /// </summary>
+    [Theory]
+    [InlineData("async int Fetch() { return 1; } Standard.Task<int> t = Fetch(); int a = await t; int b = await t;")]
+    [InlineData("async int Fetch() { return 1; } Standard.Task<int> t = Fetch(); int a = t.Drop(); int b = await t;")]
+    public void ARelevantTaskDroppedTwice_IsAdmitted(string statement)
+    {
+        AssertTaskBound(statement, "t");
+        AssertSilent(statement);
+    }
+
+    [Theory]
+    [InlineData("Standard.ValueTask<int> v = async valuetask { return 1; }; int a = v.Drop(); int b = v.Drop();")]
+    [InlineData("Standard.ValueTask<int> v = async valuetask { return 1; }; int a = await v; int b = await v;")]
+    public void ALinearTaskDroppedTwice_IsRefused(string statement)
+    {
+        AssertTaskBound(statement, "v");
+        var finding = Assert.Single(Analyse(statement));
+
+        Assert.Equal("MIST_PA_USE_AFTER_MOVE", finding.Id.Value);
+    }
+
+    private void AssertTaskBound(string statement, string name)
+    {
+        var task = BodyIn(statement).Statements.OfType<LocalDeclarationStatement>().Single(d => d.Local.Name == name).Local.Type;
+
+        Assert.True(TaskResult.IsTask(task), $"the task local bound to {task.Name} rather than a task");
     }
 
     // ── Harness ─────────────────────────────────────────────────────────

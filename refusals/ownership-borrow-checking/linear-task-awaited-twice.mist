@@ -1,0 +1,20 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    private static async void Run()
+    {
+        ValueTask<int> v = async valuetask { return 1; };
+        int a = await v;
+        // REFUSE: MIST_PA_USE_AFTER_MOVE
+        int b = await v;
+        Console.WriteLine(a + b);
+    }
+
+    public static void Main()
+    {
+        Run();
+    }
+}

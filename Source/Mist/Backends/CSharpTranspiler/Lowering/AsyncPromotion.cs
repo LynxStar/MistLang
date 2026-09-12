@@ -10,11 +10,11 @@ using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 namespace Mist.Backends.CSharpTranspiler.Lowering;
 
 /// <summary>
-/// Which Mist-SYNC methods must be emitted as C# async ones. A sync context awaits the tasks it calls,
-/// and C# has only two ways to wait: an <c>await</c>, which requires the enclosing method be async, or
-/// a blocking get, which occupies a thread and deadlocks under any synchronization context. So the
-/// obligation travels: a method containing an await becomes async, its callers must await IT, and they
-/// become async in turn.
+/// Which Mist-SYNC methods must be emitted as C# async ones. A sync context drops the tasks it calls,
+/// and C# has only two ways to complete one: an <c>await</c>, which requires the enclosing method be
+/// async, or a blocking get, which occupies a thread and deadlocks under any synchronization context.
+/// So the obligation travels: a method dropping a task becomes async, its callers must await IT, and
+/// they become async in turn.
 /// <para>
 /// A TARGET CONCERN, NOT A LANGUAGE ONE. Mist's method is sync and its callers see a sync method; this
 /// is only how C# is made to honour that. A backend with blocking primitives would read the same
@@ -76,19 +76,19 @@ internal sealed class AsyncPromotion
 
     public static IDisposable Enter(ProgramModelClass programModel)
     {
-        inScope = new AsyncPromotion(Compute(programModel.AwaitUses, programModel), programModel);
+        inScope = new AsyncPromotion(Compute(programModel.TaskDrops, programModel), programModel);
         return new Scope();
     }
 
     /// <summary>
-    /// The awaiting bodies, then everything that reaches one. Seeded from bodies rather than from
-    /// declarations because an inserted await is what makes a sync method need this, and a method
+    /// The bodies dropping a task, then everything that reaches one. Seeded from bodies rather than from
+    /// declarations because an inserted drop is what makes a sync method need this, and a method
     /// Mist declared async is excluded throughout -- it already carries the modifier and its callers
     /// already await it, so promoting it again would wrap its return type twice.
     /// </summary>
-    private static IReadOnlySet<Method> Compute(AwaitUseRegistry uses, ProgramModelClass programModel)
+    private static IReadOnlySet<Method> Compute(TaskDropRegistry drops, ProgramModelClass programModel)
     {
-        var promoted = new HashSet<Method>(uses.Awaiting.Where(method => !method.Modifiers.IsAsync));
+        var promoted = new HashSet<Method>(drops.Dropping.Where(method => !method.Modifiers.IsAsync));
 
         // RETROACTIVE, and the binder could not have known: a scope holding a task owes its completion,
         // and completing it is an await this pass inserts. So the obligation makes the method async
@@ -110,14 +110,14 @@ internal sealed class AsyncPromotion
         {
             changed = false;
 
-            foreach(var caller in uses.Callers)
+            foreach(var caller in drops.Callers)
             {
                 if(caller.Modifiers.IsAsync || promoted.Contains(caller))
                 {
                     continue;
                 }
 
-                if(uses.CalleesOf(caller).Any(promoted.Contains))
+                if(drops.CalleesOf(caller).Any(promoted.Contains))
                 {
                     _ = promoted.Add(caller);
                     changed = true;

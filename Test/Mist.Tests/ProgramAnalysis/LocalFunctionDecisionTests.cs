@@ -73,7 +73,7 @@ public sealed class LocalFunctionDecisionTests : ProgramModelProbe
         var function = Assert.Single(body.Statements.OfType<LocalFunctionStatement>());
 
         Assert.NotNull(TaskResult.Of(function.Function.ReturnType));
-        Assert.True(InitializerOf<AwaitExpression>(statement).IsImplicit);
+        Assert.True(InitializerOf<InvocationExpression>(statement).IsImplicit);
     }
 
     [Fact]

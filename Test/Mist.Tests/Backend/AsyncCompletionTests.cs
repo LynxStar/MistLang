@@ -50,6 +50,30 @@ public sealed class AsyncCompletionTests
         Assert.DoesNotContain("finally", emitted, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// C# has no await of a null, so a drop reached through `?.` narrows first: absent answers the
+    /// type's default, present is awaited. The statement form is a guarded await.
+    /// </summary>
+    [Fact]
+    public void AConditionalDropNarrowsBeforeAwaiting()
+    {
+        var emitted = Emit("Task<int>? maybe = Helpers.ComputeAsync();\nvar r = maybe?.Drop();", isAsync: true);
+
+        Assert.Contains("int? r = (maybe is { } __present", emitted, StringComparison.Ordinal);
+        Assert.Contains(" ? await __present", emitted, StringComparison.Ordinal);
+        Assert.Contains(" : default(int?));", emitted, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AConditionalDropAsAStatementIsAGuardedAwait()
+    {
+        var emitted = Emit("Task<int>? maybe = Helpers.ComputeAsync();\nmaybe?.Drop();", isAsync: true);
+
+        Assert.Contains("if (maybe is { } __present", emitted, StringComparison.Ordinal);
+        Assert.Contains("await __present", emitted, StringComparison.Ordinal);
+        Assert.DoesNotContain("GetAwaiter", emitted, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void AnExplicitDropIsEmittedAsAnAwait()
     {

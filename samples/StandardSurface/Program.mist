@@ -126,7 +126,11 @@ public class Program
         var walker = numbers.GetEnumerator();
         walker.MoveNext();
         int firstSeen = walker.Current;
-        Console.WriteLine($"explicit-enumerator-first={firstSeen}");
+        var walkerCopy = walker;
+        walkerCopy.MoveNext();
+        walkerCopy.MoveNext();
+        walker.MoveNext();
+        Console.WriteLine($"explicit-enumerator-first={firstSeen} walker={walker.Current} copy={walkerCopy.Current}");
 
         Console.WriteLine("--- Span members ---");
         Span<int> buffer = stackalloc int[4];

@@ -8574,17 +8574,22 @@ capabilities:
         the span case at its type checker. foreach never names the type and is unaffected, which is why
         no sample sees it. Probed 2026-09-12 with a four-line program.
         DONE 2026-09-12. The local's type is now the nested type UNDER the instantiation, and it spells:
-        `System.Span<int>.Enumerator e = buffer.GetEnumerator()` for a span, and for an array the
-        backend's own reading, `System.Collections.Generic.IEnumerator<int> e =
-        ((System.Collections.Generic.IEnumerable<int>)xs).GetEnumerator()`. The CLR's own answer, the
-        non-generic IEnumerator that System.Array.GetEnumerator returns, has an object Current where
-        Standard declares a TValue one, so `int first = e.Current` would not compile against it; the
-        declared shape is the contract, as it was for the WhenAll wrapper (ArrayEnumeration).
-        IntrinsicSupply audits Array's enumerator against the same IEnumerator<T>, walking an
-        interface's extended interfaces to find MoveNext. The four-line program runs on v2 for both,
-        and samples/StandardSurface reads the first element off an explicit enumerator of each
-        (explicit-enumerator-first=9, span-enumerator-first=5). NestedIntrinsicTypeEmissionTests
-        (Tier 3) pins the three spellings.
+        `System.Span<int>.Enumerator e = buffer.GetEnumerator()` for a span, and for an array a
+        struct the backend GENERATES: `MistArrayEnumerator<int> e = new MistArrayEnumerator<int>(xs)`,
+        written into __Array.g.cs beside MistArray when a program reaches it (ArrayEnumeration).
+        The CLR has no Array.Enumerator: it enumerates an array through an internal class reached
+        only behind IEnumerator<T>, and System.Array.GetEnumerator answers a non-generic one whose
+        Current is an object -- either allocates and ALIASES where Array.mist promised a struct's
+        value copy, and the first was measured to make `var copy = e; copy.MoveNext(); ...
+        e.Current` answer for the copy's position. Only the concrete Array makes the struct promise;
+        through IEnumerable the slot promises conformance alone, binds to the abstract's own
+        GetEnumerator, and is untouched. IntrinsicSupply classifies the enumerator's members as
+        Respelled against the generated struct's surface. The four-line program runs on v2 for both,
+        and samples/StandardSurface reads the first element off an explicit enumerator of each and
+        proves the copy is a copy (explicit-enumerator-first=9 walker=2 copy=3, span-enumerator-first=5).
+        NestedIntrinsicTypeEmissionTests (Tier 3) pins the three spellings and the struct's shape.
+        Classic, re-measured: it runs `Console.WriteLine(e.Current)` on an array but refuses
+        `int first = e.Current` (MIST_TC_0001, TValue to Int32), the parameter never substituted.
       - >
         A Drop call on a task is a BLOCKING join, where the drop-semantics spec makes `await task`
         sugar for `task.Drop()` (Req 7.5) and the two should be one bound form. Binding an explicit
@@ -10147,9 +10152,10 @@ samples:
       - An intrinsic member that emits the wrong CLR member, rather than none, prints whatever that
         member returns; the sample proves a member emits and runs, not that it is the right one.
       - >
-        The explicit enumerator lines prove a nested intrinsic type SPELLS and that Current keeps the
-        element type; that an array's enumerator is the generic one rather than System.Array's shows
-        only in the emitted text, which NestedIntrinsicTypeEmissionTests holds.
+        The explicit enumerator lines prove a nested intrinsic type SPELLS, that Current keeps the
+        element type, and that an array's enumerator copies as the struct Array.mist declares; that
+        the struct is the backend's generated one shows only in the emitted text, which
+        NestedIntrinsicTypeEmissionTests holds.
 
   - name: InheritedGenericMembers
     intro_order: 91

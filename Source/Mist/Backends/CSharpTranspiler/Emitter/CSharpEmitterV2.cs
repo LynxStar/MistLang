@@ -95,6 +95,7 @@ internal sealed class CSharpEmitterV2
         var emittedFiles = new List<string>();
         ContextLowering.Reset();
         ArrayLowering.Reset();
+        ArrayEnumeration.Reset();
         TaskCombinators.Reset();
         BodyEmitter.ResetTemporaries();
         var closures = ConstraintClosureMap.Build((ProgramModel.Model.ProgramModel)programModel, diagnostics);
@@ -518,13 +519,27 @@ internal sealed class CSharpEmitterV2
 
     private static void EmitArrayRuntime(string outputDir, List<string> emittedFiles)
     {
-        if(!ArrayLowering.Used())
+        if(!ArrayLowering.Used() && !ArrayEnumeration.Used())
         {
             return;
         }
 
         var writer = new CSharpWriter();
-        ArrayLowering.Emit(writer);
+
+        if(ArrayLowering.Used())
+        {
+            ArrayLowering.Emit(writer);
+        }
+
+        if(ArrayEnumeration.Used())
+        {
+            if(ArrayLowering.Used())
+            {
+                writer.WriteBlankLine();
+            }
+
+            ArrayEnumeration.Emit(writer);
+        }
 
         var path = Path.Combine(outputDir, "__Array.g.cs");
         File.WriteAllText(path, writer.ToString());

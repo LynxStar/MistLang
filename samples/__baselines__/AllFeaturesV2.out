@@ -1908,7 +1908,7 @@ ToInt32=7 Abs=5 Max=3 Min=2
 Of(int).Name=Int32 Of(string).Name=String
 --- Array members ---
 indexer=9 foreach-total=14 built=2
-explicit-enumerator-first=9
+explicit-enumerator-first=9 walker=2 copy=3
 --- Span members ---
 span[0]=5 span-total=11 slice[0]=6
 span-enumerator-first=5

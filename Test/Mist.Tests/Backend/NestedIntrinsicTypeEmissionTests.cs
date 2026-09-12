@@ -2,10 +2,9 @@
 // order 66 that samples never reached -- foreach never names an enumerator's type, and a local holding
 // one had emitted the bare `Enumerator`. Built over the real Standard sources for the intrinsic cases and
 // a probe type for the user case; the emitted text is asserted because a program printing the right value
-// is equally consistent with `var`. The array case is the backend's own reading: the CLR has no
-// Array.Enumerator, and what System.Array.GetEnumerator answers has an object Current where Standard
-// declares a TValue one, so the enumerator is read off the array's generic enumerable view and a value
-// read from it keeps the type the model gave it. No Roslyn compile and no process spawning.
+// is equally consistent with `var`. The array case is a struct the backend generates: the CLR has no
+// Array.Enumerator, and what it does have allocates and aliases where Array.mist promised a value copy.
+// No Roslyn compile and no process spawning.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;
@@ -46,15 +45,26 @@ public sealed class NestedIntrinsicTypeEmissionTests
     }
 
     [Fact]
-    public void AnArrayEnumeratorLocalIsTheGenericEnumeratorOfItsElement()
+    public void AnArrayEnumeratorLocalIsTheBackendsStruct()
     {
+        ArrayEnumeration.Reset();
         var emitted = Emit("int[] xs = [1, 2, 3];\nvar e = xs.GetEnumerator();\nint first = e.Current;");
 
-        Assert.Contains(
-            "System.Collections.Generic.IEnumerator<int> e = ((System.Collections.Generic.IEnumerable<int>)xs).GetEnumerator();",
-            emitted,
-            StringComparison.Ordinal);
+        Assert.Contains("MistArrayEnumerator<int> e = new MistArrayEnumerator<int>(xs);", emitted, StringComparison.Ordinal);
         Assert.Contains("int first = e.Current;", emitted, StringComparison.Ordinal);
+        Assert.True(ArrayEnumeration.Used());
+    }
+
+    [Fact]
+    public void TheGeneratedStructHasTheDeclaredShape()
+    {
+        var writer = new CSharpWriter();
+        ArrayEnumeration.Emit(writer);
+        var runtime = writer.ToString();
+
+        Assert.Contains("internal struct MistArrayEnumerator<T> : System.Collections.Generic.IEnumerator<T>", runtime, StringComparison.Ordinal);
+        Assert.Contains("public bool MoveNext()", runtime, StringComparison.Ordinal);
+        Assert.Contains("public T Current", runtime, StringComparison.Ordinal);
     }
 
     [Fact]

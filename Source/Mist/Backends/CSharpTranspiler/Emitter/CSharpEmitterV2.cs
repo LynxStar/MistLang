@@ -114,7 +114,7 @@ internal sealed class CSharpEmitterV2
         // Standard's compilation units go through the same path as a user's, and what the target
         // already supplies is dropped one declaration at a time by TypeEmitter.ProducesDeclaration:
         // Bootstrap is intrinsic throughout and so emits nothing, IClonable is ordinary Mist and
-        // emits as itself. Only its extension blocks are skipped as an assembly (EmittableBlocks).
+        // emits as itself.
         foreach(var assembly in programModel.Assemblies)
         {
             if(!assembly.HasMistSource)
@@ -186,7 +186,7 @@ internal sealed class CSharpEmitterV2
             .Where(TypeEmitter.ProducesDeclaration)
             .Where(type => Monomorph.PacksOf(type).Count == 0)
             .ToList();
-        var emittableBlocks = EmittableBlocks(unit, assembly);
+        var emittableBlocks = unit.Extensions;
 
         // A file that declares nothing emittable would produce a .cs holding only usings,
         // which Roslyn accepts but which adds a file to the compilation for no reason.
@@ -731,7 +731,7 @@ internal sealed class CSharpEmitterV2
     {
         foreach(var assembly in programModel.Assemblies)
         {
-            if(!assembly.HasMistSource || assembly.Kind == MistAssemblyKind.Standard)
+            if(!assembly.HasMistSource)
             {
                 continue;
             }
@@ -787,16 +787,6 @@ internal sealed class CSharpEmitterV2
         {
             BodyEmitter.EmitBlock(unit.TopLevelMethod.Body, writer, diagnostics);
         }
-    }
-
-    /// <summary>
-    /// Standard's blocks are skipped on purpose: Unknown.mist's universal extension bodies are
-    /// placeholders for what the runtime already supplies (ToString returns "", GetHashCode 0), and
-    /// emitting them would compile those stand-ins into every program.
-    /// </summary>
-    private static List<ExtensionBlock> EmittableBlocks(CompilationUnit unit, IAssembly assembly)
-    {
-        return assembly.Kind == MistAssemblyKind.Standard ? [] : unit.Extensions;
     }
 
     /// <summary>

@@ -1890,3 +1890,29 @@ total = 16.25 EUR
 total == 16.25 = True
 lunch != coffee = True
 === Operator Overloads Done ===
+=== Standard Surface ===
+--- Clone on every primitive ---
+bool=True byte=255 sbyte=-128
+short=16 ushort=32 int=42
+uint=100 long=1000 ulong=9999
+float=2.5 double=3.25 decimal=99.99
+char=Z string=hello
+--- String members ---
+Length=5 Substring=ello Contains=True
+--- Console members ---
+Write(String) 7
+42
+--- Convert and Math ---
+ToInt32=7 Abs=5 Max=3 Min=2
+--- Type members ---
+Of(int).Name=Int32 Of(string).Name=String
+--- Array members ---
+indexer=9 foreach-total=14 built=2
+--- Span members ---
+span[0]=5 span-total=11 slice[0]=6
+readonly[0]=0 readonly-slice[0]=0 fromArray[0]=9
+--- Regex members ---
+IsMatch=True IsFullMatch=True Pattern=^h.*o$
+--- Task members ---
+Delay=3 Yield=4
+=== Standard Surface Done ===

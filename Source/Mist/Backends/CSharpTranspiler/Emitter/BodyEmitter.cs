@@ -699,6 +699,10 @@ internal static class BodyEmitter
                 writer.Append(asyncBlock.IsValueTask ? "))" : ")");
                 break;
 
+            case CloneExpression clone when IntrinsicCalls.ClonesAsItself(clone.Source.Type):
+                EmitExpression(clone.Source, writer, diagnostics);
+                break;
+
             case CloneExpression clone:
                 EmitSubExpression(clone.Source, PrefixPrecedence, writer, diagnostics);
                 writer.Append(".Clone()");
@@ -712,6 +716,14 @@ internal static class BodyEmitter
             case AwaitExpression await:
                 writer.Append("await ");
                 EmitSubExpression(await.Operand, PrefixPrecedence, writer, diagnostics);
+                break;
+
+            case InvocationExpression intrinsic
+                when IntrinsicCalls.Rewrite(
+                    intrinsic.Method,
+                    intrinsic.Receiver is MemberAccessExpression access ? Render(access.Receiver, diagnostics) : null,
+                    [.. intrinsic.Arguments.Select(argument => Render(argument, diagnostics))]) is { } lowered:
+                writer.Append(lowered);
                 break;
 
             case InvocationExpression invocation:

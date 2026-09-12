@@ -1,0 +1,110 @@
+using Standard;
+
+namespace StandardSurface;
+
+// Calls every intrinsic member the stdlib declares, so that the backend's promise to supply them is
+// measured rather than assumed. An intrinsic member has no Mist body: if the backend does not emit it,
+// the call fails against generated C#, which is how Standard.Type.Of was found broken on v2.
+public class Program
+{
+    private static async int Delayed()
+    {
+        await Task.Delay(0);
+        return 3;
+    }
+
+    private static async int Yielded()
+    {
+        await Task.Yield();
+        return 4;
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Standard Surface ===");
+
+        Console.WriteLine("--- Clone on every primitive ---");
+        bool boolean = true;
+        byte byteValue = 255;
+        sbyte sbyteValue = -128;
+        short shortValue = 16;
+        ushort ushortValue = 32;
+        int intValue = 42;
+        uint uintValue = 100;
+        long longValue = 1000;
+        ulong ulongValue = 9999;
+        float floatValue = 2.5f;
+        double doubleValue = 3.25;
+        decimal decimalValue = 99.99m;
+        char charValue = 'Z';
+        string text = "hello";
+
+        Console.WriteLine($"bool={boolean.Clone()} byte={byteValue.Clone()} sbyte={sbyteValue.Clone()}");
+        Console.WriteLine($"short={shortValue.Clone()} ushort={ushortValue.Clone()} int={intValue.Clone()}");
+        Console.WriteLine($"uint={uintValue.Clone()} long={longValue.Clone()} ulong={ulongValue.Clone()}");
+        Console.WriteLine($"float={floatValue.Clone()} double={doubleValue.Clone()} decimal={decimalValue.Clone()}");
+        Console.WriteLine($"char={charValue.Clone()} string={text.Clone()}");
+
+        Console.WriteLine("--- String members ---");
+        Console.WriteLine($"Length={text.Length} Substring={text.Substring(1)} Contains={text.Contains("ell")}");
+
+        Console.WriteLine("--- Console members ---");
+        Console.Write("Write(String) ");
+        Console.Write(7);
+        Console.WriteLine();
+        Console.WriteLine(42);
+
+        Console.WriteLine("--- Convert and Math ---");
+        Console.WriteLine($"ToInt32={Convert.ToInt32("7")} Abs={Math.Abs(-5)} Max={Math.Max(2, 3)} Min={Math.Min(2, 3)}");
+
+        Console.WriteLine("--- Type members ---");
+        Console.WriteLine($"Of(int).Name={Type.Of(intValue).Name} Of(string).Name={Type.Of(text).Name}");
+
+
+        Console.WriteLine("--- Array members ---");
+        int[] numbers = [1, 2, 3];
+        numbers[0] = 9;
+        var total = 0;
+        foreach(int n in numbers)
+        {
+            total = total + n;
+        }
+
+        var built = new Array<int, 3>(i => i * 2);
+        Console.WriteLine($"indexer={numbers[0]} foreach-total={total} built={built[1]}");
+
+        Console.WriteLine("--- Span members ---");
+        Span<int> buffer = stackalloc int[4];
+        buffer[0] = 5;
+        buffer[1] = 6;
+        var spanTotal = 0;
+        foreach(int v in buffer)
+        {
+            spanTotal = spanTotal + v;
+        }
+
+        var slice = buffer.Slice(1, 2);
+        Console.WriteLine($"span[0]={buffer[0]} span-total={spanTotal} slice[0]={slice[0]}");
+
+        Span<int> fromArray = new Span<int>(numbers);
+        ReadOnlySpan<int> readOnly = stackalloc int[2];
+        var readOnlySlice = readOnly.Slice(0, 1);
+        Console.WriteLine($"readonly[0]={readOnly[0]} readonly-slice[0]={readOnlySlice[0]} fromArray[0]={fromArray[0]}");
+
+        Console.WriteLine("--- Regex members ---");
+        regex pattern = `^h.*o$`;
+        regex fromString = (regex)"^h.*o$";
+        Console.WriteLine($"IsMatch={pattern.IsMatch("hello")} IsFullMatch={fromString.IsFullMatch("hello")} Pattern={pattern.Pattern}");
+
+
+        Console.WriteLine("--- Task members ---");
+        Console.WriteLine($"Delay={Delayed()} Yield={Yielded()}");
+
+        Console.WriteLine("=== Standard Surface Done ===");
+    }
+}

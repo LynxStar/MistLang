@@ -8443,6 +8443,27 @@ capabilities:
       MEASURED: AllFeaturesV2 byte-identical to baseline and samples/Testing green under `mist test` on
       v2, which is the one consumer that compiles emitted code through MSBuild and so sees C# warnings.
       A Tier 3 test pins that an intrinsic type produces no declaration and writes nothing.
+      THE INTRINSIC SURFACE IS NOW MEASURED, by samples/StandardSurface, and measuring it found two
+      members v2 could not emit at all. An `intrinsic` declaration is the stdlib's promise that the
+      backend supplies the member, and v2 keeps most of them without knowing it: an operator emits as an
+      operator, and a member of a projected type emits as the call on that type, which is why
+      Console.WriteLine and Math.Abs work and why nobody noticed the rest. Standard.Type.Of and Clone on
+      every primitive are spelled differently from the CLR, and both emitted as calls that do not exist --
+      `System.Type.Of(x)` and `42.Clone()`. Classic runs both. IntrinsicCalls now rewrites them: Type.Of
+      to GetType on the value, and Clone on a backend-backed type to the value itself, which the binder's
+      INSERTED clone needed too, since every primitive declares IClonable and a clone of a value is the
+      value. 279 intrinsic members are declared; 195 are operators the expression emitter already
+      supplies; the sample reaches the named ones.
+
+      WHAT THE SAMPLE CANNOT REACH, measured: Task.WhenAll and Task.WhenAny. The bare name resolves
+      through the `Task = Task<void>` alias, so the parameter is Task<void>[]; the constructed spelling
+      `Task<int>.WhenAll` does not parse, which is the nested-through-a-constructed-generic gap already
+      under uncovered_constructs; and the void form binds but fails emission, Mist declaring
+      Task<TResult[]> where C#'s Task.WhenAll(Task[]) returns a non-generic Task. CLASSIC FAILS IT TOO,
+      so it is a shared stdlib-and-grammar gap rather than a v2 one. Task.Delay and Task.Yield are the
+      opposite -- v2 emits them and classic refuses to await a non-generic Task -- which is why the
+      sample is banked on AllFeaturesV2 alone.
+
       `intrinsic` IS NOW RESERVED TO STANDARD, and was not when this order first landed. The entry
       claimed a user could not reach an intrinsic type's dropped members; measured, a user file declaring
       `intrinsic public class Helper` with an ordinary Mist-bodied member COMPILED, the type was dropped
@@ -8454,6 +8475,19 @@ capabilities:
       (Req 5.15) already requires an intrinsic container. A corpus case under refusals/binding/ holds it,
       and Standard's own types are unaffected -- AllFeaturesV2 is byte-identical.
     tasks:
+      - >
+        A MISSING INTRINSIC IS NOT REPORTED. The standard-library spec asks for a compiler error naming
+        the declaring type and member when the backend has no emission for an intrinsic, with no output
+        artifact produced (Req 5.9 and 5.10). v2 has no registry to ask, so an unsupplied intrinsic is
+        emitted as a plain call and fails against generated C# -- which is how Type.Of and Clone were
+        found. Deriving the check is possible without a hand-written table: resolve the declaring type
+        through the backing map and ask CLR metadata whether a matching member exists, leaving only the
+        deliberately-respelled ones as entries. samples/StandardSurface is the measurement until then.
+      - >
+        Task.WhenAll and Task.WhenAny are unusable from Mist source on BOTH pipelines, for three reasons
+        at once: the bare `Task` alias fixes TResult to void, `Task<int>.WhenAll` does not parse, and the
+        void form's declared Task<TResult[]> does not match C#'s non-generic Task return. Fixing it needs
+        the grammar gap closed and the declaration reconciled with the CLR signature.
       - An intrinsic type's ORDINARY members are dropped with the type. The standard-library spec's
         Req 5.12 admits them -- Mist-bodied members composing the intrinsics on a backend-backed type,
         `Int32.Abs()` over the intrinsic `+` and `<` being the shape -- and none exists in Standard
@@ -9927,6 +9961,43 @@ samples:
         proven passes identically; the refusal half lives in refusals/refinement-proving.
       - The capture is written and read once, so a capture by copy that happened to print 2 is not
         distinguished from a capture by reference.
+
+  - name: OperatorOverloads
+    intro_order: 89
+    threshold: operator-overload-declarations
+    requires: [class-declaration, struct-declaration, constructors, methods-static-and-instance,
+               statements-core, namespace-file-scoped, standard-library-binding, literals-primitive,
+               string-interpolation, var-type-inference, operators-arithmetic-comparison-logical,
+               control-flow-basic, array-literals, arrays-sized-index-length,
+               operator-overload-declarations]
+    untested:
+      - V2-ONLY. Classic parses an operator declaration and then emits none, calling
+        `Vec2.op_GreaterThan` against a member it never wrote, so this sample is referenced from
+        AllFeaturesV2 and not from AllFeatures. Its baseline lines were captured from v2 and read
+        against the program by hand.
+      - A dropped `static` or `public` on an emitted operator is a Roslyn error the sample would see,
+        but a misplaced one is not; OperatorEmissionTests holds the emitted text.
+      - The unary `-` and `!` print through Describe, so a `!` typed as its operand rather than as
+        bool would still print; OperatorDecisionTests pins the binder's answer.
+
+  - name: StandardSurface
+    intro_order: 90
+    threshold: intrinsic-member-declarations
+    requires: [class-declaration, methods-static-and-instance, statements-core, namespace-file-scoped,
+               standard-library-binding, literals-primitive, string-interpolation, var-type-inference,
+               operators-arithmetic-comparison-logical, control-flow-basic, array-literals,
+               arrays-sized-index-length, stackalloc, span-projection-and-length-erasure,
+               regex-type-and-literals, lambda-expressions, async-return-type-transform,
+               auto-await-and-explicit-await, sync-async-context-classification,
+               iclonable-implicit-clone, intrinsic-member-declarations]
+    untested:
+      - V2-ONLY. Classic refuses `await Task.Delay(0)`, holding that await needs a `Task<T>` and not a
+        `Task`, so this sample is referenced from AllFeaturesV2 alone and its lines were captured from
+        v2 and read against the program by hand.
+      - Task.WhenAll and Task.WhenAny are NOT reached, being unusable from Mist source on both
+        pipelines for the three reasons recorded on order 186.
+      - An intrinsic member that emits the wrong CLR member, rather than none, prints whatever that
+        member returns; the sample proves a member emits and runs, not that it is the right one.
 
 # =====================================================================
 

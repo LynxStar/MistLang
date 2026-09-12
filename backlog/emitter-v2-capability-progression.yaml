@@ -8443,12 +8443,24 @@ capabilities:
       MEASURED: AllFeaturesV2 byte-identical to baseline and samples/Testing green under `mist test` on
       v2, which is the one consumer that compiles emitted code through MSBuild and so sees C# warnings.
       A Tier 3 test pins that an intrinsic type produces no declaration and writes nothing.
+      `intrinsic` IS NOW RESERVED TO STANDARD, and was not when this order first landed. The entry
+      claimed a user could not reach an intrinsic type's dropped members; measured, a user file declaring
+      `intrinsic public class Helper` with an ordinary Mist-bodied member COMPILED, the type was dropped
+      as any intrinsic type is, and the call then failed as MIST_CS_ERROR: "The type or namespace name
+      'Helper' does not exist" -- an error about generated C# for code the author wrote in Mist. The
+      standard-library spec reserves the marker (Req 5.6 and 5.13) and nothing enforced it, so
+      ConcreteTypeBuilder now refuses a type-level `intrinsic` outside the Standard assembly
+      (MIST_PM_INTRINSIC_RESERVED). The member-level marker needs no separate check: the pairing rule
+      (Req 5.15) already requires an intrinsic container. A corpus case under refusals/binding/ holds it,
+      and Standard's own types are unaffected -- AllFeaturesV2 is byte-identical.
     tasks:
       - An intrinsic type's ORDINARY members are dropped with the type. The standard-library spec's
-        Req 5.12 admits them -- Mist-bodied members composing the intrinsics on a backend-backed type --
-        and none exists in Standard today, so nothing is lost yet. C# has nowhere to put them, since a
-        backing type like System.Int32 cannot be reopened; extension members would be the shape. Silent
-        today, which is the part worth fixing first.
+        Req 5.12 admits them -- Mist-bodied members composing the intrinsics on a backend-backed type,
+        `Int32.Abs()` over the intrinsic `+` and `<` being the shape -- and none exists in Standard
+        today. NOW GENUINELY STDLIB-ONLY, since the reservation above makes a user type unable to reach
+        it; before that it was reachable and silent, which is what filing it as unreachable had hidden.
+        C# has nowhere to put such a member, a backing type like System.Int32 not being reopenable, so
+        an extension carrier is the likely shape. Still silent if a Standard author writes one.
     unlocks: [stdlib]
 
   # ===================================================================

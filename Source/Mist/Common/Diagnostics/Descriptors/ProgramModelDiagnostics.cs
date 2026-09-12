@@ -268,6 +268,12 @@ public static class ProgramModelDiagnostics
         "Intrinsic member '{0}' must not have a body; use ';' to mark it as backend-provided.");
 
     /// <summary>An intrinsic member must be inside a type that is itself intrinsic.</summary>
+    public static readonly DiagnosticDescriptor IntrinsicReservedForStandard = new(
+        new DiagnosticId("MIST_PM_INTRINSIC_RESERVED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "The 'intrinsic' modifier on '{0}' is reserved for the Standard library. It says the backend supplies the declaration, and a backend has nothing to supply for a type declared outside it.");
+
     public static readonly DiagnosticDescriptor IntrinsicRequiresIntrinsicType = new(
         new DiagnosticId("MIST_PM_INTRINSIC_NOT_IN_INTRINSIC_TYPE"),
         DiagnosticSeverity.Error,

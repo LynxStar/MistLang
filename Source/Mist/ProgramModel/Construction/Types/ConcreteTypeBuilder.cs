@@ -2,6 +2,7 @@ using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Members;
 using Mist.ProgramModel.Construction.Resolution;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
@@ -52,6 +53,16 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
         Context.Attributes.Build(body.TypeBody.Attributes, typeDef.DeclaredAttributesList, typeDef.Scope);
 
         typeDef.Modifiers = modifiers;
+
+        // Refused here rather than left to emission, which drops an intrinsic type and everything it
+        // declares: a user type marked intrinsic vanished, and a call to one of its ordinary members
+        // then failed against generated C#. The member-level marker needs no separate check, the
+        // pairing rule already requiring an intrinsic container (spec Req 5.6, 5.13 and 5.15).
+        if(modifiers.IsIntrinsic && typeDef.Assembly.Kind != MistAssemblyKind.Standard)
+        {
+            Context.Diagnostics.ReportAtNode(
+                ProgramModelDiagnostics.IntrinsicReservedForStandard, body.TypeBody, null, typeDef.Name);
+        }
 
         ConstraintResolver.Resolve(body.TypeBody.Constraints, typeDef.TypeParametersList, typeDef.Scope);
     }

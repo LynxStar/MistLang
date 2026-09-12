@@ -6,6 +6,8 @@
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Model.Enums;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 
@@ -36,6 +38,24 @@ public sealed class StandardDeclarationEmissionTests : ProgramModelProbe
 
         TypeEmitter.Emit(int32, ConstraintClosureMap.Build(model, diagnostics), model.VariadicUses, writer, diagnostics, ref anyEmitted);
 
+        Assert.False(anyEmitted);
+        Assert.Equal("", writer.ToString());
+    }
+
+    [Fact]
+    public void AnOrdinaryMemberOfAnIntrinsicTypeIsRefusedRatherThanDropped()
+    {
+        var model = BuildModel(statement: "", extraTypes: "", extraPreamble: "", out _);
+        var int32 = Assert.IsAssignableFrom<ConcreteType>(model.TypesByFQN["Standard.Int32"]);
+        var writer = new CSharpWriter();
+        var diagnostics = new DiagnosticBag();
+        var anyEmitted = false;
+
+        int32.MethodsList.Add(new Method("Twice", int32, [], new MemberModifiers { Accessibility = Accessibility.Public }));
+        TypeEmitter.Emit(int32, ConstraintClosureMap.Build(model, diagnostics), model.VariadicUses, writer, diagnostics, ref anyEmitted);
+
+        var refusal = Assert.Single(diagnostics.ToImmutableArray(), d => d.Id == BackendDiagnostics.IntrinsicTypeOrdinaryMember.Id);
+        Assert.Contains("'Int32' declares 'Twice'", refusal.Message);
         Assert.False(anyEmitted);
         Assert.Equal("", writer.ToString());
     }

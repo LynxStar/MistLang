@@ -8588,7 +8588,10 @@ capabilities:
         today. NOW GENUINELY STDLIB-ONLY, since the reservation above makes a user type unable to reach
         it; before that it was reachable and silent, which is what filing it as unreachable had hidden.
         C# has nowhere to put such a member, a backing type like System.Int32 not being reopenable, so
-        an extension carrier is the likely shape. Still silent if a Standard author writes one.
+        an extension carrier is the likely shape. NO LONGER SILENT (2026-09-12) -- TypeEmitter refuses one
+        with MIST_BE_INTRINSIC_ORDINARY_MEMBER, naming the type and the member, before the type is
+        skipped; StandardDeclarationEmissionTests pins it on an Int32 shell given a bodied method.
+        Supplying the member is still the task.
     unlocks: [stdlib]
 
   # ===================================================================

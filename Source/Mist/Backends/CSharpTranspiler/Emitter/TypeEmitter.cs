@@ -65,6 +65,10 @@ internal static class TypeEmitter
             case TypeAlias:
                 break;
 
+            case ConcreteType { IsIntrinsic: true } intrinsic:
+                ReportOrdinaryMembers(intrinsic, diagnostics);
+                break;
+
             case DeclaredType when SuppliedByBackend(type):
                 break;
 
@@ -313,6 +317,28 @@ internal static class TypeEmitter
         if(declaresEquality)
         {
             writer.WriteLine("#pragma warning restore CS0660, CS0661");
+        }
+    }
+
+    private static void ReportOrdinaryMembers(ConcreteType intrinsic, DiagnosticBag diagnostics)
+    {
+        var ordinary = intrinsic.EnumerateDelegates()
+            .Where(member => !member.Modifiers.IsIntrinsic)
+            .Select(member => (member.Name, member.DeclarationNode))
+            .Concat(intrinsic.PropertiesList.Where(p => !p.Modifiers.IsIntrinsic).Select(p => (p.Name, p.DeclarationNode)))
+            .Concat(intrinsic.IndexersList.Where(i => !i.Modifiers.IsIntrinsic).Select(i => ("this[]", i.DeclarationNode)))
+            .Concat(intrinsic.FieldsList.Select(f => (f.Name, f.DeclarationNode)));
+
+        foreach(var (name, node) in ordinary)
+        {
+            if((node ?? intrinsic.DeclarationNode) is { } at)
+            {
+                diagnostics.ReportAtNode(BackendDiagnostics.IntrinsicTypeOrdinaryMember, at, null, intrinsic.Name, name);
+            }
+            else
+            {
+                diagnostics.Report(BackendDiagnostics.IntrinsicTypeOrdinaryMember, default, "", intrinsic.Name, name);
+            }
         }
     }
 

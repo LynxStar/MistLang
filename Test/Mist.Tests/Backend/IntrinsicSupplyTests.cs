@@ -6,9 +6,11 @@
 using System.Collections.Immutable;
 using System.Reflection;
 using Mist.Backends.CSharpTranspiler.AmbientProvider;
+using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
+using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Backend;
@@ -35,6 +37,26 @@ public sealed class IntrinsicSupplyTests : IDisposable
     private Type? FindClrType(string fullName)
     {
         return loaded.Select(assembly => assembly.MetadataAssembly.GetType(fullName)).FirstOrDefault(type => type is not null);
+    }
+
+    [Fact]
+    public void AMistBodiedMemberOfAnIntrinsicTypeIsCarriedOnTheBackingType()
+    {
+        var model = StandardModelProbe.Build("", out _);
+        var int32 = Assert.IsAssignableFrom<ConcreteType>(model.TypesByFQN["Standard.Int32"]);
+        var writer = new CSharpWriter();
+        var diagnostics = new DiagnosticBag();
+
+        Assert.True(IntrinsicMemberEmitter.Carries(int32));
+        IntrinsicMemberEmitter.Emit([int32], writer, diagnostics);
+        var carrier = writer.ToString();
+
+        Assert.Empty(diagnostics.ToImmutableArray());
+        StandardDeclarationEmissionTests.AssertCarries(carrier, "internal static class MistIntrinsics");
+        StandardDeclarationEmissionTests.AssertCarries(carrier, "extension(int @this)");
+        StandardDeclarationEmissionTests.AssertCarries(carrier, "public bool IsEven()");
+        StandardDeclarationEmissionTests.AssertCarries(carrier, "return @this % 2 == 0;");
+        Assert.DoesNotContain("operator", carrier);
     }
 
     [Fact]

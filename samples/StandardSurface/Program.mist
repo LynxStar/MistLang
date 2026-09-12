@@ -110,6 +110,9 @@ public class Program
         Console.WriteLine("--- Type members ---");
         Console.WriteLine($"Of(int).Name={Type.Of(intValue).Name} Of(string).Name={Type.Of(text).Name}");
 
+        Console.WriteLine("--- Mist-bodied members of an intrinsic type ---");
+        var seven = 7;
+        Console.WriteLine($"IsEven(42)={intValue.IsEven()} IsEven(7)={seven.IsEven()}");
 
         Console.WriteLine("--- Array members ---");
         int[] numbers = [1, 2, 3];

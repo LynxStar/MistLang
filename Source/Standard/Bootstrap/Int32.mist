@@ -23,6 +23,11 @@ intrinsic public readonly owned struct Int32 : IClonable<Int32>
     // Unary negation — Requirement 3.3
     intrinsic public static Int32 operator -(Int32 a);
 
+    public Boolean IsEven()
+    {
+        return this % 2 == 0;
+    }
+
     // Implicit widening conversions
     intrinsic public static implicit operator Int64(Int32 value);
     intrinsic public static implicit operator Single(Int32 value);

@@ -967,7 +967,8 @@ internal static class BodyEmitter
 
             case MethodReferenceExpression methodRef:
                 writer.Append(
-                    CalleeName(LocalNames.Of(methodRef.Method), methodRef.TypeArguments, methodRef.Method.TypeParametersList)
+                    ReceiverSpelling.Qualifier(methodRef.Method.DeclaringType, methodRef.Method.Modifiers.IsStatic)
+                    + CalleeName(LocalNames.Of(methodRef.Method), methodRef.TypeArguments, methodRef.Method.TypeParametersList)
                     + EmitTypeArguments(methodRef.TypeArguments, methodRef.Method.TypeParametersList));
                 break;
 
@@ -998,14 +999,18 @@ internal static class BodyEmitter
                 break;
 
             case ThisExpression:
-                writer.Append("this");
+                writer.Append(ReceiverSpelling.This);
                 break;
 
             case FieldReferenceExpression fieldRef:
-                writer.Append(fieldRef.Field.Name);
+                writer.Append(
+                    ReceiverSpelling.Qualifier(fieldRef.Field.DeclaringType, fieldRef.Field.Modifiers.IsStatic)
+                    + fieldRef.Field.Name);
                 break;
             case PropertyReferenceExpression propertyRef:
-                writer.Append(propertyRef.Property.Name);
+                writer.Append(
+                    ReceiverSpelling.Qualifier(propertyRef.Property.DeclaringType, propertyRef.Property.Modifiers.IsStatic)
+                    + propertyRef.Property.Name);
                 break;
             case BackingFieldReferenceExpression:
                 writer.Append("field");

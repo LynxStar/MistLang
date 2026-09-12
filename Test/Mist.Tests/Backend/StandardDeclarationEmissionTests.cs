@@ -6,8 +6,6 @@
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
-using Mist.ProgramModel.Model.Enums;
-using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 
@@ -43,21 +41,46 @@ public sealed class StandardDeclarationEmissionTests : ProgramModelProbe
     }
 
     [Fact]
-    public void AnOrdinaryMemberOfAnIntrinsicTypeIsRefusedRatherThanDropped()
+    public void ACarriedBodyNamesTheReceiverWhereItWroteThisOrNothing()
     {
-        var model = BuildModel(statement: "", extraTypes: "", extraPreamble: "", out _);
-        var int32 = Assert.IsAssignableFrom<ConcreteType>(model.TypesByFQN["Standard.Int32"]);
+        var model = BuildModel(
+            statement: "",
+            extraTypes: """
+                public struct Widget
+                {
+                    public int Value;
+                    public bool IsEven() { return Value % 2 == 0; }
+                    public bool IsOdd() { return !IsEven(); }
+                    public Widget Same() { return this; }
+                    public bool Negative { get { return Value < 0; } }
+                    public bool Positive { get { return !Negative; } }
+                    public static int Zero() { return 0; }
+                    public static int One() { return Zero() + 1; }
+                }
+                """,
+            extraPreamble: "",
+            out _);
+        var widget = Assert.IsAssignableFrom<ConcreteType>(model.TypesByFQN["Probe.Widget"]);
         var writer = new CSharpWriter();
         var diagnostics = new DiagnosticBag();
-        var anyEmitted = false;
 
-        int32.MethodsList.Add(new Method("Twice", int32, [], new MemberModifiers { Accessibility = Accessibility.Public }));
-        TypeEmitter.Emit(int32, ConstraintClosureMap.Build(model, diagnostics), model.VariadicUses, writer, diagnostics, ref anyEmitted);
+        IntrinsicMemberEmitter.Emit([widget], writer, diagnostics);
+        var carrier = writer.ToString();
 
-        var refusal = Assert.Single(diagnostics.ToImmutableArray(), d => d.Id == BackendDiagnostics.IntrinsicTypeOrdinaryMember.Id);
-        Assert.Contains("'Int32' declares 'Twice'", refusal.Message);
-        Assert.False(anyEmitted);
-        Assert.Equal("", writer.ToString());
+        Assert.Empty(diagnostics.ToImmutableArray());
+        AssertCarries(carrier, "extension(Probe.Widget @this)");
+        AssertCarries(carrier, "return @this.Value % 2 == 0;");
+        AssertCarries(carrier, "return !@this.IsEven();");
+        AssertCarries(carrier, "return @this;");
+        AssertCarries(carrier, "return !@this.Negative;");
+        AssertCarries(carrier, "extension(Probe.Widget)");
+        AssertCarries(carrier, "public static int One()");
+        AssertCarries(carrier, "return Probe.Widget.Zero() + 1;");
+    }
+
+    internal static void AssertCarries(string carrier, string expected)
+    {
+        Assert.True(carrier.Contains(expected, StringComparison.Ordinal), $"expected '{expected}' in:\n{carrier}");
     }
 
     [Fact]

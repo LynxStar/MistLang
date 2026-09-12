@@ -135,7 +135,7 @@ internal sealed class IntrinsicSupply
         return string.IsNullOrEmpty(type.NamespaceName) ? segment : $"{type.NamespaceName}.{segment}";
     }
 
-    private static IEnumerable<ConcreteType> IntrinsicTypes(ProgramModelClass programModel)
+    internal static IEnumerable<ConcreteType> IntrinsicTypes(ProgramModelClass programModel)
     {
         var pending = new Stack<MistType>();
 

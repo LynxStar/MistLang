@@ -1906,6 +1906,8 @@ Write(String) 7
 ToInt32=7 Abs=5 Max=3 Min=2
 --- Type members ---
 Of(int).Name=Int32 Of(string).Name=String
+--- Mist-bodied members of an intrinsic type ---
+IsEven(42)=True IsEven(7)=False
 --- Array members ---
 indexer=9 foreach-total=14 built=2
 explicit-enumerator-first=9 walker=2 copy=3

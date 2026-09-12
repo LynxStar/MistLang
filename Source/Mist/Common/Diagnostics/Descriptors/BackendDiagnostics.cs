@@ -352,16 +352,4 @@ public static class BackendDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.Backend,
         "'{0}' mentions the pack '{1}' where no arity is fixed, so no C# signature can be written for it.");
-
-    /// <summary>
-    /// A BACKEND LIMITATION AND NOT A LANGUAGE RULE: the standard-library spec admits a Mist-bodied
-    /// member on a backend-backed type (Req 5.12), and C# has nowhere to put one, a backing type such
-    /// as System.Int32 not being reopenable. Refused rather than dropped with the type, which is what
-    /// used to happen silently; an extension carrier is the likely shape when it is supplied.
-    /// </summary>
-    public static readonly DiagnosticDescriptor IntrinsicTypeOrdinaryMember = new(
-        new DiagnosticId("MIST_BE_INTRINSIC_ORDINARY_MEMBER"),
-        DiagnosticSeverity.Error,
-        PipelineStage.Backend,
-        "Intrinsic type '{0}' declares '{1}' without 'intrinsic'. The C# backend has nowhere to put a Mist-bodied member of a backend-backed type, so the member is refused rather than dropped.");
 }

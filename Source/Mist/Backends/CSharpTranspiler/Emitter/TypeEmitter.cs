@@ -30,7 +30,8 @@ internal static class TypeEmitter
     /// <summary>
     /// The declarations whose C# the target already has, so that emitting one would collide with it
     /// rather than add anything: an intrinsic type, whose implementation is the backend's by
-    /// declaration; Standard.Void, whose shape needs members Mist cannot spell (see
+    /// declaration and whose Mist-bodied members <see cref="IntrinsicMemberEmitter"/> carries
+    /// elsewhere; Standard.Void, whose shape needs members Mist cannot spell (see
     /// <see cref="VoidStandIn"/>); and an abstract that IS a CLR interface, where a structurally
     /// identical duplicate would satisfy no framework API (see <see cref="ClrProjection"/>).
     /// </summary>
@@ -63,10 +64,6 @@ internal static class TypeEmitter
         switch(type)
         {
             case TypeAlias:
-                break;
-
-            case ConcreteType { IsIntrinsic: true } intrinsic:
-                ReportOrdinaryMembers(intrinsic, diagnostics);
                 break;
 
             case DeclaredType when SuppliedByBackend(type):
@@ -317,28 +314,6 @@ internal static class TypeEmitter
         if(declaresEquality)
         {
             writer.WriteLine("#pragma warning restore CS0660, CS0661");
-        }
-    }
-
-    private static void ReportOrdinaryMembers(ConcreteType intrinsic, DiagnosticBag diagnostics)
-    {
-        var ordinary = intrinsic.EnumerateDelegates()
-            .Where(member => !member.Modifiers.IsIntrinsic)
-            .Select(member => (member.Name, member.DeclarationNode))
-            .Concat(intrinsic.PropertiesList.Where(p => !p.Modifiers.IsIntrinsic).Select(p => (p.Name, p.DeclarationNode)))
-            .Concat(intrinsic.IndexersList.Where(i => !i.Modifiers.IsIntrinsic).Select(i => ("this[]", i.DeclarationNode)))
-            .Concat(intrinsic.FieldsList.Select(f => (f.Name, f.DeclarationNode)));
-
-        foreach(var (name, node) in ordinary)
-        {
-            if((node ?? intrinsic.DeclarationNode) is { } at)
-            {
-                diagnostics.ReportAtNode(BackendDiagnostics.IntrinsicTypeOrdinaryMember, at, null, intrinsic.Name, name);
-            }
-            else
-            {
-                diagnostics.Report(BackendDiagnostics.IntrinsicTypeOrdinaryMember, default, "", intrinsic.Name, name);
-            }
         }
     }
 

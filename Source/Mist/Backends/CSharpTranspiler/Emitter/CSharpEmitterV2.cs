@@ -110,6 +110,7 @@ internal sealed class CSharpEmitterV2
         EmitDependentCarriers(outputDir, emittedFiles);
         EmitMonomorphs(outputDir, emittedFiles, closures);
         EmitVoidStandIn(outputDir, emittedFiles);
+        IntrinsicMemberEmitter.EmitFile((ProgramModel.Model.ProgramModel)programModel, outputDir, emittedFiles, diagnostics);
 
         // Standard's compilation units go through the same path as a user's, and what the target
         // already supplies is dropped one declaration at a time by TypeEmitter.ProducesDeclaration:

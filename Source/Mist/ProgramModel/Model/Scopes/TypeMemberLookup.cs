@@ -44,7 +44,7 @@ internal static class TypeMemberLookup
         {
             var (current, depth, path) = queue.Dequeue();
 
-            AddTypeNames(current, request, depth, candidates);
+            AddTypeNames(current, request, depth, path, candidates);
             AddState(current, request, depth, path, candidates);
             AddMethods(current, request, depth, path, candidates);
 
@@ -132,13 +132,14 @@ internal static class TypeMemberLookup
     /// type parameters are bound by its own declaration: in <c>class Derived&lt;T&gt; :
     /// Base&lt;T&gt;</c> the <c>T</c> in scope is Derived's.
     /// </summary>
-    private static void AddTypeNames(MistType type, LookupRequest request, int depth, CandidateSet candidates)
+    private static void AddTypeNames(
+        MistType type, LookupRequest request, int depth, IReadOnlyList<ConstructedType> path, CandidateSet candidates)
     {
         foreach(var nested in type.NestedTypes)
         {
             if(nested.Name == request.Name && IsVisible(AccessibilityOf(nested), depth))
             {
-                candidates.Add(new TypeResult(nested), depth);
+                candidates.Add(new TypeResult(nested, path), depth);
             }
         }
 

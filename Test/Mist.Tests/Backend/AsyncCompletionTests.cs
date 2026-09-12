@@ -30,10 +30,46 @@ public sealed class AsyncCompletionTests
     [Fact]
     public void ATaskBoundToALocalIsAwaitedAtScopeExit()
     {
-        var emitted = Emit("var task = Helpers.ComputeAsync();\nint v = await task;", isAsync: true);
+        var emitted = Emit("var task = Helpers.ComputeAsync();\nint v = 1;", isAsync: true);
 
         Assert.Contains("finally", emitted, StringComparison.Ordinal);
         Assert.Contains("await task;", emitted, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Awaiting the binding IS dropping it (drop-semantics Req 7.5), so the scope owes nothing more on
+    /// the way out -- the accounting an explicit Drop has always had, now shared by the two spellings.
+    /// A linear ValueTask needs this: awaited twice, it throws.
+    /// </summary>
+    [Fact]
+    public void AnAwaitedTaskIsNotAwaitedAgainAtScopeExit()
+    {
+        var emitted = Emit("var task = Helpers.ComputeAsync();\nint v = await task;", isAsync: true);
+
+        Assert.Contains("int v = await task;", emitted, StringComparison.Ordinal);
+        Assert.DoesNotContain("finally", emitted, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AnExplicitDropIsEmittedAsAnAwait()
+    {
+        var emitted = Emit("var task = Helpers.ComputeAsync();\nint v = task.Drop();", isAsync: true);
+
+        Assert.Contains("int v = await task;", emitted, StringComparison.Ordinal);
+        Assert.DoesNotContain("GetAwaiter", emitted, StringComparison.Ordinal);
+        Assert.DoesNotContain("finally", emitted, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AnExplicitDropInASyncContextPromotesTheMethod()
+    {
+        var model = ModelFor("public static void Run() { Task<int> t = Helpers.ComputeAsync(); int v = t.Drop(); }");
+        var host = Assert.IsType<ClassType>(model.TypesByFQN["Probe.Host"]);
+        var run = host.MethodsList.Single(method => method.Name == "Run");
+
+        using var promotion = AsyncPromotion.Enter(model);
+
+        Assert.True(AsyncPromotion.IsPromoted(run));
     }
 
     /// <summary>

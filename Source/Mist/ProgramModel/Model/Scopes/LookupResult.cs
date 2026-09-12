@@ -12,7 +12,11 @@ internal abstract record LookupResult;
 internal sealed record VariableResult(LocalVariable Variable) : LookupResult;
 
 /// <summary>A nested type, a type parameter, or a type found by namespace.</summary>
-internal sealed record TypeResult(IMistType Type) : LookupResult;
+/// <param name="BaseConstructions">
+/// See <see cref="FieldResult.BaseConstructions"/>; empty for everything but a nested type reached
+/// through a base of the type the lookup started from.
+/// </param>
+internal sealed record TypeResult(IMistType Type, IReadOnlyList<ConstructedType>? BaseConstructions = null) : LookupResult;
 
 /// <summary>Overload resolution is deferred to the invocation site.</summary>
 internal sealed record MethodGroupResult(

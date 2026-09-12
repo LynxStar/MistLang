@@ -2911,6 +2911,11 @@ capabilities:
       a nested type, so a regression in the emission path would be caught by nothing until NestedScoping
       or AssociatedTypes banks. The model side is covered by
       Test/Mist.Tests/Semantics/NestedTypeResolutionTests.cs, six tests.
+
+      THE UNFINISHED HALF LANDED 2026-09-12, under order 186's third task: a nested type reached
+      through an instantiation of its enclosing generic is a construction carrying that instantiation,
+      so `Box<int>.Wrapper` names a type, its members substitute, and it spells as C# spells it. The
+      grammar admits the form in expression position only.
     analysis_phase_tasks:
       - >
         Report a nested newtype or type alias that something references. Both are ERASED at the C#
@@ -8568,6 +8573,18 @@ capabilities:
         `memberType.Name` for anything declared in Standard. Classic runs the array case and refuses
         the span case at its type checker. foreach never names the type and is unaffected, which is why
         no sample sees it. Probed 2026-09-12 with a four-line program.
+        DONE 2026-09-12. The local's type is now the nested type UNDER the instantiation, and it spells:
+        `System.Span<int>.Enumerator e = buffer.GetEnumerator()` for a span, and for an array the
+        backend's own reading, `System.Collections.Generic.IEnumerator<int> e =
+        ((System.Collections.Generic.IEnumerable<int>)xs).GetEnumerator()`. The CLR's own answer, the
+        non-generic IEnumerator that System.Array.GetEnumerator returns, has an object Current where
+        Standard declares a TValue one, so `int first = e.Current` would not compile against it; the
+        declared shape is the contract, as it was for the WhenAll wrapper (ArrayEnumeration).
+        IntrinsicSupply audits Array's enumerator against the same IEnumerator<T>, walking an
+        interface's extended interfaces to find MoveNext. The four-line program runs on v2 for both,
+        and samples/StandardSurface reads the first element off an explicit enumerator of each
+        (explicit-enumerator-first=9, span-enumerator-first=5). NestedIntrinsicTypeEmissionTests
+        (Tier 3) pins the three spellings.
       - >
         A Drop call on a task is a BLOCKING join, where the drop-semantics spec makes `await task`
         sugar for `task.Drop()` (Req 7.5) and the two should be one bound form. Binding an explicit
@@ -8575,6 +8592,24 @@ capabilities:
         emitter write a real await; that is the binder's to do. Until it does, the backend's spelling
         completes the task on the calling thread, safe here only because nothing installs a
         synchronization context -- the reasoning BodyEmitter records for a sync lambda.
+        DONE 2026-09-12. PostfixBinder binds an unconditional `task.Drop()` on Task<T> or ValueTask<T>
+        to the AwaitExpression a written await produces (TaskResult.IsDrop names the member), so the
+        use is recorded, AsyncPromotion promotes the caller, and BodyEmitter writes `await task` -- or
+        the blocking get inside a sync lambda, as for any await. The respelling stays for the one form
+        that still reaches emission as a call, a conditional access; see the task below. One
+        consequence was decided rather than found: with the two spellings one node, DropInsertion's
+        accounting had to agree, and it now reads an await OF the binding as consuming it, as an
+        explicit Drop always did -- a linear ValueTask awaited and then awaited again at scope exit
+        throws, so the written `await v` had been the unsafe spelling. AsyncCompletionTests holds both
+        halves; StandardSurface's Drop=joined is unchanged.
+      - >
+        A CONDITIONAL Drop on an optional task loses its `?.` (measured 2026-09-12). `Task<int>? maybe;
+        var r = maybe?.Drop();` binds as a conditional call, which the binder leaves as a call, and the
+        respelling writes `maybe.GetAwaiter().GetResult()` from the receiver alone -- so a present task
+        joins and an absent one throws NullReferenceException where the program asked for void. The
+        binder has no await to bind it to, C# having no conditional await; the shape is a lifted await
+        (absent stays absent, present is awaited) that neither the model nor the emitter has a form
+        for.
       - >
         A nested type cannot be named through an instantiation of its enclosing generic:
         `Box<int>.Wrapper` is refused (MIST_PM_NESTED_TYPE_THROUGH_INSTANTIATION) because the model has
@@ -8582,6 +8617,18 @@ capabilities:
         definition's parameters, and Wrapper declares none. Carrying the enclosing instantiation on a
         nested type, substituting it into the nested type's members, and spelling it as `Box<int>.Wrapper`
         is one piece of work across the interner, substitution and TypeNameEmitter.
+        DONE 2026-09-12. A ConstructedType carries an Enclosing instantiation, interned with it:
+        `Box<int>.Wrapper` is the nested definition with no arguments of its own under `Box<int>`,
+        distinct from `Box<string>.Wrapper`. TypeSubstitution.ForReceiver composes the enclosing's
+        bindings, and Apply carries a nested DEFINITION under the instantiation whenever its enclosing
+        generic is bound -- which is what makes a member declared to return the bare `Enumerator`
+        return `Span<int>.Enumerator` on a Span<int>, with no declaration having to say so. A nested
+        type found through a generic BASE (`Derived<int>.Inner` declared on Base<T>) is reached through
+        the base's construction, TypeResult now carrying the path a FieldResult does. TypeNameEmitter
+        spells the enclosing and then the segment. MIST_PM_NESTED_TYPE_THROUGH_INSTANTIATION is deleted
+        with the refusal; ConstructedGenericMemberAccessTests holds the positive claims. Still a grammar
+        gap: the TYPE position, `Box<int>.Wrapper w = ...`, is MIST_PARSE_INCOMPLETE on both pipelines,
+        a NamedSingleTypeRef taking its arguments only after the last segment.
       - An intrinsic type's ORDINARY members are dropped with the type. The standard-library spec's
         Req 5.12 admits them -- Mist-bodied members composing the intrinsics on a backend-backed type,
         `Int32.Abs()` over the intrinsic `+` and `<` being the shape -- and none exists in Standard
@@ -10099,6 +10146,10 @@ samples:
         text, which TaskCombinatorEmissionTests holds.
       - An intrinsic member that emits the wrong CLR member, rather than none, prints whatever that
         member returns; the sample proves a member emits and runs, not that it is the right one.
+      - >
+        The explicit enumerator lines prove a nested intrinsic type SPELLS and that Current keeps the
+        element type; that an array's enumerator is the generic one rather than System.Array's shows
+        only in the emitted text, which NestedIntrinsicTypeEmissionTests holds.
 
   - name: InheritedGenericMembers
     intro_order: 91
@@ -10265,10 +10316,12 @@ uncovered_constructs:
       `Box<int>.Wrapper.Info()`. Was MIST_PARSE_INCOMPLETE on BOTH pipelines until 2026-09-12, when the
       grammar gained GenericTypeMemberAccessExpression (order 186's evidence has the disambiguation).
       A STATIC through an instantiation now binds and runs, and samples/StandardSurface covers it with
-      the generic combinators. A NESTED TYPE through one is refused at binding
-      (MIST_PM_NESTED_TYPE_THROUGH_INSTANTIATION), because the model holds no nested type of an
-      instantiation; that is the piece order 66 still owes, recorded as a task on order 186.
-      NestedScoping names `Wrapper` only from inside `Box<T>`, where the simple name suffices.
+      the generic combinators. A NESTED TYPE through one binds since later the same day, carried under
+      the instantiation (order 186's third task has the shape); StandardSurface reaches the intrinsic
+      case through an explicit enumerator's type, and ConstructedGenericMemberAccessTests holds the
+      user case, which no sample names -- NestedScoping names `Wrapper` only from inside `Box<T>`,
+      where the simple name suffices. In TYPE position the form is still MIST_PARSE_INCOMPLETE on
+      both pipelines.
     disposition: covered
 
   - construct: OperatorMemberMemberDeclarationNode

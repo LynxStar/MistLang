@@ -16,39 +16,23 @@ internal static class TypeDisplay
 {
     public static string Mist(IMistType type)
     {
-        switch(type)
+        return type switch
         {
             // Before the general constructed case: an array is spelled with a rank suffix, not as
             // the Standard.Array<,> it is represented by, and its second argument is a length
             // rather than a type -- so the general case would render `int[]` as `Array<int, int>`.
-            case ConstructedType array when IsArray(array):
-                return $"{Mist(array.TypeArguments[0])}{Rank(array.TypeArguments[1])}";
-
-            case ConstructedType constructed:
-                {
-                    var arguments = string.Join(", ", constructed.TypeArguments.Select(Mist));
-                    return $"{MistType.StripArity(constructed.Definition.Name)}<{arguments}>";
-                }
-
-            case UnionType union:
-                return string.Join(" | ", union.Constituents.Select(Mist));
-
-            case TupleType tuple:
-                return $"({string.Join(", ", tuple.ElementTypes.Select(Mist))})";
-
-            case NamedTupleType named:
-                return $"({string.Join(", ", named.ElementTypes.Select(Mist))})";
+            ConstructedType array when IsArray(array) => $"{Mist(array.TypeArguments[0])}{Rank(array.TypeArguments[1])}",
+            ConstructedType { Enclosing: { } enclosing } nested => $"{Mist(enclosing)}.{Segment(nested)}",
+            ConstructedType constructed => Segment(constructed),
+            UnionType union => string.Join(" | ", union.Constituents.Select(Mist)),
+            TupleType tuple => $"({string.Join(", ", tuple.ElementTypes.Select(Mist))})",
+            NamedTupleType named => $"({string.Join(", ", named.ElementTypes.Select(Mist))})",
 
             // A dependent argument shows its domain, since its value is the thing not known.
-            case UnknownValueType unknownValue:
-                return Mist(unknownValue.Domain);
-
-            case RefinedType { IsAnonymous: true } refined:
-                return Mist(refined.BaseType);
-
-            default:
-                return MistType.StripArity(Keyword(type));
-        }
+            UnknownValueType unknownValue => Mist(unknownValue.Domain),
+            RefinedType { IsAnonymous: true } refined => Mist(refined.BaseType),
+            _ => MistType.StripArity(Keyword(type)),
+        };
     }
 
     /// <summary>
@@ -83,6 +67,16 @@ internal static class TypeDisplay
             "Void" => "void",
             _ => type.Name,
         };
+    }
+
+    private static string Segment(ConstructedType constructed)
+    {
+        var name = MistType.StripArity(constructed.Definition.Name);
+
+        return constructed.TypeArguments.Count == 0
+            ? name
+            : $"{name}<{string.Join(", ", constructed.TypeArguments.Select(Mist))}>"
+            ;
     }
 
     private static bool IsArray(ConstructedType constructed)

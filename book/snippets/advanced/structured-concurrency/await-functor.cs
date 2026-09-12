@@ -7,13 +7,6 @@ async System.Threading.Tasks.Task<int> ComputeValue()
 async System.Threading.Tasks.Task Main()
 {
     System.Threading.Tasks.Task<int> task = ComputeValue();
-    try
-    {
-        int result = await task;
-        Console.WriteLine(result);
-    }
-    finally
-    {
-        await task;
-    }
+    int result = await task;
+    Console.WriteLine(result);
 }

@@ -19,8 +19,8 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// The projection is the one the emitter writes: a Standard type is spelled by its own name and reached
 /// through the unconditional `using System` (TypeNameEmitter, CSharpEmitterV2.EmitUsings), except where
 /// <see cref="WellKnownTypeMap"/> or <see cref="RegexLowering"/> already names the CLR type. A nested
-/// intrinsic type is the CLR nesting of the same name, or failing that whatever the CLR returns where
-/// Mist returns it -- an array's Enumerator is the IEnumerator that System.Array.GetEnumerator answers.
+/// intrinsic type is what the backend lowers it to (<see cref="ArrayEnumeration"/>), else the CLR
+/// nesting of the same name, else whatever the CLR returns where Mist returns it.
 /// </para>
 /// </summary>
 internal sealed class IntrinsicSupply
@@ -185,7 +185,7 @@ internal sealed class IntrinsicSupply
         var found = method is Constructor
             ? clr.GetConstructors(BindingFlags.Public | BindingFlags.Instance)
                 .Any(constructor => constructor.GetParameters().Length == count)
-            : clr.GetMethods(Visible).Any(candidate =>
+            : Methods(clr).Any(candidate =>
                 candidate.Name == method.Name
                 && candidate.IsStatic == method.Modifiers.IsStatic
                 && candidate.GetParameters().Length == count);
@@ -210,11 +210,23 @@ internal sealed class IntrinsicSupply
             : Kind.Missing;
     }
 
+    private static IEnumerable<MethodInfo> Methods(Type clr)
+    {
+        return clr.IsInterface
+            ? clr.GetMethods(Visible).Concat(clr.GetInterfaces().SelectMany(extended => extended.GetMethods(Visible)))
+            : clr.GetMethods(Visible);
+    }
+
     private static Type? Backing(MemberType? type, Func<string, Type?> clrType)
     {
         if(type is null)
         {
             return null;
+        }
+
+        if(ArrayEnumeration.IsEnumerator(type))
+        {
+            return clrType($"{ArrayEnumeration.ClrEnumerator}`1");
         }
 
         if(type.DeclaringType is MemberType outer)

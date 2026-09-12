@@ -87,6 +87,31 @@ public sealed class AsyncBindingTests
         Assert.Equal("Standard.Int32", await.Type.FullyQualifiedName);
     }
 
+    /// <summary>
+    /// `t.Drop()` is `await t` under its other name (drop-semantics Req 7.5), so it binds to the node a
+    /// written await does -- and takes the promotion, the use registry and the real await with it.
+    /// </summary>
+    [Fact]
+    public void ADropOnATaskBindsAsTheAwaitItIs()
+    {
+        var initializer = InitializerIn("Task<int> t = Helpers.ComputeAsync();\nvar x = t.Drop();", isAsync: false);
+        var await = Assert.IsType<AwaitExpression>(initializer);
+
+        Assert.False(await.IsImplicit);
+        _ = Assert.IsType<LocalReferenceExpression>(await.Operand);
+        Assert.Equal("Standard.Int32", await.Type.FullyQualifiedName);
+    }
+
+    [Fact]
+    public void ADropOnAValueTaskBindsAsTheAwaitItIs()
+    {
+        var initializer = InitializerIn("ValueTask<int> v = async valuetask { return 1; };\nvar x = v.Drop();", isAsync: true);
+        var await = Assert.IsType<AwaitExpression>(initializer);
+
+        _ = Assert.IsType<LocalReferenceExpression>(await.Operand);
+        Assert.Equal("Standard.Int32", await.Type.FullyQualifiedName);
+    }
+
     [Fact]
     public void TheAsyncFunctorLiftsASyncCall()
     {
@@ -169,7 +194,7 @@ public sealed class AsyncBindingTests
 
         Assert.NotNull(body);
 
-        var declaration = body.Statements.OfType<LocalDeclarationStatement>().Single();
+        var declaration = body.Statements.OfType<LocalDeclarationStatement>().Last();
         Assert.NotNull(declaration.Initializer);
 
         return declaration.Initializer;

@@ -48,6 +48,35 @@ public sealed class ConstructedTypeInterningV2Tests
     }
 
     [Fact]
+    public void GetOrCreateConstructedType_SameEnclosingInstantiation_ReturnsSameReference()
+    {
+        var interner = new TypeInterner();
+        var box = new ClassType("Box<>", "Probe", new Scope(null), null, null);
+        var wrapper = new ClassType("Wrapper", "Probe", new Scope(null), box, null);
+        var boxOfInt = interner.GetOrCreateConstructedType(box, [new ClassType("Int32", "Standard", new Scope(null), null, null)]);
+
+        var first = interner.GetOrCreateConstructedType(wrapper, [], boxOfInt);
+        var second = interner.GetOrCreateConstructedType(wrapper, [], boxOfInt);
+
+        Assert.Same(first, second);
+    }
+
+    [Fact]
+    public void GetOrCreateConstructedType_DifferentEnclosingInstantiation_ReturnsDifferentReference()
+    {
+        var interner = new TypeInterner();
+        var box = new ClassType("Box<>", "Probe", new Scope(null), null, null);
+        var wrapper = new ClassType("Wrapper", "Probe", new Scope(null), box, null);
+        var boxOfInt = interner.GetOrCreateConstructedType(box, [new ClassType("Int32", "Standard", new Scope(null), null, null)]);
+        var boxOfString = interner.GetOrCreateConstructedType(box, [new ClassType("String", "Standard", new Scope(null), null, null)]);
+
+        var first = interner.GetOrCreateConstructedType(wrapper, [], boxOfInt);
+        var second = interner.GetOrCreateConstructedType(wrapper, [], boxOfString);
+
+        Assert.NotSame(first, second);
+    }
+
+    [Fact]
     public void GetOrCreateConstructedType_DifferentDefinitionsSameArgs_ReturnsDifferentReference()
     {
         var interner = new TypeInterner();

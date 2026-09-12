@@ -15,4 +15,11 @@ public interface IConstructedType : IMistType
     /// The resolved type arguments applied to the definition.
     /// </summary>
     IReadOnlyList<IMistType> TypeArguments { get; }
+
+    /// <summary>
+    /// The instantiation of the declaring type this nested type is reached through
+    /// (<c>Box&lt;int&gt;</c> for <c>Box&lt;int&gt;.Wrapper</c>), or null for a construction of a
+    /// top-level definition.
+    /// </summary>
+    IConstructedType? Enclosing { get; }
 }

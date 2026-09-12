@@ -312,6 +312,16 @@ internal static class PostfixBinder
         context.ProgramModel.ConstructorConstraintClosures.RecordMethod(selected, methodTypeArguments, node);
         context.ProgramModel.VariadicUses.Record(selected, methodTypeArguments);
 
+        // `task.Drop()` and `await task` are one form, the second being sugar for the first (drop
+        // semantics Req 7.5), so the call binds to the await and takes everything an await gets: the
+        // use is recorded, the caller is promoted, and the emitter writes a real await.
+        if(TaskResult.IsDrop(selected) && group.Receiver is { } task && !group.IsConditional)
+        {
+            context.ProgramModel.AwaitUses.RecordAwait(ctx.EnclosingMethod);
+
+            return new AwaitExpression(node, task, returnType);
+        }
+
         var callee = group.Receiver is null
             ? new MethodReferenceExpression(node, selected, methodTypeArguments)
             : (Expression)new MemberAccessExpression(
@@ -467,17 +477,17 @@ internal static class PostfixBinder
 
         // DeclaredType and not every resolved type: `Length` on an array is a type PARAMETER, and it
         // reaches C# only as a member access emitting `arr.Length` -- a type reference drops the receiver.
-        if(found is TypeResult { Type: DeclaredType nested })
+        // Through an instantiation, `Box<int>.Wrapper`, the nested type is carried under it, which the
+        // substitution does for a definition exactly as it does for a member's type.
+        if(found is TypeResult { Type: DeclaredType nested } typeResult)
         {
-            if(receiver is TypeReferenceExpression { ReferencedType: ConstructedType instantiation })
-            {
-                context.Diagnostics.ReportAtNode(
-                    ProgramModelDiagnostics.NestedTypeThroughInstantiation, node, null,
-                    nested.Name, TypeDisplay.Mist(instantiation));
-                return new ErrorExpression(node);
-            }
+            var carried = receiver is TypeReferenceExpression { ReferencedType: ConstructedType instantiation }
+                ? TypeSubstitution
+                    .ForPath(instantiation, typeResult.BaseConstructions, context.ProgramModel.TypeInterner)
+                    .Apply(nested, context.ProgramModel.TypeInterner)
+                : nested;
 
-            return new TypeReferenceExpression(node, nested);
+            return new TypeReferenceExpression(node, carried);
         }
 
         var resolved = ClrInboundLifting.Close(

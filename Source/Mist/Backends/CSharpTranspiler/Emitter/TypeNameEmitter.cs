@@ -248,6 +248,11 @@ internal static class TypeNameEmitter
             return Emit(erased);
         }
 
+        if(constructed.Enclosing is { } enclosing)
+        {
+            return EmitNested(constructed, enclosing);
+        }
+
         if(ClrProjection.Name(constructed.Definition) is { } projected)
         {
             return $"{projected}<{string.Join(", ", constructed.TypeArguments.Select(Emit))}>";
@@ -301,6 +306,38 @@ internal static class TypeNameEmitter
             ? $"{namespaceName}.{baseName}<{args}>"
             : $"{baseName}<{args}>"
             ;
+    }
+
+    /// <summary>
+    /// <c>Box&lt;int&gt;.Wrapper</c>, spelled as its enclosing instantiation and then its own segment,
+    /// which is how C# names a nested type of a constructed generic. An enclosing that spells
+    /// <c>dynamic</c> has no members to name, so the nested type is <c>dynamic</c> with it.
+    /// </summary>
+    private static string EmitNested(ConstructedType nested, ConstructedType enclosing)
+    {
+        if(ArrayEnumeration.Emit(nested, Emit) is { } enumerator)
+        {
+            return enumerator;
+        }
+
+        var outer = Emit(enclosing);
+
+        if(outer == "dynamic")
+        {
+            return outer;
+        }
+
+        var segment = MistType.StripArity(nested.Definition.Name);
+
+        if(nested.TypeArguments.Count == 0)
+        {
+            return $"{outer}.{segment}";
+        }
+
+        var args = string.Join(", ", nested.TypeArguments.Select(
+            (argument, ordinal) => EmitArgument(nested.Definition, ordinal, argument)));
+
+        return $"{outer}.{segment}<{args}>";
     }
 
     /// <summary>

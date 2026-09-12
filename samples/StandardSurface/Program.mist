@@ -123,6 +123,11 @@ public class Program
         var built = new Array<int, 3>(i => i * 2);
         Console.WriteLine($"indexer={numbers[0]} foreach-total={total} built={built[1]}");
 
+        var walker = numbers.GetEnumerator();
+        walker.MoveNext();
+        int firstSeen = walker.Current;
+        Console.WriteLine($"explicit-enumerator-first={firstSeen}");
+
         Console.WriteLine("--- Span members ---");
         Span<int> buffer = stackalloc int[4];
         buffer[0] = 5;
@@ -135,6 +140,11 @@ public class Program
 
         var slice = buffer.Slice(1, 2);
         Console.WriteLine($"span[0]={buffer[0]} span-total={spanTotal} slice[0]={slice[0]}");
+
+        var spanWalker = buffer.GetEnumerator();
+        spanWalker.MoveNext();
+        int spanFirst = spanWalker.Current;
+        Console.WriteLine($"span-enumerator-first={spanFirst}");
 
         Span<int> fromArray = new Span<int>(numbers);
         ReadOnlySpan<int> readOnly = stackalloc int[2];

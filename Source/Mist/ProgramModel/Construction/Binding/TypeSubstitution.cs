@@ -25,12 +25,17 @@ internal sealed class TypeSubstitution
 
     public static TypeSubstitution ForReceiver(ConstructedType? receiver)
     {
-        if(receiver?.Definition is not IHasTypeParameters definition)
+        if(receiver is null)
         {
             return Empty;
         }
 
-        return ByOrdinal(definition.TypeParametersList, receiver.TypeArguments);
+        var enclosing = ForReceiver(receiver.Enclosing);
+
+        return receiver.Definition is IHasTypeParameters definition
+            ? enclosing.Extend(ByOrdinal(definition.TypeParametersList, receiver.TypeArguments))
+            : enclosing
+            ;
     }
 
     public static TypeSubstitution ForMember(
@@ -203,6 +208,11 @@ internal sealed class TypeSubstitution
                     ;
         }
 
+        if(type is MemberType or EnumType && EnclosingInstantiation(((MistType)type).DeclaringType, interner) is { } carried)
+        {
+            return Construct(type, [], carried, interner);
+        }
+
         if(type is not ConstructedType constructed)
         {
             return type;
@@ -217,14 +227,59 @@ internal sealed class TypeSubstitution
             changed |= !ReferenceEquals(substituted[i], constructed.TypeArguments[i]);
         }
 
+        var enclosing = constructed.Enclosing is { } reached
+            ? (ConstructedType)Apply(reached, interner)
+            : EnclosingInstantiation((constructed.Definition as MistType)?.DeclaringType, interner);
+        changed |= !ReferenceEquals(enclosing, constructed.Enclosing);
+
         if(!changed)
         {
             return type;
         }
 
+        return Construct(constructed.Definition, substituted, enclosing, interner);
+    }
+
+    /// <summary>
+    /// The instantiation a nested DEFINITION is carried under when this map binds its enclosing generic:
+    /// Span's GetEnumerator is declared to return Enumerator, and on a Span of int it returns the
+    /// Enumerator of Span of int, which is how C# reads the bare name inside the enclosing body too. Null
+    /// when the map binds nothing along the chain, so inside its own body a definition stays itself. An
+    /// unbound parameter stands for itself, and a non-generic on the chain contributes a construction
+    /// only when something further out did.
+    /// </summary>
+    private ConstructedType? EnclosingInstantiation(MistType? declaring, TypeInterner? interner)
+    {
+        if(declaring is not (MemberType or EnumType))
+        {
+            return null;
+        }
+
+        var outer = EnclosingInstantiation(declaring.DeclaringType, interner);
+        var parameters = declaring is IHasTypeParameters generic ? generic.TypeParametersList : [];
+        var arguments = new IMistType[parameters.Count];
+        var bound = false;
+
+        for(var i = 0; i < arguments.Length; i++)
+        {
+            arguments[i] = bindings.TryGetValue(parameters[i], out var argument) ? argument : parameters[i];
+            bound |= !ReferenceEquals(arguments[i], parameters[i]);
+        }
+
+        if(!bound && outer is null)
+        {
+            return null;
+        }
+
+        return Construct(declaring, arguments, outer, interner);
+    }
+
+    private static ConstructedType Construct(
+        IMistType definition, IReadOnlyList<IMistType> arguments, ConstructedType? enclosing, TypeInterner? interner)
+    {
         return interner is null
-            ? new ConstructedType(constructed.Definition, substituted)
-            : interner.GetOrCreateConstructedType(constructed.Definition, substituted)
+            ? new ConstructedType(definition, arguments, enclosing)
+            : interner.GetOrCreateConstructedType(definition, arguments, enclosing)
             ;
     }
 

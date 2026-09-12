@@ -1,8 +1,9 @@
 // Tier 3 (Component): what a member named through an instantiation binds to. A static resolves with the
 // instantiation's substitution, so `Box<int>.Make(3)` is an int, and Standard's combinators resolve at
-// the instantiation named rather than at the alias's void. A nested type does not resolve at all: the
-// model holds no nested type of an instantiation, and binding to the definition would emit C# naming
-// type parameters that are not in scope. See ProgramModelProbe for the harness.
+// the instantiation named rather than at the alias's void. A nested type is carried UNDER the
+// instantiation -- `Box<int>.Wrapper` is a construction of the nested definition enclosed by `Box<int>`,
+// distinct from `Box<string>.Wrapper`, with Box's T bound in its members. See ProgramModelProbe for the
+// harness.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
@@ -15,7 +16,19 @@ namespace Mist.Tests.Semantics;
 
 public sealed class ConstructedGenericMemberAccessTests : ProgramModelProbe
 {
-    private const string RefusalId = "MIST_PM_NESTED_TYPE_THROUGH_INSTANTIATION";
+    private const string GenericBase = """
+        public class Base<T>
+        {
+            public class Inner
+            {
+                public static T Pick(T value) { return value; }
+            }
+        }
+
+        public class Derived<T> : Base<T>
+        {
+        }
+        """;
 
     public ConstructedGenericMemberAccessTests()
         : base("MistConstructedAccess_")
@@ -32,6 +45,10 @@ public sealed class ConstructedGenericMemberAccessTests : ProgramModelProbe
             public class Wrapper
             {
                 public static string Info() { return "wrapper"; }
+
+                public static T Echo(T value) { return value; }
+
+                public static Wrapper Make() { return new Wrapper(); }
             }
         }
         """;
@@ -57,12 +74,64 @@ public sealed class ConstructedGenericMemberAccessTests : ProgramModelProbe
     }
 
     [Fact]
-    public void ANestedTypeThroughAnInstantiationIsRefused()
+    public void ANestedTypeThroughAnInstantiationIsCarriedUnderIt()
     {
-        var diagnostics = BuildRun("var info = Box<int>.Wrapper.Info();");
+        var call = InitializerOf<InvocationExpression>("var info = Box<int>.Wrapper.Info();");
 
-        _ = Assert.Single(Errors(diagnostics, RefusalId));
-        _ = Assert.Single(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
+        Assert.Equal("Info", call.Method?.Name);
+        Assert.Equal("Box<int>.Wrapper", TypeDisplay.Mist(ReceiverTypeOf(call)));
+        Assert.Equal("Box<int>", TypeDisplay.Mist(ReceiverTypeOf(call).Enclosing!));
+    }
+
+    [Fact]
+    public void TheInstantiationSubstitutesIntoTheNestedTypesMembers()
+    {
+        var call = InitializerOf<InvocationExpression>("var echoed = Box<int>.Wrapper.Echo(3);");
+
+        Assert.Equal(WellKnownTypes.Int32.FullyQualifiedName, call.Type.FullyQualifiedName);
+    }
+
+    [Fact]
+    public void ANestedTypeReturnedByAMemberIsCarriedUnderTheReceiver()
+    {
+        var call = InitializerOf<InvocationExpression>("var made = Box<int>.Wrapper.Make();");
+
+        Assert.Equal("Box<int>.Wrapper", TypeDisplay.Mist(call.Type));
+        Assert.Same(ReceiverTypeOf(call), call.Type);
+    }
+
+    [Fact]
+    public void TwoInstantiationsCarryTwoNestedTypes()
+    {
+        var body = BodyIn("var a = Box<int>.Wrapper.Info();\nvar b = Box<string>.Wrapper.Info();\nvar c = Box<int>.Wrapper.Info();");
+        var receivers = body.Statements
+            .OfType<LocalDeclarationStatement>()
+            .Select(declaration => ReceiverTypeOf(Assert.IsType<InvocationExpression>(declaration.Initializer)))
+            .ToList();
+
+        Assert.NotSame(receivers[0], receivers[1]);
+        Assert.Same(receivers[0], receivers[2]);
+    }
+
+    /// <summary>
+    /// The nested type is found on a base, so the instantiation reaches it only through the base's
+    /// own construction -- the same composition an inherited field's type needs.
+    /// </summary>
+    [Fact]
+    public void ANestedTypeDeclaredOnAGenericBaseIsCarriedThroughTheBase()
+    {
+        var call = InitializerOf<InvocationExpression>("var picked = Derived<int>.Inner.Pick(4);", GenericBase);
+
+        Assert.Equal(WellKnownTypes.Int32.FullyQualifiedName, call.Type.FullyQualifiedName);
+        Assert.Equal("Base<int>.Inner", TypeDisplay.Mist(ReceiverTypeOf(call)));
+    }
+
+    private static ConstructedType ReceiverTypeOf(InvocationExpression call)
+    {
+        var access = Assert.IsType<MemberAccessExpression>(call.Receiver);
+        var reference = Assert.IsType<TypeReferenceExpression>(access.Receiver);
+
+        return Assert.IsType<ConstructedType>(reference.ReferencedType);
     }
 
     [Fact]

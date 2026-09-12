@@ -725,13 +725,16 @@ internal static class BodyEmitter
                 break;
 
             case InvocationExpression respelled when IntrinsicCalls.Respells(respelled.Method):
-                writer.Append(IntrinsicCalls.Rewrite(
-                    respelled.Method!,
-                    respelled.Receiver is MemberAccessExpression access
-                        ? RenderAt(access.Receiver, PostfixPrecedence, diagnostics)
-                        : null,
-                    [.. respelled.Arguments.Select(argument => RenderAt(argument, PostfixPrecedence, diagnostics))]));
-                break;
+                {
+                    var access = respelled.Receiver as MemberAccessExpression;
+
+                    writer.Append(IntrinsicCalls.Rewrite(
+                        respelled.Method!,
+                        access is null ? null : RenderAt(access.Receiver, PostfixPrecedence, diagnostics),
+                        access?.Receiver.Type,
+                        [.. respelled.Arguments.Select(argument => RenderAt(argument, PostfixPrecedence, diagnostics))]));
+                    break;
+                }
 
             case InvocationExpression { Method: { Modifiers.IsIntrinsic: true } unsupplied } missing
                 when !IntrinsicSupply.Supplies(unsupplied):

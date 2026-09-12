@@ -15,21 +15,14 @@ async System.Threading.Tasks.Task<int> SlowCompute()
 async System.Threading.Tasks.Task Main()
 {
     System.Threading.Tasks.Task<int> task = SlowCompute();
+    var __e2 = System.Threading.Tasks.Task.Yield();
     try
     {
-        var __e2 = System.Threading.Tasks.Task.Yield();
-        try
-        {
-            int result = await task;
-            Console.WriteLine(result);
-        }
-        finally
-        {
-            await __e2;
-        }
+        int result = await task;
+        Console.WriteLine(result);
     }
     finally
     {
-        await task;
+        await __e2;
     }
 }

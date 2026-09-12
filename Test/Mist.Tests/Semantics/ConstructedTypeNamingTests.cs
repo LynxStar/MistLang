@@ -59,6 +59,21 @@ public sealed class ConstructedTypeNamingTests
     }
 
     /// <summary>
+    /// A nested type reached through an instantiation is named under it, with no argument list of its
+    /// own to write -- <c>Box&lt;Int32&gt;.Wrapper</c>, never <c>Wrapper&lt;&gt;</c>.
+    /// </summary>
+    [Fact]
+    public void ANestedTypeThroughAnInstantiation_IsNamedUnderIt()
+    {
+        var box = Definition("Box<>", "Probe");
+        var wrapper = new ClassType("Wrapper", "Probe", new Scope(null), box, null!);
+        var nested = new ConstructedType(wrapper, [], new ConstructedType(box, [Definition("Int32", "Standard")]));
+
+        Assert.Equal("Box<Int32>.Wrapper", nested.Name);
+        Assert.Equal("Probe.Box<Int32>.Wrapper", nested.FullyQualifiedName);
+    }
+
+    /// <summary>
     /// A non-generic definition has no marker to strip, so its name passes through whole.
     /// </summary>
     [Fact]

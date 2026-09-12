@@ -100,16 +100,17 @@ internal sealed class TypeInterner
     /// Structurally equivalent types that differ only by decoration (e.g., named vs unnamed
     /// tuples) will produce distinct interned instances. The type checker handles equivalence.
     /// </summary>
-    public ConstructedType GetOrCreateConstructedType(IMistType definition, IReadOnlyList<IMistType> typeArguments)
+    public ConstructedType GetOrCreateConstructedType(
+        IMistType definition, IReadOnlyList<IMistType> typeArguments, ConstructedType? enclosing = null)
     {
-        var key = new ConstructedTypeKey(definition, typeArguments);
+        var key = new ConstructedTypeKey(definition, typeArguments, enclosing);
 
         if(constructedTypes.TryGetValue(key, out var existing))
         {
             return existing;
         }
 
-        var constructed = new ConstructedType(definition, typeArguments);
+        var constructed = new ConstructedType(definition, typeArguments, enclosing);
         constructedTypes[key] = constructed;
         return constructed;
     }
@@ -255,21 +256,26 @@ internal sealed class TypeInterner
     }
 
     /// <summary>
-    /// Key for constructed types: definition identity + ordered type argument identities.
+    /// Key for constructed types: definition identity + ordered type argument identities + the
+    /// identity of the enclosing instantiation, which is itself interned and so compares by reference.
     /// </summary>
     private readonly struct ConstructedTypeKey : IEquatable<ConstructedTypeKey>
     {
         private readonly IMistType definition;
         private readonly IMistType[] typeArguments;
+        private readonly ConstructedType? enclosing;
         private readonly int hashCode;
 
-        public ConstructedTypeKey(IMistType definition, IReadOnlyList<IMistType> typeArguments)
+        public ConstructedTypeKey(
+            IMistType definition, IReadOnlyList<IMistType> typeArguments, ConstructedType? enclosing)
         {
             this.definition = definition;
             this.typeArguments = typeArguments.ToArray();
+            this.enclosing = enclosing;
 
             var hash = new HashCode();
             hash.Add(RuntimeHelpers.GetHashCode(definition));
+            hash.Add(enclosing is null ? 0 : RuntimeHelpers.GetHashCode(enclosing));
 
             foreach(var arg in this.typeArguments)
             {
@@ -281,7 +287,7 @@ internal sealed class TypeInterner
 
         public bool Equals(ConstructedTypeKey other)
         {
-            if(!ReferenceEquals(definition, other.definition))
+            if(!ReferenceEquals(definition, other.definition) || !ReferenceEquals(enclosing, other.enclosing))
             {
                 return false;
             }

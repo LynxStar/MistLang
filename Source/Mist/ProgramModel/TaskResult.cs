@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel;
@@ -21,6 +22,17 @@ internal static class TaskResult
     public static bool IsTask(IMistType type)
     {
         return Of(type) is not null;
+    }
+
+    /// <summary>
+    /// The <c>Drop()</c> Standard declares on Task and ValueTask, which the drop-semantics spec makes
+    /// the meaning of <c>await</c> (Req 7.5): a call to it IS an await, and the binder reads it as one.
+    /// </summary>
+    public static bool IsDrop(Method method)
+    {
+        return method is { Name: "Drop", ParametersList.Count: 0, Modifiers.IsIntrinsic: true, DeclaringType: { } declaring }
+            && (string.Equals(declaring.FullyQualifiedName, WellKnownTypes.TaskGeneric.FullyQualifiedName, StringComparison.Ordinal)
+                || string.Equals(declaring.FullyQualifiedName, WellKnownTypes.ValueTaskGeneric.FullyQualifiedName, StringComparison.Ordinal));
     }
 
     private static bool IsTaskDefinition(ConstructedType constructed)

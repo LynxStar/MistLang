@@ -6060,6 +6060,22 @@ capabilities:
       beside it makes every read ambiguous; Task and ValueTask are type ALIASES, not member types;
       Func and Action are one Mist declaration behind seventeen CLR arities each.
 
+      THE BRIDGE IS GONE (2026-09-12). Merging System.String's members into Standard.String was a
+      mechanism no spec asked for, and the standard-library spec points the other way: the members
+      Standard wants are DECLARED, intrinsic, in String.mist (Req 9.12), and System.String appears
+      only as the emitter's backing target (Req 9.10). It had copied classic's accident -- classic
+      looks any member up on the CLR type -- and made String the one Standard type whose contract was
+      not what its Mist declaration says. WellKnownMemberBridge, BridgeWellKnownMembers and
+      BridgedMembers are deleted with their tests; String.mist declares ToUpper and ToCharArray, the
+      two members banked samples reach (AssemblyTypeProvider's Upper= line, RefStructs's
+      ToCharArray), and the supply audit finds both on the CLR by name. Anything else a program calls
+      on a string is now a declaration to add, which is the only way it should have worked. Two
+      consequences on classic, which compiles the same String.mist: its template table gained the two
+      entries its own audit test demands, and RefStructs's `?? []` after ToCharArray is gone -- the
+      declaration types the result non-optional, as the CLR promises, and classic refuses a coalesce
+      on a non-optional (under a mis-picked MIST_TC_0041) where v2 binds it as dead. Both baselines
+      are byte-identical.
+
       AFTER PHASE 2A, NOT AT 1B, and that ordering is the whole correctness argument. At 1b the
       Standard declarations hold no members yet, so there is nothing to merge against and the
       projected copy of every colliding member would win by arriving first -- silently, since
@@ -8718,6 +8734,21 @@ capabilities:
         with MIST_BE_INTRINSIC_ORDINARY_MEMBER, naming the type and the member, before the type is
         skipped; StandardDeclarationEmissionTests pins it on an Int32 shell given a bodied method.
         Supplying the member is still the task.
+        SUPPLIED 2026-09-12, and the refusal is deleted with its descriptor. A refusal was the emitter
+        declining its own job: an intrinsic type is a Mist-expressed contract over an instance the
+        backend supplies, the backend's discretion over how is total, and "C# has nowhere to put it"
+        is never an answer. IntrinsicMemberEmitter writes every Mist-bodied method and property of an
+        intrinsic type into __Intrinsics.g.cs as a C# 14 extension block on the backing type --
+        `extension(int @this)` for instance members, `extension(int)` for static ones -- in the
+        global namespace so a call resolves from any file, and ReceiverSpelling makes a body spell
+        `this` and every implicit sibling reference as the block's receiver, C# resolving nothing
+        through it by bare name. Int32.mist now declares `IsEven()`, the design's own example, and
+        samples/StandardSurface calls it (IsEven(42)=True IsEven(7)=False); IntrinsicSupplyTests holds
+        the carrier over the real Standard and StandardDeclarationEmissionTests the receiver
+        spellings. The in-process compiler moved from Roslyn 4.12 to 5.0 for the syntax; the MSBuild
+        path under `mist test` already had it. NOT YET CARRIED: an ordinary constructor, field,
+        indexer or operator on an intrinsic type. Standard declares none and a user cannot, so each is
+        unreachable today; the next declaration of one is the next task here, not a refusal.
     unlocks: [stdlib]
 
   # ===================================================================
@@ -9762,10 +9793,10 @@ samples:
 
       THE ERGONOMIC OBJECTION WAS REAL AND WAS ANSWERED ELSEWHERE. Needing both `using Standard` and
       `using System` for an operation on an intrinsic array does surprise a C# developer, and Mist
-      does have a mechanism that would avoid it: WellKnownMemberBridge merges a bridged type's CLR
-      members onto the Standard declaration, which is why `s.ToUpper()` binds under `using Standard`
-      alone, and Span.mist already declares `intrinsic Slice` mapping onto the CLR's. Declaring
-      `AsSpan` on Standard.Array would work the same way.
+      does have a mechanism that would avoid it: Span.mist declares `intrinsic Slice` mapping onto the
+      CLR's, and String.mist declares `intrinsic ToUpper` the same way, which is why `s.ToUpper()`
+      binds under `using Standard` alone. Declaring `AsSpan` on Standard.Array would work the same
+      way.
 
       IT WAS REJECTED AS A FIX FOR AN IMPORT, on the ground that it makes the surprise WORSE rather
       than smaller: adopting one CLR extension onto Standard.Array starts a list with no principled
@@ -10299,14 +10330,19 @@ non_sample_targets:
       Standard's compilation units go through the same emission path as a user's, and
       TypeEmitter.SuppliedByBackend drops what the target already has.
 
-      EMITTED FROM SOURCE: IClonable, to out/Standard/IClonable.cs. That is the whole list, and it is
+      EMITTED FROM SOURCE: IClonable, to out/Standard/IClonable.cs, and since 2026-09-12 Unknown.mist's
+      universal extension block to out/Standard/Unknown.cs and Int32.IsEven to __Intrinsics.g.cs (see
+      order 186). That is the whole list, and it is
       not a shortfall -- it is what the stdlib actually contains once each file is read. SUPPLIED BY THE
       BACKEND: every Bootstrap type, intrinsic by declaration (the ten numerics, Boolean, Char, String,
       Array, Span, Func, Task, Type, Console, Math, Convert, Regex, Index, Range); IEnumerable and
       IEnumerator, which ARE the CLR's interfaces; and Standard.Void, whose C# shape needs overrides
       Mist cannot spell (see order 186). ERASED, so there is nothing to emit: Optional, Action, and the
-      other type aliases. STILL SKIPPED: Standard's extension blocks, Unknown.mist being placeholder
-      bodies whose behaviour is the runtime's.
+      other type aliases. NOTHING IS SKIPPED PER ASSEMBLY ANY MORE (2026-09-12): Standard's extension
+      blocks emit like a user's, one declaration at a time, and Unknown.mist's block lands as
+      extension methods on object that System.Object's own instance members always win over. Its
+      bodies are placeholders by its own header; whether they should be spelled as the runtime's is a
+      language question, and the emitter no longer answers it by dropping the file.
 
       THE DRIFT THIS ENTRY WARNED ABOUT IS NOW A TEST. EmitVoidStruct, a transcription of Void.mist
       that could drift from it silently, is VoidStandIn, and StandardDeclarationEmissionTests holds it

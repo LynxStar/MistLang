@@ -179,6 +179,18 @@ flakes:
           that guarantees the binary exists without pulling an exe in as an assembly reference.
           The reference alone changes nothing, and --no-build alone leaves nothing guaranteeing
           there is anything to run.
+      - date: 2026-09-12
+        detail: >
+          Mist.Tests.Integration.MemoizationCorrectnessAndPerformanceTests.AllFeatures_ParsesWithinPerformanceTarget
+          again, 1 of 5829 in a full-solution run (the run's other failure was real: a spec proof
+          block behind an edited sample), green on a filtered rerun of the same binaries with
+          nothing edited, both tests in the class in 844 ms. THE NUMBER THE ENTRY ABOVE ASKED FOR:
+          "lex+parse took 30.52s, exceeding the 15-second regression ceiling (134 files)" -- not
+          just over budget but some thirty times the isolated figure, which is the shared-stall
+          shape rather than the load shape. The change under test touched the emitter, the ambient
+          provider, Stage 5's scope, classic's template table and two Standard files; the test file
+          was unmodified, and the same binaries had passed this test in a full run half an hour
+          earlier. Nothing ran beside the suite.
 
   - id: attribute-emission-round-trip-unreproduced
     test: Mist.Tests.Backend.AttributeEmissionRoundTripPropertyTests.AttributeEmission_PreservesStructure_RoundTrip

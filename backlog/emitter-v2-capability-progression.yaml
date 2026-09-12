@@ -343,6 +343,14 @@ capabilities:
       its source's, stdout byte-identical. ClrSpellingTests (Tier 3) holds the table against the
       real Standard in both directions, so an intrinsic type with no spelling fails a test rather than
       a user's build. The 367 book snippets regenerated once for the full names.
+
+      THE SDK'S IMPLICIT USINGS ARE OFF TOO (2026-09-12). The generated project had carried
+      `<ImplicitUsings>enable</ImplicitUsings>`, which imports System, System.Linq and a few more into
+      every generated file behind the emitter's back -- so a bare name the emitter slipped would have
+      compiled anyway and the full-name rule above was unenforced at the Roslyn level. v2's
+      ProjectFileEmitter now writes `disable`; classic's own project emitter is separate and
+      untouched. Measured: AllFeaturesV2 and samples/Testing compile and match with nothing else
+      changed, so no generated file had been relying on it.
     unlocks: [Simpliest]
 
   - id: literals-primitive

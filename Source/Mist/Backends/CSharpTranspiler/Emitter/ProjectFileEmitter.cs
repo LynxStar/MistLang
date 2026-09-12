@@ -25,7 +25,7 @@ internal static class ProjectFileEmitter
               <PropertyGroup>
                 <OutputType>{outputType}</OutputType>
                 <TargetFramework>{options.TargetFramework}</TargetFramework>
-                <ImplicitUsings>enable</ImplicitUsings>
+                <ImplicitUsings>disable</ImplicitUsings>
                 <Nullable>enable</Nullable>
                 <Deterministic>true</Deterministic>
                 <EnableNETAnalyzers>false</EnableNETAnalyzers>

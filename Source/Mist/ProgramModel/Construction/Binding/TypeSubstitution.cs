@@ -33,6 +33,12 @@ internal sealed class TypeSubstitution
         return ByOrdinal(definition.TypeParametersList, receiver.TypeArguments);
     }
 
+    public static TypeSubstitution ForMember(
+        ConstructedType? receiver, LookupResult found, TypeInterner? interner)
+    {
+        return ForPath(receiver, ReachedThrough(found), interner);
+    }
+
     /// <summary>
     /// The receiver's own mapping composed with one per constructed base the member was reached
     /// through, which is what an INHERITED member of a generic base needs: <c>Container.T</c> is bound
@@ -41,12 +47,12 @@ internal sealed class TypeSubstitution
     /// before becoming bindings themselves, so the composition works to any depth and does not assume a
     /// base reuses its deriver's parameter names or order.
     /// </summary>
-    public static TypeSubstitution ForMember(
-        ConstructedType? receiver, LookupResult found, TypeInterner? interner)
+    public static TypeSubstitution ForPath(
+        ConstructedType? receiver, IReadOnlyList<ConstructedType>? path, TypeInterner? interner)
     {
         var substitution = ForReceiver(receiver);
 
-        foreach(var construction in ReachedThrough(found))
+        foreach(var construction in path ?? [])
         {
             if(construction.Definition is not IHasTypeParameters definition)
             {

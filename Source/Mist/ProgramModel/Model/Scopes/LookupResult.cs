@@ -15,7 +15,9 @@ internal sealed record VariableResult(LocalVariable Variable) : LookupResult;
 internal sealed record TypeResult(IMistType Type) : LookupResult;
 
 /// <summary>Overload resolution is deferred to the invocation site.</summary>
-internal sealed record MethodGroupResult(IReadOnlyList<Method> Methods) : LookupResult;
+internal sealed record MethodGroupResult(
+    IReadOnlyList<Method> Methods,
+    IReadOnlyDictionary<Method, IReadOnlyList<ConstructedType>>? Paths = null) : LookupResult;
 
 /// <param name="DeclaringType">
 /// Where it was found, which is not necessarily where the lookup started -- it may be a base type.

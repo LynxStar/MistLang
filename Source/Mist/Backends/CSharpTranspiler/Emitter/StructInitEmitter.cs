@@ -80,6 +80,8 @@ internal static class StructInitEmitter
         DiagnosticBag diagnostics,
         ref bool anyEmitted)
     {
+        using var inherited = TypeEmitter.Substituting(ancestor.Path);
+
         foreach(var constructor in ancestor.Definition.ConstructorsList)
         {
             // A static constructor initializes the type rather than an instance, so nothing chains

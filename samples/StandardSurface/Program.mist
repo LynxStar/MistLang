@@ -96,7 +96,7 @@ public class Program
         Console.WriteLine($"char={charValue.Clone()} string={text.Clone()}");
 
         Console.WriteLine("--- String members ---");
-        Console.WriteLine($"Length={text.Length} Substring={text.Substring(1)} Contains={text.Contains("ell")}");
+        Console.WriteLine($"Length={text.Length} Substring={text.Substring(1)} Contains={text.Contains("ell")} Index={text[1]}");
 
         Console.WriteLine("--- Console members ---");
         Console.Write("Write(String) ");

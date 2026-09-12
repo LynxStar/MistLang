@@ -194,14 +194,17 @@ internal static class ArgumentBinder
         IReadOnlyList<T> candidates,
         BindingContext ctx,
         BuilderContext context,
-        ConstructedType? receiverConstructed = null)
+        ConstructedType? receiverConstructed = null,
+        IReadOnlyDictionary<Method, IReadOnlyList<ConstructedType>>? paths = null)
         where T : Method
     {
         var count = argumentList?.GetAllExpressions().Length ?? 0;
-        var substitution = TypeSubstitution.ForReceiver(receiverConstructed);
         var interner = context.ProgramModel.TypeInterner;
+        var sole = SoleByArity(candidates, count);
+        var substitution = TypeSubstitution.ForPath(
+            receiverConstructed, sole is not null && paths is { } reached ? reached.GetValueOrDefault(sole) : null, interner);
 
-        var targets = SoleByArity(candidates, count)?
+        var targets = sole?.ParametersList
             .Select(parameter => substitution.Apply(parameter.Type, interner))
             .ToList();
 
@@ -215,10 +218,10 @@ internal static class ArgumentBinder
     /// survives untyped and the selection settles it -- see <see cref="MethodGroupConversion"/>, which
     /// is the one such argument so far.
     /// </summary>
-    private static IReadOnlyList<Parameter>? SoleByArity<T>(IReadOnlyList<T> candidates, int argumentCount)
+    private static T? SoleByArity<T>(IReadOnlyList<T> candidates, int argumentCount)
         where T : Method
     {
-        IReadOnlyList<Parameter>? sole = null;
+        T? sole = null;
 
         foreach(var candidate in candidates)
         {
@@ -232,7 +235,7 @@ internal static class ArgumentBinder
                 return null;
             }
 
-            sole = candidate.ParametersList;
+            sole = candidate;
         }
 
         return sole;

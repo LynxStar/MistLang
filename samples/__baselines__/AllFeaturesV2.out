@@ -1898,7 +1898,7 @@ uint=100 long=1000 ulong=9999
 float=2.5 double=3.25 decimal=99.99
 char=Z string=hello
 --- String members ---
-Length=5 Substring=ello Contains=True
+Length=5 Substring=ello Contains=True Index=e
 --- Console members ---
 Write(String) 7
 42
@@ -1919,3 +1919,7 @@ WhenAll=2 WhenAny=1
 Drop=joined
 WhenAll<int>=10 WhenAny<int>=5
 === Standard Surface Done ===
+=== Inherited Generic Members ===
+IntBox.Get()=42 Extra=7 With(9).Value=9
+Renamed<string>.Get()=r Twice()=r Tag=1 With(s).Value=s
+=== Inherited Generic Members Done ===

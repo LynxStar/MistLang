@@ -78,3 +78,4 @@ CSharpInteropV2 = { path = "../CSharpInteropV2" }
 DelegateFuncConversion = { path = "../DelegateFuncConversion" }
 OperatorOverloads = { path = "../OperatorOverloads" }
 StandardSurface = { path = "../StandardSurface" }
+InheritedGenericMembers = { path = "../InheritedGenericMembers" }

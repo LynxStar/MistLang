@@ -16,6 +16,7 @@ intrinsic public readonly owned class String : IClonable<String>
     // Instance members migrated from the former System.String ambient type —
     // Requirement 9.12.
     intrinsic public Int32 Length { get; }
+    intrinsic public Char this[Int32 index] { get; }
     intrinsic public String Substring(Int32 startIndex);
     intrinsic public Boolean Contains(String value);
 }

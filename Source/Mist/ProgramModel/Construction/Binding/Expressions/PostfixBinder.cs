@@ -69,7 +69,7 @@ internal static class PostfixBinder
 
         return BindInvocation(
             node,
-            new MethodGroupExpression(node, null, name, group.Methods, null),
+            new MethodGroupExpression(node, null, name, group.Methods, null) { Paths = group.Paths },
             node.Arguments,
             context.Resolver.ResolveTypeArguments(node.TypeArgs, ctx.Scope),
             ctx,
@@ -272,12 +272,13 @@ internal static class PostfixBinder
             return BindFunctionInvocation(node, receiver, arguments, ctx, context);
         }
 
-        var bound = ArgumentBinder.Bind(arguments, group.Candidates, ctx, context, group.ReceiverConstructed);
+        var bound = ArgumentBinder.Bind(
+            arguments, group.Candidates, ctx, context, group.ReceiverConstructed, group.Paths);
         var interner = context.ProgramModel.TypeInterner;
 
         var choice = OverloadResolution.Select(
             group.Candidates, bound, group.ReceiverConstructed, typeArguments, interner,
-            ArgumentBinder.RefFlags(arguments));
+            ArgumentBinder.RefFlags(arguments), group.Paths);
 
         if(choice.Selected is not { } selected)
         {
@@ -416,7 +417,10 @@ internal static class PostfixBinder
         if(found is MethodGroupResult { Methods.Count: > 0 } group)
         {
             return new MethodGroupExpression(
-                node, receiver, memberName, group.Methods, constructed, isConditional: true);
+                node, receiver, memberName, group.Methods, constructed, isConditional: true)
+            {
+                Paths = group.Paths,
+            };
         }
 
         var resolved = TypeSubstitution
@@ -444,7 +448,7 @@ internal static class PostfixBinder
 
         if(found is MethodGroupResult { Methods.Count: > 0 } group)
         {
-            return new MethodGroupExpression(node, receiver, memberName, group.Methods, constructed);
+            return new MethodGroupExpression(node, receiver, memberName, group.Methods, constructed) { Paths = group.Paths };
         }
 
         // C# has no extension property, so this access is not one in the output: it becomes a call

@@ -29,12 +29,16 @@ internal sealed class StructFlattener
         var fields = ImmutableArray.CreateBuilder<FlattenedField>();
         var methods = ImmutableArray.CreateBuilder<Method>();
         var properties = ImmutableArray.CreateBuilder<Property>();
+        var methodPaths = new Dictionary<Method, IReadOnlyList<ConstructedType>>(ReferenceEqualityComparer.Instance);
+        var propertyPaths = new Dictionary<Property, IReadOnlyList<ConstructedType>>(ReferenceEqualityComparer.Instance);
 
-        CollectInto(structType, fields, methods, properties);
+        CollectInto(structType, [], fields, methods, properties, methodPaths, propertyPaths);
 
         return new FlattenedStruct(fields.ToImmutable(), methods.ToImmutable(), properties.ToImmutable())
         {
             Ancestors = CollectAncestors(structType),
+            MethodPaths = methodPaths,
+            PropertyPaths = propertyPaths,
         };
     }
 
@@ -50,9 +54,12 @@ internal sealed class StructFlattener
     /// </summary>
     private void CollectInto(
         StructType structType,
+        IReadOnlyList<ConstructedType> path,
         ImmutableArray<FlattenedField>.Builder fields,
         ImmutableArray<Method>.Builder methods,
-        ImmutableArray<Property>.Builder properties)
+        ImmutableArray<Property>.Builder properties,
+        Dictionary<Method, IReadOnlyList<ConstructedType>> methodPaths,
+        Dictionary<Property, IReadOnlyList<ConstructedType>> propertyPaths)
     {
         var (baseStruct, constructedBase) = UnwrapBase(structType.BaseType);
         if(baseStruct is not null)
@@ -61,7 +68,10 @@ internal sealed class StructFlattener
             var inheritedMethods = ImmutableArray.CreateBuilder<Method>();
             var inheritedProperties = ImmutableArray.CreateBuilder<Property>();
 
-            CollectInto(baseStruct, inheritedFields, inheritedMethods, inheritedProperties);
+            CollectInto(
+                baseStruct,
+                constructedBase is null ? path : [.. path, constructedBase],
+                inheritedFields, inheritedMethods, inheritedProperties, methodPaths, propertyPaths);
 
             // Before this struct's own fields, which is the ordering FlattenedStruct.Fields
             // guarantees.
@@ -86,10 +96,20 @@ internal sealed class StructFlattener
 
             foreach(var inheritedProperty in inheritedProperties)
             {
-                if(!DeclaresProperty(structType, inheritedProperty))
+                if(DeclaresProperty(structType, inheritedProperty))
                 {
-                    properties.Add(Inheritable(inheritedProperty));
+                    continue;
                 }
+
+                var inheritable = Inheritable(inheritedProperty);
+
+                if(!ReferenceEquals(inheritable, inheritedProperty)
+                    && propertyPaths.TryGetValue(inheritedProperty, out var reached))
+                {
+                    propertyPaths[inheritable] = reached;
+                }
+
+                properties.Add(inheritable);
             }
         }
 
@@ -106,11 +126,21 @@ internal sealed class StructFlattener
         foreach(var method in structType.MethodsList)
         {
             methods.Add(method);
+
+            if(path.Count > 0)
+            {
+                methodPaths[method] = path;
+            }
         }
 
         foreach(var property in structType.PropertiesList)
         {
             properties.Add(property);
+
+            if(path.Count > 0)
+            {
+                propertyPaths[property] = path;
+            }
         }
     }
 
@@ -164,16 +194,22 @@ internal sealed class StructFlattener
     private static ImmutableArray<AbsorbedAncestor> CollectAncestors(StructType structType)
     {
         var ancestors = new List<AbsorbedAncestor>();
+        var path = new List<ConstructedType>();
 
         var reference = structType.BaseType;
-        var (current, _) = UnwrapBase(reference);
+        var (current, constructed) = UnwrapBase(reference);
 
         while(current is not null && reference is not null)
         {
-            ancestors.Insert(0, new AbsorbedAncestor(current, reference));
+            if(constructed is not null)
+            {
+                path.Add(constructed);
+            }
+
+            ancestors.Insert(0, new AbsorbedAncestor(current, reference) { Path = [.. path] });
 
             reference = current.BaseType;
-            (current, _) = UnwrapBase(reference);
+            (current, constructed) = UnwrapBase(reference);
         }
 
         return [.. ancestors];

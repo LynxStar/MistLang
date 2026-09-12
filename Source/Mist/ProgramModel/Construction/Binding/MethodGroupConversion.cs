@@ -43,11 +43,13 @@ internal static class MethodGroupConversion
             return null;
         }
 
-        var substitution = TypeSubstitution.ForReceiver(group.ReceiverConstructed);
         Method? match = null;
 
         foreach(var candidate in group.Candidates)
         {
+            var substitution = TypeSubstitution.ForPath(
+                group.ReceiverConstructed, group.Paths?.GetValueOrDefault(candidate), interner);
+
             if(!SignatureIs(candidate, target, substitution, interner))
             {
                 continue;

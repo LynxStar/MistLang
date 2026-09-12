@@ -57,7 +57,7 @@ see things like a dropped `sealed` modifier.
 
 | File | Role |
 |---|---|
-| `backlog/emitter-v2-capability-progression.yaml` | **Source of truth** for what v2 still needs and in what order. 186 ordered capabilities, 75 samples, stated invariants. Valid YAML. Large — grep it, don't read it whole. |
+| `backlog/emitter-v2-capability-progression.yaml` | **Source of truth** for what v2 still needs and in what order. 186 ordered capabilities, 76 samples, stated invariants. Valid YAML. Large — grep it, don't read it whole. |
 | `backlog/analysis-v2-capability-progression.yaml` | **Source of truth for Stage 5**, the analysis phase. The 91 `analysis_phase_tasks` from the emitter register, reordered into the order a checker can be built in, with the invariants that gate them. Each rule cites the emitter order it came from. |
 | `backlog/program-model-body-tasks.yaml` | The other axis: what the binder does not yet understand, by language construct. **Not valid YAML** despite the extension. |
 | `backlog/flaky-tests.yaml` | Flake register. Recording a flake is mandatory (see `Test/CLAUDE.md`). |
@@ -71,7 +71,7 @@ that walk a finished model and judge it belong to Stage 5 and are recorded as
 once cost an implementation that was written and reverted.
 
 **Stage 5 is now open** and has its own register. The two arcs measure opposite things: the
-emitter arc's ledger is `samples/AllFeaturesV2`, a stdout baseline over 75 valid programs,
+emitter arc's ledger is `samples/AllFeaturesV2`, a stdout baseline over 76 valid programs,
 which is structurally blind to a refusal. An analyzer that reports nothing passes every test
 in the repo, so Stage 5's first order is a ledger of its own.
 

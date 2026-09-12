@@ -1,6 +1,7 @@
 using System.Text;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Model.Scopes;
 
@@ -100,12 +101,12 @@ internal sealed class CandidateSet
             return new NotFoundResult();
         }
 
-        var methods = MergeMethods();
+        var (methods, paths) = MergeMethods();
         var survivors = new List<LookupResult>();
 
         if(methods.Count > 0)
         {
-            survivors.Add(new MethodGroupResult(methods));
+            survivors.Add(new MethodGroupResult(methods, paths));
         }
 
         foreach(var kind in new[] { CandidateKind.Type, CandidateKind.Field, CandidateKind.Property, CandidateKind.Other })
@@ -135,9 +136,10 @@ internal sealed class CandidateSet
     /// signature at a greater depth is overridden, same name and a different signature is another
     /// overload.
     /// </summary>
-    private List<Method> MergeMethods()
+    private (List<Method> Methods, Dictionary<Method, IReadOnlyList<ConstructedType>>? Paths) MergeMethods()
     {
         var merged = new List<Method>();
+        var paths = new Dictionary<Method, IReadOnlyList<ConstructedType>>(ReferenceEqualityComparer.Instance);
         var seenSignatures = new HashSet<string>(StringComparer.Ordinal);
 
         foreach(var candidate in Ordered(CandidateKind.Method))
@@ -149,14 +151,21 @@ internal sealed class CandidateSet
 
             foreach(var method in group.Methods)
             {
-                if(seenSignatures.Add(SignatureKey(method)))
+                if(!seenSignatures.Add(SignatureKey(method)))
                 {
-                    merged.Add(method);
+                    continue;
+                }
+
+                merged.Add(method);
+
+                if(group.Paths is { } reached && reached.TryGetValue(method, out var path))
+                {
+                    paths[method] = path;
                 }
             }
         }
 
-        return merged;
+        return (merged, paths.Count == 0 ? null : paths);
     }
 
     /// <summary>

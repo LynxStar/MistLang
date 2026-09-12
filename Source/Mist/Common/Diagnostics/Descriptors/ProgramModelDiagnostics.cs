@@ -1026,4 +1026,10 @@ public static class ProgramModelDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
         "Nested type '{0}' cannot be named through an instantiation of '{1}'. Name it from inside '{1}', where the enclosing type parameters are in scope.");
+
+    public static readonly DiagnosticDescriptor AbstractConstructed = new(
+        new DiagnosticId("MIST_PM_ABSTRACT_CONSTRUCTED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}' is an abstract and cannot be constructed. Construct a class or a struct that conforms to it.");
 }

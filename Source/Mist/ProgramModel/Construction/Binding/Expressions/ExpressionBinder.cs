@@ -273,6 +273,13 @@ internal static class ExpressionBinder
             }
         }
 
+        if((type as ConstructedType)?.Definition is AbstractType || type is AbstractType)
+        {
+            context.Diagnostics.ReportAtNode(
+                ProgramModelDiagnostics.AbstractConstructed, node, null, TypeDisplay.Mist(type));
+            return new ErrorExpression(node);
+        }
+
         return BindConstruction(node, type, argumentList, initializer, ctx, context);
     }
 

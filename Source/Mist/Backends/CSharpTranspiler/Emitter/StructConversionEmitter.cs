@@ -22,6 +22,7 @@ internal static class StructConversionEmitter
         CSharpWriter writer,
         DiagnosticBag diagnostics)
     {
+        using var inherited = TypeEmitter.Substituting(ancestor.Path);
         var ancestorFlattened = new StructFlattener(diagnostics).Flatten(ancestor.Definition);
         var members = StructAncestorFactory.Members(ancestorFlattened);
         var factory = StructAncestorFactory.Name(ancestorFlattened);

@@ -234,7 +234,7 @@
 #                         progression from implying the sample suite is complete.
 #                         The census behind this list was taken once, by diffing the
 #                         generated AST node classes against the node kinds present across
-#                         all 75 samples. Re-taking it means re-doing that diff by hand.
+#                         all 76 samples. Re-taking it means re-doing that diff by hand.
 #
 #   measured_defects      v2 code paths that EXIST and emit output that does not compile.
 #                         The ordering model has no home for these -- it orders capabilities,
@@ -249,10 +249,10 @@
 #
 # SCOPE
 #
-#   All 75 samples (AllFeatures and AllFeaturesV2 excluded as orchestrators), plus the
+#   All 76 samples (AllFeatures and AllFeaturesV2 excluded as orchestrators), plus the
 #   stdlib as a non-sample target, plus the 24 constructs no sample covers.
 #
-#   Grounded in reading every .mist file and mist.toml in all 75 samples, the committed
+#   Grounded in reading every .mist file and mist.toml in all 76 samples, the committed
 #   out/*.cs where present, and the relevant compiler source: the v2 emitter and binder in
 #   full; and in the classic pipeline CSharpEmitter, CSharpTypeMap, UnionType, UnknownType,
 #   ArrayType, DependentTypeParameterType, AssociatedTypeSlotType, ConformanceMap,
@@ -2083,7 +2083,7 @@ capabilities:
     order: 53
     layer: generics
     requires: [type-parameters-and-constructed-types]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
       Required before a member of a constructed type can be bound -- PropertyInitializers
@@ -2193,16 +2193,29 @@ capabilities:
       no sample reaches it.
     tasks:
       - >
-        Carry a per-depth substitution for an inherited METHOD, which needs MethodGroupResult to hold one
-        per candidate and CandidateSet.MergeMethods to preserve it across depths, or overload resolution to
-        take a substitution per candidate rather than one per receiver. Until then TypeMemberLookup.Withheld
-        stays for methods and an inherited method naming a type parameter does not resolve.
+        DONE 2026-09-12. A MethodGroupResult carries, per method, the constructed bases it was reached
+        through -- the path state members already recorded -- and CandidateSet.MergeMethods keeps it
+        across depths; OverloadResolution, ArgumentBinder and MethodGroupConversion substitute per
+        candidate through TypeSubstitution.ForPath, composed outward-to-inward. TypeMemberLookup.Withheld
+        is deleted, and what it provided by accident is stated in OverloadResolution.WithoutHidden: a
+        signature declared on a more derived type hides the same signature inherited from a base or an
+        abstract, judged on the CLOSED signatures -- without it a conformer's `Transform(Widget)` and
+        the slot `Transform(T)` it implements became equally applicable, which GenericConstraints and
+        AssociatedTypes measured in composition. `box.Get()` on `IntBox : Container<int>` answers int and `renamed.Get()` on
+        `Renamed<U> : Container<U>` answers string; a bare `Get()` inside Renamed answers U. Classic
+        binds the same calls and answers T unsubstituted (MIST_TC_0001 "Cannot implicitly convert type
+        'T' to 'Int32'"), so this is beyond its contract. samples/InheritedGenericMembers is the sample,
+        InheritedGenericMemberTests the model-level pin.
       - >
-        Substitute a renamed or reordered generic base's parameters in StructFlattener, which composes by
-        position today and emits an out-of-scope parameter name for `Renamed<U> : Container<U>`. The
-        frontend half is done, so this is the emitter catching up rather than a shared gap.
-      - Descend unions and tuples in TypeSubstitution.Apply when a signature can be stated in
-        terms of one.
+        DONE 2026-09-12. StructFlattener records the path per inherited method, property and absorbed
+        ancestor, and TypeNameEmitter spells every bound type parameter as its argument for the duration
+        of that member's emission -- signature and body, since `new Container<T>(replacement)` inside an
+        inherited body has the same T -- so IntBox emits `int Get()` and `__Container_ctor(int value)`,
+        Renamed<U> emits `U Get()`, and a two-level `Deep : Renamed<string>` composes both clauses,
+        including the grandparent's conversion operator. InheritedGenericEmissionTests holds the text.
+      - >
+        MEASURED STALE 2026-09-12: TypeSubstitution.Apply already descends unions, tuples, named tuples,
+        functions and packs (ApplyToUnion, ApplyToTuple, ApplyToFunction, ApplyToPack).
     unlocks: []
 
   - id: generic-methods
@@ -2279,10 +2292,10 @@ capabilities:
         `F<T>(IEnumerable<T>)` can be called with a `List<int>`. Matching requires the same
         definition today, and answers nothing otherwise. Gated on the same base chain walk that
         order 53 needs, and unreachable until abstract types can be reached generically.
-      - Bind GenericInvocationExpression, so a bare `Identity<string>(x)` works as the qualified
-        `Program.Identity<string>(x)` already does. Only the MethodCallSuffix form carries stated
-        type arguments through today; the primary form reaches ExpressionBinder.BindPrimary
-        unhandled and binds to a sentinel.
+      - >
+        MEASURED STALE 2026-09-12: a bare `Identity<string>("x")` binds and runs on v2;
+        ExpressionBinder.BindPrimary dispatches GenericInvocationExpressionPrimaryNode to
+        PostfixBinder.BindGenericInvocation.
       - Replace the pairwise Wider fold with a bound set per type parameter and a fixing step, which
         is C#'s shape and the right one. The fixing RULE is DECIDED and differs from C#'s, in two
         ordered steps. One, if some bound dominates -- every other bound implicitly converts to it --
@@ -2805,9 +2818,10 @@ capabilities:
       - Push a target type through a constructor chain's arguments. BodyBinder.BindChainArguments
         calls ArgumentBinder with no candidates, so a target-typed new handed to a base chain
         reports no target.
-      - Refuse `new AbstractName()` written explicitly. Only the target-typed path checks that
-        what it is about to construct is a class or a struct; the named path returns no
-        constructor and no diagnostic at all.
+      - >
+        DONE 2026-09-12. `new Shape()` on an abstract is refused at binding with
+        MIST_PM_ABSTRACT_CONSTRUCTED (refusals/binding/abstract-constructed.mist); measured first, v2
+        reported nothing and classic left it to Roslyn's CS0144 against the generated file.
     unlocks: [TargetTypedNew]
 
   # ===================================================================
@@ -3259,8 +3273,8 @@ capabilities:
       - >
         Substitute a generic abstract's type arguments into a restated default, in the BODY as well
         as the signature, and drop the skip in DefaultMemberDuplication.NamesATypeParameter.
-        Blocked behind order 53's first task, which has to make the member reachable before
-        restating it can be observed. LIVE DEFECT IN CLASSIC to not copy: classic substitutes the
+        Order 53's first task landed 2026-09-12, so the member is reachable and this is now
+        observable rather than blocked. LIVE DEFECT IN CLASSIC to not copy: classic substitutes the
         signature and NOT the body, emitting `T held = this.Item();` into a conformer where no T is
         in scope, so the generated file does not compile.
     unlocks: []
@@ -3381,9 +3395,9 @@ capabilities:
     tasks:
       - >
         Apply the named abstract's type arguments when the slot is inherited from a GENERIC base
-        abstract, so the explicit implementation is qualified by the closed form. Shares its blocker
-        with order 53's remaining task, which has to compose substitutions along the base chain before
-        anything here can name the right type.
+        abstract, so the explicit implementation is qualified by the closed form. Order 53 composes
+        substitutions along the base chain since 2026-09-12 (TypeSubstitution.ForPath), so the closed
+        form is now nameable and this is unblocked.
     analysis_phase_tasks:
       - >
         Report a conformance that leaves a slot UNANSWERED. Classic's MIST_WITH_0004 aggregate check
@@ -5891,10 +5905,11 @@ capabilities:
         no type in Source/Standard/Bootstrap has an indexer taking Standard.Range, and none declares
         `Slice(int, int)`. So the branch would be written with no receiver to exercise it, which is
         why it is a task here rather than code now.
-      - Give Standard.String an indexer. String.mist declares none, so `word[0]` answers ErrorType
-        while `word[1..3]` answers String -- sliceable but not indexable, which is backwards from
-        C# and from every other countable type. The slice arm special-cases String by name to get
-        that far; an indexer would let it fall out of the general path instead.
+      - >
+        DONE 2026-09-12. String.mist declares `intrinsic public Char this[Int32 index] { get; }`, which
+        the ranges-and-indices spec names string as having (an Indexable_Type) and the intrinsic audit
+        classifies as structural; `word[0]` answers char on v2 as it did on classic, and StandardSurface
+        prints it (Index=e). The slice arm still special-cases String by name.
     unlocks: []
 
   - id: list-and-slice-patterns
@@ -7696,8 +7711,9 @@ capabilities:
       changes none that compile -- and the C# a declaration becomes carries the same declaration, so
       Roslyn makes the same call on the emitted code.
     tasks:
-      - Bind UninitializedVariableStatement in StatementBinder so the declaration reaches the model.
-        A model-correctness gap, independent of the analysis below and not blocked by it.
+      - >
+        MEASURED STALE 2026-09-12: `int later; later = 3;` binds and runs on v2, and the
+        definite-assignment rules of analysis order 10 read the declaration off the model.
     analysis_phase_tasks:
       - Report a read of an unassigned local against Mist source rather than leaving it to arrive as
         CS0165 on generated C#.
@@ -8238,7 +8254,7 @@ capabilities:
     order: 183
     layer: conversions-advanced
     requires: [struct-inheritance]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
       Inherited fields and methods flatten into the derived struct, base constructor chaining
@@ -8256,13 +8272,13 @@ capabilities:
       Not a struct-to-class lowering. Classic turns an inheriting struct into a class, which
       changes allocation and dispatch cost, so v2 does not follow it.
     tasks:
-      - Bind a member inherited from a GENERIC base. `ext.Value`, where `ExtendedContainer<int>`
-        extends `Container<int>`, reports MIST_PM_UNRESOLVED_MEMBER on 'ExtendedContainer<>' --
-        member lookup does not walk a constructed base's chain. This is stage 4, not the backend,
-        and is what keeps StructInheritance out of AllFeaturesV2.
-      - Prove generic substitution with a CONCRETE type argument, a struct extending
-        `Container<int>` rather than `Container<T>`. The substitution is implemented but no
-        sample reaches it.
+      - >
+        DONE. StructInheritance is banked on AllFeaturesV2 and its output is identical across the
+        pipelines (measured 2026-09-12, 38 lines); the field half of an inherited generic member was
+        already carried on the lookup path, and the METHOD half landed with order 53 the same day.
+      - >
+        DONE 2026-09-12. samples/InheritedGenericMembers proves a struct extending a CLOSED base,
+        `IntBox : Container<int>`, and a renamed one, `Renamed<U> : Container<U>`; see order 53.
       - >
         DONE. A private or readonly ancestor field, and an ancestor property, now copy correctly:
         the conversion calls a generated factory on the ancestor instead of assigning its fields from
@@ -10069,11 +10085,32 @@ samples:
       - V2-ONLY. Classic refuses `await Task.Delay(0)`, holding that await needs a `Task<T>` and not a
         `Task`, so this sample is referenced from AllFeaturesV2 alone and its lines were captured from
         v2 and read against the program by hand.
-      - Task.WhenAll and Task.WhenAny are reached at TResult = void only, which is the single
-        instantiation a name can select while `Task<int>.WhenAll` does not parse. The generic wrappers
-        in __Tasks.g.cs are emitted but unexercised until that grammar gap closes.
+      - >
+        Task.WhenAll and Task.WhenAny are reached at TResult = void and at TResult = int, the second
+        through `Task<int>.WhenAll`, which the grammar admits since order 186's second landing. A
+        wrapper that returns the wrong VALUE of the right shape would still print something; the
+        sample proves the declared shape is supplied and the results add up (10, 5), not the wrapper's
+        text, which TaskCombinatorEmissionTests holds.
       - An intrinsic member that emits the wrong CLR member, rather than none, prints whatever that
         member returns; the sample proves a member emits and runs, not that it is the right one.
+
+  - name: InheritedGenericMembers
+    intro_order: 91
+    threshold: type-argument-substitution
+    requires: [class-declaration, struct-declaration, constructors, methods-static-and-instance,
+               statements-core, namespace-file-scoped, standard-library-binding, literals-primitive,
+               string-interpolation, var-type-inference, type-parameters-and-constructed-types,
+               generic-arity-keyed-lookup, struct-inheritance, struct-inheritance-flattening,
+               type-argument-substitution]
+    untested:
+      - >
+        V2-ONLY. Classic binds `box.Get()` on `IntBox : Container<int>` and answers T unsubstituted
+        (MIST_TC_0001), so this sample is referenced from AllFeaturesV2 alone and its lines were
+        captured from v2 and read against the program by hand.
+      - >
+        A two-level chain, `Deep : Renamed<string>` over `Renamed<U> : Container<U>`, is not in the
+        sample; InheritedGenericEmissionTests holds it on the emitted text.
+      - An inherited PROPERTY of a generic base is carried on the same path but no sample reads one.
 
 # =====================================================================
 
@@ -10365,7 +10402,7 @@ uncovered_constructs:
 # =====================================================================
 #
 # DEFERRABLE INDEFINITELY: compound assignment and increment/decrement. Neither appears in
-# ANY of the 75 samples -- verified by search. Every loop iterator is written longhand and
+# ANY of the 76 samples -- verified by search. Every loop iterator is written longhand and
 # every accumulator re-assigns. BodyEmitter's AssignmentExpression emits a plain assignment
 # only and MapUnaryOperator handles only negate and logical-not, and that is sufficient for
 # the entire suite. TopLevelStatements advertises a control-flow survey and still writes the

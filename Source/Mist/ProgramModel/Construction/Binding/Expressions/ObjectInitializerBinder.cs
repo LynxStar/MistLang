@@ -94,7 +94,7 @@ internal static class ObjectInitializerBinder
         }
 
         var choice = OverloadResolution.Select(
-            group.Methods, [value], constructed, null, context.ProgramModel.TypeInterner, [false]);
+            group.Methods, [value], constructed, null, context.ProgramModel.TypeInterner, [false], group.Paths);
 
         if(choice.Selected is null)
         {

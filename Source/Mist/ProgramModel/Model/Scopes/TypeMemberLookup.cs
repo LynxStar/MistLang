@@ -306,80 +306,35 @@ internal static class TypeMemberLookup
         var group = new List<Method>();
         foreach(var method in memberType.MethodsList)
         {
-            if(method.Name == request.Name && Admits(method.Modifiers, request, depth)
-                && !Withheld(path.Count > 0, method))
+            if(method.Name == request.Name && Admits(method.Modifiers, request, depth))
             {
                 group.Add(method);
             }
         }
 
-        if(group.Count > 0)
+        if(group.Count == 0)
         {
-            candidates.Add(new MethodGroupResult(group), depth);
+            return;
         }
+
+        Dictionary<Method, IReadOnlyList<ConstructedType>>? paths = null;
+
+        if(path.Count > 0)
+        {
+            paths = new Dictionary<Method, IReadOnlyList<ConstructedType>>(ReferenceEqualityComparer.Instance);
+
+            foreach(var method in group)
+            {
+                paths[method] = path;
+            }
+        }
+
+        candidates.Add(new MethodGroupResult(group, paths), depth);
     }
 
     private static bool Admits(MemberModifiers modifiers, LookupRequest request, int depth)
     {
         return request.Permits(modifiers.IsStatic) && IsVisible(modifiers.Accessibility, depth);
-    }
-
-    /// <summary>
-    /// A METHOD of a constructed base is withheld when its signature is stated in terms of a type
-    /// parameter, because the answer would be that parameter rather than the argument standing for it,
-    /// and answering unsubstituted is the one outcome worse than not answering -- a wrong type flowing
-    /// on silently where a name simply not resolving is visible. State needs no such guard: a field or
-    /// property carries the constructions reached through it and its caller substitutes. A method
-    /// cannot yet, overload resolution taking its substitution from the receiver alone, so a method
-    /// group spanning several depths has nowhere to record a per-depth mapping.
-    /// </summary>
-    private static bool Withheld(bool open, Method method)
-    {
-        if(!open)
-        {
-            return false;
-        }
-
-        if(Withheld(open, method.ReturnType))
-        {
-            return true;
-        }
-
-        foreach(var parameter in method.ParametersList)
-        {
-            if(Withheld(open, parameter.Type))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static bool Withheld(bool open, IMistType type)
-    {
-        if(!open)
-        {
-            return false;
-        }
-
-        if(type is TypeParameter)
-        {
-            return true;
-        }
-
-        if(type is ConstructedType constructed)
-        {
-            foreach(var argument in constructed.TypeArguments)
-            {
-                if(Withheld(open, argument))
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
     }
 
     /// <summary>

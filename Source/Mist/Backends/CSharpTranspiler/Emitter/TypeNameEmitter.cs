@@ -1,5 +1,6 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.ProgramModel;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
@@ -34,8 +35,28 @@ internal static class TypeNameEmitter
     /// value; see <c>BodyEmitter.EmitPattern</c>.
     /// </para>
     /// </summary>
+    [ThreadStatic]
+    private static TypeSubstitution? substituting;
+
+    /// <summary>
+    /// Spells every type parameter bound by <paramref name="substitution"/> as its argument for the
+    /// scope's duration: how a member inherited from a generic base is written inside the struct that
+    /// absorbed it, where the base's parameters are not in scope and its arguments are.
+    /// </summary>
+    public static IDisposable Substituting(TypeSubstitution substitution)
+    {
+        var enclosing = substituting;
+        substituting = substitution;
+        return new SubstitutionScope(enclosing);
+    }
+
     public static string Emit(IMistType type)
     {
+        if(substituting is { } active)
+        {
+            type = active.Apply(type, interner: null);
+        }
+
         return type switch
         {
             ConstructedType constructed => EmitConstructed(constructed),
@@ -405,5 +426,13 @@ internal static class TypeNameEmitter
         // Generic definitions keep their arity-encoded name (`Array<,>`) and are
         // rendered through EmitConstructed instead.
         return !memberType.Name.Contains('<');
+    }
+
+    private sealed class SubstitutionScope(TypeSubstitution? enclosing) : IDisposable
+    {
+        public void Dispose()
+        {
+            substituting = enclosing;
+        }
     }
 }

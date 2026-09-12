@@ -43,10 +43,18 @@ internal static class OverloadResolution
         ConstructedType? receiver,
         IReadOnlyList<IMistType>? typeArguments,
         TypeInterner interner,
-        IReadOnlyList<bool>? argumentIsRef = null)
+        IReadOnlyList<bool>? argumentIsRef = null,
+        IReadOnlyDictionary<Method, IReadOnlyList<ConstructedType>>? paths = null)
         where T : Method
     {
         var receiverSubstitution = TypeSubstitution.ForReceiver(receiver);
+
+        TypeSubstitution substitutionFor(T candidate)
+        {
+            return paths is { } reached && reached.TryGetValue(candidate, out var path)
+                ? TypeSubstitution.ForPath(receiver, path, interner)
+                : receiverSubstitution;
+        }
 
         var byArity = new List<T>();
         foreach(var candidate in candidates)
@@ -82,7 +90,7 @@ internal static class OverloadResolution
 
         foreach(var candidate in byArity)
         {
-            var substitution = Close(candidate, arguments, receiverSubstitution, typeArguments, interner);
+            var substitution = Close(candidate, arguments, substitutionFor(candidate), typeArguments, interner);
 
             if(substitution is null)
             {
@@ -93,6 +101,8 @@ internal static class OverloadResolution
                 closed.Add(new Applicant<T>(candidate, substitution));
             }
         }
+
+        closed = WithoutHidden(closed, interner);
 
         if(closed.Count == 0)
         {
@@ -135,6 +145,106 @@ internal static class OverloadResolution
 
     private sealed record Applicant<T>(T Method, TypeSubstitution Substitution)
         where T : Method;
+
+    /// <summary>
+    /// A signature declared on a more derived type hides the same signature inherited from a base or
+    /// an abstract -- C#'s rule, and what makes a conformer's `Transform(Widget)` the one answer
+    /// beside the slot it implements, `Transform(T)` at T = Widget. Judged on the CLOSED signatures,
+    /// since the two coincide only once the base's parameters are substituted.
+    /// </summary>
+    private static List<Applicant<T>> WithoutHidden<T>(List<Applicant<T>> closed, TypeInterner interner)
+        where T : Method
+    {
+        if(closed.Count < 2)
+        {
+            return closed;
+        }
+
+        var keys = closed.ConvertAll(applicant => ClosedSignature(applicant, interner));
+        var kept = new List<Applicant<T>>();
+
+        for(var i = 0; i < closed.Count; i++)
+        {
+            var hidden = false;
+
+            for(var j = 0; j < closed.Count && !hidden; j++)
+            {
+                hidden = i != j
+                    && keys[i] == keys[j]
+                    && Derives(closed[j].Method.DeclaringType, closed[i].Method.DeclaringType);
+            }
+
+            if(!hidden)
+            {
+                kept.Add(closed[i]);
+            }
+        }
+
+        return kept;
+    }
+
+    private static string ClosedSignature<T>(Applicant<T> applicant, TypeInterner interner)
+        where T : Method
+    {
+        var parameters = applicant.Method.ParametersList
+            .Select(parameter => TypeDisplay.Mist(applicant.Substitution.Apply(parameter.Type, interner)));
+
+        return $"{applicant.Method.TypeParametersList.Count}({string.Join(", ", parameters)})";
+    }
+
+    private static bool Derives(MemberType? derived, MemberType? ancestor)
+    {
+        if(derived is null || ancestor is null || ReferenceEquals(derived, ancestor))
+        {
+            return false;
+        }
+
+        var pending = new Queue<MistType>();
+        var seen = new HashSet<MistType>();
+        pending.Enqueue(derived);
+
+        while(pending.Count > 0)
+        {
+            var current = pending.Dequeue();
+            var definition = current is ConstructedType constructed ? constructed.Definition as MistType : current;
+
+            if(definition is null || !seen.Add(definition))
+            {
+                continue;
+            }
+
+            if(ReferenceEquals(definition, ancestor))
+            {
+                return true;
+            }
+
+            if(definition is ConcreteType { BaseType: { } baseType })
+            {
+                pending.Enqueue(baseType);
+            }
+
+            if(definition is MemberType member)
+            {
+                foreach(var abstractBase in member.BaseAbstractTypes)
+                {
+                    pending.Enqueue(abstractBase);
+                }
+            }
+
+            if(definition is ConcreteType concrete)
+            {
+                foreach(var conformance in concrete.ConformancesList)
+                {
+                    if(conformance.AbstractType is MistType conformed)
+                    {
+                        pending.Enqueue(conformed);
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
 
     private static OverloadChoice<T> Winner<T>(Applicant<T> applicant)
         where T : Method

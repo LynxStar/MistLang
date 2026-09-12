@@ -1,0 +1,77 @@
+using Standard;
+
+namespace InheritedGenericMembers;
+
+// A member declared on a generic base and reached through an instantiation of it. The base's T is
+// bound by the derived declaration's base clause and only then by the receiver, and both bindings have
+// to compose for Get() to answer an int on IntBox and a string on Renamed<string>. Classic binds these
+// calls and answers T unsubstituted, so this sample is banked on AllFeaturesV2 alone.
+public struct Container<T>
+{
+    public T Value;
+
+    public Container(T value)
+    {
+        Value = value;
+    }
+
+    public T Get()
+    {
+        return Value;
+    }
+
+    public Container<T> With(T replacement)
+    {
+        return new Container<T>(replacement);
+    }
+}
+
+public struct IntBox : Container<int>
+{
+    public int Extra;
+
+    public IntBox(int value, int extra) : base(value)
+    {
+        Extra = extra;
+    }
+}
+
+public struct Renamed<U> : Container<U>
+{
+    public int Tag;
+
+    public Renamed(U value, int tag) : base(value)
+    {
+        Tag = tag;
+    }
+
+    public U Twice()
+    {
+        return Get();
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Inherited Generic Members ===");
+
+        var box = new IntBox(42, 7);
+        int got = box.Get();
+        var swapped = box.With(9);
+        Console.WriteLine($"IntBox.Get()={got} Extra={box.Extra} With(9).Value={swapped.Value}");
+
+        var renamed = new Renamed<string>("r", 1);
+        string inner = renamed.Get();
+        var replaced = renamed.With("s");
+        Console.WriteLine($"Renamed<string>.Get()={inner} Twice()={renamed.Twice()} Tag={renamed.Tag} With(s).Value={replaced.Value}");
+
+        Console.WriteLine("=== Inherited Generic Members Done ===");
+    }
+}

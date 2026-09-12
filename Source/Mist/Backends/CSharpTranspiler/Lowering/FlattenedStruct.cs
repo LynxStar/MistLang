@@ -43,6 +43,18 @@ internal sealed record FlattenedStruct(
     /// The ancestors this struct absorbed, root first.
     /// </summary>
     public ImmutableArray<AbsorbedAncestor> Ancestors { get; init; } = [];
+
+    /// <summary>
+    /// Per inherited member, the constructed bases it was reached through, outermost first -- what
+    /// spelling its signature and body inside the derived struct needs, since the base's parameters
+    /// are bound by the base clause and a deeper base's by the clause above it. Absent for the
+    /// struct's own members and for members inherited through non-generic bases only.
+    /// </summary>
+    public IReadOnlyDictionary<Method, IReadOnlyList<ConstructedType>> MethodPaths { get; init; } =
+        new Dictionary<Method, IReadOnlyList<ConstructedType>>();
+
+    public IReadOnlyDictionary<Property, IReadOnlyList<ConstructedType>> PropertyPaths { get; init; } =
+        new Dictionary<Property, IReadOnlyList<ConstructedType>>();
 }
 
 /// <summary>
@@ -80,4 +92,7 @@ internal sealed record FlattenedField(
 /// has to spell. Differs from <paramref name="Definition"/> for a generic ancestor: extending
 /// <c>Container&lt;T&gt;</c> converts to <c>Container&lt;T&gt;</c>, not to the bare definition.
 /// </param>
-internal sealed record AbsorbedAncestor(StructType Definition, IMistType Reference);
+internal sealed record AbsorbedAncestor(StructType Definition, IMistType Reference)
+{
+    public IReadOnlyList<ConstructedType> Path { get; init; } = [];
+}

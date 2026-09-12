@@ -1,6 +1,7 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
@@ -216,6 +217,7 @@ internal static class TypeEmitter
 
             foreach(var property in properties)
             {
+                using var inherited = Substituting(flattened?.PropertyPaths.GetValueOrDefault(property));
                 SeparateMember(writer, ref anyEmitted);
                 PropertyEmitter.Emit(
                     property, readonlyMembers.OnProperty(property), readonlyMembers.OnGetterOf(property),
@@ -236,6 +238,8 @@ internal static class TypeEmitter
 
             foreach(var method in methods)
             {
+                using var inherited = Substituting(flattened?.MethodPaths.GetValueOrDefault(method));
+
                 // A method declaring its OWN pack is emitted once per width it was called at, for
                 // the same reason its declaring type is: C# has no pack to write it once with. The
                 // widths come from the call sites, since neither the declaration nor an inferred
@@ -309,6 +313,17 @@ internal static class TypeEmitter
         {
             writer.WriteLine("#pragma warning restore CS0660, CS0661");
         }
+    }
+
+    /// <summary>
+    /// The spelling scope an inherited member is emitted in, or nothing for a member reached through
+    /// no generic base.
+    /// </summary>
+    public static IDisposable? Substituting(IReadOnlyList<ConstructedType>? path)
+    {
+        return path is { Count: > 0 }
+            ? TypeNameEmitter.Substituting(TypeSubstitution.ForPath(receiver: null, path, interner: null))
+            : null;
     }
 
     private static void EmitAncestorFactory(

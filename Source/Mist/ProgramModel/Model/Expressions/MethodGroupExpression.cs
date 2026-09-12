@@ -58,6 +58,13 @@ internal sealed class MethodGroupExpression : Expression
     public ConstructedType? ReceiverConstructed { get; }
 
     /// <summary>
+    /// Per candidate, the constructed bases it was reached through -- what an inherited method of a
+    /// generic base needs before its signature means anything, and which the receiver alone cannot
+    /// say, since each depth of the chain may bind the parameters differently.
+    /// </summary>
+    public IReadOnlyDictionary<Method, IReadOnlyList<ConstructedType>>? Paths { get; init; }
+
+    /// <summary>
     /// Whether the group was reached through <c>?.</c>, in which case the invocation that
     /// consumes it lifts its result and emits conditionally.
     /// </summary>

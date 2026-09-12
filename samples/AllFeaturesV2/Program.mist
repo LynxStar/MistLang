@@ -96,5 +96,6 @@ public class Program
         DelegateFuncConversion.Program.RunDemo();
         OperatorOverloads.Program.RunDemo();
         StandardSurface.Program.RunDemo();
+        InheritedGenericMembers.Program.RunDemo();
     }
 }

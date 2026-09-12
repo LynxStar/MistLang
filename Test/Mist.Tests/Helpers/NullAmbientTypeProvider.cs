@@ -20,10 +20,4 @@ internal sealed class NullAmbientTypeProvider : IAmbientTypeProvider
     {
         // No-op: no assemblies to project.
     }
-
-    /// <inheritdoc />
-    public void BridgeWellKnownMembers(ProgramModelClass programModel)
-    {
-        // No-op: nothing was projected, so there is nothing to bridge.
-    }
 }

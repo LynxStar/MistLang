@@ -188,6 +188,8 @@ internal sealed class IntrinsicEmissionTable : IIntrinsicEmissionRegistry
         // String instance methods
         dict["Standard.String:Substring(Standard.Int32)"] = new IntrinsicEmissionTemplate("{0}.Substring({1})");
         dict["Standard.String:Contains(Standard.String)"] = new IntrinsicEmissionTemplate("{0}.Contains({1})");
+        dict["Standard.String:ToUpper()"] = new IntrinsicEmissionTemplate("{0}.ToUpper()");
+        dict["Standard.String:ToCharArray()"] = new IntrinsicEmissionTemplate("{0}.ToCharArray()");
 
         // Array instance properties (accessed via MemberAccessSuffix emitter path)
         dict["Standard.Array:Length()"] = new IntrinsicEmissionTemplate("{0}.Length");

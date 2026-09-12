@@ -201,11 +201,6 @@ public abstract class ProgramModelProbe : IDisposable
 
             DeclareStringLength(programModel);
         }
-        public void BridgeWellKnownMembers(ProgramModelClass programModel)
-        {
-            // No-op: the stub registers shells only and loads no CLR assembly.
-        }
-
 
         /// <summary>
         /// The shells carry no members, and this one is needed to state anything about a PRIMITIVE

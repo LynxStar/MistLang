@@ -19,4 +19,6 @@ intrinsic public readonly owned class String : IClonable<String>
     intrinsic public Char this[Int32 index] { get; }
     intrinsic public String Substring(Int32 startIndex);
     intrinsic public Boolean Contains(String value);
+    intrinsic public String ToUpper();
+    intrinsic public Char[] ToCharArray();
 }

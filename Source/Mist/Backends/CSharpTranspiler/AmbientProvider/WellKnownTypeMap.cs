@@ -8,24 +8,6 @@ namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 internal static class WellKnownTypeMap
 {
     /// <summary>
-    /// The well-known types whose CLR members are added to the Mist declaration standing in for
-    /// them. Everything else in <see cref="Entries"/> is reachable only through what Standard
-    /// declares, which is what classic does: measured, <c>"x".ToUpper()</c> resolves there and
-    /// <c>(42).CompareTo(3)</c> does not, on Int32, Double, Char and Boolean alike.
-    /// <para>
-    /// A LIST RATHER THAN ALL OF Entries, because most of those targets cannot take a bridge at all.
-    /// Standard.Array declares no Length on purpose -- its dependent type parameter is the length,
-    /// and a projected property beside it makes every read ambiguous. Task and ValueTask are type
-    /// ALIASES, not member types. Func and Action are one Mist declaration behind seventeen CLR
-    /// arities each.
-    /// </para>
-    /// </summary>
-    public static readonly HashSet<string> BridgedMembers = new(StringComparer.Ordinal)
-    {
-        "System.String",
-    };
-
-    /// <summary>
     /// CLR (namespace, typeName) -> Mist (namespace, typeName).
     /// Keys use CLR names (with backtick arity suffix for generics).
     /// </summary>

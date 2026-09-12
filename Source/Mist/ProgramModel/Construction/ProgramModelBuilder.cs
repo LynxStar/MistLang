@@ -150,10 +150,6 @@ public sealed class ProgramModelBuilder
             }
         }
 
-        // Phase 2a-bridge: widen the bridged Standard declarations with their CLR members. After
-        // 2a and not before, so a member Standard declares is already present and wins the merge.
-        ambientProvider.BridgeWellKnownMembers(programModel);
-
         // Phase 2b: Resolve extension blocks (after all types are fully resolved).
         var extensionBuilder = new ExtensionBuilder(context, context.Resolver);
         extensionBuilder.BuildAll();

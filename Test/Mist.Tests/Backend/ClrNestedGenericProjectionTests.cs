@@ -38,7 +38,6 @@ public sealed class ClrNestedGenericProjectionTests : IDisposable
 
         provider = new AmbientTypeProviderV2(loaded, null, new DiagnosticBag());
         provider.BuildAndRegister(programModel);
-        provider.BridgeWellKnownMembers(programModel);
 
         list = Assert.IsType<ClassType>(programModel.TypesByFQN["System.Collections.Generic.List<>"]);
         getEnumerator = list.MethodsList.Single(method => method.Name == "GetEnumerator" && method.ParametersList.Count == 0);

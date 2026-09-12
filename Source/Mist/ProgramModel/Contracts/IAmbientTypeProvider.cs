@@ -13,13 +13,4 @@ public interface IAmbientTypeProvider
     /// visible in the ProgramModel's namespace dictionary.
     /// </summary>
     void BuildAndRegister(Model.ProgramModel programModel);
-
-    /// <summary>
-    /// Adds the CLR members of the bridged well-known types to the Standard declarations standing in
-    /// for them. Separate from <see cref="BuildAndRegister"/> and called after member resolution
-    /// BECAUSE IT HAS TO MERGE WITH WHAT SOURCE DECLARED, which does not exist yet at Phase 1b: at
-    /// that point Standard.String holds no members at all, so there is nothing to merge against and
-    /// the projected copy of every colliding member would win by arriving first.
-    /// </summary>
-    void BridgeWellKnownMembers(Model.ProgramModel programModel);
 }

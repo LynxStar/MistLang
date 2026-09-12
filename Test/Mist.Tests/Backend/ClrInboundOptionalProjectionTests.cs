@@ -3,6 +3,7 @@ using System.Reflection;
 using Mist.Backends.CSharpTranspiler.AmbientProvider;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 
@@ -23,7 +24,7 @@ public sealed class ClrInboundOptionalProjectionTests : IDisposable
     private readonly ProgramModelClass programModel;
     private readonly AmbientTypeProviderV2 provider;
     private readonly MetadataLoadContext metadataContext;
-    private readonly ConcreteType stringType;
+    private readonly MemberType pathType;
 
     public ClrInboundOptionalProjectionTests()
     {
@@ -40,10 +41,9 @@ public sealed class ClrInboundOptionalProjectionTests : IDisposable
 
         provider = new AmbientTypeProviderV2(loaded, null, new DiagnosticBag());
 
-        stringType = (ConcreteType)programModel.TypesByFQN["Standard.String"];
-
         provider.BuildAndRegister(programModel);
-        provider.BridgeWellKnownMembers(programModel);
+
+        pathType = (MemberType)programModel.TypesByFQN["System.IO.Path"];
     }
 
     public void Dispose()
@@ -52,22 +52,25 @@ public sealed class ClrInboundOptionalProjectionTests : IDisposable
         metadataContext.Dispose();
     }
 
-    private IMistType ReturnTypeOf(string name, int arity)
+    /// <summary>
+    /// The string overload, System.IO.Path declaring a span twin of every member used here.
+    /// </summary>
+    private Method StringOverload(string name, int arity)
     {
-        var method = stringType.MethodsList
-            .First(candidate => candidate.Name == name && candidate.ParametersList.Count == arity);
-
-        return method.ReturnType;
+        return pathType.MethodsList.Single(candidate =>
+            candidate.Name == name
+            && candidate.ParametersList.Count == arity
+            && candidate.ParametersList.All(parameter => !parameter.Type.FullyQualifiedName.Contains("Span")));
     }
 
     /// <summary>
-    /// <c>string.IsInterned</c> is annotated <c>string?</c>, which is the only reason this one wraps
-    /// -- every other reference-returning member of String declares itself non-null.
+    /// <c>Path.GetDirectoryName(string?)</c> is annotated <c>string?</c>, which is the only reason
+    /// this one wraps -- <c>Path.Combine</c> declares its result non-null.
     /// </summary>
     [Fact]
     public void ANullableClrReferenceReturn_ProjectsAsAUnionWithVoid()
     {
-        var union = Assert.IsAssignableFrom<IUnionType>(ReturnTypeOf("IsInterned", 1));
+        var union = Assert.IsAssignableFrom<IUnionType>(StringOverload("GetDirectoryName", 1).ReturnType);
 
         Assert.Contains(union.Constituents, c => c.FullyQualifiedName == "Standard.Void");
         Assert.Contains(union.Constituents, c => c.FullyQualifiedName == "Standard.String");
@@ -81,7 +84,7 @@ public sealed class ClrInboundOptionalProjectionTests : IDisposable
     [Fact]
     public void ANonNullClrReferenceReturn_IsNotWrapped()
     {
-        var returnType = ReturnTypeOf("ToUpper", 0);
+        var returnType = StringOverload("Combine", 2).ReturnType;
 
         Assert.False(
             returnType is IUnionType,
@@ -91,7 +94,7 @@ public sealed class ClrInboundOptionalProjectionTests : IDisposable
     [Fact]
     public void AClrValueTypeReturn_IsNotWrapped()
     {
-        var returnType = ReturnTypeOf("IndexOf", 1);
+        var returnType = StringOverload("HasExtension", 1).ReturnType;
 
         Assert.False(
             returnType is IUnionType,
@@ -107,23 +110,20 @@ public sealed class ClrInboundOptionalProjectionTests : IDisposable
     [Fact]
     public void AProjectedMember_IsMarkedAsClrProjected()
     {
-        var toUpper = stringType.MethodsList.First(candidate => candidate.Name == "ToUpper");
-
-        Assert.True(toUpper.Modifiers.IsClrProjected);
+        Assert.True(StringOverload("Combine", 2).Modifiers.IsClrProjected);
     }
 
     /// <summary>
-    /// The outbound half. Concat takes reference-typed arguments; Mist has no null to hand them, so
+    /// The outbound half. GetDirectoryName takes a <c>string?</c>; Mist has no null to hand it, so
     /// a union there would only give overload resolution more candidates to be ambiguous between.
     /// </summary>
     [Fact]
     public void AClrReferenceParameter_IsNotWrapped()
     {
-        var concat = stringType.MethodsList
-            .First(candidate => candidate.Name == "Concat" && candidate.ParametersList.Count == 2);
+        var combine = StringOverload("GetDirectoryName", 1);
 
         Assert.All(
-            concat.ParametersList,
+            combine.ParametersList,
             parameter => Assert.False(
                 parameter.Type is IUnionType,
                 $"parameter '{parameter.Name}' projected as '{parameter.Type.FullyQualifiedName}'"));

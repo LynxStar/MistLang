@@ -8455,14 +8455,23 @@ capabilities:
       value. 279 intrinsic members are declared; 195 are operators the expression emitter already
       supplies; the sample reaches the named ones.
 
-      WHAT THE SAMPLE CANNOT REACH, measured: Task.WhenAll and Task.WhenAny. The bare name resolves
-      through the `Task = Task<void>` alias, so the parameter is Task<void>[]; the constructed spelling
-      `Task<int>.WhenAll` does not parse, which is the nested-through-a-constructed-generic gap already
-      under uncovered_constructs; and the void form binds but fails emission, Mist declaring
-      Task<TResult[]> where C#'s Task.WhenAll(Task[]) returns a non-generic Task. CLASSIC FAILS IT TOO,
-      so it is a shared stdlib-and-grammar gap rather than a v2 one. Task.Delay and Task.Yield are the
-      opposite -- v2 emits them and classic refuses to await a non-generic Task -- which is why the
-      sample is banked on AllFeaturesV2 alone.
+      Task.WhenAll AND Task.WhenAny WERE THE BACKEND'S DEBT, not the stdlib's, and the first reading of
+      them here said otherwise. Mist declares them on Task<TResult> answering Task<TResult[]> and
+      Task<TResult>; the CLR hosts them on a non-generic Task whose overloads answer `Task` and
+      `Task<Task>`. Emitting the call as written produced
+      `Standard.Void[] all = await System.Threading.Tasks.Task.WhenAll(tasks);`, which hands back nothing
+      where the declaration promised a Void[] -- so the emitted code failed, and the temptation was to
+      rewrite Task.mist into the CLR's shape. That would have contorted the LANGUAGE to fit one backend's
+      gap, which is the inverse of what `intrinsic` means: the declaration is the contract and supplying
+      it is the backend's job. TaskCombinators now emits __Tasks.g.cs with wrappers of the declared
+      shape, exactly as MistArray is supplied, and the sample calls both. The stdlib is unchanged.
+
+      The one piece still out of reach is a non-void TResult, and it is a GRAMMAR gap rather than a
+      stdlib one: `Task.WhenAll` resolves through the `Task = Task<void>` alias so the parameter is
+      Task<void>[], and the spelling that would select another instantiation, `Task<int>.WhenAll`, does
+      not parse -- the nested-through-a-constructed-generic entry already under uncovered_constructs.
+      Task.Delay and Task.Yield work on v2 and are refused by classic, which cannot await a non-generic
+      Task; that is why the sample is banked on AllFeaturesV2 alone.
 
       `intrinsic` IS NOW RESERVED TO STANDARD, and was not when this order first landed. The entry
       claimed a user could not reach an intrinsic type's dropped members; measured, a user file declaring
@@ -8484,10 +8493,12 @@ capabilities:
         through the backing map and ask CLR metadata whether a matching member exists, leaving only the
         deliberately-respelled ones as entries. samples/StandardSurface is the measurement until then.
       - >
-        Task.WhenAll and Task.WhenAny are unusable from Mist source on BOTH pipelines, for three reasons
-        at once: the bare `Task` alias fixes TResult to void, `Task<int>.WhenAll` does not parse, and the
-        void form's declared Task<TResult[]> does not match C#'s non-generic Task return. Fixing it needs
-        the grammar gap closed and the declaration reconciled with the CLR signature.
+        A static on a generic type is reachable only at the instantiation a name gives, so
+        Task.WhenAll can be called only at TResult = void -- `Task` being an alias for Task<void> -- and
+        `Task<int>.WhenAll` does not parse. Closing it is the grammar's work (the constructed-generic
+        member access already under uncovered_constructs), or the binder's if a static is to be found
+        across the whole generic family. Nothing here is the stdlib's to change; the emitter's half is
+        delivered.
       - An intrinsic type's ORDINARY members are dropped with the type. The standard-library spec's
         Req 5.12 admits them -- Mist-bodied members composing the intrinsics on a backend-backed type,
         `Int32.Abs()` over the intrinsic `+` and `<` being the shape -- and none exists in Standard
@@ -9994,8 +10005,9 @@ samples:
       - V2-ONLY. Classic refuses `await Task.Delay(0)`, holding that await needs a `Task<T>` and not a
         `Task`, so this sample is referenced from AllFeaturesV2 alone and its lines were captured from
         v2 and read against the program by hand.
-      - Task.WhenAll and Task.WhenAny are NOT reached, being unusable from Mist source on both
-        pipelines for the three reasons recorded on order 186.
+      - Task.WhenAll and Task.WhenAny are reached at TResult = void only, which is the single
+        instantiation a name can select while `Task<int>.WhenAll` does not parse. The generic wrappers
+        in __Tasks.g.cs are emitted but unexercised until that grammar gap closes.
       - An intrinsic member that emits the wrong CLR member, rather than none, prints whatever that
         member returns; the sample proves a member emits and runs, not that it is the right one.
 

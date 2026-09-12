@@ -92,6 +92,7 @@ internal sealed class CSharpEmitterV2
         var emittedFiles = new List<string>();
         ContextLowering.Reset();
         ArrayLowering.Reset();
+        TaskCombinators.Reset();
         BodyEmitter.ResetTemporaries();
         var closures = ConstraintClosureMap.Build((ProgramModel.Model.ProgramModel)programModel, diagnostics);
         using var promotion = AsyncPromotion.Enter((ProgramModel.Model.ProgramModel)programModel);
@@ -125,6 +126,7 @@ internal sealed class CSharpEmitterV2
 
         EmitContextRuntime(outputDir, emittedFiles);
         EmitArrayRuntime(outputDir, emittedFiles);
+        EmitTaskRuntime(outputDir, emittedFiles);
 
         var csprojContent = ProjectFileEmitter.Emit(options, carriesEntryPoint);
         var csprojPath = Path.Combine(outputDir, $"{options.ProjectName}.csproj");
@@ -491,6 +493,21 @@ internal sealed class CSharpEmitterV2
         ContextLowering.Emit(writer);
 
         var path = Path.Combine(outputDir, "__Context.g.cs");
+        File.WriteAllText(path, writer.ToString());
+        emittedFiles.Add(path);
+    }
+
+    private static void EmitTaskRuntime(string outputDir, List<string> emittedFiles)
+    {
+        if(!TaskCombinators.Used())
+        {
+            return;
+        }
+
+        var writer = new CSharpWriter();
+        TaskCombinators.Emit(writer);
+
+        var path = Path.Combine(outputDir, "__Tasks.g.cs");
         File.WriteAllText(path, writer.ToString());
         emittedFiles.Add(path);
     }

@@ -32,10 +32,13 @@ internal static class IntrinsicCalls
             return $"{arguments[0]}.GetType()";
         }
 
-        return callee.Name == "Clone" && arguments.Count == 0 && receiver is not null
-            && ClonesAsItself(callee.DeclaringType)
-                ? receiver
-                : null;
+        if(callee.Name == "Clone" && arguments.Count == 0 && receiver is not null
+            && ClonesAsItself(callee.DeclaringType))
+        {
+            return receiver;
+        }
+
+        return TaskCombinators.Rewrite(callee, arguments);
     }
 
     public static bool ClonesAsItself(IMistType? type)

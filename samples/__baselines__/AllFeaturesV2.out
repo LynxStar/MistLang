@@ -1915,4 +1915,5 @@ readonly[0]=0 readonly-slice[0]=0 fromArray[0]=9
 IsMatch=True IsFullMatch=True Pattern=^h.*o$
 --- Task members ---
 Delay=3 Yield=4
+WhenAll=2 WhenAny=1
 === Standard Surface Done ===

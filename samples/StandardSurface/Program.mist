@@ -19,6 +19,25 @@ public class Program
         return 4;
     }
 
+    private static async void Settle()
+    {
+        await Task.Delay(0);
+    }
+
+    private static async int Gathered()
+    {
+        Task[] pending = [Settle(), Settle()];
+        var settled = await Task.WhenAll(pending);
+        return settled.Length;
+    }
+
+    private static async int Raced()
+    {
+        Task[] pending = [Settle(), Settle()];
+        await Task.WhenAny(pending);
+        return 1;
+    }
+
     public static void Main(string[] args)
     {
         RunDemo();
@@ -104,6 +123,7 @@ public class Program
 
         Console.WriteLine("--- Task members ---");
         Console.WriteLine($"Delay={Delayed()} Yield={Yielded()}");
+        Console.WriteLine($"WhenAll={Gathered()} WhenAny={Raced()}");
 
         Console.WriteLine("=== Standard Surface Done ===");
     }

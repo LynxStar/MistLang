@@ -1,4 +1,3 @@
-using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
@@ -6,7 +5,8 @@ using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// Never Standard: a finding there would land on a file nobody in the project wrote.
+/// Every assembly with Mist source, Standard included: its declarations are Mist and answer to
+/// the same rules as a user's, and a finding there lands on the Standard file that earned it.
 /// </summary>
 internal static class SourceTypes
 {
@@ -14,7 +14,7 @@ internal static class SourceTypes
     {
         foreach(var assembly in model.Assemblies)
         {
-            if(!assembly.HasMistSource || assembly.Kind == MistAssemblyKind.Standard)
+            if(!assembly.HasMistSource)
             {
                 continue;
             }

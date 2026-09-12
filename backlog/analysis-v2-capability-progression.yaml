@@ -54,6 +54,17 @@ invariants:
       on an unknown member, an enum scrutinee's exhaustiveness -- and v2 being the more permissive of the
       two is an allowed answer, stated, not a gap.
 
+  - id: standard-is-in-scope
+    statement: >
+      THE RULES RUN OVER STANDARD. An intrinsic type is a Mist-expressed contract over an instance the
+      backend supplies, and Standard's declarations and bodies answer to every rule a user's do -- so
+      SourceTypes scopes every assembly with Mist source, Standard included, and a finding there lands
+      on the Standard file that earned it. Lifting the exclusion on 2026-09-12 found one rule wrong
+      about Standard rather than one defect in it: DeclarationShapeAnalyzer refused the `&&` and `||`
+      that Boolean.mist itself declares, the spec's "only on Boolean" (Req 4.5) having been checked as
+      "never", and it now names Boolean. A rule keyed on "this cannot be Standard" is the same bug
+      waiting to be found.
+
 # ===================================================================
 # Order 1-3 -- infrastructure. Nothing else can start.
 # ===================================================================

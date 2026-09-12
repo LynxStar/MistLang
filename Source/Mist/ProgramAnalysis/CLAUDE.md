@@ -20,7 +20,7 @@ diagnostic ids and messages are observable behaviour and may be matched; its cod
 - Expression-level rules read `AnalysisContext.Nodes`, one walk shared by every rule. The walker is a
   table (`BodyWalker`); a new node kind in the model means a new row, and `BodyWalkerCoverageTest` fails
   until it has one. Never replace the table with reflection — see the class comment for why.
-- Scope is the project's own source, exactly as emission's is. Never Standard.
+- Scope is every assembly with Mist source, Standard included, exactly as emission's is.
 - Anything flow-sensitive stands on `Flow/`: one `FlowGraph` per body root from `FlowGraphBuilder`,
   one forward solver, `FlowSolution`, over whatever `IFlowLattice` the rule defines. A rule that
   walks statements with its own notion of a join is the five-frameworks failure the register's

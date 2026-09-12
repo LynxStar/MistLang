@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
@@ -154,7 +155,8 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
                 Report(context, op.DeclarationNode, ProgramAnalysisDiagnostics.OperatorNotPublic, op.Symbol);
             }
 
-            if(op.Kind is OperatorKind.LogicalAnd or OperatorKind.LogicalOr)
+            if(op.Kind is OperatorKind.LogicalAnd or OperatorKind.LogicalOr
+                && type.FullyQualifiedName != WellKnownTypes.Boolean.FullyQualifiedName)
             {
                 Report(context, op.DeclarationNode, ProgramAnalysisDiagnostics.LogicalOperatorDeclared, op.Symbol);
                 continue;

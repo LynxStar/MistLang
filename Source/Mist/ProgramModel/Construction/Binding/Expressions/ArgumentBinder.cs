@@ -185,9 +185,9 @@ internal static class ArgumentBinder
     /// <summary>
     /// Binds each argument with the corresponding parameter type as its target, where
     /// <paramref name="candidates"/> holds exactly one member of the right arity. The target is
-    /// substituted against <paramref name="receiverConstructed"/>, so an argument to
-    /// <c>new Result&lt;void&gt;(...)</c> sees Void, not T -- target-typed forms such as the void
-    /// literal read the slot's CLOSED type.
+    /// substituted against <paramref name="receiverConstructed"/> and any <paramref name="typeArguments"/>
+    /// the call states, so an argument to <c>new Result&lt;void&gt;(...)</c> sees Void, not T -- target-typed
+    /// forms such as the void literal, and a lambda's parameters, read the slot's CLOSED type.
     /// </summary>
     internal static IReadOnlyList<Expression> Bind<T>(
         ArgumentListNode? argumentList,
@@ -195,14 +195,20 @@ internal static class ArgumentBinder
         BindingContext ctx,
         BuilderContext context,
         ConstructedType? receiverConstructed = null,
-        IReadOnlyDictionary<Method, IReadOnlyList<ConstructedType>>? paths = null)
+        IReadOnlyDictionary<Method, IReadOnlyList<ConstructedType>>? paths = null,
+        IReadOnlyList<IMistType>? typeArguments = null)
         where T : Method
     {
         var count = argumentList?.GetAllExpressions().Length ?? 0;
         var interner = context.ProgramModel.TypeInterner;
-        var sole = SoleByArity(candidates, count);
+        var sole = SoleByArity(candidates, count, typeArguments);
         var substitution = TypeSubstitution.ForPath(
             receiverConstructed, sole is not null && paths is { } reached ? reached.GetValueOrDefault(sole) : null, interner);
+
+        if(sole is not null && typeArguments is not null)
+        {
+            substitution = substitution.Extend(TypeSubstitution.ForMethod(sole, typeArguments));
+        }
 
         var targets = sole?.ParametersList
             .Select(parameter => substitution.Apply(parameter.Type, interner))
@@ -212,20 +218,22 @@ internal static class ArgumentBinder
     }
 
     /// <summary>
-    /// The parameters of the one candidate taking this many arguments, or null where none or several
-    /// do. Several cannot be narrowed here: choosing between them needs the argument types, which are
-    /// what this is about to produce. An argument that cannot be bound WITHOUT a target therefore
-    /// survives untyped and the selection settles it -- see <see cref="MethodGroupConversion"/>, which
-    /// is the one such argument so far.
+    /// The parameters of the one candidate taking this many arguments, and as many type arguments as the
+    /// call states, or null where none or several do. Several cannot be narrowed here: choosing between
+    /// them needs the argument types, which are what this is about to produce. An argument that cannot be
+    /// bound WITHOUT a target therefore survives untyped and the selection settles it -- see
+    /// <see cref="MethodGroupConversion"/>, which is the one such argument so far.
     /// </summary>
-    private static T? SoleByArity<T>(IReadOnlyList<T> candidates, int argumentCount)
+    private static T? SoleByArity<T>(
+        IReadOnlyList<T> candidates, int argumentCount, IReadOnlyList<IMistType>? typeArguments)
         where T : Method
     {
         T? sole = null;
 
         foreach(var candidate in candidates)
         {
-            if(candidate.ParametersList.Count != argumentCount)
+            if(candidate.ParametersList.Count != argumentCount
+                || (typeArguments is not null && candidate.TypeParametersList.Count != typeArguments.Count))
             {
                 continue;
             }

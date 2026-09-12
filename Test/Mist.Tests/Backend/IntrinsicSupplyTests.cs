@@ -91,7 +91,7 @@ public sealed class IntrinsicSupplyTests : IDisposable
     [InlineData("Standard.Task<TResult>.WhenAll(Task<TResult>[])", "Respelled")]
     [InlineData("Standard.Regex.IsFullMatch(string)", "Respelled")]
     [InlineData("Standard.Regex.Pattern", "Respelled")]
-    [InlineData("Standard.Array<TValue, Length>.new(func)", "Respelled")]
+    [InlineData("Standard.Array<TValue, Length>.new(func<int, TValue>)", "Respelled")]
     public void ReadsEachKindOfSupply(string member, string kind)
     {
         var audit = IntrinsicSupply.Audit(StandardModelProbe.Build("", out _), FindClrType);

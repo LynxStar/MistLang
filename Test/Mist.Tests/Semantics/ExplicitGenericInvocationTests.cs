@@ -36,10 +36,13 @@ public sealed class ExplicitGenericInvocationTests : ProgramModelProbe
 
             public static int Describe<params TArgs>(params TArgs args) { return TArgs.Length; }
 
+            public static TOut Apply<TIn, TOut>(TIn value, func<TIn, TOut> f) { return f(value); }
+
             public static void Run()
             {
                 var plain = Identity<int>(5);
                 var packed = Describe<[int, string, bool]>(1, "x", true);
+                var applied = Apply<int, string>(1, v => "x");
             }
         }
         """;
@@ -63,8 +66,18 @@ public sealed class ExplicitGenericInvocationTests : ProgramModelProbe
         var calls = Calls(out var diagnostics);
 
         Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
-        Assert.Equal(2, calls.Length);
-        Assert.Equal(["Identity", "Describe"], calls.Select(call => call.Method?.Name));
+        Assert.Equal(3, calls.Length);
+        Assert.Equal(["Identity", "Describe", "Apply"], calls.Select(call => call.Method?.Name));
+    }
+
+    [Fact]
+    public void StatedTypeArgumentsCloseTheTargetALambdaArgumentBindsAgainst()
+    {
+        var applied = Calls(out _)[2];
+        var lambda = Assert.IsType<LambdaExpression>(applied.Arguments[1]);
+
+        Assert.Equal("int", TypeDisplay.Mist(Assert.Single(lambda.Parameters).Type));
+        Assert.Equal("func<int, string>", TypeDisplay.Mist(lambda.Type));
     }
 
     /// <summary>

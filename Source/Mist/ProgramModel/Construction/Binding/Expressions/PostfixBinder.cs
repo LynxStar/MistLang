@@ -274,7 +274,7 @@ internal static class PostfixBinder
         }
 
         var bound = ArgumentBinder.Bind(
-            arguments, group.Candidates, ctx, context, group.ReceiverConstructed, group.Paths);
+            arguments, group.Candidates, ctx, context, group.ReceiverConstructed, group.Paths, typeArguments);
         var interner = context.ProgramModel.TypeInterner;
 
         var choice = OverloadResolution.Select(

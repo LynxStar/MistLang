@@ -8735,7 +8735,7 @@ capabilities:
         skipped; StandardDeclarationEmissionTests pins it on an Int32 shell given a bodied method.
         Supplying the member is still the task.
         SUPPLIED 2026-09-12, and the refusal is deleted with its descriptor. A refusal was the emitter
-        declining its own job: an intrinsic type is a Mist-expressed contract over an instance the
+        declining its own job -- an intrinsic type is a Mist-expressed contract over an instance the
         backend supplies, the backend's discretion over how is total, and "C# has nowhere to put it"
         is never an answer. IntrinsicMemberEmitter writes every Mist-bodied method and property of an
         intrinsic type into __Intrinsics.g.cs as a C# 14 extension block on the backing type --
@@ -8746,7 +8746,7 @@ capabilities:
         samples/StandardSurface calls it (IsEven(42)=True IsEven(7)=False); IntrinsicSupplyTests holds
         the carrier over the real Standard and StandardDeclarationEmissionTests the receiver
         spellings. The in-process compiler moved from Roslyn 4.12 to 5.0 for the syntax; the MSBuild
-        path under `mist test` already had it. NOT YET CARRIED: an ordinary constructor, field,
+        path under `mist test` already had it. NOT YET CARRIED -- an ordinary constructor, field,
         indexer or operator on an intrinsic type. Standard declares none and a user cannot, so each is
         unreachable today; the next declaration of one is the next task here, not a refusal.
     unlocks: [stdlib]

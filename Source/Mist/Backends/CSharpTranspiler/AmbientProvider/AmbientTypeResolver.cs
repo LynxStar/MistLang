@@ -236,6 +236,13 @@ internal sealed class AmbientTypeResolver
     /// <summary>
     /// Resolves a closed generic CLR type by resolving its definition and each
     /// type argument, then interning a <see cref="ConstructedType"/>.
+    /// <para>
+    /// A NESTED generic repeats its declaring type's parameters in CLR metadata, so the leading
+    /// arguments of <c>List`1+Enumerator[Int32]</c> belong to the enclosing instantiation and not to
+    /// the nested definition, which <see cref="TypeParameterProjector"/> projected without them. They
+    /// are split the same way here: the leading ones build the enclosing <c>List&lt;int&gt;</c>, and only
+    /// the remainder are the nested type's own.
+    /// </para>
     /// </summary>
     private MistType ResolveClosedGeneric(Type clrType, Scope scope)
     {
@@ -243,9 +250,13 @@ internal sealed class AmbientTypeResolver
         var definition = Resolve(definitionClrType, scope);
 
         var clrArgs = clrType.GetGenericArguments();
-        var resolvedArgs = new List<IMistType>(clrArgs.Length);
+        var inherited = definitionClrType.DeclaringType?.GetGenericArguments().Length ?? 0;
+        var enclosing = inherited == 0
+            ? null
+            : Resolve(definitionClrType.DeclaringType!.MakeGenericType(clrArgs[..inherited]), scope) as ConstructedType;
+        var resolvedArgs = new List<IMistType>(clrArgs.Length - inherited);
 
-        foreach(var clrArg in clrArgs)
+        foreach(var clrArg in clrArgs[inherited..])
         {
             resolvedArgs.Add(Resolve(clrArg, scope));
         }
@@ -262,7 +273,7 @@ internal sealed class AmbientTypeResolver
             }
         }
 
-        return typeInterner.GetOrCreateConstructedType(definition, resolvedArgs);
+        return typeInterner.GetOrCreateConstructedType(definition, resolvedArgs, enclosing);
     }
 
     /// <summary>

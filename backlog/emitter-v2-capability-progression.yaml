@@ -8634,6 +8634,17 @@ capabilities:
         with the refusal; ConstructedGenericMemberAccessTests holds the positive claims. Still a grammar
         gap: the TYPE position, `Box<int>.Wrapper w = ...`, is MIST_PARSE_INCOMPLETE on both pipelines,
         a NamedSingleTypeRef taking its arguments only after the last segment.
+        A CLR NESTED GENERIC FOLLOWED THE SAME DAY. The CLR repeats a declaring type's parameters on
+        the nested type, so List`1+Enumerator[T] reached the model as Enumerator<T> on a definition
+        TypeParameterProjector had projected with no parameters; before the carrying it left Current an
+        unsubstituted T (MIST_PA_NO_IMPLICIT_CONVERSION), and with it the emitter spelled the repeated
+        parameter, `List<int>.Enumerator<int>`, which Roslyn refuses. AmbientTypeResolver now splits a
+        closed nested generic's arguments as the projector split its parameters -- the leading ones
+        build the enclosing instantiation, the rest are the nested type's own -- so `var e =
+        list.GetEnumerator(); e.MoveNext(); int first = e.Current;` runs on v2 as
+        `System.Collections.Generic.List<int>.Enumerator`. ClrNestedGenericProjectionTests holds the
+        projected shape over the runtime's real metadata. Classic refuses the same program at
+        MoveNext (MIST_UNDEFINED_MEMBER on Enumerator<Int32>).
       - An intrinsic type's ORDINARY members are dropped with the type. The standard-library spec's
         Req 5.12 admits them -- Mist-bodied members composing the intrinsics on a backend-backed type,
         `Int32.Abs()` over the intrinsic `+` and `<` being the shape -- and none exists in Standard

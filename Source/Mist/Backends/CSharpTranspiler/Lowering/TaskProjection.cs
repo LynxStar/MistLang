@@ -5,8 +5,8 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.Backends.CSharpTranspiler.Lowering;
 
 /// <summary>
-/// The Standard task types spelled as the CLR's own, which is the only spelling <c>await</c> and every
-/// framework API accept -- a structurally identical duplicate would satisfy neither.
+/// The Standard task types spelled as the CLR's own, which is what <c>await</c> and every framework
+/// API expect -- a structurally identical duplicate would satisfy neither.
 /// <para>
 /// THE VOID CASE COLLAPSES TO THE NON-GENERIC TASK. Mist models "a task with no result" as
 /// <c>Task&lt;void&gt;</c>, so one declaration covers both and <c>async void</c> needs no second rule;

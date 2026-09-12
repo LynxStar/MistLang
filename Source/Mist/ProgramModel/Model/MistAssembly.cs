@@ -48,9 +48,8 @@ public sealed class MistAssembly(
     IReadOnlyList<CompilationUnit> IAssembly.CompilationUnits => CompilationUnits;
 
     /// <summary>
-    /// The implicit usings every file in this assembly resolves through, from the project's
-    /// <c>mist.toml</c>. Empty for the standard library, which has no mechanism to declare any, and
-    /// for the ambient and synthetic assemblies, which have no files.
+    /// Empty for the standard library, which has no mechanism to declare any, and for the ambient
+    /// and synthetic assemblies, which have no files.
     /// <para>
     /// Per assembly for the same reason <see cref="EntryPoint"/> is: a referenced project declaring
     /// its own is not an error, and its choice must not reach another project's files. Set once at

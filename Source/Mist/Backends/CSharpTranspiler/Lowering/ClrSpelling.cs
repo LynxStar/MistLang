@@ -7,11 +7,11 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// <summary>
 /// What the backend writes for a Standard type the CLR already has. An intrinsic type is never
 /// emitted as a declaration, so every mention of one is a name the emitter SUBSTITUTES, and a
-/// substituted name is spelled in full: the file's using directives are the Mist source's own and
-/// cover nothing the emitter chose to write. A keyword counts as spelled in full. The metadata name
-/// beside it is what <see cref="IntrinsicSupply"/> looks the type up by, so the audit and the
-/// emitter cannot name two different types. <see cref="AmbientProvider.WellKnownTypeMap"/> is the
-/// same relation read inbound, CLR to Mist, and the only other place it is written down.
+/// substituted name is spelled in full, a keyword counting as such; CSharpEmitterV2.EmitUsings says
+/// why no directive covers one. The metadata name beside it is what <see cref="IntrinsicSupply"/>
+/// looks the type up by, so the audit and the emitter cannot name two different types.
+/// <see cref="AmbientProvider.WellKnownTypeMap"/> maps the other direction, CLR to Mist, for the
+/// types that arrive from metadata.
 /// </summary>
 internal static class ClrSpelling
 {

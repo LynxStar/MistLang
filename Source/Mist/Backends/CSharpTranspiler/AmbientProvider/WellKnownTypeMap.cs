@@ -48,7 +48,6 @@ internal static class WellKnownTypeMap
         [("System", "Boolean")] = ("Standard", "Boolean"),
         [("System", "Char")] = ("Standard", "Char"),
         [("System", "Void")] = ("Standard", "Void"),
-        // Ranges and indices (map System.Index/System.Range to their spellable Standard names)
         [("System", "Index")] = ("Standard", "Index"),
         [("System", "Range")] = ("Standard", "Range"),
         // Async
@@ -59,11 +58,10 @@ internal static class WellKnownTypeMap
         // The enumerable interfaces ARE the CLR ones, which ClrProjection has always asserted at
         // emission -- a foreach, a LINQ extension and every framework API expect that interface and
         // a structurally identical duplicate satisfies none of them. Mapping them here is the same
-        // claim made one stage earlier, so the model holds ONE type where it used to hold two that
-        // only emission reconciled.
+        // claim made one stage earlier, so the model holds one type rather than two that only
+        // emission reconciles.
         [("System.Collections.Generic", "IEnumerable`1")] = ("Standard", "IEnumerable<>"),
         [("System.Collections.Generic", "IEnumerator`1")] = ("Standard", "IEnumerator<>"),
-        // Array (CLR T[] resolves to Standard.Array<T, unknown>)
         [("System", "Array")] = ("Standard", "Array<,>"),
         // The spans, whose CLR arity is one SHORTER than the Mist declaration's: the length is a
         // dependent index with no runtime witness, so an inbound System.Span<T> arrives as
@@ -73,7 +71,6 @@ internal static class WellKnownTypeMap
         [("System", "Span`1")] = ("Standard", "Span<,>"),
         [("System", "ReadOnlySpan`1")] = ("Standard", "ReadOnlySpan<,>"),
         // Func<params TArgs, TResult> — always arity 2 (pack + return type).
-        // All CLR System.Func arities map to the single variadic declaration.
         [("System", "Func`1")] = ("Standard", "Func<,>"),
         [("System", "Func`2")] = ("Standard", "Func<,>"),
         [("System", "Func`3")] = ("Standard", "Func<,>"),
@@ -92,7 +89,6 @@ internal static class WellKnownTypeMap
         [("System", "Func`16")] = ("Standard", "Func<,>"),
         [("System", "Func`17")] = ("Standard", "Func<,>"),
         // Action<params TArgs> — always arity 1 (just the pack).
-        // All CLR System.Action arities map to the single variadic declaration.
         [("System", "Action")] = ("Standard", "Action<>"),
         [("System", "Action`1")] = ("Standard", "Action<>"),
         [("System", "Action`2")] = ("Standard", "Action<>"),

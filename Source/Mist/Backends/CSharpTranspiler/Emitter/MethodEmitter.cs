@@ -103,8 +103,8 @@ internal static class MethodEmitter
     }
 
     /// <summary>
-    /// The one deliberate exception to Void emitting as Standard.Void: a return type takes the native
-    /// C# form, and the call-site lowering in BodyEmitter reconstructs the unit value wherever a caller
+    /// A return type is where Void takes the native C# form rather than Standard.Void, and the
+    /// call-site lowering in BodyEmitter reconstructs the unit value wherever a caller
     /// consumes it -- exact, because the type has one inhabitant. Only the bare ref, never
     /// <c>ref readonly</c>: on a method <c>readonly</c> is ALREADY the struct modifier that
     /// MemberModifierEmitter writes, so the pair has two readings and ReadonlyRefReturn refuses it

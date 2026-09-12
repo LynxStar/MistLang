@@ -111,10 +111,10 @@ internal sealed class CSharpEmitterV2
         EmitMonomorphs(outputDir, emittedFiles, closures);
         EmitVoidStandIn(outputDir, emittedFiles);
 
-        // THE SKIP IS PER DECLARATION NOW, not per assembly: Standard's compilation units go through
-        // the same path as a user's, and what the target already supplies is dropped one declaration
-        // at a time by TypeEmitter.ProducesDeclaration. Bootstrap is intrinsic throughout and so
-        // emits nothing; IClonable is ordinary Mist and emits as itself.
+        // Standard's compilation units go through the same path as a user's, and what the target
+        // already supplies is dropped one declaration at a time by TypeEmitter.ProducesDeclaration:
+        // Bootstrap is intrinsic throughout and so emits nothing, IClonable is ordinary Mist and
+        // emits as itself. Only its extension blocks are skipped as an assembly (EmittableBlocks).
         foreach(var assembly in programModel.Assemblies)
         {
             if(!assembly.HasMistSource)
@@ -790,15 +790,6 @@ internal sealed class CSharpEmitterV2
     }
 
     /// <summary>
-    /// A file's types under the namespaces that declare them, one Mist file to one C# file.
-    /// <para>
-    /// The file-scoped form can be written ONCE and must precede every other member, so it serves
-    /// exactly the file that declares one namespace and no top-level statements. Anything else needs
-    /// blocks: a second namespace has nowhere to go, and statements already emitted are members the
-    /// file-scoped form may not follow.
-    /// </para>
-    /// </summary>
-    /// <summary>
     /// Standard's blocks are skipped on purpose: Unknown.mist's universal extension bodies are
     /// placeholders for what the runtime already supplies (ToString returns "", GetHashCode 0), and
     /// emitting them would compile those stand-ins into every program.
@@ -808,6 +799,15 @@ internal sealed class CSharpEmitterV2
         return assembly.Kind == MistAssemblyKind.Standard ? [] : unit.Extensions;
     }
 
+    /// <summary>
+    /// A file's types under the namespaces that declare them, one Mist file to one C# file.
+    /// <para>
+    /// The file-scoped form can be written ONCE and must precede every other member, so it serves
+    /// exactly the file that declares one namespace and no top-level statements. Anything else needs
+    /// blocks: a second namespace has nowhere to go, and statements already emitted are members the
+    /// file-scoped form may not follow.
+    /// </para>
+    /// </summary>
     private void EmitFileTypes(
         List<DeclaredType> types,
         List<ExtensionBlock> blocks,

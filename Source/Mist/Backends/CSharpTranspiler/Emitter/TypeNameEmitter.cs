@@ -416,16 +416,15 @@ internal static class TypeNameEmitter
             return false;
         }
 
-        // Synthetic types have no declaration to qualify against. An AMBIENT type is qualified
-        // like any other: the emitted usings cover only what the Mist source imported, and a
-        // reference written out in full -- `Newtonsoft.Json.JsonConvert` -- imports nothing.
+        // Synthetic types have no declaration to qualify against. An AMBIENT type is qualified like
+        // any other, since EmitUsings writes only what the source imported.
         if(!memberType.Assembly.HasMistSource && memberType.Assembly.Kind != MistAssemblyKind.Ambient)
         {
             return false;
         }
 
-        // Generic definitions keep their arity-encoded name (`Array<,>`) and are
-        // rendered through EmitConstructed instead.
+        // A generic definition is named through its construction, in EmitConstructed; a bare one
+        // keeps its arity marker, having no C# name.
         return !memberType.Name.Contains('<');
     }
 

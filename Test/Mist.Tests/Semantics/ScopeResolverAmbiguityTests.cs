@@ -225,14 +225,8 @@ public sealed class ScopeResolverAmbiguityTests
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Source-declared imports outrank CLR-projected ones, WITHIN one level
-    //
-    // The stdlib is declared ONTO the framework it wraps: Standard.Console is an intrinsic
-    // declaration and System.Console is metadata for the same thing, so a file importing both
-    // reaches two distinct types under one name. Without a tier the only available answer is
-    // "ambiguous", which made `using Standard;` beside `using System;` unwritable. The two are
-    // not peers -- one is the stdlib and the other is what the stdlib projects onto -- so this
-    // is a contest with a winner rather than an ambiguity.
+    // Source-declared imports outrank CLR-projected ones, WITHIN one level. The tiers and the
+    // reason for them are ImportingScope's.
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]

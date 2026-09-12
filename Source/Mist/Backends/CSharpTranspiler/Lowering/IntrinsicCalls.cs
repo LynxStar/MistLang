@@ -14,13 +14,13 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// type IS the value, a struct copying on assignment and String being immutable. Drop on a task binds
 /// as the await it is (PostfixBinder), so it reaches emission as a call only through a conditional
 /// access, where it is the join the drop-semantics spec says Drop is (Req 7.2), spelled as the emitter
-/// spells an await that cannot be real. An array's GetEnumerator goes through the array's enumerable
-/// view, see <see cref="ArrayEnumeration"/>. A regex's full match and Pattern are derived from members
-/// the CLR has. The task combinators and array generation are runtime helpers.
+/// spells an await that cannot be real. An array's GetEnumerator constructs the struct the backend
+/// generates, see <see cref="ArrayEnumeration"/>. A regex's full match and Pattern are derived from
+/// members the CLR has. The task combinators and array generation are runtime helpers.
 /// <para>
-/// <see cref="IntrinsicSupply"/> reads <see cref="Classify"/> to tell a kept promise from an unkept
-/// one, which is what makes this list the whole of the respellings: a member absent from here and
-/// from CLR metadata is refused rather than emitted.
+/// <see cref="IntrinsicSupply"/> reads <see cref="Respells"/> and <see cref="RespellsProperty"/> to
+/// tell a kept promise from an unkept one, which is what makes this list the whole of the
+/// respellings: a member absent from here and from CLR metadata is refused rather than emitted.
 /// </para>
 /// </summary>
 internal static class IntrinsicCalls

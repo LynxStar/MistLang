@@ -77,10 +77,6 @@ public sealed class ClrSpellingTests : IDisposable
         Assert.Contains("string s = \"a\";", emitted, StringComparison.Ordinal);
     }
 
-    /// <summary>
-    /// The directives are the Mist file's own: Standard, which the file wrote and the output declares,
-    /// and nothing the emitter added for its substitutions, which are all written in full.
-    /// </summary>
     [Fact]
     public void TheEmittedFileCarriesOnlyTheSourcesUsings()
     {

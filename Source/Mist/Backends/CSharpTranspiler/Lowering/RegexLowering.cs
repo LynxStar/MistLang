@@ -4,8 +4,8 @@ using Mist.ProgramModel.Contracts.Types;
 namespace Mist.Backends.CSharpTranspiler.Lowering;
 
 /// <summary>
-/// Mist's <c>regex</c> IS System.Text.RegularExpressions.Regex, and the four places Mist spells it
-/// differently are rewritten at the use site.
+/// Mist's <c>regex</c> IS System.Text.RegularExpressions.Regex, and what Mist spells differently is
+/// rewritten at the use site.
 /// <para>
 /// NEVER A WRAPPER. An intrinsic declaration says the target already has this and the emitter is to
 /// reach it -- a Mist-side duplicate would be a type no framework API accepts, and the same reasoning

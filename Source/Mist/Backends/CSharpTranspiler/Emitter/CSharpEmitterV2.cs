@@ -799,11 +799,9 @@ internal sealed class CSharpEmitterV2
     /// </para>
     /// </summary>
     /// <summary>
-    /// The extension blocks this unit emits. The STANDARD LIBRARY'S ARE SKIPPED DELIBERATELY, not by
-    /// accident: Standard/Unknown.mist declares <c>extension(unknown self)</c> whose GetType body is
-    /// <c>return Type.Of(self);</c>, and Type.Of does not lower on v2 yet, so emitting that carrier
-    /// puts a broken file into every single compilation. Named here rather than left to the fact that
-    /// the stdlib assembly is otherwise skipped, because that fact is not what makes this safe.
+    /// Standard's blocks are skipped on purpose: Unknown.mist's universal extension bodies are
+    /// placeholders for what the runtime already supplies (ToString returns "", GetHashCode 0), and
+    /// emitting them would compile those stand-ins into every program.
     /// </summary>
     private static List<ExtensionBlock> EmittableBlocks(CompilationUnit unit, IAssembly assembly)
     {

@@ -4,14 +4,9 @@ using Mist.ProgramModel.Model.Scopes;
 namespace Mist.ProgramModel.Model.Types;
 
 /// <summary>
-/// A structural function type, interned by its parameter types and result.
-/// <para>
-/// NOT a construction of <c>Standard.Func</c>, though that is what it emits as. Func is declared
-/// <c>Func&lt;params TArgs, TResult&gt;</c> -- one variadic type rather than an overload family -- and
-/// resolving that declaration needs type packs, which arrive far later in the progression than function
-/// types do. Keeping the type structural is what lets this layer stand on its own; the CLR family is
-/// then an EMISSION concern, chosen by arity and by whether the result is void, exactly as a tuple's is.
-/// </para>
+/// Never a construction of <c>Standard.Func</c>: those collapse into this type at
+/// <see cref="Construction.Resolution.ScopeResolver.AsFunctionType"/>, and the CLR Func/Action choice
+/// is made at emission.
 /// </summary>
 internal sealed class FunctionType : MistType, IFunctionType
 {

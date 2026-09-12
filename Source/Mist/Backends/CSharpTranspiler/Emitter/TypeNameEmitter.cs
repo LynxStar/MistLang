@@ -298,10 +298,7 @@ internal static class TypeNameEmitter
             return $"{Qualified(declaring)}.{baseName}<{args}>";
         }
 
-        // A NAMESPACE-LEVEL generic is qualified like every other type name here. The emitted file
-        // imports nothing but System, so a bare name resolves only where the reference happens to sit
-        // in the same namespace -- which Standard.IClonable, named from a sample's own namespace,
-        // never does.
+        // Qualified for the reason ShouldQualify gives.
         return constructed.Definition is DeclaredType { NamespaceName: { Length: > 0 } namespaceName }
             ? $"{namespaceName}.{baseName}<{args}>"
             : $"{baseName}<{args}>"

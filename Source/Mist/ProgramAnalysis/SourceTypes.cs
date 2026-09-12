@@ -6,10 +6,7 @@ using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// The declarations the project's own source holds, scoped as emission is: source assemblies other
-/// than Standard, whose code is the library's and would put a finding on a file nobody in the project
-/// wrote. Nested types are absent from a unit's type list by design, so they are reached through
-/// their declaring type.
+/// Never Standard: a finding there would land on a file nobody in the project wrote.
 /// </summary>
 internal static class SourceTypes
 {

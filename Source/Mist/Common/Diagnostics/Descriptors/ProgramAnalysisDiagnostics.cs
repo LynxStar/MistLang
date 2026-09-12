@@ -400,6 +400,12 @@ public static class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "Cannot assign to field '{0}' inside a readonly block, which admits no field write and suspends a constructor's privilege to make one.");
 
+    public static readonly DiagnosticDescriptor ReadonlyContextWritesThroughIndex = new(
+        new DiagnosticId("MIST_PA_READONLY_CONTEXT_WRITES_THROUGH_INDEX"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot write through an index into '{0}' from readonly {1}: a readonly context mutates nothing the value reaches.");
+
     public static readonly DiagnosticDescriptor ReadonlyContextCallsMutable = new(
         new DiagnosticId("MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE"),
         DiagnosticSeverity.Error,

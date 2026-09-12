@@ -91,6 +91,13 @@ public sealed class ReadonlyContextDecisionTests : ProgramModelProbe
             {
                 return new Box(v);
             }
+
+            public readonly int Scratch()
+            {
+                int[] tmp = [0, 0];
+                tmp[0] = 1;
+                return tmp[0];
+            }
         }
         """;
 
@@ -102,6 +109,7 @@ public sealed class ReadonlyContextDecisionTests : ProgramModelProbe
     [InlineData("var s = new Box(1).Score;")]
     [InlineData("var r = new Box(1).Reader();")]
     [InlineData("var c = new Box(1).Copy();")]
+    [InlineData("var s2 = new Box(1).Scratch();")]
     public void APrivilegedOrReadonlyUse_IsAdmitted(string statement)
     {
         Assert.Empty(Analyse(statement, extraTypes: ""));

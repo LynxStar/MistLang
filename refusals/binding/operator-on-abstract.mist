@@ -1,0 +1,19 @@
+using Standard;
+
+namespace Refusal;
+
+// An operator belongs in a class or struct body (standard-library spec Req 4.1 and 4.7). Declared on
+// an abstract it used to bind and emit nothing, and a use of it then failed against generated C#.
+public abstract IAddable
+{
+    // REFUSE: MIST_PM_MEMBER_NOT_ALLOWED_ON_ABSTRACT
+    public static IAddable operator +(IAddable a, IAddable b);
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        Console.WriteLine("unreachable");
+    }
+}

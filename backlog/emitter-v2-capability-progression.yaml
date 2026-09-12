@@ -6481,8 +6481,12 @@ capabilities:
       ReadonlyInference sits beside ThisTiers, which is the one home for what a BODY does: both walk a
       body with BodyWalker and answer a question about it, and a second walker could disagree with the
       first. The classification is the readonly-contexts spec's base rules read as a predicate -- a field
-      written, a setter called, a callee that is not readonly, an allocation through a constructor that
-      is not -- with a constructor privileged to assign the fields of its own type (Req 10.7). A call
+      written, a setter called, a write through an index whose receiver roots at `this` or a field, a
+      callee that is not readonly, an allocation through a constructor that is not -- with a constructor
+      privileged to assign the fields of its own type (Req 10.7). The indexed-write arm was MISSING from
+      the first cut and added the same day: without it a struct method mutating an array field was
+      inferred readonly and emitted as such, which C# accepts (an array is a reference) and which was
+      false at the Mist level. See analysis order 11 for how it was found. A call
       asks the CALLEE's status and never its body (Req 10.8), which is what makes this a fixed point over
       the call graph. It is the GREATEST one: a member is readonly unless something reachable from it
       writes, so two methods that only call each other settle readonly instead of deadlocking, and the
@@ -6541,9 +6545,10 @@ capabilities:
         privilege for field assignment and for its own readonly setters, a backing-field exemption inside
         a readonly setter only, and a readonly block that suspends the privilege for its extent -- which
         is what the structural walk is for, a node sweep being unable to see where a block begins. Block
-        readonly-ness is recorded on the model by order 133, as this said. INDEXER contexts are the one
-        piece not delivered: the model records no indexer for an index access, so an element write cannot
-        be told from a user indexer's setter; recorded as a task on analysis order 11.
+        readonly-ness is recorded on the model by order 133, as this said. An INDEXER setter is reached
+        only through the indexed-write rule, which judges by provenance -- a receiver rooted at `this` or
+        a field -- because the model records no indexer for an index access; a receiver rooted at a local
+        or a parameter, and indexer GETTERS, stay unjudged. Recorded as a task on analysis order 11.
     unlocks: [UnknownReadonlySemantics]
 
   - id: readonly-generic-constraints
@@ -8380,11 +8385,14 @@ capabilities:
       equality is declared); five corpus cases under refusals/declaration-shape-checks/; decision rows for
       a complete operator set and for a unary result type. The 16 stdlib files that declare operators
       declare them all intrinsic, which is order 186's.
-    tasks:
-      - An operator declared on an ABSTRACT binds -- AbstractTypeBuilder resolves it into OperatorsList --
-        and is not emitted, since TypeEmitter walks a concrete type's operators only, as it does cast
-        operators. C# would need a `static abstract` interface member. No sample and no spec asks for
-        one; whether to refuse it or emit it is undecided.
+      AN OPERATOR ON AN ABSTRACT IS REFUSED, decided 2026-09-11 after the first cut left it filed as
+      undecided. It was not a scope question: the standard-library spec puts an Operator_Declaration in a
+      class or struct body (Req 4.1) and asks for a diagnostic anywhere else (Req 4.7), so it is invalid
+      Mist and the frontend's to refuse -- which is what AbstractTypeBuilder already did for a cast
+      operator on an abstract, through MIST_PM_MEMBER_NOT_ALLOWED_ON_ABSTRACT. Measured before the fix:
+      the declaration bound, emitted nothing, and a use of it then failed as MIST_CS_ERROR against
+      generated C# -- an error about code the author never wrote, which is exactly what the
+      language-rules discipline exists to prevent. A corpus case under refusals/binding/ holds it.
     unlocks: []
 
   - id: intrinsic-member-declarations

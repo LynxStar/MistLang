@@ -116,6 +116,18 @@ internal sealed class ReadonlyAnalyzer : IProgramAnalyzer
             return;
         }
 
+        if(ReadonlyInference.IndexedWriteTargetName(assignment.Target) is { } reached)
+        {
+            if(frame.IsReadonly)
+            {
+                context.Report(
+                    ProgramAnalysisDiagnostics.ReadonlyContextWritesThroughIndex, assignment.Target.Node,
+                    [assignment.Target], reached, frame.Describe());
+            }
+
+            return;
+        }
+
         if(SetProperty(assignment.Target) is { } set)
         {
             if(frame.IsReadonly && !frame.MaySet(set, inference))

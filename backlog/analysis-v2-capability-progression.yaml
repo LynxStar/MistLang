@@ -1031,7 +1031,8 @@ rules:
       then said what a working program does: AllFeaturesV2 and the four readonly samples standalone
       report NOTHING, byte-identical stdout, so no banked program calls a mutable member from a readonly
       context. The rules are base rules 7 to 10 inside any readonly context -- no field written, no
-      setter called, no callee that is not readonly, no allocation through a constructor that is not --
+      setter called, no callee that is not readonly, no allocation through a constructor that is not,
+      and no write THROUGH AN INDEX whose receiver chain roots at `this` or a field --
       plus the readonly BLOCK (Req 9), which is why ReadonlyAnalyzer now walks bodies structurally
       instead of sweeping nodes: a block turns the context on part-way through, and suspends a
       constructor's privilege for its extent (Req 11.13). Two privileges cut across: a constructor
@@ -1043,6 +1044,17 @@ rules:
       readonly TYPES (the primitives, String, Regex) readonly throughout and leaves Console and Math
       mutable. That is strict enough to refuse `Console.WriteLine` inside a declared readonly method, and
       no banked sample does it.
+
+      THE FIRST CUT SHIPPED TWO HOLES, and they were found by probing the residue this order filed rather
+      than by any test -- which is the lesson worth keeping: a rule recorded as "not reached yet" had not
+      been measured, and two of the three so recorded turned out to be reachable in four lines of Mist.
+      A declared readonly method could write `cells[0] = v` into a field's array, and could call a user
+      indexer's setter on a field, and BOTH were admitted and ran. The same classifier serves the
+      inference, so a struct method mutating an array field was also emitted `readonly` -- harmless to C#,
+      which sees a reference, and a false claim at the Mist level. Both are now the one indexed-write
+      rule, rooted at `this` or a field. A write rooted at a LOCAL stays admitted deliberately: a readonly
+      member filling a scratch array it just allocated reaches none of the value's storage, and a
+      decision row pins it.
     tasks:
       - >
         The ownership-v2 spec is stricter than classic in five places v2 follows classic on: mutable
@@ -1055,10 +1067,13 @@ rules:
         (MIST_PA_FIELD_ASSIGNED_ON_READONLY_PARAMETER). The readonly-contexts spec also refuses calling a
         non-readonly method or setter ON one (Req 14.2 and 14.4), which the inference could now answer.
       - >
-        An INDEXER setter is not judged by base rule 9, and an indexer getter not by rule 8: the model
-        records no indexer for an index access -- IndexExpression carries a receiver and an index, and
-        there is no IndexerResult beside FieldResult and PropertyResult -- so an element write through an
-        array cannot be told from one through a user indexer. Rule 9 reaches property setters only.
+        An indexed WRITE is judged by provenance, not by what it resolves to: the model records no
+        indexer for an index access -- IndexExpression carries a receiver and an index, and there is no
+        IndexerResult beside FieldResult and PropertyResult -- so an element write through an array
+        cannot be told from one through a user indexer, and the rule refuses both when the receiver roots
+        at `this` or a field. The residue is a receiver rooted at a LOCAL or a PARAMETER, where a user
+        indexer's setter is still called unjudged, and an indexer GETTER is not judged by rule 8 at all.
+        Recording the selected indexer on the expression is the prerequisite for telling them apart.
       - >
         An operator call is not judged. A BinaryExpression records the operator's RESULT TYPE but not the
         Operator it selected (OperatorAdmissibility answers the type), so a readonly context calling a

@@ -89,10 +89,6 @@ internal sealed class AbstractTypeBuilder : MemberTypeBuilder
                 IndexerBuilder.Resolve(indexerMember.Indexer, typeDef);
                 break;
 
-            case OperatorMemberMemberDeclarationNode opMember:
-                OperatorBuilder.Resolve(opMember.Operator, typeDef);
-                break;
-
             case AssociatedTypeMemberMemberDeclarationNode:
                 // Type slots are registered in the pre-pass in BuildMembers.
                 break;
@@ -107,6 +103,7 @@ internal sealed class AbstractTypeBuilder : MemberTypeBuilder
             case FieldMemberMemberDeclarationNode:
             case ConstructorMemberMemberDeclarationNode:
             case CastOperatorMemberMemberDeclarationNode:
+            case OperatorMemberMemberDeclarationNode:
             case DefaultBlockMemberMemberDeclarationNode:
                 Context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.MemberNotAllowedOnAbstract, member, null);
                 break;

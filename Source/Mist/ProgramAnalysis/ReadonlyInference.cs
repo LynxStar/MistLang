@@ -23,6 +23,13 @@ namespace Mist.ProgramAnalysis;
 /// when something does -- a member reached on a failing path may still be readonly by itself, and
 /// settling it from that path would answer a question the walk never asked.
 /// </para>
+/// <para>
+/// A write THROUGH AN INDEX counts when the receiver chain roots at `this` or a field, which is what
+/// makes `cells[0] = v` a write of the value's own storage and a user indexer's setter on a field one
+/// too. It does not count when the chain roots at a local or a parameter: a readonly member filling a
+/// scratch array it just allocated mutates nothing the value reaches, and refusing that would refuse
+/// working code.
+/// </para>
 /// </summary>
 internal sealed class ReadonlyInference
 {
@@ -117,6 +124,9 @@ internal sealed class ReadonlyInference
                     }
 
                     break;
+
+                case AssignmentExpression indexed when IndexedWriteTargetName(indexed.Target) is not null:
+                    return true;
 
                 case AssignmentExpression { Target: BackingFieldReferenceExpression or PropertyReferenceExpression }:
                 case AssignmentExpression { Target: MemberAccessExpression { Member: PropertyResult } }:
@@ -224,6 +234,24 @@ internal sealed class ReadonlyInference
 
                 break;
         }
+    }
+
+    public static string? IndexedWriteTargetName(Expression target)
+    {
+        return target is IndexExpression index ? Rooted(index.Receiver) : null;
+    }
+
+    private static string? Rooted(Expression receiver)
+    {
+        return receiver switch
+        {
+            FieldReferenceExpression field => field.Field.Name,
+            MemberAccessExpression { Member: FieldResult found } => found.Field.Name,
+            MemberAccessExpression access => Rooted(access.Receiver),
+            IndexExpression nested => Rooted(nested.Receiver),
+            ThisExpression => "this",
+            _ => null,
+        };
     }
 
     private static Field? Target(Expression target)

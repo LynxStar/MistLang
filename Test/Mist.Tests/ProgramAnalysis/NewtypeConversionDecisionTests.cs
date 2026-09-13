@@ -1,6 +1,7 @@
 // Tier 3 (Component): the conversions between a newtype and a copyable source it clones (newtypes spec
 // Requirements 2.4-2.7): out implicitly and losslessly, in only by a cast calling the newtype's conversion,
-// and nothing either way for a mutable class. The corpus holds the refusals that have a line to mark.
+// and nothing either way for a mutable class that defines no copy. The corpus holds the refusals that have a
+// line to mark.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
@@ -13,7 +14,7 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
 {
     private static readonly string[] Ids =
     [
-        "MIST_PA_CAST_HAS_NO_CONVERSION", "MIST_PA_NO_IMPLICIT_CONVERSION", "MIST_PA_CAST_REQUIRED",
+        "MIST_PA_CAST_HAS_NO_CONVERSION", "MIST_PA_NEWTYPE_SOURCE_DEFINES_NO_COPY", "MIST_PA_NO_IMPLICIT_CONVERSION", "MIST_PA_CAST_REQUIRED",
         "MIST_PA_CAST_ARGUMENT_MISMATCH", "MIST_PA_AMBIGUOUS_CAST", "MIST_PM_UNRESOLVABLE_OVERLOAD",
         "MIST_PM_AMBIGUOUS_OVERLOAD",
     ];
@@ -111,7 +112,7 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
     [InlineData("Position entersWithoutACast = point;", "MIST_PA_CAST_REQUIRED")]
     [InlineData("Coord crossesWithoutACast = position;", "MIST_PA_CAST_REQUIRED")]
     [InlineData("Entity leavesAMutableClass = actor;", "MIST_PA_NO_IMPLICIT_CONVERSION")]
-    [InlineData("Actor entersAMutableClassByCast = (Actor)entity;", "MIST_PA_CAST_HAS_NO_CONVERSION")]
+    [InlineData("Actor entersAMutableClassByCast = (Actor)entity;", "MIST_PA_NEWTYPE_SOURCE_DEFINES_NO_COPY")]
     public void AConversionTheSourceDoesNotAdmit_IsRefused(string statement, string expected)
     {
         Assert.Equal(expected, Assert.Single(Analyse(statement)).Id.Value);

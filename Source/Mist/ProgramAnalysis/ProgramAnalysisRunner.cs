@@ -2,6 +2,7 @@ using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Construction.Types;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 
@@ -37,21 +38,40 @@ internal static class ProgramAnalysisRunner
         var sourcePaths = SourceTypes.UnitsOf(model).Select(source => source.Unit.SourcePath).ToHashSet(StringComparer.Ordinal);
         var bodies = SourceBodies.Of(model).ToList();
         var clones = SourceTypes.Of(model).OfType<ConcreteType>().Where(IsClone).ToList();
+        var conversions = bodies.Where(root => root.Member is CastOperator { ClonesThrough: not null }).ToList();
+
+        var refusals = CloneConversionRefusals.Judge(conversions, root =>
+        {
+            var findings = new DiagnosticBag();
+            Analyze(model, new AnalysisScope([], [root], []), sourcePaths, findings, CloneConversionRefusals.None);
+
+            return findings.ToImmutableArray();
+        });
 
         var program = new AnalysisScope(
             [.. SourceTypes.Of(model).Where(type => !IsClone(type))],
             [.. bodies.Where(root => !IsClone(root.Owner))],
             [.. SourceTypes.ExtensionsOf(model)]);
 
-        Analyze(model, program, sourcePaths, diagnostics);
+        Analyze(model, program, sourcePaths, diagnostics, refusals);
 
         CloneDiagnostics.Run(
             clones,
-            clone => Analyze(model, new AnalysisScope([clone], [.. bodies.Where(root => root.Owner == clone)], []), sourcePaths, diagnostics),
+            clone => Analyze(
+                model,
+                new AnalysisScope([clone], [.. bodies.Where(root => root.Owner == clone).Except(conversions)], []),
+                sourcePaths,
+                diagnostics,
+                refusals),
             diagnostics);
     }
 
-    private static void Analyze(ProgramModelClass model, AnalysisScope scope, IReadOnlySet<string> sourcePaths, DiagnosticBag diagnostics)
+    private static void Analyze(
+        ProgramModelClass model,
+        AnalysisScope scope,
+        IReadOnlySet<string> sourcePaths,
+        DiagnosticBag diagnostics,
+        IReadOnlyDictionary<CastOperator, ConversionRefusal> refusals)
     {
         var nodes = new List<object>();
         var roots = new Dictionary<object, SourceRoot>(ReferenceEqualityComparer.Instance);
@@ -67,7 +87,7 @@ internal static class ProgramAnalysisRunner
 
         foreach(var analyzer in Analyzers)
         {
-            analyzer.Analyze(new AnalysisContext(model, scope, nodes, roots, sourcePaths, diagnostics, analyzer.Id));
+            analyzer.Analyze(new AnalysisContext(model, scope, nodes, roots, sourcePaths, diagnostics, analyzer.Id, refusals));
         }
     }
 

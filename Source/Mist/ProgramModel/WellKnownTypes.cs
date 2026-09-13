@@ -67,6 +67,7 @@ internal static class WellKnownTypes
     public static readonly WellKnownType Range = new("Range", "Standard", Keyword: null);
     public static readonly WellKnownType IEnumerable = new("IEnumerable<>", "Standard", Keyword: null);
     public static readonly WellKnownType IEnumerator = new("IEnumerator<>", "Standard", Keyword: null);
+    public static readonly WellKnownType IClonable = new("IClonable<>", "Standard", Keyword: null);
 
     /// <summary>
     /// All primitive types that have a keyword alias (the ones the

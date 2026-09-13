@@ -1,0 +1,28 @@
+using Standard;
+
+namespace Refusal;
+
+public class Lion : IClonable<Lion>
+{
+    public Lion? Mate;
+
+    public Lion() { }
+
+    public owned Lion Clone()
+    {
+        return new Lion { Mate = Mate };
+    }
+}
+
+type Puma = new Lion;
+
+public class Probe
+{
+    public static void Main()
+    {
+        var lion = new Lion();
+        // REFUSE: MIST_PA_CLONE_CONVERSION_DOES_NOT_HOLD
+        var puma = (Puma)lion;
+        Console.WriteLine("unreachable");
+    }
+}

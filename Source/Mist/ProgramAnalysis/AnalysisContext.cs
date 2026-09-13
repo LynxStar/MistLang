@@ -1,6 +1,7 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 using SyntaxNode = Storm.Runtime.SyntaxNode;
@@ -14,7 +15,8 @@ internal sealed class AnalysisContext(
     IReadOnlyDictionary<object, SourceRoot> roots,
     IReadOnlySet<string> sourcePaths,
     DiagnosticBag diagnostics,
-    string analyzerId)
+    string analyzerId,
+    IReadOnlyDictionary<CastOperator, ConversionRefusal> conversionRefusals)
 {
     public ProgramModelClass Model { get; } = model;
 
@@ -25,6 +27,8 @@ internal sealed class AnalysisContext(
     public IReadOnlyList<ExtensionBlock> Extensions { get; } = scope.Extensions;
 
     public IReadOnlyList<object> Nodes { get; } = nodes;
+
+    public IReadOnlyDictionary<CastOperator, ConversionRefusal> ConversionRefusals { get; } = conversionRefusals;
 
     /// <summary>
     /// The type whose declaration a body node sits inside, or null for top-level statements, an

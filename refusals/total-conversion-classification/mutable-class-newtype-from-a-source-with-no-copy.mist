@@ -14,7 +14,7 @@ public class Probe
     public static void Main()
     {
         var entity = new Entity();
-        // REFUSE: MIST_PA_CAST_HAS_NO_CONVERSION
+        // REFUSE: MIST_PA_NEWTYPE_SOURCE_DEFINES_NO_COPY
         var actor = (Actor)entity;
         Console.WriteLine("unreachable");
     }

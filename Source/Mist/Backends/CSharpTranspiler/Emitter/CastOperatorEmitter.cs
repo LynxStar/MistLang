@@ -15,6 +15,12 @@ internal static class CastOperatorEmitter
 {
     public static void Emit(CastOperator castOperator, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        if(castOperator.ClonesThrough is not null)
+        {
+            CloneConversionEmitter.Emit(castOperator, writer, diagnostics);
+            return;
+        }
+
         if(IntrinsicCloneEmitter.Wraps(castOperator.DeclaringType)
             && (castOperator.CopiesClone || castOperator.Modifiers.IsIntrinsic))
         {

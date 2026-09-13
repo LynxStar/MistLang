@@ -79,7 +79,7 @@ internal static class MemberBinder
         foreach(var boundDelegate in memberType.EnumerateDelegates())
         {
             // Abstract members and intrinsics legitimately have no body to bind.
-            if(boundDelegate.Body is not null)
+            if(boundDelegate is { Body: not null } and not Model.Members.CastOperator { ClonesThrough: not null })
             {
                 BodyBinder.BindDelegate(boundDelegate, context);
             }

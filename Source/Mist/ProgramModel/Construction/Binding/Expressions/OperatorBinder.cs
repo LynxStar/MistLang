@@ -385,6 +385,11 @@ internal static class OperatorBinder
                     var called = CastOperatorSelection.Best(
                         operand.Type, targetType, context.ProgramModel.TypeInterner, ConstantConversion.IntegerConstant(operand));
 
+                    if(called is [var chosen])
+                    {
+                        chosen.IsCalled = true;
+                    }
+
                     return new CastExpression(
                         node, operand, targetType, called,
                         called is [var selected] ? selected.TargetType : CastResultType(operand.Type, targetType, context));

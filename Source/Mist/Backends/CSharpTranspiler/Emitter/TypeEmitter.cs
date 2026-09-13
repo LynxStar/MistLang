@@ -269,7 +269,7 @@ internal static class TypeEmitter
                 EmitMethod(method, type, readonlyMembers.OnMethod(method), writer, diagnostics);
             }
 
-            foreach(var castOperator in concrete?.CastOperatorsList ?? [])
+            foreach(var castOperator in concrete?.CastOperatorsList.Where(castOperator => castOperator is not { ClonesThrough: not null, IsCalled: false }) ?? [])
             {
                 SeparateMember(writer, ref anyEmitted);
                 CastOperatorEmitter.Emit(castOperator, writer, diagnostics);

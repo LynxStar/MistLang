@@ -176,6 +176,12 @@ public sealed class ProgramModelBuilder
         PredicateBinder.BindAll(programModel, context);
         MemberBinder.BindAll(sourceTypes.Where(type => type is not ConcreteType { CloneSource: not null }), context);
         CloneDiagnostics.Run(clones, clone => MemberBinder.BindAll([clone], context), diagnostics);
+
+        foreach(var clone in clones)
+        {
+            NewtypeConversions.Bind(clone, context);
+        }
+
         MemberBinder.BindExtensions(
             programModel.Namespaces.Values.SelectMany(ns => ns.Extensions.Values).SelectMany(blocks => blocks),
             context);

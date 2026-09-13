@@ -756,6 +756,14 @@ internal static class BodyEmitter
                     writer.Append("await ");
                 }
 
+                if(UnsafeReach.Call(invocation, receiver => RenderAt(receiver, PostfixPrecedence, diagnostics)) is { } reached)
+                {
+                    writer.Append($"{reached.Accessor}({reached.Leading}{(invocation.Arguments.Count > 0 ? ", " : "")}");
+                    EmitArguments(invocation.Arguments, invocation.Method?.ParametersList, writer, diagnostics);
+                    writer.Append(")");
+                    break;
+                }
+
                 // The member access is emitted from HERE when it carries type arguments, because
                 // only the invocation knows which overload they fill -- and a dependent slot is
                 // spelled by its carrier rather than by its domain.
@@ -841,6 +849,13 @@ internal static class BodyEmitter
 
             case AsExpression asExpression:
                 EmitAs(asExpression, writer, diagnostics);
+                break;
+
+            case AssignmentExpression assignment
+                when UnsafeReach.Assignment(assignment, receiver => RenderAt(receiver, PostfixPrecedence, diagnostics)) is { } setter:
+                writer.Append($"{setter.Accessor}({setter.Leading}, ");
+                EmitExpression(assignment.Value, writer, diagnostics);
+                writer.Append(")");
                 break;
 
             case AssignmentExpression assignment:
@@ -1006,13 +1021,13 @@ internal static class BodyEmitter
 
             case FieldReferenceExpression fieldRef:
                 writer.Append(
-                    ReceiverSpelling.Qualifier(fieldRef.Field.DeclaringType, fieldRef.Field.Modifiers.IsStatic)
-                    + fieldRef.Field.Name);
+                    UnsafeReach.Implicit(fieldRef.Field)
+                    ?? ReceiverSpelling.Qualifier(fieldRef.Field.DeclaringType, fieldRef.Field.Modifiers.IsStatic) + fieldRef.Field.Name);
                 break;
             case PropertyReferenceExpression propertyRef:
                 writer.Append(
-                    ReceiverSpelling.Qualifier(propertyRef.Property.DeclaringType, propertyRef.Property.Modifiers.IsStatic)
-                    + propertyRef.Property.Name);
+                    UnsafeReach.Implicit(propertyRef.Property)
+                    ?? ReceiverSpelling.Qualifier(propertyRef.Property.DeclaringType, propertyRef.Property.Modifiers.IsStatic) + propertyRef.Property.Name);
                 break;
             case BackingFieldReferenceExpression:
                 writer.Append("field");
@@ -2017,13 +2032,36 @@ internal static class BodyEmitter
 
         var target = newExpression.Type is TypeParameter && newExpression.Arguments.Count > 0
             ? $"{TypeNameEmitter.Emit(newExpression.Type)}.{ConstructorConstraintInterfaces.MemberName}("
-            : $"new {TypeNameEmitter.Emit(newExpression.Type)}("
+            : UnsafeReach.Construction(newExpression.Constructor) is { } reachedConstructor
+                ? $"{reachedConstructor}("
+                : $"new {TypeNameEmitter.Emit(newExpression.Type)}("
             ;
+
+        var initialized = UnsafeReach.Initializer(newExpression);
+
+        if(initialized is { } helper)
+        {
+            writer.Append($"{helper.Helper}(");
+        }
 
         writer.Append(target);
         EmitArguments(
             newExpression.Arguments, newExpression.Constructor?.ParametersList, writer, diagnostics);
         writer.Append(")");
+
+        if(initialized is { } entries)
+        {
+            writer.Append($", {entries.Target} => {{ ");
+
+            foreach(var entry in newExpression.Initializer)
+            {
+                writer.Append(UnsafeReach.Entry(newExpression, entry, entries.Target, Render(entry.Value, diagnostics)) + " ");
+            }
+
+            writer.Append("})");
+            return;
+        }
+
         EmitObjectInitializer(newExpression.Initializer, writer, diagnostics);
     }
 
@@ -2077,6 +2115,12 @@ internal static class BodyEmitter
             && !IntrinsicSupply.Supplies(property))
         {
             ReportMissingIntrinsic(IntrinsicSupply.Describe(property), memberAccess.Node, writer, diagnostics);
+            return;
+        }
+
+        if(UnsafeReach.Access(memberAccess, () => RenderAt(memberAccess.Receiver, PostfixPrecedence, diagnostics)) is { } reached)
+        {
+            writer.Append(reached);
             return;
         }
 

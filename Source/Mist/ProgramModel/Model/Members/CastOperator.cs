@@ -1,3 +1,4 @@
+using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
 
@@ -31,6 +32,17 @@ internal sealed class CastOperator(
     /// the implicit one is lossless, so the conversion relation reads it as containment.
     /// </summary>
     public bool CopiesClone { get; init; }
+
+    public Method? ClonesThrough { get; init; }
+
+    public Diagnostic? BindingFailure { get; internal set; }
+
+    /// <summary>
+    /// Whether a cast calls this operator. A conversion run through <see cref="ClonesThrough"/> is refused
+    /// only where a cast calls it (newtypes spec Requirement 10.4), so one no cast calls may hold a body
+    /// that does not type, and is not a member any backend can write.
+    /// </summary>
+    public bool IsCalled { get; internal set; }
 
     IParameter ICastOperator.SourceParameter => SourceParameter;
 }

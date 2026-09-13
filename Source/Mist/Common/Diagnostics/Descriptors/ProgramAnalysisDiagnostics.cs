@@ -34,6 +34,18 @@ public static class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "Cannot cast '{0}' to '{1}'. The cast calls {2}, and '{0}' does not convert to its parameter type '{3}' implicitly.");
 
+    public static readonly DiagnosticDescriptor NewtypeSourceDefinesNoCopy = new(
+        new DiagnosticId("MIST_PA_NEWTYPE_SOURCE_DEFINES_NO_COPY"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot cast '{0}' to '{1}'. '{2}' defines no copy to convert with; a newtype and its mutable class source convert only when the class implements 'IClonable<{2}>' with a Clone of its own.");
+
+    public static readonly DiagnosticDescriptor CloneConversionDoesNotHold = new(
+        new DiagnosticId("MIST_PA_CLONE_CONVERSION_DOES_NOT_HOLD"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot cast '{0}' to '{1}'. The cast runs '{2}' with a '{3}' as this, and it does not hold at '{4}': {5}");
+
     public static readonly DiagnosticDescriptor AmbiguousCast = new(
         new DiagnosticId("MIST_PA_AMBIGUOUS_CAST"),
         DiagnosticSeverity.Error,

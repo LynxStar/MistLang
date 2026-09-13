@@ -1,5 +1,7 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Construction.Types;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -43,6 +45,20 @@ internal sealed class CastAnalyzer : IProgramAnalyzer
             {
                 if(Assignability.Judge(cast.Operand, parameter, interner) is null)
                 {
+                    if(cast.Operator is { ClonesThrough: { } body } through && context.ConversionRefusals.TryGetValue(through, out var refusal))
+                    {
+                        context.Report(
+                            ProgramAnalysisDiagnostics.CloneConversionDoesNotHold,
+                            cast.Node,
+                            [cast, cast.Operand],
+                            TypeDisplay.Mist(cast.Operand.Type),
+                            TypeDisplay.Mist(cast.TargetType),
+                            $"{TypeDisplay.Mist(body.DeclaringType!)}.{body.Name}",
+                            TypeDisplay.Mist(parameter),
+                            refusal.Member,
+                            refusal.Failure.Message);
+                    }
+
                     continue;
                 }
 
@@ -68,7 +84,21 @@ internal sealed class CastAnalyzer : IProgramAnalyzer
                         TypeDisplay.Mist(parameter));
                 }
             }
-            else if(ConversionClassifier.Classify(cast.Operand.Type, cast.TargetType, interner) == ConversionKind.None)
+            else if(ConversionClassifier.Classify(cast.Operand.Type, cast.TargetType, interner) != ConversionKind.None)
+            {
+                continue;
+            }
+            else if(UncopiedSource(cast.Operand.Type, cast.TargetType) is { } source)
+            {
+                context.Report(
+                    ProgramAnalysisDiagnostics.NewtypeSourceDefinesNoCopy,
+                    cast.Node,
+                    [cast, cast.Operand],
+                    TypeDisplay.Mist(cast.Operand.Type),
+                    TypeDisplay.Mist(cast.TargetType),
+                    TypeDisplay.Mist(source));
+            }
+            else
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.CastHasNoConversion,
@@ -78,6 +108,16 @@ internal sealed class CastAnalyzer : IProgramAnalyzer
                     TypeDisplay.Mist(cast.TargetType));
             }
         }
+    }
+
+    private static ConcreteType? UncopiedSource(IMistType from, IMistType to)
+    {
+        return (from, to) switch
+        {
+            (ConcreteType { CloneSource: { } source }, _) when ConversionRelation.IsIdentity(to, source) && !NewtypeConversions.IsCopyable(source) => source,
+            (_, ConcreteType { CloneSource: { } source }) when ConversionRelation.IsIdentity(from, source) && !NewtypeConversions.IsCopyable(source) => source,
+            _ => null,
+        };
     }
 
     private static string Signature(CastOperator castOperator)

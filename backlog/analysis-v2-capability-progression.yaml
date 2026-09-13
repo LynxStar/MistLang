@@ -571,6 +571,20 @@ rules:
       on the first pass; alias expansion SURVIVED, because the alias the fact wrote in source was
       expanded by the resolver before the classifier saw it. The fact now constructs the alias through
       the interner unexpanded, as a projected `Action<int>` parameter arrives, and the rerun caught it.
+
+      AN IMPLICIT CONVERSION WHOSE CANDIDATES TIE IS REFUSED (2026-09-13), as MIST_PA_AMBIGUOUS_IMPLICIT_CONVERSION,
+      naming both operators -- cast-operators Requirements 7.6 and 13.5. The binder now records the conversion
+      an implicit position calls as an ImplicitConversionExpression (emitter order 46), whose type is the
+      called operator's result, so this rule judges the wrapped value as already of that type and the node
+      carries the question of whether an operator was chosen at all. A tie is the node with
+      AmbiguousOperators and no Operator, reported once at the value; the enclosing position stays silent,
+      the tie's type being the slot's. `double d = tally;` over implicit int and long printed 2 on v2 before,
+      C#'s most-encompassing choice, and is now refused, which is `(double)tally`'s verdict written invisibly.
+      Classic refuses it as MIST_TC_0001. Not reported: `long exact = new Tally();` (the exact result
+      outranks), `int | string reachedByOne = new Tally();` (only int reaches the slot), `double chosen =
+      (long)new Tally();` (the cast chooses). A corpus case, implicit-conversion-ambiguous, and three
+      decision rows. Two mutations on confirmed builds: the report silenced fails the corpus case; the report
+      made on every conversion fails seven decision rows.
     tasks:
       - >
         CLR optional parameters are not representable, so arity can select an overload Roslyn will not;

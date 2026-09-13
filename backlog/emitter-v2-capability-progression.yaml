@@ -1869,6 +1869,10 @@ capabilities:
       indexer, operator, lambda result, field initializer), and AssignabilityDecisionTests admits for the enum
       step in an array literal and a switch arm. Eleven mutations, one per binder change, each failing at least
       one test. Full suite green, 6045 of 6045.
+
+      A TIE IS REFUSED (2026-09-13), closing the analysis-phase task this entry held: `double d = tally;` over
+      implicit int and long is MIST_PA_AMBIGUOUS_IMPLICIT_CONVERSION, reported by assignability-core off the
+      node's AmbiguousOperators. Recorded in full under analysis order 5.
     tasks:
       - >
         Record the conversion where a statement converts each element it reads: a foreach variable and a
@@ -1890,11 +1894,7 @@ capabilities:
         narrower-target and genuine-tie cases among them. Ranking asks the standard-only relation on
         purpose, so a numeric widening has to be expressible WITHOUT consulting an operator, and being
         expressible that way is what the table IS. The comment is corrected in place.
-    analysis_phase_tasks:
-      - >
-        Refuse an implicit conversion whose candidates tie, which cast-operators Requirement 7.6 names and
-        ImplicitConversionExpression.AmbiguousOperators now records: `double d = tally;` over implicit int and
-        long is admitted and prints C#'s choice, 2.
+    analysis_phase_tasks: []
     unlocks: [CastOperators]
 
   # ===================================================================

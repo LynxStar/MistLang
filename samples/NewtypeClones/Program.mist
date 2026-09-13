@@ -1,0 +1,254 @@
+using Standard;
+
+namespace NewtypeClones;
+
+// A newtype is a renamed clone of its source with no nominal relationship to it: a copyable source is
+// left for implicitly and entered by a cast, a literal enters only where the slot's type is in sight, and
+// a class that defines its own copy converts by running that Clone with the operand as this. Classic
+// implements the earlier revision of the newtypes spec, so this sample is banked on AllFeaturesV2 alone.
+public struct Point
+{
+    public int X;
+    public int Y;
+
+    public Point(int x, int y)
+    {
+        this.X = x;
+        this.Y = y;
+    }
+
+    public Point Shifted(int dx)
+    {
+        return new Point(X + dx, Y);
+    }
+}
+
+public readonly class Money
+{
+    public int Amount { get; }
+
+    public Money(int amount)
+    {
+        this.Amount = amount;
+    }
+}
+
+public class Reading
+{
+    public double Raw;
+
+    public Reading(double raw)
+    {
+        this.Raw = raw;
+    }
+
+    public static implicit operator double(Reading reading)
+    {
+        return reading.Raw;
+    }
+}
+
+public class Cat
+{
+    protected int lives;
+
+    public Cat()
+    {
+        this.lives = 9;
+    }
+
+    public string Kind()
+    {
+        return $"cat with {lives} lives";
+    }
+}
+
+public class Tiger : Cat, IClonable<Tiger>
+{
+    private static int made = 0;
+    private int stripes;
+    private string keeper { get; set; }
+
+    public string Name { get; set; }
+
+    public Tiger(string name, int stripes) : base()
+    {
+        this.Name = name;
+        this.stripes = stripes;
+        this.keeper = "zoo";
+    }
+
+    private Tiger(int stripes) : base()
+    {
+        this.Name = "unnamed";
+        this.stripes = stripes;
+        this.keeper = "none";
+    }
+
+    private int Inherited()
+    {
+        return stripes + lives - 9;
+    }
+
+    public Tiger Twin()
+    {
+        return new Tiger(Name + "-twin", stripes);
+    }
+
+    public owned Tiger Clone()
+    {
+        made = made + 1;
+        var copy = new Tiger(Inherited());
+        copy.Name = $"{Name}#{made}";
+        copy.keeper = keeper;
+        return copy;
+    }
+
+    public string Describe()
+    {
+        return $"{Name} stripes={stripes} keeper={keeper} made={made}";
+    }
+
+    public void Paint(int more)
+    {
+        stripes = stripes + more;
+    }
+}
+
+public class Lion : IClonable<Lion>
+{
+    private int mane;
+
+    public Lion(int mane)
+    {
+        this.mane = mane;
+    }
+
+    public owned Lion Clone()
+    {
+        return new Lion(0) { mane = mane + 1 };
+    }
+
+    public int Mane()
+    {
+        return mane;
+    }
+}
+
+public type Age = new int;
+public type Label = new string;
+public type Position = new Point;
+public type Cash = new Money;
+public type Meters = new double;
+public type Feet = new double;
+public type Jaguar = new Tiger;
+public type Puma = new Lion;
+
+public class Person
+{
+    public Age Years = 18;
+    public Label Title { get; set; } = "guest";
+    public Meters Height => 2;
+    public Age Retires;
+
+    default {
+        Retires = 67
+    }
+
+    public static Age Adult()
+    {
+        return 21;
+    }
+}
+
+public class Program
+{
+    private static int Twice(int value)
+    {
+        return value * 2;
+    }
+
+    private static string Of(Position position)
+    {
+        return $"({position.X}, {position.Y})";
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Newtype Clones ===");
+
+        Console.WriteLine("--- Intrinsic clone ---");
+        Age age = 30;
+        Age older = age + (Age)1;
+        int raw = age;
+        long wide = older;
+        Label title = "mist";
+        Label shout = title.ToUpper();
+        Console.WriteLine($"older={older} raw={raw} wide={wide} twice={Twice(age + 1)} even={older.IsEven()}");
+        Console.WriteLine($"shout={shout} length={title.Length}");
+
+        Console.WriteLine("--- Never its source ---");
+        unknown boxedAge = age;
+        unknown boxedPosition = new Position(1, 2);
+        unknown boxedJaguar = new Jaguar("Bagheera", 4);
+        Console.WriteLine($"age-is-Age={boxedAge is Age} age-is-int={boxedAge is int}");
+        Console.WriteLine($"position-is-Point={boxedPosition is Point} jaguar-is-Tiger={boxedJaguar is Tiger} jaguar-is-Cat={boxedJaguar is Cat}");
+
+        Console.WriteLine("--- Struct clone ---");
+        var position = new Position(1, 2);
+        Point left = position;
+        left.X = 99;
+        Position entered = (Position)new Point(5, 6);
+        Position shifted = position.Shifted(10);
+        Console.WriteLine($"position={Of(position)} left.X={left.X} entered={Of(entered)} shifted={Of(shifted)}");
+
+        Console.WriteLine("--- Readonly class clone ---");
+        var cash = new Cash(7);
+        Money money = cash;
+        Cash back = (Cash)new Money(8);
+        Console.WriteLine($"money={money.Amount} back={back.Amount}");
+
+        Console.WriteLine("--- Cast through the source ---");
+        var reading = new Reading(1.5);
+        Meters fromReading = (Meters)reading;
+        Feet feet = 3.0;
+        Meters fromFeet = (Meters)feet;
+        double total = fromReading + fromFeet;
+        Console.WriteLine($"fromReading={fromReading} fromFeet={fromFeet} total={total}");
+
+        Console.WriteLine("--- Literals in sight ---");
+        Age assigned = (Age)1;
+        assigned = 31;
+        Age below = -5;
+        Age[] ages = [40, 41];
+        var person = new Person { Title = "host" };
+        Console.WriteLine($"assigned={assigned} below={below} ages={ages[0]},{ages[1]}");
+        Console.WriteLine($"years={person.Years} title={person.Title} height={person.Height} retires={person.Retires} adult={Person.Adult()}");
+
+        Console.WriteLine("--- Renamed class clone ---");
+        var jaguar = new Jaguar("Bagheera", 4);
+        Jaguar twin = jaguar.Twin();
+        Cat cat = jaguar;
+        Console.WriteLine($"twin={twin.Describe()} kind={cat.Kind()}");
+
+        Console.WriteLine("--- Clonable class conversions ---");
+        var tiger = new Tiger("Shere", 3);
+        var first = (Jaguar)tiger;
+        var converted = (Jaguar)tiger;
+        converted.Paint(100);
+        var returned = (Tiger)converted;
+        Console.WriteLine($"first={first.Describe()}");
+        Console.WriteLine($"converted={converted.Describe()}");
+        Console.WriteLine($"returned={returned.Describe()}");
+        Console.WriteLine($"tiger={tiger.Describe()}");
+        var puma = (Puma)new Lion(3);
+        Console.WriteLine($"puma-mane={puma.Mane()} lion-mane={((Lion)puma).Mane()}");
+
+        Console.WriteLine("=== Newtype Clones Done ===");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

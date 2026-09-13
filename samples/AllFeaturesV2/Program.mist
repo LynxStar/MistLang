@@ -99,5 +99,6 @@ public class Program
         InheritedGenericMembers.Program.RunDemo();
         GenericAbstractMembers.Program.RunDemo();
         NestedGenericTypes.Program.RunDemo();
+        NewtypeClones.Program.RunDemo();
     }
 }

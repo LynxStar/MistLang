@@ -1938,3 +1938,28 @@ Info=wrapper Echo=3
 Derived<int>.Inner.Pick=9
 optional-present=7
 === Nested Generic Types Done ===
+=== Newtype Clones ===
+--- Intrinsic clone ---
+older=31 raw=30 wide=31 twice=62 even=False
+shout=MIST length=4
+--- Never its source ---
+age-is-Age=True age-is-int=False
+position-is-Point=False jaguar-is-Tiger=False jaguar-is-Cat=True
+--- Struct clone ---
+position=(1, 2) left.X=99 entered=(5, 6) shifted=(11, 2)
+--- Readonly class clone ---
+money=7 back=8
+--- Cast through the source ---
+fromReading=1.5 fromFeet=3 total=4.5
+--- Literals in sight ---
+assigned=31 below=-5 ages=40,41
+years=18 title=host height=2 retires=67 adult=21
+--- Renamed class clone ---
+twin=Bagheera-twin stripes=4 keeper=zoo made=0 kind=cat with 9 lives
+--- Clonable class conversions ---
+first=Shere#1 stripes=3 keeper=zoo made=2
+converted=Shere#2 stripes=103 keeper=zoo made=2
+returned=Shere#2#1 stripes=103 keeper=zoo made=1
+tiger=Shere stripes=3 keeper=zoo made=1
+puma-mane=4 lion-mane=5
+=== Newtype Clones Done ===

@@ -52,6 +52,12 @@ public static class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "The cast from '{0}' to '{1}' is ambiguous between {2}. Cast the value to one operator's parameter type first to choose it.");
 
+    public static readonly DiagnosticDescriptor AmbiguousImplicitConversion = new(
+        new DiagnosticId("MIST_PA_AMBIGUOUS_IMPLICIT_CONVERSION"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "The implicit conversion from '{0}' to '{1}' is ambiguous between {2}. Cast the value to choose one.");
+
     public static readonly DiagnosticDescriptor NoImplicitConversion = new(
         new DiagnosticId("MIST_PA_NO_IMPLICIT_CONVERSION"),
         DiagnosticSeverity.Error,

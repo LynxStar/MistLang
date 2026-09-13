@@ -12,7 +12,7 @@ namespace Mist.Tests.ProgramAnalysis;
 
 public sealed class AssignabilityDecisionTests : ProgramModelProbe
 {
-    private static readonly string[] Ids = ["MIST_PA_NO_IMPLICIT_CONVERSION", "MIST_PA_CAST_REQUIRED"];
+    private static readonly string[] Ids = ["MIST_PA_NO_IMPLICIT_CONVERSION", "MIST_PA_CAST_REQUIRED", "MIST_PA_AMBIGUOUS_IMPLICIT_CONVERSION"];
 
     public AssignabilityDecisionTests()
         : base("MistAssignability_")
@@ -77,6 +77,15 @@ public sealed class AssignabilityDecisionTests : ProgramModelProbe
             public static implicit operator Level(int value) { return new Level(); }
 
             public static void Take(Level level) { }
+        }
+
+        public class Tally
+        {
+            public Tally() { }
+
+            public static implicit operator int(Tally t) { return 1; }
+
+            public static implicit operator long(Tally t) { return 2L; }
         }
         """;
 
@@ -169,6 +178,15 @@ public sealed class AssignabilityDecisionTests : ProgramModelProbe
     [InlineData("Level[] levels = [priority];")]
     [InlineData("Level chosen = flag switch { true => priority, false => Priority.High };")]
     public void AValueThroughALosslessStepAndThenOneDeclaredImplicit_IsAdmitted(string statement)
+    {
+        AssertSilent(statement);
+    }
+
+    [Theory]
+    [InlineData("long exact = new Tally();")]
+    [InlineData("int | string reachedByOne = new Tally();")]
+    [InlineData("double chosen = (long)new Tally();")]
+    public void OperatorsTheSlotSeparates_AreNotAmbiguous(string statement)
     {
         AssertSilent(statement);
     }

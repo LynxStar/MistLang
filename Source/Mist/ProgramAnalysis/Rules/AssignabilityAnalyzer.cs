@@ -1,3 +1,4 @@
+using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
@@ -78,6 +79,16 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
 
                 case TupleDeconstructionStatement deconstruction:
                     CheckDeconstruction(context, deconstruction);
+                    break;
+
+                case ImplicitConversionExpression { AmbiguousOperators.Count: > 0 } conversion:
+                    context.Report(
+                        ProgramAnalysisDiagnostics.AmbiguousImplicitConversion,
+                        conversion.Node,
+                        [conversion, conversion.Operand],
+                        TypeDisplay.Mist(conversion.Operand.Type),
+                        TypeDisplay.Mist(conversion.TargetType),
+                        string.Join(", ", conversion.AmbiguousOperators.Select(CastAnalyzer.Signature)));
                     break;
             }
         }

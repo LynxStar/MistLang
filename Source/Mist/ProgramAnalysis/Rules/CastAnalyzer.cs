@@ -122,7 +122,7 @@ internal sealed class CastAnalyzer : IProgramAnalyzer
         };
     }
 
-    private static string Signature(CastOperator castOperator)
+    internal static string Signature(CastOperator castOperator)
     {
         var declaring = castOperator.DeclaringType is { } type ? $"{TypeDisplay.Mist(type)}." : "";
         var kind = castOperator.IsImplicit ? "implicit" : "explicit";

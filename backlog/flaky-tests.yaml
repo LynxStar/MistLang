@@ -191,6 +191,16 @@ flakes:
           provider, Stage 5's scope, classic's template table and two Standard files; the test file
           was unmodified, and the same binaries had passed this test in a full run half an hour
           earlier. Nothing ran beside the suite.
+      - date: 2026-09-13
+        detail: >
+          Mist.Tests.Integration.MemoizationCorrectnessAndPerformanceTests.AllFeatures_ParsesWithinPerformanceTarget
+          again, 1 of 5967 in a full-solution `--no-build` run: "lex+parse took 16.77s, exceeding the
+          15-second regression ceiling (135 files)". Two filtered reruns of the same binaries with
+          nothing edited passed in 659 and 629 ms. Just over the ceiling this time rather than thirty
+          times the isolated figure, so the elapsed does not settle load against stall. The change
+          under test cloned intrinsic newtypes -- NewtypeCloner, NewtypeBuilder, the member emitters --
+          and touches neither the lexer, the parser nor the grammar; the test file was unmodified.
+          Nothing but file reads ran beside the suite.
 
   - id: attribute-emission-round-trip-unreproduced
     test: Mist.Tests.Backend.AttributeEmissionRoundTripPropertyTests.AttributeEmission_PreservesStructure_RoundTrip

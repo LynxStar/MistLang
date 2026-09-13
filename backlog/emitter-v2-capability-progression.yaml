@@ -4283,6 +4283,38 @@ capabilities:
       total-conversion-classification/mutable-class-newtype-from-its-source. Four mutations on confirmed
       builds each fail at least one: nothing synthesized, the out-conversion not lossless, base fields not
       copied, mutable classes treated as copyable. Full suite green, 5954 of 5954.
+
+      THE INTRINSIC CLONE (2026-09-13, spec task 14). A newtype over a readonly intrinsic Standard type --
+      the numerics, Boolean, Char, String, Regex -- is cloned like any other: NewtypeCloner reaches a
+      keyword source through the resolver, and `type Age = new int` is Int32's declaration renamed, an
+      intrinsic StructType carrying the synthesized Value and the copy conversions above. So `age + age`
+      is an Age, Int32's Mist-bodied IsEven binds against Age, `int raw = age` and `(Meters)feet` hold.
+      IntrinsicCloneEmitter supplies the contract, since a clone is no longer the backend's type to skip:
+      the wrapper holds Value and forwards every intrinsic method, operator, property, indexer,
+      constructor and cast to the source's spelling on it, unwrapping an argument of the newtype and
+      wrapping a result, prints its value, and emits Boolean's short-circuiting operators as the bitwise
+      ones beside true and false, which is the only way C# lets a type take part in them.
+      A NEWTYPE OVER AN UNSUPPORTED KIND is now MIST_PM_NEWTYPE_SOURCE_NOT_SUPPORTED at the Mist source --
+      `new int[]`, an enum, `new List<string>`, an intrinsic that is not readonly -- where each failed in
+      Roslyn. A generic or alias source still keeps the forwarding placeholder.
+      MEASURED on v2: `age + (Age)1` prints 31 and IsEven False; `int raw = age`, `long wide = age` and
+      `age > (Age)5` print; `$"{label}"` prints hello, and Length, the indexer and ToUpper forward; a
+      regex clone matches; a boxed Age is `is Age` and not `is int`. Before, `age + age` was
+      OPERATOR_NOT_APPLICABLE and the conversions refused. `type Pattern = new regex` is
+      MIST_PM_NEWTYPE_CLONE_INVALID -- Regex declares a member named Pattern, which the renaming collides
+      with -- and that refusal is correct. Newtypes byte-identical to its baseline.
+      THREE CORPUS CASES MOVED WITH THE MODEL, each by a spec: `Meters m = feet` is CAST_REQUIRED rather
+      than NO_IMPLICIT_CONVERSION (cast-operators 7.8); `(Meters)feet` is admitted (newtypes 2.5), so its
+      refusal case is deleted; and `new Meters[3]` stamps, a clone of double being a struct of one
+      primitive field (definite-assignment 3.1), so that case now holds a class-sourced newtype.
+      PROVED BY IntrinsicCloneTests and IntrinsicCloneEmissionTests over a model built with the real
+      Standard sources -- ProgramModelProbe's shells have no declaration to clone, and the intrinsic cases
+      NewtypeResolutionTests carried were passing only because its shells kept the retired placeholder,
+      so they moved, with the new expectations -- plus the corpus case binding/newtype-over-an-enum.
+      Four mutations each fail at least one: intrinsics not cloned, results not wrapped, arguments not
+      unwrapped, short-circuit symbols kept. Full suite 5966 of 5967, the one failure the parse timing
+      flake recorded under property-tests-fail-together-under-full-suite, green on rerun.
+      NOT YET DONE: the book's newtype chapter and its snippets' emitted C# still describe the old model.
     analysis_phase_tasks:
       - >
         Report assigning a newtype to its source, the source to the newtype, or across

@@ -104,13 +104,15 @@ internal static class OverloadResolution
 
         var closed = new List<Applicant<T>>();
         var open = new List<T>();
+        TypeArgumentConflict? openConflict = null;
 
         foreach(var candidate in byArity)
         {
-            var substitution = Close(candidate, arguments, substitutionFor(candidate), typeArguments, interner);
+            var substitution = Close(candidate, arguments, substitutionFor(candidate), typeArguments, interner, out var conflict);
 
             if(substitution is null)
             {
+                openConflict = open.Count == 0 ? conflict : openConflict;
                 open.Add(candidate);
             }
             else
@@ -123,7 +125,7 @@ internal static class OverloadResolution
 
         if(closed.Count == 0)
         {
-            return new OverloadChoice<T> { Selected = null, Uninferred = open };
+            return new OverloadChoice<T> { Selected = null, Uninferred = open, UninferredConflict = openConflict };
         }
 
         if(closed.Count == 1)
@@ -283,16 +285,19 @@ internal static class OverloadResolution
         IReadOnlyList<Expression> arguments,
         TypeSubstitution receiver,
         IReadOnlyList<IMistType>? typeArguments,
-        TypeInterner interner)
+        TypeInterner interner,
+        out TypeArgumentConflict? conflict)
         where T : Method
     {
+        conflict = null;
+
         if(candidate.TypeParametersList.Count == 0)
         {
             return receiver;
         }
 
         var own = typeArguments is null
-            ? TypeSubstitution.ForMethod(candidate, TypeArgumentInference.Infer(candidate, arguments, receiver, interner))
+            ? TypeSubstitution.ForMethod(candidate, TypeArgumentInference.Infer(candidate, arguments, receiver, interner, out conflict))
             : TypeSubstitution.ForMethod(candidate, typeArguments)
             ;
 

@@ -37,6 +37,8 @@ internal sealed class OverloadChoice<T>
     /// </summary>
     public IReadOnlyList<T> Uninferred { get; init; } = [];
 
+    public TypeArgumentConflict? UninferredConflict { get; init; }
+
     /// <summary>
     /// The arity matches, empty unless the call stated type arguments and no candidate declares that
     /// many type parameters.

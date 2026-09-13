@@ -1,0 +1,20 @@
+using Standard;
+
+namespace Refusal;
+
+public class Sink
+{
+    public static T Pick<T>(T a, T b)
+    {
+        return b;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PM_TYPE_ARGUMENTS_CONFLICT
+        Console.WriteLine(Sink.Pick("x", 1));
+    }
+}

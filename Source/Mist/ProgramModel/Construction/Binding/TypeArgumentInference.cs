@@ -19,19 +19,15 @@ internal static class TypeArgumentInference
         Method method,
         IReadOnlyList<Expression> arguments,
         TypeSubstitution receiver,
-        TypeInterner interner)
+        TypeInterner interner,
+        out TypeArgumentConflict? conflict)
     {
-        var inferred = new IMistType?[method.TypeParametersList.Count];
-
-        if(inferred.Length == 0)
-        {
-            return inferred;
-        }
+        var bounds = NewBounds(method.TypeParametersList.Count);
 
         if(ValuePack.FlattenedSlot(method.ParametersList) is { } flattened)
         {
-            InferAcrossPack(method, arguments, receiver, interner, inferred, flattened);
-            return inferred;
+            InferAcrossPack(method, arguments, receiver, interner, bounds, flattened);
+            return Fix(method.TypeParametersList, bounds, interner, out conflict);
         }
 
         // OverloadResolution.Select has already matched the counts exactly, so a mismatch here is
@@ -41,10 +37,10 @@ internal static class TypeArgumentInference
         for(var i = 0; i < slots; i++)
         {
             Match(receiver.Apply(method.ParametersList[i].Type, interner), arguments[i].Type,
-                method.TypeParametersList, inferred);
+                method.TypeParametersList, bounds);
         }
 
-        return inferred;
+        return Fix(method.TypeParametersList, bounds, interner, out conflict);
     }
 
     /// <summary>
@@ -56,9 +52,10 @@ internal static class TypeArgumentInference
     public static IReadOnlyList<IMistType>? Unify(
         IMistType declared, IMistType actual, IReadOnlyList<TypeParameter> parameters)
     {
-        var inferred = new IMistType?[parameters.Count];
-        Match(declared, actual, parameters, inferred);
+        var bounds = NewBounds(parameters.Count);
+        Match(declared, actual, parameters, bounds);
 
+        var inferred = Fix(parameters, bounds, interner: null, out _);
         var closed = new IMistType[inferred.Length];
 
         for(var i = 0; i < inferred.Length; i++)
@@ -84,7 +81,7 @@ internal static class TypeArgumentInference
         IReadOnlyList<Expression> arguments,
         TypeSubstitution receiver,
         TypeInterner interner,
-        IMistType?[] inferred,
+        List<IMistType>[] bounds,
         int flattened)
     {
         var parameters = method.ParametersList;
@@ -93,7 +90,7 @@ internal static class TypeArgumentInference
         for(var i = 0; i < flattened && i < arguments.Count; i++)
         {
             Match(receiver.Apply(parameters[i].Type, interner), arguments[i].Type,
-                method.TypeParametersList, inferred);
+                method.TypeParametersList, bounds);
         }
 
         for(var i = 0; i < trailing; i++)
@@ -101,7 +98,7 @@ internal static class TypeArgumentInference
             var parameter = parameters[parameters.Count - 1 - i];
             var argument = arguments[arguments.Count - 1 - i];
             Match(receiver.Apply(parameter.Type, interner), argument.Type,
-                method.TypeParametersList, inferred);
+                method.TypeParametersList, bounds);
         }
 
         if(ValuePack.PackParameterOf(parameters[flattened]) is not { } pack)
@@ -114,7 +111,7 @@ internal static class TypeArgumentInference
 
         var domain = pack.Domain ?? pack;
         Record(pack, interner.LiftPack(domain, new TypePackValue(absorbed)),
-            method.TypeParametersList, inferred);
+            method.TypeParametersList, bounds);
     }
 
     /// <summary>
@@ -122,11 +119,11 @@ internal static class TypeArgumentInference
     /// only through one of its own bases infers nothing.
     /// </summary>
     private static void Match(
-        IMistType declared, IMistType actual, IReadOnlyList<TypeParameter> parameters, IMistType?[] inferred)
+        IMistType declared, IMistType actual, IReadOnlyList<TypeParameter> parameters, List<IMistType>[] bounds)
     {
         if(declared is TypeParameter parameter)
         {
-            Record(parameter, actual, parameters, inferred);
+            Record(parameter, actual, parameters, bounds);
             return;
         }
 
@@ -136,13 +133,13 @@ internal static class TypeArgumentInference
         // once a spread among them is skipped, that part being the pack binding's to make.
         if(declared is FunctionType declaredFunction && actual is FunctionType actualFunction)
         {
-            Match(declaredFunction.ReturnType, actualFunction.ReturnType, parameters, inferred);
+            Match(declaredFunction.ReturnType, actualFunction.ReturnType, parameters, bounds);
 
             if(declaredFunction.ParameterTypes.Count == actualFunction.ParameterTypes.Count)
             {
                 for(var i = 0; i < declaredFunction.ParameterTypes.Count; i++)
                 {
-                    Match(declaredFunction.ParameterTypes[i], actualFunction.ParameterTypes[i], parameters, inferred);
+                    Match(declaredFunction.ParameterTypes[i], actualFunction.ParameterTypes[i], parameters, bounds);
                 }
             }
 
@@ -164,7 +161,7 @@ internal static class TypeArgumentInference
 
         for(var i = 0; i < declaredConstructed.TypeArguments.Count; i++)
         {
-            Match(declaredConstructed.TypeArguments[i], actualConstructed.TypeArguments[i], parameters, inferred);
+            Match(declaredConstructed.TypeArguments[i], actualConstructed.TypeArguments[i], parameters, bounds);
         }
     }
 
@@ -198,38 +195,78 @@ internal static class TypeArgumentInference
         return null;
     }
 
-    private static void Record(
-        TypeParameter parameter, IMistType actual, IReadOnlyList<TypeParameter> parameters, IMistType?[] inferred)
+    private static List<IMistType>[] NewBounds(int count)
     {
-        if(!parameters.Contains(parameter) || parameter.Ordinal >= inferred.Length)
+        var bounds = new List<IMistType>[count];
+
+        for(var i = 0; i < count; i++)
+        {
+            bounds[i] = [];
+        }
+
+        return bounds;
+    }
+
+    private static void Record(
+        TypeParameter parameter, IMistType actual, IReadOnlyList<TypeParameter> parameters, List<IMistType>[] bounds)
+    {
+        if(!parameters.Contains(parameter) || parameter.Ordinal >= bounds.Length)
         {
             return;
         }
 
-        inferred[parameter.Ordinal] = inferred[parameter.Ordinal] is { } existing
-            ? Wider(existing, actual)
-            : actual
-            ;
+        var slot = bounds[parameter.Ordinal];
+
+        if(!slot.Exists(bound => ReferenceEquals(bound, actual) || ConversionRelation.IsIdentity(bound, actual)))
+        {
+            slot.Add(actual);
+        }
+    }
+
+    private static IMistType?[] Fix(
+        IReadOnlyList<TypeParameter> parameters,
+        List<IMistType>[] bounds,
+        TypeInterner? interner,
+        out TypeArgumentConflict? conflict)
+    {
+        var fixedTypes = new IMistType?[bounds.Length];
+        conflict = null;
+
+        for(var i = 0; i < bounds.Length; i++)
+        {
+            if(bounds[i].Count == 0)
+            {
+                continue;
+            }
+
+            fixedTypes[i] = Dominant(bounds[i], interner);
+
+            if(fixedTypes[i] is null)
+            {
+                conflict ??= new TypeArgumentConflict(parameters[i], bounds[i]);
+            }
+        }
+
+        if(Array.Exists(bounds, slot => slot.Count == 0))
+        {
+            conflict = null;
+        }
+
+        return fixedTypes;
     }
 
     /// <summary>
-    /// Which of two answers for the same parameter to keep, when it appears in more than one slot: the
-    /// one the other converts into, so <c>F(1, 2L)</c> against <c>F&lt;T&gt;(T, T)</c> answers
-    /// <c>long</c> rather than the <c>int</c> that came first and that the second argument would not
-    /// fit.
-    /// <para>
-    /// Two answers neither of which converts keep the earlier one, where C# rejects the call for having
-    /// no best common type. A lone candidate is then bound on an arbitrary one of the two, since
-    /// selection does not weigh conversions when there is nothing to select between.
-    /// </para>
+    /// Judged by <see cref="ConversionClassifier"/>, not the relation selection ranks on: no answer here is a
+    /// refusal, so it must rest on the classification Stage 5 refuses an argument on. A refined bound the rest
+    /// reach only through its base is taken when no bound is reached freely, the predicate being the prover's
+    /// to discharge. A common base or a union of the bounds is never invented; the caller states one
+    /// (type-argument-inference Requirement 3).
     /// </summary>
-    private static IMistType Wider(IMistType existing, IMistType candidate)
+    private static IMistType? Dominant(List<IMistType> bounds, TypeInterner? interner)
     {
-        if(ConversionRelation.IsWithin(candidate, existing))
-        {
-            return existing;
-        }
-
-        return ConversionRelation.IsWithin(existing, candidate) ? candidate : existing;
+        return bounds.Find(candidate => bounds.TrueForAll(bound => ConversionClassifier.IsImplicit(bound, candidate, interner)))
+            ?? bounds.Find(candidate => bounds.TrueForAll(
+                bound => ConversionClassifier.IsImplicit(bound, ConversionRelation.Unrefined(candidate), interner)))
+            ;
     }
 }

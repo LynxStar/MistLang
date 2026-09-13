@@ -62,6 +62,17 @@ internal static class OverloadFailure
             return;
         }
 
+        if(choice.UninferredConflict is { } conflict)
+        {
+            diagnostics.ReportAtNode(
+                ProgramModelDiagnostics.TypeArgumentsConflict, node, null,
+                description, conflict.Parameter.Name,
+                string.Join(", ", conflict.Bounds.Select(bound => $"'{TypeDisplay.Mist(bound)}'")),
+                DescribeTypeParameters(choice.Uninferred));
+
+            return;
+        }
+
         if(choice.Uninferred.Count > 0)
         {
             diagnostics.ReportAtNode(

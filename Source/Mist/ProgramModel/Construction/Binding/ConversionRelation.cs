@@ -40,7 +40,7 @@ internal static class ConversionRelation
     /// selected as if the refinement were absent and judged afterwards. <see cref="IsWithin"/> keeps the
     /// refinement, since containment into a narrower set is exactly what it cannot assert.
     /// </summary>
-    private static IMistType Unrefined(IMistType type)
+    public static IMistType Unrefined(IMistType type)
     {
         return type switch
         {

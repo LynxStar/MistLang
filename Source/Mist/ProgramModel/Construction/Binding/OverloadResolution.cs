@@ -34,6 +34,23 @@ namespace Mist.ProgramModel.Construction.Binding;
 /// </summary>
 internal static class OverloadResolution
 {
+    private static readonly Dictionary<string, string[]> SignedOverUnsigned = new(StringComparer.Ordinal)
+    {
+        [WellKnownTypes.SByte.FullyQualifiedName] =
+        [
+            WellKnownTypes.Byte.FullyQualifiedName, WellKnownTypes.UInt16.FullyQualifiedName,
+            WellKnownTypes.UInt32.FullyQualifiedName, WellKnownTypes.UInt64.FullyQualifiedName,
+        ],
+        [WellKnownTypes.Int16.FullyQualifiedName] =
+        [
+            WellKnownTypes.UInt16.FullyQualifiedName, WellKnownTypes.UInt32.FullyQualifiedName,
+            WellKnownTypes.UInt64.FullyQualifiedName,
+        ],
+        [WellKnownTypes.Int32.FullyQualifiedName] =
+            [WellKnownTypes.UInt32.FullyQualifiedName, WellKnownTypes.UInt64.FullyQualifiedName],
+        [WellKnownTypes.Int64.FullyQualifiedName] = [WellKnownTypes.UInt64.FullyQualifiedName],
+    };
+
     /// <param name="typeArguments">
     /// Null means infer. Empty is not the same: it admits only non-generic candidates.
     /// </param>
@@ -445,7 +462,9 @@ internal static class OverloadResolution
     /// Exact beats converted. Otherwise the narrower target wins, established by asking which CONTAINS
     /// the other rather than which is reachable from it -- see <see cref="ConversionRelation.IsWithin"/>.
     /// Two mutually uncontained targets tie, which is what an ambiguous call is made of, and DIVERGES
-    /// FROM CLASSIC where a user-declared operator between them resolves the call instead.
+    /// FROM CLASSIC where a user-declared operator between them resolves the call instead. The one
+    /// exception is a signed integral target over an unsigned one, C#'s table adopted by decision
+    /// (method-overloading Requirement 3.3) where classic reports the tie.
     /// </para>
     /// </summary>
     internal static int CompareConversions(IMistType argument, IMistType left, IMistType right)
@@ -466,12 +485,23 @@ internal static class OverloadResolution
         var leftToRight = ConversionRelation.IsWithin(left, right);
         var rightToLeft = ConversionRelation.IsWithin(right, left);
 
-        if(leftToRight == rightToLeft)
+        if(leftToRight != rightToLeft)
         {
-            return 0;
+            return leftToRight ? -1 : 1;
         }
 
-        return leftToRight ? -1 : 1;
+        if(!leftToRight && OutranksUnsigned(left, right))
+        {
+            return -1;
+        }
+
+        return !leftToRight && OutranksUnsigned(right, left) ? 1 : 0;
+    }
+
+    private static bool OutranksUnsigned(IMistType signed, IMistType unsigned)
+    {
+        return SignedOverUnsigned.TryGetValue(signed.FullyQualifiedName, out var outranked)
+            && Array.IndexOf(outranked, unsigned.FullyQualifiedName) >= 0;
     }
 
     private static IMistType ParameterType<T>(Applicant<T> candidate, int index, TypeInterner interner)

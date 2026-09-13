@@ -308,6 +308,21 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
     }
 
     [Theory]
+    [InlineData("var chosen = Signs.Take(small);", "Standard.Int16")]
+    [InlineData("var chosen = Signs.Take(mid);", "Standard.UInt32")]
+    [InlineData("var chosen = WideSigns.Take(mid);", "Standard.Int64")]
+    [InlineData("var chosen = ConstantSigns.Take(2);", "Standard.SByte")]
+    [InlineData("var chosen = ConstantSigns.Take(200);", "Standard.Byte")]
+    public void BetweenIntegralParametersNeitherContaining_TheSignedOneWins(string statement, string expectedParameterType)
+    {
+        var invocation = SingleInvocation(statement, SignTypes, "byte small = 2; ushort mid = 3;");
+
+        Assert.NotNull(invocation.Method);
+        var parameter = Assert.Single(invocation.Method.ParametersList);
+        Assert.Equal(expectedParameterType, parameter.Type.FullyQualifiedName);
+    }
+
+    [Theory]
     [InlineData("var chosen = Fit.Take(2);", "Standard.Byte")]
     [InlineData("var chosen = Fit.Take(255);", "Standard.Byte")]
     [InlineData("var chosen = Fit.Take(256);", "Standard.Int64")]
@@ -584,6 +599,29 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
             public static int Take(bool b) { return 1; }
 
             public static int Take(IHold<string> held) { return 2; }
+        }
+        """;
+
+    private const string SignTypes = """
+        public class Signs
+        {
+            public static int Take(uint u) { return 1; }
+
+            public static int Take(short s) { return 2; }
+        }
+
+        public class WideSigns
+        {
+            public static int Take(ulong u) { return 1; }
+
+            public static int Take(long l) { return 2; }
+        }
+
+        public class ConstantSigns
+        {
+            public static int Take(byte b) { return 1; }
+
+            public static int Take(sbyte s) { return 2; }
         }
         """;
 

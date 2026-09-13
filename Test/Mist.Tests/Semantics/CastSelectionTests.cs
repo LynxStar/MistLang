@@ -319,6 +319,26 @@ public sealed class CastSelectionTests : ProgramModelProbe
     }
 
     [Fact]
+    public void BetweenIntegralParametersNeitherContaining_TheCastCallsTheSignedOne()
+    {
+        var cast = SingleCast(
+            "var g = (Gauge)small;",
+            extraTypes: """
+                public class Gauge
+                {
+                    public Gauge() { }
+
+                    public static explicit operator Gauge(uint reading) { return new Gauge(); }
+
+                    public static explicit operator Gauge(short reading) { return new Gauge(); }
+                }
+                """,
+            extraPreamble: "byte small = 2;");
+
+        Assert.Equal("Standard.Int16", cast.Operator?.SourceParameter.Type.FullyQualifiedName);
+    }
+
+    [Fact]
     public void AnOperatorAnsweringTheWrittenType_OutranksOneWideningIntoIt()
     {
         var cast = SingleCast("var l = (long)tally;", ChainTypes, "var tally = new Tally();");

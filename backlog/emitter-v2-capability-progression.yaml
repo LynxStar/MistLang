@@ -4392,7 +4392,8 @@ capabilities:
       Four mutations each fail at least one: intrinsics not cloned, results not wrapped, arguments not
       unwrapped, short-circuit symbols kept. Full suite 5966 of 5967, the one failure the parse timing
       flake recorded under property-tests-fail-together-under-full-suite, green on rerun.
-      NOT YET DONE: the book's newtype chapter and its snippets' emitted C# still describe the old model.
+      NOT YET DONE at the time: the book's newtype chapter and its snippets' emitted C# still described the old
+      model. See the book paragraph below.
 
       A LITERAL ENTERS A NEWTYPE WHERE THE SLOT'S TYPE IS IN SIGHT (2026-09-13, spec task 16). The binder
       calls NewtypeLiterals.Admit with the bound value at exactly the slots Requirement 9.2 names -- a typed
@@ -4548,6 +4549,16 @@ capabilities:
       declared non-nullable, drawing CS8618; an F-bounded constraint (`where T : IRank<T>`) is refused on any class,
       ConstraintAnalyzer comparing against the unsubstituted constraint; and a constraint error anywhere in a program
       becomes the reason every clonable cast is refused, that rule reading program-wide state inside a per-body run.
+
+      THE BOOK DESCRIBES THE RENAMED CLONE (2026-09-13). book/src/type-system/newtypes.md is rewritten from
+      Requirements 2, 3, 5, 9 and 10 and the design's Identity and Conversions and C# Transpiler sections: the
+      renamed clone and what does not carry to it, intrinsic sources and Value, the copy conversions of a
+      copyable source, literals in a visible slot, clonable class conversions and both of their refusals,
+      generic sources with a blockquote for the conversions of a generic newtype's instances, and the three
+      emitted shapes. Seven snippets replace five that taught explicit casts both ways and wrapper structs;
+      each was run on v2 and its output read against the prose before SnippetEmitter wrote its C# tab. The
+      quoted diagnostics are copied from v2's output. SnippetEmitter: 7 updated, 361 unchanged, 0 failed,
+      then a second pass with 0 updated -- so the three changes above altered no other snippet's C#.
     analysis_phase_tasks:
       - >
         Report assigning a newtype to its source, the source to the newtype, or across

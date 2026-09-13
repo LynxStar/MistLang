@@ -632,3 +632,30 @@ flakes:
       Print the exception and its stack rather than only ex.Message at the catch in
       tools/SnippetEmitter/Program.cs, so that one recurrence names the throwing frame instead of
       leaving the next person exactly where this entry is.
+
+  - id: mist-tests-garbled-lexemes-without-a-lock-warning
+    test: Mist.Tests (465 of 5890, no single test implicated; RefusalCorpusTest and AllFeatures among them)
+    file: Test/Mist.Tests
+    discovered: 2026-09-12
+    status: open
+    symptom: >
+      `dotnet test Mist.slnx --no-build` reported 465 failures in Mist.Tests, finishing in 1m5s against
+      4m44s for the green rerun. The messages are the incoherent kind: 625 of
+      "MIST_INTERNAL_AST_UNIT_MISMATCH: AST count (1) does not match compilation unit count (33)", and
+      MIST_UNDEFINED_TYPE for names no source declares -- 'derly', 't', 'i', 'e' -- beside 268 of
+      MIST_UNDEFINED_NAMESPACE for `Standard`. Failures span classic and v2 tests alike. The other two
+      test assemblies passed.
+    cause: unknown
+    evidence: >
+      The same garbled-lexeme signature as mist-tests-mass-failure-under-stale-copy, but WITHOUT that
+      entry's cause: the build immediately before reported 0 warnings, so no MSB3026 lock was hidden,
+      and it was not piped into anything that closes early (grep and sort drain their input). The test
+      run started within seconds of that build returning. No `dotnet format` ran alongside it.
+      Nothing was rebuilt between the failing run and the rerun: Mist.Core.dll in Source/Mist/bin and
+      Test/Mist.Tests/bin, and Mist.Tests.dll, carried the same 23:46 timestamps and hashes before and
+      after, and the rerun three minutes later on those binaries gave 5890/5890. The copied
+      Test/Mist.Tests/bin/.../Standard tree still carries its 15:57 timestamp, so the stdlib copy was not
+      rewritten either. Seen while landing declared cast operators as calls; that change touched
+      Source/Mist (binding, CastAnalyzer, CastLowering, diagnostics) and four ProgramModelProbe test
+      classes, about 75 tests, all of which passed under --filter before the full run and again in the
+      rerun, so it cannot account for 465 failures across unrelated classes.

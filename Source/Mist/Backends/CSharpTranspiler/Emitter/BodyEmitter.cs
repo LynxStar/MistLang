@@ -910,15 +910,11 @@ internal static class BodyEmitter
                 break;
 
             case CastExpression cast:
-                // The operand needs no parentheses of its own because the grammar bounds it to a
-                // Unary, every form of which binds tighter than any binary operator in C# as well.
-                // So `(Kelvin)a + b` arrives already shaped as a cast of `a`, and emitting the
-                // operand bare cannot capture the `+ b`. A signed operand is the one exception: C#
+                // The operand is parenthesized whatever it is. Parentheses written in source bind the
+                // expression inside them and reach the model as nothing, so `(double)(a / b)` arrives as
+                // a cast of a division, which C# would read back bare as a division of a cast; and C#
                 // reads `(Kelvin)-a` as a subtraction unless the type is a keyword.
-                var operand = Render(cast.Operand, diagnostics);
-                writer.Append($"(({TypeNameEmitter.Emit(cast.Type)})");
-                writer.Append(CastLowering.Argument(cast, operand.StartsWith('-') || operand.StartsWith('+') ? $"({operand})" : operand));
-                writer.Append(")");
+                writer.Append($"(({TypeNameEmitter.Emit(cast.Type)})({CastLowering.Argument(cast, Render(cast.Operand, diagnostics))}))");
                 break;
 
             case ImplicitConversionExpression { Operator.Modifiers.IsIntrinsic: true } toString when RegexLowering.Is(toString.ParameterType):

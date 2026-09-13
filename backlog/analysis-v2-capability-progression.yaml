@@ -376,8 +376,10 @@ rules:
       now AMBIGUOUS_CAST. `(long)tally` with implicit int and long operators printed C#'s choice (105) and
       still does, by the exact-return preference; classic refuses it (MIST_TC_0042). `(double)tally`, where
       neither answers double exactly, printed C#'s choice (the most encompassing, long) and is NOW REFUSED
-      as ambiguous -- the one program this change stops compiling, and a question for the language owner
-      rather than a settled consequence: by the argument alone the two tie.
+      as ambiguous. DECIDED CORRECT by the language owner (2026-09-13): by the argument the two tie, and a
+      candidate's result is not a tiebreak, so Mist does not follow C#'s most-encompassing rule. The shape
+      is a constructed fixture, not one found in any program -- the brief's Counter declares only the int
+      operator, and `(double)new Counter(5)` prints 5.
       PROVED BY five corpus cases -- three ambiguities (two parameters, both ends, two widening results),
       an argument needing two declared implicits, and an argument needing a narrowing -- plus
       assignability-core's declared-implicit-after-declared-implicit for the implicit half. Admits: six
@@ -401,11 +403,6 @@ rules:
         ConversionRelation's own Inherits still cannot see a constructed base, so overload RANKING does
         not know List<int> is within IEnumerable<int>. Adopting the classifier's base walk there is a
         ranking change and belongs with a test that shows a call it fixes.
-      - >
-        `(double)tally`, where implicit int and long operators both widen into double and neither answers
-        it exactly, is refused as ambiguous; C# picks the most encompassing result (long) and v2 printed
-        that before. The argument alone ties them, which is what the rule says, but ranking candidates by
-        their RESULT is a language decision nobody has made. Ask before changing either way.
       - >
         An integer constant among SEVERAL candidates is not matched as an argument: `(Crate)2` over
         Crate(byte) and Crate(string) is CAST_HAS_NO_CONVERSION, because applicability is asked of types

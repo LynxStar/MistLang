@@ -393,7 +393,7 @@ internal static class OverloadResolution
                 continue;
             }
 
-            if(!ConversionRelation.IsImplicit(arguments[i].Type, parameter))
+            if(!ConversionRelation.IsImplicit(arguments[i].Type, parameter) && !ConstantConversion.Fits(arguments[i], parameter))
             {
                 return false;
             }

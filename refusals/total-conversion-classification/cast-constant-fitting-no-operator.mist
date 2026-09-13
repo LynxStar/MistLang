@@ -1,0 +1,26 @@
+using Standard;
+
+namespace Refusal;
+
+public class Bin
+{
+    public static explicit operator Bin(string label)
+    {
+        return new Bin();
+    }
+
+    public static explicit operator Bin(byte size)
+    {
+        return new Bin();
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_CAST_HAS_NO_CONVERSION
+        var converted = (Bin)300;
+        Console.WriteLine("unreachable");
+    }
+}

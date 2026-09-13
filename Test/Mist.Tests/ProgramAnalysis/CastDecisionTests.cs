@@ -85,6 +85,15 @@ public sealed class CastDecisionTests : ProgramModelProbe
             public static explicit operator Crate(byte size) { return new Crate(); }
         }
 
+        public class Bin
+        {
+            public Bin() { }
+
+            public static explicit operator Bin(string label) { return new Bin(); }
+
+            public static explicit operator Bin(byte size) { return new Bin(); }
+        }
+
         public class Tally
         {
             public Tally() { }
@@ -126,6 +135,7 @@ public sealed class CastDecisionTests : ProgramModelProbe
     [InlineData("Fathoms throughADeclaredImplicitThenAWidening = (Fathoms)counter;")]
     [InlineData("Fathoms throughAnEnumsBackingValue = (Fathoms)priority;")]
     [InlineData("Crate aFittingConstant = (Crate)2;")]
+    [InlineData("Bin aFittingConstantAmongOperators = (Bin)2;")]
     [InlineData("long theOperatorAnsweringTheWrittenType = (long)tally;")]
     public void ACastWhoseOperandCouldBePassedToTheOperatorItCalls_IsAdmitted(string statement)
     {

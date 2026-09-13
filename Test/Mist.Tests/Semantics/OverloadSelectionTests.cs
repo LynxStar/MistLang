@@ -286,6 +286,30 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
         Assert.Equal("Probe.Animal", parameter.Type.FullyQualifiedName);
     }
 
+    [Theory]
+    [InlineData("var chosen = Fit.Take(2);", "Standard.Byte")]
+    [InlineData("var chosen = Fit.Take(255);", "Standard.Byte")]
+    [InlineData("var chosen = Fit.Take(256);", "Standard.Int64")]
+    [InlineData("var chosen = Fit.Take(-2);", "Standard.Int64")]
+    public void AnIntegerConstant_ReachesTheNarrowestIntegralParameterItFits(string statement, string expectedParameterType)
+    {
+        var invocation = SingleInvocation(statement, ConstantTypes);
+
+        Assert.NotNull(invocation.Method);
+        var parameter = Assert.Single(invocation.Method.ParametersList);
+        Assert.Equal(expectedParameterType, parameter.Type.FullyQualifiedName);
+    }
+
+    [Theory]
+    [InlineData("var chosen = Unfit.Take(300);")]
+    [InlineData("var chosen = Unfit.Take(i);")]
+    public void AnIntegralValueThatIsNotAFittingConstant_ReachesNoNarrowerParameter(string statement)
+    {
+        var diagnostics = BuildRun(statement, ConstantTypes);
+
+        _ = Assert.Single(Errors(diagnostics, UnresolvableId));
+    }
+
     /// <summary>
     /// Both forms accept two ints and each is exact in one position and widened in the other, so
     /// neither beats the other.
@@ -492,6 +516,24 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
             public static int Take(A a) { return 1; }
 
             public static int Take(B b) { return 2; }
+        }
+        """;
+
+    private const string ConstantTypes = """
+        public class Fit
+        {
+            public static int Take(string s) { return 1; }
+
+            public static int Take(long l) { return 2; }
+
+            public static int Take(byte b) { return 3; }
+        }
+
+        public class Unfit
+        {
+            public static int Take(string s) { return 1; }
+
+            public static int Take(byte b) { return 2; }
         }
         """;
 

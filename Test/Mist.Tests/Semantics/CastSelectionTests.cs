@@ -295,6 +295,29 @@ public sealed class CastSelectionTests : ProgramModelProbe
         Assert.Equal("Probe.Feet", cast.Type.FullyQualifiedName);
     }
 
+    [Theory]
+    [InlineData("var c = (Bin)2;", "Standard.Byte")]
+    [InlineData("var c = (Bin)300;", "Standard.Int64")]
+    public void ACastOfAnIntegerConstant_CallsTheOperatorWhoseParameterItFitsNarrowest(string statement, string expectedParameterType)
+    {
+        var cast = SingleCast(
+            statement,
+            extraTypes: """
+                public class Bin
+                {
+                    public Bin() { }
+
+                    public static explicit operator Bin(string label) { return new Bin(); }
+
+                    public static explicit operator Bin(long size) { return new Bin(); }
+
+                    public static explicit operator Bin(byte size) { return new Bin(); }
+                }
+                """);
+
+        Assert.Equal(expectedParameterType, cast.Operator?.SourceParameter.Type.FullyQualifiedName);
+    }
+
     [Fact]
     public void AnOperatorAnsweringTheWrittenType_OutranksOneWideningIntoIt()
     {

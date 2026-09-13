@@ -18,7 +18,7 @@ namespace Mist.ProgramModel.Construction.Binding;
 /// </summary>
 internal static class CastOperatorSelection
 {
-    public static IReadOnlyList<CastOperator> Best(IMistType from, IMistType to, TypeInterner? interner)
+    public static IReadOnlyList<CastOperator> Best(IMistType from, IMistType to, TypeInterner? interner, long? integerConstant = null)
     {
         if(ConversionClassifier.IsFree(from, to, interner))
         {
@@ -40,7 +40,8 @@ internal static class CastOperatorSelection
         }
 
         var applicable = reaching.FindAll(
-            castOperator => ConversionClassifier.IsImplicit(from, castOperator.SourceParameter.Type, interner));
+            castOperator => ConversionClassifier.IsImplicit(from, castOperator.SourceParameter.Type, interner)
+                || (integerConstant is { } constant && ConstantConversion.Fits(constant, from, castOperator.SourceParameter.Type)));
         var exact = applicable.FindAll(castOperator => ConversionRelation.IsIdentity(castOperator.TargetType, to));
         var candidates = exact.Count > 0 ? exact : applicable;
 

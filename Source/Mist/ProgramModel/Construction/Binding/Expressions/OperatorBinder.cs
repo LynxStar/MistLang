@@ -383,7 +383,7 @@ internal static class OperatorBinder
 
                     var targetType = context.Resolver.Resolve(cast.TargetType, ctx.Scope);
                     var called = CastOperatorSelection.Best(
-                        operand.Type, targetType, context.ProgramModel.TypeInterner);
+                        operand.Type, targetType, context.ProgramModel.TypeInterner, ConstantConversion.IntegerConstant(operand));
 
                     return new CastExpression(
                         node, operand, targetType, called,

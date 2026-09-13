@@ -201,6 +201,15 @@ flakes:
           under test cloned intrinsic newtypes -- NewtypeCloner, NewtypeBuilder, the member emitters --
           and touches neither the lexer, the parser nor the grammar; the test file was unmodified.
           Nothing but file reads ran beside the suite.
+      - date: 2026-09-13
+        detail: >
+          Mist.Tests.Integration.MemoizationCorrectnessAndPerformanceTests.AllFeatures_ParsesWithinPerformanceTarget
+          again, 1 of 5995 in a full-solution `--no-build` run: "lex+parse took 20.88s, exceeding the
+          15-second regression ceiling (136 files)". A filtered rerun of the same binaries with nothing
+          edited passed in 775 ms, and the next full run, of the change narrowed and with its tests added,
+          passed 6022 of 6022. The change under test added ImplicitConversionExpression -- the binders, CastOperatorSelection,
+          BodyEmitter, CastLowering, BodyWalker -- and touches neither the lexer, the parser nor the grammar;
+          the test file was unmodified. Only file writes to two new test files ran beside the suite.
 
   - id: attribute-emission-round-trip-unreproduced
     test: Mist.Tests.Backend.AttributeEmissionRoundTripPropertyTests.AttributeEmission_PreservesStructure_RoundTrip

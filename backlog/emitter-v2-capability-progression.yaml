@@ -1687,9 +1687,10 @@ capabilities:
     v2_status: partial
     verified_by: v2-semantics
     evidence: >
-      PARTIAL, on its own name: no conversion is INSERTED at an implicit site. What exists is the
-      relation that decides whether one is available, which is enough for overload selection and enough
-      for CastOperators to run. The residue is unreachable from that sample -- see the first task.
+      PARTIAL, on its own name: a conversion is recorded at a declaration, an assignment, a return and an
+      argument (2026-09-13, below), and not yet at the other positions that have a target type, where the
+      same shapes still fail in Roslyn -- see the first task. The paragraphs up to that date describe the
+      relation alone, before any conversion was recorded.
 
       Nothing in the syntax marks these. An assignment from Celsius to Fahrenheit requires
       searching the SOURCE type for an implicit operator to the target, and an argument
@@ -1773,24 +1774,96 @@ capabilities:
       shape, which needs all three conditions at once, and the full suite is green. Pinned by
       OverloadSelectionTests.TwoCandidatesSeparatedOnlyByAUserDefinedConversion_AreAmbiguous so the
       decision is guarded rather than incidental.
+
+      TWO TASKS HERE WERE STALE AND ARE REMOVED (2026-09-13). Reporting an implicit site with no implicit
+      conversion is analysis order 5, assignability-core, as MIST_PA_NO_IMPLICIT_CONVERSION and
+      MIST_PA_CAST_REQUIRED; refusing a cast for which no conversion exists is CastAnalyzer, analysis order 4.
+      Measured on v2 before starting: with `implicit operator Kelvin(Celsius)`, a declaration, an assignment,
+      an argument to a Kelvin parameter and a return from a Kelvin method print 274 275 276 277, and a regex
+      reaches a string at a declaration and at an argument.
+
+      THE CONVERSION IS RECORDED AT THE FOUR SITES (2026-09-13), as ImplicitConversionExpression wrapping the
+      operand. A WRAPPER, NOT AN ANNOTATION ON EACH SITE, by the language owner's choice between the two: an
+      implicit conversion is the call a cast makes written invisibly (cast-operators Requirement 7), so the
+      operand is that call's argument, and a rule that stops seeing through the node -- ownership's move
+      tracking, drop insertion's argument moves, the refinement prover's local copies -- reads it as an
+      argument, which is what it is. One case in BodyEmitter lowers it at every site; an annotation would have
+      needed six homes, each read separately. CastOperatorSelection.Implicit chooses: implicit operators on
+      both ends and their base chains whose result reaches the slot losslessly; every candidate judged, with no
+      lone-candidate shortcut, since no rule judges an invisible argument afterwards; the operand reaching the
+      parameter losslessly or as a fitting constant; the exact-result preference and parameter ranking a cast
+      uses; and a tie recorded with none called. ImplicitConversions.At wraps a declaration's initializer, an
+      assignment's value (a `??=` against its non-void portion) and a return's value, after NewtypeLiterals
+      admits a literal, so a literal entering a newtype is still the cast it stands for. AtParameters wraps
+      each argument AFTER overload selection -- method calls, constructions, constructor chains and function
+      values -- which is why it is not in ArgumentBinder.Bind as the task said: that binds before a parameter
+      is chosen.
+
+      THE PREMISE THAT EMISSION COULD KEEP WRITING THE OPERAND WAS FALSE, measured before any change. Roslyn
+      choosing the conversion again matched Mist only where the two sets of rules agree, and three shapes Mist
+      admitted failed against generated C#. `Gauge g = small;` with a byte into implicit Gauge(uint) and
+      Gauge(short) was CS0457 "Ambiguous user defined conversions" at a declaration, an assignment, an argument
+      and a return, where Mist's ranking calls the signed one. `Point p = new Beacon();` through a declared
+      implicit to `type Position = new Point`, and `int | string u = new Tally();` through an implicit int, each
+      needed a second user-defined conversion in C# ("Cannot implicitly convert type ..."). A regex assigned or
+      returned where a string is expected was "Cannot implicitly convert type Regex to string", since BodyEmitter
+      lowered that conversion only where it already had a target type: declarations and arguments. A fourth
+      shape ran with C#'s answer: `double d = tally;` over implicit int and long printed 2, the most
+      encompassing result, where Mist's rule ties. Classic runs none of the five -- MIST_SB_0043 "Duplicate
+      implicit cast operator" for Gauge, MIST_TC_0001 for the tie and the newtype, and a Roslyn failure for the
+      rest -- so the spec and the language owner's decisions are the contract. No operator is called by name
+      (CS0571): CastLowering.Implicit spells both ends as casts, `((Probe.Gauge)((short)(small)))` and
+      `((Probe.Position)(new Probe.Beacon()))`, and the regex lowering moved from EmitCoerced onto the node.
+      After: Gauge prints 2 at all four sites, the newtype 2, the union 1, the regex its pattern at all four
+      sites. The tie still prints 2; its refusal is a task below.
+
+      AN ENUM REACHING AN OPERATOR ON ITS UNDERLYING VALUE IS NOW CALLED AT THESE SITES, the step being lossless
+      by the cast-operators glossary: `Feet f = Priority.High;` over implicit Feet(int) was MIST_PA_CAST_REQUIRED
+      and prints 6, as does `long wide = Priority.High;` beside it. Classic fails it in Roslyn, "Cannot convert
+      type Priority to Feet".
+
+      THE CLASSIFIER IS DELIBERATELY UNCHANGED, and that was measured rather than assumed. Its implicit answer
+      was first pointed at the same selection, with the full suite green, and probing the positions that do
+      not wrap showed what that cost: `Level[] ls = [Priority.High];` and a static field initialized the same
+      way went from MIST_PA_CAST_REQUIRED to a Roslyn failure, "Cannot implicitly convert type Priority to
+      Level". So a verdict moves only where a node now lowers it, which is why the enum step is admitted at a
+      local and refused in an array literal -- see the first task.
+
+      THE OTHER TARGET-TYPED POSITIONS HAVE THE SAME DEFECT AND DO NOT WRAP, measured with the Gauge shape, each
+      a Roslyn CS0457 on a program Mist admits: a static field initializer, a property initializer, an
+      expression-bodied getter, a lambda's result, an array literal element, the right of `??`, an object
+      initializer entry, a foreach variable, a typed deconstruction and a switch arm. None is new: each was
+      reachable before this change, and the four sites above were no different until it.
+
+      PROVED BY ImplicitConversionSelectionTests -- the operator recorded at seven sites; the signed parameter;
+      the exact result; a tie with none called; an enum's underlying step; a result reaching a union; a fitting
+      constant; and five values left unwrapped: one already free, two constants, one needing two declared
+      implicits, one reaching only an explicit operator. ImplicitConversionEmissionTests hold the spellings
+      above over the real Standard, and two AssignabilityDecisionTests admits hold the enum step at a
+      declaration and an argument. Eighteen mutations, each on a confirmed build, each failing at least one
+      test: no site wrapping, each of the seven sites unwrapped, the exact-result preference removed (which
+      passed the implicit test on a tie until it asserted the operator rather than the type), no ranking, the
+      operand allowed a declared implicit, explicit operators called, the constant ignored, the operand step
+      bracketed by ConversionRelation.IsWithin, the result required to be the slot's type, the parameter step
+      and the result cast each dropped from the lowering, and the regex case removed. Full suite green, 6022 of
+      6022, AllFeaturesV2 among them.
     tasks:
       - >
-        Insert a conversion node at the implicit sites -- variable declaration, assignment, argument and
-        return -- carrying the operator Mist selected, as CastExpression now does for an explicit cast.
-        Four binder sites: StatementBinder.BindVariableDeclaration and BindReturn, ExpressionBinder's
-        assignment path, and ArgumentBinder.Bind, each of which already pushes a target type and then
-        discards the relationship. Needs no emitter change for the C# backend, for the CS0571 reason on
-        order 44. THIS IS WHAT THE CAPABILITY IS NAMED FOR and it is the half still outstanding.
-      - >
-        Report an implicit site with no implicit conversion, which is what the two probes above show
-        landing on generated C# today. Mist has the information at an argument site already and does not
-        use it outside multi-overload selection. NOT a free change: it is a REFUSAL built on
-        ConversionRelation, which carries a standing prohibition on exactly that while it stays partial
-        -- so it waits on the relation being complete enough, as does the constructed-generic gap below.
+        Wrap at the other positions that have a target type, measured above as Roslyn failures on programs Mist
+        admits: field and property initializers, expression-bodied getters, a lambda's result, array literal
+        elements, the right of `??`, object initializer entries, a switch arm, a tuple literal's elements. A
+        foreach variable and a deconstruction from a value have no expression to wrap -- each element is
+        converted where the statement reads it -- so those two need a design of their own. Until every such
+        position wraps, the classifier's implicit answer cannot ask CastOperatorSelection.Implicit, since each
+        verdict it widens reaches Roslyn bare at the positions that do not.
       - >
         Search a CONSTRUCTED generic type's cast operators. Its operators are declared in terms of its
         type parameters and would have to be substituted through its arguments before they could be
-        compared, so it is skipped rather than mismatched. No sample reaches it.
+        compared, so it is skipped rather than mismatched. No sample reaches it, but ordinary source does:
+        `Box<int> boxed = 5;` and `int unboxed = boxed;` through `implicit operator Box<T>(T)` and `implicit
+        operator T(Box<T>)` are both MIST_PA_NO_IMPLICIT_CONVERSION on v2. Classic refuses the declarations
+        themselves (MIST_TC_0040, "Either the source type or the target type of a cast operator must be the
+        enclosing type").
       - >
         DO NOT DELETE ConversionRelation.NumericWidening, which its own doc comment used to invite once
         cast operators were consulted, on the reasoning that scanning the stdlib's implicit operators
@@ -1800,14 +1873,9 @@ capabilities:
         expressible that way is what the table IS. The comment is corrected in place.
     analysis_phase_tasks:
       - >
-        Refuse a cast for which no conversion exists, which is what the sample's commented-out
-        compile-time-safety case is about: `(Kelvin)m` where m is typed Measurement must fail even
-        though the runtime value is a Weight that declares the operator. CastExpression now RESOLVES the
-        operator, so the information is present -- a null Operator on a cast between unrelated types is
-        the case to refuse. Deferred anyway, and not for want of the answer: null there means no
-        operator was FOUND rather than none exists, since FindOperator brackets the ends more narrowly
-        than C# does, so refusing on it is a refusal built on a partial relation. Classic's equivalent
-        is TypeCheckerAnalyzer.CheckCastExpression.
+        Refuse an implicit conversion whose candidates tie, which cast-operators Requirement 7.6 names and
+        ImplicitConversionExpression.AmbiguousOperators now records: `double d = tally;` over implicit int and
+        long is admitted and prints C#'s choice, 2.
     unlocks: [CastOperators]
 
   # ===================================================================

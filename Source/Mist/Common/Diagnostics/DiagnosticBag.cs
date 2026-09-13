@@ -52,6 +52,33 @@ public sealed class DiagnosticBag
     }
 
     /// <summary>
+    /// What <paramref name="action"/> reports, returned rather than added, for a caller that decides
+    /// afterwards which of them the program should see.
+    /// </summary>
+    public List<Diagnostic> Withhold(Action action)
+    {
+        var kept = diagnostics;
+        diagnostics = [];
+
+        try
+        {
+            action();
+            return diagnostics;
+        }
+        finally
+        {
+            diagnostics = kept;
+        }
+    }
+
+    public bool Contains(Diagnostic diagnostic)
+    {
+        return diagnostics.Exists(existing => existing.Id == diagnostic.Id
+            && existing.Location == diagnostic.Location
+            && existing.CompilationUnitPath == diagnostic.CompilationUnitPath);
+    }
+
+    /// <summary>
     /// Returns <c>true</c> if any diagnostic with <see cref="DiagnosticSeverity.Error"/> severity has been added.
     /// </summary>
     public bool HasErrors => diagnostics.Exists(d => d.Severity == DiagnosticSeverity.Error);

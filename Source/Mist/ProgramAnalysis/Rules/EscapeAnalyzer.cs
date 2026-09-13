@@ -19,7 +19,7 @@ internal sealed class EscapeAnalyzer : IProgramAnalyzer
 
     public void Analyze(AnalysisContext context)
     {
-        foreach(var root in SourceBodies.Of(context.Model))
+        foreach(var root in context.Bodies)
         {
             JudgeStackSpans(context, root.Root);
         }

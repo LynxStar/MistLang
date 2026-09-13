@@ -79,6 +79,15 @@ internal abstract class ConcreteType : MemberType, IConcreteType
     public List<ConformanceDeclaration> ConformancesList { get; } = [];
 
     /// <summary>
+    /// Set on a newtype's renamed clone (newtypes spec Requirement 3.2): the class or struct whose
+    /// declaration this type was bound from, which is never this type's base -- a clone has no nominal
+    /// relationship to its source.
+    /// </summary>
+    public ConcreteType? CloneSource { get; internal set; }
+
+    public NewtypeDeclarationNode? NewtypeDeclaration { get; internal set; }
+
+    /// <summary>
     /// Adds the delegates only classes and structs can declare — constructors and
     /// cast operators — to the methods and operators every member type has.
     /// </summary>

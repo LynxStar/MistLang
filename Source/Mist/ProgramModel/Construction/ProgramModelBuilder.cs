@@ -95,6 +95,9 @@ public sealed class ProgramModelBuilder
         // well-known type aliases. All ambient types become visible for Phase 2.
         ambientProvider.BuildAndRegister(programModel);
 
+        // Phase 1c: newtypes over Mist classes and structs become their renamed clones.
+        NewtypeCloner.CloneAll(programModel);
+
         // Phase 2a: Resolve member signatures on all registered types.
         var concreteTypeBuilder = new ConcreteTypeBuilder(context, context.Resolver);
         var abstractTypeBuilder = new AbstractTypeBuilder(context, context.Resolver);
@@ -131,10 +134,14 @@ public sealed class ProgramModelBuilder
             context.Domains.Resolve(typeDef.TypeParametersList, DeclarationOf(typeDef));
         }
 
+        var clones = sourceTypes.OfType<ConcreteType>().Where(concrete => concrete.CloneSource is not null).ToList();
+
         foreach(var typeDef in sourceTypes)
         {
             switch(typeDef)
             {
+                case ConcreteType { CloneSource: not null }:
+                    break;
                 case ConcreteType concrete when concrete.DeclarationNode is not null:
                     concreteTypeBuilder.Build(concrete);
                     break;
@@ -150,6 +157,8 @@ public sealed class ProgramModelBuilder
             }
         }
 
+        CloneDiagnostics.Run(clones, concreteTypeBuilder.Build, diagnostics);
+
         // Phase 2b: Resolve extension blocks (after all types are fully resolved).
         var extensionBuilder = new ExtensionBuilder(context, context.Resolver);
         extensionBuilder.BuildAll();
@@ -160,7 +169,8 @@ public sealed class ProgramModelBuilder
 
         // Phase 3.
         PredicateBinder.BindAll(programModel, context);
-        MemberBinder.BindAll(sourceTypes, context);
+        MemberBinder.BindAll(sourceTypes.Where(type => type is not ConcreteType { CloneSource: not null }), context);
+        CloneDiagnostics.Run(clones, clone => MemberBinder.BindAll([clone], context), diagnostics);
         MemberBinder.BindExtensions(
             programModel.Namespaces.Values.SelectMany(ns => ns.Extensions.Values).SelectMany(blocks => blocks),
             context);

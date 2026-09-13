@@ -27,7 +27,7 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
 
     public void Analyze(AnalysisContext context)
     {
-        foreach(var type in SourceTypes.Of(context.Model))
+        foreach(var type in context.Types)
         {
             if(type is not ConcreteType { DeclarationNode: { } node } concrete)
             {

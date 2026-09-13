@@ -47,7 +47,7 @@ internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
             }
         }
 
-        foreach(var type in SourceTypes.Of(context.Model))
+        foreach(var type in context.Types)
         {
             CheckExposure(context, type);
         }

@@ -173,6 +173,11 @@ public sealed class ProgramModel : IProgramModel
         return true;
     }
 
+    internal void ReplaceType(IMistType replaced, IMistType replacement)
+    {
+        typesByFQN[replaced.FullyQualifiedName] = replacement;
+    }
+
     /// <summary>
     /// A type by namespace and simple name, or null when that namespace holds no such type. An
     /// empty namespace names the global one, where the simple name IS the fully qualified name.

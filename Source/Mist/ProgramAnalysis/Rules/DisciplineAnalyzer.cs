@@ -23,7 +23,7 @@ internal sealed class DisciplineAnalyzer : IProgramAnalyzer
 
     public void Analyze(AnalysisContext context)
     {
-        foreach(var type in SourceTypes.Of(context.Model))
+        foreach(var type in context.Types)
         {
             switch(type)
             {

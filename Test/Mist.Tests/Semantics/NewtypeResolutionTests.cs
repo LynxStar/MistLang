@@ -3,6 +3,8 @@
 // source, so a fully TRANSPARENT alias would pass every line of it. The negative cases here are
 // what keeps order 86 of backlog/emitter-v2-capability-progression.yaml honest.
 
+using Mist.Common.Diagnostics;
+using Mist.ProgramAnalysis;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
@@ -156,11 +158,13 @@ public sealed class NewtypeResolutionTests : ProgramModelProbe
     }
 
     [Fact]
-    public void APrivateSourceMember_DoesNotForward()
+    public void APrivateMemberOfAClone_IsInaccessibleOutsideIt()
     {
-        var diagnostics = BuildRun("var n = actor.name;");
+        var model = BuildModel("var n = actor.name;", extraTypes: "", extraPreamble: "", out _);
+        var findings = new DiagnosticBag();
+        ProgramAnalysisRunner.Run(model, findings);
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_MEMBER"));
+        _ = Assert.Single(findings.ToImmutableArray(), finding => finding.Id.Value == "MIST_PA_INACCESSIBLE_MEMBER");
     }
 
     [Fact]

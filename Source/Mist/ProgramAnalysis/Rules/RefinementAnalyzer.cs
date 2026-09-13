@@ -40,7 +40,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
     public void Analyze(AnalysisContext context)
     {
-        foreach(var root in SourceBodies.Of(context.Model))
+        foreach(var root in context.Bodies)
         {
             new Proving(context).Judge(FlowGraphBuilder.Build(root.Root), Proving.Nothing);
         }
@@ -53,7 +53,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             }
         }
 
-        foreach(var concrete in SourceTypes.Of(context.Model).OfType<ConcreteType>())
+        foreach(var concrete in context.Types.OfType<ConcreteType>())
         {
             JudgeImplementations(context, concrete);
 

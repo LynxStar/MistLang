@@ -32,7 +32,7 @@ internal sealed class DefiniteAssignmentAnalyzer : IProgramAnalyzer
 
     public void Analyze(AnalysisContext context)
     {
-        foreach(var root in SourceBodies.Of(context.Model))
+        foreach(var root in context.Bodies)
         {
             var constructor = root.Member as Constructor;
             var storage = constructor is { ChainKind: not ConstructorChainKind.This, DeclaringType: ConcreteType owner }

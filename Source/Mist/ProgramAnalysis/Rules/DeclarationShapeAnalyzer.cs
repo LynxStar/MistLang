@@ -25,10 +25,18 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
 
     public void Analyze(AnalysisContext context)
     {
-        foreach(var type in SourceTypes.Of(context.Model))
+        foreach(var type in context.Types)
         {
             switch(type)
             {
+                case ConcreteType { CloneSource: { } source, NewtypeDeclaration: { } newtypeDeclaration }:
+                    if(Declarations.IsSealed(source))
+                    {
+                        Report(context, newtypeDeclaration, ProgramAnalysisDiagnostics.NewtypeOverSealedType, TypeDisplay.Mist(source));
+                    }
+
+                    break;
+
                 case ConcreteType { BaseType: { } baseType } concrete:
                     if(Declarations.IsSealed(baseType))
                     {

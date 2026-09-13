@@ -1026,4 +1026,21 @@ public static class ProgramModelDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
         "'{0}' is an abstract and cannot be constructed. Construct a class or a struct that conforms to it.");
+
+    /// <summary>
+    /// A member of a newtype's clone that does not bind once its source's name means the newtype,
+    /// though it binds in the source -- a body passing `this` where the source type is required.
+    /// Reported at the newtype, since the source is not wrong.
+    /// </summary>
+    public static readonly DiagnosticDescriptor NewtypeCloneInvalid = new(
+        new DiagnosticId("MIST_PM_NEWTYPE_CLONE_INVALID"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}' cannot clone '{1}', whose member '{2}' does not hold for '{0}': {3}");
+
+    public static readonly DiagnosticDescriptor NewtypeSourceNotSupported = new(
+        new DiagnosticId("MIST_PM_NEWTYPE_SOURCE_NOT_SUPPORTED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "A newtype over '{0}' is not supported: a newtype clones a class or a struct declared in Mist.");
 }

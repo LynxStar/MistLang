@@ -30,7 +30,7 @@ internal sealed class ReadonlyAnalyzer : IProgramAnalyzer
     {
         var inference = new ReadonlyInference();
 
-        foreach(var root in SourceBodies.Of(context.Model))
+        foreach(var root in context.Bodies)
         {
             Walk(root.Root, Frame.For(root), new HashSet<object>(ReferenceEqualityComparer.Instance), context, inference);
         }

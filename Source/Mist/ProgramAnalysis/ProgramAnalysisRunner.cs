@@ -1,5 +1,8 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis.Rules;
+using Mist.ProgramModel.Construction.Types;
+using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Types;
 using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 
 namespace Mist.ProgramAnalysis;
@@ -31,10 +34,29 @@ internal static class ProgramAnalysisRunner
 
     public static void Run(ProgramModelClass model, DiagnosticBag diagnostics)
     {
+        var sourcePaths = SourceTypes.UnitsOf(model).Select(source => source.Unit.SourcePath).ToHashSet(StringComparer.Ordinal);
+        var bodies = SourceBodies.Of(model).ToList();
+        var clones = SourceTypes.Of(model).OfType<ConcreteType>().Where(IsClone).ToList();
+
+        var program = new AnalysisScope(
+            [.. SourceTypes.Of(model).Where(type => !IsClone(type))],
+            [.. bodies.Where(root => !IsClone(root.Owner))],
+            [.. SourceTypes.ExtensionsOf(model)]);
+
+        Analyze(model, program, sourcePaths, diagnostics);
+
+        CloneDiagnostics.Run(
+            clones,
+            clone => Analyze(model, new AnalysisScope([clone], [.. bodies.Where(root => root.Owner == clone)], []), sourcePaths, diagnostics),
+            diagnostics);
+    }
+
+    private static void Analyze(ProgramModelClass model, AnalysisScope scope, IReadOnlySet<string> sourcePaths, DiagnosticBag diagnostics)
+    {
         var nodes = new List<object>();
         var roots = new Dictionary<object, SourceRoot>(ReferenceEqualityComparer.Instance);
 
-        foreach(var root in SourceBodies.Of(model))
+        foreach(var root in scope.Bodies)
         {
             foreach(var node in BodyWalker.DescendantsAndSelf(root.Root))
             {
@@ -43,11 +65,19 @@ internal static class ProgramAnalysisRunner
             }
         }
 
-        var sourcePaths = SourceTypes.UnitsOf(model).Select(source => source.Unit.SourcePath).ToHashSet(StringComparer.Ordinal);
-
         foreach(var analyzer in Analyzers)
         {
-            analyzer.Analyze(new AnalysisContext(model, nodes, roots, sourcePaths, diagnostics, analyzer.Id));
+            analyzer.Analyze(new AnalysisContext(model, scope, nodes, roots, sourcePaths, diagnostics, analyzer.Id));
         }
     }
+
+    private static bool IsClone(MistType? type)
+    {
+        return type is ConcreteType { CloneSource: not null };
+    }
 }
+
+internal sealed record AnalysisScope(
+    IReadOnlyList<MistType> Types,
+    IReadOnlyList<SourceRoot> Bodies,
+    IReadOnlyList<ExtensionBlock> Extensions);

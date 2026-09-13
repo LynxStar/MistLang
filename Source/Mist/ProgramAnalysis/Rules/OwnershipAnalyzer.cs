@@ -33,7 +33,7 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
     {
         var tiers = new ThisTiers();
 
-        foreach(var root in SourceBodies.Of(context.Model))
+        foreach(var root in context.Bodies)
         {
             var graph = FlowGraphBuilder.Build(root.Root);
             new Ownership(context, tiers, DeclaringBlocks(root.Root)).Judge(graph, Ownership.Nothing);

@@ -82,12 +82,12 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
             }
         }
 
-        foreach(var type in SourceTypes.Of(context.Model))
+        foreach(var type in context.Types)
         {
             CheckDeclarations(context, type);
         }
 
-        foreach(var block in SourceTypes.ExtensionsOf(context.Model))
+        foreach(var block in context.Extensions)
         {
             foreach(var property in block.PropertiesList)
             {

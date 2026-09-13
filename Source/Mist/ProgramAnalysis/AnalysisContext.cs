@@ -9,6 +9,7 @@ namespace Mist.ProgramAnalysis;
 
 internal sealed class AnalysisContext(
     ProgramModelClass model,
+    AnalysisScope scope,
     IReadOnlyList<object> nodes,
     IReadOnlyDictionary<object, SourceRoot> roots,
     IReadOnlySet<string> sourcePaths,
@@ -16,6 +17,12 @@ internal sealed class AnalysisContext(
     string analyzerId)
 {
     public ProgramModelClass Model { get; } = model;
+
+    public IReadOnlyList<MistType> Types { get; } = scope.Types;
+
+    public IReadOnlyList<SourceRoot> Bodies { get; } = scope.Bodies;
+
+    public IReadOnlyList<ExtensionBlock> Extensions { get; } = scope.Extensions;
 
     public IReadOnlyList<object> Nodes { get; } = nodes;
 

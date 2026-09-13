@@ -52,6 +52,14 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
         var modifiers = ModifierBuilder.Build(body.TypeBody, Context.Diagnostics, typeDef.DeclaringType);
         Context.Attributes.Build(body.TypeBody.Attributes, typeDef.DeclaredAttributesList, typeDef.Scope);
 
+        if(typeDef.NewtypeDeclaration is { } newtypeDeclaration)
+        {
+            modifiers = modifiers with
+            {
+                Accessibility = ModifierBuilder.Build(newtypeDeclaration, Context.Diagnostics, typeDef.DeclaringType).Accessibility,
+            };
+        }
+
         typeDef.Modifiers = modifiers;
 
         // Refused here rather than left to emission, which drops an intrinsic type and everything it

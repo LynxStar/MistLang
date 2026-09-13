@@ -46,7 +46,7 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
             }
         }
 
-        foreach(var root in SourceBodies.Of(context.Model))
+        foreach(var root in context.Bodies)
         {
             if(root.Member is Method { DeclaredThisTier: { } declared } method && ReferenceEquals(root.Root, method.Body)
                 && tiers.Inferred(method) is var needed && needed > declared)

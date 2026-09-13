@@ -395,6 +395,25 @@ rules:
       Regex's explicit operator being a lone candidate), every argument spelled as a cast, and ties
       resolved by taking the first. False positives: zero across all 80 banked samples, AllFeaturesV2 and
       AllFeatures green, 5890 of 5890.
+
+      AN INTEGER CONSTANT IS AN ARGUMENT AMONG SEVERAL CANDIDATES TOO (2026-09-13), closing the task that
+      said applicability was asked of types alone. ConstantConversion holds the one rule, moved out of
+      Assignability -- a constant reaches every integral type that holds its value -- and both
+      OverloadResolution's applicability and CastOperatorSelection ask it beside the type relation, so the
+      narrowest fitting parameter wins by the betterness already there. method-overloading Requirement 3.7
+      states it for calls; cast-operators 8.10 already did for casts.
+      MEASURED on v2 against classic, before and after. `Take(2)` over Take(byte) and Take(string): was
+      MIST_PM_UNRESOLVABLE_OVERLOAD, classic prints `byte 2`, now prints `byte 2`. `Take(2)` over Take(byte)
+      and Take(long): printed `byte 2` on both pipelines before and after, but before, the MODEL chose
+      Take(long), the only applicable candidate, and Roslyn chose byte from the emitted call; the two now
+      agree. `(Crate)2` over Crate(byte) and Crate(string): was CAST_HAS_NO_CONVERSION, classic cannot
+      declare the pair (MIST_SB_0043), now prints `byte 2`, lowered `((Crate)(byte)(2))`. `Take(300)` stays
+      UNRESOLVABLE_OVERLOAD at the Mist source, where classic fails in Roslyn.
+      PROVED BY OverloadSelectionTests (a theory of four constants reaching the narrowest parameter they
+      fit, and 300 and an int variable reaching none), CastSelectionTests (the operator a constant fits
+      narrowest), a CastDecisionTests admit among two operators, and the corpus case
+      cast-constant-fitting-no-operator. Two mutations on confirmed builds each fail their tests: calls
+      ignoring the constant, and casts ignoring it. Full suite green, 5915 of 5915.
     tasks:
       - >
         Order 5 is where the classification gets its other customers: assignment, argument, return, arm
@@ -403,12 +422,6 @@ rules:
         ConversionRelation's own Inherits still cannot see a constructed base, so overload RANKING does
         not know List<int> is within IEnumerable<int>. Adopting the classifier's base walk there is a
         ranking change and belongs with a test that shows a call it fixes.
-      - >
-        An integer constant among SEVERAL candidates is not matched as an argument: `(Crate)2` over
-        Crate(byte) and Crate(string) is CAST_HAS_NO_CONVERSION, because applicability is asked of types
-        and a constant only fits in Assignability. A lone candidate is fine. The same gap refuses the call
-        `Take(2)` over Take(byte) and Take(string) with MIST_PM_UNRESOLVABLE_OVERLOAD, where classic prints
-        2, so it is one fix for both and belongs with overload applicability, not with casts.
       - >
         A newtype's conversion is a function too, taking its source, yet `(Meters)reading` over `type
         Meters = new double` with Reading implicit to double is CAST_HAS_NO_CONVERSION on v2 and MIST_TC_0042
